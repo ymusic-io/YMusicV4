@@ -8,6 +8,7 @@
     <string name="section_yt_music">YT Music</string>
     <string name="section_library">Library</string>
     <string name="section_play_again">Play again</string>
+    <string name="section_subscriptions">Subscriptions</string>
     <string name="section_downloads">Download manager</string>
     <string name="downloads_filter_all">All</string>
     <string name="downloads_filter_running">Running</string>
@@ -145,6 +146,15 @@
     <string name="detail_playlist">Playlist</string>
     <string name="subscribe">Subscribe</string>
     <string name="subscribed">Subscribed</string>
+    <string name="subscriptions_latest">Latest</string>
+    <string name="subscriptions_channels">Channels</string>
+    <string name="subscriptions_empty">Subscribe to a channel and its newest uploads show up here, no account needed.</string>
+    <string name="subscriptions_partial">Some channels could not be loaded</string>
+    <string name="menu_unsubscribe">Unsubscribe</string>
+    <string name="subscriptions_copy">Copy list</string>
+    <string name="subscriptions_paste">Paste list</string>
+    <string name="subscriptions_copied">Channel list copied. Paste it into a note or message to keep it.</string>
+    <string name="subscriptions_imported">Added %1$d channels</string>
     <string name="channel_sign_in_to_subscribe">Sign in to subscribe to this channel</string>
     <string name="cd_save_playlist">Save playlist</string>
     <string name="cd_remove_playlist_from_library">Remove from library</string>

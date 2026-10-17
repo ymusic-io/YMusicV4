@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">YMusic V4</string>
+    <string name="app_name">YMusic Hybrid</string>
     <string name="playback_notification_channel">Playback</string>
     <string name="notification_previous">Previous</string>
     <string name="notification_play">Play</string>

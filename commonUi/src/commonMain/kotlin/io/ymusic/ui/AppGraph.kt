@@ -23,6 +23,7 @@ import io.ymusic.ui.sponsorblock.ServiceSponsorBlockApi
 import io.ymusic.ui.sponsorblock.SponsorBlockApi
 import io.ymusic.ui.sponsorblock.SponsorBlockService
 import io.ymusic.ui.sponsorblock.SponsorBlockStore
+import io.ymusic.ui.subscriptions.LocalSubscriptions
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -218,6 +219,12 @@ class AppGraph(
      */
     sponsorBlockApi: SponsorBlockApi? = api?.let(::ServiceSponsorBlockApi),
     sponsorBlockStore: SponsorBlockStore = InMemorySponsorBlockStore(),
+    /** Account-free subscriptions; null hides the section's content. */
+    val localSubscriptions: LocalSubscriptions? = null,
+    /** Put text on the system clipboard; null hides the channel list backup. */
+    val copyToClipboard: ((String) -> Unit)? = null,
+    /** The text currently on the system clipboard, if any. */
+    val readClipboard: (() -> String?)? = null,
     // Kept last so shells pass it as the trailing lambda.
     val playerSurface: @Composable (modifier: Modifier) -> Unit,
 ) {

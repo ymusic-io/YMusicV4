@@ -35,6 +35,7 @@ import androidx.compose.material.icons.outlined.OndemandVideo
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Subscriptions
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.HorizontalDivider
@@ -130,6 +131,7 @@ import io.ymusic.ui.resources.section_feedback
 import io.ymusic.ui.resources.section_library
 import io.ymusic.ui.resources.section_play_again
 import io.ymusic.ui.resources.section_settings
+import io.ymusic.ui.resources.section_subscriptions
 import io.ymusic.ui.resources.section_telegram
 import io.ymusic.ui.resources.section_yt_music
 import io.ymusic.ui.resources.signin_button
@@ -164,6 +166,7 @@ enum class AppSection(val id: Int, val label: StringResource, val icon: ImageVec
     Discover(1, Res.string.section_discover, Icons.Outlined.OndemandVideo, 0),
     YtMusic(2, Res.string.section_yt_music, Icons.Default.PlayCircleOutline, 0),
     Library(3, Res.string.section_library, Icons.Outlined.LibraryMusic, 0),
+    Subscriptions(11, Res.string.section_subscriptions, Icons.Outlined.Subscriptions, 0),
     PlayAgain(4, Res.string.section_play_again, Icons.Outlined.History, 1),
     Downloads(5, Res.string.section_downloads, Icons.Outlined.FileDownload, 1),
     Settings(6, Res.string.section_settings, Icons.Outlined.Settings, 1),
@@ -1111,6 +1114,7 @@ private fun AppRoot(
                                                     onDeeplink = openDeeplink,
                                                 )
                                                 AppSection.Library -> LibraryScreen(graph, coordinator)
+                                                AppSection.Subscriptions -> SubscriptionsScreen(graph, coordinator, onOpen = openItem)
                                                 AppSection.PlayAgain -> PlayAgainScreen(graph, coordinator)
                                                 AppSection.Downloads -> DownloadsScreen(graph, coordinator)
                                                 AppSection.Settings -> SettingsScreen(
