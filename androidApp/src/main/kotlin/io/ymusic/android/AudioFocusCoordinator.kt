@@ -17,6 +17,8 @@ import io.ymusic.player.isPlaying
 import io.ymusic.settings.AppSettings
 import io.ymusic.settings.SettingsStore
 import io.ymusic.settings.flow
+import kmpcommon.log.Logger
+import kmpcommon.log.info
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.collectLatest
@@ -37,6 +39,7 @@ class AudioFocusCoordinator(
     private val player: Player,
     private val settings: SettingsStore,
     private val scope: CoroutineScope,
+    private val log: Logger,
 ) {
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     private var focusRequest: AudioFocusRequest? = null
@@ -49,6 +52,7 @@ class AudioFocusCoordinator(
     private fun playing(): Boolean = isPlaying(player.status.value, player.queue.value)
 
     private val focusListener = AudioManager.OnAudioFocusChangeListener { change ->
+        log.info("focus change ${focusChangeName(change)} playing=${playing()} resumeOnGain=$resumeOnGain ducked=$ducked")
         when (change) {
             AudioManager.AUDIOFOCUS_LOSS -> {
                 hasFocus = false
@@ -75,7 +79,10 @@ class AudioFocusCoordinator(
 
     private val noisyReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
-            if (intent.action == AudioManager.ACTION_AUDIO_BECOMING_NOISY && playing()) player.pause()
+            if (intent.action == AudioManager.ACTION_AUDIO_BECOMING_NOISY && playing()) {
+                log.info("becoming noisy, pause")
+                player.pause()
+            }
         }
     }
 
@@ -89,7 +96,10 @@ class AudioFocusCoordinator(
             settings.flow(AppSettings.audioFocus)
                 .map { it != AppSettings.AUDIO_FOCUS_CALLS }
                 .distinctUntilChanged()
-                .collectLatest { followFocus -> if (followFocus) followFocus() else pauseForCalls() }
+                .collectLatest { followFocus ->
+                    log.info(if (followFocus) "mode apps" else "mode calls")
+                    if (followFocus) followFocus() else pauseForCalls()
+                }
         }
     }
 
@@ -127,6 +137,7 @@ class AudioFocusCoordinator(
     }
 
     private fun onCallChanged(inCall: Boolean) {
+        log.info("call inCall=$inCall playing=${playing()} resumeAfterCall=$resumeAfterCall")
         if (inCall) {
             if (playing()) {
                 resumeAfterCall = true
@@ -181,6 +192,7 @@ class AudioFocusCoordinator(
             audioManager.requestAudioFocus(focusListener, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN)
         }
         hasFocus = result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        log.info("focus request result=$result")
     }
 
     private fun abandonFocus() {
@@ -193,17 +205,20 @@ class AudioFocusCoordinator(
         }
         hasFocus = false
         resumeOnGain = false
+        log.info("focus abandoned")
     }
 
     private fun duck() {
         if (ducked) return
         ducked = true
+        log.info("duck")
         player.setDucked(true)
     }
 
     private fun restoreDuck() {
         if (!ducked) return
         ducked = false
+        log.info("unduck")
         player.setDucked(false)
     }
 
@@ -222,5 +237,13 @@ class AudioFocusCoordinator(
         if (!noisyRegistered) return
         context.unregisterReceiver(noisyReceiver)
         noisyRegistered = false
+    }
+
+    private fun focusChangeName(change: Int): String = when (change) {
+        AudioManager.AUDIOFOCUS_GAIN -> "gain"
+        AudioManager.AUDIOFOCUS_LOSS -> "loss"
+        AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> "loss-transient"
+        AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> "loss-can-duck"
+        else -> change.toString()
     }
 }
