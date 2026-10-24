@@ -261,6 +261,7 @@ class Media3PlayerAdapter(
     }
 
     override fun handleSetVolume(volume: Float): ListenableFuture<*> = done {
+        logger?.log(kmpcommon.log.Logger.Level.INFO, "controller setVolume $volume")
         player.volume = volume.coerceIn(0f, 1f)
     }
 
