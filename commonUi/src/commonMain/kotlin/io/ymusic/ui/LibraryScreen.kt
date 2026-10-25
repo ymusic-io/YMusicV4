@@ -172,6 +172,7 @@ import kotlinx.coroutines.withContext
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
+import projectcommon.error.errorCode
 
 private enum class LibraryTab(val label: StringResource) {
     Folders(Res.string.library_tab_folders),
@@ -813,7 +814,7 @@ internal fun DeleteFromDiskDialog(
 ) {
     val scope = rememberCoroutineScope()
     var busy by remember(item) { mutableStateOf(false) }
-    var error by remember(item) { mutableStateOf<String?>(null) }
+    var errorCode by remember(item) { mutableStateOf<String?>(null) }
     val dismiss = { if (!busy) onDismiss() }
     ElevatedBarDialog(
         title = stringResource(Res.string.delete_from_disk_title),
@@ -826,7 +827,7 @@ internal fun DeleteFromDiskDialog(
                 enabled = !busy,
                 onClick = {
                     busy = true
-                    error = null
+                    errorCode = null
                     scope.launch {
                         try {
                             delete()
@@ -834,8 +835,13 @@ internal fun DeleteFromDiskDialog(
                         } catch (c: kotlinx.coroutines.CancellationException) {
                             throw c
                         } catch (t: Throwable) {
-                            log?.captureError(t, "delete from disk failed")
-                            error = t.message ?: t.toString()
+                            val code = t.errorCode()
+                            if (code == null) {
+                                log?.captureError(t, "delete from disk failed")
+                            } else {
+                                log?.log(Logger.Level.WARN, "delete from disk failed", t)
+                            }
+                            errorCode = code ?: "E50008"
                         } finally {
                             busy = false
                         }
@@ -849,9 +855,9 @@ internal fun DeleteFromDiskDialog(
                 stringResource(Res.string.delete_from_disk_message, item.title),
                 style = TextStyle(fontSize = 14.sp, color = DesignColors.Ink),
             )
-            error?.let {
+            errorCode?.let {
                 Text(
-                    it,
+                    errorMessage(it),
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.padding(top = 8.dp),

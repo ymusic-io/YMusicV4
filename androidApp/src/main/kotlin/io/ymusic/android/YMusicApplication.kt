@@ -125,6 +125,7 @@ import okio.Path.Companion.toOkioPath
 import okio.Path.Companion.toPath
 import okio.sink
 import okio.source
+import projectcommon.error.TechnicalException
 import projectcommon.log.FileLogger
 import projectcommon.log.LoggingWorker
 import java.io.File
@@ -661,6 +662,7 @@ class YMusicApplication : Application() {
                     // Rides the persisted tree permission from the folder pick. A file that is already gone
                     // (or whose folder is) needs no delete: the caller still clears its library row.
                     if (!documentExists(uri)) return@withContext
+                    var refusal: IllegalStateException? = null
                     val deleted = try {
                         android.provider.DocumentsContract.deleteDocument(contentResolver, uri)
                     } catch (e: java.io.FileNotFoundException) {
@@ -668,9 +670,15 @@ class YMusicApplication : Application() {
                     } catch (e: IllegalArgumentException) {
                         if (documentExists(uri)) throw e
                         true
+                    } catch (e: IllegalStateException) {
+                        // The provider's own "Failed to delete" (read-only storage, a file it can't remove).
+                        refusal = e
+                        false
                     }
                     // Before Android 10 deleteDocument swallows the provider's exception into false.
-                    check(deleted || !documentExists(uri)) { "Android refused to delete this document" }
+                    if (!deleted && documentExists(uri)) {
+                        throw TechnicalException("E50007", "the document provider refused the delete", cause = refusal)
+                    }
                 }
             },
             appVersion = listOfNotNull(versionName, android.os.Build.SUPPORTED_ABIS.firstOrNull()).joinToString(" · "),
