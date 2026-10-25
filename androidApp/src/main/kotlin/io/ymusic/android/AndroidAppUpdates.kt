@@ -1,6 +1,7 @@
 package io.ymusic.android
 
 import android.app.PendingIntent
+import android.content.ActivityNotFoundException
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -278,7 +279,17 @@ class AndroidAppUpdates(
         } else {
             Intent(Settings.ACTION_SECURITY_SETTINGS)
         }
-        context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        val opened = context.startFirstActivity(
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+        )
+        if (!opened) {
+            log?.log(Logger.Level.WARN, "no settings screen grants the install permission; offering the browser")
+            val (update, download) = current() ?: return
+            if (download is UpdateDownload.NeedsInstallPermission) {
+                set(update.release, UpdateDownload.NeedsInstallPermission(offerBrowser = true))
+            }
+        }
     }
 
     /** Back in the app: a request held for the install permission continues once it is granted. */
@@ -362,7 +373,13 @@ class UpdateInstallReceiver : BroadcastReceiver() {
             PackageInstaller.STATUS_PENDING_USER_ACTION -> {
                 @Suppress("DEPRECATION")
                 val confirm = intent.getParcelableExtra<Intent>(Intent.EXTRA_INTENT) ?: return
-                context.startActivity(confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                try {
+                    context.startActivity(confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                } catch (error: ActivityNotFoundException) {
+                    val app = context.applicationContext as? YMusicApplication ?: return
+                    app.rootLogger.fork("update").log(Logger.Level.WARN, "no screen confirms the package install", error)
+                    app.services.takeIf { it.isCompleted && !it.isCancelled }?.getCompleted()?.updates?.onInstallEnded()
+                }
             }
             PackageInstaller.STATUS_SUCCESS -> Unit
             else -> {
