@@ -3,6 +3,7 @@
 # every engine callback at runtime.
 -keep class io.ymusic.quickjs.QuickJsNative { *; }
 -keep class io.ymusic.quickjs.QuickJsException { <init>(java.lang.String); }
+-keep class io.ymusic.quickjs.VideoDecoderCaps { public static int sizeSupported(java.lang.String, int, int, double); }
 
 # mse_host_jni.c FindClass / INSTANCE / fire — C OnEnded hops here.
 -keep class io.ymusic.mse.MseJsEventBridge { *; }

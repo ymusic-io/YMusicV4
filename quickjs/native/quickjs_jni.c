@@ -395,6 +395,57 @@ static int drain_hook(void *user, uint32_t id) {
     return 0;
 }
 
+#ifdef __ANDROID__
+static JavaVM *caps_jvm;
+static jclass caps_class;
+static jmethodID caps_size_supported;
+
+static int android_video_size_ok(const char *mime, int width, int height, double fps) {
+    JNIEnv *env = NULL;
+    jstring jmime;
+    jint ok;
+    if ((*caps_jvm)->GetEnv(caps_jvm, (void **)&env, JNI_VERSION_1_6) != JNI_OK || !env)
+        return -1;
+    jmime = (*env)->NewStringUTF(env, mime);
+    if (!jmime) {
+        (*env)->ExceptionClear(env);
+        return -1;
+    }
+    ok = (*env)->CallStaticIntMethod(env, caps_class, caps_size_supported, jmime, width, height, fps);
+    (*env)->DeleteLocalRef(env, jmime);
+    if ((*env)->ExceptionCheck(env)) {
+        /* VideoDecoderCaps catches its own failures; anything here is an unknown, not a no. */
+        (*env)->ExceptionDescribe(env);
+        (*env)->ExceptionClear(env);
+        return -1;
+    }
+    return ok;
+}
+
+/* Resolved here, on a thread entered from Java: FindClass on the engine thread later would only see
+   the system class loader. */
+static void install_video_size_ok(JNIEnv *env) {
+    jclass local;
+    if (caps_class)
+        return;
+    local = (*env)->FindClass(env, "io/ymusic/quickjs/VideoDecoderCaps");
+    if (!local) {
+        (*env)->ExceptionClear(env);
+        return;
+    }
+    caps_size_supported = (*env)->GetStaticMethodID(env, local, "sizeSupported", "(Ljava/lang/String;IID)I");
+    if (!caps_size_supported) {
+        (*env)->ExceptionClear(env);
+        (*env)->DeleteLocalRef(env, local);
+        return;
+    }
+    (*env)->GetJavaVM(env, &caps_jvm);
+    caps_class = (jclass)(*env)->NewGlobalRef(env, local);
+    (*env)->DeleteLocalRef(env, local);
+    qjs_mse_set_video_size_ok(android_video_size_ok);
+}
+#endif
+
 /* ---- JNI entry points (all on the single engine thread) ---- */
 
 static Engine *engine_new(JNIEnv *env, jint appVersion) {
@@ -424,6 +475,9 @@ static Engine *engine_new(JNIEnv *env, jint appVersion) {
     qjs_register_hostfn(e->ctx);
     qjs_register_web(e->ctx);
     qjs_register_json(e->ctx);
+#ifdef __ANDROID__
+    install_video_size_ok(env);
+#endif
     qjs_mse_install(e->ctx);
     e->pipe = qjs_register_pipe(e->ctx, drain_hook, e);
     qjs_install_versions(e->ctx, appVersion);
