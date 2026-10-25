@@ -459,7 +459,7 @@ class YMusicApplication : Application() {
                     }
                 }
         }
-        AudioFocusCoordinator(this, graph.player, graph.settings, appScope).start()
+        AudioFocusCoordinator(this, graph.player, graph.settings, appScope, rootLogger.fork("audio-focus")).start()
         SystemAudioEffects(this, graph.player, graph.settings, appScope, rootLogger.fork("system-audio-fx")).start()
         widgets.attach(graph)
         graph.pruneUngrantedFolders?.let { prune -> scope.launch { prune() } }
