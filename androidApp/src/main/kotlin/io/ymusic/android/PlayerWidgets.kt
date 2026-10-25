@@ -70,7 +70,12 @@ abstract class PlayerWidgetProvider : AppWidgetProvider() {
             try {
                 app.widgets.refresh()
             } finally {
-                pending.finish()
+                try {
+                    pending.finish()
+                } catch (e: IllegalStateException) {
+                    // Some ROMs finish a goAsync broadcast themselves before the receiver does.
+                    app.rootLogger.fork("widget").log(Logger.Level.WARN, "widget broadcast was already finished", e)
+                }
             }
         }
     }
