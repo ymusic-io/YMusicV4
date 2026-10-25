@@ -124,6 +124,13 @@ declare function __mseAv1Ok(): number;
 declare function __mseVp9Ok(): number;
 /** Max AVC level_idc (0x1f = 3.1). 255 = no cap. */
 declare function __mseAvcMaxLevel(): number;
+/** 0 when this host's decoder for codec ("vp9" | "av1" | "avc") rejects width x height (at fps when > 0). */
+declare function __mseVideoSizeOk(
+  codec: string,
+  width: number,
+  height: number,
+  fps: number,
+): number;
 
 declare function atob(data: string): string;
 declare function btoa(data: string): string;
