@@ -24,6 +24,8 @@ import okio.IOException
 import okio.Path
 import okio.buffer
 import okio.use
+import projectcommon.error.DISK_FULL_CODE
+import projectcommon.error.errorCode
 
 /**
  * Five minutes. Long enough that hammering [RemoteConfig.checkUpdate] from every screen costs one
@@ -148,7 +150,11 @@ class RemoteConfig(
                     try {
                         cache(data)
                     } catch (error: Throwable) {
-                        log?.captureError(error, "Write config cache failure")
+                        if (error.errorCode() == DISK_FULL_CODE) {
+                            log?.log(Logger.Level.WARN, "Write config cache: storage is full", error)
+                        } else {
+                            log?.captureError(error, "Write config cache failure")
+                        }
                     }
                     _config.value = data
                 } catch (cancel: CancellationException) {
