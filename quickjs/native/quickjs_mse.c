@@ -512,6 +512,42 @@ static JSValue js_vp9_ok(JSContext *ctx, JSValueConst this_val, int argc, JSValu
 #endif
 }
 
+static QjsMseVideoSizeOk video_size_ok;
+
+void qjs_mse_set_video_size_ok(QjsMseVideoSizeOk fn)
+{
+    video_size_ok = fn;
+}
+
+/* __mseVideoSizeOk(codec "vp9"|"av1"|"avc", width, height, fps): 0 only when the decoder says no. */
+static JSValue js_video_size_ok(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+{
+    const char *codec;
+    const char *mime = NULL;
+    int32_t w = 0, h = 0;
+    double fps = 0;
+    int ok = 1;
+    (void)this_val;
+    if (!video_size_ok || argc < 3)
+        return JS_NewInt32(ctx, 1);
+    codec = JS_ToCString(ctx, argv[0]);
+    if (!codec)
+        return JS_EXCEPTION;
+    if (strcmp(codec, "vp9") == 0)
+        mime = "video/x-vnd.on2.vp9";
+    else if (strcmp(codec, "av1") == 0)
+        mime = "video/av01";
+    else if (strcmp(codec, "avc") == 0)
+        mime = "video/avc";
+    JS_FreeCString(ctx, codec);
+    if (mime && JS_ToInt32(ctx, &w, argv[1]) == 0 && JS_ToInt32(ctx, &h, argv[2]) == 0 && w > 0 && h > 0) {
+        if (argc > 3 && JS_ToFloat64(ctx, &fps, argv[3]) != 0)
+            fps = 0;
+        ok = video_size_ok(mime, w, h, fps) != 0;
+    }
+    return JS_NewInt32(ctx, ok);
+}
+
 void qjs_mse_install(JSContext *ctx)
 {
     JSValue g = JS_GetGlobalObject(ctx);
@@ -540,5 +576,6 @@ void qjs_mse_install(JSContext *ctx)
     JS_SetPropertyStr(ctx, g, "__mseAv1Ok", JS_NewCFunction(ctx, js_av1_ok, "__mseAv1Ok", 0));
     JS_SetPropertyStr(ctx, g, "__mseVp9Ok", JS_NewCFunction(ctx, js_vp9_ok, "__mseVp9Ok", 0));
     JS_SetPropertyStr(ctx, g, "__mseAvcMaxLevel", JS_NewCFunction(ctx, js_avc_max_level, "__mseAvcMaxLevel", 0));
+    JS_SetPropertyStr(ctx, g, "__mseVideoSizeOk", JS_NewCFunction(ctx, js_video_size_ok, "__mseVideoSizeOk", 4));
     JS_FreeValue(ctx, g);
 }

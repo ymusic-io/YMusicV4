@@ -9,6 +9,11 @@ extern "C" {
 #endif
 
 void qjs_mse_set_vt(const QjsMseVt *vt);
+
+/* 1 when the decoder createDecoderByType(mime) picks takes width x height (at fps when > 0),
+   0 when it does not, -1 unknown. */
+typedef int (*QjsMseVideoSizeOk)(const char *mime, int width, int height, double fps);
+void qjs_mse_set_video_size_ok(QjsMseVideoSizeOk fn);
 void qjs_mse_install(JSContext *ctx);
 
 #ifdef __cplusplus
