@@ -1292,9 +1292,10 @@ static int h264_avcc_to_annexb(const uint8_t *src, int n, int nal_len, uint8_t *
         for (k = 0; k < nal_len; k++)
             sz = (sz << 8) | src[i + k];
         i += nal_len;
-        if (sz < 1 || i + (int)sz > n)
+        /* Unsigned compares: a corrupt size >= 2^31 turns negative as int and passes the bound. */
+        if (sz < 1 || sz > (uint32_t)(n - i))
             break;
-        if (o + 4 + (int)sz > dst_cap)
+        if (o + 4 > dst_cap || sz > (uint32_t)(dst_cap - o - 4))
             return -1;
         dst[o] = 0;
         dst[o + 1] = 0;
