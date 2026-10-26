@@ -15,7 +15,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import io.ymusic.ui.DefaultAccent
 import io.ymusic.ui.resources.Res
-import io.ymusic.ui.resources.tray_exit
+import io.ymusic.ui.resources.tray_quit
 import io.ymusic.ui.resources.tray_pause
 import io.ymusic.ui.resources.tray_resume
 import io.ymusic.ui.resources.tray_stop
@@ -28,34 +28,34 @@ import java.awt.Taskbar
 import java.io.File
 
 /**
- * Pause/Resume, Stop (clear the queue) and, when [withExit], Exit: the tray icon's right-click
+ * Pause/Resume, Stop (clear the queue) and, when [withQuit], Quit: the tray icon's right-click
  * menu, or the macOS Dock menu (which carries its own Quit).
  */
 @Composable
 internal fun rememberPlayerMenu(
     playing: Boolean,
     hasQueue: Boolean,
-    withExit: Boolean,
+    withQuit: Boolean,
     onTogglePlay: () -> Unit,
     onStop: () -> Unit,
-    onExit: () -> Unit,
+    onQuit: () -> Unit,
 ): PopupMenu {
     val toggleLabel = stringResource(if (playing) Res.string.tray_pause else Res.string.tray_resume)
     val stopLabel = stringResource(Res.string.tray_stop)
-    val exitLabel = stringResource(Res.string.tray_exit)
+    val quitLabel = stringResource(Res.string.tray_quit)
     val currentToggle by rememberUpdatedState(onTogglePlay)
     val currentStop by rememberUpdatedState(onStop)
-    val currentExit by rememberUpdatedState(onExit)
+    val currentQuit by rememberUpdatedState(onQuit)
     val toggle = remember { MenuItem().apply { addActionListener { currentToggle() } } }
     val stop = remember { MenuItem().apply { addActionListener { currentStop() } } }
-    val exit = remember { MenuItem().apply { addActionListener { currentExit() } } }
-    val menu = remember(withExit) {
+    val quit = remember { MenuItem().apply { addActionListener { currentQuit() } } }
+    val menu = remember(withQuit) {
         PopupMenu().apply {
             add(toggle)
             add(stop)
-            if (withExit) {
+            if (withQuit) {
                 addSeparator()
-                add(exit)
+                add(quit)
             }
         }
     }
@@ -64,7 +64,7 @@ internal fun rememberPlayerMenu(
         toggle.isEnabled = hasQueue
         stop.label = stopLabel
         stop.isEnabled = hasQueue
-        exit.label = exitLabel
+        quit.label = quitLabel
     }
     return menu
 }
@@ -88,16 +88,16 @@ internal fun DockMenu(menu: PopupMenu) {
 internal fun JumpListTasks(exe: String, playing: Boolean, hasQueue: Boolean, logger: Logger) {
     val toggleLabel = stringResource(if (playing) Res.string.tray_pause else Res.string.tray_resume)
     val stopLabel = stringResource(Res.string.tray_stop)
-    val exitLabel = stringResource(Res.string.tray_exit)
+    val quitLabel = stringResource(Res.string.tray_quit)
     val toggleGlyph = rememberVectorPainter(if (playing) Icons.Default.Pause else Icons.Default.PlayArrow)
     val stopGlyph = rememberVectorPainter(Icons.Default.Stop)
-    val exitGlyph = rememberVectorPainter(Icons.AutoMirrored.Filled.ExitToApp)
-    LaunchedEffect(exe, toggleLabel, stopLabel, exitLabel, hasQueue) {
+    val quitGlyph = rememberVectorPainter(Icons.AutoMirrored.Filled.ExitToApp)
+    LaunchedEffect(exe, toggleLabel, stopLabel, quitLabel, hasQueue) {
         // Drawn here, on the composition thread: a VectorPainter reads snapshot state.
         val icons = listOf(
             "toggle-$playing" to toggleGlyph,
             "stop" to stopGlyph,
-            "exit" to exitGlyph,
+            "quit" to quitGlyph,
         ).associate { (name, glyph) -> name to JUMP_LIST_ICON_SIZES.map { glyph.rasterize(it, tint = DefaultAccent) } }
         withContext(WindowsJumpList.dispatcher) {
             runCatching {
@@ -108,7 +108,7 @@ internal fun JumpListTasks(exe: String, playing: Boolean, hasQueue: Boolean, log
                         add(WindowsJumpList.Task(toggleLabel, InstanceCommand.TogglePlay, files.getValue("toggle-$playing")))
                         add(WindowsJumpList.Task(stopLabel, InstanceCommand.Stop, files.getValue("stop")))
                     }
-                    add(WindowsJumpList.Task(exitLabel, InstanceCommand.Exit, files.getValue("exit")))
+                    add(WindowsJumpList.Task(quitLabel, InstanceCommand.Quit, files.getValue("quit")))
                 }
                 WindowsJumpList.set(exe, tasks)
             }.onFailure { logger.log(Logger.Level.WARN, "jump list update failed", it) }

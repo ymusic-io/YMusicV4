@@ -576,13 +576,13 @@ fun main(args: Array<String>) {
         val playerMenu = rememberPlayerMenu(
             playing = playing,
             hasQueue = queueNotEmpty,
-            withExit = !isMac,
+            withQuit = !isMac,
             onTogglePlay = { graph?.player?.togglePlay() },
             onStop = {
                 miniOpen = false
                 graph?.player?.clearQueue()
             },
-            onExit = { quit() },
+            onQuit = { quit() },
         )
         if (isMac) DockMenu(playerMenu)
         if (jumpListExe != null) JumpListTasks(jumpListExe, playing, queueNotEmpty, rootLogger.fork("jump-list"))
@@ -595,7 +595,7 @@ fun main(args: Array<String>) {
                         miniOpen = false
                         graph?.player?.clearQueue()
                     }
-                    InstanceCommand.Exit -> quit()
+                    InstanceCommand.Quit -> quit()
                 }
             }
         }

@@ -578,5 +578,5 @@
     <string name="tray_pause">Pausar</string>
     <string name="tray_resume">Retomar</string>
     <string name="tray_stop">Parar (limpar a fila)</string>
-    <string name="tray_exit">Sair</string>
+    <string name="tray_quit">Fechar</string>
 </resources>

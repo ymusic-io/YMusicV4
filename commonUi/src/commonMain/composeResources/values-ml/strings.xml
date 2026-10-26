@@ -573,5 +573,5 @@
     <string name="tray_pause">താൽക്കാലികമായി നിർത്തുക</string>
     <string name="tray_resume">തുടരുക</string>
     <string name="tray_stop">നിർത്തുക (ക്യൂ മായ്ക്കുക)</string>
-    <string name="tray_exit">പുറത്തുകടക്കുക</string>
+    <string name="tray_quit">അടയ്ക്കുക</string>
 </resources>

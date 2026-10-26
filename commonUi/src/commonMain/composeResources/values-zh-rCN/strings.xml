@@ -568,5 +568,5 @@
     <string name="tray_pause">暂停</string>
     <string name="tray_resume">继续</string>
     <string name="tray_stop">停止（清空队列）</string>
-    <string name="tray_exit">退出</string>
+    <string name="tray_quit">退出</string>
 </resources>

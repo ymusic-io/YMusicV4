@@ -573,5 +573,5 @@
     <string name="tray_pause">বিরতি</string>
     <string name="tray_resume">আবার চালান</string>
     <string name="tray_stop">থামান (সারি মুছুন)</string>
-    <string name="tray_exit">প্রস্থান</string>
+    <string name="tray_quit">বন্ধ করুন</string>
 </resources>

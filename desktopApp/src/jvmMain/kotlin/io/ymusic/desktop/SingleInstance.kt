@@ -21,7 +21,7 @@ internal enum class InstanceCommand(val arg: String?) {
     Show(null),
     TogglePlay("--player=toggle"),
     Stop("--player=stop"),
-    Exit("--player=exit"),
+    Quit("--player=quit"),
     ;
 
     companion object {

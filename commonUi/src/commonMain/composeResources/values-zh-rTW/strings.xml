@@ -568,5 +568,5 @@
     <string name="tray_pause">暫停</string>
     <string name="tray_resume">繼續</string>
     <string name="tray_stop">停止（清除佇列）</string>
-    <string name="tray_exit">結束</string>
+    <string name="tray_quit">結束</string>
 </resources>

@@ -573,5 +573,5 @@
     <string name="tray_pause">Pause</string>
     <string name="tray_resume">Fortsetzen</string>
     <string name="tray_stop">Stopp (Warteschlange leeren)</string>
-    <string name="tray_exit">Beenden</string>
+    <string name="tray_quit">Beenden</string>
 </resources>

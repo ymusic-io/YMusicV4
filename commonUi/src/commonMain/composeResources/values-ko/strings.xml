@@ -568,5 +568,5 @@
     <string name="tray_pause">일시중지</string>
     <string name="tray_resume">재개</string>
     <string name="tray_stop">중지(대기열 지우기)</string>
-    <string name="tray_exit">종료</string>
+    <string name="tray_quit">종료</string>
 </resources>

@@ -573,5 +573,5 @@
     <string name="tray_pause">Pausatu</string>
     <string name="tray_resume">Berrekin</string>
     <string name="tray_stop">Gelditu (garbitu ilara)</string>
-    <string name="tray_exit">Irten</string>
+    <string name="tray_quit">Itxi</string>
 </resources>

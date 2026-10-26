@@ -741,5 +741,5 @@
     <string name="tray_pause">Pause</string>
     <string name="tray_resume">Resume</string>
     <string name="tray_stop">Stop (clear queue)</string>
-    <string name="tray_exit">Exit</string>
+    <string name="tray_quit">Quit</string>
 </resources>

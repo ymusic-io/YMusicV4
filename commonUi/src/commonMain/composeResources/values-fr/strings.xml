@@ -578,5 +578,5 @@
     <string name="tray_pause">Pause</string>
     <string name="tray_resume">Reprendre</string>
     <string name="tray_stop">Arrêter (vider la file d'attente)</string>
-    <string name="tray_exit">Quitter</string>
+    <string name="tray_quit">Quitter</string>
 </resources>

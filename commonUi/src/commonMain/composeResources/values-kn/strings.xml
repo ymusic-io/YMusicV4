@@ -573,5 +573,5 @@
     <string name="tray_pause">ವಿರಾಮ</string>
     <string name="tray_resume">ಮುಂದುವರಿಸಿ</string>
     <string name="tray_stop">ನಿಲ್ಲಿಸಿ (ಸರತಿ ತೆರವುಗೊಳಿಸಿ)</string>
-    <string name="tray_exit">ನಿರ್ಗಮಿಸಿ</string>
+    <string name="tray_quit">ಮುಚ್ಚಿ</string>
 </resources>

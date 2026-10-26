@@ -573,5 +573,5 @@
     <string name="tray_pause">Pauzeren</string>
     <string name="tray_resume">Hervatten</string>
     <string name="tray_stop">Stoppen (wachtrij wissen)</string>
-    <string name="tray_exit">Afsluiten</string>
+    <string name="tray_quit">Afsluiten</string>
 </resources>

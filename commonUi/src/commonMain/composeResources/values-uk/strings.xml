@@ -757,5 +757,5 @@
     <string name="tray_pause">Пауза</string>
     <string name="tray_resume">Продовжити</string>
     <string name="tray_stop">Стоп (очистити чергу)</string>
-    <string name="tray_exit">Вихід</string>
+    <string name="tray_quit">Закрити</string>
 </resources>

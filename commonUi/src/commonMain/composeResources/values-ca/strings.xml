@@ -578,5 +578,5 @@
     <string name="tray_pause">Pausa</string>
     <string name="tray_resume">Reprèn</string>
     <string name="tray_stop">Atura (buida la cua)</string>
-    <string name="tray_exit">Surt</string>
+    <string name="tray_quit">Tanca</string>
 </resources>

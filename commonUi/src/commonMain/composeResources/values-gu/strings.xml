@@ -573,5 +573,5 @@
     <string name="tray_pause">થોભાવો</string>
     <string name="tray_resume">ફરી શરૂ કરો</string>
     <string name="tray_stop">રોકો (કતાર સાફ કરો)</string>
-    <string name="tray_exit">બહાર નીકળો</string>
+    <string name="tray_quit">બંધ કરો</string>
 </resources>
