@@ -124,20 +124,22 @@ kotlin {
             }
         }
 
-        val nativeMain by getting {
-            dependsOn(nonJvmMain)
-        }
+        // Null-safe on hosts that configure no Kotlin/Native target (e.g. Windows): nativeMain is
+        // only created by applyDefaultHierarchyTemplate when at least one native target exists.
+        findByName("nativeMain")?.let { nativeMain ->
+            nativeMain.dependsOn(nonJvmMain)
 
-        // Desktop-native (linux + macos): the libcurl HTTP engine, built on the :curl wrapper.
-        val desktopMain by creating {
-            dependsOn(nativeMain)
-            dependencies {
-                implementation(project(":kmpHttp:curl"))
+            // Desktop-native (linux + macos): the libcurl HTTP engine, built on the :curl wrapper.
+            val desktopMain = create("desktopMain") {
+                dependsOn(nativeMain)
+                dependencies {
+                    implementation(project(":kmpHttp:curl"))
+                }
             }
-        }
-        // Wire whichever desktop intermediates exist (depends on -PkmpTargets / host).
-        listOf("macosMain", "linuxMain").forEach { name ->
-            findByName(name)?.dependsOn(desktopMain)
+            // Wire whichever desktop intermediates exist (depends on -PkmpTargets / host).
+            listOf("macosMain", "linuxMain").forEach { name ->
+                findByName(name)?.dependsOn(desktopMain)
+            }
         }
 
         commonMain.dependencies {
@@ -154,7 +156,7 @@ kotlin {
 
         // Shared non-JVM test code (mirrors nonJvmMain: commonTest <- nonJvmTest <- nativeTest).
         val nonJvmTest by creating { dependsOn(commonTest) }
-        val nativeTest by getting { dependsOn(nonJvmTest) }
+        findByName("nativeTest")?.dependsOn(nonJvmTest)
 
         // Desktop-native test source set: re-runs the shared SslTest against the explicit
         // CurlKmpHttpClient (so curl SSL is exercised on macOS too, not just Linux).
