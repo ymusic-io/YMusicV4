@@ -13,7 +13,8 @@ import java.awt.Toolkit
 import java.awt.Window
 
 /**
- * Floating, zoom (fit the work area), and native macOS fullscreen.
+ * Floating, zoom (fit the work area), and fullscreen: native on macOS, elsewhere the undecorated
+ * window sized to its monitor's full bounds.
  *
  * Never uses [WindowPlacement.Maximized]: AWT's maximized flag fights
  * [NSWindow.toggleFullScreen] and forgets the floating size.
@@ -59,7 +60,16 @@ internal class DesktopFrame(
     }
 
     fun toggleFullscreen() {
-        host?.let { FileAvNative.toggleFullScreen(it) }
+        val w = host ?: return
+        if (isMac) return FileAvNative.toggleFullScreen(w)
+        if (fullscreen) return onNativeFullscreen(false)
+        if (!zoomed) {
+            floatingSize = state.size
+            floatingPosition = state.position
+        }
+        fullscreen = true
+        val b = w.graphicsConfiguration.bounds
+        put(DpSize(b.width.dp, b.height.dp), WindowPosition(b.x.dp, b.y.dp))
     }
 
     fun onNativeFullscreen(on: Boolean) {
