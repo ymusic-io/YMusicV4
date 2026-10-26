@@ -193,25 +193,62 @@ val javaHomeForJni: String = run {
 // Desktop's own floor (and the first Apple-silicon release).
 val macDeploymentTarget = "11.0"
 
+// Windows: the CMake project uses GCC/Clang-only syntax (`__attribute__((format))`, POSIX headers,
+// `--gc-sections`), so MSVC can't compile it. Point CMake at a MinGW-w64 toolchain instead.
+// Resolved via -Pymusic.mingwHome, MINGW_HOME env, or a few known-good install paths.
+val isWindows = org.gradle.internal.os.OperatingSystem.current().isWindows
+val mingwHome: File? = run {
+    if (!isWindows) return@run null
+    val candidates = listOfNotNull(
+        providers.gradleProperty("ymusic.mingwHome").orNull,
+        System.getenv("MINGW_HOME"),
+        "D:/git-sdk-64/mingw64",
+        "C:/msys64/mingw64",
+        "C:/mingw64",
+    )
+    candidates.firstOrNull { File(it, "bin/gcc.exe").exists() && File(it, "bin/mingw32-make.exe").exists() }?.let(::File)
+}
+
 val cmakeConfigure by tasks.registering(Exec::class) {
     val out = quickJsJniDir.get().asFile
     doFirst { out.mkdirs() }
     inputs.dir(nativeSrc)
     inputs.property("javaHome", javaHomeForJni)
     inputs.property("macDeploymentTarget", macDeploymentTarget)
+    inputs.property("mingwHome", mingwHome?.absolutePath ?: "")
     outputs.file(File(out, "CMakeCache.txt"))
     environment("JAVA_HOME", javaHomeForJni)
-    commandLine(
+    val args = mutableListOf(
         "cmake", "-S", nativeSrc.absolutePath, "-B", out.absolutePath,
         "-DCMAKE_BUILD_TYPE=Release",
         "-DCMAKE_OSX_DEPLOYMENT_TARGET=$macDeploymentTarget",
     )
+    if (mingwHome != null) {
+        // CMake parses backslashes as escape sequences in the arguments it quotes into its cache,
+        // so pass forward slashes (which Windows accepts just fine via WinAPI).
+        fun cmakePath(f: File) = f.absolutePath.replace('\\', '/')
+        args += listOf(
+            "-G", "MinGW Makefiles",
+            "-DCMAKE_C_COMPILER=${cmakePath(File(mingwHome, "bin/gcc.exe"))}",
+            "-DCMAKE_MAKE_PROGRAM=${cmakePath(File(mingwHome, "bin/mingw32-make.exe"))}",
+        )
+    } else if (isWindows) {
+        error(
+            "No MinGW-w64 toolchain found for the host JNI build. The CMake project uses GCC-only " +
+                "flags that MSVC rejects. Point -Pymusic.mingwHome or MINGW_HOME at a MinGW install " +
+                "with bin/gcc.exe and bin/mingw32-make.exe (MSYS2's /mingw64 is the usual one)."
+        )
+    }
+    commandLine(args)
 }
 
 val cmakeBuild by tasks.registering(Exec::class) {
     dependsOn(cmakeConfigure)
     inputs.dir(nativeSrc)
     outputs.dir(quickJsJniDir)
+    // MinGW Makefiles is single-config; CMAKE_BUILD_TYPE from configure applies. The Visual Studio
+    // generator (default on Windows without MinGW) would need --config Release here, but we force
+    // MinGW on Windows above.
     commandLine("cmake", "--build", quickJsJniDir.get().asFile.absolutePath, "-j", "4")
 }
 
