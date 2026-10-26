@@ -539,7 +539,7 @@ fun main() {
         // always while the window is hidden (it is the only way back then). A plain click opens
         // the notification-style mini player anchored under the icon; no context menu.
         var miniOpen by remember { mutableStateOf(false) }
-        var miniAnchorX by remember { mutableStateOf<Int?>(null) }
+        var miniAnchor by remember { mutableStateOf<java.awt.Point?>(null) }
         var queueNotEmpty by remember { mutableStateOf(false) }
         LaunchedEffect(graph) {
             graph?.player?.queue?.collect {
@@ -549,8 +549,8 @@ fun main() {
             }
         }
         if (queueNotEmpty || !windowVisible) {
-            PlayerTray(painterResource(Res.drawable.ymusic_logo), rootLogger.fork("tray")) { screenX ->
-                miniAnchorX = screenX
+            PlayerTray(painterResource(Res.drawable.ymusic_logo), rootLogger.fork("tray")) { point ->
+                miniAnchor = point
                 miniOpen = !miniOpen
             }
         }
@@ -558,7 +558,7 @@ fun main() {
         if (miniOpen && g != null) {
             MiniPlayerWindow(
                 graph = g,
-                anchorX = miniAnchorX,
+                anchor = miniAnchor,
                 onOpenApp = {
                     windowVisible = true
                     miniOpen = false
