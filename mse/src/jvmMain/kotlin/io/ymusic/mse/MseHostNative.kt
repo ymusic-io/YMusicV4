@@ -14,6 +14,10 @@ interface MseHostSink {
     @Keep fun onPcm(rate: Int, channels: Int, s16: ByteArray)
 
     @Keep fun onProgress(positionSec: Double, durationSec: Double, width: Int, height: Int)
+
+    /** Called on pause/seek via the C `MseAudioFlushFn` hook. Sinks that hold their own buffered
+     *  audio (JVM javax.sound.sampled) flush here so stale samples don't drain over seconds. */
+    @Keep fun onAudioFlush() = Unit
 }
 
 actual object MseHostNative {
@@ -98,6 +102,7 @@ actual object MseHostNative {
         val name = "mseffmpegjni"
         val libFileName = System.mapLibraryName(name)
         System.getProperty("mse.native.dir")?.let { dir ->
+            preloadWindowsDeps(File(dir), libFileName)
             System.load(File(dir, libFileName).absolutePath)
             return
         }
@@ -132,7 +137,34 @@ actual object MseHostNative {
                 Files.copy(inp, dest.toPath(), StandardCopyOption.REPLACE_EXISTING)
             }
         }
+        preloadWindowsDeps(tmpDir, libFileName)
         System.load(File(tmpDir, libFileName).absolutePath)
+    }
+
+    /** Windows's LoadLibraryEx(LOAD_WITH_ALTERED_SEARCH_PATH) honors the altered dir only for the
+     *  first-level DLL — transitive imports fall back to the standard search, which misses our
+     *  tmpdir/appResources. Pre-loading each dep by absolute path puts them in the process module
+     *  table under their filename, so subsequent LoadLibrary(name) during transitive resolution
+     *  finds the already-loaded handle. @loader_path on macOS and $ORIGIN on Linux handle this
+     *  without help. */
+    private fun preloadWindowsDeps(dir: File, selfLibFileName: String) {
+        val os = System.getProperty("os.name").lowercase(Locale.US)
+        if (!os.contains("win")) return
+        // Load in dependency order (OS-level first, then libav bottom-up). Missing files are fine:
+        // not every pack ships zlib1/libwinpthread, and av* names depend on soversion.
+        val order = listOf(
+            "zlib1.dll", "libwinpthread-1.dll",
+            "avutil-61.dll", "swresample-7.dll", "swscale-10.dll",
+            "avcodec-63.dll", "avformat-63.dll", "avfilter-12.dll", "avdevice-63.dll",
+        )
+        for (n in order) {
+            if (n == selfLibFileName) continue
+            val f = File(dir, n)
+            if (f.isFile) {
+                @Suppress("UnsafeDynamicallyLoadedCode")
+                runCatching { System.load(f.absolutePath) }
+            }
+        }
     }
 
     private fun hostJniFolder(): String {

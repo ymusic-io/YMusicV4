@@ -17,6 +17,8 @@
 #elif defined(__linux__) && !defined(__ANDROID__)
 #include "aq_pulse.h"
 #define MSE_AQ 1
+#elif defined(_WIN32)
+#include <windows.h>
 #endif
 #ifdef __APPLE__
 #include <mach/mach_time.h>
@@ -73,6 +75,8 @@ struct MseHost {
     MseFrameFn on_frame;
     MsePcmFn on_pcm;
     MseProgressFn on_prog;
+    MseAudioFlushFn on_audio_flush;
+    void *audio_flush_user;
     void *user;
     void *window;
     int vw;
@@ -1377,6 +1381,16 @@ void mse_host_set_sinks(MseHost *h, MseFrameFn on_frame, MsePcmFn on_pcm, MsePro
     pthread_mutex_unlock(&h->mu);
 }
 
+void mse_host_set_audio_flush(MseHost *h, MseAudioFlushFn fn, void *user)
+{
+    if (!h)
+        return;
+    pthread_mutex_lock(&h->mu);
+    h->on_audio_flush = fn;
+    h->audio_flush_user = user;
+    pthread_mutex_unlock(&h->mu);
+}
+
 void mse_host_set_blit_size(MseHost *h, int w, int ht)
 {
     if (!h)
@@ -1511,7 +1525,13 @@ void mse_host_pause(MseHost *h)
         h->playing = 0;
     }
     pthread_cond_broadcast(&h->cv);
-    pthread_mutex_unlock(&h->mu);
+    {
+        MseAudioFlushFn fn = h->on_audio_flush;
+        void *user = h->audio_flush_user;
+        pthread_mutex_unlock(&h->mu);
+        if (fn)
+            fn(user);
+    }
 }
 
 static void seek_common(MseHost *h, double seconds)
@@ -1557,7 +1577,13 @@ static void seek_common(MseHost *h, double seconds)
     pthread_mutex_lock(&h->mu);
     h->gate = 0;
     pthread_cond_broadcast(&h->cv);
-    pthread_mutex_unlock(&h->mu);
+    {
+        MseAudioFlushFn fn = h->on_audio_flush;
+        void *user = h->audio_flush_user;
+        pthread_mutex_unlock(&h->mu);
+        if (fn)
+            fn(user);
+    }
 }
 
 void mse_host_reset(MseHost *h)
@@ -1902,6 +1928,12 @@ static size_t phys_mib(void)
     if (sysctlbyname("hw.memsize", &mem, &len, NULL, 0) != 0 || mem == 0)
         return 8192;
     return (size_t)(mem / MSE_MIB);
+#elif defined(_WIN32)
+    MEMORYSTATUSEX ms;
+    ms.dwLength = sizeof(ms);
+    if (!GlobalMemoryStatusEx(&ms) || ms.ullTotalPhys == 0)
+        return 4096;
+    return (size_t)(ms.ullTotalPhys / MSE_MIB);
 #else
     long pages = sysconf(_SC_PHYS_PAGES);
     long psz = sysconf(_SC_PAGE_SIZE);

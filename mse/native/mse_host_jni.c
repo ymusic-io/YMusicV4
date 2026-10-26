@@ -13,6 +13,7 @@ typedef struct {
     jmethodID onFrame;
     jmethodID onPcm;
     jmethodID onProgress;
+    jmethodID onAudioFlush;
     jobject direct[2];
     const uint8_t *direct_ptr[2];
     int direct_n[2];
@@ -218,6 +219,20 @@ static void on_prog(void *user, double pos, double dur, int w, int h)
     (*env)->CallVoidMethod(env, s->sink, s->onProgress, pos, dur, w, h);
 }
 
+static void on_audio_flush(void *user)
+{
+    JniSink *s = (JniSink *)user;
+    JNIEnv *env;
+    if (!s || !s->onAudioFlush)
+        return;
+    env = sink_env(s);
+    if (!env)
+        return;
+    (*env)->CallVoidMethod(env, s->sink, s->onAudioFlush);
+    if ((*env)->ExceptionCheck(env))
+        (*env)->ExceptionClear(env);
+}
+
 #ifdef __ANDROID__
 /* Android: create/destroy wrap the host with its Kotlin MseAudioOutput, so the raw calls get their own names. */
 JNIEXPORT jlong JNICALL
@@ -362,7 +377,12 @@ Java_io_ymusic_mse_MseHostNative_setSink(JNIEnv *env, jclass cls, jlong handle, 
     s->onFrame = (*env)->GetMethodID(env, sc, "onFrame", "(IILjava/nio/ByteBuffer;)V");
     s->onPcm = (*env)->GetMethodID(env, sc, "onPcm", "(II[B)V");
     s->onProgress = (*env)->GetMethodID(env, sc, "onProgress", "(DDII)V");
+    // Optional on older sinks; a null jmethodID disables the audio-flush callback below.
+    s->onAudioFlush = (*env)->GetMethodID(env, sc, "onAudioFlush", "()V");
+    if ((*env)->ExceptionCheck(env))
+        (*env)->ExceptionClear(env);
     mse_host_set_sinks(h, on_frame, on_pcm, on_prog, s);
+    mse_host_set_audio_flush(h, on_audio_flush, s);
 }
 
 JNIEXPORT jint JNICALL
