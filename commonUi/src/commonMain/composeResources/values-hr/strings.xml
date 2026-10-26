@@ -575,4 +575,8 @@
     <string name="download_other_format">Preuzmi u drugom formatu</string>
     <string name="unsubscribe">Otkaži pretplatu</string>
     <string name="unsubscribed">Pretplata otkazana</string>
+    <string name="tray_pause">Pauziraj</string>
+    <string name="tray_resume">Nastavi</string>
+    <string name="tray_stop">Zaustavi (očisti red)</string>
+    <string name="tray_exit">Izlaz</string>
 </resources>

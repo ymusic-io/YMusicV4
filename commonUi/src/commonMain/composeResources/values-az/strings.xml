@@ -570,4 +570,8 @@
     <string name="download_other_format">Başqa formatda endir</string>
     <string name="unsubscribe">Abunəlikdən çıx</string>
     <string name="unsubscribed">Abunəlik ləğv edildi</string>
+    <string name="tray_pause">Fasilə</string>
+    <string name="tray_resume">Davam et</string>
+    <string name="tray_stop">Dayandır (növbəni təmizlə)</string>
+    <string name="tray_exit">Çıxış</string>
 </resources>

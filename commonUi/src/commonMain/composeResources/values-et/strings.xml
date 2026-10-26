@@ -570,4 +570,8 @@
     <string name="download_other_format">Laadi alla teises vormingus</string>
     <string name="unsubscribe">Loobu tellimusest</string>
     <string name="unsubscribed">Tellimusest loobutud</string>
+    <string name="tray_pause">Paus</string>
+    <string name="tray_resume">Jätka</string>
+    <string name="tray_stop">Peata (tühjenda järjekord)</string>
+    <string name="tray_exit">Välju</string>
 </resources>

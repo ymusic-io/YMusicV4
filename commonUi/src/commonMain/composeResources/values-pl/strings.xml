@@ -580,4 +580,8 @@
     <string name="download_other_format">Pobierz w innym formacie</string>
     <string name="unsubscribe">Anuluj subskrypcję</string>
     <string name="unsubscribed">Anulowano subskrypcję</string>
+    <string name="tray_pause">Wstrzymaj</string>
+    <string name="tray_resume">Wznów</string>
+    <string name="tray_stop">Zatrzymaj (wyczyść kolejkę)</string>
+    <string name="tray_exit">Zakończ</string>
 </resources>

@@ -565,4 +565,8 @@
     <string name="download_other_format">다른 형식으로 다운로드</string>
     <string name="unsubscribe">구독 취소</string>
     <string name="unsubscribed">구독 취소됨</string>
+    <string name="tray_pause">일시중지</string>
+    <string name="tray_resume">재개</string>
+    <string name="tray_stop">중지(대기열 지우기)</string>
+    <string name="tray_exit">종료</string>
 </resources>

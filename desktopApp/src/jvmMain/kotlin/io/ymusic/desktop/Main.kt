@@ -537,7 +537,7 @@ fun main() {
         }
         // The tray icon lives whenever there is a queue to control — window open or not — and
         // always while the window is hidden (it is the only way back then). A plain click opens
-        // the notification-style mini player anchored under the icon; no context menu.
+        // the notification-style mini player anchored under the icon; a right-click the player menu.
         var miniOpen by remember { mutableStateOf(false) }
         var miniAnchor by remember { mutableStateOf<java.awt.Point?>(null) }
         var queueNotEmpty by remember { mutableStateOf(false) }
@@ -548,8 +548,25 @@ fun main() {
                 if (!queueNotEmpty) miniOpen = false
             }
         }
+        val playing = graph?.player?.status?.collectAsState()?.value?.playWhenReady == true
+        val playerMenu = rememberPlayerMenu(
+            playing = playing,
+            hasQueue = queueNotEmpty,
+            withExit = !isMac,
+            onTogglePlay = { graph?.player?.togglePlay() },
+            onStop = {
+                miniOpen = false
+                graph?.player?.clearQueue()
+            },
+            onExit = { quit() },
+        )
+        if (isMac) DockMenu(playerMenu)
         if (queueNotEmpty || !windowVisible) {
-            PlayerTray(painterResource(Res.drawable.ymusic_logo), rootLogger.fork("tray")) { point ->
+            PlayerTray(
+                painterResource(Res.drawable.ymusic_logo),
+                rootLogger.fork("tray"),
+                menu = playerMenu.takeUnless { isMac },
+            ) { point ->
                 miniAnchor = point
                 miniOpen = !miniOpen
             }

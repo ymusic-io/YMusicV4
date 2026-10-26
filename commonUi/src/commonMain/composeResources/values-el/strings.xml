@@ -570,4 +570,8 @@
     <string name="download_other_format">Λήψη σε άλλη μορφή</string>
     <string name="unsubscribe">Κατάργηση εγγραφής</string>
     <string name="unsubscribed">Η εγγραφή καταργήθηκε</string>
+    <string name="tray_pause">Παύση</string>
+    <string name="tray_resume">Συνέχεια</string>
+    <string name="tray_stop">Διακοπή (εκκαθάριση ουράς)</string>
+    <string name="tray_exit">Έξοδος</string>
 </resources>

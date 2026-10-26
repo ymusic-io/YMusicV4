@@ -570,4 +570,8 @@
     <string name="download_other_format">অন্য ফরম্যাটে ডাউনলোড করুন</string>
     <string name="unsubscribe">সদস্যতা ত্যাগ করুন</string>
     <string name="unsubscribed">সদস্যতা ত্যাগ করা হয়েছে</string>
+    <string name="tray_pause">বিরতি</string>
+    <string name="tray_resume">আবার চালান</string>
+    <string name="tray_stop">থামান (সারি মুছুন)</string>
+    <string name="tray_exit">প্রস্থান</string>
 </resources>

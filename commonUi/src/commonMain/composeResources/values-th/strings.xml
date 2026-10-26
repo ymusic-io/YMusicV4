@@ -565,4 +565,8 @@
     <string name="download_other_format">ดาวน์โหลดในรูปแบบอื่น</string>
     <string name="unsubscribe">ยกเลิกการติดตาม</string>
     <string name="unsubscribed">ยกเลิกการติดตามแล้ว</string>
+    <string name="tray_pause">หยุดชั่วคราว</string>
+    <string name="tray_resume">เล่นต่อ</string>
+    <string name="tray_stop">หยุด (ล้างคิว)</string>
+    <string name="tray_exit">ออก</string>
 </resources>

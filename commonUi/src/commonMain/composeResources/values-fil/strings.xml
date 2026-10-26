@@ -570,4 +570,8 @@
     <string name="download_other_format">I-download sa ibang format</string>
     <string name="unsubscribe">Mag-unsubscribe</string>
     <string name="unsubscribed">Na-unsubscribe</string>
+    <string name="tray_pause">I-pause</string>
+    <string name="tray_resume">Ituloy</string>
+    <string name="tray_stop">Ihinto (i-clear ang queue)</string>
+    <string name="tray_exit">Lumabas</string>
 </resources>
