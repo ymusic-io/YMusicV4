@@ -575,4 +575,8 @@
     <string name="download_other_format">Baixa en un altre format</string>
     <string name="unsubscribe">Cancel·la la subscripció</string>
     <string name="unsubscribed">S'ha cancel·lat la subscripció</string>
+    <string name="tray_pause">Pausa</string>
+    <string name="tray_resume">Reprèn</string>
+    <string name="tray_stop">Atura (buida la cua)</string>
+    <string name="tray_exit">Surt</string>
 </resources>

@@ -63,6 +63,7 @@ import kmpcommon.log.Logger
 import org.jetbrains.compose.resources.stringResource
 import java.awt.GraphicsEnvironment
 import java.awt.Point
+import java.awt.PopupMenu
 import java.awt.SystemTray
 import java.awt.Toolkit
 import java.awt.TrayIcon
@@ -290,9 +291,9 @@ private fun MiniPlayerContent(graph: AppGraph, onOpenApp: () -> Unit, onDismiss:
  * lazy `toAwtImage` PainterImage variants as nothing at all.
  */
 @Composable
-fun PlayerTray(icon: Painter, logger: Logger, onClick: (screen: Point) -> Unit) {
+fun PlayerTray(icon: Painter, logger: Logger, menu: PopupMenu?, onClick: (screen: Point) -> Unit) {
     val currentOnClick by rememberUpdatedState(onClick)
-    DisposableEffect(icon) {
+    DisposableEffect(icon, menu) {
         val tray = if (SystemTray.isSupported()) SystemTray.getSystemTray() else null
         val trayIcon = tray?.let {
             val px = it.trayIconSize.width
@@ -307,7 +308,9 @@ fun PlayerTray(icon: Painter, logger: Logger, onClick: (screen: Point) -> Unit) 
                 addMouseListener(
                     object : MouseAdapter() {
                         // TrayIcon events carry SCREEN coordinates (there is no component space).
-                        override fun mousePressed(e: MouseEvent) = currentOnClick(e.point)
+                        override fun mousePressed(e: MouseEvent) {
+                            if (e.button == MouseEvent.BUTTON1) currentOnClick(e.point)
+                        }
 
                         override fun mouseReleased(e: MouseEvent) {
                             if (!isLinux) return
@@ -316,6 +319,7 @@ fun PlayerTray(icon: Painter, logger: Logger, onClick: (screen: Point) -> Unit) 
                         }
                     },
                 )
+                popupMenu = menu
                 it.add(this)
             }
         }

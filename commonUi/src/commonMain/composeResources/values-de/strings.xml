@@ -570,4 +570,8 @@
     <string name="download_other_format">In anderem Format herunterladen</string>
     <string name="unsubscribe">Deabonnieren</string>
     <string name="unsubscribed">Deabonniert</string>
+    <string name="tray_pause">Pause</string>
+    <string name="tray_resume">Fortsetzen</string>
+    <string name="tray_stop">Stopp (Warteschlange leeren)</string>
+    <string name="tray_exit">Beenden</string>
 </resources>

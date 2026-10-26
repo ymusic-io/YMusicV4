@@ -575,4 +575,8 @@
     <string name="download_other_format">Baixar em outro formato</string>
     <string name="unsubscribe">Cancelar inscrição</string>
     <string name="unsubscribed">Inscrição cancelada</string>
+    <string name="tray_pause">Pausar</string>
+    <string name="tray_resume">Retomar</string>
+    <string name="tray_stop">Parar (limpar a fila)</string>
+    <string name="tray_exit">Sair</string>
 </resources>

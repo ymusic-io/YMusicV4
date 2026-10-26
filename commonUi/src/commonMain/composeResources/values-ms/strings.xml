@@ -565,4 +565,8 @@
     <string name="download_other_format">Muat turun dalam format lain</string>
     <string name="unsubscribe">Nyahlanggan</string>
     <string name="unsubscribed">Dinyahlanggan</string>
+    <string name="tray_pause">Jeda</string>
+    <string name="tray_resume">Sambung semula</string>
+    <string name="tray_stop">Henti (kosongkan baris gilir)</string>
+    <string name="tray_exit">Keluar</string>
 </resources>

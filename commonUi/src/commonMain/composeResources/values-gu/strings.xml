@@ -570,4 +570,8 @@
     <string name="download_other_format">બીજા ફોર્મેટમાં ડાઉનલોડ કરો</string>
     <string name="unsubscribe">અનસબ્સ્ક્રાઇબ કરો</string>
     <string name="unsubscribed">અનસબ્સ્ક્રાઇબ કર્યું</string>
+    <string name="tray_pause">થોભાવો</string>
+    <string name="tray_resume">ફરી શરૂ કરો</string>
+    <string name="tray_stop">રોકો (કતાર સાફ કરો)</string>
+    <string name="tray_exit">બહાર નીકળો</string>
 </resources>

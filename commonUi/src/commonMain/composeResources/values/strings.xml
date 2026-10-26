@@ -738,4 +738,8 @@
     <string name="download_other_format">Download in another format</string>
     <string name="unsubscribe">Unsubscribe</string>
     <string name="unsubscribed">Unsubscribed</string>
+    <string name="tray_pause">Pause</string>
+    <string name="tray_resume">Resume</string>
+    <string name="tray_stop">Stop (clear queue)</string>
+    <string name="tray_exit">Exit</string>
 </resources>

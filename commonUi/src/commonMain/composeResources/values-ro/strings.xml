@@ -575,4 +575,8 @@
     <string name="download_other_format">Descarcă în alt format</string>
     <string name="unsubscribe">Dezabonează-te</string>
     <string name="unsubscribed">Dezabonat</string>
+    <string name="tray_pause">Pauză</string>
+    <string name="tray_resume">Reia</string>
+    <string name="tray_stop">Oprește (golește coada)</string>
+    <string name="tray_exit">Ieșire</string>
 </resources>

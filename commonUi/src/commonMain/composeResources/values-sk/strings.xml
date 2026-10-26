@@ -580,4 +580,8 @@
     <string name="download_other_format">Stiahnuť v inom formáte</string>
     <string name="unsubscribe">Zrušiť odber</string>
     <string name="unsubscribed">Odber zrušený</string>
+    <string name="tray_pause">Pozastaviť</string>
+    <string name="tray_resume">Pokračovať</string>
+    <string name="tray_stop">Zastaviť (vymazať poradie)</string>
+    <string name="tray_exit">Ukončiť</string>
 </resources>
