@@ -1099,11 +1099,13 @@ private class MseVideoPanel : JPanel(BorderLayout()) {
             override fun contains(x: Int, y: Int): Boolean = false
 
             override fun paint(g: Graphics) {
-                /* HW overlay letterbox is transparent; this fill is the hole, not a VT sample. */
-                g.color = AwtColor.BLACK
-                g.fillRect(0, 0, width, height)
                 val image = img
-                if (image == null || hardware) return
+                if (image == null || hardware) {
+                    /* HW overlay letterbox is transparent; this fill is the hole, not a VT sample. */
+                    g.color = AwtColor.BLACK
+                    g.fillRect(0, 0, width, height)
+                    return
+                }
                 onPainted?.invoke(image)
                 val g2 = g as Graphics2D
                 val scale = min(width / image.width.toDouble(), height / image.height.toDouble())
@@ -1111,6 +1113,20 @@ private class MseVideoPanel : JPanel(BorderLayout()) {
                 val dh = (image.height * scale).toInt().coerceAtLeast(1)
                 val x = (width - dw) / 2
                 val y = (height - dh) / 2
+                // Fill only the letterbox bars: the image covers its rect in a single drawImage,
+                // so the frame area never flashes to black between the clear and the blit. (The
+                // heavyweight Canvas's Graphics draws straight to the window surface, so any
+                // whole-canvas fillRect before drawImage is a visible mid-cycle black flash
+                // whenever a repaint catches the painter between the two calls.)
+                g.color = AwtColor.BLACK
+                if (y > 0) {
+                    g.fillRect(0, 0, width, y)
+                    g.fillRect(0, y + dh, width, height - y - dh)
+                }
+                if (x > 0) {
+                    g.fillRect(0, y, x, dh)
+                    g.fillRect(x + dw, y, width - x - dw, dh)
+                }
                 if (dw == image.width && dh == image.height) {
                     g2.drawImage(image, x, y, null)
                 } else {
