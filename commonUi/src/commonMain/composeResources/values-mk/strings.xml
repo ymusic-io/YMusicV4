@@ -573,5 +573,5 @@
     <string name="tray_pause">Пауза</string>
     <string name="tray_resume">Продолжи</string>
     <string name="tray_stop">Стоп (исчисти ја редицата)</string>
-    <string name="tray_exit">Излез</string>
+    <string name="tray_quit">Затвори</string>
 </resources>

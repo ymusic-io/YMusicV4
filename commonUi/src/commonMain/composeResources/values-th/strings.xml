@@ -568,5 +568,5 @@
     <string name="tray_pause">หยุดชั่วคราว</string>
     <string name="tray_resume">เล่นต่อ</string>
     <string name="tray_stop">หยุด (ล้างคิว)</string>
-    <string name="tray_exit">ออก</string>
+    <string name="tray_quit">ปิด</string>
 </resources>

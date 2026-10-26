@@ -568,5 +568,5 @@
     <string name="tray_pause">Jeda</string>
     <string name="tray_resume">Sambung semula</string>
     <string name="tray_stop">Henti (kosongkan baris gilir)</string>
-    <string name="tray_exit">Keluar</string>
+    <string name="tray_quit">Tutup</string>
 </resources>

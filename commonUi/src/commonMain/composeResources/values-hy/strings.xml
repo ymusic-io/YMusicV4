@@ -573,5 +573,5 @@
     <string name="tray_pause">Դադար</string>
     <string name="tray_resume">Շարունակել</string>
     <string name="tray_stop">Կանգնեցնել (մաքրել հերթը)</string>
-    <string name="tray_exit">Ելք</string>
+    <string name="tray_quit">Փակել</string>
 </resources>

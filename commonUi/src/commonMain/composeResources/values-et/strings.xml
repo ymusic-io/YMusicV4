@@ -573,5 +573,5 @@
     <string name="tray_pause">Paus</string>
     <string name="tray_resume">Jätka</string>
     <string name="tray_stop">Peata (tühjenda järjekord)</string>
-    <string name="tray_exit">Välju</string>
+    <string name="tray_quit">Sulge</string>
 </resources>

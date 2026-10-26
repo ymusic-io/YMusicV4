@@ -573,5 +573,5 @@
     <string name="tray_pause">Hakad</string>
     <string name="tray_resume">Sii wad</string>
     <string name="tray_stop">Jooji (nadiifi safka)</string>
-    <string name="tray_exit">Ka bax</string>
+    <string name="tray_quit">Xir</string>
 </resources>

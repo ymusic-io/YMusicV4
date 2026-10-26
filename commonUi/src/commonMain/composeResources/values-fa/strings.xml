@@ -573,5 +573,5 @@
     <string name="tray_pause">توقف موقت</string>
     <string name="tray_resume">ادامه</string>
     <string name="tray_stop">توقف (پاک کردن صف)</string>
-    <string name="tray_exit">خروج</string>
+    <string name="tray_quit">بستن</string>
 </resources>

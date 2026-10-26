@@ -578,5 +578,5 @@
     <string name="tray_pause">Pauză</string>
     <string name="tray_resume">Reia</string>
     <string name="tray_stop">Oprește (golește coada)</string>
-    <string name="tray_exit">Ieșire</string>
+    <string name="tray_quit">Închide</string>
 </resources>

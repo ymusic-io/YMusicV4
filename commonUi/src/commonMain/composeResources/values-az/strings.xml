@@ -573,5 +573,5 @@
     <string name="tray_pause">Fasilə</string>
     <string name="tray_resume">Davam et</string>
     <string name="tray_stop">Dayandır (növbəni təmizlə)</string>
-    <string name="tray_exit">Çıxış</string>
+    <string name="tray_quit">Bağla</string>
 </resources>

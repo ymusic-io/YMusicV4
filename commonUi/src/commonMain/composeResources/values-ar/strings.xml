@@ -727,5 +727,5 @@
     <string name="tray_pause">إيقاف مؤقت</string>
     <string name="tray_resume">استئناف</string>
     <string name="tray_stop">إيقاف (مسح قائمة الانتظار)</string>
-    <string name="tray_exit">خروج</string>
+    <string name="tray_quit">إنهاء</string>
 </resources>

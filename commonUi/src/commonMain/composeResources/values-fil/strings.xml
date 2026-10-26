@@ -573,5 +573,5 @@
     <string name="tray_pause">I-pause</string>
     <string name="tray_resume">Ituloy</string>
     <string name="tray_stop">Ihinto (i-clear ang queue)</string>
-    <string name="tray_exit">Lumabas</string>
+    <string name="tray_quit">Isara</string>
 </resources>

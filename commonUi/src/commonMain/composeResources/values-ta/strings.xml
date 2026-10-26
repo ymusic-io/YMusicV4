@@ -573,5 +573,5 @@
     <string name="tray_pause">இடைநிறுத்து</string>
     <string name="tray_resume">தொடர்</string>
     <string name="tray_stop">நிறுத்து (வரிசையை அழி)</string>
-    <string name="tray_exit">வெளியேறு</string>
+    <string name="tray_quit">மூடு</string>
 </resources>

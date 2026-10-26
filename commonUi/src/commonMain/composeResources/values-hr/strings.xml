@@ -578,5 +578,5 @@
     <string name="tray_pause">Pauziraj</string>
     <string name="tray_resume">Nastavi</string>
     <string name="tray_stop">Zaustavi (očisti red)</string>
-    <string name="tray_exit">Izlaz</string>
+    <string name="tray_quit">Zatvori</string>
 </resources>

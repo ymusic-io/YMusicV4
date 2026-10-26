@@ -573,5 +573,5 @@
     <string name="tray_pause">Пауза</string>
     <string name="tray_resume">Продължаване</string>
     <string name="tray_stop">Стоп (изчистване на опашката)</string>
-    <string name="tray_exit">Изход</string>
+    <string name="tray_quit">Затваряне</string>
 </resources>
