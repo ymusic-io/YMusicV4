@@ -181,6 +181,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import okio.FileSystem
 import okio.Path.Companion.toOkioPath
 import okio.Path.Companion.toPath
@@ -211,6 +212,7 @@ import javax.swing.SwingUtilities
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.min
+import kotlin.time.Duration.Companion.seconds
 import java.awt.Color as AwtColor
 
 /**
@@ -223,6 +225,8 @@ private val logWorker = LoggingWorker(File(ymusicDataDir(), "logs").absolutePath
 private val rootLogger: Logger =
     TeeLogger(FileLogger(logWorker), TeeLogger(SentryLogger(), StdoutLogger()))
         .also { it.bindMseNativeLogs() }
+
+private val QUIT_FLUSH_TIMEOUT = 3.seconds
 
 /** The installed YMusic.exe (jpackage launcher); null under `gradlew run`, where tasks have nothing to relaunch. */
 private val jumpListExe: String? = System.getProperty("jpackage.app-path")?.takeIf { isWindows }
@@ -331,19 +335,34 @@ fun main(args: Array<String>) {
         val (initialSize, initialPosition) = remember { loadWindowPrefs() }
         val windowState = rememberWindowState(size = initialSize, position = initialPosition)
         val frame = remember { DesktopFrame(windowState, initialSize, initialPosition) }
+        val quitScope = rememberCoroutineScope()
+        var quitting by remember { mutableStateOf(false) }
+        // The window goes at once; the toolkit exits only after the playback recorders have written
+        // their last state (watch time, the Play again play-head) and the log has drained.
         fun quit() {
+            if (quitting) return
+            quitting = true
             if (!frame.fullscreen) {
                 saveWindowPrefs(frame.persistSize(), frame.persistPosition())
             }
-            videoUnderlay.dispose()
-            // A pinned button keeps its Jump List after exit; tasks for a closed app would only relaunch it.
-            if (jumpListExe != null) {
-                kotlinx.coroutines.runBlocking(WindowsJumpList.dispatcher) {
-                    runCatching { WindowsJumpList.clear() }
-                        .onFailure { rootLogger.fork("jump-list").log(Logger.Level.WARN, "jump list clear failed", it) }
+            windowVisible = false
+            graph?.player?.pause()
+            quitScope.launch {
+                val g = graph
+                if (g != null && withTimeoutOrNull(QUIT_FLUSH_TIMEOUT) { g.shutdown() } == null) {
+                    rootLogger.log(Logger.Level.WARN, "playback records not written within $QUIT_FLUSH_TIMEOUT")
                 }
+                // A pinned button keeps its Jump List after exit; tasks for a closed app would only relaunch it.
+                if (jumpListExe != null) {
+                    withContext(WindowsJumpList.dispatcher) {
+                        runCatching { WindowsJumpList.clear() }
+                            .onFailure { rootLogger.fork("jump-list").log(Logger.Level.WARN, "jump list clear failed", it) }
+                    }
+                }
+                videoUnderlay.dispose()
+                withTimeoutOrNull(QUIT_FLUSH_TIMEOUT) { logWorker.flush() }
+                exitApplication()
             }
-            exitApplication()
         }
         LaunchedEffect(windowState) {
             snapshotFlow { windowState.size to windowState.position }
@@ -599,7 +618,7 @@ fun main(args: Array<String>) {
                 }
             }
         }
-        if (queueNotEmpty || !windowVisible) {
+        if (!quitting && (queueNotEmpty || !windowVisible)) {
             PlayerTray(
                 painterResource(Res.drawable.ymusic_logo),
                 rootLogger.fork("tray"),
