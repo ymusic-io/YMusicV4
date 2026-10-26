@@ -86,6 +86,15 @@ actual class MseVideoSurface {
     var lastStill: BufferedImage? = null
 
     internal fun publish(frame: BufferedImage) {
+        // Receiving a CPU-side frame means scale_bgra took the SW path — the HW present swapchain
+        // isn't driving the Canvas for this codec/stream. Flip nativePresent off so MseVideoPanel's
+        // setHardware(false) re-enables CPU blit (otherwise setImage early-returns and the Canvas
+        // stays black). HW-decoded streams never reach this method (they take the D3D11 branch in
+        // scale_bgra and skip on_frame entirely).
+        if (nativePresent) {
+            nativePresent = false
+            onNativePresent?.invoke(false)
+        }
         val hole = swingBlit
         if (hole != null) hole(frame)
         else _frame.value = frame
