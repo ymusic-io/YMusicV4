@@ -119,4 +119,4 @@ internal class VideoUnderlay {
     }
 }
 
-private val isMac = "mac" in System.getProperty("os.name").orEmpty().lowercase()
+internal val isMac = "mac" in System.getProperty("os.name").orEmpty().lowercase()
