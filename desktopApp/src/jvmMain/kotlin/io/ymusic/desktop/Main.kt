@@ -231,6 +231,8 @@ private val showWindowRequests = MutableSharedFlow<Unit>(extraBufferCapacity = 1
 @Volatile
 private var mainWindow: Frame? = null
 
+private val isWindows = "windows" in System.getProperty("os.name").orEmpty().lowercase()
+
 fun main() {
     defaultLinuxSoftwareRendering()
     useBundledMseNatives()
@@ -351,7 +353,7 @@ fun main() {
                 if (graph?.player?.queue?.value?.items?.isNotEmpty() == true) windowVisible = false else quit()
             },
             title = "YMusic",
-            icon = painterResource(Res.drawable.ymusic_logo),
+            icon = null,
             state = windowState,
             undecorated = true,
             transparent = true,
@@ -373,6 +375,12 @@ fun main() {
             },
         ) {
             paintWindowGround(Color.Transparent)
+            // Not Window(icon=): that is one 32dp raster the OS nearest-scales into each of its
+            // icon slots (Windows: 16/20/24/32/40/48/64/256 px by DPI). One exact raster per slot.
+            val windowIcon = painterResource(Res.drawable.ymusic_logo)
+            LaunchedEffect(window, windowIcon) {
+                window.iconImages = listOf(16, 20, 24, 32, 40, 48, 64, 128, 256).map { windowIcon.rasterize(it) }
+            }
             val closeApp = {
                 if (graph?.player?.queue?.value?.items?.isNotEmpty() == true) windowVisible = false else quit()
             }
@@ -532,6 +540,7 @@ fun main() {
         // The tray icon lives whenever there is a queue to control — window open or not — and
         // always while the window is hidden (it is the only way back then). A plain click opens
         // the notification-style mini player anchored under the icon; no context menu.
+        // Windows: the icon exists only while the window is hidden, and a click restores it.
         var miniOpen by remember { mutableStateOf(false) }
         var miniAnchorX by remember { mutableStateOf<Int?>(null) }
         var queueNotEmpty by remember { mutableStateOf(false) }
@@ -542,7 +551,13 @@ fun main() {
                 if (!queueNotEmpty) miniOpen = false
             }
         }
-        if (queueNotEmpty || !windowVisible) {
+        if (isWindows) {
+            if (!windowVisible) {
+                PlayerTray(painterResource(Res.drawable.ymusic_logo), rootLogger.fork("tray")) {
+                    showWindowRequests.tryEmit(Unit)
+                }
+            }
+        } else if (queueNotEmpty || !windowVisible) {
             PlayerTray(painterResource(Res.drawable.ymusic_logo), rootLogger.fork("tray")) { screenX ->
                 miniAnchorX = screenX
                 miniOpen = !miniOpen
