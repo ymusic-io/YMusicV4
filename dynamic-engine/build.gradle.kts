@@ -68,11 +68,9 @@ kotlin {
         }
 
         // Platform SqlDelight drivers for the DiskCacheStore factories (jvm = JDBC, android = the
-        // AndroidSqliteDriver, apple = sqliter).
-        val nativeMain by getting {
-            dependencies {
-                implementation(Libs.SqlDelight.nativeDriver)
-            }
+        // AndroidSqliteDriver, apple = sqliter). Null-safe on hosts with no native target configured.
+        findByName("nativeMain")?.dependencies {
+            implementation(Libs.SqlDelight.nativeDriver)
         }
         jvmMain.dependencies {
             implementation(Libs.SqlDelight.sqliteDriver)
@@ -94,12 +92,10 @@ kotlin {
             implementation(Libs.SqlDelight.sqliteDriver)
             implementation(project(":yt-media"))
         }
-        val nativeTest by getting {
-            dependencies {
-                implementation(Libs.SqlDelight.nativeDriver)
-                implementation(kotlin("test"))
-                implementation(project(":kmpHttp:testing"))
-            }
+        findByName("nativeTest")?.dependencies {
+            implementation(Libs.SqlDelight.nativeDriver)
+            implementation(kotlin("test"))
+            implementation(project(":kmpHttp:testing"))
         }
     }
 }

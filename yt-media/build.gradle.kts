@@ -51,10 +51,8 @@ kotlin {
         }
 
         // Platform SqlDelight drivers (jvm = JDBC, android = AndroidSqliteDriver, apple/linux = sqliter),
-        // same split as :dynamic-engine's DiskCacheStore.
-        val nativeMain by getting {
-            dependencies { implementation(Libs.SqlDelight.nativeDriver) }
-        }
+        // same split as :dynamic-engine's DiskCacheStore. Null-safe on hosts with no native target.
+        findByName("nativeMain")?.dependencies { implementation(Libs.SqlDelight.nativeDriver) }
         jvmMain.dependencies { implementation(Libs.SqlDelight.sqliteDriver) }
         androidMain.dependencies { implementation(Libs.SqlDelight.androidDriver) }
 
@@ -65,8 +63,6 @@ kotlin {
 
         // In-memory SQLite drivers for the SegmentIndex tests (JVM = JDBC, native = sqliter).
         jvmTest.dependencies { implementation(Libs.SqlDelight.sqliteDriver) }
-        val nativeTest by getting {
-            dependencies { implementation(Libs.SqlDelight.nativeDriver) }
-        }
+        findByName("nativeTest")?.dependencies { implementation(Libs.SqlDelight.nativeDriver) }
     }
 }
