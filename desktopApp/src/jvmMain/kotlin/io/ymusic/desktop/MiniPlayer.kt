@@ -61,6 +61,8 @@ import io.ymusic.ui.resources.mini_player_nothing_playing
 import io.ymusic.ui.skipSegmentFractions
 import kmpcommon.log.Logger
 import org.jetbrains.compose.resources.stringResource
+import java.awt.GraphicsEnvironment
+import java.awt.Point
 import java.awt.SystemTray
 import java.awt.Toolkit
 import java.awt.TrayIcon
@@ -79,15 +81,12 @@ import java.awt.event.WindowFocusListener
 @Composable
 fun ApplicationScope.MiniPlayerWindow(
     graph: AppGraph,
-    anchorX: Int? = null,
+    anchor: Point? = null,
     onOpenApp: () -> Unit,
     onDismiss: () -> Unit,
     onClose: () -> Unit,
 ) {
-    val screen = remember { Toolkit.getDefaultToolkit().screenSize }
-    // Centered under the tray icon when the click position is known, else the tray corner.
-    val x = (anchorX?.let { it - WIDTH_DP / 2 } ?: (screen.width - WIDTH_DP - 16))
-        .coerceIn(8, screen.width - WIDTH_DP - 8)
+    val position = remember(anchor) { miniPlayerPosition(anchor) }
     Window(
         onCloseRequest = onClose,
         title = "YMusic",
@@ -96,7 +95,7 @@ fun ApplicationScope.MiniPlayerWindow(
         resizable = false,
         alwaysOnTop = true,
         state = rememberWindowState(
-            position = WindowPosition(x.dp, 44.dp),
+            position = position,
             size = DpSize(WIDTH_DP.dp, HEIGHT_DP.dp),
         ),
     ) {
@@ -120,6 +119,43 @@ fun ApplicationScope.MiniPlayerWindow(
         }
     }
 }
+
+/**
+ * Beside the tray at [anchor] (else the top-right corner), inside the clicked monitor's work area:
+ * against the edge the tray bar occupies — the inset edge nearest the click, or the nearest screen
+ * edge when the bar auto-hides — and centered on the click along it.
+ */
+private fun miniPlayerPosition(anchor: Point?): WindowPosition {
+    val env = GraphicsEnvironment.getLocalGraphicsEnvironment()
+    val gc = anchor?.let { p -> env.screenDevices.map { it.defaultConfiguration }.firstOrNull { p in it.bounds } }
+        ?: env.defaultScreenDevice.defaultConfiguration
+    val bounds = gc.bounds
+    val insets = Toolkit.getDefaultToolkit().getScreenInsets(gc)
+    val left = bounds.x + insets.left
+    val top = bounds.y + insets.top
+    val right = bounds.x + bounds.width - insets.right
+    val bottom = bounds.y + bounds.height - insets.bottom
+    val p = anchor ?: Point(right, top)
+    // (edge, click distance to it, inset it carries)
+    val edges = listOf(
+        Triple(TrayEdge.Top, p.y - bounds.y, insets.top),
+        Triple(TrayEdge.Bottom, bounds.y + bounds.height - p.y, insets.bottom),
+        Triple(TrayEdge.Left, p.x - bounds.x, insets.left),
+        Triple(TrayEdge.Right, bounds.x + bounds.width - p.x, insets.right),
+    )
+    val edge = edges.filter { it.third > 0 }.ifEmpty { edges }.minBy { it.second }.first
+    fun centered(at: Int, size: Int, from: Int, to: Int) =
+        (at - size / 2).coerceIn(from + MARGIN_DP, maxOf(from + MARGIN_DP, to - size - MARGIN_DP))
+    val (x, y) = when (edge) {
+        TrayEdge.Top -> centered(p.x, WIDTH_DP, left, right) to top + MARGIN_DP
+        TrayEdge.Bottom -> centered(p.x, WIDTH_DP, left, right) to bottom - HEIGHT_DP - MARGIN_DP
+        TrayEdge.Left -> left + MARGIN_DP to centered(p.y, HEIGHT_DP, top, bottom)
+        TrayEdge.Right -> right - WIDTH_DP - MARGIN_DP to centered(p.y, HEIGHT_DP, top, bottom)
+    }
+    return WindowPosition(x.dp, y.dp)
+}
+
+private enum class TrayEdge { Top, Bottom, Left, Right }
 
 @Composable
 private fun MiniPlayerContent(graph: AppGraph, onOpenApp: () -> Unit, onDismiss: () -> Unit) {
@@ -246,15 +282,15 @@ private fun MiniPlayerContent(graph: AppGraph, onOpenApp: () -> Unit, onDismiss:
 /**
  * The tray icon, managed straight through AWT — NOT the compose `Tray`, which always attaches a
  * popup menu that macOS then opens on click instead of firing the action. Bare TrayIcon + mouse
- * listener = a plain click reaches [onClick] (with the click's screen x, to anchor the mini
- * player under the icon).
+ * listener = a plain click reaches [onClick] (with the click's screen point, to anchor the mini
+ * player at the icon).
  *
  * The icon is a multi-resolution image of plain BufferedImages, one per display scale: a single
  * 1x raster is upscaled by the OS on HiDPI and turns soft, and Windows' tray peer draws Compose's
  * lazy `toAwtImage` PainterImage variants as nothing at all.
  */
 @Composable
-fun PlayerTray(icon: Painter, logger: Logger, onClick: (screenX: Int) -> Unit) {
+fun PlayerTray(icon: Painter, logger: Logger, onClick: (screen: Point) -> Unit) {
     val currentOnClick by rememberUpdatedState(onClick)
     DisposableEffect(icon) {
         val tray = if (SystemTray.isSupported()) SystemTray.getSystemTray() else null
@@ -271,7 +307,7 @@ fun PlayerTray(icon: Painter, logger: Logger, onClick: (screenX: Int) -> Unit) {
                 addMouseListener(
                     object : MouseAdapter() {
                         // TrayIcon events carry SCREEN coordinates (there is no component space).
-                        override fun mousePressed(e: MouseEvent) = currentOnClick(e.x)
+                        override fun mousePressed(e: MouseEvent) = currentOnClick(e.point)
 
                         override fun mouseReleased(e: MouseEvent) {
                             if (!isLinux) return
@@ -308,3 +344,4 @@ private val TRAY_SCALES = listOf(1f, 1.25f, 1.5f, 1.75f, 2f, 2.5f, 3f)
 
 private const val WIDTH_DP = 340
 private const val HEIGHT_DP = 132
+private const val MARGIN_DP = 8

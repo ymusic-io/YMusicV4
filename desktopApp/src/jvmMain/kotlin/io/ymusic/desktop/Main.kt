@@ -231,8 +231,6 @@ private val showWindowRequests = MutableSharedFlow<Unit>(extraBufferCapacity = 1
 @Volatile
 private var mainWindow: Frame? = null
 
-private val isWindows = "windows" in System.getProperty("os.name").orEmpty().lowercase()
-
 fun main() {
     defaultLinuxSoftwareRendering()
     useBundledMseNatives()
@@ -540,9 +538,8 @@ fun main() {
         // The tray icon lives whenever there is a queue to control — window open or not — and
         // always while the window is hidden (it is the only way back then). A plain click opens
         // the notification-style mini player anchored under the icon; no context menu.
-        // Windows: the icon exists only while the window is hidden, and a click restores it.
         var miniOpen by remember { mutableStateOf(false) }
-        var miniAnchorX by remember { mutableStateOf<Int?>(null) }
+        var miniAnchor by remember { mutableStateOf<java.awt.Point?>(null) }
         var queueNotEmpty by remember { mutableStateOf(false) }
         LaunchedEffect(graph) {
             graph?.player?.queue?.collect {
@@ -551,15 +548,9 @@ fun main() {
                 if (!queueNotEmpty) miniOpen = false
             }
         }
-        if (isWindows) {
-            if (!windowVisible) {
-                PlayerTray(painterResource(Res.drawable.ymusic_logo), rootLogger.fork("tray")) {
-                    showWindowRequests.tryEmit(Unit)
-                }
-            }
-        } else if (queueNotEmpty || !windowVisible) {
-            PlayerTray(painterResource(Res.drawable.ymusic_logo), rootLogger.fork("tray")) { screenX ->
-                miniAnchorX = screenX
+        if (queueNotEmpty || !windowVisible) {
+            PlayerTray(painterResource(Res.drawable.ymusic_logo), rootLogger.fork("tray")) { point ->
+                miniAnchor = point
                 miniOpen = !miniOpen
             }
         }
@@ -567,7 +558,7 @@ fun main() {
         if (miniOpen && g != null) {
             MiniPlayerWindow(
                 graph = g,
-                anchorX = miniAnchorX,
+                anchor = miniAnchor,
                 onOpenApp = {
                     windowVisible = true
                     miniOpen = false
