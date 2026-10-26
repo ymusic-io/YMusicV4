@@ -30,6 +30,7 @@ import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -269,7 +270,18 @@ class AppGraph(
      *  Lazy: its collectors start at once and must only see a fully constructed graph. */
     val playback by lazy {
         val onFailure = CoroutineExceptionHandler { _, e -> logger?.fork("playback")?.captureError(e, "playback coordinator failed") }
-        PlaybackCoordinator(this, CoroutineScope(SupervisorJob() + Dispatchers.Default + onFailure))
+        PlaybackCoordinator(this, CoroutineScope(playbackJob + Dispatchers.Default + onFailure))
+    }
+
+    /** Owns the playback recorders: watch time ([playback]) and the Play again session. */
+    private val playbackJob = SupervisorJob()
+
+    /**
+     * Ends the playback recorders, waiting for their final writes (the in-flight watch time, the
+     * Play again play-head). For a shell's own quit; the graph is unusable afterwards.
+     */
+    suspend fun shutdown() {
+        playbackJob.cancelAndJoin()
     }
 
     init {
@@ -278,7 +290,7 @@ class AppGraph(
             PlayAgainRecorder(player, it.playAgain, logger?.fork("play-again")) { item ->
                 item is PlayableItem.LocalMedia && item.uri in temporaryUris.value
             }
-                .start(CoroutineScope(SupervisorJob() + Dispatchers.Default))
+                .start(CoroutineScope(playbackJob + Dispatchers.Default))
         }
         // Here, not in App: Android Auto can start playback without the UI ever composing.
         CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate).launch {
