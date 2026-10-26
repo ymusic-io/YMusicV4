@@ -1,7 +1,9 @@
 package io.ymusic.desktop
 
 import io.ymusic.mse.FileAvNative
+import java.awt.Canvas
 import java.awt.Color
+import java.awt.Container
 import java.awt.Frame
 import java.awt.Window
 import javax.swing.JComponent
@@ -23,6 +25,10 @@ internal class VideoUnderlay {
         setSize(1, 1)
     }
 
+    /** The Compose window to stay just below. Set once by Main after it's displayable, used by
+     *  setHole to re-establish z-order whenever the Frame transitions to visible or moves. */
+    @Volatile var ownerWindow: Window? = null
+
     /** Follows the main window: a separate top-level frame on X11/Windows, it would outlive a hide. */
     var shown = true
         set(value) {
@@ -35,6 +41,34 @@ internal class VideoUnderlay {
         if (panel != null) frame.add(panel, java.awt.BorderLayout.CENTER)
         frame.validate()
         frame.repaint()
+        // Force a synchronous BLACK fill on the heavyweight Canvas inside, after its HWND is
+        // realized. A fresh Canvas HWND on Windows holds transparent pixels until its first
+        // WM_PAINT writes them — DWM composites past that transparency to whatever window happens
+        // to be beneath the Compose transparent-hole (not necessarily this Frame). canvas.repaint()
+        // alone just schedules an async paint that can be deferred past the user-visible gap;
+        // drawing straight into getGraphics guarantees the Canvas has real pixels NOW.
+        if (panel != null) {
+            SwingUtilities.invokeLater { findCanvas(panel)?.let { blackoutCanvas(it) } }
+        }
+    }
+
+    private fun findCanvas(c: Container): Canvas? {
+        for (child in c.components) {
+            if (child is Canvas) return child
+            if (child is Container) findCanvas(child)?.let { return it }
+        }
+        return null
+    }
+
+    private fun blackoutCanvas(c: Canvas) {
+        if (c.width <= 0 || c.height <= 0) return
+        val g = c.graphics ?: return
+        try {
+            g.color = Color.BLACK
+            g.fillRect(0, 0, c.width, c.height)
+        } finally {
+            g.dispose()
+        }
     }
 
     fun setHole(x: Int, y: Int, w: Int, h: Int) {
@@ -51,6 +85,12 @@ internal class VideoUnderlay {
             frame.setBounds(x, y, w, h)
         }
         if (shown && !frame.isVisible) frame.isVisible = true
+        // Windows: top-level window z-order drifts whenever any app foregrounds, so DWM may
+        // composite the transparent Compose hole against some other user window instead of this
+        // Frame (the hole leaks whatever's beneath Compose at that pixel). Re-anchor the Frame
+        // right below the owner window on every setHole. On macOS orderJustBehind is a sticky
+        // NSWindow pairwise order so re-anchoring is a no-op there; cheap either way.
+        ownerWindow?.let { orderJustBehind(it) }
     }
 
     /** Sit immediately under [front] so another app cannot stay in the hole. Not key. */
