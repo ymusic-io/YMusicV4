@@ -551,6 +551,32 @@ Java_io_ymusic_mse_MseHostNative_setVideoComponent(JNIEnv *env, jclass cls, jlon
     mse_host_set_video_surface(h, layer);
     return layer ? JNI_TRUE : JNI_FALSE;
 }
+#elif defined(_WIN32)
+#include "mse_d3d11.h"
+HWND mse_d3d11_jawt_hwnd(JNIEnv *env, jobject component);
+
+JNIEXPORT jboolean JNICALL
+Java_io_ymusic_mse_MseHostNative_setVideoComponent(JNIEnv *env, jclass cls, jlong handle, jobject component)
+{
+    MseHost *h = (MseHost *)(intptr_t)handle;
+    HWND hwnd = NULL;
+    int ok = 0;
+    (void)cls;
+    if (!h)
+        return JNI_FALSE;
+    if (component) {
+        hwnd = mse_d3d11_jawt_hwnd(env, component);
+        if (hwnd)
+            ok = mse_d3d11_present_attach(hwnd);
+    } else {
+        mse_d3d11_present_detach();
+    }
+    /* The host "window" slot on Windows is the HWND itself; mse_av_set_window is a no-op
+       there so this is only a sentinel for mse_host_set_video_surface to trigger a video
+       decoder reopen (so open_decoder's d3d11va gate re-evaluates with the swapchain now up). */
+    mse_host_set_video_surface(h, ok ? (void *)hwnd : NULL);
+    return ok ? JNI_TRUE : JNI_FALSE;
+}
 #else
 #ifndef __ANDROID__
 JNIEXPORT jboolean JNICALL

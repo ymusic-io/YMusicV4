@@ -99,6 +99,14 @@ elseif(UNIX)
   target_link_libraries(mseffmpegjni PRIVATE dl m pthread)
 endif()
 
+if(WIN32)
+  target_sources(mseffmpegjni PRIVATE
+    mse_d3d11.c mse_d3d11_dec.c mse_d3d11_present.c mse_d3d11_jawt.c)
+  # d3dcompiler.lib runtime-compiles the NV12 shader; dxguid.lib provides IID_* GUID symbols.
+  target_link_libraries(mseffmpegjni PRIVATE d3d11 dxgi d3dcompiler dxguid)
+  target_compile_definitions(mseffmpegjni PRIVATE MSE_WIN_HW=1)
+endif()
+
 if(APPLE)
   target_sources(mseffmpegjni PRIVATE mse_vt_present.m mse_vt_layer.m mse_vt_dec.m mse_vt_blit.c)
   set_source_files_properties(mse_vt_present.m mse_vt_layer.m mse_vt_dec.m PROPERTIES COMPILE_FLAGS "-fobjc-arc")
