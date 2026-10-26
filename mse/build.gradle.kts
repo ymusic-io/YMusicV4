@@ -199,19 +199,9 @@ fun canBuildMseJni(log: org.gradle.api.logging.Logger): Boolean {
     return false
 }
 // Windows: force the MinGW-w64 toolchain for the CMake JNI build; the C sources use GCC-only
-// syntax that MSVC rejects. Resolution mirrors :quickjs: -Pymusic.mingwHome / MINGW_HOME / probes.
+// syntax that MSVC rejects (see MingwToolchain.kt).
 val isWindows = org.gradle.internal.os.OperatingSystem.current().isWindows
-val mingwHome: File? = run {
-    if (!isWindows) return@run null
-    val candidates = listOfNotNull(
-        providers.gradleProperty("ymusic.mingwHome").orNull,
-        System.getenv("MINGW_HOME"),
-        "D:/git-sdk-64/mingw64",
-        "C:/msys64/mingw64",
-        "C:/mingw64",
-    )
-    candidates.firstOrNull { File(it, "bin/gcc.exe").exists() && File(it, "bin/mingw32-make.exe").exists() }?.let(::File)
-}
+val mingwHome: File? = mingwToolchainHome()
 
 val mseCmakeConfigure by tasks.registering(Exec::class) {
     onlyIf { canBuildMseJni(logger) }
@@ -239,11 +229,7 @@ val mseCmakeConfigure by tasks.registering(Exec::class) {
             "-DCMAKE_MAKE_PROGRAM=${cmakePath(File(mingwHome, "bin/mingw32-make.exe"))}",
         )
     } else if (isWindows) {
-        error(
-            "No MinGW-w64 toolchain found for the MSE JNI build. The CMake project uses GCC-only " +
-                "flags that MSVC rejects. Point -Pymusic.mingwHome or MINGW_HOME at a MinGW install " +
-                "with bin/gcc.exe and bin/mingw32-make.exe (MSYS2's /mingw64 is the usual one)."
-        )
+        error(MINGW_MISSING)
     }
     commandLine(args)
 }
