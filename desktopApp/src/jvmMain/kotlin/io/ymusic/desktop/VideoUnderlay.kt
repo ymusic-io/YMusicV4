@@ -81,16 +81,15 @@ internal class VideoUnderlay {
             if (shown && !frame.isVisible) frame.isVisible = true
             return
         }
-        if (frame.x != x || frame.y != y || frame.width != w || frame.height != h) {
-            frame.setBounds(x, y, w, h)
-        }
-        if (shown && !frame.isVisible) frame.isVisible = true
-        // Windows: top-level window z-order drifts whenever any app foregrounds, so DWM may
-        // composite the transparent Compose hole against some other user window instead of this
-        // Frame (the hole leaks whatever's beneath Compose at that pixel). Re-anchor the Frame
-        // right below the owner window on every setHole. On macOS orderJustBehind is a sticky
-        // NSWindow pairwise order so re-anchoring is a no-op there; cheap either way.
-        ownerWindow?.let { orderJustBehind(it) }
+        val moved = frame.x != x || frame.y != y || frame.width != w || frame.height != h
+        if (moved) frame.setBounds(x, y, w, h)
+        val revealed = shown && !frame.isVisible
+        if (revealed) frame.isVisible = true
+        // Windows: z-order drifts whenever another app foregrounds, so DWM may composite the
+        // transparent hole against some other window; re-anchor below the owner. Only when the
+        // hole changed (activation re-anchors on its own): off macOS the restack is two toFront
+        // calls that flash the video over the UI, and this runs on every ancestor relayout.
+        if (moved || revealed) ownerWindow?.let { orderJustBehind(it) }
     }
 
     /** Sit immediately under [front] so another app cannot stay in the hole. Not key. */
