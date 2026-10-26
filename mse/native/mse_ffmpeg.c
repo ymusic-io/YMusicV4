@@ -28,6 +28,12 @@
 #define MSE_LINUX_HW 1
 #include "mse_hwdev.h"
 #endif
+#ifdef MSE_WIN_HW
+#include <libavutil/hwcontext.h>
+#include <libavutil/hwcontext_d3d11va.h>
+#include <libavutil/pixdesc.h>
+#include "mse_d3d11.h"
+#endif
 
 #include <math.h>
 #include <pthread.h>
@@ -90,8 +96,12 @@ struct MseAv {
     size_t bgra_n[2];
     int bgra_i;
     AVFrame *hw_sw;
-#ifdef MSE_LINUX_HW
+#if defined(MSE_LINUX_HW) || defined(MSE_WIN_HW)
     int hw_errs; /* decode errors since the last good GPU frame */
+#endif
+#ifdef MSE_WIN_HW
+    /* Once the d3d11va init fails for a codec, software for the rest of the process. */
+    enum AVCodecID d3d11_fail_id;
 #endif
     int blit_w, blit_h;
     int blit_log_dw, blit_log_dh;
@@ -358,6 +368,14 @@ static void mse_av_log(void *ptr, int level, const char *fmt, va_list vl)
             AVCodecContext *ctx = ptr;
             if (ctx && ctx->codec_id)
                 mse_hwdev_mark_failed(ctx->codec_id);
+        }
+#endif
+#ifdef MSE_WIN_HW
+        if (fmt && strstr(fmt, "hwaccel initialisation returned error")) {
+            AVCodecContext *ctx = ptr;
+            MseAv *a = ctx && ctx->opaque ? (MseAv *)ctx->opaque : NULL;
+            if (a && ctx->codec_id)
+                a->d3d11_fail_id = ctx->codec_id;
         }
 #endif
         snprintf(line, sizeof(line), "ffmpeg %s", buf);
@@ -1770,6 +1788,17 @@ static const AVCodec *find_video_codec(enum AVCodecID id, int sw_only)
             return c;
     }
 #endif
+#ifdef MSE_WIN_HW
+    /* d3d11va hwaccel attaches to ffmpeg's native `av1` / `vp9` decoders only — libdav1d /
+     * libvpx-vp9 ignore hw_device_ctx and decode in software, triggering an error cascade when
+     * get_format returns AV_PIX_FMT_D3D11. Prefer native when a swapchain is attached. */
+    if (!sw_only && mse_d3d11_present_active_for(NULL) &&
+        (id == AV_CODEC_ID_VP9 || id == AV_CODEC_ID_AV1)) {
+        c = avcodec_find_decoder_by_name(id == AV_CODEC_ID_VP9 ? "vp9" : "av1");
+        if (c)
+            return c;
+    }
+#endif
     if (id == AV_CODEC_ID_VP9) {
         c = avcodec_find_decoder_by_name("libvpx-vp9");
         if (c)
@@ -2021,6 +2050,25 @@ static int open_decoder(MseAv *a, int video, AVCodecParameters *par)
         (*ctxp)->thread_type = 0;
     }
 #endif
+#ifdef MSE_WIN_HW
+    /* D3D11VA: only when the HWND present is already attached. ffmpeg's 8-bit
+       hwaccels cover H.264/HEVC/VP9/AV1; 10-bit is deferred — the par bits_per_raw_sample
+       check keeps us on CPU for HDR. opaque carries the MseAv for the log hook. */
+    (*ctxp)->opaque = a;
+    if (video && par->codec_id != a->d3d11_fail_id && mse_d3d11_present_active_for(NULL) &&
+        (par->bits_per_raw_sample == 0 || par->bits_per_raw_sample == 8) &&
+        (par->codec_id == AV_CODEC_ID_H264 || par->codec_id == AV_CODEC_ID_HEVC ||
+         par->codec_id == AV_CODEC_ID_VP9 || par->codec_id == AV_CODEC_ID_AV1)) {
+        AVBufferRef *hw = mse_d3d11_hwdev_ref();
+        if (hw) {
+            (*ctxp)->hw_device_ctx = hw;
+            (*ctxp)->get_format = mse_d3d11_pick;
+            (*ctxp)->extra_hw_frames = 4;
+            (*ctxp)->thread_count = 1;
+            (*ctxp)->thread_type = 0;
+        }
+    }
+#endif
     if (avcodec_open2(*ctxp, codec, NULL) < 0) {
 #ifdef __APPLE__
         if (video && (*ctxp)->hw_device_ctx) {
@@ -2035,6 +2083,15 @@ static int open_decoder(MseAv *a, int video, AVCodecParameters *par)
 #ifdef MSE_LINUX_HW
         if (video && (*ctxp)->hw_device_ctx) {
             mse_hwdev_mark_failed(par->codec_id);
+            avcodec_free_context(ctxp);
+            return open_decoder(a, video, par);
+        }
+#endif
+#ifdef MSE_WIN_HW
+        if (video && (*ctxp)->hw_device_ctx) {
+            a->d3d11_fail_id = par->codec_id;
+            mse_critf(MSE_LOG_WARN, "d3d11va open-fail id=%d: software from now on",
+                      (int)par->codec_id);
             avcodec_free_context(ctxp);
             return open_decoder(a, video, par);
         }
@@ -2062,7 +2119,7 @@ opened:
     if (video)
         vlog("open %s %dx%d threads=%d vt=%d", codec->name, (*ctxp)->width, (*ctxp)->height,
              (*ctxp)->thread_count,
-#if defined(__APPLE__) || defined(MSE_LINUX_HW)
+#if defined(__APPLE__) || defined(MSE_LINUX_HW) || defined(MSE_WIN_HW)
              (*ctxp)->hw_device_ctx ? 1 : 0
 #else
              0
@@ -3001,6 +3058,21 @@ void mse_av_abort(MseAv *a, int audio)
     av_unlock(a, audio);
 }
 
+void mse_av_reopen_video(MseAv *a)
+{
+    if (!a)
+        return;
+    av_lock(a, 0);
+    close_video_decoder(a);
+    /* Reset the per-session d3d11 fail latch too — a prior fail happened under a different
+     * attach state, we're explicitly re-trying with the swapchain now up. */
+#ifdef MSE_WIN_HW
+    a->d3d11_fail_id = AV_CODEC_ID_NONE;
+#endif
+    av_unlock(a, 0);
+    mse_critf(MSE_LOG_INFO, "mse-v decoder reopen requested (next decode cycle)");
+}
+
 void mse_av_change_type(MseAv *a, int audio)
 {
     if (!a)
@@ -3742,6 +3814,32 @@ static int scale_bgra(MseAv *a, AVFrame *frame, uint8_t **bgra, int *w, int *h)
         sw = a->hw_sw;
     }
 #endif
+#ifdef MSE_WIN_HW
+    if (frame->format == AV_PIX_FMT_D3D11 && frame->data[0]) {
+        ID3D11Texture2D *tex = (ID3D11Texture2D *)frame->data[0];
+        UINT slice = (UINT)(uintptr_t)frame->data[1];
+        int rc = mse_d3d11_present_show(tex, slice, frame->width, frame->height,
+                                        a->blit_w, a->blit_h);
+        if (rc == 0) {
+            a->hw_errs = 0;
+            *bgra = NULL;
+            *w = frame->width;
+            *h = frame->height;
+            return 0;
+        }
+        /* Present failed; fall back to CPU copy via hwframe_transfer_data. */
+        if (!a->hw_sw)
+            a->hw_sw = av_frame_alloc();
+        if (!a->hw_sw)
+            return -1;
+        av_frame_unref(a->hw_sw);
+        if (av_hwframe_transfer_data(a->hw_sw, frame, 0) < 0)
+            return -1;
+        a->hw_sw->colorspace = frame->colorspace;
+        a->hw_sw->color_range = frame->color_range;
+        sw = a->hw_sw;
+    }
+#endif
 #ifdef __APPLE__
     if (frame->format == AV_PIX_FMT_VIDEOTOOLBOX && frame->data[3]) {
         int tw, th;
@@ -3969,6 +4067,14 @@ static void video_decode_error(MseAv *a, double pts, int err)
     if (a->vdec && a->vdec->hw_device_ctx && ++a->hw_errs >= 3) {
         a->hw_errs = 0;
         mse_hwdev_mark_failed(a->vdec->codec_id);
+    }
+#endif
+#ifdef MSE_WIN_HW
+    if (a->vdec && a->vdec->hw_device_ctx && ++a->hw_errs >= 3) {
+        a->hw_errs = 0;
+        a->d3d11_fail_id = a->vdec->codec_id;
+        mse_critf(MSE_LOG_WARN, "d3d11va rejected id=%d: software from now on",
+                  (int)a->vdec->codec_id);
     }
 #endif
     mse_critf(MSE_LOG_WARN, "mse-v decode-err close-reopen t=%.3f", pts);
