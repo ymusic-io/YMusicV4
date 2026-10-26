@@ -226,6 +226,8 @@ private val rootLogger: Logger =
 /** Ticks when the OS hands over a link or the app icon is clicked, so a window hidden to the tray comes back. */
 private val showWindowRequests = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 
+private val isWindows = "windows" in System.getProperty("os.name").orEmpty().lowercase()
+
 fun main() {
     defaultLinuxSoftwareRendering()
     useBundledMseNatives()
@@ -529,6 +531,7 @@ fun main() {
         // The tray icon lives whenever there is a queue to control — window open or not — and
         // always while the window is hidden (it is the only way back then). A plain click opens
         // the notification-style mini player anchored under the icon; no context menu.
+        // Windows: the icon exists only while the window is hidden, and a click restores it.
         var miniOpen by remember { mutableStateOf(false) }
         var miniAnchorX by remember { mutableStateOf<Int?>(null) }
         var queueNotEmpty by remember { mutableStateOf(false) }
@@ -539,7 +542,13 @@ fun main() {
                 if (!queueNotEmpty) miniOpen = false
             }
         }
-        if (queueNotEmpty || !windowVisible) {
+        if (isWindows) {
+            if (!windowVisible) {
+                PlayerTray(painterResource(Res.drawable.ymusic_logo), rootLogger.fork("tray")) {
+                    showWindowRequests.tryEmit(Unit)
+                }
+            }
+        } else if (queueNotEmpty || !windowVisible) {
             PlayerTray(painterResource(Res.drawable.ymusic_logo), rootLogger.fork("tray")) { screenX ->
                 miniAnchorX = screenX
                 miniOpen = !miniOpen
