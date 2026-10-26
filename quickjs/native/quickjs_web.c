@@ -1190,6 +1190,10 @@ static JSValue js_time_zone(JSContext *ctx, JSValueConst this_val, int argc, JSV
             return JS_NewString(ctx, prop);
     }
 #endif
+#ifndef _WIN32
+    // Windows has no /etc/localtime symlink; fall through to the UTC default (TZ env was already
+    // consulted above). Native Windows timezone resolution (GetDynamicTimeZoneInformation) is a
+    // separate step and not wired here yet.
     n = readlink("/etc/localtime", path, sizeof(path) - 1);
     if (n > 0) {
         path[n] = 0;
@@ -1197,6 +1201,7 @@ static JSValue js_time_zone(JSContext *ctx, JSValueConst this_val, int argc, JSV
         if (tz_looks_iana(tail))
             return JS_NewString(ctx, tail);
     }
+#endif
     return JS_NewString(ctx, "UTC");
 }
 
