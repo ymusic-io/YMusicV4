@@ -429,6 +429,7 @@ fun main() {
                     val resizePulse = remember { MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST) }
                     DisposableEffect(window) {
                         VideoOverlayNative.onOverlayPress = { videoUnderlay.orderJustBehind(window) }
+                        videoUnderlay.ownerWindow = window
                         val stack = object : java.awt.event.WindowAdapter() {
                             override fun windowActivated(e: java.awt.event.WindowEvent) {
                                 videoUnderlay.orderJustBehind(window)
@@ -438,6 +439,7 @@ fun main() {
                         onDispose {
                             window.removeWindowListener(stack)
                             VideoOverlayNative.onOverlayPress = null
+                            videoUnderlay.ownerWindow = null
                         }
                     }
                     DisposableEffect(window, g) {
