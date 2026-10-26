@@ -2,6 +2,8 @@ package io.ymusic.desktop
 
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Canvas
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
 import androidx.compose.ui.graphics.drawscope.translate
@@ -27,7 +29,7 @@ private const val LINUX_WM_CLASS = "io-ymusic-desktop-MainKt"
  * Hack: supersampled. The logo's stacked layers each AA-clip the same rim, so at 1x an edge pixel's
  * coverage compounds to near-opaque (a jagged circle); at [factor]x that error shrinks to a sliver.
  */
-internal fun Painter.rasterize(px: Int, scale: Float = 1f): BufferedImage {
+internal fun Painter.rasterize(px: Int, scale: Float = 1f, tint: Color? = null): BufferedImage {
     val factor = (1024 / px).coerceIn(1, 8)
     val big = px * factor
     val bitmap = ImageBitmap(big, big)
@@ -35,7 +37,7 @@ internal fun Painter.rasterize(px: Int, scale: Float = 1f): BufferedImage {
     val offset = (big - drawn) / 2
     CanvasDrawScope().draw(Density(1f), LayoutDirection.Ltr, Canvas(bitmap), Size(big.toFloat(), big.toFloat())) {
         translate(offset, offset) {
-            with(this@rasterize) { draw(Size(drawn, drawn)) }
+            with(this@rasterize) { draw(Size(drawn, drawn), colorFilter = tint?.let(ColorFilter::tint)) }
         }
     }
     return bitmap.toAwtImage().boxDownsample(factor)
