@@ -2,6 +2,7 @@ package io.ymusic.desktop
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -11,6 +12,8 @@ import io.ymusic.ui.resources.tray_exit
 import io.ymusic.ui.resources.tray_pause
 import io.ymusic.ui.resources.tray_resume
 import io.ymusic.ui.resources.tray_stop
+import kmpcommon.log.Logger
+import kotlinx.coroutines.withContext
 import org.jetbrains.compose.resources.stringResource
 import java.awt.MenuItem
 import java.awt.PopupMenu
@@ -69,5 +72,26 @@ internal fun DockMenu(menu: PopupMenu) {
         }
         taskbar?.menu = menu
         onDispose { taskbar?.menu = null }
+    }
+}
+
+/** The same actions as Windows taskbar Jump List tasks, each relaunching [exe] with its command. */
+@Composable
+internal fun JumpListTasks(exe: String, playing: Boolean, hasQueue: Boolean, logger: Logger) {
+    val toggleLabel = stringResource(if (playing) Res.string.tray_pause else Res.string.tray_resume)
+    val stopLabel = stringResource(Res.string.tray_stop)
+    val exitLabel = stringResource(Res.string.tray_exit)
+    LaunchedEffect(exe, toggleLabel, stopLabel, exitLabel, hasQueue) {
+        val tasks = buildList {
+            if (hasQueue) {
+                add(WindowsJumpList.Task(toggleLabel, InstanceCommand.TogglePlay))
+                add(WindowsJumpList.Task(stopLabel, InstanceCommand.Stop))
+            }
+            add(WindowsJumpList.Task(exitLabel, InstanceCommand.Exit))
+        }
+        withContext(WindowsJumpList.dispatcher) {
+            runCatching { WindowsJumpList.set(exe, tasks) }
+                .onFailure { logger.log(Logger.Level.WARN, "jump list update failed", it) }
+        }
     }
 }
