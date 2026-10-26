@@ -224,6 +224,9 @@ private val rootLogger: Logger =
     TeeLogger(FileLogger(logWorker), TeeLogger(SentryLogger(), StdoutLogger()))
         .also { it.bindMseNativeLogs() }
 
+/** The installed YMusic.exe (jpackage launcher); null under `gradlew run`, where tasks have nothing to relaunch. */
+private val jumpListExe: String? = System.getProperty("jpackage.app-path")?.takeIf { isWindows }
+
 /** Ticks when the OS hands over a link or the app icon is clicked, so a window hidden to the tray comes back. */
 private val showWindowRequests = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 
@@ -231,8 +234,22 @@ private val showWindowRequests = MutableSharedFlow<Unit>(extraBufferCapacity = 1
 @Volatile
 private var mainWindow: Frame? = null
 
-fun main() {
+fun main(args: Array<String>) {
     defaultLinuxSoftwareRendering()
+    val instance = if (isWindows) {
+        val command = InstanceCommand.of(args.toList())
+        val claimed = try {
+            SingleInstance.claim(ymusicDataDir(), command, rootLogger.fork("instance"))
+        } catch (e: java.io.IOException) {
+            rootLogger.log(Logger.Level.ERROR, "another instance holds the lock but did not answer", e)
+            return
+        }
+        // Handed to the running app; or a Jump List task with no app running, which has nothing to control.
+        if (claimed == null || command != InstanceCommand.Show) return
+        claimed
+    } else {
+        null
+    }
     useBundledMseNatives()
     // macOS delivers ymusic:// opens (Info.plist CFBundleURLTypes) as Apple Events to the running
     // instance — set before the toolkit starts so a cold-launch link is not lost.
@@ -319,6 +336,13 @@ fun main() {
                 saveWindowPrefs(frame.persistSize(), frame.persistPosition())
             }
             videoUnderlay.dispose()
+            // A pinned button keeps its Jump List after exit; tasks for a closed app would only relaunch it.
+            if (jumpListExe != null) {
+                kotlinx.coroutines.runBlocking(WindowsJumpList.dispatcher) {
+                    runCatching { WindowsJumpList.clear() }
+                        .onFailure { rootLogger.fork("jump-list").log(Logger.Level.WARN, "jump list clear failed", it) }
+                }
+            }
             exitApplication()
         }
         LaunchedEffect(windowState) {
@@ -561,6 +585,20 @@ fun main() {
             onExit = { quit() },
         )
         if (isMac) DockMenu(playerMenu)
+        if (jumpListExe != null) JumpListTasks(jumpListExe, playing, queueNotEmpty, rootLogger.fork("jump-list"))
+        LaunchedEffect(instance) {
+            instance?.commands?.collect { command ->
+                when (command) {
+                    InstanceCommand.Show -> showWindowRequests.tryEmit(Unit)
+                    InstanceCommand.TogglePlay -> graph?.player?.togglePlay()
+                    InstanceCommand.Stop -> {
+                        miniOpen = false
+                        graph?.player?.clearQueue()
+                    }
+                    InstanceCommand.Exit -> quit()
+                }
+            }
+        }
         if (queueNotEmpty || !windowVisible) {
             PlayerTray(
                 painterResource(Res.drawable.ymusic_logo),
