@@ -23,6 +23,13 @@ add_library(quickjsjni SHARED
   ${QJS_DIR}/dtoa.c
 )
 
+# MinGW on Windows prefixes shared libs with `lib` by default (Unix convention), producing
+# libquickjsjni.dll — but the JVM loader uses System.mapLibraryName("quickjsjni") which on Windows
+# resolves to quickjsjni.dll (no prefix). Drop the prefix so one name serves MinGW and MSVC alike.
+if(WIN32)
+  set_target_properties(quickjsjni PROPERTIES PREFIX "")
+endif()
+
 target_include_directories(quickjsjni PRIVATE ${QJS_DIR})
 
 if(ANDROID)

@@ -20,6 +20,17 @@ foreach(_n libavformat.so libavformat.dylib avformat.dll libavformat.dll)
     endif()
   endforeach()
 endforeach()
+# ffmpeg on Windows ships the shared libs with a version-in-name: `avformat-63.dll` (no `lib`
+# prefix), not `avformat.dll`. Match the pattern instead of a fixed set of names.
+if(NOT _avformat_shared)
+  foreach(_d ${FFMPEG_ROOT}/bin ${FFMPEG_ROOT}/lib ${FFMPEG_ROOT})
+    file(GLOB _av_dlls "${_d}/avformat-*.dll" "${_d}/libavformat-*.dll")
+    if(_av_dlls)
+      list(GET _av_dlls 0 _avformat_shared)
+      break()
+    endif()
+  endforeach()
+endif()
 if(NOT _avformat_shared)
   message(FATAL_ERROR
     "FFMPEG_ROOT=${FFMPEG_ROOT} has no shared libavformat (.so/.dylib/.dll). "
@@ -33,6 +44,11 @@ endif()
 
 set(MSE_SOURCES mse_ffmpeg.c mse_host.c mse_vt.c mse_host_jni.c file_av.c file_av_jni.c audio_fx.c audio_fx_jni.c)
 add_library(mseffmpegjni SHARED ${MSE_SOURCES})
+# MinGW on Windows adds a `lib` prefix to shared libs; the JVM loader expects mseffmpegjni.dll
+# (System.mapLibraryName on Windows has no prefix). Drop it so MinGW matches MSVC and the loader.
+if(WIN32)
+  set_target_properties(mseffmpegjni PROPERTIES PREFIX "")
+endif()
 target_compile_definitions(mseffmpegjni PRIVATE PRODUCTION=${PRODUCTION})
 target_include_directories(mseffmpegjni PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/../../quickjs/native
