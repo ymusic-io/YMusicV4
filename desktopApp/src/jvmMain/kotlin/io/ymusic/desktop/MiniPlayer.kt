@@ -36,13 +36,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.painter.Painter
-import androidx.compose.ui.graphics.toAwtImage
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.DpSize
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.ApplicationScope
@@ -253,26 +249,23 @@ private fun MiniPlayerContent(graph: AppGraph, onOpenApp: () -> Unit, onDismiss:
  * listener = a plain click reaches [onClick] (with the click's screen x, to anchor the mini
  * player under the icon).
  *
- * The icon renders at 1x AND 2x into a multi-resolution image: a TrayIcon handed a single 1x
- * raster is upscaled by the OS on Retina and turns soft, no matter how good the source is.
+ * The icon is a multi-resolution image of plain BufferedImages, one per display scale: a single
+ * 1x raster is upscaled by the OS on HiDPI and turns soft, and Windows' tray peer draws Compose's
+ * lazy `toAwtImage` PainterImage variants as nothing at all.
  */
 @Composable
 fun PlayerTray(icon: Painter, logger: Logger, onClick: (screenX: Int) -> Unit) {
-    val density = LocalDensity.current
     val currentOnClick by rememberUpdatedState(onClick)
     DisposableEffect(icon) {
         val tray = if (SystemTray.isSupported()) SystemTray.getSystemTray() else null
         val trayIcon = tray?.let {
-            val size = it.trayIconSize
-            fun render(scale: Int) = icon.toAwtImage(
-                density,
-                LayoutDirection.Ltr,
-                Size(size.width.toFloat() * scale, size.height.toFloat() * scale),
-            )
+            val px = it.trayIconSize.width
             val image = if (isLinux) {
-                linuxTrayImage(icon, size.width)
+                linuxTrayImage(icon, px)
             } else {
-                java.awt.image.BaseMultiResolutionImage(render(1), render(2))
+                java.awt.image.BaseMultiResolutionImage(
+                    *TRAY_SCALES.map { s -> icon.rasterize(kotlin.math.ceil(px * s).toInt()) }.toTypedArray(),
+                )
             }
             TrayIcon(image, "YMusic").apply {
                 addMouseListener(
@@ -310,6 +303,8 @@ fun PlayerTray(icon: Painter, logger: Logger, onClick: (screenX: Int) -> Unit) {
 
 /** X11's tray peer paints transparent pixels in its own (white) background: the disc covers the cell. */
 private fun linuxTrayImage(icon: Painter, px: Int) = icon.rasterize(px, scale = kotlin.math.sqrt(2f))
+
+private val TRAY_SCALES = listOf(1f, 1.25f, 1.5f, 1.75f, 2f, 2.5f, 3f)
 
 private const val WIDTH_DP = 340
 private const val HEIGHT_DP = 132

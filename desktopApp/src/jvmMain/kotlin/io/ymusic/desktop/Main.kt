@@ -351,7 +351,7 @@ fun main() {
                 if (graph?.player?.queue?.value?.items?.isNotEmpty() == true) windowVisible = false else quit()
             },
             title = "YMusic",
-            icon = painterResource(Res.drawable.ymusic_logo),
+            icon = null,
             state = windowState,
             undecorated = true,
             transparent = true,
@@ -373,6 +373,12 @@ fun main() {
             },
         ) {
             paintWindowGround(Color.Transparent)
+            // Not Window(icon=): that is one 32dp raster the OS nearest-scales into each of its
+            // icon slots (Windows: 16/20/24/32/40/48/64/256 px by DPI). One exact raster per slot.
+            val windowIcon = painterResource(Res.drawable.ymusic_logo)
+            LaunchedEffect(window, windowIcon) {
+                window.iconImages = listOf(16, 20, 24, 32, 40, 48, 64, 128, 256).map { windowIcon.rasterize(it) }
+            }
             val closeApp = {
                 if (graph?.player?.queue?.value?.items?.isNotEmpty() == true) windowVisible = false else quit()
             }
