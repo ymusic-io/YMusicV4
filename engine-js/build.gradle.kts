@@ -37,8 +37,11 @@ plugins {
 // BuildFlags.PRODUCTION: `debug(function () { return concat; })` does not call the thunk
 // when true (esbuild inlines; Closure DCE drops the dead branch).
 val production = isProductionBuild()
+// Single-quote the string literal: Java's Windows ProcessBuilder loses embedded `"` in argv,
+// which esbuild then reads as the bare identifier `engine`. 'engine' is a valid JS string literal
+// and survives every layer unchanged.
 fun esbuildDefines(bundleName: String, backendVersion: Long) = arrayOf(
-    "--define:BUNDLE_NAME=\"$bundleName\"",
+    "--define:BUNDLE_NAME='$bundleName'",
     "--define:BACKEND_VERSION=$backendVersion",
     "--define:PRODUCTION=$production",
 )
@@ -60,7 +63,27 @@ val playerBundleFile = layout.buildDirectory.file("dist/player.js")
 val playerBundleMapFile = layout.buildDirectory.file("dist/player.js.map")
 val testBundleFile = layout.buildDirectory.file("dist/engine-test.js")
 
+private val onWindows = org.gradle.internal.os.OperatingSystem.current().isWindows
+
+// On Windows the real npx entry point is a .cmd batch wrapper; Gradle Exec runs .cmd via cmd.exe,
+// and cmd.exe's quoting rules strip the embedded `"` in `--define:BUNDLE_NAME="engine"` — Closure
+// then rejects the resulting bare identifier (JSC_UNDEFINED_VARIABLE). Call node.exe + npx-cli.js
+// directly to bypass cmd.exe entirely so Java's own argv quoting (which matches the Windows C
+// runtime convention npx-cli expects) survives all the way through.
+private val npxArgv: List<String> = if (!onWindows) {
+    listOf("npx")
+} else {
+    val nodeExe = (System.getenv("PATH") ?: "").split(File.pathSeparatorChar)
+        .map { File(it.trim('"'), "node.exe") }
+        .firstOrNull { it.isFile }
+        ?: error("node.exe not found on PATH")
+    val npxCli = File(nodeExe.parentFile, "node_modules/npm/bin/npx-cli.js")
+    check(npxCli.isFile) { "npx-cli.js not found next to ${nodeExe.absolutePath}" }
+    listOf(nodeExe.absolutePath, npxCli.absolutePath)
+}
+
 fun Exec.unixPath() {
+    if (onWindows) return
     environment(
         "PATH",
         "/opt/homebrew/bin:/usr/local/bin:" + (System.getenv("PATH") ?: "/usr/bin:/bin"),
@@ -73,7 +96,7 @@ val typecheckJs by tasks.registering(Exec::class) {
     outputs.file(layout.buildDirectory.file("typecheck.ok"))
     workingDir = projectDir
     unixPath()
-    commandLine("npx", "-y", "-p", "typescript@${Versions.typescript}", "tsc", "--noEmit", "-p", ".")
+    commandLine(npxArgv + listOf("-y", "-p", "typescript@${Versions.typescript}", "tsc", "--noEmit", "-p", "."))
     doLast { outputs.files.singleFile.writeText("ok") }
 }
 
@@ -89,13 +112,15 @@ val bundleRawJs by tasks.registering(Exec::class) {
     workingDir = projectDir
     unixPath()
     commandLine(
-        "npx", "-y", "esbuild@${Versions.esbuild}",
-        "src/index.ts", "--bundle",
-        "--format=iife", "--target=esnext", "--charset=utf8",
-        "--loader:.raw.js=text",
-        *engineDefines,
-        "--metafile=${rawBundleMeta.get().asFile.absolutePath}",
-        "--outfile=${rawBundleFile.get().asFile.absolutePath}",
+        npxArgv + listOf(
+            "-y", "esbuild@${Versions.esbuild}",
+            "src/index.ts", "--bundle",
+            "--format=iife", "--target=esnext", "--charset=utf8",
+            "--loader:.raw.js=text",
+            *engineDefines,
+            "--metafile=${rawBundleMeta.get().asFile.absolutePath}",
+            "--outfile=${rawBundleFile.get().asFile.absolutePath}",
+        ),
     )
 }
 
@@ -198,13 +223,15 @@ val bundleRawPlayerJs by tasks.registering(Exec::class) {
     workingDir = projectDir
     unixPath()
     commandLine(
-        "npx", "-y", "esbuild@${Versions.esbuild}",
-        "src/player-index.ts", "--bundle",
-        "--format=iife", "--target=esnext", "--charset=utf8",
-        "--loader:.raw.js=text",
-        *playerDefines,
-        "--metafile=${rawPlayerBundleMeta.get().asFile.absolutePath}",
-        "--outfile=${rawPlayerBundleFile.get().asFile.absolutePath}",
+        npxArgv + listOf(
+            "-y", "esbuild@${Versions.esbuild}",
+            "src/player-index.ts", "--bundle",
+            "--format=iife", "--target=esnext", "--charset=utf8",
+            "--loader:.raw.js=text",
+            *playerDefines,
+            "--metafile=${rawPlayerBundleMeta.get().asFile.absolutePath}",
+            "--outfile=${rawPlayerBundleFile.get().asFile.absolutePath}",
+        ),
     )
 }
 
@@ -238,13 +265,15 @@ val bundleRawTestJs by tasks.registering(Exec::class) {
     workingDir = projectDir
     unixPath()
     commandLine(
-        "npx", "-y", "esbuild@${Versions.esbuild}",
-        "src/test/index.ts", "--bundle",
-        "--format=iife", "--target=esnext", "--charset=utf8",
-        "--loader:.raw.js=text",
-        *engineDefines,
-        "--metafile=${rawTestBundleMeta.get().asFile.absolutePath}",
-        "--outfile=${rawTestBundleFile.get().asFile.absolutePath}",
+        npxArgv + listOf(
+            "-y", "esbuild@${Versions.esbuild}",
+            "src/test/index.ts", "--bundle",
+            "--format=iife", "--target=esnext", "--charset=utf8",
+            "--loader:.raw.js=text",
+            *engineDefines,
+            "--metafile=${rawTestBundleMeta.get().asFile.absolutePath}",
+            "--outfile=${rawTestBundleFile.get().asFile.absolutePath}",
+        ),
     )
 }
 
