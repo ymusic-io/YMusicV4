@@ -1,5 +1,10 @@
 package io.ymusic.desktop
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -7,6 +12,8 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import io.ymusic.ui.DefaultAccent
 import io.ymusic.ui.resources.Res
 import io.ymusic.ui.resources.tray_exit
 import io.ymusic.ui.resources.tray_pause
@@ -18,6 +25,7 @@ import org.jetbrains.compose.resources.stringResource
 import java.awt.MenuItem
 import java.awt.PopupMenu
 import java.awt.Taskbar
+import java.io.File
 
 /**
  * Pause/Resume, Stop (clear the queue) and, when [withExit], Exit: the tray icon's right-click
@@ -81,17 +89,32 @@ internal fun JumpListTasks(exe: String, playing: Boolean, hasQueue: Boolean, log
     val toggleLabel = stringResource(if (playing) Res.string.tray_pause else Res.string.tray_resume)
     val stopLabel = stringResource(Res.string.tray_stop)
     val exitLabel = stringResource(Res.string.tray_exit)
+    val toggleGlyph = rememberVectorPainter(if (playing) Icons.Default.Pause else Icons.Default.PlayArrow)
+    val stopGlyph = rememberVectorPainter(Icons.Default.Stop)
+    val exitGlyph = rememberVectorPainter(Icons.AutoMirrored.Filled.ExitToApp)
     LaunchedEffect(exe, toggleLabel, stopLabel, exitLabel, hasQueue) {
-        val tasks = buildList {
-            if (hasQueue) {
-                add(WindowsJumpList.Task(toggleLabel, InstanceCommand.TogglePlay))
-                add(WindowsJumpList.Task(stopLabel, InstanceCommand.Stop))
-            }
-            add(WindowsJumpList.Task(exitLabel, InstanceCommand.Exit))
-        }
+        // Drawn here, on the composition thread: a VectorPainter reads snapshot state.
+        val icons = listOf(
+            "toggle-$playing" to toggleGlyph,
+            "stop" to stopGlyph,
+            "exit" to exitGlyph,
+        ).associate { (name, glyph) -> name to JUMP_LIST_ICON_SIZES.map { glyph.rasterize(it, tint = DefaultAccent) } }
         withContext(WindowsJumpList.dispatcher) {
-            runCatching { WindowsJumpList.set(exe, tasks) }
-                .onFailure { logger.log(Logger.Level.WARN, "jump list update failed", it) }
+            runCatching {
+                val dir = File(ymusicDataDir(), "jumplist")
+                val files = icons.mapValues { (name, images) -> File(dir, "$name.ico").also { WindowsJumpList.writeIcon(it, images) } }
+                val tasks = buildList {
+                    if (hasQueue) {
+                        add(WindowsJumpList.Task(toggleLabel, InstanceCommand.TogglePlay, files.getValue("toggle-$playing")))
+                        add(WindowsJumpList.Task(stopLabel, InstanceCommand.Stop, files.getValue("stop")))
+                    }
+                    add(WindowsJumpList.Task(exitLabel, InstanceCommand.Exit, files.getValue("exit")))
+                }
+                WindowsJumpList.set(exe, tasks)
+            }.onFailure { logger.log(Logger.Level.WARN, "jump list update failed", it) }
         }
     }
 }
+
+// Windows menu icon slots across 100–200% DPI.
+private val JUMP_LIST_ICON_SIZES = listOf(16, 20, 24, 32, 40, 48)

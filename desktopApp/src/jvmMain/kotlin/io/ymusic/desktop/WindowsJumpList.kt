@@ -10,10 +10,16 @@ import com.sun.jna.ptr.PointerByReference
 import kmpcommon.WorkerThread
 import kotlinx.coroutines.ExecutorCoroutineDispatcher
 import kotlinx.coroutines.asCoroutineDispatcher
+import java.awt.image.BufferedImage
+import java.io.ByteArrayOutputStream
+import java.io.File
 import java.io.IOException
 import java.lang.ref.Reference
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.util.UUID
 import java.util.concurrent.Executors
+import javax.imageio.ImageIO
 
 /**
  * The taskbar button's Jump List "Tasks", over the shell's COM interfaces via JNA. Each task
@@ -21,7 +27,28 @@ import java.util.concurrent.Executors
  */
 internal object WindowsJumpList {
 
-    class Task(val title: String, val command: InstanceCommand)
+    /** [icon]: an .ico for the task, else the exe's own icon. */
+    class Task(val title: String, val command: InstanceCommand, val icon: File? = null)
+
+    /** An .ico of PNG-compressed [images] (Vista+), rewritten only when its bytes change. */
+    @WorkerThread
+    fun writeIcon(file: File, images: List<BufferedImage>) {
+        val pngs = images.map { img -> ByteArrayOutputStream().also { ImageIO.write(img, "png", it) }.toByteArray() }
+        val out = ByteArrayOutputStream()
+        val header = ByteBuffer.allocate(6 + 16 * pngs.size).order(ByteOrder.LITTLE_ENDIAN)
+        header.putShort(0).putShort(1).putShort(pngs.size.toShort())
+        var offset = 6 + 16 * pngs.size
+        images.zip(pngs) { img, png ->
+            header.put(img.width.coerceAtMost(256).toByte()).put(img.height.coerceAtMost(256).toByte())
+            header.put(0).put(0).putShort(1).putShort(32).putInt(png.size).putInt(offset)
+            offset += png.size
+        }
+        out.write(header.array())
+        pngs.forEach(out::write)
+        val bytes = out.toByteArray()
+        file.parentFile.mkdirs()
+        if (!file.exists() || !file.readBytes().contentEquals(bytes)) file.writeBytes(bytes)
+    }
 
     /** COM wants one apartment thread; every call here runs on it. */
     val dispatcher: ExecutorCoroutineDispatcher = Executors.newSingleThreadExecutor { r ->
@@ -75,7 +102,7 @@ internal object WindowsJumpList {
         try {
             link.call(20, WString(exe)).check("SetPath")
             link.call(11, WString(task.command.arg.orEmpty())).check("SetArguments")
-            link.call(17, WString(exe), 0).check("SetIconLocation")
+            link.call(17, WString(task.icon?.absolutePath ?: exe), 0).check("SetIconLocation")
             val store = PointerByReference()
             link.call(0, guid(IID_PROPERTY_STORE), store).check("QueryInterface(IPropertyStore)")
             try {
