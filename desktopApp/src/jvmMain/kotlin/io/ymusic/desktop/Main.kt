@@ -189,6 +189,7 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import projectcommon.log.FileLogger
 import projectcommon.log.LoggingWorker
+import com.sun.jna.Native
 import java.awt.BorderLayout
 import java.awt.Canvas
 import java.awt.Desktop
@@ -225,6 +226,10 @@ private val rootLogger: Logger =
 
 /** Ticks when the OS hands over a link or the app icon is clicked, so a window hidden to the tray comes back. */
 private val showWindowRequests = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+
+/** The main window, owner of the file dialogs: an ownerless FileDialog opens at the screen's top-left on Windows. */
+@Volatile
+private var mainWindow: Frame? = null
 
 fun main() {
     defaultLinuxSoftwareRendering()
@@ -379,11 +384,15 @@ fun main() {
             CompositionLocalProvider(LocalAppWindow provides window) {
                 DisposableEffect(window) {
                     frame.host = window
+                    mainWindow = window
                     FileAvNative.onFullScreen = { on ->
                         SwingUtilities.invokeLater { frame.onNativeFullscreen(on) }
                     }
                     SwingUtilities.invokeLater { FileAvNative.prepareFullscreen(window) }
-                    onDispose { FileAvNative.onFullScreen = null }
+                    onDispose {
+                        FileAvNative.onFullScreen = null
+                        if (mainWindow === window) mainWindow = null
+                    }
                 }
                 Column(
                     Modifier.fillMaxSize().then(if (frame.fullscreen) Modifier else Modifier.border(1.dp, frameBorder)),
@@ -1460,7 +1469,7 @@ private val captureFeedbackReportAction: suspend () -> String? = {
 private suspend fun pickSaveFile(suggestedName: String): File? {
     val title = getString(Res.string.playlist_menu_backup)
     return withContext(Dispatchers.Main) {
-        val dialog = FileDialog(null as Frame?, title, FileDialog.SAVE)
+        val dialog = FileDialog(mainWindow, title, FileDialog.SAVE)
         dialog.file = suggestedName
         dialog.isVisible = true
         dialog.file?.let { File(dialog.directory, it) }
@@ -1471,23 +1480,32 @@ private suspend fun pickSaveFile(suggestedName: String): File? {
 private suspend fun pickOpenFile(): File? {
     val title = getString(Res.string.playlist_menu_restore)
     return withContext(Dispatchers.Main) {
-        val dialog = FileDialog(null as Frame?, title, FileDialog.LOAD)
+        val dialog = FileDialog(mainWindow, title, FileDialog.LOAD)
         dialog.setFilenameFilter { _, name -> name.endsWith(".json", ignoreCase = true) }
         dialog.isVisible = true
         dialog.file?.let { File(dialog.directory, it) }
     }
 }
 
-// macOS's AWT FileDialog only picks directories while this property is set; elsewhere the dialog
-// picks a single file, which the scanner indexes on its own (a supported single-file scan).
+// Windows gets the native Explorer folder picker. macOS's AWT FileDialog only picks directories
+// while this property is set; on Linux the dialog picks a single file, which the scanner indexes on
+// its own (a supported single-file scan).
 private suspend fun pickFolder(): File? {
     val title = getString(Res.string.folder_picker_title)
+    if (desktopOsKey() == "windows") {
+        val owner = withContext(Dispatchers.Main) { mainWindow?.let { Native.getComponentPointer(it) } }
+        try {
+            return WindowsFolderPicker.pick(owner, title)
+        } catch (e: Exception) {
+            rootLogger.fork("folder-picker").log(Logger.Level.WARN, "native folder picker failed, using FileDialog", e)
+        }
+    }
     return withContext(Dispatchers.Main) {
         val prop = "apple.awt.fileDialogForDirectories"
         val previous = System.getProperty(prop)
         System.setProperty(prop, "true")
         try {
-            val dialog = FileDialog(null as Frame?, title, FileDialog.LOAD)
+            val dialog = FileDialog(mainWindow, title, FileDialog.LOAD)
             dialog.isVisible = true
             dialog.file?.let { File(dialog.directory, it) }
         } finally {
