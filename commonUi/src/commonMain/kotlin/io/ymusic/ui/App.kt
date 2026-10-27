@@ -629,14 +629,13 @@ private fun AppRoot(
                 GlobalShortcutActions.closeNavDrawerIfOpen = { false }
             }
         }
-        DisposableEffect(onSection) {
-            // Baseline Cmd/Ctrl+1..3 → Discover / YtMusic / Library. Screens with their own tabs
-            // (channel detail, etc.) overlay their own picker on compose and restore this on dispose.
-            val sections = listOf(AppSection.Discover, AppSection.YtMusic, AppSection.Library)
-            GlobalShortcutActions.selectTabByIndex = { i ->
-                sections.getOrNull(i - 1)?.let { onSection(it); true } ?: false
+        if (section == AppSection.Discover) {
+            DisposableEffect(discoverTabs) {
+                val remove = GlobalShortcutActions.pushTabHandler { i ->
+                    discoverTabs.getOrNull(i - 1)?.let { discoverTab = it; true } ?: false
+                }
+                onDispose { remove() }
             }
-            onDispose { GlobalShortcutActions.selectTabByIndex = { false } }
         }
         // YT Music's search (its own stack): a music SearchSession over ytmusic/search, single-instance
         // the same way.

@@ -467,15 +467,14 @@ fun ChannelDetailScreen(
         ready?.pageTabs?.takeIf { it.isNotEmpty() }?.let { s.tabs = it }
     }
     DisposableEffect(s.tabs) {
-        val prior = GlobalShortcutActions.selectTabByIndex
-        GlobalShortcutActions.selectTabByIndex = { i ->
+        val remove = GlobalShortcutActions.pushTabHandler { i ->
             s.tabs.getOrNull(i - 1)?.url?.let { url ->
                 s.url = url
                 s.feed.pager.refresh()
                 true
             } ?: false
         }
-        onDispose { GlobalShortcutActions.selectTabByIndex = prior }
+        onDispose { remove() }
     }
     s.subscribeErrorCode?.let { code ->
         val snackbar = LocalSnackbar.current

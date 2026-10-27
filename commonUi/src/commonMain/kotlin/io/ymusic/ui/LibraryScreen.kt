@@ -54,6 +54,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.compositionLocalOf
@@ -268,6 +269,13 @@ fun LibraryScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
                 }
             }
             var tab by rememberSaveable { mutableStateOf(LibraryTab.Folders) }
+            DisposableEffect(Unit) {
+                val entries = LibraryTab.entries
+                val remove = GlobalShortcutActions.pushTabHandler { i ->
+                    entries.getOrNull(i - 1)?.let { tab = it; true } ?: false
+                }
+                onDispose { remove() }
+            }
             // A song's "Show in folder" jump: the bucket to open, consumed by the Folders tab once
             // it composes, then cleared.
             var revealBucket by remember { mutableStateOf<Long?>(null) }
