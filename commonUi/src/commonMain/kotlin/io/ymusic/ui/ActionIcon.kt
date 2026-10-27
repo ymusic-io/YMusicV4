@@ -32,8 +32,12 @@ fun ActionIcon(
     enabled: Boolean = true,
     onClick: () -> Unit,
 ) {
-    ActionIconBox(modifier, Modifier.clickable(enabled = enabled, role = Role.Button, onClick = onClick), hitSize) {
-        Icon(icon, contentDescription, Modifier.size(iconSize), tint = tint)
+    ActionIconBox(
+        modifier,
+        Modifier.clickable(enabled = enabled, role = Role.Button, onClickLabel = contentDescription, onClick = onClick),
+        hitSize,
+    ) {
+        Icon(icon, null, Modifier.size(iconSize), tint = tint)
     }
 }
 
@@ -48,8 +52,12 @@ fun ActionIcon(
     enabled: Boolean = true,
     onClick: () -> Unit,
 ) {
-    ActionIconBox(modifier, Modifier.clickable(enabled = enabled, role = Role.Button, onClick = onClick), hitSize) {
-        Icon(painter, contentDescription, Modifier.size(iconSize), tint = tint)
+    ActionIconBox(
+        modifier,
+        Modifier.clickable(enabled = enabled, role = Role.Button, onClickLabel = contentDescription, onClick = onClick),
+        hitSize,
+    ) {
+        Icon(painter, null, Modifier.size(iconSize), tint = tint)
     }
 }
 

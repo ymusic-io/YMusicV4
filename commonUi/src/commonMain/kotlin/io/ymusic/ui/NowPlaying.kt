@@ -1849,6 +1849,9 @@ private fun QueueRowContent(
     swiping: Boolean,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
+    val sub = listOfNotNull(item.displayDuration, item.displaySubtitle).joinToString(" · ")
+    val rowLabel = if (sub.isNotEmpty()) "${item.displayTitle}, $sub" else item.displayTitle
+    val playLabel = stringResource(Res.string.cd_play)
     Row(
         Modifier
             .fillMaxWidth()
@@ -1860,14 +1863,18 @@ private fun QueueRowContent(
                 },
             )
             .then(if (current) Modifier.background(DesignColors.Accent.copy(alpha = 0.1f)) else Modifier)
-            .clickable { coordinator.player.playAt(index) }
+            .semantics(mergeDescendants = true) {
+                contentDescription = rowLabel
+                if (current) selected = true
+            }
+            .clickable(onClickLabel = playLabel) { coordinator.player.playAt(index) }
             .padding(horizontal = 16.dp, vertical = if (large) 10.dp else 8.dp),
         horizontalArrangement = Arrangement.spacedBy(if (large) 12.dp else 8.dp),
         verticalAlignment = Alignment.Top,
     ) {
         Icon(
             Icons.Default.DragHandle,
-            stringResource(Res.string.cd_drag_to_reorder),
+            null,
             Modifier
                 .align(Alignment.CenterVertically)
                 .size(18.dp)
@@ -1902,7 +1909,6 @@ private fun QueueRowContent(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            val sub = listOfNotNull(item.displayDuration, item.displaySubtitle).joinToString(" · ")
             if (sub.isNotEmpty()) {
                 Text(
                     sub,
