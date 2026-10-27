@@ -211,6 +211,7 @@ import javax.swing.SwingUtilities
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.min
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import java.awt.Color as AwtColor
 
@@ -225,7 +226,10 @@ private val rootLogger: Logger =
     TeeLogger(FileLogger(logWorker), TeeLogger(SentryLogger(), StdoutLogger()))
         .also { it.bindMseNativeLogs() }
 
-private val QUIT_FLUSH_TIMEOUT = 3.seconds
+private val LOG_FLUSH_TIMEOUT = 3.seconds
+
+// Long enough for the recorders to write what clearing the queue triggers (watch time, the Play again play-head).
+private val QUIT_SAVE_DELAY = 500.milliseconds
 
 /** The installed YMusic.exe (jpackage launcher); null under `gradlew run`, where tasks have nothing to relaunch. */
 private val jumpListExe: String? = System.getProperty("jpackage.app-path")?.takeIf { isWindows }
@@ -332,8 +336,6 @@ fun main(args: Array<String>) {
         val frame = remember { DesktopFrame(windowState, initialSize, initialPosition) }
         val quitScope = rememberCoroutineScope()
         var quitting by remember { mutableStateOf(false) }
-        // The window goes at once; the toolkit exits only after the playback recorders have written
-        // their last state (watch time, the Play again play-head) and the log has drained.
         fun quit() {
             if (quitting) return
             quitting = true
@@ -341,12 +343,9 @@ fun main(args: Array<String>) {
                 saveWindowPrefs(frame.persistSize(), frame.persistPosition())
             }
             windowVisible = false
-            graph?.player?.pause()
+            graph?.player?.clearQueue()
             quitScope.launch {
-                val g = graph
-                if (g != null && withTimeoutOrNull(QUIT_FLUSH_TIMEOUT) { g.shutdown() } == null) {
-                    rootLogger.log(Logger.Level.WARN, "playback records not written within $QUIT_FLUSH_TIMEOUT")
-                }
+                delay(QUIT_SAVE_DELAY)
                 // A pinned button keeps its Jump List after exit; tasks for a closed app would only relaunch it.
                 if (jumpListExe != null) {
                     withContext(WindowsJumpList.dispatcher) {
@@ -355,7 +354,7 @@ fun main(args: Array<String>) {
                     }
                 }
                 videoUnderlay.dispose()
-                withTimeoutOrNull(QUIT_FLUSH_TIMEOUT) { logWorker.flush() }
+                withTimeoutOrNull(LOG_FLUSH_TIMEOUT) { logWorker.flush() }
                 exitApplication()
             }
         }
