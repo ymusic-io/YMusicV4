@@ -63,3 +63,11 @@ internal expect fun AppNavigationDrawer(
  *  4× overdraw and keeps the shell's semantics tree out of hover hit-tests). False on mobile:
  *  the shell stays composed under NowPlaying for peek-dismiss and faster back-to-shell transition. */
 internal expect val cullShellWhenNowPlayingCovers: Boolean
+
+/** Attach [label] as the screen-reader-announced label on an icon-only button, worked around for
+ *  Compose Desktop's a11y bridge: it maps `contentDescription` to BOTH JAB `name` and
+ *  `description`, so NVDA/JAWS read it twice ("Download Download"). On JVM we set the `text`
+ *  semantic instead — `name` falls back to it, `description` stays null, reads once. On
+ *  Android/iOS the native assistive techs don't have this double-read, so contentDescription
+ *  is still the right channel. [label] may be null for a decorative glyph. */
+internal expect fun Modifier.a11yActionLabel(label: String?): Modifier

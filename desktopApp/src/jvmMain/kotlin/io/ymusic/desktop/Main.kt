@@ -59,8 +59,9 @@ import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.text
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Density
@@ -1761,9 +1762,11 @@ private fun MacTrafficLight(color: Color, label: String, glyph: String, onClick:
             .clickable(indication = null, interactionSource = hover, role = Role.Button, onClick = onClick)
             // Hover-only glyph (✕ ─ ＋) is a Text node whose text would otherwise merge into the
             // button's semantics and NVDA would read "plus" instead of "Full screen". Strip
-            // descendants and set the real label; glyph stays visible, invisible to a11y.
+            // descendants and set the real label as `text`, not `contentDescription` — Compose
+            // Desktop's a11y bridge maps contentDescription to BOTH JAB name AND description,
+            // so NVDA reads it twice; using `text` fills name only.
             .clearAndSetSemantics {
-                contentDescription = label
+                text = AnnotatedString(label)
                 role = Role.Button
             },
         contentAlignment = Alignment.Center,

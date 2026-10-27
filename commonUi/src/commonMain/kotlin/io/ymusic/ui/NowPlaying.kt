@@ -117,7 +117,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -1278,8 +1277,8 @@ internal fun QualityChip(
             modifier = Modifier
                 .clip(RoundedCornerShape(6.dp))
                 .border(1.dp, DesignColors.OutlineSoft, RoundedCornerShape(6.dp))
+                .a11yActionLabel(qualityDescription)
                 .semantics {
-                    contentDescription = qualityDescription
                     stateDescription = label
                     role = Role.DropdownList
                 }
@@ -1863,11 +1862,11 @@ private fun QueueRowContent(
                 },
             )
             .then(if (current) Modifier.background(DesignColors.Accent.copy(alpha = 0.1f)) else Modifier)
+            .a11yActionLabel(rowLabel)
             .semantics(mergeDescendants = true) {
-                contentDescription = rowLabel
                 if (current) selected = true
             }
-            .clickable(onClickLabel = playLabel) { coordinator.player.playAt(index) }
+            .clickable(role = Role.Button, onClickLabel = playLabel) { coordinator.player.playAt(index) }
             .padding(horizontal = 16.dp, vertical = if (large) 10.dp else 8.dp),
         horizontalArrangement = Arrangement.spacedBy(if (large) 12.dp else 8.dp),
         verticalAlignment = Alignment.Top,
