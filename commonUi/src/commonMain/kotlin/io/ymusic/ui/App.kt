@@ -604,11 +604,39 @@ private fun AppRoot(
         // instead of stacking a fresh one.
         val openSearch: () -> Unit = {
             val existing = layers.indexOfFirst { it is AppLayer.Search }
-            when {
-                existing >= 0 && existing == layers.lastIndex -> Unit // already on top
-                existing >= 0 -> layers.add(layers.removeAt(existing))
-                else -> layers.add(AppLayer.Search(SearchSession.youtube(graph, scope)))
+            val search: AppLayer.Search = when {
+                existing >= 0 && existing == layers.lastIndex -> layers[existing] as AppLayer.Search
+                existing >= 0 -> (layers.removeAt(existing) as AppLayer.Search).also { layers.add(it) }
+                else -> AppLayer.Search(SearchSession.youtube(graph, scope)).also { layers.add(it) }
             }
+            // Hotkey from anywhere: drop back to the input mode so the field re-focuses, even if the
+            // user had already submitted a query (otherwise the results bar sits silent).
+            search.session.editing = true
+        }
+        DisposableEffect(openSearch) {
+            GlobalShortcutActions.openSearch = openSearch
+            onDispose { GlobalShortcutActions.openSearch = {} }
+        }
+        DisposableEffect(drawer, scope) {
+            GlobalShortcutActions.toggleNavDrawer = {
+                scope.launch { if (drawer.isOpen) drawer.close() else drawer.open() }
+            }
+            GlobalShortcutActions.closeNavDrawerIfOpen = {
+                if (drawer.isOpen) { scope.launch { drawer.close() }; true } else false
+            }
+            onDispose {
+                GlobalShortcutActions.toggleNavDrawer = {}
+                GlobalShortcutActions.closeNavDrawerIfOpen = { false }
+            }
+        }
+        DisposableEffect(onSection) {
+            // Baseline Cmd/Ctrl+1..3 → Discover / YtMusic / Library. Screens with their own tabs
+            // (channel detail, etc.) overlay their own picker on compose and restore this on dispose.
+            val sections = listOf(AppSection.Discover, AppSection.YtMusic, AppSection.Library)
+            GlobalShortcutActions.selectTabByIndex = { i ->
+                sections.getOrNull(i - 1)?.let { onSection(it); true } ?: false
+            }
+            onDispose { GlobalShortcutActions.selectTabByIndex = { false } }
         }
         // YT Music's search (its own stack): a music SearchSession over ytmusic/search, single-instance
         // the same way.

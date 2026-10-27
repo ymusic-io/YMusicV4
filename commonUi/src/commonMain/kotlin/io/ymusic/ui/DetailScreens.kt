@@ -29,6 +29,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -464,6 +465,17 @@ fun ChannelDetailScreen(
 
     LaunchedEffect(ready?.pageTabs) {
         ready?.pageTabs?.takeIf { it.isNotEmpty() }?.let { s.tabs = it }
+    }
+    DisposableEffect(s.tabs) {
+        val prior = GlobalShortcutActions.selectTabByIndex
+        GlobalShortcutActions.selectTabByIndex = { i ->
+            s.tabs.getOrNull(i - 1)?.url?.let { url ->
+                s.url = url
+                s.feed.pager.refresh()
+                true
+            } ?: false
+        }
+        onDispose { GlobalShortcutActions.selectTabByIndex = prior }
     }
     s.subscribeErrorCode?.let { code ->
         val snackbar = LocalSnackbar.current
