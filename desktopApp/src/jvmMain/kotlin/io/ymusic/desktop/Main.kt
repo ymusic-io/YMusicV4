@@ -57,7 +57,10 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Density
@@ -1754,9 +1757,15 @@ private fun MacTrafficLight(color: Color, label: String, glyph: String, onClick:
             .size(12.dp)
             .clip(CircleShape)
             .background(color)
-            .semantics { contentDescription = label }
             .hoverable(hover)
-            .clickable(indication = null, interactionSource = hover, onClick = onClick),
+            .clickable(indication = null, interactionSource = hover, role = Role.Button, onClick = onClick)
+            // Hover-only glyph (✕ ─ ＋) is a Text node whose text would otherwise merge into the
+            // button's semantics and NVDA would read "plus" instead of "Full screen". Strip
+            // descendants and set the real label; glyph stays visible, invisible to a11y.
+            .clearAndSetSemantics {
+                contentDescription = label
+                role = Role.Button
+            },
         contentAlignment = Alignment.Center,
     ) {
         if (hovered) {
