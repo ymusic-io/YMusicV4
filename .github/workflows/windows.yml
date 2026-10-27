@@ -1,0 +1,135 @@
+name: windows
+
+# The Windows x64 release MSI alone, on every push to build-window, until the job is ready to join
+# release.yml.
+on:
+  push:
+    branches: [build-window]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FFMPEG_BUILD_REPO: ymusic-io/ffmpeg-build
+  # ffmpeg-build's dev-windows head: the PE import probe and the zlib1/libwinpthread DLLs in the pack.
+  FFMPEG_BUILD_REF: c8b5a6ff7a44b79ffb0ad268e86a8eddfc76ffca
+  SLUG: windows-x86_64
+
+jobs:
+  # The checkouts sit side by side (YMusicV4/ + ffmpeg-build/): the Gradle build reads
+  # ../ffmpeg-build/out/<slug>, exactly as on a developer machine.
+  msi:
+    runs-on: windows-2022
+    env:
+      SECRETS_PASSPHRASE: ${{ secrets.SECRETS_PASSPHRASE }}
+    steps:
+      # The runner checks out with CRLF, which breaks every shell script ffmpeg-build runs.
+      - run: git config --global core.autocrlf false
+
+      # MINGW64 builds ffmpeg-build's pack, and its gcc + mingw32-make build the :quickjs and :mse JNI
+      # (both CMake projects use GCC-only flags).
+      - id: msys2
+        uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2.33.0
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            git make diffutils autoconf automake libtool patch
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-make
+            mingw-w64-x86_64-nasm
+            mingw-w64-x86_64-pkgconf
+            mingw-w64-x86_64-meson
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-zlib
+      - name: Locate MinGW
+        shell: bash
+        run: echo "MINGW_HOME=$(cygpath -m '${{ steps.msys2.outputs.msys2-location }}')/mingw64" >> "$GITHUB_ENV"
+
+      # Restored and saved separately: a failing Gradle build later in the job must not throw away
+      # the ffmpeg pack that took most of the run to build.
+      - id: ffmpeg-cache
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ffmpeg-build/out/${{ env.SLUG }}
+          key: ffmpeg-${{ env.SLUG }}-${{ env.FFMPEG_BUILD_REF }}
+
+      - if: steps.ffmpeg-cache.outputs.cache-hit != 'true'
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: ${{ env.FFMPEG_BUILD_REPO }}
+          ref: ${{ env.FFMPEG_BUILD_REF }}
+          path: ffmpeg-build
+          submodules: recursive
+          fetch-depth: 1
+
+      - if: steps.ffmpeg-cache.outputs.cache-hit != 'true'
+        name: Build ffmpeg
+        shell: msys2 {0}
+        working-directory: ffmpeg-build
+        run: |
+          scripts/build-desktop.sh || {
+            # A dependency's configure failure prints only its verdict; the reason is in its log.
+            for log in .deps/.build/*/config.log; do
+              [ -f "$log" ] && { echo "::group::$log"; tail -n 80 "$log"; echo "::endgroup::"; }
+            done
+            exit 1
+          }
+
+      - if: steps.ffmpeg-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ffmpeg-build/out/${{ env.SLUG }}
+          key: ffmpeg-${{ env.SLUG }}-${{ env.FFMPEG_BUILD_REF }}
+
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          path: YMusicV4
+
+      # A full JDK: jpackage builds the MSI.
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - uses: gradle/actions/setup-gradle@0b6dd653ba04f4f93bf581ec31e66cbd7dcb644d # v4
+
+      # secrets.enc → secrets.properties + signing/. Without SECRETS_PASSPHRASE the build runs on
+      # defaults: no Sentry upload, no remote config.
+      - name: Restore secrets
+        if: env.SECRETS_PASSPHRASE != ''
+        shell: bash
+        working-directory: YMusicV4
+        run: ./decrypt.sh
+
+      - name: Package MSI
+        shell: bash
+        working-directory: YMusicV4
+        run: ./gradlew -Pproduction=true :desktopApp:releaseInstaller
+
+      - name: Discard secrets
+        if: always()
+        shell: bash
+        working-directory: YMusicV4
+        run: rm -rf secrets.properties signing
+
+      - name: Upload packaging logs
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: windows-compose-logs
+          path: YMusicV4/desktopApp/build/compose/logs/
+          if-no-files-found: ignore
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: windows-x64-msi
+          path: YMusicV4/desktopApp/build/release/*.msi
+          if-no-files-found: error
