@@ -19,7 +19,7 @@
    deferred — the open_decoder HW check skips it. */
 static const char kShaderHlsl[] =
     "cbuffer K : register(b0) {\n"
-    "    float4 scale;\n" /* xy = picture scale within [-1,1], zw unused */
+    "    float4 scale;\n" /* xy = picture scale within [-1,1], zw = picture share of the texture */
     "}\n"
     "Texture2DArray<float>  TexY : register(t0);\n"
     "Texture2DArray<float2> TexUV : register(t1);\n"
@@ -29,7 +29,7 @@ static const char kShaderHlsl[] =
     "{\n"
     "    VSOut o;\n"
     "    float2 corner = float2((id << 1) & 2, id & 2);\n"
-    "    o.uv = corner;\n"
+    "    o.uv = corner * scale.zw;\n"
     "    float2 ndc = corner * float2(2, -2) + float2(-1, 1);\n"
     "    o.pos = float4(ndc.x * scale.x, ndc.y * scale.y, 0, 1);\n"
     "    return o;\n"
@@ -37,8 +37,14 @@ static const char kShaderHlsl[] =
     "float4 PSMain(VSOut i) : SV_Target\n"
     "{\n"
     /* A one-slice view always indexes into z=0. */
-    "    float y  = TexY.Sample(Samp, float3(i.uv, 0)).r;\n"
-    "    float2 uv = TexUV.Sample(Samp, float3(i.uv, 0)).rg;\n"
+    "    float yw, yh, yn, cw, ch, cn;\n"
+    "    TexY.GetDimensions(yw, yh, yn);\n"
+    "    TexUV.GetDimensions(cw, ch, cn);\n"
+    /* Stop half a texel short of the padding, or the linear filter blends it in. */
+    "    float2 yuv = min(i.uv, scale.zw - 0.5 / float2(yw, yh));\n"
+    "    float2 cuv = min(i.uv, scale.zw - 0.5 / float2(cw, ch));\n"
+    "    float y  = TexY.Sample(Samp, float3(yuv, 0)).r;\n"
+    "    float2 uv = TexUV.Sample(Samp, float3(cuv, 0)).rg;\n"
     "    y  = (y  - 16.0/255.0) * (255.0/219.0);\n"
     "    float cb = (uv.x - 128.0/255.0) * (255.0/224.0);\n"
     "    float cr = (uv.y - 128.0/255.0) * (255.0/224.0);\n"
@@ -259,6 +265,7 @@ static int draw_nv12(ID3D11Device *dev, ID3D11DeviceContext *ctx, ID3D11Texture2
                      UINT slice, int src_w, int src_h)
 {
     D3D11_SHADER_RESOURCE_VIEW_DESC yd, uvd;
+    D3D11_TEXTURE2D_DESC td;
     ID3D11ShaderResourceView *srvY = NULL, *srvUV = NULL;
     ID3D11ShaderResourceView *srvs[2];
     D3D11_VIEWPORT vp;
@@ -312,8 +319,10 @@ static int draw_nv12(ID3D11Device *dev, ID3D11DeviceContext *ctx, ID3D11Texture2
         scale[0] = 1.0f;
         scale[1] = 1.0f;
     }
-    scale[2] = 0;
-    scale[3] = 0;
+    /* d3d11va pads the pool texture (128-aligned for AV1/HEVC); the padding is never written. */
+    ID3D11Texture2D_GetDesc(tex, &td);
+    scale[2] = src_w > 0 && td.Width > 0 ? (float)src_w / (float)td.Width : 1.0f;
+    scale[3] = src_h > 0 && td.Height > 0 ? (float)src_h / (float)td.Height : 1.0f;
 
     ID3D11DeviceContext_UpdateSubresource(ctx, (ID3D11Resource *)g_p.cb, 0, NULL, scale, 0, 0);
 
@@ -330,6 +339,7 @@ static int draw_nv12(ID3D11Device *dev, ID3D11DeviceContext *ctx, ID3D11Texture2
     ID3D11DeviceContext_VSSetShader(ctx, g_p.vs, NULL, 0);
     ID3D11DeviceContext_VSSetConstantBuffers(ctx, 0, 1, &g_p.cb);
     ID3D11DeviceContext_PSSetShader(ctx, g_p.ps, NULL, 0);
+    ID3D11DeviceContext_PSSetConstantBuffers(ctx, 0, 1, &g_p.cb);
     srvs[0] = srvY;
     srvs[1] = srvUV;
     ID3D11DeviceContext_PSSetShaderResources(ctx, 0, 2, srvs);
