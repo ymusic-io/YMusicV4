@@ -11,10 +11,19 @@ object GlobalShortcutActions {
     @Volatile var toggleNavDrawer: () -> Unit = {}
     /** Returns true if a drawer was actually closed (so Esc can know to stop its cascade). */
     @Volatile var closeNavDrawerIfOpen: () -> Boolean = { false }
-    /**
-     * Cmd/Ctrl + 1..9 → pick that tab in the current screen's tab row. Screens that have tabs
-     * push their own picker on compose and restore the prior one on dispose, so the innermost
-     * tab-having composable wins. Returns true if [index] (1-based) resolved to a tab.
-     */
-    @Volatile var selectTabByIndex: (Int) -> Boolean = { false }
+
+    // Cmd/Ctrl + 1..9 → the top-most pushed tab handler wins. A plain save/restore var is racy
+    // across section transitions (the entering screen can capture the leaving screen's handler
+    // as its "prior" before the leaving dispose fires, then dispose wipes the new one). Keep a
+    // proper LIFO stack so order of compose/dispose doesn't matter.
+    private val tabHandlers = mutableListOf<(Int) -> Boolean>()
+    private val tabLock = Any()
+    val selectTabByIndex: (Int) -> Boolean = { i ->
+        synchronized(tabLock) { tabHandlers.lastOrNull() }?.invoke(i) ?: false
+    }
+    /** Push a tab handler and get back a function that removes exactly this registration. */
+    fun pushTabHandler(handler: (Int) -> Boolean): () -> Unit {
+        synchronized(tabLock) { tabHandlers.add(handler) }
+        return { synchronized(tabLock) { tabHandlers.remove(handler) } }
+    }
 }
