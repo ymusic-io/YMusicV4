@@ -724,4 +724,8 @@
     <string name="download_other_format">التنزيل بتنسيق آخر</string>
     <string name="unsubscribe">إلغاء الاشتراك</string>
     <string name="unsubscribed">تم إلغاء الاشتراك</string>
+    <string name="tray_pause">إيقاف مؤقت</string>
+    <string name="tray_resume">استئناف</string>
+    <string name="tray_stop">إيقاف (مسح قائمة الانتظار)</string>
+    <string name="tray_quit">إنهاء</string>
 </resources>

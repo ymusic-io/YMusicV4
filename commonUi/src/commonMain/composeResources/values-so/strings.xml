@@ -570,4 +570,8 @@
     <string name="download_other_format">Ku soo deji qaab kale</string>
     <string name="unsubscribe">Ka bax rukummada</string>
     <string name="unsubscribed">Waa laga baxay rukummada</string>
+    <string name="tray_pause">Hakad</string>
+    <string name="tray_resume">Sii wad</string>
+    <string name="tray_stop">Jooji (nadiifi safka)</string>
+    <string name="tray_quit">Xir</string>
 </resources>

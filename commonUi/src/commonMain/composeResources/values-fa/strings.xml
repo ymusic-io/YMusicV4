@@ -570,4 +570,8 @@
     <string name="download_other_format">دانلود با قالبی دیگر</string>
     <string name="unsubscribe">لغو اشتراک</string>
     <string name="unsubscribed">اشتراک لغو شد</string>
+    <string name="tray_pause">توقف موقت</string>
+    <string name="tray_resume">ادامه</string>
+    <string name="tray_stop">توقف (پاک کردن صف)</string>
+    <string name="tray_quit">بستن</string>
 </resources>

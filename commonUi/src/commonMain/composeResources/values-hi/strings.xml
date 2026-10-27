@@ -570,4 +570,8 @@
     <string name="download_other_format">दूसरे फ़ॉर्मैट में डाउनलोड करें</string>
     <string name="unsubscribe">सदस्यता छोड़ें</string>
     <string name="unsubscribed">सदस्यता छोड़ दी गई</string>
+    <string name="tray_pause">रोकें</string>
+    <string name="tray_resume">फिर से शुरू करें</string>
+    <string name="tray_stop">बंद करें (कतार साफ़ करें)</string>
+    <string name="tray_quit">बंद करें</string>
 </resources>

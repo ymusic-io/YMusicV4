@@ -570,4 +570,8 @@
     <string name="download_other_format">Pakua kwa umbizo jingine</string>
     <string name="unsubscribe">Jiondoe</string>
     <string name="unsubscribed">Umejiondoa</string>
+    <string name="tray_pause">Sitisha</string>
+    <string name="tray_resume">Endelea</string>
+    <string name="tray_stop">Simamisha (futa foleni)</string>
+    <string name="tray_quit">Funga</string>
 </resources>

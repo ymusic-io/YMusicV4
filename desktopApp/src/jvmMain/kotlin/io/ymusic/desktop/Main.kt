@@ -181,6 +181,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import okio.FileSystem
 import okio.Path.Companion.toOkioPath
 import okio.Path.Companion.toPath
@@ -211,6 +212,8 @@ import javax.swing.SwingUtilities
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.min
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import java.awt.Color as AwtColor
 
 /**
@@ -224,6 +227,14 @@ private val rootLogger: Logger =
     TeeLogger(FileLogger(logWorker), TeeLogger(SentryLogger(), StdoutLogger()))
         .also { it.bindMseNativeLogs() }
 
+private val LOG_FLUSH_TIMEOUT = 3.seconds
+
+// Long enough for the recorders to write what clearing the queue triggers (watch time, the Play again play-head).
+private val QUIT_SAVE_DELAY = 500.milliseconds
+
+/** The installed YMusic.exe (jpackage launcher); null under `gradlew run`, where tasks have nothing to relaunch. */
+private val jumpListExe: String? = System.getProperty("jpackage.app-path")?.takeIf { isWindows }
+
 /** Ticks when the OS hands over a link or the app icon is clicked, so a window hidden to the tray comes back. */
 private val showWindowRequests = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 
@@ -231,8 +242,22 @@ private val showWindowRequests = MutableSharedFlow<Unit>(extraBufferCapacity = 1
 @Volatile
 private var mainWindow: Frame? = null
 
-fun main() {
+fun main(args: Array<String>) {
     defaultLinuxSoftwareRendering()
+    val instance = if (isWindows) {
+        val command = InstanceCommand.of(args.toList())
+        val claimed = try {
+            SingleInstance.claim(ymusicDataDir(), command, rootLogger.fork("instance"))
+        } catch (e: java.io.IOException) {
+            rootLogger.log(Logger.Level.ERROR, "another instance holds the lock but did not answer", e)
+            return
+        }
+        // Handed to the running app; or a Jump List task with no app running, which has nothing to control.
+        if (claimed == null || command != InstanceCommand.Show) return
+        claimed
+    } else {
+        null
+    }
     useBundledMseNatives()
     // macOS delivers ymusic:// opens (Info.plist CFBundleURLTypes) as Apple Events to the running
     // instance — set before the toolkit starts so a cold-launch link is not lost.
@@ -314,12 +339,29 @@ fun main() {
         val (initialSize, initialPosition) = remember { loadWindowPrefs() }
         val windowState = rememberWindowState(size = initialSize, position = initialPosition)
         val frame = remember { DesktopFrame(windowState, initialSize, initialPosition) }
+        val quitScope = rememberCoroutineScope()
+        var quitting by remember { mutableStateOf(false) }
         fun quit() {
+            if (quitting) return
+            quitting = true
             if (!frame.fullscreen) {
                 saveWindowPrefs(frame.persistSize(), frame.persistPosition())
             }
-            videoUnderlay.dispose()
-            exitApplication()
+            windowVisible = false
+            graph?.player?.clearQueue()
+            quitScope.launch {
+                delay(QUIT_SAVE_DELAY)
+                // A pinned button keeps its Jump List after exit; tasks for a closed app would only relaunch it.
+                if (jumpListExe != null) {
+                    withContext(WindowsJumpList.dispatcher) {
+                        runCatching { WindowsJumpList.clear() }
+                            .onFailure { rootLogger.fork("jump-list").log(Logger.Level.WARN, "jump list clear failed", it) }
+                    }
+                }
+                videoUnderlay.dispose()
+                withTimeoutOrNull(LOG_FLUSH_TIMEOUT) { logWorker.flush() }
+                exitApplication()
+            }
         }
         LaunchedEffect(windowState) {
             snapshotFlow { windowState.size to windowState.position }
@@ -537,7 +579,7 @@ fun main() {
         }
         // The tray icon lives whenever there is a queue to control — window open or not — and
         // always while the window is hidden (it is the only way back then). A plain click opens
-        // the notification-style mini player anchored under the icon; no context menu.
+        // the notification-style mini player anchored under the icon; a right-click the player menu.
         var miniOpen by remember { mutableStateOf(false) }
         var miniAnchor by remember { mutableStateOf<java.awt.Point?>(null) }
         var queueNotEmpty by remember { mutableStateOf(false) }
@@ -548,8 +590,39 @@ fun main() {
                 if (!queueNotEmpty) miniOpen = false
             }
         }
-        if (queueNotEmpty || !windowVisible) {
-            PlayerTray(painterResource(Res.drawable.ymusic_logo), rootLogger.fork("tray")) { point ->
+        val playing = graph?.player?.status?.collectAsState()?.value?.playWhenReady == true
+        val playerMenu = rememberPlayerMenu(
+            playing = playing,
+            hasQueue = queueNotEmpty,
+            withQuit = !isMac,
+            onTogglePlay = { graph?.player?.togglePlay() },
+            onStop = {
+                miniOpen = false
+                graph?.player?.clearQueue()
+            },
+            onQuit = { quit() },
+        )
+        if (isMac) DockMenu(playerMenu)
+        if (jumpListExe != null) JumpListTasks(jumpListExe, playing, queueNotEmpty, rootLogger.fork("jump-list"))
+        LaunchedEffect(instance) {
+            instance?.commands?.collect { command ->
+                when (command) {
+                    InstanceCommand.Show -> showWindowRequests.tryEmit(Unit)
+                    InstanceCommand.TogglePlay -> graph?.player?.togglePlay()
+                    InstanceCommand.Stop -> {
+                        miniOpen = false
+                        graph?.player?.clearQueue()
+                    }
+                    InstanceCommand.Quit -> quit()
+                }
+            }
+        }
+        if (!quitting && (queueNotEmpty || !windowVisible)) {
+            PlayerTray(
+                painterResource(Res.drawable.ymusic_logo),
+                rootLogger.fork("tray"),
+                menu = playerMenu.takeUnless { isMac },
+            ) { point ->
                 miniAnchor = point
                 miniOpen = !miniOpen
             }

@@ -570,4 +570,8 @@
     <string name="download_other_format">Laai in ’n ander formaat af</string>
     <string name="unsubscribe">Kanselleer intekening</string>
     <string name="unsubscribed">Intekening gekanselleer</string>
+    <string name="tray_pause">Pouseer</string>
+    <string name="tray_resume">Hervat</string>
+    <string name="tray_stop">Stop (vee tou uit)</string>
+    <string name="tray_quit">Sluit af</string>
 </resources>

@@ -575,4 +575,8 @@
     <string name="download_other_format">Преузми у другом формату</string>
     <string name="unsubscribe">Откажи праћење</string>
     <string name="unsubscribed">Праћење је отказано</string>
+    <string name="tray_pause">Паузирај</string>
+    <string name="tray_resume">Настави</string>
+    <string name="tray_stop">Заустави (обриши ред)</string>
+    <string name="tray_quit">Затвори</string>
 </resources>

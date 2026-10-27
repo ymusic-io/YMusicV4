@@ -570,4 +570,8 @@
     <string name="download_other_format">Преземи во друг формат</string>
     <string name="unsubscribe">Откажи претплата</string>
     <string name="unsubscribed">Претплатата е откажана</string>
+    <string name="tray_pause">Пауза</string>
+    <string name="tray_resume">Продолжи</string>
+    <string name="tray_stop">Стоп (исчисти ја редицата)</string>
+    <string name="tray_quit">Затвори</string>
 </resources>

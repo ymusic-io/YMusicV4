@@ -570,4 +570,8 @@
     <string name="download_other_format">Başka biçimde indir</string>
     <string name="unsubscribe">Abonelikten çık</string>
     <string name="unsubscribed">Abonelikten çıkıldı</string>
+    <string name="tray_pause">Duraklat</string>
+    <string name="tray_resume">Devam et</string>
+    <string name="tray_stop">Durdur (sırayı temizle)</string>
+    <string name="tray_quit">Kapat</string>
 </resources>

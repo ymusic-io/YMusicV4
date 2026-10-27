@@ -565,4 +565,8 @@
     <string name="download_other_format">Download dalam format lain</string>
     <string name="unsubscribe">Berhenti berlangganan</string>
     <string name="unsubscribed">Berhenti berlangganan</string>
+    <string name="tray_pause">Jeda</string>
+    <string name="tray_resume">Lanjutkan</string>
+    <string name="tray_stop">Hentikan (kosongkan antrean)</string>
+    <string name="tray_quit">Tutup</string>
 </resources>

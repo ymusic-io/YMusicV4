@@ -570,4 +570,8 @@
     <string name="download_other_format">ಬೇರೆ ಫಾರ್ಮ್ಯಾಟ್‌ನಲ್ಲಿ ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ</string>
     <string name="unsubscribe">ಚಂದಾದಾರಿಕೆ ರದ್ದುಮಾಡಿ</string>
     <string name="unsubscribed">ಚಂದಾದಾರಿಕೆ ರದ್ದಾಗಿದೆ</string>
+    <string name="tray_pause">ವಿರಾಮ</string>
+    <string name="tray_resume">ಮುಂದುವರಿಸಿ</string>
+    <string name="tray_stop">ನಿಲ್ಲಿಸಿ (ಸರತಿ ತೆರವುಗೊಳಿಸಿ)</string>
+    <string name="tray_quit">ಮುಚ್ಚಿ</string>
 </resources>

@@ -570,4 +570,8 @@
     <string name="download_other_format">වෙනත් ආකෘතියකින් බාගන්න</string>
     <string name="unsubscribe">දායකත්වය ඉවත් කරන්න</string>
     <string name="unsubscribed">දායකත්වය ඉවත් කළා</string>
+    <string name="tray_pause">විරාම කරන්න</string>
+    <string name="tray_resume">නැවත අරඹන්න</string>
+    <string name="tray_stop">නවත්වන්න (පෝලිම හිස් කරන්න)</string>
+    <string name="tray_quit">වසන්න</string>
 </resources>

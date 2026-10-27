@@ -704,4 +704,8 @@
     <string name="download_other_format">Tải xuống ở định dạng khác</string>
     <string name="unsubscribe">Hủy đăng ký</string>
     <string name="unsubscribed">Đã hủy đăng ký</string>
+    <string name="tray_pause">Tạm dừng</string>
+    <string name="tray_resume">Tiếp tục</string>
+    <string name="tray_stop">Dừng (xóa hàng chờ)</string>
+    <string name="tray_quit">Thoát</string>
 </resources>

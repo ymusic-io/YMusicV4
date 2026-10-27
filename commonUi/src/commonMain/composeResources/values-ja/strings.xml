@@ -565,4 +565,8 @@
     <string name="download_other_format">別の形式でダウンロード</string>
     <string name="unsubscribe">登録解除</string>
     <string name="unsubscribed">登録を解除しました</string>
+    <string name="tray_pause">一時停止</string>
+    <string name="tray_resume">再開</string>
+    <string name="tray_stop">停止（キューをクリア）</string>
+    <string name="tray_quit">終了</string>
 </resources>

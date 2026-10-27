@@ -575,4 +575,8 @@
     <string name="download_other_format">הורדה בפורמט אחר</string>
     <string name="unsubscribe">ביטול הרשמה</string>
     <string name="unsubscribed">ההרשמה בוטלה</string>
+    <string name="tray_pause">השהיה</string>
+    <string name="tray_resume">המשך</string>
+    <string name="tray_stop">עצירה (ניקוי התור)</string>
+    <string name="tray_quit">סגירה</string>
 </resources>

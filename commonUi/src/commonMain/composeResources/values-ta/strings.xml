@@ -570,4 +570,8 @@
     <string name="download_other_format">வேறு வடிவத்தில் பதிவிறக்கு</string>
     <string name="unsubscribe">குழுவிலகு</string>
     <string name="unsubscribed">குழுவிலகப்பட்டது</string>
+    <string name="tray_pause">இடைநிறுத்து</string>
+    <string name="tray_resume">தொடர்</string>
+    <string name="tray_stop">நிறுத்து (வரிசையை அழி)</string>
+    <string name="tray_quit">மூடு</string>
 </resources>

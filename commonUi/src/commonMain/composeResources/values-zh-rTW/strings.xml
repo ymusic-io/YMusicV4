@@ -565,4 +565,8 @@
     <string name="download_other_format">以其他格式下載</string>
     <string name="unsubscribe">取消訂閱</string>
     <string name="unsubscribed">已取消訂閱</string>
+    <string name="tray_pause">暫停</string>
+    <string name="tray_resume">繼續</string>
+    <string name="tray_stop">停止（清除佇列）</string>
+    <string name="tray_quit">結束</string>
 </resources>

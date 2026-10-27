@@ -570,4 +570,8 @@
     <string name="download_other_format">Letöltés más formátumban</string>
     <string name="unsubscribe">Leiratkozás</string>
     <string name="unsubscribed">Leiratkozva</string>
+    <string name="tray_pause">Szünet</string>
+    <string name="tray_resume">Folytatás</string>
+    <string name="tray_stop">Leállítás (sor törlése)</string>
+    <string name="tray_quit">Bezárás</string>
 </resources>

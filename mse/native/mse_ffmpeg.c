@@ -3564,10 +3564,10 @@ void mse_av_seek(MseAv *a, double seconds)
     /* Chrome currentTime keeps leftover; only remove() drops ranges.
        If t is not on a RAP, park rd (already) and close the decoder so
        we do not present the old GOP at the new clock. SABR appends the
-       new island onto vf; buffered still shows the old range. */
+       new island onto vf; buffered still shows the old range.
+       Keep pend/cluster_tc: like Chrome, a seek never resets the append
+       parser, and the next append continues the fragment mid-mdat. */
     if (a->vf.rd >= a->vf.n || !coded_is_rap(a, &a->vf.f[a->vf.rd])) {
-        a->pend_n[0] = 0;
-        a->cluster_tc_n[0] = 0;
 #ifdef __ANDROID__
         /* MediaCodec drops the old GOP in the flush below and need_rap feeds a key next: a reopen
            would hold this (JS) thread ~20 ms, and another on the video thread. */

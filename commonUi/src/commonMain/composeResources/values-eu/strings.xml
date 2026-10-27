@@ -570,4 +570,8 @@
     <string name="download_other_format">Deskargatu beste formatu batean</string>
     <string name="unsubscribe">Kendu harpidetza</string>
     <string name="unsubscribed">Harpidetza kendu da</string>
+    <string name="tray_pause">Pausatu</string>
+    <string name="tray_resume">Berrekin</string>
+    <string name="tray_stop">Gelditu (garbitu ilara)</string>
+    <string name="tray_quit">Itxi</string>
 </resources>
