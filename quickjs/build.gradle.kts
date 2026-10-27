@@ -218,7 +218,7 @@ val cmakeConfigure by tasks.registering(Exec::class) {
         fun cmakePath(f: File) = f.absolutePath.replace('\\', '/')
         args += listOf(
             "-G", "MinGW Makefiles",
-            "-DCMAKE_C_COMPILER=${cmakePath(File(mingwHome, "bin/gcc.exe"))}",
+            "-DCMAKE_C_COMPILER=${cmakePath(mingwCCompiler(mingwHome))}",
             "-DCMAKE_MAKE_PROGRAM=${cmakePath(File(mingwHome, "bin/mingw32-make.exe"))}",
         )
     } else if (isWindows) {
