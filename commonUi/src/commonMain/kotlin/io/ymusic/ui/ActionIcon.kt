@@ -34,10 +34,11 @@ fun ActionIcon(
 ) {
     ActionIconBox(
         modifier,
-        Modifier.clickable(enabled = enabled, role = Role.Button, onClick = onClick),
+        Modifier.a11yActionLabel(contentDescription)
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick),
         hitSize,
     ) {
-        Icon(icon, contentDescription, Modifier.size(iconSize), tint = tint)
+        Icon(icon, null, Modifier.size(iconSize), tint = tint)
     }
 }
 
@@ -54,10 +55,11 @@ fun ActionIcon(
 ) {
     ActionIconBox(
         modifier,
-        Modifier.clickable(enabled = enabled, role = Role.Button, onClick = onClick),
+        Modifier.a11yActionLabel(contentDescription)
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick),
         hitSize,
     ) {
-        Icon(painter, contentDescription, Modifier.size(iconSize), tint = tint)
+        Icon(painter, null, Modifier.size(iconSize), tint = tint)
     }
 }
 
@@ -76,10 +78,11 @@ fun ToggleActionIcon(
 ) {
     ActionIconBox(
         modifier,
-        Modifier.toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onCheckedChange),
+        Modifier.a11yActionLabel(contentDescription)
+            .toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onCheckedChange),
         hitSize,
     ) {
-        Icon(icon, contentDescription, Modifier.size(iconSize), tint = tint)
+        Icon(icon, null, Modifier.size(iconSize), tint = tint)
     }
 }
 

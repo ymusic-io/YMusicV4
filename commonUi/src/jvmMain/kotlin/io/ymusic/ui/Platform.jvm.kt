@@ -3,12 +3,19 @@ package io.ymusic.ui
 import androidx.compose.material3.DrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.text
+import androidx.compose.ui.text.AnnotatedString
 
 internal actual val platformUsesTouch: Boolean = false
 
 internal actual val desktopLayoutHole: Boolean = true
 
 internal actual val cullShellWhenNowPlayingCovers: Boolean = true
+
+internal actual fun Modifier.a11yActionLabel(label: String?): Modifier =
+    if (label.isNullOrEmpty()) this
+    else this.semantics { text = AnnotatedString(label) }
 
 @Composable
 internal actual fun AppNavigationDrawer(

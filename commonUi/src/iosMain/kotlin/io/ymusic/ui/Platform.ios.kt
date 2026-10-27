@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.DrawerState
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Modifier
 import platform.UIKit.UIApplication
@@ -15,6 +17,10 @@ internal actual val platformUsesTouch: Boolean = true
 internal actual val desktopLayoutHole: Boolean = false
 
 internal actual val cullShellWhenNowPlayingCovers: Boolean = false
+
+internal actual fun Modifier.a11yActionLabel(label: String?): Modifier =
+    if (label.isNullOrEmpty()) this
+    else this.semantics { contentDescription = label }
 
 @Composable
 internal actual fun AppNavigationDrawer(
