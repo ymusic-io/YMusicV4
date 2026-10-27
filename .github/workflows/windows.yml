@@ -17,7 +17,7 @@ concurrency:
 env:
   FFMPEG_BUILD_REPO: ymusic-io/ffmpeg-build
   # ffmpeg-build's dev-windows head: the Windows pack fixes, SIMD libvpx, and the arm64 slug.
-  FFMPEG_BUILD_REF: 2703078194bcbc4c4412859eb514b32d1b94f470
+  FFMPEG_BUILD_REF: 2b229c8d7f9469895b0483e5640fbeb2056b2d88
 
 jobs:
   # The checkouts sit side by side (YMusicV4/ + ffmpeg-build/): the Gradle build reads
