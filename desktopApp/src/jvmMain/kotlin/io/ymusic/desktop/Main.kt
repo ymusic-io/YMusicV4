@@ -131,6 +131,7 @@ import io.ymusic.ui.ScanResult
 import io.ymusic.ui.VideoOverlayNative
 import io.ymusic.ui.YtEngineSabrSpecResolver
 import io.ymusic.ui.bundleConfig
+import io.ymusic.ui.YMusicTheme
 import io.ymusic.ui.designPaletteFor
 import io.ymusic.ui.downloadLocationFolder
 import io.ymusic.ui.ensureAppLanguage
@@ -426,7 +427,8 @@ fun main(args: Array<String>) {
             }
             val themePref by settings.flow(AppSettings.theme).collectAsState()
             val darkBar = isDarkTheme(themePref, isSystemInDarkTheme())
-            val palette = designPaletteFor(themePref, isSystemInDarkTheme())
+            val accentPref by settings.flow(AppSettings.themeAccent).collectAsState()
+            val palette = designPaletteFor(themePref, isSystemInDarkTheme(), accentPref)
             val frameBorder =
                 if (darkBar) Color.White.copy(alpha = 0.14f) else palette.OutlineSoft
             CompositionLocalProvider(LocalAppWindow provides window) {
@@ -555,23 +557,26 @@ fun main(args: Array<String>) {
                         }
                     }
 
+                    // App applies its own theme; the boot screens before it need this one.
                     Box(Modifier.weight(1f)) {
-                        when {
-                            bootError != null -> Booting {
-                                Text(startupFailedMessage("$bootError"), color = MaterialTheme.colorScheme.error)
+                        YMusicTheme(palette) {
+                            when {
+                                bootError != null -> Booting {
+                                    Text(startupFailedMessage("$bootError"), color = MaterialTheme.colorScheme.error)
+                                }
+                                graph == null && lockedCookies != null -> CookieUnlockScreen(
+                                    locked = lockedCookies!!,
+                                    logger = rootLogger.fork("cookies"),
+                                    onSession = { session ->
+                                        lockedCookies = null
+                                        bootScope.launch { boot { session } }
+                                    },
+                                )
+                                // No spinner while the graph builds: the window paints the app's own ground until
+                                // the first frame has something in it.
+                                graph == null -> Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
+                                else -> App(graph!!, catalogue = if (DEBUG_BUILD) ({ CatalogueScreen() }) else null)
                             }
-                            graph == null && lockedCookies != null -> CookieUnlockScreen(
-                                locked = lockedCookies!!,
-                                logger = rootLogger.fork("cookies"),
-                                onSession = { session ->
-                                    lockedCookies = null
-                                    bootScope.launch { boot { session } }
-                                },
-                            )
-                            // No spinner while the graph builds: the window paints the app's own ground until
-                            // the first frame has something in it.
-                            graph == null -> Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
-                            else -> App(graph!!, catalogue = if (DEBUG_BUILD) ({ CatalogueScreen() }) else null)
                         }
                     }
                 }
