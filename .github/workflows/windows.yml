@@ -16,8 +16,8 @@ concurrency:
 
 env:
   FFMPEG_BUILD_REPO: ymusic-io/ffmpeg-build
-  # ffmpeg-build's dev-windows head: the PE import probe and the zlib1/libwinpthread DLLs in the pack.
-  FFMPEG_BUILD_REF: c8b5a6ff7a44b79ffb0ad268e86a8eddfc76ffca
+  # ffmpeg-build's dev-windows head: the Windows pack fixes, SIMD libvpx, and the arm64 slug.
+  FFMPEG_BUILD_REF: 2703078194bcbc4c4412859eb514b32d1b94f470
 
 jobs:
   # The checkouts sit side by side (YMusicV4/ + ffmpeg-build/): the Gradle build reads
