@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -16,6 +17,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -49,10 +51,12 @@ import io.ymusic.ui.resources.cookie_protect_skip
 import io.ymusic.ui.resources.cookie_protect_submit
 import io.ymusic.ui.resources.cookie_protect_title
 import io.ymusic.ui.resources.cookie_unlock_body
+import io.ymusic.ui.resources.cookie_unlock_cant_unlock
 import io.ymusic.ui.resources.cookie_unlock_guest
 import io.ymusic.ui.resources.cookie_unlock_guest_hint
 import io.ymusic.ui.resources.cookie_unlock_sign_out
 import io.ymusic.ui.resources.cookie_unlock_sign_out_body
+import io.ymusic.ui.resources.cookie_unlock_sign_out_hint
 import io.ymusic.ui.resources.cookie_unlock_sign_out_title
 import io.ymusic.ui.resources.cookie_unlock_submit
 import io.ymusic.ui.resources.cookie_unlock_title
@@ -128,9 +132,11 @@ internal fun CookieProtectStep(
                 onClick = ::submit,
             )
         }
-        TextButton(onClick = onDone, enabled = !busy) {
-            Text(stringResource(Res.string.cookie_protect_skip), color = DesignColors.InkSecondary)
-        }
+        OutlinedActionButton(
+            text = stringResource(Res.string.cookie_protect_skip),
+            enabled = !busy,
+            onClick = onDone,
+        )
     }
 }
 
@@ -196,18 +202,48 @@ internal fun CookieUnlockScreen(
                 onClick = ::unlock,
             )
         }
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            TextButton(onClick = { run({ locked.asGuest() }) }, enabled = !busy) {
-                Text(stringResource(Res.string.cookie_unlock_guest), color = DesignColors.Accent)
-            }
+        Row(
+            Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            HorizontalDivider(Modifier.weight(1f), color = DesignColors.Divider)
             Text(
-                stringResource(Res.string.cookie_unlock_guest_hint),
+                stringResource(Res.string.cookie_unlock_cant_unlock),
                 style = TextStyle(fontSize = 12.sp, color = DesignColors.InkMuted),
-                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = DesignSpacing.Space16),
             )
+            HorizontalDivider(Modifier.weight(1f), color = DesignColors.Divider)
         }
-        TextButton(onClick = { confirmSignOut = true }, enabled = !busy) {
-            Text(stringResource(Res.string.cookie_unlock_sign_out), color = MaterialTheme.colorScheme.error)
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(DesignSpacing.Space16),
+        ) {
+            Column(
+                Modifier.weight(1f),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                TextButton(onClick = { run({ locked.asGuest() }) }, enabled = !busy) {
+                    Text(stringResource(Res.string.cookie_unlock_guest), color = DesignColors.Ink)
+                }
+                Text(
+                    stringResource(Res.string.cookie_unlock_guest_hint),
+                    style = TextStyle(fontSize = 12.sp, color = DesignColors.InkMuted, lineHeight = 16.sp),
+                    textAlign = TextAlign.Center,
+                )
+            }
+            Column(
+                Modifier.weight(1f),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                TextButton(onClick = { confirmSignOut = true }, enabled = !busy) {
+                    Text(stringResource(Res.string.cookie_unlock_sign_out), color = MaterialTheme.colorScheme.error)
+                }
+                Text(
+                    stringResource(Res.string.cookie_unlock_sign_out_hint),
+                    style = TextStyle(fontSize = 12.sp, color = DesignColors.InkMuted, lineHeight = 16.sp),
+                    textAlign = TextAlign.Center,
+                )
+            }
         }
     }
 

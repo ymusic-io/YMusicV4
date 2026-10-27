@@ -1,6 +1,8 @@
 package io.ymusic.desktop
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -400,6 +402,26 @@ internal fun AccentButton(text: String, enabled: Boolean, onClick: () -> Unit) {
         Text(
             text.uppercase(),
             style = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Bold, color = DesignColors.OnInk),
+        )
+    }
+}
+
+/** Neutral secondary peer for [AccentButton] — same footprint, outlined instead of filled. */
+@Composable
+internal fun OutlinedActionButton(text: String, enabled: Boolean, onClick: () -> Unit) {
+    val stroke = if (enabled) DesignColors.Outline else DesignColors.Outline.copy(alpha = 0.4f)
+    val textColor = if (enabled) DesignColors.Ink else DesignColors.Ink.copy(alpha = 0.4f)
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .border(BorderStroke(1.25.dp, stroke), RoundedCornerShape(8.dp))
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(vertical = 14.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text.uppercase(),
+            style = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Bold, color = textColor),
         )
     }
 }
