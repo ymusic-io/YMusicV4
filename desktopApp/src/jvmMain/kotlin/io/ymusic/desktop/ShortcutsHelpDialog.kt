@@ -17,8 +17,6 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
-private val isMac = System.getProperty("os.name")?.lowercase()?.contains("mac") == true
-
 @Composable
 internal fun ShortcutsHelpDialog(onDismiss: () -> Unit) {
     // Cmd on macOS, Ctrl everywhere else; the handler accepts both so this is purely a display label.

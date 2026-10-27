@@ -25,6 +25,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -121,6 +124,7 @@ import io.ymusic.telemetry.installSentryEngineVersion
 import io.ymusic.telemetry.installSentryPlayerVersion
 import io.ymusic.telemetry.sendFeedbackMessage
 import io.ymusic.ui.APP_HTTP_TIMEOUT
+import io.ymusic.ui.ActionIcon
 import io.ymusic.ui.App
 import io.ymusic.ui.AppGraph
 import io.ymusic.ui.AppHttpClients
@@ -479,6 +483,27 @@ fun main(args: Array<String>) {
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Medium,
                             modifier = Modifier.align(Alignment.Center),
+                        )
+                        var alwaysOnTop by remember { mutableStateOf(window.isAlwaysOnTop) }
+                        LaunchedEffect(alwaysOnTop) {
+                            // Both HWNDs need the topmost bit: the Compose window AND the heavyweight
+                            // video Canvas Frame are peers under the AWT display. Pin only one and the
+                            // other falls behind when the user clicks another app.
+                            window.isAlwaysOnTop = alwaysOnTop
+                            videoUnderlay.frame.isAlwaysOnTop = alwaysOnTop
+                        }
+                        ActionIcon(
+                            icon = if (alwaysOnTop) Icons.Default.PushPin else Icons.Outlined.PushPin,
+                            contentDescription = "Always on top",
+                            modifier = Modifier.align(Alignment.CenterEnd).padding(end = 6.dp),
+                            iconSize = 14.dp,
+                            hitSize = 28.dp,
+                            tint = when {
+                                alwaysOnTop -> palette.Accent
+                                darkBar -> Color.White.copy(alpha = 0.70f)
+                                else -> palette.InkSecondary
+                            },
+                            onClick = { alwaysOnTop = !alwaysOnTop },
                         )
                     }
 
