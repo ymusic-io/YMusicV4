@@ -28,6 +28,13 @@ add_library(quickjsjni SHARED
 # resolves to quickjsjni.dll (no prefix). Drop the prefix so one name serves MinGW and MSVC alike.
 if(WIN32)
   set_target_properties(quickjsjni PROPERTIES PREFIX "")
+  # Statically link the MinGW runtime so quickjsjni.dll has no outside deps on the user's
+  # machine. Without this it loads libgcc_s_seh-1.dll / libwinpthread-1.dll (which only exist
+  # if MinGW-w64 is installed) and startup fails with "Can't find dependent libraries".
+  target_link_options(quickjsjni PRIVATE
+    -static-libgcc
+    -Wl,-Bstatic,--whole-archive -lwinpthread -Wl,--no-whole-archive,-Bdynamic
+  )
 endif()
 
 target_include_directories(quickjsjni PRIVATE ${QJS_DIR})

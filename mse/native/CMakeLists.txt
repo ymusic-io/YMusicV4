@@ -48,6 +48,13 @@ add_library(mseffmpegjni SHARED ${MSE_SOURCES})
 # (System.mapLibraryName on Windows has no prefix). Drop it so MinGW matches MSVC and the loader.
 if(WIN32)
   set_target_properties(mseffmpegjni PROPERTIES PREFIX "")
+  # Statically link the MinGW runtime so mseffmpegjni.dll has no outside deps on the user's
+  # machine. Without this it loads libgcc_s_seh-1.dll / libwinpthread-1.dll (which only exist
+  # if MinGW-w64 is installed) and startup fails with "Can't find dependent libraries".
+  target_link_options(mseffmpegjni PRIVATE
+    -static-libgcc
+    -Wl,-Bstatic,--whole-archive -lwinpthread -Wl,--no-whole-archive,-Bdynamic
+  )
 endif()
 target_compile_definitions(mseffmpegjni PRIVATE PRODUCTION=${PRODUCTION})
 target_include_directories(mseffmpegjni PRIVATE
