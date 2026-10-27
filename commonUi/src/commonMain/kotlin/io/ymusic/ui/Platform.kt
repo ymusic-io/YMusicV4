@@ -1,5 +1,6 @@
 package io.ymusic.ui
 
+import androidx.compose.material3.DrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 
@@ -44,3 +45,21 @@ internal expect fun Modifier.keepBelowStatusBar(): Modifier
  *  OS-maximum 200dp) so a swipe there opens the nav drawer instead of going back. No-op elsewhere. */
 @Composable
 internal expect fun Modifier.drawerEdgeGestureExclusion(enabled: Boolean): Modifier
+
+/** The app's navigation drawer. Desktop uses an accessibility-friendly fork (sheet marked
+ *  [traversalIndex] -1 so screen-reader hover hit-tests land on nav items before the content
+ *  behind the scrim). Touch platforms keep Material3's [androidx.compose.material3.ModalNavigationDrawer]
+ *  for its swipe-to-open gesture and predictive back — mouse-less screen readers don't do
+ *  point-based hit-tests, so there's nothing to fix there. */
+@Composable
+internal expect fun AppNavigationDrawer(
+    drawerContent: @Composable () -> Unit,
+    drawerState: DrawerState,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+)
+
+/** Whether to skip composing the shell when Now Playing fully covers it. True on desktop (saves
+ *  4× overdraw and keeps the shell's semantics tree out of hover hit-tests). False on mobile:
+ *  the shell stays composed under NowPlaying for peek-dismiss and faster back-to-shell transition. */
+internal expect val cullShellWhenNowPlayingCovers: Boolean

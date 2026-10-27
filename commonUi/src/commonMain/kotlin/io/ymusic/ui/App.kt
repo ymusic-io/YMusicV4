@@ -40,7 +40,7 @@ import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalNavigationDrawer
+
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarData
@@ -74,7 +74,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -87,7 +86,6 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.intl.Locale
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
@@ -923,21 +921,13 @@ private fun AppRoot(
             ) {
                 // design/final/home.html: landscape (or any window this wide) puts the tab row inline in the app bar.
                 val wide = maxWidth > maxHeight && maxWidth >= 600.dp || maxWidth >= 650.dp
-                // Fully covering Now Playing is opaque: skip drawing the feed/mini-player under it
-                // (4× GPU overdraw). Draw them again as soon as the sheet peeks so dismiss reveals.
-                val drawShell = !nowPlayingOpen || nowPlayingPeeking
-                Box(
-                    Modifier.fillMaxSize()
-                        .drawWithContent { if (drawShell) drawContent() }
-                        .then(if (nowPlayingOpen) Modifier.clearAndSetSemantics {} else Modifier),
-                ) {
-                    if (!holeOpen) ModalNavigationDrawer(
+                // Desktop only: fully covering Now Playing is opaque, so skip composing the shell
+                // underneath (4× overdraw savings + no stray semantics for hover hit-tests meant
+                // for Now Playing). Mobile keeps the shell composed for peek-dismiss animation.
+                val drawShell = !cullShellWhenNowPlayingCovers || !nowPlayingOpen || nowPlayingPeeking
+                if (drawShell) Box(Modifier.fillMaxSize()) {
+                    if (!holeOpen) AppNavigationDrawer(
                         drawerState = drawer,
-                        // Swipe-open is touch-only: with a mouse, the whole-screen drag would claim any
-                        // click whose press wanders a pixel (mouse slop ~0.1dp). Open stays possible while
-                        // showing so scrim/drag dismiss keeps working on desktop. On the swipe-tab screens the
-                        // tab switcher yields a start-edge strip (leadingEdgeReserve) so this still opens there.
-                        gesturesEnabled = platformUsesTouch || drawer.isOpen,
                         drawerContent = {
                             AppDrawer(
                                 section = section,

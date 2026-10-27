@@ -1,11 +1,29 @@
 package io.ymusic.ui
 
+import androidx.compose.material3.DrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 
 internal actual val platformUsesTouch: Boolean = false
 
 internal actual val desktopLayoutHole: Boolean = true
+
+internal actual val cullShellWhenNowPlayingCovers: Boolean = true
+
+@Composable
+internal actual fun AppNavigationDrawer(
+    drawerContent: @Composable () -> Unit,
+    drawerState: DrawerState,
+    modifier: Modifier,
+    content: @Composable () -> Unit,
+) {
+    AccessibleModalNavigationDrawer(
+        drawerContent = drawerContent,
+        drawerState = drawerState,
+        modifier = modifier,
+        content = content,
+    )
+}
 
 @Composable
 internal actual fun PlatformBackHandler(enabled: Boolean, onBack: () -> Unit) {
