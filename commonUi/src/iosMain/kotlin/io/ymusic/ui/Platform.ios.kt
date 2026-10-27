@@ -3,6 +3,8 @@ package io.ymusic.ui
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.material3.DrawerState
+import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Modifier
@@ -11,6 +13,24 @@ import platform.UIKit.UIApplication
 internal actual val platformUsesTouch: Boolean = true
 
 internal actual val desktopLayoutHole: Boolean = false
+
+internal actual val cullShellWhenNowPlayingCovers: Boolean = false
+
+@Composable
+internal actual fun AppNavigationDrawer(
+    drawerContent: @Composable () -> Unit,
+    drawerState: DrawerState,
+    modifier: Modifier,
+    content: @Composable () -> Unit,
+) {
+    ModalNavigationDrawer(
+        drawerContent = drawerContent,
+        modifier = modifier,
+        drawerState = drawerState,
+        gesturesEnabled = true,
+        content = content,
+    )
+}
 
 @Composable
 internal actual fun PlatformBackHandler(enabled: Boolean, onBack: () -> Unit) {
