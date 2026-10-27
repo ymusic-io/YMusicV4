@@ -162,8 +162,8 @@ import io.ymusic.ytmedia.proxy.LocalMediaProxy
 import kmpcommon.log.Logger
 import kmpcommon.log.TeeLogger
 import kmpcommon.uri.Uri
-import kmpcommon.uri.UriBuilder
 import kmpcommon.uri.filePath
+import kmpcommon.uri.fileUri
 import kmpffmpeg.metadata.FfmpegMetadataGetter
 import kmphttp.KmpHttpClient
 import kmphttp.RedirectOptions
@@ -952,14 +952,14 @@ private suspend fun buildGraph(settings: AppStoreSettings, session: CookieSessio
         ),
         scanLibraryFolder = { onProgress -> scanPickedFolder(mediaStore, onProgress) },
         libraryFolderPicker = { pickAndRegisterFolder(mediaStore) },
-        canWriteFolder = { uri -> File(Uri.parse(uri).path.toString()).let { it.isDirectory && it.canWrite() } },
-        probeDownloadFolder = { uri -> probeDownloadFolder(File(Uri.parse(uri).path.toString())) },
+        canWriteFolder = { uri -> File(Uri.parse(uri).filePath()).let { it.isDirectory && it.canWrite() } },
+        probeDownloadFolder = { uri -> probeDownloadFolder(File(Uri.parse(uri).filePath())) },
         rescanLibrary = { folderUri, onProgress -> rescanKnownRoots(mediaStore, folderUri, onProgress) },
         deleteFromDisk = { item ->
             withContext(Dispatchers.IO) {
                 check(item.uri.scheme.contentEquals("file")) { "not a local file: ${item.uri}" }
                 // mustExist=false: an already-gone file still clears its library row.
-                FileSystem.SYSTEM.delete(item.uri.path.toString().toPath(), mustExist = false)
+                FileSystem.SYSTEM.delete(item.uri.filePath().toPath(), mustExist = false)
             }
         },
         fileRenaming = DesktopFileRenaming,
@@ -1364,7 +1364,7 @@ private fun bgraToRgb(width: Int, height: Int, bgra: ByteArray): BufferedImage {
 /** FileDialog pick + full scan into [store]; returns how it ended, or null when the pick was canceled. */
 private suspend fun scanPickedFolder(store: BetterMediaStore, onProgress: (Int) -> Unit): ScanResult? {
     val picked = pickFolder() ?: return null
-    val rootUri = UriBuilder().scheme("file").authority("").path(picked.absolutePath).build()
+    val rootUri = fileUri(picked.absolutePath)
     return scanUris(store, listOf(rootUri), onProgress)
 }
 
@@ -1372,7 +1372,7 @@ private suspend fun scanPickedFolder(store: BetterMediaStore, onProgress: (Int) 
  *  its uri. Used to choose a download location. */
 private suspend fun pickAndRegisterFolder(store: BetterMediaStore): String? {
     val picked = pickFolder() ?: return null
-    val uri = UriBuilder().scheme("file").authority("").path(picked.absolutePath).build()
+    val uri = fileUri(picked.absolutePath)
     store.upsertBucket(BucketDraft(uri = uri, name = picked.name))
     return uri.toString()
 }

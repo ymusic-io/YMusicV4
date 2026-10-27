@@ -4,7 +4,8 @@ import androidx.annotation.Keep
 import io.ymusic.mse.FileAvNative
 import io.ymusic.mse.FileAvSink
 import kmpcommon.uri.Uri
-import kmpcommon.uri.UriBuilder
+import kmpcommon.uri.filePath
+import kmpcommon.uri.fileUri
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -793,12 +794,12 @@ private fun parseLocalUri(raw: String): Uri {
     return if (t.contains("://") || t.startsWith("file:")) {
         Uri.parse(t)
     } else {
-        UriBuilder().scheme("file").authority("").path(t).build()
+        fileUri(t)
     }
 }
 
 private fun Uri.toFilePath(): String =
-    if (scheme?.toString().equals("file", ignoreCase = true)) path.toString() else toString()
+    if (scheme?.toString().equals("file", ignoreCase = true)) filePath() else toString()
 
 private fun parseAvStream(line: String): AvStreamRow? {
     val p = line.split('|')
