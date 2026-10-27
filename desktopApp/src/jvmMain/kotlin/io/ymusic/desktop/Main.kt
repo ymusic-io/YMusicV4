@@ -399,19 +399,11 @@ fun main(args: Array<String>) {
             transparent = true,
             onPreviewKeyEvent = preview@{ event ->
                 if (event.type != KeyEventType.KeyDown) return@preview false
-                when {
-                    (event.key == Key.Escape && frame.fullscreen) ||
-                        (event.isMetaPressed && event.isCtrlPressed && event.key == Key.F) -> {
-                        frame.toggleFullscreen()
-                        true
-                    }
-                    else -> {
-                        val refresh = event.key == Key.F5 ||
-                            ((event.isMetaPressed || event.isCtrlPressed) && event.key == Key.R)
-                        if (refresh) graph?.requestRefresh()
-                        refresh
-                    }
-                }
+                if (handleGlobalShortcut(event, graph?.player, graph?.pip?.nowPlayingOpen, frame)) return@preview true
+                val refresh = event.key == Key.F5 ||
+                    ((event.isMetaPressed || event.isCtrlPressed) && event.key == Key.R)
+                if (refresh) graph?.requestRefresh()
+                refresh
             },
         ) {
             paintWindowGround(Color.Transparent)
@@ -442,6 +434,12 @@ fun main(args: Array<String>) {
                         if (mainWindow === window) mainWindow = null
                     }
                 }
+                var shortcutsHelpOpen by remember { mutableStateOf(false) }
+                DisposableEffect(Unit) {
+                    io.ymusic.ui.GlobalShortcutActions.toggleShortcutsHelp = { shortcutsHelpOpen = !shortcutsHelpOpen }
+                    onDispose { io.ymusic.ui.GlobalShortcutActions.toggleShortcutsHelp = {} }
+                }
+                if (shortcutsHelpOpen) ShortcutsHelpDialog(onDismiss = { shortcutsHelpOpen = false })
                 Column(
                     Modifier.fillMaxSize().then(if (frame.fullscreen) Modifier else Modifier.border(1.dp, frameBorder)),
                 ) {
