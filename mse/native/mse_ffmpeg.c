@@ -1791,9 +1791,10 @@ static const AVCodec *find_video_codec(enum AVCodecID id, int sw_only)
 #ifdef MSE_WIN_HW
     /* d3d11va hwaccel attaches to ffmpeg's native `av1` / `vp9` decoders only — libdav1d /
      * libvpx-vp9 ignore hw_device_ctx and decode in software, triggering an error cascade when
-     * get_format returns AV_PIX_FMT_D3D11. Prefer native when a swapchain is attached. */
-    if (!sw_only && mse_d3d11_present_active_for(NULL) &&
-        (id == AV_CODEC_ID_VP9 || id == AV_CODEC_ID_AV1)) {
+     * get_format returns AV_PIX_FMT_D3D11. Always prefer native on Windows; the swapchain state
+     * at this point is irrelevant (open_decoder sets hw_device_ctx unconditionally for these
+     * codecs, present_show drops the frame cleanly when no swapchain is attached). */
+    if (!sw_only && (id == AV_CODEC_ID_VP9 || id == AV_CODEC_ID_AV1)) {
         c = avcodec_find_decoder_by_name(id == AV_CODEC_ID_VP9 ? "vp9" : "av1");
         if (c)
             return c;
@@ -2051,11 +2052,14 @@ static int open_decoder(MseAv *a, int video, AVCodecParameters *par)
     }
 #endif
 #ifdef MSE_WIN_HW
-    /* D3D11VA: only when the HWND present is already attached. ffmpeg's 8-bit
-       hwaccels cover H.264/HEVC/VP9/AV1; 10-bit is deferred — the par bits_per_raw_sample
-       check keeps us on CPU for HDR. opaque carries the MseAv for the log hook. */
+    /* D3D11VA: always engage when ffmpeg's hwaccel covers this codec, independent of whether a
+     * swapchain is attached right now — the decoder's hw_device_ctx wraps the process-wide
+     * ID3D11Device, not the per-HWND swapchain, so decode runs regardless. Frames land on
+     * whatever swapchain is attached when scale_bgra runs; present_show silently drops the frame
+     * when nothing is attached. 10-bit is deferred — bits_per_raw_sample gate keeps HDR on CPU.
+     * opaque carries the MseAv for the log hook. */
     (*ctxp)->opaque = a;
-    if (video && par->codec_id != a->d3d11_fail_id && mse_d3d11_present_active_for(NULL) &&
+    if (video && par->codec_id != a->d3d11_fail_id &&
         (par->bits_per_raw_sample == 0 || par->bits_per_raw_sample == 8) &&
         (par->codec_id == AV_CODEC_ID_H264 || par->codec_id == AV_CODEC_ID_HEVC ||
          par->codec_id == AV_CODEC_ID_VP9 || par->codec_id == AV_CODEC_ID_AV1)) {
@@ -3063,9 +3067,18 @@ void mse_av_reopen_video(MseAv *a)
     if (!a)
         return;
     av_lock(a, 0);
+    /* Already on HW? The swapchain is attached to a new HWND but the decoder's hw_device_ctx wraps
+     * the process-wide ID3D11Device, so decoding continues; the next scale_bgra Present just lands
+     * on the new swapchain. Closing+reopening here would otherwise cost a full GOP (3-5 s of
+     * blackscreen on 4K AV1/VP9 while we wait for the next keyframe). The reopen is only needed
+     * when transitioning SW→HW (late attach after decoder opened without hw_device_ctx). */
+    if (a->vdec && a->vdec->hw_device_ctx) {
+        av_unlock(a, 0);
+        return;
+    }
     close_video_decoder(a);
-    /* Reset the per-session d3d11 fail latch too — a prior fail happened under a different
-     * attach state, we're explicitly re-trying with the swapchain now up. */
+    /* Reset the per-session d3d11 fail latch — a prior fail happened under a different attach
+     * state, we're explicitly re-trying with the swapchain now up. */
 #ifdef MSE_WIN_HW
     a->d3d11_fail_id = AV_CODEC_ID_NONE;
 #endif
@@ -3095,6 +3108,11 @@ void mse_av_change_type(MseAv *a, int audio)
         a->vinit = NULL;
         a->vinit_n = 0;
         close_video_decoder(a);
+#ifdef MSE_WIN_HW
+        /* New stream: give D3D11VA a fresh chance even if the previous stream's codec latched off.
+         * The fail latch is per-session (one problematic stream), not permanent. */
+        a->d3d11_fail_id = AV_CODEC_ID_NONE;
+#endif
     }
     vlog("changeType a=%d", audio);
     av_unlock(a, audio);
@@ -3827,7 +3845,17 @@ static int scale_bgra(MseAv *a, AVFrame *frame, uint8_t **bgra, int *w, int *h)
             *h = frame->height;
             return 0;
         }
-        /* Present failed; fall back to CPU copy via hwframe_transfer_data. */
+        if (rc == -2) {
+            /* No swapchain attached (idle / mid-Canvas-transition). Drop silently; the next frame
+             * tries again after attach lands. CPU readback here would waste GPU→RAM bandwidth +
+             * fire on_frame → MseVideoSurface auto-flips to SW blit → Canvas starts painting over
+             * the eventual swapchain Present (two writers on one HWND). */
+            *bgra = NULL;
+            *w = frame->width;
+            *h = frame->height;
+            return 0;
+        }
+        /* Present failed with a real error; fall back to CPU copy via hwframe_transfer_data. */
         if (!a->hw_sw)
             a->hw_sw = av_frame_alloc();
         if (!a->hw_sw)

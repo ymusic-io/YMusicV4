@@ -507,7 +507,10 @@ int mse_d3d11_present_show(ID3D11Texture2D *tex, UINT array_slice,
     mse_d3d11_lock();
     if (!g_p.ready || !g_p.swap) {
         mse_d3d11_unlock();
-        return -1;
+        /* -2: no swapchain attached. Caller should drop the frame silently, not fall back to
+         * CPU readback — the HW decoder is still live and the next attach will Present fresh
+         * frames. CPU readback on every frame during a swapchain-detach gap is wasted work. */
+        return -2;
     }
     /* The swapchain follows the HWND client rect; GetClientRect once per show
        is cheap and keeps the back buffer in step with Compose resize without
