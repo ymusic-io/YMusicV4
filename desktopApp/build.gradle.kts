@@ -373,12 +373,17 @@ compose.desktop {
                 perUserInstall = false
                 menu = true
                 shortcut = true
+                // Multi-res ICO (16/32/48/64/96/128/256) derived from the Android launcher at
+                // mipmap-xxxhdpi/ic_launcher.png; without this jpackage falls back to its default
+                // Java/Compose icon on the installer dialog, Start-menu entry, and running window.
+                iconFile.set(project.file("ymusic.ico"))
             }
             // jlink modules the default set misses but the runtime graph uses: java.sql
             // (sqlite-jdbc), jdk.unsupported (Unsafe — JNA/coroutines/okio),
             // java.management + java.logging (Sentry integrations, JNA), jdk.crypto.ec
-            // (TLS for update checks).
-            modules("java.sql", "java.management", "java.logging", "jdk.unsupported", "jdk.crypto.ec")
+            // (TLS for update checks), jdk.accessibility (bundles AccessBridge so AWT
+            // doesn't abort at startup when a screen reader / Magnifier is active).
+            modules("java.sql", "java.management", "java.logging", "jdk.unsupported", "jdk.crypto.ec", "jdk.accessibility")
             // Host ffmpeg next to compose resources (`compose.application.resources.dir` at runtime).
             appResourcesRootDir.set(ffmpegAppResources)
         }
