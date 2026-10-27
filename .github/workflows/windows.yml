@@ -127,10 +127,12 @@ jobs:
         working-directory: YMusicV4
         run: ./decrypt.sh
 
+      # The MinGW bin dir goes on PATH for this step alone: gcc/clang load their own DLLs from it
+      # (cc1.exe dies silently without them), but it would shadow Git Bash's tools in other steps.
       - name: Package MSI
         shell: bash
         working-directory: YMusicV4
-        run: ./gradlew -Pproduction=true :desktopApp:releaseInstaller
+        run: PATH="$(cygpath -u "$MINGW_HOME")/bin:$PATH" ./gradlew -Pproduction=true :desktopApp:releaseInstaller
 
       - name: Discard secrets
         if: always()
