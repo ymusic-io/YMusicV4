@@ -1310,8 +1310,8 @@ void mse_host_destroy(MseHost *h)
 #endif
 #ifdef _WIN32
     if (h->window) {
-        extern void mse_d3d11_present_detach(void);
-        mse_d3d11_present_detach();
+        extern void mse_d3d11_present_detach(const void *owner);
+        mse_d3d11_present_detach(h);
         h->window = NULL;
     }
 #endif

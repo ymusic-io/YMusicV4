@@ -57,6 +57,8 @@ static const char kShaderHlsl[] =
 
 typedef struct {
     HWND hwnd;
+    /* Engine that last attached; a stale engine's late detach must not tear down its successor. */
+    const void *owner;
     IDXGISwapChain1 *swap;
     ID3D11RenderTargetView *rtv;
     ID3D11VertexShader *vs;
@@ -128,6 +130,7 @@ static void release_all(void)
         g_p.rast = NULL;
     }
     g_p.hwnd = NULL;
+    g_p.owner = NULL;
     g_p.ready = 0;
     g_p.bb_w = g_p.bb_h = 0;
     g_p.logged_present = 0;
@@ -357,7 +360,7 @@ static int draw_nv12(ID3D11Device *dev, ID3D11DeviceContext *ctx, ID3D11Texture2
     return 0;
 }
 
-int mse_d3d11_present_attach(HWND hwnd)
+int mse_d3d11_present_attach(HWND hwnd, const void *owner)
 {
     ID3D11Device *dev;
     IDXGIDevice *dxgiDev = NULL;
@@ -375,6 +378,7 @@ int mse_d3d11_present_attach(HWND hwnd)
 
     mse_d3d11_lock();
     if (g_p.hwnd == hwnd && g_p.swap) {
+        g_p.owner = owner;
         mse_d3d11_unlock();
         return 1;
     }
@@ -439,6 +443,7 @@ int mse_d3d11_present_attach(HWND hwnd)
     if (ensure_backbuffer_rtv(dev) != 0)
         goto done;
 
+    g_p.owner = owner;
     g_p.ready = 1;
     ok = 1;
     mse_critf(MSE_LOG_INFO, "d3d11 swapchain %dx%d hwnd=%p", g_p.bb_w, g_p.bb_h, (void *)hwnd);
@@ -453,10 +458,11 @@ done:
     return ok;
 }
 
-void mse_d3d11_present_detach(void)
+void mse_d3d11_present_detach(const void *owner)
 {
     mse_d3d11_lock();
-    release_all();
+    if (g_p.owner == owner)
+        release_all();
     mse_d3d11_unlock();
 }
 

@@ -42,8 +42,9 @@ enum AVPixelFormat mse_d3d11_pick(struct AVCodecContext *ctx, const enum AVPixel
 /* HWND composition-surface present path. Attach/detach are called from the
    JAWT bridge; show/resize run from the decoder thread. All take the d3d11
    lock internally — no external synchronization required. */
-int mse_d3d11_present_attach(HWND hwnd);
-void mse_d3d11_present_detach(void);
+int mse_d3d11_present_attach(HWND hwnd, const void *owner);
+/* No-op unless `owner` made the current attach. */
+void mse_d3d11_present_detach(const void *owner);
 void mse_d3d11_present_resize(int w, int h);
 int mse_d3d11_present_show(ID3D11Texture2D *tex, UINT array_slice,
                            int src_w, int src_h, int dst_w, int dst_h);

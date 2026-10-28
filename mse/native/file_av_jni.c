@@ -408,9 +408,9 @@ Java_io_ymusic_mse_FileAvNative_setVideoComponent(JNIEnv *env, jclass cls, jlong
     if (component) {
         hwnd = mse_d3d11_jawt_hwnd(env, component);
         if (hwnd)
-            ok = mse_d3d11_present_attach(hwnd);
+            ok = mse_d3d11_present_attach(hwnd, p);
     } else {
-        mse_d3d11_present_detach();
+        mse_d3d11_present_detach(p);
     }
     file_av_set_video_hwnd(p, ok ? (void *)hwnd : NULL);
     return ok ? JNI_TRUE : JNI_FALSE;

@@ -567,9 +567,9 @@ Java_io_ymusic_mse_MseHostNative_setVideoComponent(JNIEnv *env, jclass cls, jlon
     if (component) {
         hwnd = mse_d3d11_jawt_hwnd(env, component);
         if (hwnd)
-            ok = mse_d3d11_present_attach(hwnd);
+            ok = mse_d3d11_present_attach(hwnd, h);
     } else {
-        mse_d3d11_present_detach();
+        mse_d3d11_present_detach(h);
     }
     /* The host "window" slot on Windows is the HWND itself; mse_av_set_window is a no-op
        there so this is only a sentinel for mse_host_set_video_surface to trigger a video
