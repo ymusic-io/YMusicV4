@@ -30,21 +30,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.awt.ComposeWindow
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.ApplicationScope
 import androidx.compose.ui.window.Window
-import androidx.compose.ui.window.WindowPosition
-import androidx.compose.ui.window.rememberWindowState
 import io.ymusic.imageloader.AsyncImage
 import io.ymusic.player.isPlaying
 import io.ymusic.ui.AppGraph
@@ -68,8 +65,10 @@ import java.awt.Toolkit
 import java.awt.TrayIcon
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
+import java.awt.event.WindowAdapter
 import java.awt.event.WindowEvent
 import java.awt.event.WindowFocusListener
+import javax.swing.WindowConstants
 
 /**
  * The tray's notification-style popup: a small always-on-top card near the tray corner with the
@@ -86,18 +85,26 @@ fun ApplicationScope.MiniPlayerWindow(
     onDismiss: () -> Unit,
     onClose: () -> Unit,
 ) {
-    val position = remember(anchor) { miniPlayerPosition(anchor) }
+    val currentOnClose by rememberUpdatedState(onClose)
     Window(
-        onCloseRequest = onClose,
-        title = "YMusic",
-        undecorated = true,
-        transparent = true,
-        resizable = false,
-        alwaysOnTop = true,
-        state = rememberWindowState(
-            position = position,
-            size = DpSize(WIDTH_DP.dp, HEIGHT_DP.dp),
-        ),
+        create = {
+            ComposeWindow().apply {
+                // No taskbar button on Windows. The type can only be set before the window is shown.
+                if (isWindows) type = java.awt.Window.Type.UTILITY
+                title = "YMusic"
+                isUndecorated = true
+                isTransparent = true
+                isResizable = false
+                isAlwaysOnTop = true
+                val position = miniPlayerPosition(anchor)
+                setBounds(position.x, position.y, WIDTH_DP, HEIGHT_DP)
+                defaultCloseOperation = WindowConstants.DO_NOTHING_ON_CLOSE
+                addWindowListener(object : WindowAdapter() {
+                    override fun windowClosing(e: WindowEvent) = currentOnClose()
+                })
+            }
+        },
+        dispose = ComposeWindow::dispose,
     ) {
         DisposableEffect(Unit) {
             val listener = object : WindowFocusListener {
@@ -125,7 +132,7 @@ fun ApplicationScope.MiniPlayerWindow(
  * against the edge the tray bar occupies — the inset edge nearest the click, or the nearest screen
  * edge when the bar auto-hides — and centered on the click along it.
  */
-private fun miniPlayerPosition(anchor: Point?): WindowPosition {
+private fun miniPlayerPosition(anchor: Point?): Point {
     val env = GraphicsEnvironment.getLocalGraphicsEnvironment()
     val gc = anchor?.let { p -> env.screenDevices.map { it.defaultConfiguration }.firstOrNull { p in it.bounds } }
         ?: env.defaultScreenDevice.defaultConfiguration
@@ -152,7 +159,7 @@ private fun miniPlayerPosition(anchor: Point?): WindowPosition {
         TrayEdge.Left -> left + MARGIN_DP to centered(p.y, HEIGHT_DP, top, bottom)
         TrayEdge.Right -> right - WIDTH_DP - MARGIN_DP to centered(p.y, HEIGHT_DP, top, bottom)
     }
-    return WindowPosition(x.dp, y.dp)
+    return Point(x, y)
 }
 
 private enum class TrayEdge { Top, Bottom, Left, Right }
