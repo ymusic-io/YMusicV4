@@ -32,6 +32,11 @@ class NativeMseSink(val host: Long, private val surface: MseVideoSurface?) : Mse
      *  instead of replaying it on resume. */
     @Volatile private var lastPcmNs: Long = 0
 
+    /** C decode thread only: failure streaks, each logged once. */
+    private var writeFailing = false
+    private var lineFailing = false
+    private var lineFailedNs = 0L
+
     init {
         MseHostNative.setSink(host, this)
     }
@@ -39,9 +44,11 @@ class NativeMseSink(val host: Long, private val surface: MseVideoSurface?) : Mse
     fun destroy(clearSurface: Boolean = true) {
         if (!released.compareAndSet(false, true)) return
         val line = synchronized(lineLock) { pcmLine.also { pcmLine = null } }
-        line?.runCatching {
-            flush()
-            close()
+        line?.let {
+            logFailure("close") {
+                it.flush()
+                it.close()
+            }
         }
         MseHostNative.destroy(host)
         if (clearSurface) surface?.clear()
@@ -55,6 +62,7 @@ class NativeMseSink(val host: Long, private val surface: MseVideoSurface?) : Mse
         surface?.publish(img)
     }
 
+    /** C decode thread. Must not throw: the JNI caller does not clear exceptions. */
     @Keep
     override fun onPcm(rate: Int, channels: Int, s16: ByteArray) {
         if (released.get() || rate <= 0 || channels <= 0 || s16.isEmpty()) return
@@ -63,15 +71,19 @@ class NativeMseSink(val host: Long, private val surface: MseVideoSurface?) : Mse
         // SourceDataLine replays whatever remained from before the gap, which sounds like a loop.
         val now = System.nanoTime()
         val last = lastPcmNs
-        if (last != 0L && now - last > 300_000_000L) {
-            runCatching { line.flush() }
-        }
         lastPcmNs = now
-        // Blocking write: when the line's internal buffer is full, SourceDataLine.write stalls the
-        // decode thread until samples drain. Dropping (previous non-blocking variant) produced
-        // audible pops on heavy video decode (1440p AV1 sw-decode on CPU). Audio decode runs on its
-        // own thread so stalling here does not slow video.
-        runCatching { line.write(s16, 0, s16.size) }
+        try {
+            if (last != 0L && now - last > 300_000_000L) line.flush()
+            // Blocking: a full line stalls this (audio-only) decode thread rather than dropping samples.
+            line.write(s16, 0, s16.size)
+            writeFailing = false
+        } catch (e: Exception) {
+            // A write racing destroy()'s close is expected teardown.
+            if (!released.get() && !writeFailing) {
+                MseLogBridge.fire(LOG_WARN, "mse audio line write failed, YouTube audio is silent: $e")
+            }
+            writeFailing = true
+        }
     }
 
     private fun ensurePcmLine(rate: Int, channels: Int): SourceDataLine? {
@@ -82,26 +94,27 @@ class NativeMseSink(val host: Long, private val surface: MseVideoSurface?) : Mse
             cur
         }
         // Outside the lock: the drain plays out up to the line's ~500 ms and must not stall destroy().
-        stale?.runCatching {
-            drain()
-            stop()
-            close()
+        stale?.let {
+            logFailure("format switch") {
+                it.drain()
+                it.stop()
+                it.close()
+            }
         }
-        val fmt = AudioFormat(rate.toFloat(), 16, channels, true, false)
-        val info = DataLine.Info(SourceDataLine::class.java, fmt)
-        if (!AudioSystem.isLineSupported(info)) return null
-        val line = runCatching { AudioSystem.getLine(info) as SourceDataLine }.getOrNull() ?: return null
-        // ~500 ms buffer: enough headroom to absorb GC and heavy-decode pauses before writes block
-        // (shorter buffers meant 1440p playback kept hitting the backpressure path and clicking).
-        val bufBytes = rate * channels * 2 / 2
-        val opened = runCatching {
-            line.open(fmt, bufBytes)
-            line.start()
-        }
-        if (opened.isFailure) {
-            runCatching { line.close() }
+        val now = System.nanoTime()
+        if (lineFailing && now - lineFailedNs < LINE_RETRY_NS) return null
+        val line = try {
+            openLine(rate, channels)
+        } catch (e: Exception) {
+            if (!lineFailing) {
+                MseLogBridge.fire(LOG_WARN, "mse audio line ${rate}Hz/${channels}ch unavailable, YouTube audio is silent: $e")
+            }
+            lineFailing = true
+            lineFailedNs = now
             return null
         }
+        if (lineFailing) MseLogBridge.fire(LOG_INFO, "mse audio line ${rate}Hz/${channels}ch open again")
+        lineFailing = false
         synchronized(lineLock) {
             if (!released.get()) {
                 pcmLine = line
@@ -110,8 +123,22 @@ class NativeMseSink(val host: Long, private val surface: MseVideoSurface?) : Mse
                 return line
             }
         }
-        runCatching { line.close() }
+        logFailure("close") { line.close() }
         return null
+    }
+
+    private fun openLine(rate: Int, channels: Int): SourceDataLine {
+        val fmt = AudioFormat(rate.toFloat(), 16, channels, true, false)
+        val line = AudioSystem.getLine(DataLine.Info(SourceDataLine::class.java, fmt)) as SourceDataLine
+        try {
+            // ~500 ms: headroom for GC and heavy-decode pauses before writes block.
+            line.open(fmt, rate * channels)
+            line.start()
+        } catch (e: Exception) {
+            logFailure("close") { line.close() }
+            throw e
+        }
+        return line
     }
 
     @Keep
@@ -121,7 +148,15 @@ class NativeMseSink(val host: Long, private val surface: MseVideoSurface?) : Mse
      *  so the SourceDataLine doesn't play the pre-pause buffer out over seconds. */
     @Keep
     override fun onAudioFlush() {
-        synchronized(lineLock) { pcmLine }?.runCatching { flush() }
+        synchronized(lineLock) { pcmLine }?.let { logFailure("flush") { it.flush() } }
+    }
+
+    private inline fun logFailure(what: String, block: () -> Unit) {
+        try {
+            block()
+        } catch (e: Exception) {
+            MseLogBridge.fire(LOG_WARN, "mse audio line $what failed: $e")
+        }
     }
 
     private val bufs = arrayOfNulls<BufferedImage>(3)
@@ -152,3 +187,9 @@ class NativeMseSink(val host: Long, private val surface: MseVideoSurface?) : Mse
         bgra.asIntBuffer().get(pixels, 0, n)
     }
 }
+
+private const val LOG_INFO = 1
+private const val LOG_WARN = 2
+
+/** A line that failed to open is retried at most this often. */
+private const val LINE_RETRY_NS = 1_000_000_000L
