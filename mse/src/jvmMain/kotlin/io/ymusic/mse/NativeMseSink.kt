@@ -20,6 +20,9 @@ import javax.sound.sampled.SourceDataLine
 class NativeMseSink(val host: Long, private val surface: MseVideoSurface?) : MseHostSink {
     private val released = AtomicBoolean(false)
 
+    /** Guards [pcmLine], [pcmRate] and [pcmChannels]: the C decode thread, the JS thread and [destroy]. */
+    private val lineLock = Any()
+
     /** Set once per unique (rate, channels); the JVM SourceDataLine is sticky across appends. */
     private var pcmLine: SourceDataLine? = null
     private var pcmRate: Int = 0
@@ -35,8 +38,11 @@ class NativeMseSink(val host: Long, private val surface: MseVideoSurface?) : Mse
 
     fun destroy(clearSurface: Boolean = true) {
         if (!released.compareAndSet(false, true)) return
-        pcmLine?.runCatching { drain(); stop(); close() }
-        pcmLine = null
+        val line = synchronized(lineLock) { pcmLine.also { pcmLine = null } }
+        line?.runCatching {
+            flush()
+            close()
+        }
         MseHostNative.destroy(host)
         if (clearSurface) surface?.clear()
     }
@@ -69,10 +75,18 @@ class NativeMseSink(val host: Long, private val surface: MseVideoSurface?) : Mse
     }
 
     private fun ensurePcmLine(rate: Int, channels: Int): SourceDataLine? {
-        val existing = pcmLine
-        if (existing != null && pcmRate == rate && pcmChannels == channels) return existing
-        existing?.runCatching { drain(); stop(); close() }
-        pcmLine = null
+        val stale = synchronized(lineLock) {
+            val cur = pcmLine
+            if (cur != null && pcmRate == rate && pcmChannels == channels) return cur
+            pcmLine = null
+            cur
+        }
+        // Outside the lock: the drain plays out up to the line's ~500 ms and must not stall destroy().
+        stale?.runCatching {
+            drain()
+            stop()
+            close()
+        }
         val fmt = AudioFormat(rate.toFloat(), 16, channels, true, false)
         val info = DataLine.Info(SourceDataLine::class.java, fmt)
         if (!AudioSystem.isLineSupported(info)) return null
@@ -88,10 +102,16 @@ class NativeMseSink(val host: Long, private val surface: MseVideoSurface?) : Mse
             runCatching { line.close() }
             return null
         }
-        pcmLine = line
-        pcmRate = rate
-        pcmChannels = channels
-        return line
+        synchronized(lineLock) {
+            if (!released.get()) {
+                pcmLine = line
+                pcmRate = rate
+                pcmChannels = channels
+                return line
+            }
+        }
+        runCatching { line.close() }
+        return null
     }
 
     @Keep
@@ -101,7 +121,7 @@ class NativeMseSink(val host: Long, private val surface: MseVideoSurface?) : Mse
      *  so the SourceDataLine doesn't play the pre-pause buffer out over seconds. */
     @Keep
     override fun onAudioFlush() {
-        pcmLine?.runCatching { flush() }
+        synchronized(lineLock) { pcmLine }?.runCatching { flush() }
     }
 
     private val bufs = arrayOfNulls<BufferedImage>(3)
