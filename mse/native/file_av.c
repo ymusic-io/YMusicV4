@@ -331,7 +331,7 @@ static enum AVPixelFormat get_format_prefer_hw(AVCodecContext *s, const enum AVP
     return sw;
 }
 
-static AVCodecContext *open_codec(AVStream *st, int video)
+static AVCodecContext *open_codec(FileAv *p, AVStream *st, int video)
 {
     const AVCodec *c = video ? find_vdec(st->codecpar->codec_id)
                              : avcodec_find_decoder(st->codecpar->codec_id);
@@ -367,11 +367,13 @@ static AVCodecContext *open_codec(AVStream *st, int video)
             }
         }
 #ifdef FILE_AV_WIN_HW
-        /* D3D11VA shared with the mse host (one process-wide ID3D11Device). The decoder emits
-           AV_PIX_FMT_D3D11 frames whose data[0] = ID3D11Texture2D, data[1] = array slice;
-           sw_video_frame maps to CPU on demand via av_hwframe_transfer_data for the current
-           swscale→BGRA present path. Zero-copy D3D11 present is a follow-up. */
-        if (try_vt || id == AV_CODEC_ID_VP9 || id == AV_CODEC_ID_AV1) {
+        /* D3D11VA shared with the mse host (one process-wide ID3D11Device). Only enabled when
+           a Canvas HWND is attached: without a d3d11 swapchain to present_show into, the only
+           output path is av_hwframe_transfer_data + swscale, which is a GPU→PCIe→CPU round-trip
+           per frame and runs SLOWER than ffmpeg's plain SW decoder on 4K60. If the HWND
+           arrives after open (first setVideoComponent lags Canvas addNotify), file_av_set_video_hwnd
+           reopens the decoder so this gate re-evaluates. */
+        if (p && p->d3d11_hwnd && (try_vt || id == AV_CODEC_ID_VP9 || id == AV_CODEC_ID_AV1)) {
             AVBufferRef *hw = mse_d3d11_hwdev_ref();
             if (hw) {
                 ctx->get_format = mse_d3d11_pick;
@@ -486,7 +488,7 @@ static int start_video_locked(FileAv *p)
     if (p->v_st < 0 || p->vdec || !p->fmt)
         return 0;
     st = p->fmt->streams[p->v_st];
-    p->vdec = open_codec(st, 1);
+    p->vdec = open_codec(p, st, 1);
     if (!p->vdec) {
         set_err(p, "video decoder");
         return -1;
@@ -705,7 +707,7 @@ static void open_sdec_locked(FileAv *p)
     st = p->fmt->streams[p->subtitle_index];
     if (!st || st->codecpar->codec_type != AVMEDIA_TYPE_SUBTITLE)
         return;
-    p->sdec = open_codec(st, 0);
+    p->sdec = open_codec(p, st, 0);
     /* Decoder is optional: bundled libav often ships without mov_text. */
     p->s_st = p->subtitle_index;
 }
@@ -811,7 +813,7 @@ static int setup_decoders(FileAv *p)
     p->a_st = pick_audio(p);
     p->v_st = pick_video(p);
     if (p->a_st >= 0) {
-        p->adec = open_codec(p->fmt->streams[p->a_st], 0);
+        p->adec = open_codec(p, p->fmt->streams[p->a_st], 0);
         if (!p->adec) {
             set_err(p, "audio decoder");
             return -1;
@@ -1716,7 +1718,7 @@ static void reopen_if_hw_rejected_locked(FileAv *p)
     mse_critf(MSE_LOG_INFO, "file-av reopen %s in software", avcodec_get_name(p->vdec->codec_id));
     avcodec_free_context(&p->vdec);
     st = p->fmt->streams[p->v_st];
-    p->vdec = open_codec(st, 1);
+    p->vdec = open_codec(p, st, 1);
     if (!p->vdec) {
         av_packet_free(&p->v_first);
         set_err(p, "video decoder");
@@ -2347,10 +2349,19 @@ void file_av_set_video_layer(FileAv *p, void *layer)
 #ifdef FILE_AV_WIN_HW
 void file_av_set_video_hwnd(FileAv *p, void *hwnd)
 {
+    int reopen = 0;
     if (!p)
         return;
     pthread_mutex_lock(&p->mu);
+    /* Flip between HWND-set and HWND-clear changes the open_codec HW gate; reopen so a video
+       decode in-flight switches between D3D11VA (zero-copy present) and plain SW (CPU paint). */
+    if ((p->d3d11_hwnd == NULL) != (hwnd == NULL))
+        reopen = (p->opened && p->vdec != NULL);
     p->d3d11_hwnd = hwnd;
+    if (reopen) {
+        rest_video_locked(p);
+        start_video_locked(p);
+    }
     pthread_mutex_unlock(&p->mu);
 }
 #endif
