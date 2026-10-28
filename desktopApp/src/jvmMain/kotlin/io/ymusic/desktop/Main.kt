@@ -153,6 +153,7 @@ import io.ymusic.ui.playhistory.PlayHistoryStore
 import io.ymusic.ui.playhistory.playHistoryJdbcDriver
 import io.ymusic.ui.registerCompletedDownload
 import io.ymusic.ui.resources.Res
+import io.ymusic.ui.resources.cd_always_on_top
 import io.ymusic.ui.resources.cd_close
 import io.ymusic.ui.resources.cd_fullscreen
 import io.ymusic.ui.resources.cd_minimize
@@ -518,7 +519,7 @@ fun main(args: Array<String>) {
                         }
                         ActionIcon(
                             icon = if (alwaysOnTop) Icons.Default.PushPin else Icons.Outlined.PushPin,
-                            contentDescription = "Always on top",
+                            contentDescription = stringResource(Res.string.cd_always_on_top),
                             modifier = Modifier.align(Alignment.CenterEnd).padding(end = 6.dp),
                             iconSize = 14.dp,
                             hitSize = 28.dp,
