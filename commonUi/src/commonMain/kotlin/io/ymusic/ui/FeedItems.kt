@@ -210,7 +210,6 @@ fun SectionHeader(
                             Modifier
                                 .clip(RoundedCornerShape(999.dp))
                                 .clickable(role = Role.Button, onClick = cta)
-                                .a11yActionLabel(label)
                                 .padding(horizontal = SectionCtaPaddingH, vertical = SectionCtaPaddingV)
                         } else {
                             Modifier

@@ -64,5 +64,6 @@ internal expect fun AppNavigationDrawer(
  *  `description`, so NVDA/JAWS read it twice ("Download Download"). On JVM we set the `text`
  *  semantic instead — `name` falls back to it, `description` stays null, reads once. On
  *  Android/iOS the native assistive techs don't have this double-read, so contentDescription
- *  is still the right channel. [label] may be null for a decorative glyph. */
+ *  is still the right channel. [label] may be null for a decorative glyph. Never on a node whose
+ *  merged children already show the label as Text: desktop joins the texts and reads it twice. */
 internal expect fun Modifier.a11yActionLabel(label: String?): Modifier

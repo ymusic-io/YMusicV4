@@ -1877,7 +1877,6 @@ private fun QueueRowContent(
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     val sub = listOfNotNull(item.displayDuration, item.displaySubtitle).joinToString(" · ")
-    val rowLabel = if (sub.isNotEmpty()) "${item.displayTitle}, $sub" else item.displayTitle
     val playLabel = stringResource(Res.string.cd_play)
     Row(
         Modifier
@@ -1891,7 +1890,6 @@ private fun QueueRowContent(
             )
             .then(if (current) Modifier.background(DesignColors.Accent.copy(alpha = 0.1f)) else Modifier)
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
-            .a11yActionLabel(rowLabel)
             .semantics(mergeDescendants = true) {
                 if (current) selected = true
             }

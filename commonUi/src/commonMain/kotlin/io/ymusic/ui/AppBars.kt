@@ -228,7 +228,6 @@ internal fun <T : Any> UnderlineTabRow(
     entries: List<T>,
     dragProgress: Float,
     onSelect: (T) -> Unit,
-    a11yLabel: (tab: T) -> String,
     label: @Composable (tab: T, active: Boolean) -> Unit,
 ) {
     val scrollState = rememberScrollState()
@@ -253,7 +252,6 @@ internal fun <T : Any> UnderlineTabRow(
             ) {
                 entries.forEach { t ->
                     val active = t == selected
-                    val desc = a11yLabel(t)
                     Box(
                         Modifier
                             .onGloballyPositioned { c ->
@@ -264,7 +262,6 @@ internal fun <T : Any> UnderlineTabRow(
                                 bounds[t] = with(density) { x.toDp() to c.size.width.toDp() }
                             }
                             .then(if (active) Modifier.focusRequester(activeTabFocus) else Modifier)
-                            .a11yActionLabel(desc)
                             .semantics {
                                 this.selected = active
                                 role = Role.Tab
@@ -470,7 +467,7 @@ internal fun ChannelTabRow(tabs: List<YtPageTab>, activeUrl: String?, onSelect: 
     // The page was opened by a link that matches a tab → highlight it; opened by any other link
     // (e.g. a bare channel item) → fall back to the server's selected flag.
     val selected = tabs.firstOrNull { it.url != null && it.url == activeUrl } ?: tabs.firstOrNull { it.selected }
-    UnderlineTabRow(selected, tabs, dragProgress = 0f, onSelect, a11yLabel = { it.title }) { tab, active ->
+    UnderlineTabRow(selected, tabs, dragProgress = 0f, onSelect) { tab, active ->
         TabLabel(tab.title, active)
     }
 }

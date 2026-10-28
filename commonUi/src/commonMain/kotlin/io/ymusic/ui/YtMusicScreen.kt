@@ -173,9 +173,8 @@ fun YtMusicScreen(
  *  same treatment as Library's. */
 @Composable
 private fun YtMusicTabRow(tabs: List<YtMusicTab>, selected: YtMusicTab, dragProgress: Float, onSelect: (YtMusicTab) -> Unit) {
-    val labels = tabs.associateWith { stringResource(it.label) }
-    UnderlineTabRow(selected, tabs, dragProgress, onSelect, a11yLabel = { labels.getValue(it) }) { t, active ->
-        TabLabel(labels.getValue(t), active)
+    UnderlineTabRow(selected, tabs, dragProgress, onSelect) { t, active ->
+        TabLabel(stringResource(t.label), active)
     }
 }
 
