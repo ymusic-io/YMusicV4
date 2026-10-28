@@ -4,6 +4,7 @@ import kmpcommon.log.Logger
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.receiveAsFlow
+import java.io.Closeable
 import java.io.File
 import java.io.IOException
 import java.net.InetAddress
@@ -29,6 +30,18 @@ internal enum class InstanceCommand(val arg: String?) {
         fun of(args: List<String>): InstanceCommand = entries.firstOrNull { it.arg != null && it.arg in args } ?: Show
     }
 }
+
+/** How a launch's [SingleInstance.claim] ended. */
+internal sealed interface InstanceClaim {
+    /** This process is the app instance. */
+    class Owner(val instance: SingleInstance) : InstanceClaim
+
+    /** The command went to the running instance; this process has nothing left to do. */
+    data object HandedOver : InstanceClaim
+}
+
+/** Another process holds the instance claim but did not take the handed-over command. */
+internal class InstanceHandoffException(cause: IOException?) : IOException("no running instance answered", cause)
 
 /**
  * One app process per data dir: the first launch holds `instance.lock` and listens on a loopback
@@ -66,10 +79,12 @@ internal class SingleInstance private constructor(
 
     companion object {
         /**
-         * Claims this process as the app instance, or hands [command] to the running one and
-         * returns null (the caller exits).
+         * Claims this process as the app instance, or hands [command] to the running one.
+         *
+         * @throws InstanceHandoffException another process holds the claim but never took [command].
+         * @throws IOException this process could not set the claim up (lock file, socket, port file).
          */
-        fun claim(dir: File, command: InstanceCommand, logger: Logger): SingleInstance? {
+        fun claim(dir: File, command: InstanceCommand, logger: Logger): InstanceClaim {
             dir.mkdirs()
             val portFile = File(dir, "instance.port")
             val channel = FileChannel.open(
@@ -77,16 +92,38 @@ internal class SingleInstance private constructor(
                 StandardOpenOption.CREATE,
                 StandardOpenOption.WRITE,
             )
-            val lock = channel.tryLock()
+            val lock = try {
+                channel.tryLock()
+            } catch (e: IOException) {
+                channel.closeAfter(e)
+            }
             if (lock == null) {
                 channel.close()
                 handOff(portFile, command)
-                return null
+                return InstanceClaim.HandedOver
             }
-            val server = ServerSocket(0, 8, InetAddress.getLoopbackAddress())
-            val token = ByteArray(16).also { SecureRandom().nextBytes(it) }.joinToString("") { "%02x".format(it) }
-            portFile.writeText("${server.localPort} $token")
-            return SingleInstance(lock, server, token, logger).also { it.serve() }
+            try {
+                val server = ServerSocket(0, 8, InetAddress.getLoopbackAddress())
+                try {
+                    val token = ByteArray(16).also { SecureRandom().nextBytes(it) }.joinToString("") { "%02x".format(it) }
+                    portFile.writeText("${server.localPort} $token")
+                    return InstanceClaim.Owner(SingleInstance(lock, server, token, logger).also { it.serve() })
+                } catch (e: IOException) {
+                    server.closeAfter(e)
+                }
+            } catch (e: IOException) {
+                channel.closeAfter(e)
+            }
+        }
+
+        /** Closes this after [failure] (a close error rides along as suppressed) and rethrows [failure]. */
+        private fun Closeable.closeAfter(failure: IOException): Nothing {
+            try {
+                close()
+            } catch (e: IOException) {
+                failure.addSuppressed(e)
+            }
+            throw failure
         }
 
         // The running instance may still be starting (port file not written yet): retry briefly.
@@ -107,7 +144,7 @@ internal class SingleInstance private constructor(
                 }
                 Thread.sleep(HANDOFF_RETRY_MS)
             }
-            throw IOException("no running instance answered", last)
+            throw InstanceHandoffException(last)
         }
 
         private const val HANDOFF_ATTEMPTS = 20

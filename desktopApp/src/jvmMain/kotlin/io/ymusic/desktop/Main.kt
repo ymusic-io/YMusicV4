@@ -240,6 +240,11 @@ private val rootLogger: Logger =
 
 private val LOG_FLUSH_TIMEOUT = 3.seconds
 
+/** An exit that skips the application's quit still writes the log: the worker's threads are daemons. */
+private fun flushLogBeforeExit() {
+    kotlinx.coroutines.runBlocking { withTimeoutOrNull(LOG_FLUSH_TIMEOUT) { logWorker.flush() } }
+}
+
 // Long enough for the recorders to write what clearing the queue triggers (watch time, the Play again play-head).
 private val QUIT_SAVE_DELAY = 500.milliseconds
 
@@ -257,15 +262,23 @@ fun main(args: Array<String>) {
     defaultLinuxSoftwareRendering()
     val instance = if (isWindows) {
         val command = InstanceCommand.of(args.toList())
-        val claimed = try {
-            SingleInstance.claim(ymusicDataDir(), command, rootLogger.fork("instance"))
-        } catch (e: java.io.IOException) {
-            rootLogger.log(Logger.Level.ERROR, "another instance holds the lock but did not answer", e)
+        val log = rootLogger.fork("instance")
+        val claim = try {
+            SingleInstance.claim(ymusicDataDir(), command, log)
+        } catch (e: InstanceHandoffException) {
+            log.log(Logger.Level.ERROR, "another instance holds the lock but did not answer", e)
+            flushLogBeforeExit()
             return
+        } catch (e: java.io.IOException) {
+            log.log(Logger.Level.WARN, "single-instance setup failed, starting without it", e)
+            null
         }
         // Handed to the running app; or a Jump List task with no app running, which has nothing to control.
-        if (claimed == null || command != InstanceCommand.Show) return
-        claimed
+        if (claim == InstanceClaim.HandedOver || command != InstanceCommand.Show) {
+            flushLogBeforeExit()
+            return
+        }
+        (claim as InstanceClaim.Owner?)?.instance
     } else {
         null
     }
