@@ -1283,7 +1283,11 @@ static int start_aq(FileAv *p)
     fmt.mChannelsPerFrame = (UInt32)ch;
     fmt.mBitsPerChannel = 16;
     cap = rate * ch * 2;
-    buf_bytes = 512 * ch * 2;
+    /* 2048 frames @ 48 kHz = ~43ms per buffer × AQ_NBUFS buffers = ~170ms queue depth.
+       512 frames (~11ms) was too small for waveOut's scheduling window on Windows under
+       UI load — buffers drained in less time than aqw_loop could refill, device went
+       idle in between, audible as periodic vibration. */
+    buf_bytes = 2048 * ch * 2;
     pthread_mutex_unlock(&p->mu);
     if (AudioQueueNewOutput(&fmt, aq_callback, p, NULL, kCFRunLoopCommonModes, 0, &aq) != 0) {
         pthread_mutex_lock(&p->mu);
