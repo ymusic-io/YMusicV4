@@ -2,12 +2,8 @@
 #define AQ_WINMM_H
 
 /*
- * The AudioQueue + dispatch_after_f subset that mse_host.c / file_av.c drive, on Windows
- * WinMM waveOut, so the Apple DAC paths run unchanged on Windows. winmm is a core system
- * library on every Windows version; nothing is dlopen'd.
- *
- * Signature matches aq_pulse.h so file_av.c / mse_host.c include either one via platform
- * detection and compile the same AudioQueue callers.
+ * aq_pulse.h's AudioQueue + dispatch_after_f subset on Windows WinMM waveOut (a core system
+ * library, nothing dlopen'd), so file_av.c's AudioQueue DAC path compiles unchanged on Windows.
  */
 
 #include <stdbool.h>

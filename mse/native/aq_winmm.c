@@ -15,6 +15,11 @@
 
 #define AQW_MAX_BUFS 16
 
+typedef struct {
+    AudioQueueBuffer pub; /* first: an AudioQueueBufferRef points at it */
+    int idx;
+} AqwBuf;
+
 struct OpaqueAudioQueue {
     pthread_mutex_t mu;
     pthread_cond_t cv;
@@ -27,7 +32,7 @@ struct OpaqueAudioQueue {
     int frame_bytes;
 
     /* User-allocated buffers; each gets a parallel WAVEHDR prepared once. */
-    AudioQueueBufferRef bufs[AQW_MAX_BUFS];
+    AqwBuf *bufs[AQW_MAX_BUFS];
     WAVEHDR hdrs[AQW_MAX_BUFS];
     int prepared[AQW_MAX_BUFS];
     int nbufs;
@@ -60,13 +65,11 @@ static void sleep_s(double s)
     nanosleep(&ts, NULL);
 }
 
-static int buf_index(AudioQueueRef q, AudioQueueBufferRef buf)
+/* q->mu held. Every buffer is in exactly one of fifo, the device, done or the user callback. */
+static void done_push(AudioQueueRef q, AudioQueueBufferRef buf)
 {
-    int i;
-    for (i = 0; i < q->nbufs; i++)
-        if (q->bufs[i] == buf)
-            return i;
-    return -1;
+    q->done[(q->done_r + q->done_n) % AQW_MAX_BUFS] = buf;
+    q->done_n++;
 }
 
 /* q->mu held. */
@@ -101,11 +104,8 @@ static void CALLBACK wave_proc(HWAVEOUT hwo, UINT msg, DWORD_PTR instance, DWORD
     hdr = (WAVEHDR *)p1;
     buf = (AudioQueueBufferRef)hdr->dwUser;
     pthread_mutex_lock(&q->mu);
-    if (q->done_n < AQW_MAX_BUFS) {
-        q->done[(q->done_r + q->done_n) % AQW_MAX_BUFS] = buf;
-        q->done_n++;
-        pthread_cond_broadcast(&q->cv);
-    }
+    done_push(q, buf);
+    pthread_cond_broadcast(&q->cv);
     pthread_mutex_unlock(&q->mu);
 }
 
@@ -120,7 +120,7 @@ static void *aqw_loop(void *arg)
         int idx, size;
         WAVEHDR *hdr;
         /* Drain callbacks first — frees up buffers to re-enqueue. */
-        while (!q->quit && q->done_n == 0 && (!q->running || q->fifo_n == 0 || !q->hwo))
+        while (!q->quit && q->done_n == 0 && (!q->running || q->fifo_n == 0))
             pthread_cond_wait(&q->cv, &q->mu);
         if (q->quit)
             break;
@@ -137,21 +137,13 @@ static void *aqw_loop(void *arg)
         write_buf = q->fifo[q->fifo_r];
         q->fifo_r = (q->fifo_r + 1) % AQW_MAX_BUFS;
         q->fifo_n--;
-        idx = buf_index(q, write_buf);
-        if (idx < 0) {
-            /* Not one of ours — drop it. */
-            continue;
-        }
+        idx = ((AqwBuf *)write_buf)->idx;
         size = (int)write_buf->mAudioDataByteSize;
         if (size > (int)write_buf->mAudioDataBytesCapacity)
             size = (int)write_buf->mAudioDataBytesCapacity;
         size -= size % q->frame_bytes;
         if (size <= 0) {
-            /* Nothing to play, loop it back to the user. */
-            if (q->done_n < AQW_MAX_BUFS) {
-                q->done[(q->done_r + q->done_n) % AQW_MAX_BUFS] = write_buf;
-                q->done_n++;
-            }
+            done_push(q, write_buf);
             continue;
         }
         apply_gain(q, (int16_t *)write_buf->mAudioData, size / q->frame_bytes);
@@ -161,11 +153,7 @@ static void *aqw_loop(void *arg)
         hdr->dwBytesRecorded = 0;
         hdr->dwUser = (DWORD_PTR)write_buf;
         hdr->dwLoops = 0;
-        /* Preserve WHDR_PREPARED across reuse — zeroing dwFlags here (as earlier revs did)
-           strips the bit set by waveOutPrepareHeader, and the next waveOutWrite returns
-           WAVERR_UNPREPARED (34) for every buffer. The result is total silence while the
-           ring keeps draining — audio clock still advances via samples_played counting
-           the bytes we think we handed to the device. */
+        /* dwFlags untouched: without WHDR_PREPARED every waveOutWrite fails WAVERR_UNPREPARED. */
         pthread_mutex_unlock(&q->mu);
         if (!q->prepared[idx]) {
             if (waveOutPrepareHeader(q->hwo, hdr, sizeof(*hdr)) == MMSYSERR_NOERROR)
@@ -176,11 +164,8 @@ static void *aqw_loop(void *arg)
         if (mr != MMSYSERR_NOERROR) {
             mse_critf(MSE_LOG_WARN, "aq-winmm: waveOutWrite failed (%u) size=%d", (unsigned)mr, size);
             /* Device went away mid-playback. Loop the buffer back so the user keeps draining. */
-            if (q->done_n < AQW_MAX_BUFS) {
-                q->done[(q->done_r + q->done_n) % AQW_MAX_BUFS] = write_buf;
-                q->done_n++;
-                pthread_cond_broadcast(&q->cv);
-            }
+            done_push(q, write_buf);
+            pthread_cond_broadcast(&q->cv);
             pthread_mutex_unlock(&q->mu);
             sleep_s((double)size / (double)(q->frame_bytes * q->rate));
             pthread_mutex_lock(&q->mu);
@@ -241,23 +226,24 @@ OSStatus AudioQueueNewOutput(const AudioStreamBasicDescription *fmt, AudioQueueO
 
 OSStatus AudioQueueAllocateBuffer(AudioQueueRef q, UInt32 bytes, AudioQueueBufferRef *out)
 {
-    AudioQueueBufferRef buf;
+    AqwBuf *buf;
     *out = NULL;
     pthread_mutex_lock(&q->mu);
     if (q->nbufs >= AQW_MAX_BUFS) {
         pthread_mutex_unlock(&q->mu);
         return -1;
     }
-    buf = (AudioQueueBufferRef)calloc(1, sizeof(*buf) + bytes);
+    buf = (AqwBuf *)calloc(1, sizeof(*buf) + bytes);
     if (!buf) {
         pthread_mutex_unlock(&q->mu);
         return -108;
     }
-    buf->mAudioData = buf + 1;
-    buf->mAudioDataBytesCapacity = bytes;
+    buf->pub.mAudioData = buf + 1;
+    buf->pub.mAudioDataBytesCapacity = bytes;
+    buf->idx = q->nbufs;
     q->bufs[q->nbufs++] = buf;
     pthread_mutex_unlock(&q->mu);
-    *out = buf;
+    *out = &buf->pub;
     return 0;
 }
 
@@ -285,8 +271,7 @@ OSStatus AudioQueueStart(AudioQueueRef q, const void *start_time)
     q->running = 1;
     pthread_cond_broadcast(&q->cv);
     pthread_mutex_unlock(&q->mu);
-    if (q->hwo)
-        waveOutRestart(q->hwo);
+    waveOutRestart(q->hwo);
     return 0;
 }
 
@@ -295,8 +280,7 @@ OSStatus AudioQueuePause(AudioQueueRef q)
     pthread_mutex_lock(&q->mu);
     q->running = 0;
     pthread_mutex_unlock(&q->mu);
-    if (q->hwo)
-        waveOutPause(q->hwo);
+    waveOutPause(q->hwo);
     return 0;
 }
 
@@ -306,13 +290,11 @@ OSStatus AudioQueueFlush(AudioQueueRef q)
     pthread_mutex_lock(&q->mu);
     for (i = 0; i < q->fifo_n; i++) {
         AudioQueueBufferRef buf = q->fifo[(q->fifo_r + i) % AQW_MAX_BUFS];
-        if (buf)
-            memset(buf->mAudioData, 0, buf->mAudioDataBytesCapacity);
+        memset(buf->mAudioData, 0, buf->mAudioDataBytesCapacity);
     }
     pthread_mutex_unlock(&q->mu);
-    /* waveOutReset returns every in-flight header via WOM_DONE, which the worker folds into done_fifo. */
-    if (q->hwo)
-        waveOutReset(q->hwo);
+    /* waveOutReset returns every in-flight header via WOM_DONE, which the worker folds into done. */
+    waveOutReset(q->hwo);
     return 0;
 }
 
@@ -329,20 +311,17 @@ OSStatus AudioQueueDispose(AudioQueueRef q, bool immediate)
     (void)immediate;
     if (!q)
         return 0;
-    if (q->hwo)
-        waveOutReset(q->hwo);
+    waveOutReset(q->hwo);
     pthread_mutex_lock(&q->mu);
     q->quit = 1;
     pthread_cond_broadcast(&q->cv);
     pthread_mutex_unlock(&q->mu);
     pthread_join(q->th, NULL);
-    if (q->hwo) {
-        for (i = 0; i < q->nbufs; i++) {
-            if (q->prepared[i])
-                waveOutUnprepareHeader(q->hwo, &q->hdrs[i], sizeof(q->hdrs[i]));
-        }
-        waveOutClose(q->hwo);
+    for (i = 0; i < q->nbufs; i++) {
+        if (q->prepared[i])
+            waveOutUnprepareHeader(q->hwo, &q->hdrs[i], sizeof(q->hdrs[i]));
     }
+    waveOutClose(q->hwo);
     for (i = 0; i < q->nbufs; i++)
         free(q->bufs[i]);
     pthread_cond_destroy(&q->cv);
