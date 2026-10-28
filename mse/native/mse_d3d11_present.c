@@ -82,13 +82,21 @@ static void release_views(void)
     }
 }
 
-static void release_all(void)
+static void release_swapchain(void)
 {
     release_views();
     if (g_p.swap) {
         IDXGISwapChain1_Release(g_p.swap);
         g_p.swap = NULL;
     }
+    g_p.hwnd = NULL;
+    g_p.owner = NULL;
+    g_p.bb_w = g_p.bb_h = 0;
+    g_p.logged_present = 0;
+}
+
+static void release_pipeline(void)
+{
     if (g_p.cb) {
         ID3D11Buffer_Release(g_p.cb);
         g_p.cb = NULL;
@@ -113,10 +121,6 @@ static void release_all(void)
         ID3D11RasterizerState_Release(g_p.rast);
         g_p.rast = NULL;
     }
-    g_p.hwnd = NULL;
-    g_p.owner = NULL;
-    g_p.bb_w = g_p.bb_h = 0;
-    g_p.logged_present = 0;
 }
 
 static int ensure_backbuffer_rtv(ID3D11Device *dev)
@@ -177,13 +181,13 @@ static int build_pipeline(ID3D11Device *dev)
     ID3D10Blob_Release(vsBlob);
     if (FAILED(hr)) {
         ID3D10Blob_Release(psBlob);
-        return -1;
+        goto fail;
     }
     hr = ID3D11Device_CreatePixelShader(dev, ID3D10Blob_GetBufferPointer(psBlob),
                                         ID3D10Blob_GetBufferSize(psBlob), NULL, &g_p.ps);
     ID3D10Blob_Release(psBlob);
     if (FAILED(hr))
-        return -1;
+        goto fail;
 
     memset(&sd, 0, sizeof(sd));
     sd.Filter = D3D11_FILTER_MIN_MAG_LINEAR_MIP_POINT;
@@ -195,7 +199,7 @@ static int build_pipeline(ID3D11Device *dev)
     sd.MaxLOD = D3D11_FLOAT32_MAX;
     hr = ID3D11Device_CreateSamplerState(dev, &sd, &g_p.samp);
     if (FAILED(hr))
-        return -1;
+        goto fail;
 
     memset(&bd, 0, sizeof(bd));
     bd.ByteWidth = 16; /* float4 scale */
@@ -203,14 +207,14 @@ static int build_pipeline(ID3D11Device *dev)
     bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
     hr = ID3D11Device_CreateBuffer(dev, &bd, NULL, &g_p.cb);
     if (FAILED(hr))
-        return -1;
+        goto fail;
 
     memset(&blendDesc, 0, sizeof(blendDesc));
     blendDesc.RenderTarget[0].BlendEnable = FALSE;
     blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
     hr = ID3D11Device_CreateBlendState(dev, &blendDesc, &g_p.blend);
     if (FAILED(hr))
-        return -1;
+        goto fail;
 
     memset(&rsDesc, 0, sizeof(rsDesc));
     rsDesc.FillMode = D3D11_FILL_SOLID;
@@ -218,9 +222,13 @@ static int build_pipeline(ID3D11Device *dev)
     rsDesc.DepthClipEnable = TRUE;
     hr = ID3D11Device_CreateRasterizerState(dev, &rsDesc, &g_p.rast);
     if (FAILED(hr))
-        return -1;
+        goto fail;
 
     return 0;
+
+fail:
+    release_pipeline();
+    return -1;
 }
 
 static void clear_backbuffer(ID3D11DeviceContext *ctx)
@@ -348,7 +356,9 @@ int mse_d3d11_present_attach(HWND hwnd, const void *owner)
         mse_d3d11_unlock();
         return 1;
     }
-    release_all();
+    release_swapchain();
+    if (build_pipeline(dev) != 0)
+        goto done;
 
     hr = ID3D11Device_QueryInterface(dev, &IID_IDXGIDevice, (void **)&dxgiDev);
     if (FAILED(hr)) {
@@ -404,8 +414,6 @@ int mse_d3d11_present_attach(HWND hwnd, const void *owner)
         g_p.bb_h = (int)scd.Height;
     }
 
-    if (build_pipeline(dev) != 0)
-        goto done;
     if (ensure_backbuffer_rtv(dev) != 0)
         goto done;
 
@@ -415,7 +423,7 @@ int mse_d3d11_present_attach(HWND hwnd, const void *owner)
 
 done:
     if (!ok)
-        release_all();
+        release_swapchain();
     if (factory) IDXGIFactory2_Release(factory);
     if (adapter) IDXGIAdapter_Release(adapter);
     if (dxgiDev) IDXGIDevice_Release(dxgiDev);
@@ -427,7 +435,7 @@ void mse_d3d11_present_detach(const void *owner)
 {
     mse_d3d11_lock();
     if (g_p.owner == owner)
-        release_all();
+        release_swapchain();
     mse_d3d11_unlock();
 }
 
