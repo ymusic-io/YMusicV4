@@ -503,3 +503,59 @@ tasks.register<Copy>("releaseInstaller") {
 }
 
 kotlin.sourceSets.getByName("jvmMain").resources.srcDir(files(layout.buildDirectory.dir("engineJsResources")).builtBy(stageEngineJs))
+
+// ---------------------------------------------------------------------------------------------
+// Windows: Inno Setup installer. Wraps the jlinked app directory produced by
+// createReleaseDistributable in an LZMA2-compressed single-exe installer with a nicer upgrade
+// flow than jpackage's canned MSI. Requires Inno Setup 6+ on PATH or at the default install
+// path; override with -Pinno.iscc=path\to\ISCC.exe.
+// ---------------------------------------------------------------------------------------------
+val isccPath: Provider<File> = providers.gradleProperty("inno.iscc")
+    .map { File(it) }
+    .orElse(providers.provider {
+        listOf(
+            "C:/Program Files (x86)/Inno Setup 6/ISCC.exe",
+            "C:/Program Files/Inno Setup 6/ISCC.exe",
+            "C:/Program Files (x86)/Inno Setup 5/ISCC.exe",
+        ).map(::File).firstOrNull { it.isFile }
+            ?: error("Inno Setup Compiler not found. Install from https://jrsoftware.org/isdl.php or pass -Pinno.iscc=path\\to\\ISCC.exe")
+    })
+
+val innoSetupStageDir = layout.buildDirectory.dir("compose/tmp/packageReleaseInnoSetup")
+val innoSetupOutDir = layout.buildDirectory.dir("compose/binaries/main-release/innosetup")
+
+val packageReleaseInnoSetup by tasks.registering(Exec::class) {
+    group = "compose desktop"
+    description = "Wrap the release distributable in an Inno Setup installer (Windows only)."
+    onlyIf { hostOs == "windows" }
+    dependsOn("createReleaseDistributable")
+
+    val templateFile = project.file("installer/windows/ymusic.iss.in")
+    val iconFile = project.file("ymusic.ico")
+    val appDir = layout.buildDirectory.dir("compose/binaries/main-release/app/YMusic")
+
+    inputs.file(templateFile)
+    inputs.file(iconFile)
+    inputs.dir(appDir)
+    inputs.property("version", desktopVersion)
+    outputs.dir(innoSetupOutDir)
+
+    doFirst {
+        val stage = innoSetupStageDir.get().asFile.apply { mkdirs() }
+        val out = innoSetupOutDir.get().asFile.apply { mkdirs() }
+        val iss = File(stage, "ymusic.iss")
+        iss.writeText(templateFile.readText())
+        commandLine(
+            isccPath.get().absolutePath,
+            "/Qp",
+            "/DAppVersion=$desktopVersion",
+            "/DAppPublisher=YMusic",
+            "/DAppURL=https://ymusic.io",
+            "/DAppSourceDir=${appDir.get().asFile.absolutePath}",
+            "/DIconFile=${iconFile.absolutePath}",
+            "/DOutputDir=${out.absolutePath}",
+            "/DOutputBaseName=YMusic-Setup-$desktopVersion",
+            iss.absolutePath,
+        )
+    }
+}
