@@ -46,7 +46,7 @@ internal fun installerFor(os: String): Installer {
     val launcher = System.getProperty("jpackage.app-path")?.let(::File)?.takeIf { it.isFile }
     return when (os) {
         "macos" -> MacDmgInstaller(launcher?.let { generateSequence(it) { f -> f.parentFile }.firstOrNull { f -> f.name.endsWith(".app") } })
-        "windows" -> WindowsMsiInstaller(launcher)
+        "windows" -> WindowsSetupInstaller(launcher)
         else -> LinuxDebInstaller(launcher)
     }
 }
@@ -108,12 +108,12 @@ internal class MacDmgInstaller(private val bundle: File?) : Installer {
 }
 
 /**
- * Hands the MSI to Windows Installer once this process has exited — a running app's files are
- * locked. A detached PowerShell step waits for our exit, runs msiexec elevated (the UAC prompt),
- * then starts YMusic again unelevated, whether or not the user accepted.
+ * Runs the Inno Setup installer once this process has exited — a running app's files are locked.
+ * A detached PowerShell step waits for our exit, runs the setup elevated (the UAC prompt) showing
+ * progress only, then starts YMusic again unelevated, whether or not the user accepted.
  */
-internal class WindowsMsiInstaller(private val launcher: File?) : Installer {
-    override val extension = "msi"
+internal class WindowsSetupInstaller(private val launcher: File?) : Installer {
+    override val extension = "exe"
 
     override val blockedReason: StringResource? get() = if (launcher == null) Res.string.update_blocked_not_installed else null
 
@@ -122,11 +122,11 @@ internal class WindowsMsiInstaller(private val launcher: File?) : Installer {
         val script = File(file.parentFile, "install-update.ps1")
         script.writeText(
             """
-            param([int]${'$'}WaitPid, [string]${'$'}Msi, [string]${'$'}Launcher)
+            param([int]${'$'}WaitPid, [string]${'$'}Setup, [string]${'$'}Launcher)
             Wait-Process -Id ${'$'}WaitPid -ErrorAction SilentlyContinue
             try {
-                ${'$'}msiArgs = @('/i', ('"' + ${'$'}Msi + '"'), '/passive', '/norestart')
-                Start-Process -FilePath msiexec.exe -Verb RunAs -Wait -ArgumentList ${'$'}msiArgs
+                ${'$'}setupArgs = @('/SILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-')
+                Start-Process -FilePath ${'$'}Setup -Verb RunAs -Wait -ArgumentList ${'$'}setupArgs
             } catch {}
             Start-Process -FilePath ${'$'}Launcher
             """.trimIndent(),
@@ -135,7 +135,7 @@ internal class WindowsMsiInstaller(private val launcher: File?) : Installer {
             "powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
             "-WindowStyle", "Hidden", "-File", script.path,
             "-WaitPid", ProcessHandle.current().pid().toString(),
-            "-Msi", file.path,
+            "-Setup", file.path,
             "-Launcher", launcher.path,
         ).start()
         true
