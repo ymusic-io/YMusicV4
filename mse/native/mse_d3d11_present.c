@@ -514,14 +514,21 @@ int mse_d3d11_present_show(ID3D11Texture2D *tex, UINT array_slice,
     }
     /* The swapchain follows the HWND client rect; GetClientRect once per show
        is cheap and keeps the back buffer in step with Compose resize without
-       a round-trip through the AWT thread. */
+       a round-trip through the AWT thread. Compose heavyweight-canvas layout
+       jitters by 1 pixel on fractional-density displays — ResizeBuffers each
+       frame released the RTV and flashed black (user visible as blinking +
+       15fps on a 60fps clip). DXGI_SCALING_STRETCH already absorbs sub-pixel
+       mismatches, so only resize when the delta is ≥ 2 on either axis. */
     if (g_p.hwnd) {
         RECT rc;
         if (GetClientRect(g_p.hwnd, &rc)) {
             int w = rc.right - rc.left, hgt = rc.bottom - rc.top;
+            int dw, dh;
             if (w < 1) w = 1;
             if (hgt < 1) hgt = 1;
-            if (w != g_p.bb_w || hgt != g_p.bb_h) {
+            dw = w > g_p.bb_w ? w - g_p.bb_w : g_p.bb_w - w;
+            dh = hgt > g_p.bb_h ? hgt - g_p.bb_h : g_p.bb_h - hgt;
+            if (dw >= 2 || dh >= 2) {
                 release_views();
                 hr = IDXGISwapChain1_ResizeBuffers(g_p.swap, 0, (UINT)w, (UINT)hgt,
                                                    DXGI_FORMAT_UNKNOWN, 0);
