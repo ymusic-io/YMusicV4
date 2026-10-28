@@ -18,7 +18,7 @@ env:
   # The ffmpeg-build commit the apps link against. Bumping it rebuilds every ffmpeg pack once;
   # otherwise each pack comes from the cache keyed on this ref.
   FFMPEG_BUILD_REPO: ymusic-io/ffmpeg-build
-  FFMPEG_BUILD_REF: d79bfb002882b75dd8d2255873d3e5e2dc938f4a
+  FFMPEG_BUILD_REF: 2b229c8d7f9469895b0483e5640fbeb2056b2d88
   # The NDK (r28c) for the Android ffmpeg packs and the app's own native code, installed with the
   # runner's sdkmanager: the image's ANDROID_NDK_LATEST_HOME moves (r30 fails android-x86_64).
   NDK_VERSION: 28.2.13676358
@@ -39,7 +39,28 @@ jobs:
           - { slug: android-x86_64, runner: ubuntu-24.04 }
           - { slug: macos-arm64, runner: macos-14 }
           - { slug: macos-x86_64, runner: macos-15-intel }
+          # Native under MSYS2, as on a developer machine. CLANGARM64 has no gcc: HOST_CC is
+          # ffmpeg's compiler, which its configure otherwise assumes is gcc.
+          - slug: windows-x86_64
+            runner: windows-2022
+            msystem: MINGW64
+            cc: gcc
+            packages: >-
+              mingw-w64-x86_64-toolchain mingw-w64-x86_64-nasm mingw-w64-x86_64-pkgconf
+              mingw-w64-x86_64-meson mingw-w64-x86_64-ninja mingw-w64-x86_64-zlib
+          - slug: windows-arm64
+            runner: windows-11-arm
+            msystem: CLANGARM64
+            cc: clang
+            packages: >-
+              mingw-w64-clang-aarch64-toolchain mingw-w64-clang-aarch64-pkgconf
+              mingw-w64-clang-aarch64-meson mingw-w64-clang-aarch64-ninja
+              mingw-w64-clang-aarch64-zlib
     steps:
+      # The Windows runner checks out with CRLF, which breaks every shell script ffmpeg-build runs.
+      - if: startsWith(matrix.slug, 'windows-')
+        run: git config --global core.autocrlf false
+
       - id: cache
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
@@ -81,6 +102,26 @@ jobs:
         run: |
           brew install nasm automake autoconf libtool pkg-config meson ninja
           scripts/build-desktop.sh
+
+      - if: steps.cache.outputs.cache-hit != 'true' && startsWith(matrix.slug, 'windows-')
+        uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2.33.0
+        with:
+          msystem: ${{ matrix.msystem }}
+          update: true
+          install: git make diffutils autoconf automake libtool patch ${{ matrix.packages }}
+
+      - if: steps.cache.outputs.cache-hit != 'true' && startsWith(matrix.slug, 'windows-')
+        shell: msys2 {0}
+        working-directory: ffmpeg-build
+        env:
+          HOST_CC: ${{ matrix.cc }}
+        run: |
+          scripts/build-desktop.sh || {
+            for log in .deps/.build/*/config.log; do
+              [ -f "$log" ] && { echo "::group::$log"; tail -n 80 "$log"; echo "::endgroup::"; }
+            done
+            exit 1
+          }
 
   android:
     needs: ffmpeg
@@ -316,6 +357,107 @@ jobs:
           path: YMusicV4/desktopApp/build/compose/binaries/main-release/dmg/*.dmg
           if-no-files-found: error
 
+  # The Inno Setup installer (YMusic-Setup-<version>-<platform>.exe), unsigned.
+  windows:
+    name: windows ${{ matrix.slug }}
+    needs: ffmpeg
+    runs-on: ${{ matrix.runner }}
+    env:
+      SECRETS_PASSPHRASE: ${{ secrets.SECRETS_PASSPHRASE }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { slug: windows-x86_64, runner: windows-2022, msystem: MINGW64, prefix: mingw64,
+              packages: 'mingw-w64-x86_64-toolchain mingw-w64-x86_64-make' }
+          - { slug: windows-arm64, runner: windows-11-arm, msystem: CLANGARM64, prefix: clangarm64,
+              packages: 'mingw-w64-clang-aarch64-toolchain mingw-w64-clang-aarch64-make' }
+    steps:
+      - run: git config --global core.autocrlf false
+
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          path: YMusicV4
+
+      - uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ffmpeg-build/out/${{ matrix.slug }}
+          key: ffmpeg-${{ matrix.slug }}-${{ env.FFMPEG_BUILD_REF }}
+          fail-on-cache-miss: true
+
+      # The MinGW toolchain for the :quickjs and :mse JNI (GCC/Clang-only C; MSVC rejects it).
+      - id: msys2
+        uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2.33.0
+        with:
+          msystem: ${{ matrix.msystem }}
+          install: ${{ matrix.packages }}
+      - name: Locate MinGW
+        shell: bash
+        run: echo "MINGW_HOME=$(cygpath -m '${{ steps.msys2.outputs.msys2-location }}')/${{ matrix.prefix }}" >> "$GITHUB_ENV"
+
+      # Preinstalled on some runner images only. Wherever it lands (Inno 7 installs per user), its
+      # ISCC.exe is handed to the build as -Pinno.iscc.
+      - name: Install Inno Setup
+        shell: bash
+        run: |
+          set -euo pipefail
+          find_iscc() {
+            ls "/c/Program Files (x86)/Inno Setup "*/ISCC.exe "/c/Program Files/Inno Setup "*/ISCC.exe \
+              "$(cygpath -u "$LOCALAPPDATA")/Programs/Inno Setup "*/ISCC.exe 2>/dev/null | head -n 1 || true
+          }
+          iscc="$(find_iscc)"
+          [ -n "$iscc" ] || { choco install innosetup -y --no-progress; iscc="$(find_iscc)"; }
+          [ -n "$iscc" ] || { echo "ISCC.exe not found after installing Inno Setup" >&2; exit 1; }
+          echo "using $iscc"
+          echo "INNO_ISCC=$(cygpath -w "$iscc")" >> "$GITHUB_ENV"
+
+      # A full JDK of the runner's architecture: jpackage builds the app image for its own arch only.
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - uses: gradle/actions/setup-gradle@0b6dd653ba04f4f93bf581ec31e66cbd7dcb644d # v4
+
+      # secrets.enc → secrets.properties + signing/. Without SECRETS_PASSPHRASE the build runs on
+      # defaults: no Sentry upload, no remote config.
+      - name: Restore secrets
+        if: env.SECRETS_PASSPHRASE != ''
+        shell: bash
+        working-directory: YMusicV4
+        run: ./decrypt.sh
+
+      # The MinGW bin dir goes on PATH for this step alone: gcc/clang load their own DLLs from it
+      # (cc1.exe dies silently without them), but it would shadow Git Bash's tools in other steps.
+      - name: Package the installer
+        shell: bash
+        working-directory: YMusicV4
+        run: >-
+          PATH="$(cygpath -u "$MINGW_HOME")/bin:$PATH" ./gradlew -Pproduction=true "-Pinno.iscc=$INNO_ISCC"
+          :desktopApp:packageReleaseInnoSetup
+
+      - name: Discard secrets
+        if: always()
+        shell: bash
+        working-directory: YMusicV4
+        run: rm -rf secrets.properties signing
+
+      - name: Upload packaging logs
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ${{ matrix.slug }}-compose-logs
+          path: YMusicV4/desktopApp/build/compose/logs/
+          if-no-files-found: ignore
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ${{ matrix.slug }}-setup
+          path: YMusicV4/desktopApp/build/compose/binaries/main-release/innosetup/*.exe
+          if-no-files-found: error
+
   # Every module's JVM tests; JUnit aborts any test past 30 s (root build.gradle.kts).
   test:
     needs: ffmpeg
@@ -435,7 +577,7 @@ jobs:
   # A DRAFT GitHub Release for the tag with every artifact attached: nothing is public until it is
   # reviewed and published by hand.
   release:
-    needs: [android, macos, test, compat]
+    needs: [android, macos, windows, test, compat]
     runs-on: ubuntu-24.04
     env:
       SECRETS_PASSPHRASE: ${{ secrets.SECRETS_PASSPHRASE }}
@@ -462,6 +604,8 @@ jobs:
           cp "$(one 'artifacts/android-apks/*-x86_64-release.apk')" release/android-x86_64.apk
           cp "$(one 'artifacts/macos-arm64-dmg/*.dmg')" release/macos-arm64.dmg
           cp "$(one 'artifacts/macos-x86_64-dmg/*.dmg')" release/macos-intel.dmg
+          cp "$(one 'artifacts/windows-x86_64-setup/*.exe')" release/windows-x64-setup.exe
+          cp "$(one 'artifacts/windows-arm64-setup/*.exe')" release/windows-arm64-setup.exe
           cp "$(one 'artifacts/js-bundles/engine.*.js')" "$(one 'artifacts/js-bundles/player.*.js')" release/
           (cd release && sha256sum * > SHA256SUMS)
           ls -l release
