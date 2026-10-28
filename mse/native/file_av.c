@@ -34,6 +34,8 @@
 #elif defined(_WIN32)
 #include "aq_winmm.h"
 #define FILE_AV_AQ 1
+#define FILE_AV_WIN_HW 1
+#include "mse_d3d11.h"
 #endif
 #ifdef __APPLE__
 #include <mach/mach_time.h>
@@ -358,6 +360,20 @@ static AVCodecContext *open_codec(AVStream *st, int video)
                 ctx->extra_hw_frames = 4;
             }
         }
+#ifdef FILE_AV_WIN_HW
+        /* D3D11VA shared with the mse host (one process-wide ID3D11Device). The decoder emits
+           AV_PIX_FMT_D3D11 frames whose data[0] = ID3D11Texture2D, data[1] = array slice;
+           sw_video_frame maps to CPU on demand via av_hwframe_transfer_data for the current
+           swscale→BGRA present path. Zero-copy D3D11 present is a follow-up. */
+        if (try_vt || id == AV_CODEC_ID_VP9 || id == AV_CODEC_ID_AV1) {
+            AVBufferRef *hw = mse_d3d11_hwdev_ref();
+            if (hw) {
+                ctx->get_format = mse_d3d11_pick;
+                ctx->hw_device_ctx = hw;
+                ctx->extra_hw_frames = VOUT_N + 2;
+            }
+        }
+#endif
         if ((id == AV_CODEC_ID_VP9 || id == AV_CODEC_ID_VP8) && !ctx->hw_device_ctx) {
             ctx->thread_count = 4;
             ctx->thread_type = FF_THREAD_FRAME;
