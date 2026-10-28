@@ -68,6 +68,7 @@ typedef struct {
     ID3D11BlendState *blend;
     ID3D11RasterizerState *rast;
     int bb_w, bb_h;
+    int resize_failed;
     int logged_present;
     int log_src_w, log_src_h, log_dst_w, log_dst_h;
 } D3dPresent;
@@ -82,17 +83,33 @@ static void release_views(void)
     }
 }
 
+/* Caller holds the d3d11 lock. */
+static void unbind_rtv(void)
+{
+    ID3D11DeviceContext *ctx = mse_d3d11_context();
+    if (ctx && g_p.rtv)
+        ID3D11DeviceContext_OMSetRenderTargets(ctx, 0, NULL, NULL);
+}
+
 static void release_swapchain(void)
 {
+    ID3D11DeviceContext *ctx = mse_d3d11_context();
+    unbind_rtv();
     release_views();
     if (g_p.swap) {
         IDXGISwapChain1_Release(g_p.swap);
         g_p.swap = NULL;
+        /* DXGI destroys swapchains lazily; a new flip-model one on the same HWND fails until this. */
+        if (ctx) {
+            ID3D11DeviceContext_ClearState(ctx);
+            ID3D11DeviceContext_Flush(ctx);
+        }
     }
     g_p.hwnd = NULL;
     g_p.owner = NULL;
     g_p.bb_w = g_p.bb_h = 0;
     g_p.logged_present = 0;
+    g_p.resize_failed = 0;
 }
 
 static void release_pipeline(void)
@@ -456,13 +473,6 @@ int mse_d3d11_present_show(ID3D11Texture2D *tex, UINT array_slice, int src_w, in
         mse_d3d11_unlock();
         return -2;
     }
-    /* The swapchain follows the HWND client rect; GetClientRect once per show
-       is cheap and keeps the back buffer in step with Compose resize without
-       a round-trip through the AWT thread. Compose heavyweight-canvas layout
-       jitters by 1 pixel on fractional-density displays — ResizeBuffers each
-       frame released the RTV and flashed black (user visible as blinking +
-       15fps on a 60fps clip). DXGI_SCALING_STRETCH already absorbs sub-pixel
-       mismatches, so only resize when the delta is ≥ 2 on either axis. */
     if (g_p.hwnd) {
         RECT rc;
         if (GetClientRect(g_p.hwnd, &rc)) {
@@ -472,13 +482,20 @@ int mse_d3d11_present_show(ID3D11Texture2D *tex, UINT array_slice, int src_w, in
             if (hgt < 1) hgt = 1;
             dw = w > g_p.bb_w ? w - g_p.bb_w : g_p.bb_w - w;
             dh = hgt > g_p.bb_h ? hgt - g_p.bb_h : g_p.bb_h - hgt;
+            /* The Canvas jitters ±1px on fractional DPI; SCALING_STRETCH absorbs that. */
             if (dw >= 2 || dh >= 2) {
+                unbind_rtv();
                 release_views();
                 hr = IDXGISwapChain1_ResizeBuffers(g_p.swap, 0, (UINT)w, (UINT)hgt,
                                                    DXGI_FORMAT_UNKNOWN, 0);
                 if (SUCCEEDED(hr)) {
                     g_p.bb_w = w;
                     g_p.bb_h = hgt;
+                    g_p.resize_failed = 0;
+                } else if (!g_p.resize_failed) {
+                    g_p.resize_failed = 1;
+                    mse_critf(MSE_LOG_WARN, "d3d11 ResizeBuffers %dx%d hr=0x%08lx", w, hgt,
+                              (unsigned long)hr);
                 }
             }
         }
