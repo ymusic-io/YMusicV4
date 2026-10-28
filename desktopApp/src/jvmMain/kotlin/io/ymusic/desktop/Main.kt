@@ -452,7 +452,7 @@ fun main(args: Array<String>) {
                     io.ymusic.ui.GlobalShortcutActions.toggleShortcutsHelp = { shortcutsHelpOpen = !shortcutsHelpOpen }
                     onDispose { io.ymusic.ui.GlobalShortcutActions.toggleShortcutsHelp = {} }
                 }
-                if (shortcutsHelpOpen) ShortcutsHelpDialog(onDismiss = { shortcutsHelpOpen = false })
+                if (shortcutsHelpOpen) YMusicTheme(palette) { ShortcutsHelpDialog(onDismiss = { shortcutsHelpOpen = false }) }
                 val rootFocusManager = androidx.compose.ui.platform.LocalFocusManager.current
                 Column(
                     Modifier.fillMaxSize()
