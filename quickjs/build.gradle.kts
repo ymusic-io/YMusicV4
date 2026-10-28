@@ -204,13 +204,13 @@ val cmakeConfigure by tasks.registering(Exec::class) {
     inputs.property("mingwHome", mingwToolchainHome()?.absolutePath ?: "")
     outputs.file(File(out, "CMakeCache.txt"))
     environment("JAVA_HOME", javaHomeForJni)
-    commandLine(
-        listOf(
-            "cmake", "-S", nativeSrc.absolutePath, "-B", out.absolutePath,
-            "-DCMAKE_BUILD_TYPE=Release",
-            "-DCMAKE_OSX_DEPLOYMENT_TARGET=$macDeploymentTarget",
-        ) + mingwCmakeArgs(),
+    val args = listOf(
+        "cmake", "-S", nativeSrc.absolutePath, "-B", out.absolutePath,
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DCMAKE_OSX_DEPLOYMENT_TARGET=$macDeploymentTarget",
     )
+    // At run time: a Windows host without MinGW fails this task, not the configuration of every build.
+    doFirst { commandLine(args + mingwCmakeArgs()) }
 }
 
 val cmakeBuild by tasks.registering(Exec::class) {

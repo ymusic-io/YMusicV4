@@ -193,6 +193,7 @@ fun canBuildMseJni(log: org.gradle.api.logging.Logger): Boolean {
         javaHomeForJni.isEmpty() -> "no JDK with include/jni.h (set JAVA_HOME)"
         !mseNativeSrc.resolve("CMakeLists.txt").exists() -> "no mse/native/CMakeLists.txt"
         ffmpegDesktopPrefix == null -> "no ffmpeg dev prefix: build ../ffmpeg-build (scripts/build-desktop.sh)"
+        hostOs.isWindows && mingwToolchainHome() == null -> MINGW_MISSING
         else -> return true
     }
     log.warn("w: skipping the desktop MSE JNI build, $missing; desktop playback will not load")
@@ -209,14 +210,14 @@ val mseCmakeConfigure by tasks.registering(Exec::class) {
     inputs.property("mingwHome", mingwToolchainHome()?.absolutePath ?: "")
     outputs.file(File(out, "CMakeCache.txt"))
     environment("JAVA_HOME", javaHomeForJni)
-    commandLine(
-        listOf(
-            "cmake", "-S", mseNativeSrc.absolutePath, "-B", out.absolutePath,
-            "-DCMAKE_BUILD_TYPE=Release",
-            "-DFFMPEG_ROOT=${ffmpegDesktopPrefix?.absolutePath ?: ""}",
-            "-DPRODUCTION=$productionC",
-        ) + mingwCmakeArgs(),
+    val args = listOf(
+        "cmake", "-S", mseNativeSrc.absolutePath, "-B", out.absolutePath,
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DFFMPEG_ROOT=${ffmpegDesktopPrefix?.absolutePath ?: ""}",
+        "-DPRODUCTION=$productionC",
     )
+    // After onlyIf: a Windows host without MinGW skips with canBuildMseJni's warning.
+    doFirst { commandLine(args + mingwCmakeArgs()) }
 }
 val mseCmakeBuild by tasks.registering(Exec::class) {
     dependsOn(mseCmakeConfigure)

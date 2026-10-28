@@ -20,7 +20,7 @@ fun Project.mingwToolchainHome(): File? {
 /**
  * CMake configure args that build with [mingwToolchainHome]'s compiler and make on a Windows host
  * (the single-config `MinGW Makefiles` generator); empty elsewhere. Fails with [MINGW_MISSING] on
- * Windows without a toolchain.
+ * Windows without a toolchain, so call it from a task action, not while configuring.
  */
 fun Project.mingwCmakeArgs(): List<String> {
     if (!System.getProperty("os.name").orEmpty().startsWith("Windows")) return emptyList()
