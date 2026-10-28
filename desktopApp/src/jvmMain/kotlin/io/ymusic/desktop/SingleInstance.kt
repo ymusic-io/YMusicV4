@@ -1,8 +1,9 @@
 package io.ymusic.desktop
 
 import kmpcommon.log.Logger
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.receiveAsFlow
 import java.io.File
 import java.io.IOException
 import java.net.InetAddress
@@ -40,8 +41,10 @@ internal class SingleInstance private constructor(
     private val token: String,
     private val logger: Logger,
 ) {
-    private val _commands = MutableSharedFlow<InstanceCommand>(extraBufferCapacity = 8)
-    val commands: SharedFlow<InstanceCommand> = _commands
+    private val received = Channel<InstanceCommand>(Channel.UNLIMITED)
+
+    /** Commands handed over by later launches; held until collected, so a boot-time task is not lost. */
+    val commands: Flow<InstanceCommand> = received.receiveAsFlow()
 
     private fun serve() {
         Thread({
@@ -52,7 +55,7 @@ internal class SingleInstance private constructor(
                         val lines = socket.getInputStream().bufferedReader().readLines()
                         if (lines.firstOrNull() != token) return@use
                         val command = InstanceCommand.entries.firstOrNull { it.name == lines.getOrNull(1) } ?: return@use
-                        _commands.tryEmit(command)
+                        received.trySend(command)
                     }
                 } catch (e: IOException) {
                     logger.log(Logger.Level.WARN, "instance handoff failed", e)
