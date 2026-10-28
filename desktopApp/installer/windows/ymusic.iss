@@ -1,5 +1,5 @@
-; Inno Setup script for YMusic. The .in version is a template — the Gradle task
-; `packageReleaseInnoSetup` writes it out with the real version and paths substituted in.
+; Inno Setup script for YMusic, compiled as-is by the Gradle task `packageReleaseInnoSetup`, which
+; passes the version, paths and arch as ISCC /D defines.
 ;
 ; Build input (jpackage's `createReleaseDistributable` output):
 ;   AppSourceDir = desktopApp/build/compose/binaries/main-release/app/YMusic

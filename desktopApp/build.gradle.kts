@@ -373,9 +373,9 @@ compose.desktop {
                 perUserInstall = false
                 menu = true
                 shortcut = true
-                // Multi-res ICO (16/32/48/64/96/128/256) derived from the Android launcher at
-                // mipmap-xxxhdpi/ic_launcher.png; without this jpackage falls back to its default
-                // Java/Compose icon on the installer dialog, Start-menu entry, and running window.
+                // Multi-res ICO (16–256 px): a one-off Skia render of ymusic_logo.xml's ring artwork
+                // clipped to a circle; without this jpackage falls back to its default Java/Compose
+                // icon on the installer dialog, Start-menu entry, and running window.
                 iconFile.set(project.file("ymusic.ico"))
             }
             // jlink modules the default set misses but the runtime graph uses: java.sql
@@ -513,7 +513,6 @@ val isccPath: Provider<File> = providers.provider {
     innoSetupCompiler() ?: error(INNO_SETUP_MISSING)
 }
 
-val innoSetupStageDir = layout.buildDirectory.dir("compose/tmp/packageReleaseInnoSetup")
 val innoSetupOutDir = layout.buildDirectory.dir("compose/binaries/main-release/innosetup")
 
 val packageReleaseInnoSetup by tasks.registering(Exec::class) {
@@ -522,11 +521,11 @@ val packageReleaseInnoSetup by tasks.registering(Exec::class) {
     onlyIf { hostOs == "windows" }
     dependsOn("createReleaseDistributable")
 
-    val templateFile = project.file("installer/windows/ymusic.iss.in")
+    val script = project.file("installer/windows/ymusic.iss")
     val iconFile = project.file("ymusic.ico")
     val appDir = layout.buildDirectory.dir("compose/binaries/main-release/app/YMusic")
 
-    inputs.file(templateFile)
+    inputs.file(script)
     inputs.file(iconFile)
     inputs.dir(appDir)
     inputs.property("version", desktopVersion)
@@ -534,10 +533,7 @@ val packageReleaseInnoSetup by tasks.registering(Exec::class) {
     outputs.dir(innoSetupOutDir)
 
     doFirst {
-        val stage = innoSetupStageDir.get().asFile.apply { mkdirs() }
         val out = innoSetupOutDir.get().asFile.apply { mkdirs() }
-        val iss = File(stage, "ymusic.iss")
-        iss.writeText(templateFile.readText())
         commandLine(
             isccPath.get().absolutePath,
             "/Qp",
@@ -549,7 +545,7 @@ val packageReleaseInnoSetup by tasks.registering(Exec::class) {
             "/DOutputDir=${out.absolutePath}",
             "/DArch=${if (hostArm64) "arm64" else "x64compatible"}",
             "/DOutputBaseName=YMusic-Setup-$desktopVersion-$hostPlatform",
-            iss.absolutePath,
+            script.absolutePath,
         )
     }
 }
