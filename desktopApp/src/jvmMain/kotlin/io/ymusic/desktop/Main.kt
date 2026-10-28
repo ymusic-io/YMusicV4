@@ -408,10 +408,7 @@ fun main(args: Array<String>) {
                 windowVisible = true
                 windowState.isMinimized = false
                 // Showing raises a hidden window; one already shown but behind other apps needs the nudge.
-                mainWindow?.takeIf { it.isShowing }?.let {
-                    it.toFront()
-                    it.requestFocus()
-                }
+                mainWindow?.takeIf { it.isShowing }?.toFront()
             }
         }
         LaunchedEffect(windowVisible, windowState.isMinimized) {
