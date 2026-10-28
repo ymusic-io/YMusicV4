@@ -160,8 +160,12 @@ static void *aqw_loop(void *arg)
         hdr->dwBufferLength = (DWORD)size;
         hdr->dwBytesRecorded = 0;
         hdr->dwUser = (DWORD_PTR)write_buf;
-        hdr->dwFlags = 0;
         hdr->dwLoops = 0;
+        /* Preserve WHDR_PREPARED across reuse — zeroing dwFlags here (as earlier revs did)
+           strips the bit set by waveOutPrepareHeader, and the next waveOutWrite returns
+           WAVERR_UNPREPARED (34) for every buffer. The result is total silence while the
+           ring keeps draining — audio clock still advances via samples_played counting
+           the bytes we think we handed to the device. */
         pthread_mutex_unlock(&q->mu);
         if (!q->prepared[idx]) {
             if (waveOutPrepareHeader(q->hwo, hdr, sizeof(*hdr)) == MMSYSERR_NOERROR)
@@ -170,6 +174,7 @@ static void *aqw_loop(void *arg)
         mr = waveOutWrite(q->hwo, hdr, sizeof(*hdr));
         pthread_mutex_lock(&q->mu);
         if (mr != MMSYSERR_NOERROR) {
+            mse_critf(MSE_LOG_WARN, "aq-winmm: waveOutWrite failed (%u) size=%d", (unsigned)mr, size);
             /* Device went away mid-playback. Loop the buffer back so the user keeps draining. */
             if (q->done_n < AQW_MAX_BUFS) {
                 q->done[(q->done_r + q->done_n) % AQW_MAX_BUFS] = write_buf;
@@ -220,6 +225,7 @@ OSStatus AudioQueueNewOutput(const AudioStreamBasicDescription *fmt, AudioQueueO
         free(q);
         return -1;
     }
+    mse_critf(MSE_LOG_INFO, "aq-winmm: waveOutOpen OK rate=%d ch=%d", q->rate, q->ch);
     pthread_mutex_init(&q->mu, NULL);
     pthread_cond_init(&q->cv, NULL);
     if (pthread_create(&q->th, NULL, aqw_loop, q) != 0) {
