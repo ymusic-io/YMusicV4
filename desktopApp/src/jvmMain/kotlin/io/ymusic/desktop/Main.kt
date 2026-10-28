@@ -1,6 +1,7 @@
 package io.ymusic.desktop
 
 import androidx.compose.foundation.Image
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -50,6 +51,7 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.isCtrlPressed
 import androidx.compose.ui.input.key.isMetaPressed
 import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -450,8 +452,26 @@ fun main(args: Array<String>) {
                     onDispose { io.ymusic.ui.GlobalShortcutActions.toggleShortcutsHelp = {} }
                 }
                 if (shortcutsHelpOpen) ShortcutsHelpDialog(onDismiss = { shortcutsHelpOpen = false })
+                val rootFocusManager = androidx.compose.ui.platform.LocalFocusManager.current
                 Column(
-                    Modifier.fillMaxSize().then(if (frame.fullscreen) Modifier else Modifier.border(1.dp, frameBorder)),
+                    Modifier.fillMaxSize()
+                        .then(if (frame.fullscreen) Modifier else Modifier.border(1.dp, frameBorder))
+                        // Global arrow-key → focus-move fallback. Fires only when the key bubbles
+                        // all the way to the root (nothing inside consumed it — list rows handle
+                        // their own arrows via listKeyboardNavigation, TextFields keep their cursor
+                        // behaviour). Isolated buttons (back / search / pin / tabs) let arrows
+                        // through, land here, and move focus geometrically.
+                        .onKeyEvent { event ->
+                            if (event.type != androidx.compose.ui.input.key.KeyEventType.KeyDown) return@onKeyEvent false
+                            val dir = when (event.key) {
+                                androidx.compose.ui.input.key.Key.DirectionDown -> androidx.compose.ui.focus.FocusDirection.Down
+                                androidx.compose.ui.input.key.Key.DirectionUp -> androidx.compose.ui.focus.FocusDirection.Up
+                                androidx.compose.ui.input.key.Key.DirectionLeft -> androidx.compose.ui.focus.FocusDirection.Left
+                                androidx.compose.ui.input.key.Key.DirectionRight -> androidx.compose.ui.focus.FocusDirection.Right
+                                else -> return@onKeyEvent false
+                            }
+                            rootFocusManager.moveFocus(dir)
+                        },
                 ) {
                     if (!frame.fullscreen) Box(
                         Modifier
@@ -1759,6 +1779,10 @@ private fun MacTrafficLight(color: Color, label: String, glyph: String, onClick:
             .clip(CircleShape)
             .background(color)
             .hoverable(hover)
+            // Window-chrome buttons stay out of the Tab cycle (standard Windows app pattern —
+            // Chrome / Firefox / VS Code do the same). Mouse + hover-read still work. Users close
+            // / minimize / fullscreen via Alt+F4 / Win+↓ / F11 keyboard shortcuts.
+            .focusProperties { canFocus = false }
             .clickable(indication = null, interactionSource = hover, role = Role.Button, onClick = onClick)
             // Hover-only glyph (✕ ─ ＋) is a Text node whose text would otherwise merge into the
             // button's semantics and NVDA would read "plus" instead of "Full screen". Strip
