@@ -371,14 +371,6 @@ static void mse_av_log(void *ptr, int level, const char *fmt, va_list vl)
                 mse_hwdev_mark_failed(ctx->codec_id);
         }
 #endif
-#ifdef MSE_WIN_HW
-        if (fmt && strstr(fmt, "hwaccel initialisation returned error")) {
-            AVCodecContext *ctx = ptr;
-            MseAv *a = ctx && ctx->opaque ? (MseAv *)ctx->opaque : NULL;
-            if (a && ctx->codec_id)
-                a->d3d11_fail_id = ctx->codec_id;
-        }
-#endif
         snprintf(line, sizeof(line), "ffmpeg %s", buf);
         mse_emit(MSE_LOG_WARN, line);
     } else {
@@ -1926,6 +1918,22 @@ static void *open_apple_vt(MseAv *a)
 }
 #endif
 
+#ifdef MSE_WIN_HW
+/* A software pick (hwaccel init failed, or the stream does not fit D3D11) latches the codec so
+   d3d11_reopen_sw swaps in a decoder configured for software. */
+static enum AVPixelFormat get_d3d11_format(AVCodecContext *ctx, const enum AVPixelFormat *fmts)
+{
+    enum AVPixelFormat f = mse_d3d11_pick(ctx, fmts);
+    MseAv *a = ctx->opaque;
+    if (f != AV_PIX_FMT_D3D11 && a && a->d3d11_fail_id != ctx->codec_id) {
+        a->d3d11_fail_id = ctx->codec_id;
+        mse_critf(MSE_LOG_INFO, "d3d11va off id=%d sw=%s: reopening in software",
+                  (int)ctx->codec_id, av_get_pix_fmt_name(ctx->sw_pix_fmt));
+    }
+    return f;
+}
+#endif
+
 static int open_decoder(MseAv *a, int video, AVCodecParameters *par)
 {
     const AVCodec *codec;
@@ -2052,7 +2060,7 @@ static int open_decoder(MseAv *a, int video, AVCodecParameters *par)
 #endif
 #ifdef MSE_WIN_HW
     /* D3D11VA wraps the process-wide device, not a swapchain: it decodes with or without an
-     * attached Canvas. 10-bit stays software (bits_per_raw_sample). opaque is for the log hook. */
+     * attached Canvas. 10-bit stays software (bits_per_raw_sample). */
     (*ctxp)->opaque = a;
     if (video && par->codec_id != a->d3d11_fail_id &&
         (par->bits_per_raw_sample == 0 || par->bits_per_raw_sample == 8) &&
@@ -2060,7 +2068,7 @@ static int open_decoder(MseAv *a, int video, AVCodecParameters *par)
         AVBufferRef *hw = mse_d3d11_hwdev_ref();
         if (hw) {
             (*ctxp)->hw_device_ctx = hw;
-            (*ctxp)->get_format = mse_d3d11_pick;
+            (*ctxp)->get_format = get_d3d11_format;
             (*ctxp)->extra_hw_frames = 4;
             (*ctxp)->thread_count = 1;
             (*ctxp)->thread_type = 0;
@@ -4095,6 +4103,21 @@ static void video_decode_error(MseAv *a, double pts, int err)
     vf_resync_key(a, a->v_sent >= 0 ? a->v_sent : pts);
 }
 
+#ifdef MSE_WIN_HW
+/* A latched codec still in its D3D11-configured context decodes single-threaded (or not at all:
+   native av1); reopen it as libvpx / libdav1d / threaded. 1 if it reopened. */
+static int d3d11_reopen_sw(MseAv *a, double t)
+{
+    if (!a->vdec || !a->vdec->hw_device_ctx || a->vdec->codec_id != a->d3d11_fail_id)
+        return 0;
+    close_video_decoder(a);
+    if (a->vpar)
+        open_decoder(a, 1, a->vpar);
+    vf_resync_key(a, a->v_sent >= 0 ? a->v_sent : t);
+    return 1;
+}
+#endif
+
 #ifdef __APPLE__
 /* JVM has no AVSampleBufferDisplayLayer (JAWT SIGSEGV). Lock the NV12
    pixel buffer and reuse scale_bgra. iOS still shows on the layer. */
@@ -4347,6 +4370,9 @@ int mse_av_pull_video(MseAv *a, double clock, uint8_t **bgra, int *w, int *h, do
     if (a->vdec && a->vdec->hw_device_ctx && a->vt_fail_id == a->vdec->codec_id)
         video_decode_error(a, clock, 0);
 #endif
+#ifdef MSE_WIN_HW
+    d3d11_reopen_sw(a, clock);
+#endif
     if (!a->vdec || a->vf.n == 0) {
         pthread_mutex_unlock(&a->mu);
         return 0;
@@ -4475,6 +4501,10 @@ int mse_av_pull_video(MseAv *a, double clock, uint8_t **bgra, int *w, int *h, do
             int key = a->vf.f[a->vf.rd].key;
             int rap = coded_is_rap(a, &a->vf.f[a->vf.rd]);
             int sr = send_coded(&a->vf, a->vdec, a->vbsf);
+#ifdef MSE_WIN_HW
+            if (d3d11_reopen_sw(a, clock))
+                continue;
+#endif
             if (sr < 0) {
                 char err[64];
                 av_strerror(sr, err, sizeof(err));
