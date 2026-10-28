@@ -615,15 +615,6 @@ private fun AppRoot(
                 else -> layers.add(AppLayer.Search(SearchSession.youtube(graph, scope)))
             }
         }
-        // The hotkey lands in the input even over submitted results (the results bar takes no typing).
-        val hotkeySearch: () -> Unit = {
-            openSearch()
-            (layers.lastOrNull() as? AppLayer.Search)?.session?.editing = true
-        }
-        DisposableEffect(hotkeySearch) {
-            GlobalShortcutActions.openSearch = hotkeySearch
-            onDispose { GlobalShortcutActions.openSearch = {} }
-        }
         DisposableEffect(drawer, scope) {
             GlobalShortcutActions.toggleNavDrawer = {
                 scope.launch { if (drawer.isOpen) drawer.close() else drawer.open() }
@@ -738,6 +729,25 @@ private fun AppRoot(
                     else -> layers.add(AppLayer.LibrarySearch(LibrarySearchSession(store)))
                 }
             }
+        }
+        // Each section's own search flow, for the app bar's search icon and the Ctrl/Cmd+F hotkey
+        // alike: YouTube on Discover, music on YT Music, local files on Library, none elsewhere.
+        val sectionSearch: (() -> Unit)? = when {
+            section == AppSection.Discover -> openSearch
+            section == AppSection.YtMusic -> openMusicSearch
+            section == AppSection.Library && graph.mediaStore != null -> openLibrarySearch
+            else -> null
+        }
+        // The hotkey lands in the input even over submitted results (the results bar takes no typing).
+        val hotkeySearch: () -> Unit = {
+            if (sectionSearch != null) {
+                sectionSearch()
+                (layers.lastOrNull() as? AppLayer.Search)?.session?.editing = true
+            }
+        }
+        DisposableEffect(hotkeySearch) {
+            GlobalShortcutActions.openSearch = hotkeySearch
+            onDispose { GlobalShortcutActions.openSearch = {} }
         }
         // The "Search "q" online" hand-off: jump to Discover and run q as a YouTube search there,
         // reusing Discover's single search layer (its stack, not Library's).
@@ -1038,14 +1048,7 @@ private fun AppRoot(
                                                         if (section == AppSection.Discover) discoverTab.label else section.label,
                                                     ),
                                                     onMenu = { scope.launch { drawer.open() } },
-                                                    // Each section's own search flow: YouTube on Discover,
-                                                    // local files on Library, none elsewhere.
-                                                    onSearch = when {
-                                                        section == AppSection.Discover -> openSearch
-                                                        section == AppSection.YtMusic -> openMusicSearch
-                                                        section == AppSection.Library && graph.mediaStore != null -> openLibrarySearch
-                                                        else -> null
-                                                    },
+                                                    onSearch = sectionSearch,
                                                     // Inline tabs sit right after the title, so the slot
                                                     // reserves the widest tab label — the tabs must not
                                                     // shift when switching tabs re-titles the bar.
