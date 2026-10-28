@@ -299,6 +299,18 @@ static const AVCodec *find_vdec(enum AVCodecID id)
             return c;
     }
 #endif
+#ifdef FILE_AV_WIN_HW
+    /* libvpx-vp9 and libdav1d are pure-software decoders — they never call get_format, so the
+       D3D11VA gate open_codec sets up is a no-op and the whole pipeline degrades to CPU
+       swscale + blit. Prefer ffmpeg's native vp9/av1, which honour get_format and bind to
+       D3D11VA when p->d3d11_hwnd is set (SW fallback inside the same decoder if the GPU
+       doesn't support the profile). */
+    if (id == AV_CODEC_ID_VP9 || id == AV_CODEC_ID_AV1) {
+        c = avcodec_find_decoder_by_name(id == AV_CODEC_ID_VP9 ? "vp9" : "av1");
+        if (c)
+            return c;
+    }
+#endif
     if (id == AV_CODEC_ID_VP9) {
         c = avcodec_find_decoder_by_name("libvpx-vp9");
         if (c)
