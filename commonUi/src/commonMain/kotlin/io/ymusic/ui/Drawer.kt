@@ -22,7 +22,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.remember
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -74,7 +78,15 @@ fun AppDrawer(
             val updateWaiting = updateStatus is AppUpdateStatus.Offered
             DrawerHeader(appVersion, premium, onCheckUpdate, updateWaiting, websiteUrl)
             HorizontalDivider(color = DesignColors.Divider)
-            Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(vertical = 8.dp)) {
+            // When the drawer opens, land focus on the current section's item so keyboard users
+            // can arrow-navigate immediately. remember(Unit) ties it to the drawerContent's
+            // lifetime — ModalNavigationDrawer only composes drawerContent while visible, so this
+            // LaunchedEffect fires each time the drawer re-opens.
+            val activeItemFocus = remember { FocusRequester() }
+            LaunchedEffect(Unit) {
+                runCatching { activeItemFocus.requestFocus() }
+            }
+            Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).listKeyboardNavigation().padding(vertical = 8.dp)) {
                 AppSection.entries
                     .filter { it != AppSection.Catalogue || showCatalogue }
                     .filter { it != AppSection.PlayAgain || !guest }
@@ -86,7 +98,8 @@ fun AppDrawer(
                             HorizontalDivider(color = DesignColors.Divider, modifier = Modifier.padding(vertical = 4.dp))
                         }
                         sections.forEach { s ->
-                            DrawerItem(s, active = s == section) { onSelect(s) }
+                            val active = s == section
+                            DrawerItem(s, active = active, focusRequester = if (active) activeItemFocus else null) { onSelect(s) }
                         }
                     }
             }
@@ -167,13 +180,14 @@ private fun HeaderLink(text: String, highlighted: Boolean = false, onClick: () -
 }
 
 @Composable
-private fun DrawerItem(section: AppSection, active: Boolean, onClick: () -> Unit) =
-    DrawerRow(section.icon, stringResource(section.label), active, onClick)
+private fun DrawerItem(section: AppSection, active: Boolean, focusRequester: FocusRequester? = null, onClick: () -> Unit) =
+    DrawerRow(section.icon, stringResource(section.label), active, focusRequester, onClick)
 
 @Composable
-private fun DrawerRow(icon: ImageVector, label: String, active: Boolean, onClick: () -> Unit) {
+private fun DrawerRow(icon: ImageVector, label: String, active: Boolean, focusRequester: FocusRequester? = null, onClick: () -> Unit) {
     val scheme = androidx.compose.material3.MaterialTheme.colorScheme
-    Box(Modifier.fillMaxWidth().clickable(onClick = onClick).background(if (active) scheme.primaryContainer else Color.Transparent)) {
+    val focusMod = if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier
+    Box(Modifier.fillMaxWidth().then(focusMod).clickable(onClick = onClick).background(if (active) scheme.primaryContainer else Color.Transparent)) {
         if (active) {
             Box(
                 Modifier

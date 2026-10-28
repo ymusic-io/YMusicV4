@@ -1390,8 +1390,9 @@ internal fun LibraryChip(label: String, selected: Boolean, icon: ImageVector? = 
 /** The Library's tab row — the shared [UnderlineTabRow] (2dp sliding underline) with text labels. */
 @Composable
 private fun LibraryTabRow(selected: LibraryTab, dragProgress: Float, onSelect: (LibraryTab) -> Unit) {
-    UnderlineTabRow(selected, LibraryTab.entries, dragProgress, onSelect) { t, active ->
-        TabLabel(stringResource(t.label), active)
+    val labels = LibraryTab.entries.associateWith { stringResource(it.label) }
+    UnderlineTabRow(selected, LibraryTab.entries, dragProgress, onSelect, a11yLabel = { labels.getValue(it) }) { t, active ->
+        TabLabel(labels.getValue(t), active)
     }
 }
 

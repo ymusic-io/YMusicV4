@@ -84,7 +84,13 @@ import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.intl.Locale
 import androidx.compose.ui.unit.Dp
@@ -1340,13 +1346,21 @@ internal fun DiscoverTabRow(
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     // Each tab's (centre, width) in the row's space so the indicator can slide between them.
     val bounds = remember(rtl) { mutableStateMapOf<DiscoverTab, Pair<Dp, Dp>>() }
+    // When this tab row first composes (= user entered the section), focus the current tab so
+    // keyboard users can arrow-navigate immediately. Does not re-fire on mere tab clicks within
+    // the section because the DiscoverTabRow stays composed.
+    val activeTabFocus = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        runCatching { activeTabFocus.requestFocus() }
+    }
     BoxWithConstraints(if (inline) Modifier else Modifier.fillMaxWidth()) {
         // Inline: equal tabs tiling the row with no dead space, shrinking from the max when the bar is short.
         val inlineTabWidth = (maxWidth / tabs.size.coerceAtLeast(1)).coerceAtMost(DiscoverInlineTabMaxWidth)
         Column(if (inline) Modifier else Modifier.fillMaxWidth()) {
-            Row(if (inline) Modifier else Modifier.fillMaxWidth()) {
+            Row((if (inline) Modifier else Modifier.fillMaxWidth()).listKeyboardNavigation(ListOrientation.Horizontal)) {
                 tabs.forEach { t ->
                     val active = t == selected
+                    val label = stringResource(t.label)
                     Box(
                         (if (inline) Modifier.width(inlineTabWidth) else Modifier.weight(1f))
                             .onGloballyPositioned { c ->
@@ -1357,13 +1371,21 @@ internal fun DiscoverTabRow(
                                 bounds[t] = with(density) { x.toDp() to c.size.width.toDp() }
                             }
                             .then(if (inline) Modifier.clip(RoundedCornerShape(10.dp)) else Modifier)
+                            .then(if (active) Modifier.focusRequester(activeTabFocus) else Modifier)
+                            .a11yActionLabel(label)
+                            .semantics {
+                                // this.selected disambiguates from the outer `selected: DiscoverTab`
+                                // function parameter that shadows the semantics setter.
+                                this.selected = active
+                                role = Role.Tab
+                            }
                             .clickable { onSelect(t) }
                             .padding(vertical = 8.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         Icon(
                             t.icon,
-                            stringResource(t.label),
+                            null,
                             Modifier.size(24.dp),
                             tint = if (active) DesignColors.Accent else DesignColors.InkFaint,
                         )
