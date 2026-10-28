@@ -343,7 +343,11 @@ fun PlayerTray(icon: Painter, logger: Logger, menu: PopupMenu?, onClick: (screen
         }
         onDispose {
             embed?.removeComponentListener(fit)
-            trayIcon?.let { t -> tray?.remove(t) }
+            trayIcon?.let { t ->
+                // remove() keeps the menu marked as taken, and the next TrayIcon's setPopupMenu throws.
+                t.popupMenu = null
+                tray?.remove(t)
+            }
         }
     }
 }
