@@ -106,6 +106,8 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
@@ -528,6 +530,16 @@ private fun PortraitNowPlaying(
     // Queue rows sit after the controls item and the sticky header in this list.
     val dragState = rememberReorderDragState(listState, indexOffset = 2) { from, to -> player.move(from, to) }
     val locateCurrent = rememberLocateCurrent(listState, queue.currentIndex, indexOffset = 2)
+    // Portrait list has 2 non-queue items (controls, header) before the queue items start, so
+    // the current item's position in the list is currentIndex + 2.
+    val currentRowFocus = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        val idx = queue.currentIndex
+        if (idx >= 0) {
+            runCatching { listState.scrollToItem(idx + 2) }
+            runCatching { currentRowFocus.requestFocus() }
+        }
+    }
 
     Column(
         Modifier.fillMaxSize()
@@ -627,7 +639,9 @@ private fun PortraitNowPlaying(
                 }
             }
             itemsIndexed(queue.items) { index, item ->
-                QueueRow(coordinator, index, item, current = index == queue.currentIndex, dragState)
+                val current = index == queue.currentIndex
+                QueueRow(coordinator, index, item, current = current, dragState,
+                    focusRequester = if (current) currentRowFocus else null)
             }
             queue.more?.let { more -> item { QueueMoreRow(player, more) } }
         }
@@ -689,9 +703,22 @@ private fun LandscapeNowPlaying(
                 HorizontalDivider(color = DesignColors.Divider)
                 val dragState = rememberReorderDragState(queueListState, indexOffset = 0) { from, to -> player.move(from, to) }
                 FollowCurrentQueueItem(queueListState, queue.currentIndex)
-                LazyColumn(state = queueListState, modifier = Modifier.weight(1f)) {
+                // Focus the currently-playing row when Now Playing opens: scroll it into view
+                // first (FollowCurrentQueueItem only scrolls on index change, not first show),
+                // then request focus so NVDA / keyboard users land on it immediately.
+                val currentRowFocus = remember { FocusRequester() }
+                LaunchedEffect(Unit) {
+                    val idx = queue.currentIndex
+                    if (idx >= 0) {
+                        runCatching { queueListState.scrollToItem(idx) }
+                        runCatching { currentRowFocus.requestFocus() }
+                    }
+                }
+                LazyColumn(state = queueListState, modifier = Modifier.weight(1f).listKeyboardNavigation()) {
                     itemsIndexed(queue.items) { index, item ->
-                        QueueRow(coordinator, index, item, current = index == queue.currentIndex, dragState, large = largeRows)
+                        val current = index == queue.currentIndex
+                        QueueRow(coordinator, index, item, current = current, dragState, large = largeRows,
+                            focusRequester = if (current) currentRowFocus else null)
                     }
                     queue.more?.let { more -> item { QueueMoreRow(player, more) } }
                 }
@@ -1801,6 +1828,7 @@ private fun QueueRow(
     current: Boolean,
     dragState: ReorderDragState,
     large: Boolean = false,
+    focusRequester: FocusRequester? = null,
 ) {
     val dragging = dragState.draggingIndex == index
     val swipeState = rememberSwipeToDismissBoxState()
@@ -1832,7 +1860,7 @@ private fun QueueRow(
         gesturesEnabled = dragState.draggingIndex == null,
     ) {
         val swiping = swipeState.dismissDirection != SwipeToDismissBoxValue.Settled
-        QueueRowContent(coordinator, index, item, current, dragState, large, dragging, swiping)
+        QueueRowContent(coordinator, index, item, current, dragState, large, dragging, swiping, focusRequester)
     }
 }
 
@@ -1846,6 +1874,7 @@ private fun QueueRowContent(
     large: Boolean,
     dragging: Boolean,
     swiping: Boolean,
+    focusRequester: FocusRequester? = null,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     val sub = listOfNotNull(item.displayDuration, item.displaySubtitle).joinToString(" · ")
@@ -1862,6 +1891,7 @@ private fun QueueRowContent(
                 },
             )
             .then(if (current) Modifier.background(DesignColors.Accent.copy(alpha = 0.1f)) else Modifier)
+            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
             .a11yActionLabel(rowLabel)
             .semantics(mergeDescendants = true) {
                 if (current) selected = true

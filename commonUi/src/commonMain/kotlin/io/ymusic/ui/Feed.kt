@@ -582,7 +582,7 @@ private fun FeedSections(
         val listState = hoistedListState ?: rememberLazyListState()
         // Report scroll to the shell (which lifts the app bar); the feed doesn't touch the bar itself.
         TrackScroll { listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0 }
-        LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = PaddingValues(bottom = LocalMiniPlayerInset.current)) {
+        LazyColumn(Modifier.fillMaxSize().listKeyboardNavigation(), state = listState, contentPadding = PaddingValues(bottom = LocalMiniPlayerInset.current)) {
             if (topContent != null) item { topContent() }
             // A 0-height chip slot at index 0 makes firstVisibleItemIndex > 0 while still at the top.
             val hasChips = state.chips.isNotEmpty() || state.sort.isNotEmpty()
