@@ -44,16 +44,14 @@ enum AVPixelFormat mse_d3d11_pick(struct AVCodecContext *ctx, const enum AVPixel
 HWND mse_d3d11_jawt_hwnd(JNIEnv *env, jobject component);
 
 /* HWND composition-surface present path. Attach/detach are called from the
-   JAWT bridge; show/resize run from the decoder thread. All take the d3d11
+   JAWT bridge; show runs from the decoder thread. All take the d3d11
    lock internally — no external synchronization required. */
 int mse_d3d11_present_attach(HWND hwnd, const void *owner);
 /* No-op unless `owner` made the current attach. */
 void mse_d3d11_present_detach(const void *owner);
-void mse_d3d11_present_resize(int w, int h);
-int mse_d3d11_present_show(ID3D11Texture2D *tex, UINT array_slice,
-                           int src_w, int src_h, int dst_w, int dst_h);
-/* 1 if a swapchain is live on the given HWND. */
-int mse_d3d11_present_active_for(HWND hwnd);
+/* Letterboxes the NV12 slice into the HWND's client rect. 0 = presented, -2 = no swapchain
+   (drop the frame; the next attach presents fresh ones), -1 = failed. */
+int mse_d3d11_present_show(ID3D11Texture2D *tex, UINT array_slice, int src_w, int src_h);
 
 #ifdef __cplusplus
 }

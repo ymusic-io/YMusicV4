@@ -1146,13 +1146,11 @@ static int present_d3d11(FileAv *p, AVFrame *fr)
 {
     ID3D11Texture2D *tex;
     UINT slice;
-    int dw, dh;
     if (!p->d3d11_hwnd || fr->format != AV_PIX_FMT_D3D11 || !fr->data[0])
         return -1;
     tex = (ID3D11Texture2D *)fr->data[0];
     slice = (UINT)(uintptr_t)fr->data[1];
-    blit_size(p, fr->width, fr->height, &dw, &dh);
-    if (mse_d3d11_present_show(tex, slice, fr->width, fr->height, dw, dh) != 0)
+    if (mse_d3d11_present_show(tex, slice, fr->width, fr->height) != 0)
         return -1;
     p->vw = fr->width;
     p->vh = fr->height;

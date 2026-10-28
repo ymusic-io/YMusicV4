@@ -67,12 +67,7 @@ typedef struct {
     ID3D11Buffer *cb;
     ID3D11BlendState *blend;
     ID3D11RasterizerState *rast;
-    /* Last presented NV12 texture — pause/resize/empty redraw replays it. */
-    ID3D11Texture2D *still;
-    UINT still_slice;
-    int still_w, still_h;
     int bb_w, bb_h;
-    int ready;
     int logged_present;
     int log_src_w, log_src_h, log_dst_w, log_dst_h;
 } D3dPresent;
@@ -87,20 +82,9 @@ static void release_views(void)
     }
 }
 
-static void release_still(void)
-{
-    if (g_p.still) {
-        ID3D11Texture2D_Release(g_p.still);
-        g_p.still = NULL;
-        g_p.still_slice = 0;
-        g_p.still_w = g_p.still_h = 0;
-    }
-}
-
 static void release_all(void)
 {
     release_views();
-    release_still();
     if (g_p.swap) {
         IDXGISwapChain1_Release(g_p.swap);
         g_p.swap = NULL;
@@ -131,7 +115,6 @@ static void release_all(void)
     }
     g_p.hwnd = NULL;
     g_p.owner = NULL;
-    g_p.ready = 0;
     g_p.bb_w = g_p.bb_h = 0;
     g_p.logged_present = 0;
 }
@@ -245,23 +228,6 @@ static void clear_backbuffer(ID3D11DeviceContext *ctx)
     const float black[4] = { 0, 0, 0, 1 };
     if (g_p.rtv)
         ID3D11DeviceContext_ClearRenderTargetView(ctx, g_p.rtv, black);
-}
-
-static void keep_still(ID3D11Texture2D *tex, UINT slice, int w, int h)
-{
-    if (!tex)
-        return;
-    if (g_p.still == tex && g_p.still_slice == slice) {
-        g_p.still_w = w;
-        g_p.still_h = h;
-        return;
-    }
-    release_still();
-    ID3D11Texture2D_AddRef(tex);
-    g_p.still = tex;
-    g_p.still_slice = slice;
-    g_p.still_w = w;
-    g_p.still_h = h;
 }
 
 static int draw_nv12(ID3D11Device *dev, ID3D11DeviceContext *ctx, ID3D11Texture2D *tex,
@@ -444,7 +410,6 @@ int mse_d3d11_present_attach(HWND hwnd, const void *owner)
         goto done;
 
     g_p.owner = owner;
-    g_p.ready = 1;
     ok = 1;
     mse_critf(MSE_LOG_INFO, "d3d11 swapchain %dx%d hwnd=%p", g_p.bb_w, g_p.bb_h, (void *)hwnd);
 
@@ -466,39 +431,7 @@ void mse_d3d11_present_detach(const void *owner)
     mse_d3d11_unlock();
 }
 
-void mse_d3d11_present_resize(int w, int h)
-{
-    HRESULT hr;
-    if (w < 1) w = 1;
-    if (h < 1) h = 1;
-    mse_d3d11_lock();
-    if (!g_p.swap || (g_p.bb_w == w && g_p.bb_h == h)) {
-        mse_d3d11_unlock();
-        return;
-    }
-    release_views();
-    hr = IDXGISwapChain1_ResizeBuffers(g_p.swap, 0, (UINT)w, (UINT)h, DXGI_FORMAT_UNKNOWN, 0);
-    if (FAILED(hr)) {
-        mse_critf(MSE_LOG_WARN, "d3d11 ResizeBuffers hr=0x%08lx", (unsigned long)hr);
-        mse_d3d11_unlock();
-        return;
-    }
-    g_p.bb_w = w;
-    g_p.bb_h = h;
-    if (ensure_backbuffer_rtv(mse_d3d11_device()) == 0 && g_p.still) {
-        ID3D11DeviceContext *ctx = mse_d3d11_context();
-        if (ctx) {
-            clear_backbuffer(ctx);
-            draw_nv12(mse_d3d11_device(), ctx, g_p.still, g_p.still_slice,
-                      g_p.still_w, g_p.still_h);
-            IDXGISwapChain1_Present(g_p.swap, 0, 0);
-        }
-    }
-    mse_d3d11_unlock();
-}
-
-int mse_d3d11_present_show(ID3D11Texture2D *tex, UINT array_slice,
-                           int src_w, int src_h, int dst_w, int dst_h)
+int mse_d3d11_present_show(ID3D11Texture2D *tex, UINT array_slice, int src_w, int src_h)
 {
     ID3D11Device *dev;
     ID3D11DeviceContext *ctx;
@@ -511,11 +444,8 @@ int mse_d3d11_present_show(ID3D11Texture2D *tex, UINT array_slice,
         return -1;
 
     mse_d3d11_lock();
-    if (!g_p.ready || !g_p.swap) {
+    if (!g_p.swap) {
         mse_d3d11_unlock();
-        /* -2: no swapchain attached. Caller should drop the frame silently, not fall back to
-         * CPU readback — the HW decoder is still live and the next attach will Present fresh
-         * frames. CPU readback on every frame during a swapchain-detach gap is wasted work. */
         return -2;
     }
     /* The swapchain follows the HWND client rect; GetClientRect once per show
@@ -545,8 +475,6 @@ int mse_d3d11_present_show(ID3D11Texture2D *tex, UINT array_slice,
             }
         }
     }
-    (void)dst_w;
-    (void)dst_h;
     if (ensure_backbuffer_rtv(dev) != 0) {
         mse_d3d11_unlock();
         return -1;
@@ -555,7 +483,6 @@ int mse_d3d11_present_show(ID3D11Texture2D *tex, UINT array_slice,
     if (draw_nv12(dev, ctx, tex, array_slice, src_w, src_h) == 0) {
         hr = IDXGISwapChain1_Present(g_p.swap, 1, 0);
         if (SUCCEEDED(hr)) {
-            keep_still(tex, array_slice, src_w, src_h);
             r = 0;
             if (!g_p.logged_present ||
                 g_p.log_src_w != src_w || g_p.log_src_h != src_h ||
@@ -574,15 +501,6 @@ int mse_d3d11_present_show(ID3D11Texture2D *tex, UINT array_slice,
     }
     mse_d3d11_unlock();
     return r;
-}
-
-int mse_d3d11_present_active_for(HWND hwnd)
-{
-    int ok;
-    mse_d3d11_lock();
-    ok = g_p.ready && g_p.swap && (!hwnd || g_p.hwnd == hwnd);
-    mse_d3d11_unlock();
-    return ok;
 }
 
 #endif /* _WIN32 */

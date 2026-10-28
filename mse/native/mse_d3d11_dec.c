@@ -14,7 +14,6 @@
 
 static pthread_once_t g_once = PTHREAD_ONCE_INIT;
 static AVBufferRef *g_hwdev;      /* process-wide; borrow via mse_d3d11_hwdev_ref() */
-static int g_init_tried;
 
 static void hwdev_lock_cb(void *ctx)
 {
@@ -35,7 +34,6 @@ static void hwdev_init(void)
     AVD3D11VADeviceContext *d3d;
     ID3D11Device *dev;
 
-    g_init_tried = 1;
     dev = mse_d3d11_device();
     if (!dev)
         return;

@@ -3836,8 +3836,7 @@ static int scale_bgra(MseAv *a, AVFrame *frame, uint8_t **bgra, int *w, int *h)
     if (frame->format == AV_PIX_FMT_D3D11 && frame->data[0]) {
         ID3D11Texture2D *tex = (ID3D11Texture2D *)frame->data[0];
         UINT slice = (UINT)(uintptr_t)frame->data[1];
-        int rc = mse_d3d11_present_show(tex, slice, frame->width, frame->height,
-                                        a->blit_w, a->blit_h);
+        int rc = mse_d3d11_present_show(tex, slice, frame->width, frame->height);
         if (rc == 0) {
             a->hw_errs = 0;
             *bgra = NULL;
