@@ -613,7 +613,7 @@ jobs:
       # update-config.json: the releases/engineJs/playerJs entries for the server's App config.
       # The update dialog's notes are an annotated tag's message (git tag -a … -m "notes"); a
       # lightweight tag gives none. The dialog shows 7 lines (UpdateDialog.kt ChangeNotes).
-      # Each platform family gets its own notes: the lines under its "[android]" / "[macos]" header; a
+      # Each platform family gets its own notes: the lines under its "[android]" / "[macos]" / "[windows]" header; a
       # message without headers goes to every family (AGENTS.md "Release flow").
       # The signing keys come from secrets.enc (bundle.signing.* / update.* in secrets.properties).
       - name: Restore secrets
@@ -635,11 +635,11 @@ jobs:
           else
             : > "$message"
           fi
-          for family in android macos; do
+          for family in android macos windows; do
             awk -v family="$family" '
               /^\[[a-z]+\]$/ {
                 section = substr($0, 2, length($0) - 2)
-                if (section != "android" && section != "macos") {
+                if (section != "android" && section != "macos" && section != "windows") {
                   print "unknown notes section [" section "]" > "/dev/stderr"; exit 1
                 }
                 next
