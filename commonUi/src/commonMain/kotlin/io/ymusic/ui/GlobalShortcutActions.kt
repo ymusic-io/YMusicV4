@@ -1,5 +1,9 @@
 package io.ymusic.ui
 
+import kotlinx.atomicfu.locks.SynchronizedObject
+import kotlinx.atomicfu.locks.synchronized
+import kotlin.concurrent.Volatile
+
 /**
  * Callbacks that App composition owns (navigation, focus) but platform key-event handlers
  * outside the composition need to invoke. Set from App.kt once the targets exist; the handler
@@ -7,8 +11,11 @@ package io.ymusic.ui
  */
 object GlobalShortcutActions {
     @Volatile var openSearch: () -> Unit = {}
+
     @Volatile var toggleShortcutsHelp: () -> Unit = {}
+
     @Volatile var toggleNavDrawer: () -> Unit = {}
+
     /** Returns true if a drawer was actually closed (so Esc can know to stop its cascade). */
     @Volatile var closeNavDrawerIfOpen: () -> Boolean = { false }
 
@@ -17,10 +24,11 @@ object GlobalShortcutActions {
     // as its "prior" before the leaving dispose fires, then dispose wipes the new one). Keep a
     // proper LIFO stack so order of compose/dispose doesn't matter.
     private val tabHandlers = mutableListOf<(Int) -> Boolean>()
-    private val tabLock = Any()
+    private val tabLock = SynchronizedObject()
     val selectTabByIndex: (Int) -> Boolean = { i ->
         synchronized(tabLock) { tabHandlers.lastOrNull() }?.invoke(i) ?: false
     }
+
     /** Push a tab handler and get back a function that removes exactly this registration. */
     fun pushTabHandler(handler: (Int) -> Boolean): () -> Unit {
         synchronized(tabLock) { tabHandlers.add(handler) }
