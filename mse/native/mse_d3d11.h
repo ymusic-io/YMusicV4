@@ -26,7 +26,7 @@ enum AVPixelFormat;
 extern "C" {
 #endif
 
-/* NULL on first-call failure (no feature-level-11_1 D3D11 device available).
+/* NULL when no hardware device of feature level 11_0 or above could be created.
    Borrowed — do not Release the returned device directly. */
 ID3D11Device *mse_d3d11_device(void);
 ID3D11DeviceContext *mse_d3d11_context(void);
@@ -68,7 +68,8 @@ void mse_d3d11_present_detach(const void *owner);
 /* Releases the swapchain whoever owns it; mse_d3d11_check_lost calls it on device removal. */
 void mse_d3d11_present_drop_all(void);
 /* Letterboxes the NV12 slice into the HWND's client rect. 0 = presented, -2 = no swapchain
-   for `owner` (none attached, or another engine's): drop the frame, -1 = failed. */
+   for `owner` (none attached, another engine's, or the device is lost): drop the frame,
+   -1 = failed (logged once per failing streak). */
 int mse_d3d11_present_show(ID3D11Texture2D *tex, UINT array_slice, int src_w, int src_h,
                            const void *owner);
 

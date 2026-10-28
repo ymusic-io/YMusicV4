@@ -10,9 +10,7 @@
 static pthread_once_t g_once = PTHREAD_ONCE_INIT;
 static ID3D11Device *g_dev;
 static ID3D11DeviceContext *g_ctx;
-/* Recursive mutex: libav's d3d11va hwcontext documents that the lock callbacks
-   it will chain must be recursive, and so must our present-side locking since
-   the shader paths can nest a Draw inside a Map. */
+/* Recursive: AVD3D11VADeviceContext.lock must be. */
 static pthread_mutex_t g_mu;
 static int g_mu_ready;
 
@@ -37,8 +35,7 @@ static void d3d11_init(void)
                            want, (UINT)(sizeof(want) / sizeof(want[0])),
                            D3D11_SDK_VERSION, &g_dev, &got, &g_ctx);
     if (FAILED(hr)) {
-        /* Retry without VIDEO_SUPPORT: WARP + some Intel iGPU DCH drivers
-           bomb out when BGRA+VIDEO are both requested at feature level 11_1. */
+        /* Some drivers reject VIDEO_SUPPORT; such a device still presents, decode stays software. */
         hr = D3D11CreateDevice(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL,
                                D3D11_CREATE_DEVICE_BGRA_SUPPORT,
                                want, (UINT)(sizeof(want) / sizeof(want[0])),
