@@ -81,10 +81,6 @@ actual class MseVideoSurface {
     @Volatile
     var swingShown: BufferedImage? = null
 
-    /** Last decoded/presented still; survives mini → Now Playing remount. */
-    @Volatile
-    var lastStill: BufferedImage? = null
-
     internal fun publish(frame: BufferedImage) {
         // Receiving a CPU-side frame means scale_bgra took the SW path — the HW present swapchain
         // isn't driving the Canvas for this codec/stream. Flip nativePresent off so MseVideoPanel's

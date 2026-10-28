@@ -1118,10 +1118,7 @@ private fun wirePlayerSurfacesOnce(
         }
     }
     sharedMsePanel.onPainted = { mseSurface.swingShown = it }
-    mseSurface.swingBlit = {
-        sharedMsePanel.setImage(it)
-        if (it != null) mseSurface.lastStill = copyRgb(it)
-    }
+    mseSurface.swingBlit = { sharedMsePanel.setImage(it) }
     sharedMsePanel.onPeer = { c ->
         mseSurface.nativePeer = c
         sharedMsePanel.setHardware(mseSurface.attach(c))
@@ -1381,14 +1378,6 @@ private class MseVideoPanel : JPanel(BorderLayout()) {
         if (bgra != null && wh[0] > 0 && wh[1] > 0) return bgraToRgb(wh[0], wh[1], bgra)
         extraSnapshot?.invoke()?.let { return it }
         return null
-    }
-
-    fun holdLastFrame(snap: BufferedImage) {
-        covered = true
-        hardware = false
-        img = snap
-        FileAvNative.setOverlayHidden(true)
-        canvas.repaint()
     }
 
     fun setCovered(covered: Boolean) {
