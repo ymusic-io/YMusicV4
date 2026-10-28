@@ -25,6 +25,8 @@ typedef struct {
 struct OpaqueAudioQueue {
     pthread_mutex_t mu;
     pthread_cond_t cv;
+    /* Orders the worker's waveOutWrite against AudioQueueFlush's reset. Taken before mu, never under it. */
+    pthread_mutex_t dev_mu;
     pthread_t th;
     HWAVEOUT hwo;
     AudioQueueOutputCallback cb;
@@ -53,6 +55,8 @@ struct OpaqueAudioQueue {
     int inflight;
     /* WOM_CLOSE seen since the last device_close began. */
     int closed;
+    /* Bumped by AudioQueueFlush: a buffer popped before it must not reach the device. */
+    unsigned flush_gen;
 
     int running;
     int quit;
@@ -182,8 +186,9 @@ static void *aqw_loop(void *arg)
     for (;;) {
         AudioQueueBufferRef write_buf = NULL;
         AudioQueueBufferRef done_buf = NULL;
-        MMRESULT mr;
-        int idx, size;
+        MMRESULT mr = MMSYSERR_NOERROR;
+        unsigned gen;
+        int idx, size, stale;
         WAVEHDR *hdr;
         /* Drain callbacks first — frees up buffers to re-enqueue. */
         while (!q->quit && q->done_n == 0 && (!q->running || q->fifo_n == 0))
@@ -212,22 +217,37 @@ static void *aqw_loop(void *arg)
             done_push(q, write_buf);
             continue;
         }
-        apply_gain(q, (int16_t *)write_buf->mAudioData, size / q->frame_bytes);
-        hdr = &q->hdrs[idx];
-        hdr->lpData = (LPSTR)write_buf->mAudioData;
-        hdr->dwBufferLength = (DWORD)size;
-        hdr->dwBytesRecorded = 0;
-        hdr->dwUser = (DWORD_PTR)write_buf;
-        hdr->dwLoops = 0;
-        /* dwFlags untouched: without WHDR_PREPARED every waveOutWrite fails WAVERR_UNPREPARED. */
-        q->inflight++;
+        gen = q->flush_gen;
         pthread_mutex_unlock(&q->mu);
-        if (!q->prepared[idx]) {
-            if (waveOutPrepareHeader(q->hwo, hdr, sizeof(*hdr)) == MMSYSERR_NOERROR)
-                q->prepared[idx] = 1;
-        }
-        mr = waveOutWrite(q->hwo, hdr, sizeof(*hdr));
+        /* The flush_gen check and the write are atomic against a flush's reset under dev_mu. */
+        pthread_mutex_lock(&q->dev_mu);
         pthread_mutex_lock(&q->mu);
+        stale = gen != q->flush_gen;
+        if (!stale) {
+            apply_gain(q, (int16_t *)write_buf->mAudioData, size / q->frame_bytes);
+            q->inflight++;
+        }
+        pthread_mutex_unlock(&q->mu);
+        if (!stale) {
+            hdr = &q->hdrs[idx];
+            hdr->lpData = (LPSTR)write_buf->mAudioData;
+            hdr->dwBufferLength = (DWORD)size;
+            hdr->dwBytesRecorded = 0;
+            hdr->dwUser = (DWORD_PTR)write_buf;
+            hdr->dwLoops = 0;
+            /* dwFlags untouched: without WHDR_PREPARED every waveOutWrite fails WAVERR_UNPREPARED. */
+            if (!q->prepared[idx]) {
+                if (waveOutPrepareHeader(q->hwo, hdr, sizeof(*hdr)) == MMSYSERR_NOERROR)
+                    q->prepared[idx] = 1;
+            }
+            mr = waveOutWrite(q->hwo, hdr, sizeof(*hdr));
+        }
+        pthread_mutex_unlock(&q->dev_mu);
+        pthread_mutex_lock(&q->mu);
+        if (stale) {
+            done_push(q, write_buf);
+            continue;
+        }
         if (mr != MMSYSERR_NOERROR) {
             q->inflight--;
             mse_critf(MSE_LOG_WARN, "aq-winmm: waveOutWrite failed (%u) size=%d", (unsigned)mr, size);
@@ -273,11 +293,13 @@ OSStatus AudioQueueNewOutput(const AudioStreamBasicDescription *fmt, AudioQueueO
     wfx.nAvgBytesPerSec = (DWORD)q->rate * (DWORD)(q->ch * 2);
     wfx.cbSize = 0;
     pthread_mutex_init(&q->mu, NULL);
+    pthread_mutex_init(&q->dev_mu, NULL);
     pthread_cond_init(&q->cv, NULL);
     mr = waveOutOpen(&q->hwo, WAVE_MAPPER, &wfx, (DWORD_PTR)wave_proc, (DWORD_PTR)q, CALLBACK_FUNCTION);
     if (mr != MMSYSERR_NOERROR) {
         mse_critf(MSE_LOG_WARN, "aq-winmm: waveOutOpen failed (%u)", (unsigned)mr);
         pthread_cond_destroy(&q->cv);
+        pthread_mutex_destroy(&q->dev_mu);
         pthread_mutex_destroy(&q->mu);
         free(q);
         return -1;
@@ -286,6 +308,7 @@ OSStatus AudioQueueNewOutput(const AudioStreamBasicDescription *fmt, AudioQueueO
     if (pthread_create(&q->th, NULL, aqw_loop, q) != 0) {
         if (device_close(q) == 0) {
             pthread_cond_destroy(&q->cv);
+            pthread_mutex_destroy(&q->dev_mu);
             pthread_mutex_destroy(&q->mu);
             free(q);
         }
@@ -357,15 +380,21 @@ OSStatus AudioQueuePause(AudioQueueRef q)
 
 OSStatus AudioQueueFlush(AudioQueueRef q)
 {
+    MMRESULT mr;
     int i;
     pthread_mutex_lock(&q->mu);
+    q->flush_gen++;
     for (i = 0; i < q->fifo_n; i++) {
         AudioQueueBufferRef buf = q->fifo[(q->fifo_r + i) % AQW_MAX_BUFS];
         memset(buf->mAudioData, 0, buf->mAudioDataBytesCapacity);
     }
     pthread_mutex_unlock(&q->mu);
     /* waveOutReset returns every in-flight header via WOM_DONE, which the worker folds into done. */
-    waveOutReset(q->hwo);
+    pthread_mutex_lock(&q->dev_mu);
+    mr = waveOutReset(q->hwo);
+    pthread_mutex_unlock(&q->dev_mu);
+    if (mr != MMSYSERR_NOERROR)
+        mse_critf(MSE_LOG_WARN, "aq-winmm: waveOutReset failed (%u)", (unsigned)mr);
     return 0;
 }
 
@@ -395,6 +424,7 @@ OSStatus AudioQueueDispose(AudioQueueRef q, bool immediate)
     for (i = 0; i < q->nbufs; i++)
         free(q->bufs[i]);
     pthread_cond_destroy(&q->cv);
+    pthread_mutex_destroy(&q->dev_mu);
     pthread_mutex_destroy(&q->mu);
     free(q);
     return 0;
