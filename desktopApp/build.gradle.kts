@@ -276,7 +276,7 @@ kotlin {
     }
 }
 
-// Publishing a release: package on each platform's machine (packageReleaseDmg / Msi / Deb), then
+// Publishing a release: package on each platform's machine (packageReleaseDmg / InnoSetup / Deb), then
 // sign each installer with the config service's scripts/sign-app-update.mjs.
 
 // Standalone UI-component catalogue (see CatalogueMain.kt): ./gradlew :desktopApp:catalogue
@@ -490,15 +490,19 @@ tasks.matching { it.name == "proguardReleaseJars" }.configureEach {
 }
 
 // The host's installer under a name that says what it is for, ready for sign-app-update.mjs:
-//   ./gradlew :desktopApp:releaseInstaller   →   build/release/YMusic-<version>-<platform>.<dmg|msi|deb>
+//   ./gradlew :desktopApp:releaseInstaller   →   build/release/YMusic-<version>-<platform>.<dmg|exe|deb>
 tasks.register<Copy>("releaseInstaller") {
     group = "distribution"
     description = "Package the release installer for this OS/arch and name it YMusic-<version>-<platform>."
-    val format = mapOf("macos" to "Dmg", "windows" to "Msi", "linux" to "Deb").getValue(hostOs)
-    dependsOn("packageRelease$format")
-    from(layout.buildDirectory.dir("compose/binaries/main-release/${format.lowercase()}"))
-    include("*.${format.lowercase()}")
-    rename { "YMusic-$desktopVersion-$hostPlatform.${format.lowercase()}" }
+    val (task, dir, ext) = when (hostOs) {
+        "macos" -> Triple("packageReleaseDmg", "dmg", "dmg")
+        "windows" -> Triple("packageReleaseInnoSetup", "innosetup", "exe")
+        else -> Triple("packageReleaseDeb", "deb", "deb")
+    }
+    dependsOn(task)
+    from(layout.buildDirectory.dir("compose/binaries/main-release/$dir"))
+    include("*.$ext")
+    rename { "YMusic-$desktopVersion-$hostPlatform.$ext" }
     into(layout.buildDirectory.dir("release"))
 }
 

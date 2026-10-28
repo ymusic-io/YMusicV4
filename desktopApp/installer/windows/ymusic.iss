@@ -10,10 +10,7 @@
 
 #define AppName "YMusic"
 #define AppExeName "YMusic.exe"
-; AppId stays stable across releases so the installer upgrades in place instead of installing
-; side-by-side. Same UUID as the jpackage MSI's upgradeUuid for continuity across installer
-; migrations (anyone upgrading from a jpackage MSI first uninstalls that; this installer then
-; takes over the slot).
+; Never change: Inno finds the previous install by AppId, so a new one would install side by side.
 #define AppId "{{6F3C2B9E-4D1A-4E8B-9A57-2C1F0D8E7B34}"
 
 [Setup]
