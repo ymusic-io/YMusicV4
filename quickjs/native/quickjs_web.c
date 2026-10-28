@@ -16,6 +16,15 @@
 #ifdef __APPLE__
 #include <TargetConditionals.h>
 #endif
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#ifndef LOAD_LIBRARY_SEARCH_SYSTEM32
+#define LOAD_LIBRARY_SEARCH_SYSTEM32 0x00000800
+#endif
+#endif
 
 /* Flat-string access (BEGIN/END patch at the end of vendored quickjs.c). */
 JSValue JS_ToFlatString(JSContext *ctx, JSValueConst v);
@@ -1168,13 +1177,77 @@ static const char *zoneinfo_tail(const char *path)
     return hit && hit[0] ? hit : NULL;
 }
 
-/** IANA id of the host zone (TZ, Android persist.sys.timezone, /etc/localtime). */
+#ifdef _WIN32
+/* ICU's ucal_getDefaultTimeZone; UChar is UTF-16, UErrorCode an int enum (> 0 = failure). */
+typedef int32_t (*IcuDefaultZoneFn)(uint16_t *out, int32_t cap, int *status);
+
+static pthread_once_t g_icu_once = PTHREAD_ONCE_INIT;
+static IcuDefaultZoneFn g_icu_default_zone;
+
+static void icu_load(void)
+{
+    HMODULE icu = LoadLibraryExW(L"icu.dll", NULL, LOAD_LIBRARY_SEARCH_SYSTEM32);
+    if (icu)
+        g_icu_default_zone = (IcuDefaultZoneFn)(void (*)(void))GetProcAddress(icu, "ucal_getDefaultTimeZone");
+}
+
+/* Windows 10 1903+ ships ICU as icu.dll: the system zone as the IANA id a browser reports. */
+static int win_icu_zone(char *out, int cap)
+{
+    uint16_t buf[128];
+    int status = 0;
+    int32_t n, i;
+    pthread_once(&g_icu_once, icu_load);
+    if (!g_icu_default_zone)
+        return 0;
+    n = g_icu_default_zone(buf, (int32_t)countof(buf), &status);
+    if (status > 0 || n <= 0 || n >= (int32_t)countof(buf) || n >= cap)
+        return 0;
+    for (i = 0; i < n; i++) {
+        if (buf[i] < 0x20 || buf[i] > 0x7e)
+            return 0;
+        out[i] = (char)buf[i];
+    }
+    out[n] = 0;
+    return 1;
+}
+
+/* What env.raw.js falls back to (Etc/GMT±h from getTimezoneOffset), with QuickJS's own Windows offset. */
+static void win_offset_zone(char *out, int cap)
+{
+    time_t now = time(NULL), gm, loc;
+    struct tm *tm;
+    int off = 0, h;
+    tm = gmtime(&now);
+    if (tm) {
+        gm = mktime(tm);
+        tm = localtime(&now);
+        if (tm) {
+            loc = mktime(tm);
+            off = (int)((gm - loc) / 60);
+        }
+    }
+    if (!off) {
+        snprintf(out, (size_t)cap, "UTC");
+        return;
+    }
+    /* Math.round: halves toward +infinity. */
+    h = off + 30 >= 0 ? (off + 30) / 60 : -((-(off + 30) + 59) / 60);
+    snprintf(out, (size_t)cap, h > 0 ? "Etc/GMT+%d" : "Etc/GMT%d", h);
+}
+#endif
+
+/** IANA id of the host zone (TZ, Android persist.sys.timezone, /etc/localtime, Windows ICU). */
 static JSValue js_time_zone(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
     const char *tz;
+#ifdef _WIN32
+    char zone[128];
+#else
     char path[PATH_MAX];
     ssize_t n;
     const char *tail;
+#endif
     (void)this_val;
     (void)argc;
     (void)argv;
@@ -1190,10 +1263,12 @@ static JSValue js_time_zone(JSContext *ctx, JSValueConst this_val, int argc, JSV
             return JS_NewString(ctx, prop);
     }
 #endif
-#ifndef _WIN32
-    // Windows has no /etc/localtime symlink; fall through to the UTC default (TZ env was already
-    // consulted above). Native Windows timezone resolution (GetDynamicTimeZoneInformation) is a
-    // separate step and not wired here yet.
+#ifdef _WIN32
+    /* Never a bare "UTC" while getTimezoneOffset says otherwise: the PoToken env reads both. */
+    if (!win_icu_zone(zone, (int)sizeof(zone)))
+        win_offset_zone(zone, (int)sizeof(zone));
+    return JS_NewString(ctx, zone);
+#else
     n = readlink("/etc/localtime", path, sizeof(path) - 1);
     if (n > 0) {
         path[n] = 0;
@@ -1201,8 +1276,8 @@ static JSValue js_time_zone(JSContext *ctx, JSValueConst this_val, int argc, JSV
         if (tz_looks_iana(tail))
             return JS_NewString(ctx, tail);
     }
-#endif
     return JS_NewString(ctx, "UTC");
+#endif
 }
 
 void qjs_register_web(JSContext *ctx)
