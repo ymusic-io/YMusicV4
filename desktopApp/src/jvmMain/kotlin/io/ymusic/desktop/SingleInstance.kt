@@ -1,5 +1,7 @@
 package io.ymusic.desktop
 
+import com.sun.jna.Function
+import com.sun.jna.NativeLibrary
 import kmpcommon.log.Logger
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -111,6 +113,7 @@ internal class SingleInstance private constructor(
                 }
                 if (lock != null) return InstanceClaim.Owner(listen(lock, portFile, logger))
                 channel.close()
+                if (attempt == 0 && command == InstanceCommand.Show) shareForeground(logger)
                 try {
                     handOff(portFile, command)
                     return InstanceClaim.HandedOver
@@ -148,6 +151,18 @@ internal class SingleInstance private constructor(
             throw failure
         }
 
+        /** Windows lets only the process the user just launched take the foreground: pass that on to the running app. */
+        private fun shareForeground(logger: Logger) {
+            try {
+                val allowed = NativeLibrary.getInstance("user32")
+                    .getFunction("AllowSetForegroundWindow", Function.ALT_CONVENTION)
+                    .invokeInt(arrayOf(ASFW_ANY))
+                if (allowed == 0) logger.log(Logger.Level.INFO, "AllowSetForegroundWindow refused")
+            } catch (e: LinkageError) {
+                logger.log(Logger.Level.WARN, "AllowSetForegroundWindow unavailable", e)
+            }
+        }
+
         private fun handOff(portFile: File, command: InstanceCommand) {
             val (port, token) = portFile.readText().trim().split(' ', limit = 2)
             Socket().use { socket ->
@@ -156,6 +171,7 @@ internal class SingleInstance private constructor(
             }
         }
 
+        private const val ASFW_ANY = -1
         private const val HANDOFF_ATTEMPTS = 20
         private const val HANDOFF_RETRY_MS = 150L
         private const val HANDOFF_TIMEOUT_MS = 2_000
