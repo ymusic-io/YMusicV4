@@ -14,6 +14,8 @@
 #include "mse_ffmpeg.h"
 
 #define AQW_MAX_BUFS 16
+/* Bounds the wait for the driver to hand headers back after a reset, and to confirm a close. */
+#define AQW_DEVICE_WAIT_MS 2000
 
 typedef struct {
     AudioQueueBuffer pub; /* first: an AudioQueueBufferRef points at it */
@@ -46,6 +48,11 @@ struct OpaqueAudioQueue {
     AudioQueueBufferRef done[AQW_MAX_BUFS];
     int done_r;
     int done_n;
+
+    /* Headers handed to waveOutWrite and not yet back (WOM_DONE). */
+    int inflight;
+    /* WOM_CLOSE seen since the last device_close began. */
+    int closed;
 
     int running;
     int quit;
@@ -95,18 +102,77 @@ static void apply_gain(AudioQueueRef q, int16_t *s, int frames)
 static void CALLBACK wave_proc(HWAVEOUT hwo, UINT msg, DWORD_PTR instance, DWORD_PTR p1, DWORD_PTR p2)
 {
     AudioQueueRef q = (AudioQueueRef)instance;
-    WAVEHDR *hdr;
-    AudioQueueBufferRef buf;
     (void)hwo;
     (void)p2;
-    if (msg != WOM_DONE)
+    if (msg != WOM_DONE && msg != WOM_CLOSE)
         return;
-    hdr = (WAVEHDR *)p1;
-    buf = (AudioQueueBufferRef)hdr->dwUser;
     pthread_mutex_lock(&q->mu);
-    done_push(q, buf);
+    if (msg == WOM_CLOSE) {
+        q->closed = 1;
+    } else {
+        q->inflight--;
+        done_push(q, (AudioQueueBufferRef)((WAVEHDR *)p1)->dwUser);
+    }
     pthread_cond_broadcast(&q->cv);
     pthread_mutex_unlock(&q->mu);
+}
+
+static void deadline_in(struct timespec *ts, int ms)
+{
+    clock_gettime(CLOCK_REALTIME, ts);
+    ts->tv_sec += ms / 1000;
+    ts->tv_nsec += (long)(ms % 1000) * 1000000L;
+    if (ts->tv_nsec >= 1000000000L) {
+        ts->tv_sec++;
+        ts->tv_nsec -= 1000000000L;
+    }
+}
+
+/* No lock held, worker stopped. Takes every header back and closes the device, waiting until the
+   driver is done with q. -1: it was not; q must then never be freed. */
+static int device_close(AudioQueueRef q)
+{
+    struct timespec dl;
+    MMRESULT mr;
+    int i, left;
+    mr = waveOutReset(q->hwo);
+    if (mr != MMSYSERR_NOERROR)
+        mse_critf(MSE_LOG_WARN, "aq-winmm: waveOutReset failed (%u)", (unsigned)mr);
+    pthread_mutex_lock(&q->mu);
+    deadline_in(&dl, AQW_DEVICE_WAIT_MS);
+    while (q->inflight > 0 && pthread_cond_timedwait(&q->cv, &q->mu, &dl) == 0)
+        ;
+    left = q->inflight;
+    q->closed = 0;
+    pthread_mutex_unlock(&q->mu);
+    if (left > 0) {
+        mse_critf(MSE_LOG_ERROR, "aq-winmm: %d buffers still at the device after reset", left);
+        return -1;
+    }
+    for (i = 0; i < q->nbufs; i++) {
+        if (!q->prepared[i])
+            continue;
+        mr = waveOutUnprepareHeader(q->hwo, &q->hdrs[i], sizeof(q->hdrs[i]));
+        if (mr != MMSYSERR_NOERROR)
+            mse_critf(MSE_LOG_WARN, "aq-winmm: waveOutUnprepareHeader failed (%u)", (unsigned)mr);
+        q->prepared[i] = 0;
+    }
+    mr = waveOutClose(q->hwo);
+    if (mr != MMSYSERR_NOERROR) {
+        mse_critf(MSE_LOG_ERROR, "aq-winmm: waveOutClose failed (%u)", (unsigned)mr);
+        return -1;
+    }
+    pthread_mutex_lock(&q->mu);
+    deadline_in(&dl, AQW_DEVICE_WAIT_MS);
+    while (!q->closed && pthread_cond_timedwait(&q->cv, &q->mu, &dl) == 0)
+        ;
+    left = !q->closed;
+    pthread_mutex_unlock(&q->mu);
+    if (left) {
+        mse_critf(MSE_LOG_ERROR, "aq-winmm: no WOM_CLOSE after waveOutClose");
+        return -1;
+    }
+    return 0;
 }
 
 static void *aqw_loop(void *arg)
@@ -154,6 +220,7 @@ static void *aqw_loop(void *arg)
         hdr->dwUser = (DWORD_PTR)write_buf;
         hdr->dwLoops = 0;
         /* dwFlags untouched: without WHDR_PREPARED every waveOutWrite fails WAVERR_UNPREPARED. */
+        q->inflight++;
         pthread_mutex_unlock(&q->mu);
         if (!q->prepared[idx]) {
             if (waveOutPrepareHeader(q->hwo, hdr, sizeof(*hdr)) == MMSYSERR_NOERROR)
@@ -162,6 +229,7 @@ static void *aqw_loop(void *arg)
         mr = waveOutWrite(q->hwo, hdr, sizeof(*hdr));
         pthread_mutex_lock(&q->mu);
         if (mr != MMSYSERR_NOERROR) {
+            q->inflight--;
             mse_critf(MSE_LOG_WARN, "aq-winmm: waveOutWrite failed (%u) size=%d", (unsigned)mr, size);
             /* Device went away mid-playback. Loop the buffer back so the user keeps draining. */
             done_push(q, write_buf);
@@ -204,20 +272,23 @@ OSStatus AudioQueueNewOutput(const AudioStreamBasicDescription *fmt, AudioQueueO
     wfx.nBlockAlign = (WORD)(q->ch * 2);
     wfx.nAvgBytesPerSec = (DWORD)q->rate * (DWORD)(q->ch * 2);
     wfx.cbSize = 0;
+    pthread_mutex_init(&q->mu, NULL);
+    pthread_cond_init(&q->cv, NULL);
     mr = waveOutOpen(&q->hwo, WAVE_MAPPER, &wfx, (DWORD_PTR)wave_proc, (DWORD_PTR)q, CALLBACK_FUNCTION);
     if (mr != MMSYSERR_NOERROR) {
         mse_critf(MSE_LOG_WARN, "aq-winmm: waveOutOpen failed (%u)", (unsigned)mr);
+        pthread_cond_destroy(&q->cv);
+        pthread_mutex_destroy(&q->mu);
         free(q);
         return -1;
     }
     mse_logf("aq-winmm: waveOutOpen OK rate=%d ch=%d", q->rate, q->ch);
-    pthread_mutex_init(&q->mu, NULL);
-    pthread_cond_init(&q->cv, NULL);
     if (pthread_create(&q->th, NULL, aqw_loop, q) != 0) {
-        waveOutClose(q->hwo);
-        pthread_cond_destroy(&q->cv);
-        pthread_mutex_destroy(&q->mu);
-        free(q);
+        if (device_close(q) == 0) {
+            pthread_cond_destroy(&q->cv);
+            pthread_mutex_destroy(&q->mu);
+            free(q);
+        }
         return -1;
     }
     *out = q;
@@ -311,17 +382,16 @@ OSStatus AudioQueueDispose(AudioQueueRef q, bool immediate)
     (void)immediate;
     if (!q)
         return 0;
-    waveOutReset(q->hwo);
+    /* Worker first: a reset with it running would hand the headers back to the user, who re-enqueues. */
     pthread_mutex_lock(&q->mu);
     q->quit = 1;
     pthread_cond_broadcast(&q->cv);
     pthread_mutex_unlock(&q->mu);
     pthread_join(q->th, NULL);
-    for (i = 0; i < q->nbufs; i++) {
-        if (q->prepared[i])
-            waveOutUnprepareHeader(q->hwo, &q->hdrs[i], sizeof(q->hdrs[i]));
+    if (device_close(q) != 0) {
+        mse_critf(MSE_LOG_ERROR, "aq-winmm: queue leaked, its device may still call back");
+        return -1;
     }
-    waveOutClose(q->hwo);
     for (i = 0; i < q->nbufs; i++)
         free(q->bufs[i]);
     pthread_cond_destroy(&q->cv);
