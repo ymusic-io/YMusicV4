@@ -3063,30 +3063,6 @@ void mse_av_abort(MseAv *a, int audio)
     av_unlock(a, audio);
 }
 
-void mse_av_reopen_video(MseAv *a)
-{
-    if (!a)
-        return;
-    av_lock(a, 0);
-    /* Already on HW? The swapchain is attached to a new HWND but the decoder's hw_device_ctx wraps
-     * the process-wide ID3D11Device, so decoding continues; the next scale_bgra Present just lands
-     * on the new swapchain. Closing+reopening here would otherwise cost a full GOP (3-5 s of
-     * blackscreen on 4K AV1/VP9 while we wait for the next keyframe). The reopen is only needed
-     * when transitioning SW→HW (late attach after decoder opened without hw_device_ctx). */
-    if (a->vdec && a->vdec->hw_device_ctx) {
-        av_unlock(a, 0);
-        return;
-    }
-    close_video_decoder(a);
-    /* Reset the per-session d3d11 fail latch — a prior fail happened under a different attach
-     * state, we're explicitly re-trying with the swapchain now up. */
-#ifdef MSE_WIN_HW
-    a->d3d11_fail_id = AV_CODEC_ID_NONE;
-#endif
-    av_unlock(a, 0);
-    mse_critf(MSE_LOG_INFO, "mse-v decoder reopen requested (next decode cycle)");
-}
-
 void mse_av_change_type(MseAv *a, int audio)
 {
     if (!a)

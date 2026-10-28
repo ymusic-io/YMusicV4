@@ -1352,15 +1352,6 @@ void mse_host_set_video_surface(MseHost *h, void *window)
     pthread_mutex_unlock(&h->av_mu);
     if (old && old != window)
         mse_vt_detach(old);
-#elif defined(_WIN32)
-    (void)old;
-    /* Windows: on attach (window set to the HWND sentinel), nudge the video decoder to reopen so
-     * open_decoder's d3d11va gate re-evaluates with the swapchain now active. SW→HW transition. */
-    if (window) {
-        pthread_mutex_lock(&h->av_mu);
-        mse_av_reopen_video(h->av);
-        pthread_mutex_unlock(&h->av_mu);
-    }
 #else
     (void)window;
     (void)old;

@@ -600,10 +600,6 @@ Java_io_ymusic_mse_MseHostNative_setVideoComponent(JNIEnv *env, jclass cls, jlon
     } else {
         mse_d3d11_present_detach(h);
     }
-    /* The host "window" slot on Windows is the HWND itself; mse_av_set_window is a no-op
-       there so this is only a sentinel for mse_host_set_video_surface to trigger a video
-       decoder reopen (so open_decoder's d3d11va gate re-evaluates with the swapchain now up). */
-    mse_host_set_video_surface(h, ok ? (void *)hwnd : NULL);
     return ok ? JNI_TRUE : JNI_FALSE;
 }
 #else

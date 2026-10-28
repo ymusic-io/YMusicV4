@@ -52,10 +52,6 @@ void mse_av_flush(MseAv *a, int audio, int video);
 void mse_av_abort(MseAv *a, int audio);
 /* MSE changeType: reset parser + drop init for that track; leftover stays. */
 void mse_av_change_type(MseAv *a, int audio);
-/* Close the live video decoder; next decode cycle reopens it, re-evaluating the hw gate. Needed
- * on Windows when the HWND present attaches AFTER the decoder has already opened in SW (the
- * d3d11va gate in open_decoder is a one-shot at open-time, so a late attach must trigger a reopen). */
-void mse_av_reopen_video(MseAv *a);
 /* Live audio-only: keep appending video leftover, do not decode. */
 void mse_av_rest_video(MseAv *a, int on, double clock);
 int mse_av_video_resting(const MseAv *a);
