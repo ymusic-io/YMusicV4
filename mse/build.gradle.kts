@@ -198,11 +198,6 @@ fun canBuildMseJni(log: org.gradle.api.logging.Logger): Boolean {
     log.warn("w: skipping the desktop MSE JNI build, $missing; desktop playback will not load")
     return false
 }
-// Windows: force the MinGW-w64 toolchain for the CMake JNI build; the C sources use GCC-only
-// syntax that MSVC rejects (see MingwToolchain.kt).
-val isWindows = org.gradle.internal.os.OperatingSystem.current().isWindows
-val mingwHome: File? = mingwToolchainHome()
-
 val mseCmakeConfigure by tasks.registering(Exec::class) {
     onlyIf { canBuildMseJni(logger) }
     val out = mseJniDir.get().asFile
@@ -211,27 +206,17 @@ val mseCmakeConfigure by tasks.registering(Exec::class) {
     inputs.property("javaHome", javaHomeForJni)
     inputs.property("ffmpegRoot", ffmpegDesktopPrefix?.absolutePath ?: "")
     inputs.property("production", productionC)
-    inputs.property("mingwHome", mingwHome?.absolutePath ?: "")
+    inputs.property("mingwHome", mingwToolchainHome()?.absolutePath ?: "")
     outputs.file(File(out, "CMakeCache.txt"))
     environment("JAVA_HOME", javaHomeForJni)
-    val args = mutableListOf(
-        "cmake", "-S", mseNativeSrc.absolutePath, "-B", out.absolutePath,
-        "-DCMAKE_BUILD_TYPE=Release",
-        "-DFFMPEG_ROOT=${ffmpegDesktopPrefix?.absolutePath ?: ""}",
-        "-DPRODUCTION=$productionC",
+    commandLine(
+        listOf(
+            "cmake", "-S", mseNativeSrc.absolutePath, "-B", out.absolutePath,
+            "-DCMAKE_BUILD_TYPE=Release",
+            "-DFFMPEG_ROOT=${ffmpegDesktopPrefix?.absolutePath ?: ""}",
+            "-DPRODUCTION=$productionC",
+        ) + mingwCmakeArgs(),
     )
-    if (mingwHome != null) {
-        // Forward slashes: CMake treats backslashes as escapes in its generated cache files.
-        fun cmakePath(f: File) = f.absolutePath.replace('\\', '/')
-        args += listOf(
-            "-G", "MinGW Makefiles",
-            "-DCMAKE_C_COMPILER=${cmakePath(mingwCCompiler(mingwHome))}",
-            "-DCMAKE_MAKE_PROGRAM=${cmakePath(File(mingwHome, "bin/mingw32-make.exe"))}",
-        )
-    } else if (isWindows) {
-        error(MINGW_MISSING)
-    }
-    commandLine(args)
 }
 val mseCmakeBuild by tasks.registering(Exec::class) {
     dependsOn(mseCmakeConfigure)

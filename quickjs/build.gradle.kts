@@ -194,37 +194,23 @@ val javaHomeForJni: String = run {
 val macDeploymentTarget = "11.0"
 
 // Windows: the CMake project uses GCC/Clang-only syntax (`__attribute__((format))`, POSIX headers,
-// `--gc-sections`), so MSVC can't compile it. Point CMake at a MinGW-w64 toolchain instead.
-val isWindows = org.gradle.internal.os.OperatingSystem.current().isWindows
-val mingwHome: File? = mingwToolchainHome()
-
+// `--gc-sections`), so MSVC can't compile it; mingwCmakeArgs points CMake at MinGW-w64 instead.
 val cmakeConfigure by tasks.registering(Exec::class) {
     val out = quickJsJniDir.get().asFile
     doFirst { out.mkdirs() }
     inputs.dir(nativeSrc)
     inputs.property("javaHome", javaHomeForJni)
     inputs.property("macDeploymentTarget", macDeploymentTarget)
-    inputs.property("mingwHome", mingwHome?.absolutePath ?: "")
+    inputs.property("mingwHome", mingwToolchainHome()?.absolutePath ?: "")
     outputs.file(File(out, "CMakeCache.txt"))
     environment("JAVA_HOME", javaHomeForJni)
-    val args = mutableListOf(
-        "cmake", "-S", nativeSrc.absolutePath, "-B", out.absolutePath,
-        "-DCMAKE_BUILD_TYPE=Release",
-        "-DCMAKE_OSX_DEPLOYMENT_TARGET=$macDeploymentTarget",
+    commandLine(
+        listOf(
+            "cmake", "-S", nativeSrc.absolutePath, "-B", out.absolutePath,
+            "-DCMAKE_BUILD_TYPE=Release",
+            "-DCMAKE_OSX_DEPLOYMENT_TARGET=$macDeploymentTarget",
+        ) + mingwCmakeArgs(),
     )
-    if (mingwHome != null) {
-        // CMake parses backslashes as escape sequences in the arguments it quotes into its cache,
-        // so pass forward slashes (which Windows accepts just fine via WinAPI).
-        fun cmakePath(f: File) = f.absolutePath.replace('\\', '/')
-        args += listOf(
-            "-G", "MinGW Makefiles",
-            "-DCMAKE_C_COMPILER=${cmakePath(mingwCCompiler(mingwHome))}",
-            "-DCMAKE_MAKE_PROGRAM=${cmakePath(File(mingwHome, "bin/mingw32-make.exe"))}",
-        )
-    } else if (isWindows) {
-        error(MINGW_MISSING)
-    }
-    commandLine(args)
 }
 
 val cmakeBuild by tasks.registering(Exec::class) {
