@@ -75,7 +75,7 @@ static void hwdev_init(void)
 AVBufferRef *mse_d3d11_hwdev_ref(void)
 {
     pthread_once(&g_once, hwdev_init);
-    if (!g_hwdev)
+    if (!g_hwdev || mse_d3d11_lost())
         return NULL;
     return av_buffer_ref(g_hwdev);
 }
@@ -89,7 +89,7 @@ static int nv12_fits(enum AVPixelFormat f)
 enum AVPixelFormat mse_d3d11_pick(AVCodecContext *ctx, const enum AVPixelFormat *fmts)
 {
     const enum AVPixelFormat *p;
-    if (nv12_fits(ctx->sw_pix_fmt)) {
+    if (nv12_fits(ctx->sw_pix_fmt) && !mse_d3d11_lost()) {
         for (p = fmts; *p != AV_PIX_FMT_NONE; p++) {
             if (*p == AV_PIX_FMT_D3D11)
                 return *p;
@@ -178,7 +178,7 @@ int mse_d3d11_can_decode(const AVCodec *codec)
     if (!codec || !has_d3d11_config(codec))
         return 0;
     pthread_once(&g_once, hwdev_init);
-    if (!g_hwdev)
+    if (!g_hwdev || mse_d3d11_lost())
         return 0;
     switch (codec->id) {
     case AV_CODEC_ID_H264:

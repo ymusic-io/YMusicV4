@@ -1879,7 +1879,8 @@ int file_av_step(FileAv *p)
 #ifdef FILE_AV_WIN_HW
     /* Once the demuxer hit EOF the queued packets are all the video left: a new decoder would
        get none and the ended check would fire early. The flag waits for a seek to clear fmt_eof. */
-    if (p->reopen_video && p->vdec && !p->fmt_eof) {
+    if (p->vdec && !p->fmt_eof &&
+        (p->reopen_video || (p->vdec->hw_device_ctx && mse_d3d11_check_lost()))) {
         int hw = d3d11_vdec(p, p->fmt->streams[p->v_st]->codecpar) != NULL;
         p->reopen_video = 0;
         if (hw != (p->vdec->hw_device_ctx != NULL)) {

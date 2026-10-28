@@ -35,6 +35,12 @@ ID3D11DeviceContext *mse_d3d11_context(void);
    (D3D11's immediate context is not free-threaded). */
 void mse_d3d11_lock(void);
 void mse_d3d11_unlock(void);
+/* 1 once the device was removed or reset (TDR, driver update): no new D3D11 decoders or
+   swapchains for the rest of the process. Recreating the device is not supported. */
+int mse_d3d11_lost(void);
+/* Asks the device (GetDeviceRemovedReason); the first removal seen logs it once, latches
+   mse_d3d11_lost and drops the swapchain. Returns mse_d3d11_lost(). */
+int mse_d3d11_check_lost(void);
 
 /* Fresh AVBufferRef wrapping the shared d3d11va hwdevice; NULL = no device.
    Caller av_buffer_unref's when done. */
@@ -59,6 +65,8 @@ HWND mse_d3d11_jawt_hwnd(JNIEnv *env, jobject component);
 int mse_d3d11_present_attach(HWND hwnd, const void *owner);
 /* No-op unless `owner` made the current attach. */
 void mse_d3d11_present_detach(const void *owner);
+/* Releases the swapchain whoever owns it; mse_d3d11_check_lost calls it on device removal. */
+void mse_d3d11_present_drop_all(void);
 /* Letterboxes the NV12 slice into the HWND's client rect. 0 = presented, -2 = no swapchain
    for `owner` (none attached, or another engine's): drop the frame, -1 = failed. */
 int mse_d3d11_present_show(ID3D11Texture2D *tex, UINT array_slice, int src_w, int src_h,

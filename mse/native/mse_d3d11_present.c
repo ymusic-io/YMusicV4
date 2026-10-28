@@ -378,7 +378,7 @@ int mse_d3d11_present_attach(HWND hwnd, const void *owner)
     if (!hwnd)
         return 0;
     dev = mse_d3d11_device();
-    if (!dev)
+    if (!dev || mse_d3d11_lost())
         return 0;
 
     mse_d3d11_lock();
@@ -476,6 +476,13 @@ void mse_d3d11_present_detach(const void *owner)
     mse_d3d11_unlock();
 }
 
+void mse_d3d11_present_drop_all(void)
+{
+    mse_d3d11_lock();
+    release_swapchain();
+    mse_d3d11_unlock();
+}
+
 int mse_d3d11_present_show(ID3D11Texture2D *tex, UINT array_slice, int src_w, int src_h,
                            const void *owner)
 {
@@ -488,7 +495,9 @@ int mse_d3d11_present_show(ID3D11Texture2D *tex, UINT array_slice, int src_w, in
 
     dev = mse_d3d11_device();
     ctx = mse_d3d11_context();
-    if (!dev || !ctx || !tex)
+    if (!dev || !ctx || mse_d3d11_lost())
+        return -2;
+    if (!tex)
         return -1;
     ID3D11Texture2D_GetDesc(tex, &td);
     if (td.Format != DXGI_FORMAT_NV12) {
@@ -532,10 +541,8 @@ int mse_d3d11_present_show(ID3D11Texture2D *tex, UINT array_slice, int src_w, in
             }
         }
     }
-    if (ensure_backbuffer_rtv(dev) != 0) {
-        mse_d3d11_unlock();
-        return -1;
-    }
+    if (ensure_backbuffer_rtv(dev) != 0)
+        goto out;
     clear_backbuffer(ctx);
     if (draw_nv12(dev, ctx, tex, &td, array_slice, src_w, src_h) == 0) {
         hr = IDXGISwapChain1_Present(g_p.swap, 1, 0);
@@ -558,6 +565,9 @@ int mse_d3d11_present_show(ID3D11Texture2D *tex, UINT array_slice, int src_w, in
             present_fail("Present", hr);
         }
     }
+out:
+    if (r != 0 && mse_d3d11_check_lost())
+        r = -2;
     mse_d3d11_unlock();
     return r;
 }

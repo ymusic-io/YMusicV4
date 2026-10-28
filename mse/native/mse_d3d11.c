@@ -87,4 +87,30 @@ void mse_d3d11_unlock(void)
         pthread_mutex_unlock(&g_mu);
 }
 
+static volatile LONG g_lost;
+
+int mse_d3d11_lost(void)
+{
+    return InterlockedCompareExchange(&g_lost, 0, 0) != 0;
+}
+
+int mse_d3d11_check_lost(void)
+{
+    HRESULT why;
+    if (mse_d3d11_lost())
+        return 1;
+    pthread_once(&g_once, d3d11_init);
+    if (!g_dev)
+        return 0;
+    why = ID3D11Device_GetDeviceRemovedReason(g_dev);
+    if (why == S_OK)
+        return 0;
+    if (InterlockedExchange(&g_lost, 1) == 0) {
+        mse_critf(MSE_LOG_WARN, "d3d11 device removed reason=0x%08lx: hardware video off",
+                  (unsigned long)why);
+        mse_d3d11_present_drop_all();
+    }
+    return 1;
+}
+
 #endif /* _WIN32 */

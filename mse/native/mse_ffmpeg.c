@@ -4067,7 +4067,8 @@ static void video_decode_error(MseAv *a, double pts, int err)
     }
 #endif
 #ifdef MSE_WIN_HW
-    if (a->vdec && a->vdec->hw_device_ctx && ++a->hw_errs >= 3) {
+    /* A removed device fails every codec; the reopen below goes software without a latch. */
+    if (a->vdec && a->vdec->hw_device_ctx && !mse_d3d11_check_lost() && ++a->hw_errs >= 3) {
         a->hw_errs = 0;
         a->d3d11_fail_id = a->vdec->codec_id;
         mse_critf(MSE_LOG_WARN, "d3d11va rejected id=%d: software from now on",
@@ -4082,11 +4083,13 @@ static void video_decode_error(MseAv *a, double pts, int err)
 }
 
 #ifdef MSE_WIN_HW
-/* A latched codec still in its D3D11-configured context decodes single-threaded (or not at all:
-   native av1); reopen it as libvpx / libdav1d / threaded. 1 if it reopened. */
+/* A latched codec (or any, once the device is lost) still in its D3D11-configured context
+   decodes single-threaded or not at all (native av1); reopen it as libvpx / libdav1d /
+   threaded. 1 if it reopened. */
 static int d3d11_reopen_sw(MseAv *a, double t)
 {
-    if (!a->vdec || !a->vdec->hw_device_ctx || a->vdec->codec_id != a->d3d11_fail_id)
+    if (!a->vdec || !a->vdec->hw_device_ctx ||
+        (a->vdec->codec_id != a->d3d11_fail_id && !mse_d3d11_lost()))
         return 0;
     close_video_decoder(a);
     if (a->vpar)
