@@ -2320,12 +2320,28 @@ void file_av_seek(FileAv *p, double seconds)
 
 void file_av_set_speed(FileAv *p, double speed)
 {
+#ifdef FILE_AV_PLAYOUT_CLOCK
+    double played;
+    int i;
+#endif
     if (!p)
         return;
+    if (!(speed > 0.05))
+        speed = 0.05;
     pthread_mutex_lock(&p->mu);
     if (p->playing)
         p->hold = media_time_locked(p);
-    p->speed = speed > 0.05 ? speed : 0.05;
+#ifdef FILE_AV_PLAYOUT_CLOCK
+    /* hold covers the head buffer's played part; the queue was stretched at the old speed and now counts
+       from the new seek_base at the new one: rescale what is left of it. */
+    if (p->dac_q_n > 0) {
+        played = p->playing && p->dac_tick_ns > 0 ? (now_ns() - p->dac_tick_ns) / 1e9 * p->out_rate : 0;
+        p->dac_q_real[0] -= played < p->dac_q_real[0] ? (int)played : p->dac_q_real[0];
+    }
+    for (i = 0; i < p->dac_q_n; i++)
+        p->dac_q_real[i] = (int)(p->dac_q_real[i] * p->speed / speed);
+#endif
+    p->speed = speed;
     if (p->fx)
         audio_fx_set_speed(p->fx, (float)p->speed);
 #ifdef FILE_AV_AQ
