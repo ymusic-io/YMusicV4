@@ -49,7 +49,7 @@ internal class InstanceHandoffException(cause: IOException?) : IOException("no r
  * token so only a process that can read the data dir is listened to.
  */
 internal class SingleInstance private constructor(
-    @Suppress("unused") private val lock: FileLock, // held for the process lifetime
+    private val lock: FileLock,
     private val server: ServerSocket,
     private val token: String,
     private val logger: Logger,
@@ -61,7 +61,7 @@ internal class SingleInstance private constructor(
 
     private fun serve() {
         Thread({
-            while (!server.isClosed) {
+            while (true) {
                 try {
                     server.accept().use { socket ->
                         socket.soTimeout = HANDOFF_TIMEOUT_MS
@@ -71,10 +71,21 @@ internal class SingleInstance private constructor(
                         received.trySend(command)
                     }
                 } catch (e: IOException) {
+                    if (server.isClosed) break
                     logger.log(Logger.Level.WARN, "instance handoff failed", e)
                 }
             }
         }, "single-instance").apply { isDaemon = true }.start()
+    }
+
+    /** Gives the claim up, so a later launch becomes the instance instead of handing over to this one. */
+    fun release() {
+        // Listener first: a launch that finds nobody listening retries and claims the freed lock.
+        try {
+            server.close()
+        } finally {
+            lock.channel().close()
+        }
     }
 
     companion object {
@@ -86,33 +97,44 @@ internal class SingleInstance private constructor(
          */
         fun claim(dir: File, command: InstanceCommand, logger: Logger): InstanceClaim {
             dir.mkdirs()
+            val lockFile = File(dir, "instance.lock").toPath()
             val portFile = File(dir, "instance.port")
-            val channel = FileChannel.open(
-                File(dir, "instance.lock").toPath(),
-                StandardOpenOption.CREATE,
-                StandardOpenOption.WRITE,
-            )
-            val lock = try {
-                channel.tryLock()
-            } catch (e: IOException) {
-                channel.closeAfter(e)
-            }
-            if (lock == null) {
+            var last: IOException? = null
+            // The running instance may still be starting (no port file yet) or quitting (its lock about to free up).
+            repeat(HANDOFF_ATTEMPTS) { attempt ->
+                if (attempt > 0) Thread.sleep(HANDOFF_RETRY_MS)
+                val channel = FileChannel.open(lockFile, StandardOpenOption.CREATE, StandardOpenOption.WRITE)
+                val lock = try {
+                    channel.tryLock()
+                } catch (e: IOException) {
+                    channel.closeAfter(e)
+                }
+                if (lock != null) return InstanceClaim.Owner(listen(lock, portFile, logger))
                 channel.close()
-                handOff(portFile, command)
-                return InstanceClaim.HandedOver
+                try {
+                    handOff(portFile, command)
+                    return InstanceClaim.HandedOver
+                } catch (e: IOException) {
+                    last = e
+                } catch (e: RuntimeException) { // a half-written port file
+                    last = IOException("bad instance.port", e)
+                }
             }
+            throw InstanceHandoffException(last)
+        }
+
+        private fun listen(lock: FileLock, portFile: File, logger: Logger): SingleInstance {
             try {
                 val server = ServerSocket(0, 8, InetAddress.getLoopbackAddress())
                 try {
                     val token = ByteArray(16).also { SecureRandom().nextBytes(it) }.joinToString("") { "%02x".format(it) }
                     portFile.writeText("${server.localPort} $token")
-                    return InstanceClaim.Owner(SingleInstance(lock, server, token, logger).also { it.serve() })
+                    return SingleInstance(lock, server, token, logger).also { it.serve() }
                 } catch (e: IOException) {
                     server.closeAfter(e)
                 }
             } catch (e: IOException) {
-                channel.closeAfter(e)
+                lock.channel().closeAfter(e)
             }
         }
 
@@ -126,25 +148,12 @@ internal class SingleInstance private constructor(
             throw failure
         }
 
-        // The running instance may still be starting (port file not written yet): retry briefly.
         private fun handOff(portFile: File, command: InstanceCommand) {
-            var last: IOException? = null
-            repeat(HANDOFF_ATTEMPTS) {
-                try {
-                    val (port, token) = portFile.readText().trim().split(' ', limit = 2)
-                    Socket().use { socket ->
-                        socket.connect(InetSocketAddress(InetAddress.getLoopbackAddress(), port.toInt()), HANDOFF_TIMEOUT_MS)
-                        socket.getOutputStream().write("$token\n${command.name}\n".toByteArray())
-                    }
-                    return
-                } catch (e: IOException) {
-                    last = e
-                } catch (e: RuntimeException) { // a half-written port file
-                    last = IOException("bad instance.port", e)
-                }
-                Thread.sleep(HANDOFF_RETRY_MS)
+            val (port, token) = portFile.readText().trim().split(' ', limit = 2)
+            Socket().use { socket ->
+                socket.connect(InetSocketAddress(InetAddress.getLoopbackAddress(), port.toInt()), HANDOFF_TIMEOUT_MS)
+                socket.getOutputStream().write("$token\n${command.name}\n".toByteArray())
             }
-            throw InstanceHandoffException(last)
         }
 
         private const val HANDOFF_ATTEMPTS = 20

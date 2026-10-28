@@ -371,6 +371,12 @@ fun main(args: Array<String>) {
             if (!frame.fullscreen) {
                 saveWindowPrefs(frame.persistSize(), frame.persistPosition())
             }
+            // A launch during the wind-down below starts a new instance instead of handing over to this one.
+            try {
+                instance?.release()
+            } catch (e: java.io.IOException) {
+                rootLogger.fork("instance").log(Logger.Level.WARN, "instance release failed", e)
+            }
             windowVisible = false
             graph?.player?.clearQueue()
             quitScope.launch {
@@ -671,6 +677,7 @@ fun main(args: Array<String>) {
         if (jumpListExe != null) JumpListTasks(jumpListExe, playing, queueNotEmpty, rootLogger.fork("jump-list"))
         LaunchedEffect(instance) {
             instance?.commands?.collect { command ->
+                if (quitting) return@collect
                 when (command) {
                     InstanceCommand.Show -> showWindowRequests.tryEmit(Unit)
                     InstanceCommand.TogglePlay -> graph?.player?.togglePlay()
