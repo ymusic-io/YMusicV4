@@ -31,6 +31,9 @@
 #include "mse_hwdev.h"
 #define FILE_AV_AQ 1
 #define FILE_AV_LINUX_HW 1
+#elif defined(_WIN32)
+#include "aq_winmm.h"
+#define FILE_AV_AQ 1
 #endif
 #ifdef __APPLE__
 #include <mach/mach_time.h>

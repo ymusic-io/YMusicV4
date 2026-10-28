@@ -108,9 +108,11 @@ endif()
 
 if(WIN32)
   target_sources(mseffmpegjni PRIVATE
-    mse_d3d11.c mse_d3d11_dec.c mse_d3d11_present.c mse_d3d11_jawt.c)
+    mse_d3d11.c mse_d3d11_dec.c mse_d3d11_present.c mse_d3d11_jawt.c
+    aq_winmm.c)
   # d3dcompiler.lib runtime-compiles the NV12 shader; dxguid.lib provides IID_* GUID symbols.
-  target_link_libraries(mseffmpegjni PRIVATE d3d11 dxgi d3dcompiler dxguid)
+  # winmm.lib is waveOut* for aq_winmm (file_av AudioQueue shim on Windows).
+  target_link_libraries(mseffmpegjni PRIVATE d3d11 dxgi d3dcompiler dxguid winmm)
   target_compile_definitions(mseffmpegjni PRIVATE MSE_WIN_HW=1)
 endif()
 
