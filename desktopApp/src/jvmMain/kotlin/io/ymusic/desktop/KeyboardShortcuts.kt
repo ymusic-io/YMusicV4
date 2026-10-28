@@ -11,16 +11,15 @@ import io.ymusic.player.Player
 import io.ymusic.ui.GlobalShortcutActions
 import kotlinx.coroutines.flow.MutableStateFlow
 
-/**
- * App-wide hot keys for every desktop OS. The command modifier accepts either Ctrl (Win/Linux) or
- * Meta/Cmd (macOS) so the same binding works everywhere without an OS switch.
- */
-
 private const val SEEK_STEP_MS = 10_000L
 
 private val digitKeys = listOf(Key.One, Key.Two, Key.Three, Key.Four, Key.Five, Key.Six, Key.Seven, Key.Eight, Key.Nine)
 private fun digitIndex(key: Key): Int? = digitKeys.indexOf(key).takeIf { it >= 0 }?.plus(1)
 
+/**
+ * App-wide hot keys for every desktop OS. The command modifier accepts either Ctrl (Win/Linux) or
+ * Meta/Cmd (macOS) so the same binding works everywhere without an OS switch.
+ */
 internal fun handleGlobalShortcut(
     event: KeyEvent,
     player: Player?,
@@ -60,8 +59,7 @@ internal fun handleGlobalShortcut(
             true
         }
         event.key == Key.Escape -> when {
-            // Compose popups/dialogs handle their own Esc first; by the time it reaches
-            // the window handler the cascade peels back fullscreen → NowPlaying → nav drawer.
+            // Known gap: this runs before an open popup/dialog sees Esc (CMP sends it a back event after the window handlers).
             frame.fullscreen -> { frame.toggleFullscreen(); true }
             nowPlayingOpen?.value == true -> { nowPlayingOpen.value = false; true }
             GlobalShortcutActions.closeNavDrawerIfOpen() -> true
