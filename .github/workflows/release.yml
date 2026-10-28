@@ -127,7 +127,8 @@ jobs:
     needs: ffmpeg
     runs-on: ubuntu-24.04
     env:
-      SECRETS_PASSPHRASE: ${{ secrets.SECRETS_PASSPHRASE }}
+      # Only whether secrets.enc can be opened: the passphrase itself goes to the Restore secrets step alone.
+      HAS_SECRETS: ${{ secrets.SECRETS_PASSPHRASE != '' }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -175,8 +176,10 @@ jobs:
       # secrets.enc → secrets.properties + signing/. Without SECRETS_PASSPHRASE the build runs on
       # defaults: unsigned, no Sentry upload, no remote config.
       - name: Restore secrets
-        if: env.SECRETS_PASSPHRASE != ''
+        if: env.HAS_SECRETS == 'true'
         working-directory: YMusicV4
+        env:
+          SECRETS_PASSPHRASE: ${{ secrets.SECRETS_PASSPHRASE }}
         run: ./decrypt.sh
 
       # With the decrypted sentry.auth.token the Sentry plugin uploads the ProGuard mapping and
@@ -224,7 +227,8 @@ jobs:
     needs: ffmpeg
     runs-on: ${{ matrix.runner }}
     env:
-      SECRETS_PASSPHRASE: ${{ secrets.SECRETS_PASSPHRASE }}
+      # Only whether secrets.enc can be opened: the passphrase itself goes to the Restore secrets step alone.
+      HAS_SECRETS: ${{ secrets.SECRETS_PASSPHRASE != '' }}
     strategy:
       fail-fast: false
       matrix:
@@ -255,8 +259,10 @@ jobs:
       # secrets.enc → secrets.properties + signing/. Without SECRETS_PASSPHRASE the build runs on
       # defaults: unsigned, no Sentry upload, no remote config.
       - name: Restore secrets
-        if: env.SECRETS_PASSPHRASE != ''
+        if: env.HAS_SECRETS == 'true'
         working-directory: YMusicV4
+        env:
+          SECRETS_PASSPHRASE: ${{ secrets.SECRETS_PASSPHRASE }}
         run: ./decrypt.sh
 
       # Repository secrets (not secrets.enc), as ffmpeg-build's release signing had them:
@@ -363,7 +369,8 @@ jobs:
     needs: ffmpeg
     runs-on: ${{ matrix.runner }}
     env:
-      SECRETS_PASSPHRASE: ${{ secrets.SECRETS_PASSPHRASE }}
+      # Only whether secrets.enc can be opened: the passphrase itself goes to the Restore secrets step alone.
+      HAS_SECRETS: ${{ secrets.SECRETS_PASSPHRASE != '' }}
     strategy:
       fail-fast: false
       matrix:
@@ -395,10 +402,12 @@ jobs:
         shell: bash
         run: echo "MINGW_HOME=$(cygpath -m '${{ steps.msys2.outputs.msys2-location }}')/${{ matrix.prefix }}" >> "$GITHUB_ENV"
 
-      # Preinstalled on some runner images only. Wherever it lands (Inno 7 installs per user), its
-      # ISCC.exe is handed to the build as -Pinno.iscc.
+      # Preinstalled on some runner images only; otherwise the pinned Chocolatey package. Wherever it
+      # lands (Inno 7 installs per user), its ISCC.exe is handed to the build as -Pinno.iscc.
       - name: Install Inno Setup
         shell: bash
+        env:
+          INNO_SETUP_VERSION: 7.1.0
         run: |
           set -euo pipefail
           find_iscc() {
@@ -406,7 +415,7 @@ jobs:
               "$(cygpath -u "$LOCALAPPDATA")/Programs/Inno Setup "*/ISCC.exe 2>/dev/null | head -n 1 || true
           }
           iscc="$(find_iscc)"
-          [ -n "$iscc" ] || { choco install innosetup -y --no-progress; iscc="$(find_iscc)"; }
+          [ -n "$iscc" ] || { choco install innosetup --version "$INNO_SETUP_VERSION" -y --no-progress; iscc="$(find_iscc)"; }
           [ -n "$iscc" ] || { echo "ISCC.exe not found after installing Inno Setup" >&2; exit 1; }
           echo "using $iscc"
           echo "INNO_ISCC=$(cygpath -w "$iscc")" >> "$GITHUB_ENV"
@@ -424,9 +433,11 @@ jobs:
       # secrets.enc → secrets.properties + signing/. Without SECRETS_PASSPHRASE the build runs on
       # defaults: no Sentry upload, no remote config.
       - name: Restore secrets
-        if: env.SECRETS_PASSPHRASE != ''
+        if: env.HAS_SECRETS == 'true'
         shell: bash
         working-directory: YMusicV4
+        env:
+          SECRETS_PASSPHRASE: ${{ secrets.SECRETS_PASSPHRASE }}
         run: ./decrypt.sh
 
       # The MinGW bin dir goes on PATH for this step alone: gcc/clang load their own DLLs from it
@@ -580,7 +591,8 @@ jobs:
     needs: [android, macos, windows, test, compat]
     runs-on: ubuntu-24.04
     env:
-      SECRETS_PASSPHRASE: ${{ secrets.SECRETS_PASSPHRASE }}
+      # Only whether secrets.enc can be opened: the passphrase itself goes to the Restore secrets step alone.
+      HAS_SECRETS: ${{ secrets.SECRETS_PASSPHRASE != '' }}
     permissions:
       contents: write
     steps:
@@ -617,8 +629,10 @@ jobs:
       # message without headers goes to every family (AGENTS.md "Release flow").
       # The signing keys come from secrets.enc (bundle.signing.* / update.* in secrets.properties).
       - name: Restore secrets
-        if: env.SECRETS_PASSPHRASE != ''
+        if: env.HAS_SECRETS == 'true'
         working-directory: YMusicV4
+        env:
+          SECRETS_PASSPHRASE: ${{ secrets.SECRETS_PASSPHRASE }}
         run: ./decrypt.sh
 
       - name: Build the update config
