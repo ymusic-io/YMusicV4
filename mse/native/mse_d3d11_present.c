@@ -12,14 +12,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* NV12 → BGRA letterbox-fit. BT.709 limited-range (16..235 / 16..240).
-   The vertex shader draws a full-screen triangle using SV_VertexID; the
-   constant buffer carries only the dst-fit scale so the picture is centered
-   with black bars. 10-bit would need DXGI_FORMAT_P010 / 601 vs 709 and is
-   deferred — the open_decoder HW check skips it. */
+/* NV12 → BGRA. BT.709 limited-range (16..235 / 16..240).
+   The vertex shader draws a triangle covering the viewport (SV_VertexID);
+   draw_nv12 sets the viewport to the letterboxed picture rect. 10-bit would
+   need DXGI_FORMAT_P010 / 601 vs 709 and is deferred — the open_decoder HW
+   check skips it. */
 static const char kShaderHlsl[] =
     "cbuffer K : register(b0) {\n"
-    "    float4 scale;\n" /* xy = picture scale within [-1,1], zw = picture share of the texture */
+    "    float4 crop;\n" /* xy = picture share of the padded texture, zw unused */
     "}\n"
     "Texture2DArray<float>  TexY : register(t0);\n"
     "Texture2DArray<float2> TexUV : register(t1);\n"
@@ -29,9 +29,8 @@ static const char kShaderHlsl[] =
     "{\n"
     "    VSOut o;\n"
     "    float2 corner = float2((id << 1) & 2, id & 2);\n"
-    "    o.uv = corner * scale.zw;\n"
-    "    float2 ndc = corner * float2(2, -2) + float2(-1, 1);\n"
-    "    o.pos = float4(ndc.x * scale.x, ndc.y * scale.y, 0, 1);\n"
+    "    o.uv = corner * crop.xy;\n"
+    "    o.pos = float4(corner * float2(2, -2) + float2(-1, 1), 0, 1);\n"
     "    return o;\n"
     "}\n"
     "float4 PSMain(VSOut i) : SV_Target\n"
@@ -41,8 +40,8 @@ static const char kShaderHlsl[] =
     "    TexY.GetDimensions(yw, yh, yn);\n"
     "    TexUV.GetDimensions(cw, ch, cn);\n"
     /* Stop half a texel short of the padding, or the linear filter blends it in. */
-    "    float2 yuv = min(i.uv, scale.zw - 0.5 / float2(yw, yh));\n"
-    "    float2 cuv = min(i.uv, scale.zw - 0.5 / float2(cw, ch));\n"
+    "    float2 yuv = min(i.uv, crop.xy - 0.5 / float2(yw, yh));\n"
+    "    float2 cuv = min(i.uv, crop.xy - 0.5 / float2(cw, ch));\n"
     "    float y  = TexY.Sample(Samp, float3(yuv, 0)).r;\n"
     "    float2 uv = TexUV.Sample(Samp, float3(cuv, 0)).rg;\n"
     "    y  = (y  - 16.0/255.0) * (255.0/219.0);\n"
@@ -219,7 +218,7 @@ static int build_pipeline(ID3D11Device *dev)
         goto fail;
 
     memset(&bd, 0, sizeof(bd));
-    bd.ByteWidth = 16; /* float4 scale */
+    bd.ByteWidth = 16; /* float4 crop */
     bd.Usage = D3D11_USAGE_DEFAULT;
     bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
     hr = ID3D11Device_CreateBuffer(dev, &bd, NULL, &g_p.cb);
@@ -263,8 +262,8 @@ static int draw_nv12(ID3D11Device *dev, ID3D11DeviceContext *ctx, ID3D11Texture2
     ID3D11ShaderResourceView *srvY = NULL, *srvUV = NULL;
     ID3D11ShaderResourceView *srvs[2];
     D3D11_VIEWPORT vp;
-    float scale[4];
-    float src_ar, dst_ar;
+    float crop[4];
+    int vw = g_p.bb_w, vh = g_p.bb_h;
     HRESULT hr;
 
     if (!tex || !g_p.rtv)
@@ -296,33 +295,29 @@ static int draw_nv12(ID3D11Device *dev, ID3D11DeviceContext *ctx, ID3D11Texture2
         return -1;
     }
 
-    /* Letterbox fit: scale the full-screen quad in NDC so it covers the
-       biggest axis-aligned subrect of the back buffer whose aspect matches
-       the picture. The clear left black outside. */
+    /* Largest centered rect with the picture's aspect; the clear left the bars black. */
     if (src_w > 0 && src_h > 0 && g_p.bb_w > 0 && g_p.bb_h > 0) {
-        src_ar = (float)src_w / (float)src_h;
-        dst_ar = (float)g_p.bb_w / (float)g_p.bb_h;
-        if (src_ar > dst_ar) {
-            scale[0] = 1.0f;
-            scale[1] = dst_ar / src_ar;
-        } else {
-            scale[0] = src_ar / dst_ar;
-            scale[1] = 1.0f;
-        }
-    } else {
-        scale[0] = 1.0f;
-        scale[1] = 1.0f;
+        if ((int64_t)src_w * g_p.bb_h > (int64_t)g_p.bb_w * src_h)
+            vh = (int)(((int64_t)g_p.bb_w * src_h + src_w / 2) / src_w);
+        else
+            vw = (int)(((int64_t)g_p.bb_h * src_w + src_h / 2) / src_h);
+        if (vw < 1) vw = 1;
+        if (vh < 1) vh = 1;
     }
     /* d3d11va pads the pool texture (128-aligned for AV1/HEVC); the padding is never written. */
     ID3D11Texture2D_GetDesc(tex, &td);
-    scale[2] = src_w > 0 && td.Width > 0 ? (float)src_w / (float)td.Width : 1.0f;
-    scale[3] = src_h > 0 && td.Height > 0 ? (float)src_h / (float)td.Height : 1.0f;
+    crop[0] = src_w > 0 && td.Width > 0 ? (float)src_w / (float)td.Width : 1.0f;
+    crop[1] = src_h > 0 && td.Height > 0 ? (float)src_h / (float)td.Height : 1.0f;
+    crop[2] = 0.0f;
+    crop[3] = 0.0f;
 
-    ID3D11DeviceContext_UpdateSubresource(ctx, (ID3D11Resource *)g_p.cb, 0, NULL, scale, 0, 0);
+    ID3D11DeviceContext_UpdateSubresource(ctx, (ID3D11Resource *)g_p.cb, 0, NULL, crop, 0, 0);
 
     memset(&vp, 0, sizeof(vp));
-    vp.Width = (float)g_p.bb_w;
-    vp.Height = (float)g_p.bb_h;
+    vp.TopLeftX = (float)((g_p.bb_w - vw) / 2);
+    vp.TopLeftY = (float)((g_p.bb_h - vh) / 2);
+    vp.Width = (float)vw;
+    vp.Height = (float)vh;
     vp.MaxDepth = 1.0f;
     ID3D11DeviceContext_RSSetViewports(ctx, 1, &vp);
     ID3D11DeviceContext_RSSetState(ctx, g_p.rast);
