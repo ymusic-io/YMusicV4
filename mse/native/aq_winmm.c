@@ -71,10 +71,6 @@ struct OpaqueAudioQueue {
     int dead;
     /* Worker only. */
     double reopen_ns;
-    float vol;
-    float vol_target;
-    float ramp_s;
-    int ramp_left;
 };
 
 static double mono_ns(void)
@@ -99,24 +95,6 @@ static void done_push(AudioQueueRef q, AudioQueueBufferRef buf)
 {
     q->done[(q->done_r + q->done_n) % AQW_MAX_BUFS] = buf;
     q->done_n++;
-}
-
-/* q->mu held. */
-static void apply_gain(AudioQueueRef q, int16_t *s, int frames)
-{
-    int i, c;
-    if (q->ramp_left <= 0 && q->vol >= 0.9999f)
-        return;
-    for (i = 0; i < frames; i++) {
-        if (q->ramp_left > 0) {
-            q->vol += (q->vol_target - q->vol) / (float)q->ramp_left;
-            q->ramp_left--;
-        }
-        for (c = 0; c < q->ch; c++) {
-            float v = (float)s[i * q->ch + c] * q->vol;
-            s[i * q->ch + c] = (int16_t)(v > 32767.f ? 32767.f : (v < -32768.f ? -32768.f : v));
-        }
-    }
 }
 
 /* waveOutProc runs on an OS audio-thread. Per MSDN it must NOT call any waveOut* function;
@@ -267,10 +245,8 @@ static void *aqw_loop(void *arg)
         pthread_mutex_lock(&q->dev_mu);
         pthread_mutex_lock(&q->mu);
         stale = gen != q->flush_gen;
-        if (!stale) {
-            apply_gain(q, (int16_t *)write_buf->mAudioData, size / q->frame_bytes);
+        if (!stale)
             q->inflight++;
-        }
         pthread_mutex_unlock(&q->mu);
         if (!stale) {
             hdr = &q->hdrs[idx];
@@ -342,7 +318,6 @@ OSStatus AudioQueueNewOutput(const AudioStreamBasicDescription *fmt, AudioQueueO
     q->rate = (int)fmt->mSampleRate;
     q->ch = (int)fmt->mChannelsPerFrame;
     q->frame_bytes = q->ch * 2;
-    q->vol = q->vol_target = 1.f;
     wfx = &q->wfx;
     wfx->wFormatTag = WAVE_FORMAT_PCM;
     wfx->nChannels = (WORD)q->ch;
@@ -504,16 +479,9 @@ OSStatus AudioQueueDispose(AudioQueueRef q, bool immediate)
 
 OSStatus AudioQueueSetParameter(AudioQueueRef q, AudioQueueParameterID id, AudioQueueParameterValue v)
 {
-    pthread_mutex_lock(&q->mu);
-    if (id == kAudioQueueParam_VolumeRampTime) {
-        q->ramp_s = v > 0 ? v : 0;
-    } else if (id == kAudioQueueParam_Volume) {
-        q->vol_target = v < 0 ? 0 : (v > 1 ? 1 : v);
-        q->ramp_left = (int)(q->ramp_s * (float)q->rate);
-        if (q->ramp_left <= 0)
-            q->vol = q->vol_target;
-    }
-    pthread_mutex_unlock(&q->mu);
+    (void)q;
+    (void)id;
+    (void)v;
     return 0;
 }
 

@@ -3,7 +3,8 @@
 
 /*
  * aq_pulse.h's AudioQueue + dispatch_after_f subset on Windows WinMM waveOut (a core system
- * library, nothing dlopen'd), so file_av.c's AudioQueue DAC path compiles unchanged on Windows.
+ * library, nothing dlopen'd), so the file_av.c and mse_host.c AudioQueue DAC paths compile
+ * unchanged on Windows.
  */
 
 #include <stdbool.h>
@@ -58,6 +59,8 @@ OSStatus AudioQueueFlush(AudioQueueRef q);
 OSStatus AudioQueueStop(AudioQueueRef q, bool immediate);
 /* After return the callback never runs again. Never call it holding a lock the callback takes. */
 OSStatus AudioQueueDispose(AudioQueueRef q, bool immediate);
+/* No-op. A gain applied at waveOutWrite would land a whole queue (~170 ms) late, turning mse_host's
+   pause/resume fades into dips after the resume; volume is the callers' audio_fx. */
 OSStatus AudioQueueSetParameter(AudioQueueRef q, AudioQueueParameterID id, AudioQueueParameterValue v);
 
 typedef uint64_t dispatch_time_t;

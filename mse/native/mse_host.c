@@ -20,6 +20,8 @@
 #elif defined(_WIN32)
 #include <windows.h>
 #include "mse_d3d11.h"
+#include "aq_winmm.h"
+#define MSE_AQ 1
 #endif
 #ifdef __APPLE__
 #include <mach/mach_time.h>
