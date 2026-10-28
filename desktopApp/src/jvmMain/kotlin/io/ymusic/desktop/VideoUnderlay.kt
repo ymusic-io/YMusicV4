@@ -82,7 +82,16 @@ internal class VideoUnderlay {
             return
         }
         val moved = frame.x != x || frame.y != y || frame.width != w || frame.height != h
-        if (moved) frame.setBounds(x, y, w, h)
+        if (moved) {
+            frame.setBounds(x, y, w, h)
+            // setBounds alone does NOT re-run BorderLayout — the heavyweight Canvas inside
+            // keeps its old size and the OS HWND's client rect stays stale, which pins the
+            // D3D11 swapchain to the first-attached size (seen as video rendered into a tiny
+            // rect of a big black frame). The previous per-site DisposableEffect that
+            // dispatched videoUnderlay.attach on view switches implicitly covered this via
+            // frame.validate(); the single-attach architecture needs the explicit call here.
+            frame.validate()
+        }
         val revealed = shown && !frame.isVisible
         if (revealed) frame.isVisible = true
         // Windows: z-order drifts whenever another app foregrounds, so DWM may composite the
