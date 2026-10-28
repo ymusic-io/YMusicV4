@@ -100,6 +100,9 @@ internal class JvmLocalPlayer(
 
     @Volatile private var pendingVh: Int = 0
 
+    /** The current load wants a video decoder as soon as the Canvas HWND is attached. */
+    @Volatile private var videoWanted: Boolean = false
+
     @Volatile private var viewW: Int = 0
 
     @Volatile private var viewH: Int = 0
@@ -149,12 +152,26 @@ internal class JvmLocalPlayer(
             if (released) return
             val ok = FileAvNative.setVideoComponent(h, c)
             videoSurface?.setNativePresent(ok)
+            // Canvas just became available (or was swapped): if load() marked this as a video
+            // playback, open the video decoder NOW — p->d3d11_hwnd was set by setVideoComponent
+            // above, so start_video_locked's open_codec gates straight into D3D11VA.
+            if (c != null && videoWanted) {
+                dispatch {
+                    if (!released && handle == h) FileAvNative.setVideoEnabled(h, true)
+                }
+            }
         }
         if (SwingUtilities.isEventDispatchThread()) {
             bind()
         } else {
             SwingUtilities.invokeLater { bind() }
         }
+    }
+
+    /** Called from the load path when the Canvas is already attached before open completes. */
+    private fun enableVideoWhenAttached() {
+        val peer = videoSurface?.nativePeer ?: return
+        bindVideoComponent(handle, peer)
     }
 
     /** Listener/UI hop. Always posts so player-thread work never runs re-entrantly on AWT. */
@@ -212,11 +229,17 @@ internal class JvmLocalPlayer(
         _progress.value = Progress(positionMs = startPositionMs.coerceAtLeast(0L))
         _videoQuality.value = VideoQualityState.DEFAULT.copy(preferredQuality = preferVideoQuality)
         showSurface(true)
+        videoWanted = !audioOnly
         dispatch {
             if (handle == 0L || gen != loadGen.get()) return@dispatch
             FileAvNative.setVolume(handle, volume.toDouble())
             FileAvNative.setAudioIndex(handle, -1)
-            FileAvNative.setVideoEnabled(handle, !audioOnly)
+            // Open the file with video OFF so audio starts immediately. The video decoder stays
+            // closed until the Canvas HWND is attached, so when it does open_codec sees
+            // p->d3d11_hwnd and goes straight to D3D11VA — no SW→HW decoder reopen on the hot
+            // path. For audio-only files this is just the normal setting. The attach is handled
+            // after open below (and by videoSurface?.onNativePeer for Canvas swaps).
+            FileAvNative.setVideoEnabled(handle, false)
             applyBlit()
             FileAvNative.setSpeed(handle, config.speed.coerceAtLeast(0.05f).toDouble())
             FileAvNative.setPitch(handle, config.pitchFactor.toDouble())
@@ -242,6 +265,13 @@ internal class JvmLocalPlayer(
             FileAvNative.seek(handle, startPositionMs.coerceAtLeast(0L) / 1000.0)
             if (playWhenReady) FileAvNative.play(handle) else FileAvNative.pause(handle)
             pumping = playWhenReady
+            // Refine videoWanted now that we know whether the file actually has a video stream.
+            // bindVideoComponent reads this on every Canvas attach; if the Canvas was already
+            // present when load started, trigger the attach+enable path once.
+            videoWanted = !audioOnly && srcVideo != null
+            if (videoWanted && videoSurface?.nativePeer != null) {
+                enableVideoWhenAttached()
+            }
             val size = if (srcVideo != null && !audioOnly && srcVideo.width > 0 && srcVideo.height > 0) {
                 VideoSize(srcVideo.width, srcVideo.height)
             } else {
@@ -315,6 +345,7 @@ internal class JvmLocalPlayer(
         loadGen.incrementAndGet()
         uiEpoch.incrementAndGet()
         pendingSeekMs.set(-1)
+        videoWanted = false
         loadedPath = null
         streams = emptyList()
         sidecarTracks = emptyList()
@@ -372,9 +403,15 @@ internal class JvmLocalPlayer(
             }
             publishVideoQuality()
             if (_status.value.state is PlaybackState.Prepared) showSurface(true)
+            videoWanted = !audioOnly && videoSizeFromStreams() != null
             dispatch {
                 if (handle == 0L) return@dispatch
-                FileAvNative.setVideoEnabled(handle, !audioOnly)
+                if (audioOnly) {
+                    FileAvNative.setVideoEnabled(handle, false)
+                } else if (videoSurface?.nativePeer != null) {
+                    // Attach-then-enable, same ordering as load so open_codec sees d3d11_hwnd.
+                    enableVideoWhenAttached()
+                }
                 applyBlit()
             }
         }
