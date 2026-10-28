@@ -592,4 +592,12 @@
     <string name="tray_resume">पुनः सुरु गर्नुहोस्</string>
     <string name="tray_stop">बन्द गर्नुहोस् (लाइन खाली गर्नुहोस्)</string>
     <string name="tray_quit">बन्द गर्नुहोस्</string>
+    <string name="shortcuts_title">किबोर्ड सर्टकटहरू</string>
+    <string name="shortcuts_play_pause">बजाउनुहोस् / रोक्नुहोस्</string>
+    <string name="shortcuts_now_playing">प्लेयर स्क्रिन देखाउनुहोस् वा लुकाउनुहोस्</string>
+    <string name="shortcuts_nav_menu">मेनु खोल्नुहोस् वा बन्द गर्नुहोस्</string>
+    <string name="shortcuts_switch_tabs">ट्याब बदल्नुहोस्</string>
+    <string name="shortcuts_escape">पूर्ण स्क्रिनबाट बाहिर निस्कनुहोस्, वा प्लेयर स्क्रिन, मेनु वा पप-अप बन्द गर्नुहोस्</string>
+    <string name="shortcuts_help">यो सहायता देखाउनुहोस्</string>
+    <string name="cd_always_on_top">सधैं माथि</string>
 </resources>

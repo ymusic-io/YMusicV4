@@ -592,4 +592,12 @@
     <string name="tray_resume">আবার চালান</string>
     <string name="tray_stop">থামান (সারি মুছুন)</string>
     <string name="tray_quit">বন্ধ করুন</string>
+    <string name="shortcuts_title">কীবোর্ড শর্টকাট</string>
+    <string name="shortcuts_play_pause">চালান / বিরতি</string>
+    <string name="shortcuts_now_playing">Now Playing দেখান বা লুকান</string>
+    <string name="shortcuts_nav_menu">মেনু খুলুন বা বন্ধ করুন</string>
+    <string name="shortcuts_switch_tabs">ট্যাব বদলান</string>
+    <string name="shortcuts_escape">পূর্ণ স্ক্রিন থেকে বেরোন, অথবা Now Playing, মেনু বা পপ-আপ বন্ধ করুন</string>
+    <string name="shortcuts_help">এই সাহায্য দেখান</string>
+    <string name="cd_always_on_top">সবসময় উপরে</string>
 </resources>

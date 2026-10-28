@@ -587,4 +587,12 @@
     <string name="tray_resume">繼續</string>
     <string name="tray_stop">停止（清除佇列）</string>
     <string name="tray_quit">結束</string>
+    <string name="shortcuts_title">鍵盤快速鍵</string>
+    <string name="shortcuts_play_pause">播放/暫停</string>
+    <string name="shortcuts_now_playing">顯示或隱藏「現正播放」</string>
+    <string name="shortcuts_nav_menu">開啟或關閉選單</string>
+    <string name="shortcuts_switch_tabs">切換分頁</string>
+    <string name="shortcuts_escape">結束全螢幕，或關閉「現正播放」、選單或彈出式視窗</string>
+    <string name="shortcuts_help">顯示此說明</string>
+    <string name="cd_always_on_top">永遠在最上層</string>
 </resources>

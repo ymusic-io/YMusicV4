@@ -597,4 +597,12 @@
     <string name="tray_resume">Reprèn</string>
     <string name="tray_stop">Atura (buida la cua)</string>
     <string name="tray_quit">Tanca</string>
+    <string name="shortcuts_title">Dreceres de teclat</string>
+    <string name="shortcuts_play_pause">Reprodueix / posa en pausa</string>
+    <string name="shortcuts_now_playing">Mostra o amaga Ara sona</string>
+    <string name="shortcuts_nav_menu">Obre o tanca el menú</string>
+    <string name="shortcuts_switch_tabs">Canvia de pestanya</string>
+    <string name="shortcuts_escape">Surt de la pantalla completa, o tanca Ara sona, el menú o una finestra emergent</string>
+    <string name="shortcuts_help">Mostra aquesta ajuda</string>
+    <string name="cd_always_on_top">Sempre visible</string>
 </resources>

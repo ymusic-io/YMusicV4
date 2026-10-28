@@ -592,4 +592,12 @@
     <string name="tray_resume">ادامه</string>
     <string name="tray_stop">توقف (پاک کردن صف)</string>
     <string name="tray_quit">بستن</string>
+    <string name="shortcuts_title">میان‌برهای صفحه‌کلید</string>
+    <string name="shortcuts_play_pause">پخش / توقف موقت</string>
+    <string name="shortcuts_now_playing">نمایش یا پنهان کردن صفحه پخش</string>
+    <string name="shortcuts_nav_menu">باز یا بسته کردن منو</string>
+    <string name="shortcuts_switch_tabs">جابه‌جایی بین زبانه‌ها</string>
+    <string name="shortcuts_escape">خروج از تمام‌صفحه، یا بستن صفحه پخش، منو یا پنجره بازشو</string>
+    <string name="shortcuts_help">نمایش این راهنما</string>
+    <string name="cd_always_on_top">همیشه در بالا</string>
 </resources>

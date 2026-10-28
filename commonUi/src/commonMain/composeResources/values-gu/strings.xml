@@ -592,4 +592,12 @@
     <string name="tray_resume">ફરી શરૂ કરો</string>
     <string name="tray_stop">રોકો (કતાર સાફ કરો)</string>
     <string name="tray_quit">બંધ કરો</string>
+    <string name="shortcuts_title">કીબોર્ડ શૉર્ટકટ</string>
+    <string name="shortcuts_play_pause">વગાડો / થોભાવો</string>
+    <string name="shortcuts_now_playing">Now Playing બતાવો અથવા છુપાવો</string>
+    <string name="shortcuts_nav_menu">મેનુ ખોલો અથવા બંધ કરો</string>
+    <string name="shortcuts_switch_tabs">ટૅબ બદલો</string>
+    <string name="shortcuts_escape">પૂર્ણ સ્ક્રીનમાંથી બહાર નીકળો, અથવા Now Playing, મેનુ કે પૉપ-અપ બંધ કરો</string>
+    <string name="shortcuts_help">આ મદદ બતાવો</string>
+    <string name="cd_always_on_top">હંમેશાં ટોચ પર</string>
 </resources>

@@ -592,4 +592,12 @@
     <string name="tray_resume">Продолжи</string>
     <string name="tray_stop">Стоп (исчисти ја редицата)</string>
     <string name="tray_quit">Затвори</string>
+    <string name="shortcuts_title">Кратенки на тастатурата</string>
+    <string name="shortcuts_play_pause">Пушти / паузирај</string>
+    <string name="shortcuts_now_playing">Прикажи или скриј „Сега се пушта“</string>
+    <string name="shortcuts_nav_menu">Отвори или затвори го менито</string>
+    <string name="shortcuts_switch_tabs">Префрли картичка</string>
+    <string name="shortcuts_escape">Излези од цел екран или затвори „Сега се пушта“, мени или скокачки прозорец</string>
+    <string name="shortcuts_help">Прикажи ја оваа помош</string>
+    <string name="cd_always_on_top">Секогаш најгоре</string>
 </resources>

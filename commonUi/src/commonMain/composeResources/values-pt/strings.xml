@@ -597,4 +597,12 @@
     <string name="tray_resume">Retomar</string>
     <string name="tray_stop">Parar (limpar a fila)</string>
     <string name="tray_quit">Fechar</string>
+    <string name="shortcuts_title">Atalhos de teclado</string>
+    <string name="shortcuts_play_pause">Reproduzir / pausar</string>
+    <string name="shortcuts_now_playing">Mostrar ou ocultar a tela de reprodução</string>
+    <string name="shortcuts_nav_menu">Abrir ou fechar o menu</string>
+    <string name="shortcuts_switch_tabs">Alternar abas</string>
+    <string name="shortcuts_escape">Sair da tela cheia ou fechar a tela de reprodução, o menu ou um pop-up</string>
+    <string name="shortcuts_help">Mostrar esta ajuda</string>
+    <string name="cd_always_on_top">Sempre visível</string>
 </resources>

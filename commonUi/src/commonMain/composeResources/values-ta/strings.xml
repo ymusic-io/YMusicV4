@@ -592,4 +592,12 @@
     <string name="tray_resume">தொடர்</string>
     <string name="tray_stop">நிறுத்து (வரிசையை அழி)</string>
     <string name="tray_quit">மூடு</string>
+    <string name="shortcuts_title">விசைப்பலகைக் குறுக்குவழிகள்</string>
+    <string name="shortcuts_play_pause">இயக்கு / இடைநிறுத்து</string>
+    <string name="shortcuts_now_playing">Now Playing-ஐக் காட்டு அல்லது மறை</string>
+    <string name="shortcuts_nav_menu">மெனுவைத் திற அல்லது மூடு</string>
+    <string name="shortcuts_switch_tabs">தாவல்களை மாற்று</string>
+    <string name="shortcuts_escape">முழுத்திரையிலிருந்து வெளியேறு, அல்லது Now Playing, மெனு அல்லது பாப்-அப்பை மூடு</string>
+    <string name="shortcuts_help">இந்த உதவியைக் காட்டு</string>
+    <string name="cd_always_on_top">எப்போதும் மேலே</string>
 </resources>

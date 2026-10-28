@@ -760,4 +760,12 @@
     <string name="tray_resume">Продовжити</string>
     <string name="tray_stop">Стоп (очистити чергу)</string>
     <string name="tray_quit">Закрити</string>
+    <string name="shortcuts_title">Комбінації клавіш</string>
+    <string name="shortcuts_play_pause">Відтворення / пауза</string>
+    <string name="shortcuts_now_playing">Показати або сховати екран відтворення</string>
+    <string name="shortcuts_nav_menu">Відкрити або закрити меню</string>
+    <string name="shortcuts_switch_tabs">Перемкнути вкладку</string>
+    <string name="shortcuts_escape">Вийти з повноекранного режиму, закрити екран відтворення, меню або спливне вікно</string>
+    <string name="shortcuts_help">Показати цю довідку</string>
+    <string name="cd_always_on_top">Поверх усіх вікон</string>
 </resources>

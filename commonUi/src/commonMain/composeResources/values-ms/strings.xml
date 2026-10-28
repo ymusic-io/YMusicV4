@@ -587,4 +587,12 @@
     <string name="tray_resume">Sambung semula</string>
     <string name="tray_stop">Henti (kosongkan baris gilir)</string>
     <string name="tray_quit">Tutup</string>
+    <string name="shortcuts_title">Pintasan papan kekunci</string>
+    <string name="shortcuts_play_pause">Main / jeda</string>
+    <string name="shortcuts_now_playing">Tunjukkan atau sembunyikan Sedang Dimainkan</string>
+    <string name="shortcuts_nav_menu">Buka atau tutup menu</string>
+    <string name="shortcuts_switch_tabs">Tukar tab</string>
+    <string name="shortcuts_escape">Keluar dari skrin penuh, atau tutup Sedang Dimainkan, menu atau tetingkap timbul</string>
+    <string name="shortcuts_help">Tunjukkan bantuan ini</string>
+    <string name="cd_always_on_top">Sentiasa di atas</string>
 </resources>

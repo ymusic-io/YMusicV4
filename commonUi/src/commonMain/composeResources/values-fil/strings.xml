@@ -592,4 +592,12 @@
     <string name="tray_resume">Ituloy</string>
     <string name="tray_stop">Ihinto (i-clear ang queue)</string>
     <string name="tray_quit">Isara</string>
+    <string name="shortcuts_title">Mga keyboard shortcut</string>
+    <string name="shortcuts_play_pause">I-play / i-pause</string>
+    <string name="shortcuts_now_playing">Ipakita o itago ang Now Playing</string>
+    <string name="shortcuts_nav_menu">Buksan o isara ang menu</string>
+    <string name="shortcuts_switch_tabs">Lumipat ng tab</string>
+    <string name="shortcuts_escape">Lumabas sa full screen, o isara ang Now Playing, ang menu o isang pop-up</string>
+    <string name="shortcuts_help">Ipakita ang tulong na ito</string>
+    <string name="cd_always_on_top">Laging nasa ibabaw</string>
 </resources>

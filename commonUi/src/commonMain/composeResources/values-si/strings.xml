@@ -592,4 +592,12 @@
     <string name="tray_resume">නැවත අරඹන්න</string>
     <string name="tray_stop">නවත්වන්න (පෝලිම හිස් කරන්න)</string>
     <string name="tray_quit">වසන්න</string>
+    <string name="shortcuts_title">යතුරුපුවරු කෙටිමං</string>
+    <string name="shortcuts_play_pause">වාදනය / විරාමය</string>
+    <string name="shortcuts_now_playing">දැන් වාදනය වන තිරය පෙන්වන්න හෝ සඟවන්න</string>
+    <string name="shortcuts_nav_menu">මෙනුව විවෘත කරන්න හෝ වසන්න</string>
+    <string name="shortcuts_switch_tabs">ටැබ් මාරු කරන්න</string>
+    <string name="shortcuts_escape">සම්පූර්ණ තිරයෙන් ඉවත් වන්න, නැතහොත් දැන් වාදනය වන තිරය, මෙනුව හෝ උත්පතන කවුළුව වසන්න</string>
+    <string name="shortcuts_help">මෙම උදව්ව පෙන්වන්න</string>
+    <string name="cd_always_on_top">සැමවිටම ඉහළින්</string>
 </resources>

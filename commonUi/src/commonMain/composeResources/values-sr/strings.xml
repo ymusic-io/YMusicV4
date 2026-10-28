@@ -597,4 +597,12 @@
     <string name="tray_resume">Настави</string>
     <string name="tray_stop">Заустави (обриши ред)</string>
     <string name="tray_quit">Затвори</string>
+    <string name="shortcuts_title">Пречице на тастатури</string>
+    <string name="shortcuts_play_pause">Пусти / паузирај</string>
+    <string name="shortcuts_now_playing">Прикажи или сакриј „Сада се пушта“</string>
+    <string name="shortcuts_nav_menu">Отвори или затвори мени</string>
+    <string name="shortcuts_switch_tabs">Промени картицу</string>
+    <string name="shortcuts_escape">Изађи из целог екрана или затвори „Сада се пушта“, мени или искачући прозор</string>
+    <string name="shortcuts_help">Прикажи ову помоћ</string>
+    <string name="cd_always_on_top">Увек на врху</string>
 </resources>

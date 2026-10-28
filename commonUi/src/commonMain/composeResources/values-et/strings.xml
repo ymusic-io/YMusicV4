@@ -592,4 +592,12 @@
     <string name="tray_resume">Jätka</string>
     <string name="tray_stop">Peata (tühjenda järjekord)</string>
     <string name="tray_quit">Sulge</string>
+    <string name="shortcuts_title">Klaviatuuri otseteed</string>
+    <string name="shortcuts_play_pause">Esita / peata</string>
+    <string name="shortcuts_now_playing">Kuva või peida Praegu mängib</string>
+    <string name="shortcuts_nav_menu">Ava või sulge menüü</string>
+    <string name="shortcuts_switch_tabs">Vaheta vahekaarte</string>
+    <string name="shortcuts_escape">Välju täisekraanist või sulge Praegu mängib, menüü või hüpikaken</string>
+    <string name="shortcuts_help">Kuva see abi</string>
+    <string name="cd_always_on_top">Alati peal</string>
 </resources>

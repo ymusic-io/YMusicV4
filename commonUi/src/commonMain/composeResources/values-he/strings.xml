@@ -597,4 +597,12 @@
     <string name="tray_resume">המשך</string>
     <string name="tray_stop">עצירה (ניקוי התור)</string>
     <string name="tray_quit">סגירה</string>
+    <string name="shortcuts_title">מקשי קיצור</string>
+    <string name="shortcuts_play_pause">השמעה / השהיה</string>
+    <string name="shortcuts_now_playing">הצגה או הסתרה של המסך המתנגן כעת</string>
+    <string name="shortcuts_nav_menu">פתיחה או סגירה של התפריט</string>
+    <string name="shortcuts_switch_tabs">מעבר בין כרטיסיות</string>
+    <string name="shortcuts_escape">יציאה ממסך מלא, או סגירת המסך המתנגן כעת, התפריט או חלון קופץ</string>
+    <string name="shortcuts_help">הצגת העזרה הזו</string>
+    <string name="cd_always_on_top">תמיד למעלה</string>
 </resources>

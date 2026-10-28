@@ -597,4 +597,12 @@
     <string name="tray_resume">Nastavi</string>
     <string name="tray_stop">Zaustavi (očisti red)</string>
     <string name="tray_quit">Zatvori</string>
+    <string name="shortcuts_title">Tipkovnički prečaci</string>
+    <string name="shortcuts_play_pause">Reproduciraj / pauziraj</string>
+    <string name="shortcuts_now_playing">Prikaži ili sakrij Sada svira</string>
+    <string name="shortcuts_nav_menu">Otvori ili zatvori izbornik</string>
+    <string name="shortcuts_switch_tabs">Promijeni karticu</string>
+    <string name="shortcuts_escape">Izađi iz cijelog zaslona ili zatvori Sada svira, izbornik ili skočni prozor</string>
+    <string name="shortcuts_help">Prikaži ovu pomoć</string>
+    <string name="cd_always_on_top">Uvijek na vrhu</string>
 </resources>

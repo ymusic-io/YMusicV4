@@ -602,4 +602,12 @@
     <string name="tray_resume">Pokračovať</string>
     <string name="tray_stop">Zastaviť (vymazať poradie)</string>
     <string name="tray_quit">Zavrieť</string>
+    <string name="shortcuts_title">Klávesové skratky</string>
+    <string name="shortcuts_play_pause">Prehrať / pozastaviť</string>
+    <string name="shortcuts_now_playing">Zobraziť alebo skryť Práve hrá</string>
+    <string name="shortcuts_nav_menu">Otvoriť alebo zavrieť ponuku</string>
+    <string name="shortcuts_switch_tabs">Prepínať karty</string>
+    <string name="shortcuts_escape">Ukončiť celú obrazovku alebo zavrieť Práve hrá, ponuku či vyskakovacie okno</string>
+    <string name="shortcuts_help">Zobraziť túto nápovedu</string>
+    <string name="cd_always_on_top">Vždy navrchu</string>
 </resources>

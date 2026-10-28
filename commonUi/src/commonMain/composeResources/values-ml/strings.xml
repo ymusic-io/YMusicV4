@@ -592,4 +592,12 @@
     <string name="tray_resume">തുടരുക</string>
     <string name="tray_stop">നിർത്തുക (ക്യൂ മായ്ക്കുക)</string>
     <string name="tray_quit">അടയ്ക്കുക</string>
+    <string name="shortcuts_title">കീബോർഡ് കുറുക്കുവഴികൾ</string>
+    <string name="shortcuts_play_pause">പ്ലേ / താൽക്കാലികമായി നിർത്തുക</string>
+    <string name="shortcuts_now_playing">Now Playing കാണിക്കുക അല്ലെങ്കിൽ മറയ്ക്കുക</string>
+    <string name="shortcuts_nav_menu">മെനു തുറക്കുക അല്ലെങ്കിൽ അടയ്ക്കുക</string>
+    <string name="shortcuts_switch_tabs">ടാബുകൾ മാറുക</string>
+    <string name="shortcuts_escape">പൂർണ്ണ സ്ക്രീനിൽ നിന്ന് പുറത്തുകടക്കുക, അല്ലെങ്കിൽ Now Playing, മെനു, പോപ്പ്-അപ്പ് എന്നിവ അടയ്ക്കുക</string>
+    <string name="shortcuts_help">ഈ സഹായം കാണിക്കുക</string>
+    <string name="cd_always_on_top">എപ്പോഴും മുകളിൽ</string>
 </resources>

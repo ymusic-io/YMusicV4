@@ -587,4 +587,12 @@
     <string name="tray_resume">재개</string>
     <string name="tray_stop">중지(대기열 지우기)</string>
     <string name="tray_quit">종료</string>
+    <string name="shortcuts_title">키보드 단축키</string>
+    <string name="shortcuts_play_pause">재생 / 일시정지</string>
+    <string name="shortcuts_now_playing">재생 화면 표시 / 숨기기</string>
+    <string name="shortcuts_nav_menu">메뉴 열기 / 닫기</string>
+    <string name="shortcuts_switch_tabs">탭 전환</string>
+    <string name="shortcuts_escape">전체 화면 종료 또는 재생 화면, 메뉴, 팝업 닫기</string>
+    <string name="shortcuts_help">이 도움말 표시</string>
+    <string name="cd_always_on_top">항상 위에 표시</string>
 </resources>

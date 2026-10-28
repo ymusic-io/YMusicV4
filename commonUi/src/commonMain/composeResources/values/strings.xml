@@ -744,4 +744,12 @@
     <string name="tray_resume">Resume</string>
     <string name="tray_stop">Stop (clear queue)</string>
     <string name="tray_quit">Quit</string>
+    <string name="shortcuts_title">Keyboard shortcuts</string>
+    <string name="shortcuts_play_pause">Play / pause</string>
+    <string name="shortcuts_now_playing">Show or hide Now Playing</string>
+    <string name="shortcuts_nav_menu">Open or close the menu</string>
+    <string name="shortcuts_switch_tabs">Switch tabs</string>
+    <string name="shortcuts_escape">Exit full screen, or close Now Playing, the menu or a pop-up</string>
+    <string name="shortcuts_help">Show this help</string>
+    <string name="cd_always_on_top">Always on top</string>
 </resources>

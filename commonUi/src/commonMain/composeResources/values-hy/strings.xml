@@ -592,4 +592,12 @@
     <string name="tray_resume">Շարունակել</string>
     <string name="tray_stop">Կանգնեցնել (մաքրել հերթը)</string>
     <string name="tray_quit">Փակել</string>
+    <string name="shortcuts_title">Ստեղնաշարի դյուրանցումներ</string>
+    <string name="shortcuts_play_pause">Նվագարկել / դադարեցնել</string>
+    <string name="shortcuts_now_playing">Ցուցադրել կամ թաքցնել «Հիմա հնչում է» էկրանը</string>
+    <string name="shortcuts_nav_menu">Բացել կամ փակել ընտրացանկը</string>
+    <string name="shortcuts_switch_tabs">Անցնել ներդիրների միջև</string>
+    <string name="shortcuts_escape">Դուրս գալ լիաէկրանից կամ փակել «Հիմա հնչում է» էկրանը, ընտրացանկը կամ ելնող պատուհանը</string>
+    <string name="shortcuts_help">Ցուցադրել այս օգնությունը</string>
+    <string name="cd_always_on_top">Միշտ վերևում</string>
 </resources>

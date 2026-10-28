@@ -592,4 +592,12 @@
     <string name="tray_resume">Berrekin</string>
     <string name="tray_stop">Gelditu (garbitu ilara)</string>
     <string name="tray_quit">Itxi</string>
+    <string name="shortcuts_title">Teklatuko lasterbideak</string>
+    <string name="shortcuts_play_pause">Erreproduzitu / pausatu</string>
+    <string name="shortcuts_now_playing">Erakutsi edo ezkutatu Orain erreproduzitzen</string>
+    <string name="shortcuts_nav_menu">Ireki edo itxi menua</string>
+    <string name="shortcuts_switch_tabs">Aldatu fitxaz</string>
+    <string name="shortcuts_escape">Irten pantaila osotik, edo itxi Orain erreproduzitzen, menua edo leiho gainerakor bat</string>
+    <string name="shortcuts_help">Erakutsi laguntza hau</string>
+    <string name="cd_always_on_top">Beti gainean</string>
 </resources>

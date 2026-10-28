@@ -592,4 +592,12 @@
     <string name="tray_resume">ಮುಂದುವರಿಸಿ</string>
     <string name="tray_stop">ನಿಲ್ಲಿಸಿ (ಸರತಿ ತೆರವುಗೊಳಿಸಿ)</string>
     <string name="tray_quit">ಮುಚ್ಚಿ</string>
+    <string name="shortcuts_title">ಕೀಬೋರ್ಡ್ ಶಾರ್ಟ್‌ಕಟ್‌ಗಳು</string>
+    <string name="shortcuts_play_pause">ಪ್ಲೇ / ವಿರಾಮ</string>
+    <string name="shortcuts_now_playing">Now Playing ತೋರಿಸಿ ಅಥವಾ ಮರೆಮಾಡಿ</string>
+    <string name="shortcuts_nav_menu">ಮೆನು ತೆರೆಯಿರಿ ಅಥವಾ ಮುಚ್ಚಿ</string>
+    <string name="shortcuts_switch_tabs">ಟ್ಯಾಬ್‌ಗಳನ್ನು ಬದಲಿಸಿ</string>
+    <string name="shortcuts_escape">ಪೂರ್ಣ ಪರದೆಯಿಂದ ನಿರ್ಗಮಿಸಿ, ಅಥವಾ Now Playing, ಮೆನು ಅಥವಾ ಪಾಪ್-ಅಪ್ ಮುಚ್ಚಿ</string>
+    <string name="shortcuts_help">ಈ ಸಹಾಯವನ್ನು ತೋರಿಸಿ</string>
+    <string name="cd_always_on_top">ಯಾವಾಗಲೂ ಮೇಲೆ</string>
 </resources>

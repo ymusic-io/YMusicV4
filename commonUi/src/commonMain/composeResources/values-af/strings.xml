@@ -592,4 +592,12 @@
     <string name="tray_resume">Hervat</string>
     <string name="tray_stop">Stop (vee tou uit)</string>
     <string name="tray_quit">Sluit af</string>
+    <string name="shortcuts_title">Sleutelbordkortpaaie</string>
+    <string name="shortcuts_play_pause">Speel / pouseer</string>
+    <string name="shortcuts_now_playing">Wys of versteek Speel nou</string>
+    <string name="shortcuts_nav_menu">Maak die kieslys oop of toe</string>
+    <string name="shortcuts_switch_tabs">Wissel oortjies</string>
+    <string name="shortcuts_escape">Verlaat volskerm, of maak Speel nou, die kieslys of 'n opspringvenster toe</string>
+    <string name="shortcuts_help">Wys hierdie hulp</string>
+    <string name="cd_always_on_top">Altyd bo-op</string>
 </resources>

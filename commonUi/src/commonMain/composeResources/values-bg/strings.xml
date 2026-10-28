@@ -592,4 +592,12 @@
     <string name="tray_resume">Продължаване</string>
     <string name="tray_stop">Стоп (изчистване на опашката)</string>
     <string name="tray_quit">Затваряне</string>
+    <string name="shortcuts_title">Клавишни комбинации</string>
+    <string name="shortcuts_play_pause">Пускане / пауза</string>
+    <string name="shortcuts_now_playing">Показване или скриване на „Сега се изпълнява“</string>
+    <string name="shortcuts_nav_menu">Отваряне или затваряне на менюто</string>
+    <string name="shortcuts_switch_tabs">Превключване между разделите</string>
+    <string name="shortcuts_escape">Изход от цял екран или затваряне на „Сега се изпълнява“, менюто или изскачащ прозорец</string>
+    <string name="shortcuts_help">Показване на тази помощ</string>
+    <string name="cd_always_on_top">Винаги отгоре</string>
 </resources>

@@ -592,4 +592,12 @@
     <string name="tray_resume">Fortsetzen</string>
     <string name="tray_stop">Stopp (Warteschlange leeren)</string>
     <string name="tray_quit">Beenden</string>
+    <string name="shortcuts_title">Tastenkürzel</string>
+    <string name="shortcuts_play_pause">Wiedergabe / Pause</string>
+    <string name="shortcuts_now_playing">„Aktuelle Wiedergabe“ ein- oder ausblenden</string>
+    <string name="shortcuts_nav_menu">Menü öffnen oder schließen</string>
+    <string name="shortcuts_switch_tabs">Tabs wechseln</string>
+    <string name="shortcuts_escape">Vollbild beenden oder „Aktuelle Wiedergabe“, das Menü oder ein Pop-up schließen</string>
+    <string name="shortcuts_help">Diese Hilfe anzeigen</string>
+    <string name="cd_always_on_top">Immer im Vordergrund</string>
 </resources>

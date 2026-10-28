@@ -592,4 +592,12 @@
     <string name="tray_resume">Devam et</string>
     <string name="tray_stop">Durdur (sırayı temizle)</string>
     <string name="tray_quit">Kapat</string>
+    <string name="shortcuts_title">Klavye kısayolları</string>
+    <string name="shortcuts_play_pause">Oynat / duraklat</string>
+    <string name="shortcuts_now_playing">Şimdi Çalıyor'u göster veya gizle</string>
+    <string name="shortcuts_nav_menu">Menüyü aç veya kapat</string>
+    <string name="shortcuts_switch_tabs">Sekmeler arasında geçiş yap</string>
+    <string name="shortcuts_escape">Tam ekrandan çık ya da Şimdi Çalıyor'u, menüyü veya açılır pencereyi kapat</string>
+    <string name="shortcuts_help">Bu yardımı göster</string>
+    <string name="cd_always_on_top">Her zaman üstte</string>
 </resources>

@@ -587,4 +587,12 @@
     <string name="tray_resume">再開</string>
     <string name="tray_stop">停止（キューをクリア）</string>
     <string name="tray_quit">終了</string>
+    <string name="shortcuts_title">キーボードショートカット</string>
+    <string name="shortcuts_play_pause">再生 / 一時停止</string>
+    <string name="shortcuts_now_playing">再生画面を表示 / 非表示</string>
+    <string name="shortcuts_nav_menu">メニューを開く / 閉じる</string>
+    <string name="shortcuts_switch_tabs">タブを切り替え</string>
+    <string name="shortcuts_escape">全画面表示を終了、または再生画面・メニュー・ポップアップを閉じる</string>
+    <string name="shortcuts_help">このヘルプを表示</string>
+    <string name="cd_always_on_top">常に手前に表示</string>
 </resources>

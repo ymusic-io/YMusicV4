@@ -602,4 +602,12 @@
     <string name="tray_resume">Wznów</string>
     <string name="tray_stop">Zatrzymaj (wyczyść kolejkę)</string>
     <string name="tray_quit">Zamknij</string>
+    <string name="shortcuts_title">Skróty klawiszowe</string>
+    <string name="shortcuts_play_pause">Odtwórz / wstrzymaj</string>
+    <string name="shortcuts_now_playing">Pokaż lub ukryj Teraz odtwarzane</string>
+    <string name="shortcuts_nav_menu">Otwórz lub zamknij menu</string>
+    <string name="shortcuts_switch_tabs">Przełączaj karty</string>
+    <string name="shortcuts_escape">Zamknij pełny ekran, Teraz odtwarzane, menu lub wyskakujące okno</string>
+    <string name="shortcuts_help">Pokaż tę pomoc</string>
+    <string name="cd_always_on_top">Zawsze na wierzchu</string>
 </resources>

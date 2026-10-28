@@ -597,4 +597,12 @@
     <string name="tray_resume">Reia</string>
     <string name="tray_stop">Oprește (golește coada)</string>
     <string name="tray_quit">Închide</string>
+    <string name="shortcuts_title">Comenzi rapide de la tastatură</string>
+    <string name="shortcuts_play_pause">Redare / pauză</string>
+    <string name="shortcuts_now_playing">Afișează sau ascunde Se redă acum</string>
+    <string name="shortcuts_nav_menu">Deschide sau închide meniul</string>
+    <string name="shortcuts_switch_tabs">Comută între file</string>
+    <string name="shortcuts_escape">Ieși din ecranul complet sau închide Se redă acum, meniul ori o fereastră pop-up</string>
+    <string name="shortcuts_help">Afișează acest ajutor</string>
+    <string name="cd_always_on_top">Mereu deasupra</string>
 </resources>

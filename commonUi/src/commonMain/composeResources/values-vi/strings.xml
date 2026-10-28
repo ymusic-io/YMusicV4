@@ -710,4 +710,12 @@
     <string name="tray_resume">Tiếp tục</string>
     <string name="tray_stop">Dừng (xóa hàng chờ)</string>
     <string name="tray_quit">Thoát</string>
+    <string name="shortcuts_title">Phím tắt</string>
+    <string name="shortcuts_play_pause">Phát / tạm dừng</string>
+    <string name="shortcuts_now_playing">Hiện hoặc ẩn Đang phát</string>
+    <string name="shortcuts_nav_menu">Mở hoặc đóng menu</string>
+    <string name="shortcuts_switch_tabs">Chuyển thẻ</string>
+    <string name="shortcuts_escape">Thoát toàn màn hình, hoặc đóng Đang phát, menu hay cửa sổ bật lên</string>
+    <string name="shortcuts_help">Hiện trợ giúp này</string>
+    <string name="cd_always_on_top">Luôn ở trên cùng</string>
 </resources>

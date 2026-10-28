@@ -592,4 +592,12 @@
     <string name="tray_resume">Συνέχεια</string>
     <string name="tray_stop">Διακοπή (εκκαθάριση ουράς)</string>
     <string name="tray_quit">Κλείσιμο</string>
+    <string name="shortcuts_title">Συντομεύσεις πληκτρολογίου</string>
+    <string name="shortcuts_play_pause">Αναπαραγωγή / παύση</string>
+    <string name="shortcuts_now_playing">Εμφάνιση ή απόκρυψη της Αναπαραγωγής τώρα</string>
+    <string name="shortcuts_nav_menu">Άνοιγμα ή κλείσιμο του μενού</string>
+    <string name="shortcuts_switch_tabs">Εναλλαγή καρτελών</string>
+    <string name="shortcuts_escape">Έξοδος από πλήρη οθόνη ή κλείσιμο της Αναπαραγωγής τώρα, του μενού ή ενός αναδυόμενου παραθύρου</string>
+    <string name="shortcuts_help">Εμφάνιση αυτής της βοήθειας</string>
+    <string name="cd_always_on_top">Πάντα σε πρώτο πλάνο</string>
 </resources>

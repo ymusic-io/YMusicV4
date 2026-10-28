@@ -602,4 +602,12 @@
     <string name="tray_resume">Продолжить</string>
     <string name="tray_stop">Стоп (очистить очередь)</string>
     <string name="tray_quit">Закрыть</string>
+    <string name="shortcuts_title">Сочетания клавиш</string>
+    <string name="shortcuts_play_pause">Воспроизведение / пауза</string>
+    <string name="shortcuts_now_playing">Показать или скрыть экран воспроизведения</string>
+    <string name="shortcuts_nav_menu">Открыть или закрыть меню</string>
+    <string name="shortcuts_switch_tabs">Переключить вкладку</string>
+    <string name="shortcuts_escape">Выйти из полноэкранного режима, закрыть экран воспроизведения, меню или всплывающее окно</string>
+    <string name="shortcuts_help">Показать эту справку</string>
+    <string name="cd_always_on_top">Поверх всех окон</string>
 </resources>

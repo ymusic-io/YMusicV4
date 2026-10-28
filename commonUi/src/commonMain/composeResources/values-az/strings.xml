@@ -592,4 +592,12 @@
     <string name="tray_resume">Davam et</string>
     <string name="tray_stop">Dayandır (növbəni təmizlə)</string>
     <string name="tray_quit">Bağla</string>
+    <string name="shortcuts_title">Klaviatura qısayolları</string>
+    <string name="shortcuts_play_pause">Oxut / fasilə</string>
+    <string name="shortcuts_now_playing">İndi oxudulur ekranını göstər və ya gizlət</string>
+    <string name="shortcuts_nav_menu">Menyunu aç və ya bağla</string>
+    <string name="shortcuts_switch_tabs">Tablar arasında keç</string>
+    <string name="shortcuts_escape">Tam ekrandan çıx və ya İndi oxudulur ekranını, menyunu, yaxud açılan pəncərəni bağla</string>
+    <string name="shortcuts_help">Bu yardımı göstər</string>
+    <string name="cd_always_on_top">Həmişə üstdə</string>
 </resources>

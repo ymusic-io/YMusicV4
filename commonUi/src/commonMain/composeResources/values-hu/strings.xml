@@ -592,4 +592,12 @@
     <string name="tray_resume">Folytatás</string>
     <string name="tray_stop">Leállítás (sor törlése)</string>
     <string name="tray_quit">Bezárás</string>
+    <string name="shortcuts_title">Billentyűparancsok</string>
+    <string name="shortcuts_play_pause">Lejátszás / szünet</string>
+    <string name="shortcuts_now_playing">A Most szól képernyő megjelenítése vagy elrejtése</string>
+    <string name="shortcuts_nav_menu">A menü megnyitása vagy bezárása</string>
+    <string name="shortcuts_switch_tabs">Váltás a lapok között</string>
+    <string name="shortcuts_escape">Kilépés a teljes képernyőből, vagy a Most szól, a menü vagy egy felugró ablak bezárása</string>
+    <string name="shortcuts_help">A súgó megjelenítése</string>
+    <string name="cd_always_on_top">Mindig felül</string>
 </resources>

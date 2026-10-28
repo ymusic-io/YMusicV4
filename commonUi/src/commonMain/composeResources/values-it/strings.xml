@@ -597,4 +597,12 @@
     <string name="tray_resume">Riprendi</string>
     <string name="tray_stop">Interrompi (svuota la coda)</string>
     <string name="tray_quit">Chiudi</string>
+    <string name="shortcuts_title">Scorciatoie da tastiera</string>
+    <string name="shortcuts_play_pause">Riproduci / metti in pausa</string>
+    <string name="shortcuts_now_playing">Mostra o nascondi la schermata di riproduzione</string>
+    <string name="shortcuts_nav_menu">Apri o chiudi il menu</string>
+    <string name="shortcuts_switch_tabs">Cambia scheda</string>
+    <string name="shortcuts_escape">Esci da schermo intero o chiudi la schermata di riproduzione, il menu o un popup</string>
+    <string name="shortcuts_help">Mostra questa guida</string>
+    <string name="cd_always_on_top">Sempre in primo piano</string>
 </resources>

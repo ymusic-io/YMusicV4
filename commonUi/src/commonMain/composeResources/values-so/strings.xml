@@ -592,4 +592,12 @@
     <string name="tray_resume">Sii wad</string>
     <string name="tray_stop">Jooji (nadiifi safka)</string>
     <string name="tray_quit">Xir</string>
+    <string name="shortcuts_title">Furayaasha gaaban ee kiiboodhka</string>
+    <string name="shortcuts_play_pause">Daar / haki</string>
+    <string name="shortcuts_now_playing">Tus ama qari La daarayo</string>
+    <string name="shortcuts_nav_menu">Fur ama xidh shaxda</string>
+    <string name="shortcuts_switch_tabs">Kala beddel tab-yada</string>
+    <string name="shortcuts_escape">Ka bax shaashadda buuxda, ama xidh La daarayo, shaxda ama daaqadda soo booda</string>
+    <string name="shortcuts_help">Tus caawimaaddan</string>
+    <string name="cd_always_on_top">Had iyo jeer xagga sare</string>
 </resources>

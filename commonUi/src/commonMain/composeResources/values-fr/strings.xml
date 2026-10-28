@@ -597,4 +597,12 @@
     <string name="tray_resume">Reprendre</string>
     <string name="tray_stop">Arrêter (vider la file d'attente)</string>
     <string name="tray_quit">Quitter</string>
+    <string name="shortcuts_title">Raccourcis clavier</string>
+    <string name="shortcuts_play_pause">Lecture / pause</string>
+    <string name="shortcuts_now_playing">Afficher ou masquer la lecture en cours</string>
+    <string name="shortcuts_nav_menu">Ouvrir ou fermer le menu</string>
+    <string name="shortcuts_switch_tabs">Changer d'onglet</string>
+    <string name="shortcuts_escape">Quitter le plein écran, ou fermer la lecture en cours, le menu ou une fenêtre pop-up</string>
+    <string name="shortcuts_help">Afficher cette aide</string>
+    <string name="cd_always_on_top">Toujours au premier plan</string>
 </resources>

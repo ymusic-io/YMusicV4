@@ -592,4 +592,12 @@
     <string name="tray_resume">Hervatten</string>
     <string name="tray_stop">Stoppen (wachtrij wissen)</string>
     <string name="tray_quit">Afsluiten</string>
+    <string name="shortcuts_title">Sneltoetsen</string>
+    <string name="shortcuts_play_pause">Afspelen / pauzeren</string>
+    <string name="shortcuts_now_playing">Speelt nu tonen of verbergen</string>
+    <string name="shortcuts_nav_menu">Menu openen of sluiten</string>
+    <string name="shortcuts_switch_tabs">Tussen tabbladen wisselen</string>
+    <string name="shortcuts_escape">Volledig scherm verlaten, of Speelt nu, het menu of een pop-up sluiten</string>
+    <string name="shortcuts_help">Deze hulp tonen</string>
+    <string name="cd_always_on_top">Altijd bovenop</string>
 </resources>

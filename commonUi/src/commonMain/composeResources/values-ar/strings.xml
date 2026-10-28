@@ -746,4 +746,12 @@
     <string name="tray_resume">استئناف</string>
     <string name="tray_stop">إيقاف (مسح قائمة الانتظار)</string>
     <string name="tray_quit">إنهاء</string>
+    <string name="shortcuts_title">اختصارات لوحة المفاتيح</string>
+    <string name="shortcuts_play_pause">تشغيل / إيقاف مؤقت</string>
+    <string name="shortcuts_now_playing">إظهار التشغيل الآن أو إخفاؤه</string>
+    <string name="shortcuts_nav_menu">فتح القائمة أو إغلاقها</string>
+    <string name="shortcuts_switch_tabs">التبديل بين علامات التبويب</string>
+    <string name="shortcuts_escape">الخروج من ملء الشاشة، أو إغلاق التشغيل الآن أو القائمة أو النافذة المنبثقة</string>
+    <string name="shortcuts_help">عرض هذه المساعدة</string>
+    <string name="cd_always_on_top">دائمًا في المقدمة</string>
 </resources>

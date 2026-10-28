@@ -597,4 +597,12 @@
     <string name="tray_resume">Reanudar</string>
     <string name="tray_stop">Detener (vaciar la cola)</string>
     <string name="tray_quit">Cerrar</string>
+    <string name="shortcuts_title">Atajos de teclado</string>
+    <string name="shortcuts_play_pause">Reproducir / pausar</string>
+    <string name="shortcuts_now_playing">Mostrar u ocultar la pantalla de reproducción</string>
+    <string name="shortcuts_nav_menu">Abrir o cerrar el menú</string>
+    <string name="shortcuts_switch_tabs">Cambiar de pestaña</string>
+    <string name="shortcuts_escape">Salir de pantalla completa o cerrar la pantalla de reproducción, el menú o una ventana emergente</string>
+    <string name="shortcuts_help">Mostrar esta ayuda</string>
+    <string name="cd_always_on_top">Siempre visible</string>
 </resources>

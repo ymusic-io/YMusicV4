@@ -587,4 +587,12 @@
     <string name="tray_resume">เล่นต่อ</string>
     <string name="tray_stop">หยุด (ล้างคิว)</string>
     <string name="tray_quit">ปิด</string>
+    <string name="shortcuts_title">แป้นพิมพ์ลัด</string>
+    <string name="shortcuts_play_pause">เล่น / หยุดชั่วคราว</string>
+    <string name="shortcuts_now_playing">แสดงหรือซ่อนหน้ากำลังเล่น</string>
+    <string name="shortcuts_nav_menu">เปิดหรือปิดเมนู</string>
+    <string name="shortcuts_switch_tabs">สลับแท็บ</string>
+    <string name="shortcuts_escape">ออกจากโหมดเต็มหน้าจอ หรือปิดหน้ากำลังเล่น เมนู หรือป๊อปอัป</string>
+    <string name="shortcuts_help">แสดงความช่วยเหลือนี้</string>
+    <string name="cd_always_on_top">อยู่ด้านบนเสมอ</string>
 </resources>
