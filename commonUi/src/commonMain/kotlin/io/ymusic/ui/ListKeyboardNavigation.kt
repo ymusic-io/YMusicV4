@@ -16,11 +16,11 @@ import androidx.compose.ui.platform.LocalFocusManager
 internal enum class ListOrientation { Vertical, Horizontal, Both }
 
 /**
- * Makes a list behave like a Windows ListView for keyboard users: Tab treats the whole list as a
- * single focus stop (via [focusGroup]), and the arrow keys matching the list's [orientation] move
+ * Arrow-key navigation for keyboard users: the arrow keys matching the list's [orientation] move
  * focus between items via Compose's geometric search. The orthogonal arrows (e.g. ↓ from a
  * horizontal tab row) are NOT intercepted, so pressing Down on a tab lets Compose jump focus
- * from the tab row into the first focusable row of the list beneath it.
+ * from the tab row into the first focusable row of the list beneath it. Tab still stops at every
+ * item: [focusGroup] only keeps the list's items together in the Tab order.
  *
  *   * [ListOrientation.Vertical]   → ↑/↓ (default; LazyColumn, menus, side navs)
  *   * [ListOrientation.Horizontal] → ←/→ (LazyRow, tab bars)
