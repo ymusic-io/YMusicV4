@@ -1641,6 +1641,8 @@ private suspend fun pickFolder(): File? {
         val owner = withContext(Dispatchers.Main) { mainWindow?.let { Native.getComponentPointer(it) } }
         try {
             return WindowsFolderPicker.pick(owner, title)
+        } catch (c: kotlinx.coroutines.CancellationException) {
+            throw c
         } catch (e: Exception) {
             rootLogger.fork("folder-picker").log(Logger.Level.WARN, "native folder picker failed, using FileDialog", e)
         }
