@@ -1253,11 +1253,14 @@ static void aq_callback(void *user, AudioQueueRef q, AudioQueueBufferRef buf)
     }
     pthread_cond_broadcast(&p->cv);
     pthread_mutex_unlock(&p->mu);
-    if (n <= 0) {
-        memset(buf->mAudioData, 0, (size_t)cap);
-        n = cap;
-    }
-    buf->mAudioDataByteSize = (UInt32)n;
+    /* Always hand the device a full-length buffer. A short write would make the DAC burn
+       through buffers faster than real time (WOM_DONE every ~1ms instead of ~every 10ms)
+       and the aqw_loop can't keep up — the user hears a rapid crackle while the clock
+       drifts forward. Pad any shortfall with silence so each buffer plays for the full
+       cap duration and WOM_DONEs stay on the device-rate cadence. */
+    if (n < cap)
+        memset((uint8_t *)buf->mAudioData + (n > 0 ? n : 0), 0, (size_t)(cap - (n > 0 ? n : 0)));
+    buf->mAudioDataByteSize = (UInt32)cap;
     AudioQueueEnqueueBuffer(q, buf, 0, NULL);
 }
 
