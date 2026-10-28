@@ -1364,10 +1364,11 @@ internal fun DiscoverTabRow(
     // keyboard users can arrow-navigate immediately. Does not re-fire on mere tab clicks within
     // the section because the DiscoverTabRow stays composed.
     val activeTabFocus = remember { FocusRequester() }
-    LaunchedEffect(Unit) {
-        runCatching { activeTabFocus.requestFocus() }
-    }
     BoxWithConstraints(if (inline) Modifier else Modifier.fillMaxWidth()) {
+        // In the subcomposition with the tabs, so the active tab carries the requester by now.
+        LaunchedEffect(Unit) {
+            if (selected in tabs) activeTabFocus.requestFocus()
+        }
         // Inline: equal tabs tiling the row with no dead space, shrinking from the max when the bar is short.
         val inlineTabWidth = (maxWidth / tabs.size.coerceAtLeast(1)).coerceAtMost(DiscoverInlineTabMaxWidth)
         Column(if (inline) Modifier else Modifier.fillMaxWidth()) {

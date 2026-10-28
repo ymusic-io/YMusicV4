@@ -237,7 +237,9 @@ internal fun <T : Any> UnderlineTabRow(
     val bounds = remember(rtl) { mutableStateMapOf<T, Pair<Dp, Dp>>() }
     // Focus the current tab on first composition so keyboard users land on it on screen entry.
     val activeTabFocus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { activeTabFocus.requestFocus() } }
+    LaunchedEffect(Unit) {
+        if (selected != null && selected in entries) activeTabFocus.requestFocus()
+    }
     HorizontalOverflowBox(scrollState) {
         Column(
             Modifier
