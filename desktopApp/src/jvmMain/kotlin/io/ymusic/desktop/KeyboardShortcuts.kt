@@ -52,6 +52,8 @@ internal fun handleGlobalShortcut(
             true
         }
         cmd && event.key == Key.M -> { GlobalShortcutActions.toggleNavDrawer(); true }
+        // macOS's standard Ctrl+Cmd+F full screen; must precede Cmd+F.
+        event.isMetaPressed && event.isCtrlPressed && event.key == Key.F -> { frame.toggleFullscreen(); true }
         cmd && event.key == Key.F -> { GlobalShortcutActions.openSearch(); true }
         cmd && digitIndex(event.key) != null -> {
             GlobalShortcutActions.selectTabByIndex(digitIndex(event.key)!!)
