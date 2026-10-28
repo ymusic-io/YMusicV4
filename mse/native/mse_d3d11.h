@@ -19,6 +19,7 @@
 struct AVBufferRef;
 struct AVCodec;
 struct AVCodecContext;
+struct AVCodecParameters;
 enum AVPixelFormat;
 
 #ifdef __cplusplus
@@ -38,8 +39,12 @@ void mse_d3d11_unlock(void);
 /* Fresh AVBufferRef wrapping the shared d3d11va hwdevice; NULL = no device.
    Caller av_buffer_unref's when done. */
 struct AVBufferRef *mse_d3d11_hwdev_ref(void);
-/* get_format filter: AV_PIX_FMT_D3D11 if offered, else first software format. */
+/* get_format filter: AV_PIX_FMT_D3D11 when offered for an 8-bit 4:2:0 stream (the only kind
+   the present shader samples), else the first software format. */
 enum AVPixelFormat mse_d3d11_pick(struct AVCodecContext *ctx, const enum AVPixelFormat *fmts);
+/* 0 when the stream parameters already show it is not 8-bit 4:2:0 (format, bit depth, VP9 /
+   HEVC / AV1 profile, av1C). Unknown passes; mse_d3d11_pick catches it at decode time. */
+int mse_d3d11_par_ok(const struct AVCodecParameters *par);
 /* 1 when `codec` has a d3d11va hwaccel and the GPU can run it. VP9/AV1 need the GPU's
    profile-0 decoder (enumerated once); H.264/HEVC only need the device, since their native
    decoders fall back to software internally while native av1 has no software path. */

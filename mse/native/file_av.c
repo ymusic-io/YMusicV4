@@ -322,7 +322,7 @@ static const AVCodec *d3d11_vdec(const FileAv *p, const AVCodecParameters *par)
 {
     const char *name;
     const AVCodec *c;
-    if (!p || !p->d3d11_hwnd)
+    if (!p || !p->d3d11_hwnd || !mse_d3d11_par_ok(par))
         return NULL;
     switch (par->codec_id) {
     case AV_CODEC_ID_H264:

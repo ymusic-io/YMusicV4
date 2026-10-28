@@ -6,6 +6,7 @@
 #include <libavutil/buffer.h>
 #include <libavutil/hwcontext.h>
 #include <libavutil/hwcontext_d3d11va.h>
+#include <libavutil/pixdesc.h>
 #include <libavutil/pixfmt.h>
 #include <libavcodec/avcodec.h>
 
@@ -79,22 +80,51 @@ AVBufferRef *mse_d3d11_hwdev_ref(void)
     return av_buffer_ref(g_hwdev);
 }
 
+/* The present shader samples NV12 through R8/R8G8 views: 8-bit 4:2:0 only. */
+static int nv12_fits(enum AVPixelFormat f)
+{
+    return f == AV_PIX_FMT_YUV420P || f == AV_PIX_FMT_YUVJ420P || f == AV_PIX_FMT_NV12;
+}
+
 enum AVPixelFormat mse_d3d11_pick(AVCodecContext *ctx, const enum AVPixelFormat *fmts)
 {
     const enum AVPixelFormat *p;
-    (void)ctx;
-    for (p = fmts; *p != AV_PIX_FMT_NONE; p++) {
-        if (*p == AV_PIX_FMT_D3D11)
-            return *p;
+    if (nv12_fits(ctx->sw_pix_fmt)) {
+        for (p = fmts; *p != AV_PIX_FMT_NONE; p++) {
+            if (*p == AV_PIX_FMT_D3D11)
+                return *p;
+        }
     }
-    /* ffmpeg re-offers without the hw format when its hwaccel init fails;
-       fall through to the first software pixfmt so the decoder can keep
-       running on CPU. The caller will route the sw AVFrame via scale_bgra. */
+    /* Also the path after a failed hwaccel init: ffmpeg re-offers without that format. */
     for (p = fmts; *p != AV_PIX_FMT_NONE; p++) {
-        if (*p != AV_PIX_FMT_D3D11)
+        const AVPixFmtDescriptor *d = av_pix_fmt_desc_get(*p);
+        if (d && !(d->flags & AV_PIX_FMT_FLAG_HWACCEL))
             return *p;
     }
     return AV_PIX_FMT_NONE;
+}
+
+int mse_d3d11_par_ok(const AVCodecParameters *par)
+{
+    if (par->bits_per_raw_sample > 8)
+        return 0;
+    if (par->format != AV_PIX_FMT_NONE && !nv12_fits((enum AVPixelFormat)par->format))
+        return 0;
+    switch (par->codec_id) {
+    case AV_CODEC_ID_VP9:
+        return par->profile == AV_PROFILE_UNKNOWN || par->profile == AV_PROFILE_VP9_0;
+    case AV_CODEC_ID_HEVC:
+        return par->profile == AV_PROFILE_UNKNOWN || par->profile == AV_PROFILE_HEVC_MAIN ||
+               par->profile == AV_PROFILE_HEVC_MAIN_STILL_PICTURE;
+    case AV_CODEC_ID_AV1:
+        /* av1C: byte 2 bit 6 is high_bitdepth. */
+        if (par->extradata && par->extradata_size >= 4 && (par->extradata[0] & 0x80) &&
+            (par->extradata[2] & 0x40))
+            return 0;
+        return par->profile == AV_PROFILE_UNKNOWN || par->profile == AV_PROFILE_AV1_MAIN;
+    default:
+        return 1;
+    }
 }
 
 static int has_profile(ID3D11VideoDevice *vd, const GUID *want)

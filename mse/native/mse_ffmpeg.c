@@ -2060,10 +2060,9 @@ static int open_decoder(MseAv *a, int video, AVCodecParameters *par)
 #endif
 #ifdef MSE_WIN_HW
     /* D3D11VA wraps the process-wide device, not a swapchain: it decodes with or without an
-     * attached Canvas. 10-bit stays software (bits_per_raw_sample). */
+     * attached Canvas. */
     (*ctxp)->opaque = a;
-    if (video && par->codec_id != a->d3d11_fail_id &&
-        (par->bits_per_raw_sample == 0 || par->bits_per_raw_sample == 8) &&
+    if (video && par->codec_id != a->d3d11_fail_id && mse_d3d11_par_ok(par) &&
         mse_d3d11_can_decode(codec)) {
         AVBufferRef *hw = mse_d3d11_hwdev_ref();
         if (hw) {

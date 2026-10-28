@@ -14,9 +14,8 @@
 
 /* NV12 → BGRA. BT.709 limited-range (16..235 / 16..240).
    The vertex shader draws a triangle covering the viewport (SV_VertexID);
-   draw_nv12 sets the viewport to the letterboxed picture rect. 10-bit would
-   need DXGI_FORMAT_P010 / 601 vs 709 and is deferred — the open_decoder HW
-   check skips it. */
+   draw_nv12 sets the viewport to the letterboxed picture rect. 10-bit (P010)
+   never gets here: mse_d3d11_pick keeps it in software. */
 static const char kShaderHlsl[] =
     "cbuffer K : register(b0) {\n"
     "    float4 crop;\n" /* xy = picture share of the padded texture, zw unused */
@@ -274,10 +273,9 @@ static void clear_backbuffer(ID3D11DeviceContext *ctx)
 }
 
 static int draw_nv12(ID3D11Device *dev, ID3D11DeviceContext *ctx, ID3D11Texture2D *tex,
-                     UINT slice, int src_w, int src_h)
+                     const D3D11_TEXTURE2D_DESC *td, UINT slice, int src_w, int src_h)
 {
     D3D11_SHADER_RESOURCE_VIEW_DESC yd, uvd;
-    D3D11_TEXTURE2D_DESC td;
     ID3D11ShaderResourceView *srvY = NULL, *srvUV = NULL;
     ID3D11ShaderResourceView *srvs[2];
     D3D11_VIEWPORT vp;
@@ -327,9 +325,8 @@ static int draw_nv12(ID3D11Device *dev, ID3D11DeviceContext *ctx, ID3D11Texture2
         if (vh < 1) vh = 1;
     }
     /* d3d11va pads the pool texture (128-aligned for AV1/HEVC); the padding is never written. */
-    ID3D11Texture2D_GetDesc(tex, &td);
-    crop[0] = src_w > 0 && td.Width > 0 ? (float)src_w / (float)td.Width : 1.0f;
-    crop[1] = src_h > 0 && td.Height > 0 ? (float)src_h / (float)td.Height : 1.0f;
+    crop[0] = src_w > 0 && td->Width > 0 ? (float)src_w / (float)td->Width : 1.0f;
+    crop[1] = src_h > 0 && td->Height > 0 ? (float)src_h / (float)td->Height : 1.0f;
     crop[2] = 0.0f;
     crop[3] = 0.0f;
 
@@ -482,8 +479,10 @@ void mse_d3d11_present_detach(const void *owner)
 int mse_d3d11_present_show(ID3D11Texture2D *tex, UINT array_slice, int src_w, int src_h,
                            const void *owner)
 {
+    static int fmt_logged;
     ID3D11Device *dev;
     ID3D11DeviceContext *ctx;
+    D3D11_TEXTURE2D_DESC td;
     HRESULT hr;
     int r = -1;
 
@@ -491,6 +490,15 @@ int mse_d3d11_present_show(ID3D11Texture2D *tex, UINT array_slice, int src_w, in
     ctx = mse_d3d11_context();
     if (!dev || !ctx || !tex)
         return -1;
+    ID3D11Texture2D_GetDesc(tex, &td);
+    if (td.Format != DXGI_FORMAT_NV12) {
+        if (!fmt_logged) {
+            fmt_logged = 1;
+            mse_critf(MSE_LOG_WARN, "d3d11 present takes NV12 only, got DXGI format %d",
+                      (int)td.Format);
+        }
+        return -1;
+    }
 
     mse_d3d11_lock();
     if (!g_p.swap || g_p.owner != owner) {
@@ -529,7 +537,7 @@ int mse_d3d11_present_show(ID3D11Texture2D *tex, UINT array_slice, int src_w, in
         return -1;
     }
     clear_backbuffer(ctx);
-    if (draw_nv12(dev, ctx, tex, array_slice, src_w, src_h) == 0) {
+    if (draw_nv12(dev, ctx, tex, &td, array_slice, src_w, src_h) == 0) {
         hr = IDXGISwapChain1_Present(g_p.swap, 1, 0);
         if (SUCCEEDED(hr)) {
             r = 0;
