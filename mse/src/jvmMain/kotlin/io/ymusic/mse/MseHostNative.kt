@@ -98,12 +98,15 @@ actual object MseHostNative {
 
     private fun loadLibrary() {
         if (!loaded.compareAndSet(false, true)) return
-        runCatching { System.loadLibrary("jawt") }
+        try {
+            System.loadLibrary("jawt")
+        } catch (e: UnsatisfiedLinkError) {
+            MseLogBridge.fire(LOG_WARN, "mse: jawt did not load, no native video surface: $e")
+        }
         val name = "mseffmpegjni"
         val libFileName = System.mapLibraryName(name)
         System.getProperty("mse.native.dir")?.let { dir ->
-            preloadWindowsDeps(File(dir), libFileName)
-            System.load(File(dir, libFileName).absolutePath)
+            loadWithDeps(File(dir), libFileName)
             return
         }
         val libraryPathError = try {
@@ -128,7 +131,8 @@ actual object MseHostNative {
         val names = cl.getResourceAsStream("$folder/natives.txt")?.bufferedReader()?.use { it.readLines() }
             ?.map { it.trim() }?.filter { it.isNotEmpty() }
             ?: listOf(libFileName)
-        val tmpDir = Files.createTempDirectory("mseffmpegjni").toFile().also { it.deleteOnExit() }
+        sweepStaleTempCopies()
+        val tmpDir = Files.createTempDirectory(TEMP_PREFIX).toFile().also { it.deleteOnExit() }
         for (n in names) {
             val stream = cl.getResourceAsStream("$folder/$n")
                 ?: throw UnsatisfiedLinkError("No bundled $name at $folder/$n")
@@ -137,35 +141,51 @@ actual object MseHostNative {
                 Files.copy(inp, dest.toPath(), StandardCopyOption.REPLACE_EXISTING)
             }
         }
-        preloadWindowsDeps(tmpDir, libFileName)
-        System.load(File(tmpDir, libFileName).absolutePath)
+        loadWithDeps(tmpDir, libFileName)
     }
 
-    /** Windows's LoadLibraryEx(LOAD_WITH_ALTERED_SEARCH_PATH) honors the altered dir only for the
-     *  first-level DLL — transitive imports fall back to the standard search, which misses our
-     *  tmpdir/appResources. Pre-loading each dep by absolute path puts them in the process module
-     *  table under their filename, so subsequent LoadLibrary(name) during transitive resolution
-     *  finds the already-loaded handle. @loader_path on macOS and $ORIGIN on Linux handle this
-     *  without help. */
-    private fun preloadWindowsDeps(dir: File, selfLibFileName: String) {
-        val os = System.getProperty("os.name").lowercase(Locale.US)
-        if (!os.contains("win")) return
-        // Load in dependency order (OS-level first, then libav bottom-up). Missing files are fine:
-        // not every pack ships zlib1/libwinpthread, and av* names depend on soversion.
-        val order = listOf(
-            "zlib1.dll", "libwinpthread-1.dll",
-            "avutil-61.dll", "swresample-7.dll", "swscale-10.dll",
-            "avcodec-63.dll", "avformat-63.dll", "avfilter-12.dll", "avdevice-63.dll",
-        )
-        for (n in order) {
-            if (n == selfLibFileName) continue
-            val f = File(dir, n)
-            if (f.isFile) {
-                @Suppress("UnsafeDynamicallyLoadedCode")
-                runCatching { System.load(f.absolutePath) }
-            }
+    @Suppress("UnsafeDynamicallyLoadedCode")
+    private fun loadWithDeps(dir: File, libFileName: String) {
+        val depErrors = preloadWindowsDeps(dir)
+        try {
+            System.load(File(dir, libFileName).absolutePath)
+        } catch (error: UnsatisfiedLinkError) {
+            depErrors.forEach(error::addSuppressed)
+            throw error
         }
     }
+
+    /** System.load is a plain LoadLibrary on Windows, which never looks next to a DLL for its imports:
+     *  load each dependency by full path first so those imports bind to the module already loaded. */
+    @Suppress("UnsafeDynamicallyLoadedCode")
+    private fun preloadWindowsDeps(dir: File): List<UnsatisfiedLinkError> {
+        if (!isWindows()) return emptyList()
+        val deps = dir.listFiles().orEmpty()
+            .mapNotNull { f -> windowsDepRank(f.name)?.let { it to f } }
+            .sortedBy { it.first }
+        val errors = ArrayList<UnsatisfiedLinkError>()
+        for ((_, f) in deps) {
+            try {
+                System.load(f.absolutePath)
+            } catch (e: UnsatisfiedLinkError) {
+                MseLogBridge.fire(LOG_WARN, "mse: preloading ${f.name} failed: $e")
+                errors += e
+            }
+        }
+        return errors
+    }
+
+    /** Windows cannot delete a loaded DLL, so each launch's deleteOnExit copy stays behind. Best effort:
+     *  a copy a running instance still holds keeps its locked DLLs, and the age spares one being unpacked. */
+    private fun sweepStaleTempCopies() {
+        if (!isWindows()) return
+        val cutoff = System.currentTimeMillis() - STALE_TEMP_MS
+        File(System.getProperty("java.io.tmpdir")).listFiles { f ->
+            f.isDirectory && f.name.startsWith(TEMP_PREFIX) && f.lastModified() < cutoff
+        }?.forEach { it.deleteRecursively() }
+    }
+
+    private fun isWindows(): Boolean = System.getProperty("os.name").lowercase(Locale.US).contains("win")
 
     private fun hostJniFolder(): String {
         val os = System.getProperty("os.name").lowercase(Locale.US)
@@ -183,4 +203,18 @@ actual object MseHostNative {
         }
         return "${osPrefix}_$archSuffix"
     }
+}
+
+private const val LOG_WARN = 2
+
+private const val TEMP_PREFIX = "mseffmpegjni"
+private const val STALE_TEMP_MS = 60 * 60 * 1000L
+
+/** OS runtime first, then libav bottom-up; any soversion, with or without MinGW's `lib` prefix. */
+private val WINDOWS_DEPS = listOf("zlib", "winpthread", "avutil", "swresample", "swscale", "avcodec", "avformat", "avfilter", "avdevice")
+private val WINDOWS_DEP_NAME = Regex("""^(?:lib)?([a-z]+)-?\d*\.dll$""", RegexOption.IGNORE_CASE)
+
+private fun windowsDepRank(fileName: String): Int? {
+    val base = WINDOWS_DEP_NAME.matchEntire(fileName)?.groupValues?.get(1)?.lowercase(Locale.US) ?: return null
+    return WINDOWS_DEPS.indexOf(base).takeIf { it >= 0 }
 }
