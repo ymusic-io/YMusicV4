@@ -52,6 +52,14 @@
 #define VOUT_N 4
 #define MAX_DROP 2
 #define IDLE_NS_MAX (16 * 1000 * 1000)
+#ifdef _WIN32
+/* waveOut underruns on ~11 ms buffers under UI load. */
+#define AQ_BUF_FRAMES 2048
+/* AQ_NBUFS of those (~170 ms) sit ahead of the speaker: count frames as they play out, not as queued. */
+#define FILE_AV_PLAYOUT_CLOCK 1
+#else
+#define AQ_BUF_FRAMES 512
+#endif
 
 
 enum { ST_AUDIO = 0, ST_VIDEO = 1, ST_TEXT = 2 };
@@ -167,6 +175,12 @@ struct FileAv {
     double seek_base;
     double dac_tick_ns;
     float volume;
+#endif
+#ifdef FILE_AV_PLAYOUT_CLOCK
+    /* Buffers queued at the device, in play order, with the frames of real audio each holds. */
+    AudioQueueBufferRef dac_q[AQ_NBUFS];
+    int dac_q_real[AQ_NBUFS];
+    int dac_q_n;
 #endif
 };
 
@@ -452,10 +466,15 @@ static double media_time_locked(FileAv *p)
         if (p->dac_tick_ns > 0) {
             double extra = (now_ns() - p->dac_tick_ns) / 1e9 * p->speed;
             double one = 0.012;
+#ifdef FILE_AV_PLAYOUT_CLOCK
+            /* Only through the real audio of the buffer playing now: padding and primed silence hold. */
+            one = (p->dac_q_n > 0 ? p->dac_q_real[0] : 0) / (double)p->out_rate * p->speed;
+#else
             if (p->dac_buf_bytes > 0) {
                 int fb = p->out_ch > 0 ? p->out_ch * 2 : OUT_CH * 2;
                 one = (double)p->dac_buf_bytes / (double)(p->out_rate * fb) * p->speed;
             }
+#endif
             if (extra > one)
                 extra = one;
             if (extra > 0)
@@ -1324,34 +1343,94 @@ static int ring_read(FileAv *p, uint8_t *dst, int n)
     return got;
 }
 
+/* mu held. Real frames still queued ahead of the speaker. */
+static int dac_q_pending(const FileAv *p)
+{
+#ifdef FILE_AV_PLAYOUT_CLOCK
+    int i, n = 0;
+    for (i = 0; i < p->dac_q_n; i++)
+        n += p->dac_q_real[i];
+    return n;
+#else
+    (void)p;
+    return 0;
+#endif
+}
+
+#ifdef FILE_AV_PLAYOUT_CLOCK
+/* mu held. buf has just played out: drop it from the queue, returning its real frames. */
+static int dac_q_take(FileAv *p, AudioQueueBufferRef buf)
+{
+    int i, real;
+    for (i = 0; i < p->dac_q_n; i++) {
+        if (p->dac_q[i] != buf)
+            continue;
+        real = p->dac_q_real[i];
+        p->dac_q_n--;
+        memmove(&p->dac_q[i], &p->dac_q[i + 1], (size_t)(p->dac_q_n - i) * sizeof(p->dac_q[0]));
+        memmove(&p->dac_q_real[i], &p->dac_q_real[i + 1], (size_t)(p->dac_q_n - i) * sizeof(p->dac_q_real[0]));
+        return real;
+    }
+    return 0;
+}
+
+/* mu held. Each buffer is either queued or in the callback, so dac_q never holds more than AQ_NBUFS. */
+static void dac_q_put(FileAv *p, AudioQueueBufferRef buf, int real)
+{
+    p->dac_q[p->dac_q_n] = buf;
+    p->dac_q_real[p->dac_q_n] = real;
+    p->dac_q_n++;
+}
+#endif
+
 static void aq_callback(void *user, AudioQueueRef q, AudioQueueBufferRef buf)
 {
     FileAv *p = user;
     int n = 0;
     int cap;
+#ifdef FILE_AV_PLAYOUT_CLOCK
+    int own;
+#endif
     pthread_mutex_lock(&p->mu);
     cap = p->dac_buf_bytes > 0 ? p->dac_buf_bytes : (int)buf->mAudioDataBytesCapacity;
     if (cap > (int)buf->mAudioDataBytesCapacity)
         cap = (int)buf->mAudioDataBytesCapacity;
+#ifdef FILE_AV_PLAYOUT_CLOCK
+    /* stop_aq detaches the queue before disposing it; its last callbacks must not touch dac_q. */
+    own = q == p->dac;
+    if (own) {
+        p->samples_played += dac_q_take(p, buf);
+        p->dac_tick_ns = now_ns();
+    }
+#endif
     if (!p->stop && !p->flushing && p->playing && p->ring)
         n = ring_read(p, (uint8_t *)buf->mAudioData, cap);
     /* Colored at the device pull so EQ is instant and the spectrum matches what is heard. */
     if (n > 0 && p->fx)
         audio_fx_color(p->fx, (int16_t *)buf->mAudioData, n / ring_fb(p), ring_fb(p) / 2);
+#ifdef FILE_AV_PLAYOUT_CLOCK
+    if (own)
+        dac_q_put(p, buf, n / ring_fb(p));
+#else
     if (n > 0 && p->out_rate > 0) {
         p->samples_played += n / ring_fb(p);
         p->dac_tick_ns = now_ns();
     }
+#endif
     pthread_cond_broadcast(&p->cv);
     pthread_mutex_unlock(&p->mu);
-    /* Always hand the device a full-length buffer. A short write would make the DAC burn
-       through buffers faster than real time (WOM_DONE every ~1ms instead of ~every 10ms)
-       and the aqw_loop can't keep up — the user hears a rapid crackle while the clock
-       drifts forward. Pad any shortfall with silence so each buffer plays for the full
-       cap duration and WOM_DONEs stay on the device-rate cadence. */
+#ifdef FILE_AV_PLAYOUT_CLOCK
+    /* Full length always: a short buffer plays out early and waveOut's refills fall behind (crackle). */
     if (n < cap)
-        memset((uint8_t *)buf->mAudioData + (n > 0 ? n : 0), 0, (size_t)(cap - (n > 0 ? n : 0)));
-    buf->mAudioDataByteSize = (UInt32)cap;
+        memset((uint8_t *)buf->mAudioData + n, 0, (size_t)(cap - n));
+    n = cap;
+#else
+    if (n <= 0) {
+        memset(buf->mAudioData, 0, (size_t)cap);
+        n = cap;
+    }
+#endif
+    buf->mAudioDataByteSize = (UInt32)n;
     AudioQueueEnqueueBuffer(q, buf, 0, NULL);
 }
 
@@ -1374,11 +1453,7 @@ static int start_aq(FileAv *p)
     fmt.mChannelsPerFrame = (UInt32)ch;
     fmt.mBitsPerChannel = 16;
     cap = rate * ch * 2;
-    /* 2048 frames @ 48 kHz = ~43ms per buffer × AQ_NBUFS buffers = ~170ms queue depth.
-       512 frames (~11ms) was too small for waveOut's scheduling window on Windows under
-       UI load — buffers drained in less time than aqw_loop could refill, device went
-       idle in between, audible as periodic vibration. */
-    buf_bytes = 2048 * ch * 2;
+    buf_bytes = AQ_BUF_FRAMES * ch * 2;
     pthread_mutex_unlock(&p->mu);
     if (AudioQueueNewOutput(&fmt, aq_callback, p, NULL, kCFRunLoopCommonModes, 0, &aq) != 0) {
         pthread_mutex_lock(&p->mu);
@@ -1413,6 +1488,11 @@ static int start_aq(FileAv *p)
             break;
         memset(buf->mAudioData, 0, buf->mAudioDataBytesCapacity);
         buf->mAudioDataByteSize = (UInt32)buf_bytes;
+#ifdef FILE_AV_PLAYOUT_CLOCK
+        pthread_mutex_lock(&p->mu);
+        dac_q_put(p, buf, 0);
+        pthread_mutex_unlock(&p->mu);
+#endif
         AudioQueueEnqueueBuffer(aq, buf, 0, NULL);
     }
     pthread_mutex_lock(&p->mu);
@@ -1449,6 +1529,9 @@ static void stop_aq(FileAv *p)
     p->ring = NULL;
     p->dac_started = 0;
     p->ring_cap = p->ring_r = p->ring_w = p->ring_n = 0;
+#ifdef FILE_AV_PLAYOUT_CLOCK
+    p->dac_q_n = 0;
+#endif
     pthread_mutex_unlock(&p->mu);
     if (aq) {
         AudioQueueStop(aq, true);
@@ -1918,7 +2001,7 @@ int file_av_step(FileAv *p)
     }
     emit_captions(p);
 #ifdef FILE_AV_AQ
-    a_empty = !p->adec || ((p->aq.rd >= p->aq.n) && p->ring_n == 0 && !p->a_busy);
+    a_empty = !p->adec || ((p->aq.rd >= p->aq.n) && p->ring_n == 0 && !p->a_busy && dac_q_pending(p) == 0);
 #else
     a_empty = !p->adec || (p->aq.rd >= p->aq.n);
 #endif
@@ -2227,6 +2310,9 @@ void file_av_seek(FileAv *p, double seconds)
     p->dac_started = 0;
     p->dac_tick_ns = 0;
     p->ring_r = p->ring_w = p->ring_n = 0;
+#endif
+#ifdef FILE_AV_PLAYOUT_CLOCK
+    memset(p->dac_q_real, 0, sizeof(p->dac_q_real));
 #endif
     pthread_cond_broadcast(&p->cv);
     pthread_mutex_unlock(&p->mu);
