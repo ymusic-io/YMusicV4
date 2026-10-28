@@ -100,8 +100,11 @@ internal class JvmLocalPlayer(
 
     @Volatile private var pendingVh: Int = 0
 
-    /** The current load wants a video decoder as soon as the Canvas HWND is attached. */
-    @Volatile private var videoWanted: Boolean = false
+    /** The Canvas the last [FileAvNative.setVideoComponent] call was made for, bound or not. AWT writes. */
+    @Volatile private var boundPeer: java.awt.Component? = null
+
+    /** Player thread only. A load that waits for the Canvas bind before it starts (see [load]). */
+    private var heldStart: HeldStart? = null
 
     @Volatile private var viewW: Int = 0
 
@@ -151,15 +154,10 @@ internal class JvmLocalPlayer(
         fun bind() {
             if (released) return
             val ok = FileAvNative.setVideoComponent(h, c)
+            boundPeer = c
             videoSurface?.setNativePresent(ok)
-            // Canvas just became available (or was swapped): if load() marked this as a video
-            // playback, open the video decoder NOW — p->d3d11_hwnd was set by setVideoComponent
-            // above, so start_video_locked's open_codec gates straight into D3D11VA.
-            if (c != null && videoWanted) {
-                dispatch {
-                    if (!released && handle == h) FileAvNative.setVideoEnabled(h, true)
-                }
-            }
+            // A failed bind releases the start too: the CPU blit takes over.
+            if (c != null) dispatch { if (handle == h) releaseHeldStart() }
         }
         if (SwingUtilities.isEventDispatchThread()) {
             bind()
@@ -168,10 +166,14 @@ internal class JvmLocalPlayer(
         }
     }
 
-    /** Called from the load path when the Canvas is already attached before open completes. */
-    private fun enableVideoWhenAttached() {
-        val peer = videoSurface?.nativePeer ?: return
-        bindVideoComponent(handle, peer)
+    /** Player thread. Opens the video decoder and starts a held load; idempotent. */
+    private fun releaseHeldStart() {
+        val held = heldStart ?: return
+        heldStart = null
+        if (held.gen != loadGen.get() || handle == 0L) return
+        if (!audioOnly) FileAvNative.setVideoEnabled(handle, true)
+        if (held.play) FileAvNative.play(handle)
+        pumping = held.play
     }
 
     /** Listener/UI hop. Always posts so player-thread work never runs re-entrantly on AWT. */
@@ -189,6 +191,7 @@ internal class JvmLocalPlayer(
                 cmd = cmds.poll()
             }
             if (stopped) break
+            heldStart?.let { if (System.nanoTime() - it.deadlineNs >= 0) releaseHeldStart() }
             try {
                 if (released) {
                     cmd = cmds.poll(50, TimeUnit.MILLISECONDS)
@@ -229,17 +232,16 @@ internal class JvmLocalPlayer(
         _progress.value = Progress(positionMs = startPositionMs.coerceAtLeast(0L))
         _videoQuality.value = VideoQualityState.DEFAULT.copy(preferredQuality = preferVideoQuality)
         showSurface(true)
-        videoWanted = !audioOnly
         dispatch {
             if (handle == 0L || gen != loadGen.get()) return@dispatch
+            heldStart = null
+            // Windows: D3D11VA needs the Canvas HWND when the video decoder opens. With that bind pending, hold
+            // the whole start (video enabled mid-play skips to the next keyframe) until it lands or times out.
+            val peer = videoSurface?.nativePeer
+            val waitForHwnd = IS_WINDOWS && !audioOnly && videoSurface != null && (peer == null || peer !== boundPeer)
             FileAvNative.setVolume(handle, volume.toDouble())
             FileAvNative.setAudioIndex(handle, -1)
-            // Open the file with video OFF so audio starts immediately. The video decoder stays
-            // closed until the Canvas HWND is attached, so when it does open_codec sees
-            // p->d3d11_hwnd and goes straight to D3D11VA — no SW→HW decoder reopen on the hot
-            // path. For audio-only files this is just the normal setting. The attach is handled
-            // after open below (and by videoSurface?.onNativePeer for Canvas swaps).
-            FileAvNative.setVideoEnabled(handle, false)
+            FileAvNative.setVideoEnabled(handle, !audioOnly && !waitForHwnd)
             applyBlit()
             FileAvNative.setSpeed(handle, config.speed.coerceAtLeast(0.05f).toDouble())
             FileAvNative.setPitch(handle, config.pitchFactor.toDouble())
@@ -263,14 +265,13 @@ internal class JvmLocalPlayer(
             durationMs = if (dur > 0) (dur * 1000.0).toLong() else Progress.DURATION_UNKNOWN
             val srcVideo = streams.firstOrNull { it.kind == KIND_VIDEO }
             FileAvNative.seek(handle, startPositionMs.coerceAtLeast(0L) / 1000.0)
-            if (playWhenReady) FileAvNative.play(handle) else FileAvNative.pause(handle)
-            pumping = playWhenReady
-            // Refine videoWanted now that we know whether the file actually has a video stream.
-            // bindVideoComponent reads this on every Canvas attach; if the Canvas was already
-            // present when load started, trigger the attach+enable path once.
-            videoWanted = !audioOnly && srcVideo != null
-            if (videoWanted && videoSurface?.nativePeer != null) {
-                enableVideoWhenAttached()
+            if (waitForHwnd && srcVideo != null) {
+                FileAvNative.pause(handle)
+                pumping = false
+                heldStart = HeldStart(gen, playWhenReady, System.nanoTime() + HWND_WAIT_NS)
+            } else {
+                if (playWhenReady) FileAvNative.play(handle) else FileAvNative.pause(handle)
+                pumping = playWhenReady
             }
             val size = if (srcVideo != null && !audioOnly && srcVideo.width > 0 && srcVideo.height > 0) {
                 VideoSize(srcVideo.width, srcVideo.height)
@@ -304,6 +305,11 @@ internal class JvmLocalPlayer(
             )
         }
         dispatch {
+            val held = heldStart
+            if (held != null) {
+                held.play = true
+                return@dispatch
+            }
             if (handle != 0L) FileAvNative.play(handle)
             pumping = true
         }
@@ -316,6 +322,7 @@ internal class JvmLocalPlayer(
             it.copy(state = s.copy(playWhenReady = false))
         }
         dispatch {
+            heldStart?.play = false
             pumping = false
             if (handle != 0L) FileAvNative.pause(handle)
         }
@@ -345,7 +352,6 @@ internal class JvmLocalPlayer(
         loadGen.incrementAndGet()
         uiEpoch.incrementAndGet()
         pendingSeekMs.set(-1)
-        videoWanted = false
         loadedPath = null
         streams = emptyList()
         sidecarTracks = emptyList()
@@ -357,6 +363,7 @@ internal class JvmLocalPlayer(
         _status.update { it.copy(state = PlaybackState.Idle) }
         showSurface(false)
         dispatch {
+            heldStart = null
             pumping = false
             if (handle != 0L) {
                 FileAvNative.pause(handle)
@@ -403,15 +410,9 @@ internal class JvmLocalPlayer(
             }
             publishVideoQuality()
             if (_status.value.state is PlaybackState.Prepared) showSurface(true)
-            videoWanted = !audioOnly && videoSizeFromStreams() != null
             dispatch {
                 if (handle == 0L) return@dispatch
-                if (audioOnly) {
-                    FileAvNative.setVideoEnabled(handle, false)
-                } else if (videoSurface?.nativePeer != null) {
-                    // Attach-then-enable, same ordering as load so open_codec sees d3d11_hwnd.
-                    enableVideoWhenAttached()
-                }
+                if (heldStart == null) FileAvNative.setVideoEnabled(handle, !audioOnly)
                 applyBlit()
             }
         }
@@ -442,6 +443,7 @@ internal class JvmLocalPlayer(
         val playing = (_status.value.state as? PlaybackState.Prepared)?.playWhenReady == true
         dispatch {
             if (handle == 0L) return@dispatch
+            releaseHeldStart()
             FileAvNative.setAudioIndex(handle, index)
             reopenAtPlayhead(playing, path)
         }
@@ -772,6 +774,13 @@ internal class JvmLocalPlayer(
 private const val KIND_AUDIO = 0
 private const val KIND_VIDEO = 1
 private const val KIND_TEXT = 2
+
+private val IS_WINDOWS = System.getProperty("os.name").orEmpty().startsWith("Windows")
+
+/** Longest a load waits for the Canvas bind; past it, video opens without D3D11VA. */
+private const val HWND_WAIT_NS = 500_000_000L
+
+private class HeldStart(val gen: Long, var play: Boolean, val deadlineNs: Long)
 
 private fun parseDumpedCue(id: Int, line: String): LocalCue? {
     val a = line.indexOf('|')
