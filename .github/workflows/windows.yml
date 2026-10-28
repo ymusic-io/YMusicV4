@@ -1,7 +1,7 @@
 name: windows
 
-# The Windows release MSIs alone, on every push to build-window, until the jobs are ready to join
-# release.yml.
+# The Windows release MSIs and Inno Setup installers alone, on every push to build-window, until
+# the jobs are ready to join release.yml.
 on:
   push:
     branches: [build-window]
@@ -127,12 +127,29 @@ jobs:
         working-directory: YMusicV4
         run: ./decrypt.sh
 
+      # Preinstalled on some runner images only. Wherever it lands (Inno 7 installs per user), its
+      # ISCC.exe is handed to the build as -Pinno.iscc.
+      - name: Install Inno Setup
+        shell: bash
+        run: |
+          set -euo pipefail
+          find_iscc() {
+            ls "/c/Program Files (x86)/Inno Setup "*/ISCC.exe "/c/Program Files/Inno Setup "*/ISCC.exe               "$(cygpath -u "$LOCALAPPDATA")/Programs/Inno Setup "*/ISCC.exe 2>/dev/null | head -n 1 || true
+          }
+          iscc="$(find_iscc)"
+          [ -n "$iscc" ] || { choco install innosetup -y --no-progress; iscc="$(find_iscc)"; }
+          [ -n "$iscc" ] || { echo "ISCC.exe not found after installing Inno Setup" >&2; exit 1; }
+          echo "using $iscc"
+          echo "INNO_ISCC=$(cygpath -w "$iscc")" >> "$GITHUB_ENV"
+
       # The MinGW bin dir goes on PATH for this step alone: gcc/clang load their own DLLs from it
       # (cc1.exe dies silently without them), but it would shadow Git Bash's tools in other steps.
-      - name: Package MSI
+      - name: Package MSI and Inno Setup installer
         shell: bash
         working-directory: YMusicV4
-        run: PATH="$(cygpath -u "$MINGW_HOME")/bin:$PATH" ./gradlew -Pproduction=true :desktopApp:releaseInstaller
+        run: >-
+          PATH="$(cygpath -u "$MINGW_HOME")/bin:$PATH" ./gradlew -Pproduction=true "-Pinno.iscc=$INNO_ISCC"
+          :desktopApp:releaseInstaller :desktopApp:packageReleaseInnoSetup
 
       - name: Discard secrets
         if: always()
@@ -152,4 +169,10 @@ jobs:
         with:
           name: ${{ matrix.slug }}-msi
           path: YMusicV4/desktopApp/build/release/*.msi
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ${{ matrix.slug }}-setup
+          path: YMusicV4/desktopApp/build/compose/binaries/main-release/innosetup/*.exe
           if-no-files-found: error
