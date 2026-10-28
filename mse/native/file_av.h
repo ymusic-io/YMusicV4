@@ -49,6 +49,12 @@ void file_av_set_blit_size(FileAv *p, int w, int h);
 /* Borrowed AVSampleBufferDisplayLayer from JAWT Canvas. NULL = CPU blit. */
 void file_av_set_video_layer(FileAv *p, void *layer);
 #endif
+#ifdef _WIN32
+/* HWND of a JAWT heavyweight Canvas. NULL = CPU blit (swscale→BGRA→Swing). The caller is
+   responsible for mse_d3d11_present_attach/detach on the same HWND; this only tells file_av
+   that a swapchain is live so decoded D3D11 textures can be presented zero-copy. */
+void file_av_set_video_hwnd(FileAv *p, void *hwnd);
+#endif
 
 double file_av_duration(FileAv *p);
 double file_av_position(FileAv *p);

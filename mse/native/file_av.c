@@ -150,6 +150,12 @@ struct FileAv {
     MseVtBlit vt_blit;
     void *vt_layer;
 #endif
+#ifdef FILE_AV_WIN_HW
+    /* JAWT HWND of the heavyweight Canvas file_av_set_video_hwnd gave us. Not owned —
+       mse_d3d11_present_attach(hwnd) was called by the JNI setter, we just need to know whether
+       the swapchain is live so present_d3d11 may be tried. NULL = CPU blit path. */
+    void *d3d11_hwnd;
+#endif
 #ifdef FILE_AV_AQ
     /* AudioQueue DAC. samples_played is the gold clock (same as leftover MSE). */
     AudioQueueRef dac;
@@ -1116,6 +1122,29 @@ static int present_sw_vt(FileAv *p, AVFrame *fr)
 }
 #endif
 
+#ifdef FILE_AV_WIN_HW
+/* Zero-copy present: hand the decoder's AV_PIX_FMT_D3D11 texture straight to the
+   swapchain the JAWT bridge opened on p->d3d11_hwnd. No CPU readback. */
+static int present_d3d11(FileAv *p, AVFrame *fr)
+{
+    ID3D11Texture2D *tex;
+    UINT slice;
+    int dw, dh;
+    if (!p->d3d11_hwnd || fr->format != AV_PIX_FMT_D3D11 || !fr->data[0])
+        return -1;
+    tex = (ID3D11Texture2D *)fr->data[0];
+    slice = (UINT)(uintptr_t)fr->data[1];
+    blit_size(p, fr->width, fr->height, &dw, &dh);
+    if (mse_d3d11_present_show(tex, slice, fr->width, fr->height, dw, dh) != 0)
+        return -1;
+    p->vw = fr->width;
+    p->vh = fr->height;
+    if (p->on_frame)
+        p->on_frame(p->user, fr->width, fr->height, NULL);
+    return 0;
+}
+#endif
+
 static int present_video(FileAv *p, AVFrame *fr)
 {
     uint8_t *dst[4] = {0};
@@ -1127,6 +1156,10 @@ static int present_video(FileAv *p, AVFrame *fr)
 #ifdef __APPLE__
     if ((fr->format == AV_PIX_FMT_VIDEOTOOLBOX || fr->hw_frames_ctx || fr->data[3]) &&
         present_vt(p, fr) == 0)
+        return 0;
+#endif
+#ifdef FILE_AV_WIN_HW
+    if (fr->format == AV_PIX_FMT_D3D11 && present_d3d11(p, fr) == 0)
         return 0;
 #endif
     fr = sw_video_frame(p, fr);
@@ -2309,6 +2342,17 @@ void file_av_set_video_layer(FileAv *p, void *layer)
         mse_vt_detach(old);
 }
 
+#endif
+
+#ifdef FILE_AV_WIN_HW
+void file_av_set_video_hwnd(FileAv *p, void *hwnd)
+{
+    if (!p)
+        return;
+    pthread_mutex_lock(&p->mu);
+    p->d3d11_hwnd = hwnd;
+    pthread_mutex_unlock(&p->mu);
+}
 #endif
 
 void file_av_set_volume(FileAv *p, double vol)

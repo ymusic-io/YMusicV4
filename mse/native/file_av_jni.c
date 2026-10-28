@@ -10,6 +10,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef _WIN32
+#include "mse_d3d11.h"
+/* Declared in mse_d3d11_jawt.c; shared by the host and file-av JNI. */
+HWND mse_d3d11_jawt_hwnd(JNIEnv *env, jobject component);
+#endif
+
 typedef struct {
     JavaVM *jvm;
     jobject sink;
@@ -393,6 +399,21 @@ Java_io_ymusic_mse_FileAvNative_setVideoComponent(JNIEnv *env, jclass cls, jlong
         layer = mse_vt_attach_component(env, component);
     file_av_set_video_layer((FileAv *)(intptr_t)handle, layer);
     return layer ? JNI_TRUE : JNI_FALSE;
+#elif defined(_WIN32)
+    FileAv *p = (FileAv *)(intptr_t)handle;
+    HWND hwnd = NULL;
+    int ok = 0;
+    if (!p)
+        return JNI_FALSE;
+    if (component) {
+        hwnd = mse_d3d11_jawt_hwnd(env, component);
+        if (hwnd)
+            ok = (mse_d3d11_present_attach(hwnd) == 0);
+    } else {
+        mse_d3d11_present_detach();
+    }
+    file_av_set_video_hwnd(p, ok ? (void *)hwnd : NULL);
+    return ok ? JNI_TRUE : JNI_FALSE;
 #else
     (void)env;
     (void)handle;
