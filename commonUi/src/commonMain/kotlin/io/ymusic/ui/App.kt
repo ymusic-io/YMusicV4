@@ -627,7 +627,8 @@ private fun AppRoot(
                 GlobalShortcutActions.closeNavDrawerIfOpen = { false }
             }
         }
-        if (section == AppSection.Discover) {
+        // Only while the tab row shows: a pushed page or Now Playing covers it.
+        if (section == AppSection.Discover && layers.isEmpty() && !nowPlayingOpen) {
             DisposableEffect(discoverTabs) {
                 val remove = GlobalShortcutActions.pushTabHandler { i ->
                     discoverTabs.getOrNull(i - 1)?.let { discoverTab = it; true } ?: false
