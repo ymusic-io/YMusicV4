@@ -13,7 +13,6 @@ typedef struct {
     jmethodID onFrame;
     jmethodID onPcm;
     jmethodID onProgress;
-    jmethodID onAudioFlush;
     jobject direct[2];
     const uint8_t *direct_ptr[2];
     int direct_n[2];
@@ -219,50 +218,6 @@ static void on_prog(void *user, double pos, double dur, int w, int h)
     (*env)->CallVoidMethod(env, s->sink, s->onProgress, pos, dur, w, h);
 }
 
-/* Logs and clears the pending Java exception; `what` names the call that threw. */
-static void log_exception(JNIEnv *env, const char *what)
-{
-    jthrowable ex = (*env)->ExceptionOccurred(env);
-    jclass cls;
-    jmethodID to_string = NULL;
-    jstring js = NULL;
-    const char *msg = NULL;
-    if (!ex)
-        return;
-    (*env)->ExceptionClear(env);
-    cls = (*env)->GetObjectClass(env, ex);
-    if (cls)
-        to_string = (*env)->GetMethodID(env, cls, "toString", "()Ljava/lang/String;");
-    if (to_string)
-        js = (jstring)(*env)->CallObjectMethod(env, ex, to_string);
-    /* toString itself threw: the original exception is still reported below, unnamed. */
-    if ((*env)->ExceptionCheck(env))
-        (*env)->ExceptionClear(env);
-    if (js)
-        msg = (*env)->GetStringUTFChars(env, js, NULL);
-    mse_critf(MSE_LOG_WARN, "mse %s threw %s", what, msg ? msg : "(unprintable exception)");
-    if (msg)
-        (*env)->ReleaseStringUTFChars(env, js, msg);
-    if (js)
-        (*env)->DeleteLocalRef(env, js);
-    if (cls)
-        (*env)->DeleteLocalRef(env, cls);
-    (*env)->DeleteLocalRef(env, ex);
-}
-
-static void on_audio_flush(void *user)
-{
-    JniSink *s = (JniSink *)user;
-    JNIEnv *env;
-    if (!s || !s->onAudioFlush)
-        return;
-    env = sink_env(s);
-    if (!env)
-        return;
-    (*env)->CallVoidMethod(env, s->sink, s->onAudioFlush);
-    log_exception(env, "onAudioFlush");
-}
-
 #ifdef __ANDROID__
 /* Android: create/destroy wrap the host with its Kotlin MseAudioOutput, so the raw calls get their own names. */
 JNIEXPORT jlong JNICALL
@@ -407,12 +362,7 @@ Java_io_ymusic_mse_MseHostNative_setSink(JNIEnv *env, jclass cls, jlong handle, 
     s->onFrame = (*env)->GetMethodID(env, sc, "onFrame", "(IILjava/nio/ByteBuffer;)V");
     s->onPcm = (*env)->GetMethodID(env, sc, "onPcm", "(II[B)V");
     s->onProgress = (*env)->GetMethodID(env, sc, "onProgress", "(DDII)V");
-    // Optional on older sinks; a null jmethodID disables the audio-flush callback below.
-    s->onAudioFlush = (*env)->GetMethodID(env, sc, "onAudioFlush", "()V");
-    if ((*env)->ExceptionCheck(env))
-        (*env)->ExceptionClear(env);
     mse_host_set_sinks(h, on_frame, on_pcm, on_prog, s);
-    mse_host_set_audio_flush(h, on_audio_flush, s);
 }
 
 JNIEXPORT jint JNICALL

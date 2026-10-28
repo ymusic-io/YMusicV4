@@ -14,10 +14,6 @@ interface MseHostSink {
     @Keep fun onPcm(rate: Int, channels: Int, s16: ByteArray)
 
     @Keep fun onProgress(positionSec: Double, durationSec: Double, width: Int, height: Int)
-
-    /** Called on pause/seek via the C `MseAudioFlushFn` hook. Sinks that hold their own buffered
-     *  audio (JVM javax.sound.sampled) flush here so stale samples don't drain over seconds. */
-    @Keep fun onAudioFlush() = Unit
 }
 
 actual object MseHostNative {

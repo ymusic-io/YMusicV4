@@ -13,17 +13,12 @@ typedef struct MseHost MseHost;
 typedef void (*MseFrameFn)(void *user, int w, int h, const uint8_t *bgra);
 typedef void (*MsePcmFn)(void *user, int rate, int ch, const int16_t *s16, int nbytes);
 typedef void (*MseProgressFn)(void *user, double pos, double dur, int w, int h);
-/* Fired on pause/seek. Sinks that hold their own buffered audio (JVM javax.sound.sampled)
- * flush it here so stale samples don't drain over seconds after a pause. */
-typedef void (*MseAudioFlushFn)(void *user);
 
 MseHost *mse_host_create(void);
 void mse_host_destroy(MseHost *h);
 /* Function table for QuickJS `__mse*` trampolines. */
 const void *mse_host_vtable(void);
 void mse_host_set_sinks(MseHost *h, MseFrameFn on_frame, MsePcmFn on_pcm, MseProgressFn on_prog, void *user);
-/* Optional: pair with on_pcm; invoked on pause/seek. See MseAudioFlushFn. */
-void mse_host_set_audio_flush(MseHost *h, MseAudioFlushFn fn, void *user);
 /* Host→JS `"event"` pipe. JNI/Apple set this to MseJsEventBridge.fire. */
 void mse_host_set_js_event(void (*fn)(const char *name));
 /* JNI/app: the only host call. JS drives play/pause/currentTime via C trampolines. */

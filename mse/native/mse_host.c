@@ -78,8 +78,6 @@ struct MseHost {
     MseFrameFn on_frame;
     MsePcmFn on_pcm;
     MseProgressFn on_prog;
-    MseAudioFlushFn on_audio_flush;
-    void *audio_flush_user;
     void *user;
     void *window;
     int vw;
@@ -1372,16 +1370,6 @@ void mse_host_set_sinks(MseHost *h, MseFrameFn on_frame, MsePcmFn on_pcm, MsePro
     pthread_mutex_unlock(&h->mu);
 }
 
-void mse_host_set_audio_flush(MseHost *h, MseAudioFlushFn fn, void *user)
-{
-    if (!h)
-        return;
-    pthread_mutex_lock(&h->mu);
-    h->on_audio_flush = fn;
-    h->audio_flush_user = user;
-    pthread_mutex_unlock(&h->mu);
-}
-
 void mse_host_set_blit_size(MseHost *h, int w, int ht)
 {
     if (!h)
@@ -1516,13 +1504,7 @@ void mse_host_pause(MseHost *h)
         h->playing = 0;
     }
     pthread_cond_broadcast(&h->cv);
-    {
-        MseAudioFlushFn fn = h->on_audio_flush;
-        void *user = h->audio_flush_user;
-        pthread_mutex_unlock(&h->mu);
-        if (fn)
-            fn(user);
-    }
+    pthread_mutex_unlock(&h->mu);
 }
 
 static void seek_common(MseHost *h, double seconds)
@@ -1568,13 +1550,7 @@ static void seek_common(MseHost *h, double seconds)
     pthread_mutex_lock(&h->mu);
     h->gate = 0;
     pthread_cond_broadcast(&h->cv);
-    {
-        MseAudioFlushFn fn = h->on_audio_flush;
-        void *user = h->audio_flush_user;
-        pthread_mutex_unlock(&h->mu);
-        if (fn)
-            fn(user);
-    }
+    pthread_mutex_unlock(&h->mu);
 }
 
 void mse_host_reset(MseHost *h)
