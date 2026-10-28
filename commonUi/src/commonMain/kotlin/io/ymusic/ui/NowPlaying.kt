@@ -529,14 +529,11 @@ private fun PortraitNowPlaying(
     // Queue rows sit after the controls item and the sticky header in this list.
     val dragState = rememberReorderDragState(listState, indexOffset = 2) { from, to -> player.move(from, to) }
     val locateCurrent = rememberLocateCurrent(listState, queue.currentIndex, indexOffset = 2)
-    // Portrait list has 2 non-queue items (controls, header) before the queue items start, so
-    // the current item's position in the list is currentIndex + 2.
+    // Keyboard entry lands on the playing row; touch opens on item 0 (title, seek bar, transport).
     val currentRowFocus = remember { FocusRequester() }
-    LaunchedEffect(Unit) {
-        val idx = queue.currentIndex
-        if (idx >= 0) {
-            runCatching { listState.scrollToItem(idx + 2) }
-            runCatching { currentRowFocus.requestFocus() }
+    if (!platformUsesTouch) {
+        LaunchedEffect(Unit) {
+            if (queue.currentIndex >= 0) currentRowFocus.focusListItem(listState, queue.currentIndex + 2)
         }
     }
 
@@ -702,15 +699,11 @@ private fun LandscapeNowPlaying(
                 HorizontalDivider(color = DesignColors.Divider)
                 val dragState = rememberReorderDragState(queueListState, indexOffset = 0) { from, to -> player.move(from, to) }
                 FollowCurrentQueueItem(queueListState, queue.currentIndex)
-                // Focus the currently-playing row when Now Playing opens: scroll it into view
-                // first (FollowCurrentQueueItem only scrolls on index change, not first show),
-                // then request focus so NVDA / keyboard users land on it immediately.
+                // Keyboard entry lands on the playing row, as in portrait.
                 val currentRowFocus = remember { FocusRequester() }
-                LaunchedEffect(Unit) {
-                    val idx = queue.currentIndex
-                    if (idx >= 0) {
-                        runCatching { queueListState.scrollToItem(idx) }
-                        runCatching { currentRowFocus.requestFocus() }
+                if (!platformUsesTouch) {
+                    LaunchedEffect(Unit) {
+                        if (queue.currentIndex >= 0) currentRowFocus.focusListItem(queueListState, queue.currentIndex)
                     }
                 }
                 LazyColumn(state = queueListState, modifier = Modifier.weight(1f).listKeyboardNavigation()) {
@@ -724,6 +717,13 @@ private fun LandscapeNowPlaying(
             }
         }
     }
+}
+
+/** Scrolls list item [index] (the one carrying this requester) into view and focuses it once it is composed. */
+private suspend fun FocusRequester.focusListItem(listState: LazyListState, index: Int) {
+    listState.scrollToItem(index)
+    snapshotFlow { listState.layoutInfo.visibleItemsInfo.any { it.index == index } }.first { it }
+    requestFocus()
 }
 
 /**
