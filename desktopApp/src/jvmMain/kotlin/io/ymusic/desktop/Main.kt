@@ -921,6 +921,71 @@ private suspend fun buildGraph(settings: AppStoreSettings, session: CookieSessio
     }
 }
 
+/**
+ * Wires both shared panels to their surfaces exactly once per process. Idempotent — every
+ * [DesktopPlayerSurface] call site invokes this but only the first one actually runs. Panels
+ * stay alive for the lifetime of the app; the Canvas HWND / NSView and its D3D11 swapchain /
+ * AVSampleBufferDisplayLayer are never torn down by Compose re-composition. Attach to
+ * [videoUnderlay] happens once too, and later swaps between localPanel/msePanel are driven
+ * by [localSurface].visible observed OUTSIDE Compose — not by Compose recomposition.
+ *
+ * Doing the attach from inside a Compose DisposableEffect was the root of the mini↔NowPlaying
+ * black screen: each DesktopPlayerSurface call site is a separate composition slot, so the
+ * effect ran per site and called videoUnderlay.attach(panel) → frame.removeAll() →
+ * frame.add(panel), which cycled the heavyweight Canvas's removeNotify/addNotify and spun
+ * up a fresh HWND every switch. The new HWND re-triggered file_av_set_video_hwnd → the
+ * deferred decoder reopen → an av_seek_frame that flushed the audio ring (audio glitch).
+ */
+private val panelSwapScope = kotlinx.coroutines.CoroutineScope(
+    kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Default
+)
+
+private fun wirePlayerSurfacesOnce(
+    localSurface: LocalVideoSurface,
+    mseSurface: io.ymusic.mse.MseVideoSurface,
+) {
+    if (!playerSurfaceWired.compareAndSet(false, true)) return
+    FileAvNative.overlayMouse = FileAvNative.OverlayMouse { id, _, _, _, _, _, _ ->
+        // Do not dispatchEvent into Skia from this JNI click — that froze AppKit.
+        if (id == MouseEvent.MOUSE_RELEASED) {
+            SwingUtilities.invokeLater { VideoOverlayNative.poke() }
+        }
+    }
+    sharedMsePanel.onPainted = { mseSurface.swingShown = it }
+    mseSurface.swingBlit = {
+        sharedMsePanel.setImage(it)
+        if (it != null) mseSurface.lastStill = copyRgb(it)
+    }
+    sharedMsePanel.onPeer = { c ->
+        mseSurface.nativePeer = c
+        sharedMsePanel.setHardware(mseSurface.attach(c))
+        if (sharedMsePanel.covered) FileAvNative.setOverlayHidden(true)
+    }
+    sharedMsePanel.extraSnapshot = {
+        val frame = MseHostNative.copyFrame(mseSurface.host)
+        if (frame == null) null else bgraToRgb(frame.width, frame.height, frame.bgra)
+    }
+    mseSurface.onNativePresent = { sharedMsePanel.setHardware(it) }
+    sharedLocalPanel.onPainted = { localSurface.swingShown = it }
+    localSurface.swingBlit = { sharedLocalPanel.setImage(it) }
+    sharedLocalPanel.onPeer = { localSurface.nativePeer = it }
+    sharedLocalPanel.extraSnapshot = {
+        localSurface.swingShown?.let { copyRgb(it) }
+    }
+    localSurface.onNativePresent = { sharedLocalPanel.setHardware(it) }
+    // Attach the panel that matches the active engine; swap only when the engine itself
+    // changes (local file ↔ YouTube MSE). mini↔NowPlaying never flips this flag so the
+    // Canvas and its HWND persist forever.
+    panelSwapScope.launch {
+        localSurface.visible.collect { visible ->
+            // videoUnderlay.attach touches Swing component hierarchy — must run on EDT.
+            SwingUtilities.invokeLater {
+                videoUnderlay.attach(if (visible) sharedLocalPanel else sharedMsePanel)
+            }
+        }
+    }
+}
+
 @Composable
 private fun DesktopPlayerSurface(
     localSurface: LocalVideoSurface,
@@ -929,69 +994,11 @@ private fun DesktopPlayerSurface(
     playbackStatus: kotlinx.coroutines.flow.StateFlow<PlaybackStatus>,
     modifier: Modifier,
 ) {
+    wirePlayerSurfacesOnce(localSurface, mseSurface)
     val localVisible by localSurface.visible.collectAsState()
     val status by playbackStatus.collectAsState()
-    val pauseHold = remember { java.util.concurrent.atomic.AtomicBoolean(false) }
-    pauseHold.set(!status.playWhenReady)
-    val msePanel = remember { MseVideoPanel() }
-    val localPanel = remember { MseVideoPanel() }
-    DisposableEffect(msePanel, localPanel) {
-        FileAvNative.overlayMouse = FileAvNative.OverlayMouse { id, _, _, _, _, _, _ ->
-            // Do not dispatchEvent into Skia from this JNI click — that froze AppKit.
-            if (id == MouseEvent.MOUSE_RELEASED) {
-                SwingUtilities.invokeLater { VideoOverlayNative.poke() }
-            }
-        }
-        onDispose { FileAvNative.overlayMouse = null }
-    }
-    DisposableEffect(mseSurface, msePanel) {
-        msePanel.onPainted = { mseSurface.swingShown = it }
-        val blit: (java.awt.image.BufferedImage?) -> Unit = {
-            msePanel.setImage(it)
-            if (it != null) mseSurface.lastStill = copyRgb(it)
-        }
-        mseSurface.swingBlit = blit
-        msePanel.onPeer = { c ->
-            mseSurface.nativePeer = c
-            val still = mseSurface.lastStill
-            if (still != null && pauseHold.get()) msePanel.holdLastFrame(still)
-            msePanel.setHardware(mseSurface.attach(c))
-            if (msePanel.covered) FileAvNative.setOverlayHidden(true)
-        }
-        msePanel.extraSnapshot = {
-            val frame = MseHostNative.copyFrame(mseSurface.host)
-            if (frame == null) null else bgraToRgb(frame.width, frame.height, frame.bgra)
-        }
-        mseSurface.onNativePresent = { msePanel.setHardware(it) }
-        onDispose {
-            mseSurface.lastStill = msePanel.captureStill() ?: mseSurface.lastStill
-            msePanel.onPainted = null
-            msePanel.onPeer = null
-            msePanel.extraSnapshot = null
-            mseSurface.onNativePresent = null
-            if (mseSurface.swingBlit === blit) mseSurface.swingBlit = null
-            mseSurface.attach(null)
-            mseSurface.nativePeer = null
-        }
-    }
-    DisposableEffect(localSurface, localPanel) {
-        localPanel.onPainted = { localSurface.swingShown = it }
-        val blit: (java.awt.image.BufferedImage?) -> Unit = { localPanel.setImage(it) }
-        localSurface.swingBlit = blit
-        localPanel.onPeer = { localSurface.nativePeer = it }
-        localPanel.extraSnapshot = {
-            localSurface.swingShown?.let { copyRgb(it) }
-        }
-        localSurface.onNativePresent = { localPanel.setHardware(it) }
-        onDispose {
-            localPanel.onPainted = null
-            localPanel.onPeer = null
-            localPanel.extraSnapshot = null
-            localSurface.onNativePresent = null
-            if (localSurface.swingBlit === blit) localSurface.swingBlit = null
-            localSurface.nativePeer = null
-        }
-    }
+    val msePanel = sharedMsePanel
+    val localPanel = sharedLocalPanel
     val windowResizingNow by windowResizing.collectAsState()
     LaunchedEffect(status.playWhenReady, windowResizingNow) {
         if (status.playWhenReady && !windowResizingNow) {
@@ -999,11 +1006,11 @@ private fun DesktopPlayerSurface(
             localPanel.setCovered(false)
         }
     }
+    // videoUnderlay.attach is done in wirePlayerSurfacesOnce (observes localSurface.visible
+    // outside Compose), so panel identity doesn't tie into any DisposableEffect here. Panel
+    // selection stays local so per-site effects (window-resize still capture) still see the
+    // active panel.
     val panel = if (localVisible) localPanel else msePanel
-    DisposableEffect(panel) {
-        videoUnderlay.attach(panel)
-        onDispose { }
-    }
     val hostWindow = LocalAppWindow.current
     val density = LocalDensity.current
     var still by remember { mutableStateOf<ImageBitmap?>(null) }
@@ -1057,7 +1064,18 @@ private fun DesktopPlayerSurface(
         }
     }
     DisposableEffect(Unit) {
-        onDispose { videoUnderlay.setHole(0, 0, 0, 0) }
+        surfaceMountCount++
+        onDispose {
+            surfaceMountCount--
+            // Only hide the underlay when NO call site is active. During a mini↔NowPlaying
+            // handoff, the departing site disposes just before the arriving site mounts;
+            // nulling the hole here would briefly shrink the Frame to 1x1 and the viewer
+            // sees a flash while the Canvas HWND is still perfectly alive.
+            if (surfaceMountCount <= 0) {
+                surfaceMountCount = 0
+                videoUnderlay.setHole(0, 0, 0, 0)
+            }
+        }
     }
 }
 
@@ -1569,6 +1587,29 @@ private fun defaultLinuxSoftwareRendering() {
 private val LocalAppWindow = staticCompositionLocalOf<java.awt.Window?> { null }
 
 private val videoUnderlay by lazy { VideoUnderlay() }
+
+/**
+ * The heavyweight Canvas-bearing panels are singletons so the OS HWND / NSView and its
+ * attached D3D11 swapchain / AVSampleBufferDisplayLayer survive every Compose recomposition.
+ * [graph.playerSurface] expands to [DesktopPlayerSurface] at multiple call sites
+ * (mini-player, NowPlaying full view, PiP). Each call site is a separate composition slot,
+ * so a per-call `remember { MseVideoPanel() }` would spin up a fresh Canvas on every switch,
+ * and `videoUnderlay.attach(panel)` would then destroy the previous Canvas's HWND — triggering
+ * a decoder reopen plus a visible black-screen while the new HWND warms up. Hoisting the
+ * panels to module scope keeps a single HWND for the app's lifetime; call sites only update
+ * the hole rect and blit size.
+ */
+private val sharedMsePanel by lazy { MseVideoPanel() }
+private val sharedLocalPanel by lazy { MseVideoPanel() }
+private val playerSurfaceWired = java.util.concurrent.atomic.AtomicBoolean(false)
+
+/**
+ * How many [DesktopPlayerSurface] call sites are currently mounted. Multiple sites can co-exist
+ * briefly across mini↔NowPlaying transitions; the hole only hides when ALL of them unmount so
+ * we don't flash the hole to 1x1 during a handoff. Writes always happen on the EDT (Compose
+ * applier for jvm Desktop).
+ */
+private var surfaceMountCount = 0
 
 private const val DESKTOP_CHROME_UA =
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 " +
