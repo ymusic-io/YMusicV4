@@ -507,19 +507,11 @@ kotlin.sourceSets.getByName("jvmMain").resources.srcDir(files(layout.buildDirect
 // ---------------------------------------------------------------------------------------------
 // Windows: Inno Setup installer. Wraps the jlinked app directory produced by
 // createReleaseDistributable in an LZMA2-compressed single-exe installer with a nicer upgrade
-// flow than jpackage's canned MSI. Requires Inno Setup 6+ on PATH or at the default install
-// path; override with -Pinno.iscc=path\to\ISCC.exe.
+// flow than jpackage's canned MSI. Compiler lookup: see buildSrc InnoSetup.kt.
 // ---------------------------------------------------------------------------------------------
-val isccPath: Provider<File> = providers.gradleProperty("inno.iscc")
-    .map { File(it) }
-    .orElse(providers.provider {
-        listOf(
-            "C:/Program Files (x86)/Inno Setup 6/ISCC.exe",
-            "C:/Program Files/Inno Setup 6/ISCC.exe",
-            "C:/Program Files (x86)/Inno Setup 5/ISCC.exe",
-        ).map(::File).firstOrNull { it.isFile }
-            ?: error("Inno Setup Compiler not found. Install from https://jrsoftware.org/isdl.php or pass -Pinno.iscc=path\\to\\ISCC.exe")
-    })
+val isccPath: Provider<File> = providers.provider {
+    innoSetupCompiler() ?: error(INNO_SETUP_MISSING)
+}
 
 val innoSetupStageDir = layout.buildDirectory.dir("compose/tmp/packageReleaseInnoSetup")
 val innoSetupOutDir = layout.buildDirectory.dir("compose/binaries/main-release/innosetup")
