@@ -100,7 +100,7 @@ struct MseAv {
     int hw_errs; /* decode errors since the last good GPU frame */
 #endif
 #ifdef MSE_WIN_HW
-    /* Once the d3d11va init fails for a codec, software for the rest of the process. */
+    /* Codec d3d11va failed on; it decodes in software (libvpx / libdav1d) until changeType. */
     enum AVCodecID d3d11_fail_id;
     const void *present_owner;
 #endif
@@ -1790,14 +1790,10 @@ static const AVCodec *find_video_codec(enum AVCodecID id, int sw_only)
     }
 #endif
 #ifdef MSE_WIN_HW
-    /* d3d11va hwaccel attaches to ffmpeg's native `av1` / `vp9` decoders only — libdav1d /
-     * libvpx-vp9 ignore hw_device_ctx and decode in software, triggering an error cascade when
-     * get_format returns AV_PIX_FMT_D3D11. Always prefer native on Windows; the swapchain state
-     * at this point is irrelevant (open_decoder sets hw_device_ctx unconditionally for these
-     * codecs, present_show drops the frame cleanly when no swapchain is attached). */
+    /* d3d11va only drives the native decoders; libdav1d / libvpx-vp9 stay software. */
     if (!sw_only && (id == AV_CODEC_ID_VP9 || id == AV_CODEC_ID_AV1)) {
         c = avcodec_find_decoder_by_name(id == AV_CODEC_ID_VP9 ? "vp9" : "av1");
-        if (c)
+        if (c && mse_d3d11_can_decode(c))
             return c;
     }
 #endif
@@ -1976,6 +1972,8 @@ static int open_decoder(MseAv *a, int video, AVCodecParameters *par)
     codec = video ? find_video_codec(par->codec_id,
 #ifdef __APPLE__
         par->codec_id == a->vt_fail_id
+#elif defined(MSE_WIN_HW)
+        par->codec_id == a->d3d11_fail_id
 #else
         0
 #endif
@@ -2053,17 +2051,12 @@ static int open_decoder(MseAv *a, int video, AVCodecParameters *par)
     }
 #endif
 #ifdef MSE_WIN_HW
-    /* D3D11VA: always engage when ffmpeg's hwaccel covers this codec, independent of whether a
-     * swapchain is attached right now — the decoder's hw_device_ctx wraps the process-wide
-     * ID3D11Device, not the per-HWND swapchain, so decode runs regardless. Frames land on
-     * whatever swapchain is attached when scale_bgra runs; present_show silently drops the frame
-     * when nothing is attached. 10-bit is deferred — bits_per_raw_sample gate keeps HDR on CPU.
-     * opaque carries the MseAv for the log hook. */
+    /* D3D11VA wraps the process-wide device, not a swapchain: it decodes with or without an
+     * attached Canvas. 10-bit stays software (bits_per_raw_sample). opaque is for the log hook. */
     (*ctxp)->opaque = a;
     if (video && par->codec_id != a->d3d11_fail_id &&
         (par->bits_per_raw_sample == 0 || par->bits_per_raw_sample == 8) &&
-        (par->codec_id == AV_CODEC_ID_H264 || par->codec_id == AV_CODEC_ID_HEVC ||
-         par->codec_id == AV_CODEC_ID_VP9 || par->codec_id == AV_CODEC_ID_AV1)) {
+        mse_d3d11_can_decode(codec)) {
         AVBufferRef *hw = mse_d3d11_hwdev_ref();
         if (hw) {
             (*ctxp)->hw_device_ctx = hw;

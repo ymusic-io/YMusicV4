@@ -17,6 +17,7 @@
 #include <jni.h>
 
 struct AVBufferRef;
+struct AVCodec;
 struct AVCodecContext;
 enum AVPixelFormat;
 
@@ -39,6 +40,10 @@ void mse_d3d11_unlock(void);
 struct AVBufferRef *mse_d3d11_hwdev_ref(void);
 /* get_format filter: AV_PIX_FMT_D3D11 if offered, else first software format. */
 enum AVPixelFormat mse_d3d11_pick(struct AVCodecContext *ctx, const enum AVPixelFormat *fmts);
+/* 1 when `codec` has a d3d11va hwaccel and the GPU can run it. VP9/AV1 need the GPU's
+   profile-0 decoder (enumerated once); H.264/HEVC only need the device, since their native
+   decoders fall back to software internally while native av1 has no software path. */
+int mse_d3d11_can_decode(const struct AVCodec *codec);
 
 /* HWND of a heavyweight java.awt.Canvas via JAWT, or NULL. */
 HWND mse_d3d11_jawt_hwnd(JNIEnv *env, jobject component);

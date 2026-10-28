@@ -299,18 +299,6 @@ static const AVCodec *find_vdec(enum AVCodecID id)
             return c;
     }
 #endif
-#ifdef FILE_AV_WIN_HW
-    /* libvpx-vp9 and libdav1d are pure-software decoders — they never call get_format, so the
-       D3D11VA gate open_codec sets up is a no-op and the whole pipeline degrades to CPU
-       swscale + blit. Prefer ffmpeg's native vp9/av1, which honour get_format and bind to
-       D3D11VA when p->d3d11_hwnd is set (SW fallback inside the same decoder if the GPU
-       doesn't support the profile). */
-    if (id == AV_CODEC_ID_VP9 || id == AV_CODEC_ID_AV1) {
-        c = avcodec_find_decoder_by_name(id == AV_CODEC_ID_VP9 ? "vp9" : "av1");
-        if (c)
-            return c;
-    }
-#endif
     if (id == AV_CODEC_ID_VP9) {
         c = avcodec_find_decoder_by_name("libvpx-vp9");
         if (c)
@@ -326,6 +314,36 @@ static const AVCodec *find_vdec(enum AVCodecID id)
     }
     return avcodec_find_decoder(id);
 }
+
+#ifdef FILE_AV_WIN_HW
+/* The native decoder to run on D3D11VA, or NULL for software: only with a Canvas to present
+   into (readback + swscale is slower than software decoding at 4K60). */
+static const AVCodec *d3d11_vdec(const FileAv *p, const AVCodecParameters *par)
+{
+    const char *name;
+    const AVCodec *c;
+    if (!p || !p->d3d11_hwnd)
+        return NULL;
+    switch (par->codec_id) {
+    case AV_CODEC_ID_H264:
+        name = "h264";
+        break;
+    case AV_CODEC_ID_HEVC:
+        name = "hevc";
+        break;
+    case AV_CODEC_ID_VP9:
+        name = "vp9";
+        break;
+    case AV_CODEC_ID_AV1:
+        name = "av1";
+        break;
+    default:
+        return NULL;
+    }
+    c = avcodec_find_decoder_by_name(name);
+    return c && mse_d3d11_can_decode(c) ? c : NULL;
+}
+#endif
 
 /* Prefer VideoToolbox/etc so 4K HEVC can keep up; blit still goes through swscale
  * after av_hwframe_transfer_data. Fall back to the first software pixfmt. */
@@ -351,6 +369,11 @@ static AVCodecContext *open_codec(FileAv *p, AVStream *st, int video)
     const AVCodec *c = video ? find_vdec(st->codecpar->codec_id)
                              : avcodec_find_decoder(st->codecpar->codec_id);
     AVCodecContext *ctx;
+#ifdef FILE_AV_WIN_HW
+    const AVCodec *hw = video ? d3d11_vdec(p, st->codecpar) : NULL;
+    if (hw)
+        c = hw;
+#endif
     if (!c)
         return NULL;
     ctx = avcodec_alloc_context3(c);
@@ -382,17 +405,12 @@ static AVCodecContext *open_codec(FileAv *p, AVStream *st, int video)
             }
         }
 #ifdef FILE_AV_WIN_HW
-        /* D3D11VA shared with the mse host (one process-wide ID3D11Device). Only enabled when
-           a Canvas HWND is attached: without a d3d11 swapchain to present_show into, the only
-           output path is av_hwframe_transfer_data + swscale, which is a GPU→PCIe→CPU round-trip
-           per frame and runs SLOWER than ffmpeg's plain SW decoder on 4K60. If the HWND
-           arrives after open (first setVideoComponent lags Canvas addNotify), file_av_set_video_hwnd
-           reopens the decoder so this gate re-evaluates. */
-        if (p && p->d3d11_hwnd && (try_vt || id == AV_CODEC_ID_VP9 || id == AV_CODEC_ID_AV1)) {
-            AVBufferRef *hw = mse_d3d11_hwdev_ref();
-            if (hw) {
+        /* The mse host's process-wide device. file_av_step reopens when the HWND comes or goes. */
+        if (hw) {
+            AVBufferRef *dev = mse_d3d11_hwdev_ref();
+            if (dev) {
                 ctx->get_format = mse_d3d11_pick;
-                ctx->hw_device_ctx = hw;
+                ctx->hw_device_ctx = dev;
                 ctx->extra_hw_frames = VOUT_N + 2;
             }
         }
