@@ -4,17 +4,15 @@ import java.io.File
 /**
  * The MinGW-w64 install the Windows host CMake JNI builds compile with — the C sources use
  * GCC/Clang-only syntax MSVC rejects: `mingw.dir` in local.properties, else MINGW_HOME, else MSYS2's
- * default install. Null off Windows, or when none has a C compiler + bin/mingw32-make.exe.
+ * default install for the JVM's arch. Null off Windows, or when none has a C compiler +
+ * bin/mingw32-make.exe.
  */
 fun Project.mingwToolchainHome(): File? {
     if (!System.getProperty("os.name").orEmpty().startsWith("Windows")) return null
-    return listOfNotNull(
-        localProp("mingw.dir"),
-        System.getenv("MINGW_HOME"),
-        "C:/msys64/mingw64",
-        "C:/msys64/clangarm64",
-        "C:/mingw64",
-    )
+    // The JVM's arch, not the OS's: the JNI DLL must load into this JVM (an x64 JVM runs emulated on
+    // Windows on ARM), and the other arch's toolchain builds DLLs it can't load.
+    val defaults = if (hostIsArm64) listOf("C:/msys64/clangarm64") else listOf("C:/msys64/mingw64", "C:/mingw64")
+    return (listOfNotNull(localProp("mingw.dir"), System.getenv("MINGW_HOME")) + defaults)
         .map(::File)
         .firstOrNull { mingwCCompiler(it).isFile && File(it, "bin/mingw32-make.exe").isFile }
 }
