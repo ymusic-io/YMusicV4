@@ -1,9 +1,6 @@
 package io.ymusic.desktop
 
-import com.sun.jna.Function
 import com.sun.jna.Memory
-import com.sun.jna.Native
-import com.sun.jna.NativeLibrary
 import com.sun.jna.Pointer
 import com.sun.jna.WString
 import com.sun.jna.ptr.PointerByReference
@@ -13,11 +10,9 @@ import kotlinx.coroutines.asCoroutineDispatcher
 import java.awt.image.BufferedImage
 import java.io.ByteArrayOutputStream
 import java.io.File
-import java.io.IOException
 import java.lang.ref.Reference
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import java.util.UUID
 import java.util.concurrent.Executors
 import javax.imageio.ImageIO
 
@@ -53,108 +48,74 @@ internal object WindowsJumpList {
     /** COM wants one apartment thread; every call here runs on it. */
     val dispatcher: ExecutorCoroutineDispatcher = Executors.newSingleThreadExecutor { r ->
         Thread({
-            ole32.getFunction("CoInitializeEx").invokeInt(arrayOf(null, COINIT_APARTMENTTHREADED))
+            WindowsCom.initApartment()
             r.run()
         }, "jump-list").apply { isDaemon = true }
     }.asCoroutineDispatcher()
 
-    private val ole32 = NativeLibrary.getInstance("ole32")
-
     @WorkerThread
     fun set(exe: String, tasks: List<Task>) {
-        val list = create(CLSID_DESTINATION_LIST, IID_CUSTOM_DESTINATION_LIST)
+        val list = WindowsCom.create(CLSID_DESTINATION_LIST, IID_CUSTOM_DESTINATION_LIST)
         try {
             val removed = PointerByReference()
-            list.call(4, Memory(4), guid(IID_OBJECT_ARRAY), removed).check("BeginList")
-            removed.value.release()
-            val collection = create(CLSID_ENUMERABLE_OBJECT_COLLECTION, IID_OBJECT_COLLECTION)
+            list.comCall(4, Memory(4), WindowsCom.guid(IID_OBJECT_ARRAY), removed).checkHresult("BeginList")
+            removed.value.comRelease()
+            val collection = WindowsCom.create(CLSID_ENUMERABLE_OBJECT_COLLECTION, IID_OBJECT_COLLECTION)
             try {
                 for (task in tasks) {
                     val link = shellLink(exe, task)
                     try {
-                        collection.call(5, link).check("AddObject")
+                        collection.comCall(5, link).checkHresult("AddObject")
                     } finally {
-                        link.release()
+                        link.comRelease()
                     }
                 }
-                list.call(7, collection).check("AddUserTasks")
+                list.comCall(7, collection).checkHresult("AddUserTasks")
             } finally {
-                collection.release()
+                collection.comRelease()
             }
-            list.call(8).check("CommitList")
+            list.comCall(8).checkHresult("CommitList")
         } finally {
-            list.release()
+            list.comRelease()
         }
     }
 
     @WorkerThread
     fun clear() {
-        val list = create(CLSID_DESTINATION_LIST, IID_CUSTOM_DESTINATION_LIST)
+        val list = WindowsCom.create(CLSID_DESTINATION_LIST, IID_CUSTOM_DESTINATION_LIST)
         try {
-            list.call(10, null).check("DeleteList")
+            list.comCall(10, null).checkHresult("DeleteList")
         } finally {
-            list.release()
+            list.comRelease()
         }
     }
 
     private fun shellLink(exe: String, task: Task): Pointer {
-        val link = create(CLSID_SHELL_LINK, IID_SHELL_LINK_W)
+        val link = WindowsCom.create(CLSID_SHELL_LINK, IID_SHELL_LINK_W)
         try {
-            link.call(20, WString(exe)).check("SetPath")
-            link.call(11, WString(task.command.arg.orEmpty())).check("SetArguments")
-            link.call(17, WString(task.icon?.absolutePath ?: exe), 0).check("SetIconLocation")
+            link.comCall(20, WString(exe)).checkHresult("SetPath")
+            link.comCall(11, WString(task.command.arg.orEmpty())).checkHresult("SetArguments")
+            link.comCall(17, WString(task.icon?.absolutePath ?: exe), 0).checkHresult("SetIconLocation")
             val store = PointerByReference()
-            link.call(0, guid(IID_PROPERTY_STORE), store).check("QueryInterface(IPropertyStore)")
+            link.comCall(0, WindowsCom.guid(IID_PROPERTY_STORE), store).checkHresult("QueryInterface(IPropertyStore)")
             try {
                 val title = Memory((task.title.length + 1) * 2L).apply { setWideString(0, task.title) }
-                store.value.call(6, titleKey(), lpwstrVariant(title)).check("SetValue(Title)")
+                store.value.comCall(6, titleKey(), lpwstrVariant(title)).checkHresult("SetValue(Title)")
                 Reference.reachabilityFence(title)
-                store.value.call(7).check("Commit")
+                store.value.comCall(7).checkHresult("Commit")
             } finally {
-                store.value.release()
+                store.value.comRelease()
             }
             return link
         } catch (e: Throwable) {
-            link.release()
+            link.comRelease()
             throw e
-        }
-    }
-
-    private fun create(clsid: String, iid: String): Pointer {
-        val out = PointerByReference()
-        ole32.getFunction("CoCreateInstance")
-            .invokeInt(arrayOf(guid(clsid), null, CLSCTX_INPROC_SERVER, guid(iid), out))
-            .check("CoCreateInstance($clsid)")
-        return out.value
-    }
-
-    private fun Pointer.call(index: Int, vararg args: Any?): Int {
-        val fn = Function.getFunction(getPointer(0).getPointer(index.toLong() * Native.POINTER_SIZE))
-        return fn.invokeInt(arrayOf(this, *args))
-    }
-
-    private fun Pointer.release() {
-        call(2)
-    }
-
-    private fun Int.check(what: String) {
-        if (this < 0) throw IOException("$what failed: HRESULT 0x%08x".format(this))
-    }
-
-    private fun guid(text: String): Memory {
-        val u = UUID.fromString(text)
-        val hi = u.mostSignificantBits
-        return Memory(16).apply {
-            setInt(0, (hi ushr 32).toInt())
-            setShort(4, (hi ushr 16).toShort())
-            setShort(6, hi.toShort())
-            for (i in 0 until 8) setByte(8L + i, (u.leastSignificantBits ushr (56 - 8 * i)).toByte())
         }
     }
 
     /** PKEY_Title: the task's label. */
     private fun titleKey(): Memory = Memory(20).apply {
-        write(0, guid(PKEY_TITLE_FMTID).getByteArray(0, 16), 0, 16)
+        write(0, WindowsCom.guid(PKEY_TITLE_FMTID).getByteArray(0, 16), 0, 16)
         setInt(16, 2)
     }
 
@@ -165,8 +126,6 @@ internal object WindowsJumpList {
         setPointer(8, chars)
     }
 
-    private const val COINIT_APARTMENTTHREADED = 0x2
-    private const val CLSCTX_INPROC_SERVER = 0x1
     private const val VT_LPWSTR: Short = 31
     private const val CLSID_DESTINATION_LIST = "77f10cf0-3db5-4966-b520-b7c54fd35ed6"
     private const val IID_CUSTOM_DESTINATION_LIST = "6332debf-87b5-4670-90c0-5e57b408a49e"
