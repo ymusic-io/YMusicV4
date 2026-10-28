@@ -14,6 +14,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <d3d11.h>
+#include <jni.h>
 
 struct AVBufferRef;
 struct AVCodecContext;
@@ -38,6 +39,9 @@ void mse_d3d11_unlock(void);
 struct AVBufferRef *mse_d3d11_hwdev_ref(void);
 /* get_format filter: AV_PIX_FMT_D3D11 if offered, else first software format. */
 enum AVPixelFormat mse_d3d11_pick(struct AVCodecContext *ctx, const enum AVPixelFormat *fmts);
+
+/* HWND of a heavyweight java.awt.Canvas via JAWT, or NULL. */
+HWND mse_d3d11_jawt_hwnd(JNIEnv *env, jobject component);
 
 /* HWND composition-surface present path. Attach/detach are called from the
    JAWT bridge; show/resize run from the decoder thread. All take the d3d11

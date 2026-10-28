@@ -12,8 +12,6 @@
 
 #ifdef _WIN32
 #include "mse_d3d11.h"
-/* Declared in mse_d3d11_jawt.c; shared by the host and file-av JNI. */
-HWND mse_d3d11_jawt_hwnd(JNIEnv *env, jobject component);
 #endif
 
 typedef struct {

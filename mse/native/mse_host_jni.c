@@ -553,7 +553,6 @@ Java_io_ymusic_mse_MseHostNative_setVideoComponent(JNIEnv *env, jclass cls, jlon
 }
 #elif defined(_WIN32)
 #include "mse_d3d11.h"
-HWND mse_d3d11_jawt_hwnd(JNIEnv *env, jobject component);
 
 JNIEXPORT jboolean JNICALL
 Java_io_ymusic_mse_MseHostNative_setVideoComponent(JNIEnv *env, jclass cls, jlong handle, jobject component)
