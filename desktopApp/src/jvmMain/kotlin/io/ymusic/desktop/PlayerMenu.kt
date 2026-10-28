@@ -15,8 +15,8 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import io.ymusic.ui.DefaultAccent
 import io.ymusic.ui.resources.Res
-import io.ymusic.ui.resources.tray_quit
 import io.ymusic.ui.resources.tray_pause
+import io.ymusic.ui.resources.tray_quit
 import io.ymusic.ui.resources.tray_resume
 import io.ymusic.ui.resources.tray_stop
 import kmpcommon.log.Logger
