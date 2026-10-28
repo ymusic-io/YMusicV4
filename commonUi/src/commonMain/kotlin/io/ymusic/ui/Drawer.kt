@@ -67,6 +67,8 @@ fun AppDrawer(
     /** Lists Donate (only where a donation screen exists). */
     showDonate: Boolean = false,
     websiteUrl: String = AppLinks(null).website,
+    /** Whether the drawer is open: each opening lands keyboard focus on the current section's item. */
+    open: Boolean = false,
 ) {
     ModalDrawerSheet(
         modifier = Modifier.width(300.dp),
@@ -78,19 +80,17 @@ fun AppDrawer(
             val updateWaiting = updateStatus is AppUpdateStatus.Offered
             DrawerHeader(appVersion, premium, onCheckUpdate, updateWaiting, websiteUrl)
             HorizontalDivider(color = DesignColors.Divider)
-            // When the drawer opens, land focus on the current section's item so keyboard users
-            // can arrow-navigate immediately. remember(Unit) ties it to the drawerContent's
-            // lifetime — ModalNavigationDrawer only composes drawerContent while visible, so this
-            // LaunchedEffect fires each time the drawer re-opens.
+            val listed = AppSection.entries
+                .filter { it != AppSection.Catalogue || showCatalogue }
+                .filter { it != AppSection.PlayAgain || !guest }
+                .filter { it != AppSection.Donate || showDonate }
+            // Keyed on open: Material3's drawer keeps its content composed while closed.
             val activeItemFocus = remember { FocusRequester() }
-            LaunchedEffect(Unit) {
-                runCatching { activeItemFocus.requestFocus() }
+            LaunchedEffect(open) {
+                if (open && section in listed) activeItemFocus.requestFocus()
             }
             Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).listKeyboardNavigation().padding(vertical = 8.dp)) {
-                AppSection.entries
-                    .filter { it != AppSection.Catalogue || showCatalogue }
-                    .filter { it != AppSection.PlayAgain || !guest }
-                    .filter { it != AppSection.Donate || showDonate }
+                listed
                     .groupBy { it.group }
                     .entries
                     .forEachIndexed { index, (_, sections) ->

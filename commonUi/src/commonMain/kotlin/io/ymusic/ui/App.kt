@@ -979,6 +979,7 @@ private fun AppRoot(
                                         scope.launch { drawer.close() }
                                     }
                                 },
+                                open = drawer.isOpen,
                             )
                         },
                     ) {
