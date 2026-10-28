@@ -483,11 +483,7 @@ fun main(args: Array<String>) {
                 Column(
                     Modifier.fillMaxSize()
                         .then(if (frame.fullscreen) Modifier else Modifier.border(1.dp, frameBorder))
-                        // Global arrow-key → focus-move fallback. Fires only when the key bubbles
-                        // all the way to the root (nothing inside consumed it — list rows handle
-                        // their own arrows via listKeyboardNavigation, TextFields keep their cursor
-                        // behaviour). Isolated buttons (back / search / pin / tabs) let arrows
-                        // through, land here, and move focus geometrically.
+                        // Arrows nothing inside consumed (lists, text fields) move focus geometrically.
                         .onKeyEvent { event ->
                             if (event.type != androidx.compose.ui.input.key.KeyEventType.KeyDown) return@onKeyEvent false
                             val dir = when (event.key) {
@@ -1090,25 +1086,14 @@ private suspend fun buildGraph(settings: AppStoreSettings, session: CookieSessio
     }
 }
 
-/**
- * Wires both shared panels to their surfaces exactly once per process. Idempotent — every
- * [DesktopPlayerSurface] call site invokes this but only the first one actually runs. Panels
- * stay alive for the lifetime of the app; the Canvas HWND / NSView and its D3D11 swapchain /
- * AVSampleBufferDisplayLayer are never torn down by Compose re-composition. Attach to
- * [videoUnderlay] happens once too, and later swaps between localPanel/msePanel are driven
- * by [localSurface].visible observed OUTSIDE Compose — not by Compose recomposition.
- *
- * Doing the attach from inside a Compose DisposableEffect was the root of the mini↔NowPlaying
- * black screen: each DesktopPlayerSurface call site is a separate composition slot, so the
- * effect ran per site and called videoUnderlay.attach(panel) → frame.removeAll() →
- * frame.add(panel), which cycled the heavyweight Canvas's removeNotify/addNotify and spun
- * up a fresh HWND every switch. The new HWND re-triggered file_av_set_video_hwnd → the
- * deferred decoder reopen → an av_seek_frame that flushed the audio ring (audio glitch).
- */
 private val panelSwapScope = kotlinx.coroutines.CoroutineScope(
     kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Default
 )
 
+/**
+ * Wires the shared panels to their surfaces, once per process. Never attach panels from a composable:
+ * every attach re-creates the Canvas peer (a new HWND, hence a decoder reopen and an audio glitch).
+ */
 private fun wirePlayerSurfacesOnce(
     localSurface: LocalVideoSurface,
     mseSurface: io.ymusic.mse.MseVideoSurface,
@@ -1139,12 +1124,9 @@ private fun wirePlayerSurfacesOnce(
         localSurface.swingShown?.let { copyRgb(it) }
     }
     localSurface.onNativePresent = { sharedLocalPanel.setHardware(it) }
-    // Attach the panel that matches the active engine; swap only when the engine itself
-    // changes (local file ↔ YouTube MSE). mini↔NowPlaying never flips this flag so the
-    // Canvas and its HWND persist forever.
+    // Swaps only when the engine does (local file <-> YouTube MSE), never on a view switch.
     panelSwapScope.launch {
         localSurface.visible.collect { visible ->
-            // videoUnderlay.attach touches Swing component hierarchy — must run on EDT.
             SwingUtilities.invokeLater {
                 videoUnderlay.attach(if (visible) sharedLocalPanel else sharedMsePanel)
             }
@@ -1172,10 +1154,6 @@ private fun DesktopPlayerSurface(
             localPanel.setCovered(false)
         }
     }
-    // videoUnderlay.attach is done in wirePlayerSurfacesOnce (observes localSurface.visible
-    // outside Compose), so panel identity doesn't tie into any DisposableEffect here. Panel
-    // selection stays local so per-site effects (window-resize still capture) still see the
-    // active panel.
     val panel = if (localVisible) localPanel else msePanel
     val hostWindow = LocalAppWindow.current
     val density = LocalDensity.current
@@ -1295,11 +1273,7 @@ private class MseVideoPanel : JPanel(BorderLayout()) {
                 val dh = (image.height * scale).toInt().coerceAtLeast(1)
                 val x = (width - dw) / 2
                 val y = (height - dh) / 2
-                // Fill only the letterbox bars: the image covers its rect in a single drawImage,
-                // so the frame area never flashes to black between the clear and the blit. (The
-                // heavyweight Canvas's Graphics draws straight to the window surface, so any
-                // whole-canvas fillRect before drawImage is a visible mid-cycle black flash
-                // whenever a repaint catches the painter between the two calls.)
+                // Bars only: this Graphics draws straight to screen, so clearing under the frame flashes black.
                 g.color = AwtColor.BLACK
                 if (y > 0) {
                     g.fillRect(0, 0, width, y)
@@ -1753,17 +1727,7 @@ private val LocalAppWindow = staticCompositionLocalOf<java.awt.Window?> { null }
 
 private val videoUnderlay by lazy { VideoUnderlay() }
 
-/**
- * The heavyweight Canvas-bearing panels are singletons so the OS HWND / NSView and its
- * attached D3D11 swapchain / AVSampleBufferDisplayLayer survive every Compose recomposition.
- * [graph.playerSurface] expands to [DesktopPlayerSurface] at multiple call sites
- * (mini-player, NowPlaying full view, PiP). Each call site is a separate composition slot,
- * so a per-call `remember { MseVideoPanel() }` would spin up a fresh Canvas on every switch,
- * and `videoUnderlay.attach(panel)` would then destroy the previous Canvas's HWND — triggering
- * a decoder reopen plus a visible black-screen while the new HWND warms up. Hoisting the
- * panels to module scope keeps a single HWND for the app's lifetime; call sites only update
- * the hole rect and blit size.
- */
+/** Process-wide: a fresh Canvas per [DesktopPlayerSurface] call site means a fresh HWND / NSView on every view switch. */
 private val sharedMsePanel by lazy { MseVideoPanel() }
 private val sharedLocalPanel by lazy { MseVideoPanel() }
 private val playerSurfaceWired = java.util.concurrent.atomic.AtomicBoolean(false)
@@ -1790,16 +1754,10 @@ private fun MacTrafficLight(color: Color, label: String, glyph: String, onClick:
             .clip(CircleShape)
             .background(color)
             .hoverable(hover)
-            // Window-chrome buttons stay out of the Tab cycle (standard Windows app pattern —
-            // Chrome / Firefox / VS Code do the same). Mouse + hover-read still work. Users close
-            // / minimize / fullscreen via Alt+F4 / Win+↓ / F11 keyboard shortcuts.
+            // Out of the Tab cycle like other apps' window chrome; the keyboard has Alt+F4 / Win+Down / F11.
             .focusProperties { canFocus = false }
             .clickable(indication = null, interactionSource = hover, role = Role.Button, onClick = onClick)
-            // Hover-only glyph (✕ ─ ＋) is a Text node whose text would otherwise merge into the
-            // button's semantics and NVDA would read "plus" instead of "Full screen". Strip
-            // descendants and set the real label as `text`, not `contentDescription` — Compose
-            // Desktop's a11y bridge maps contentDescription to BOTH JAB name AND description,
-            // so NVDA reads it twice; using `text` fills name only.
+            // Drops the glyph's Text; `text`, not contentDescription, which the a11y bridge reads twice.
             .clearAndSetSemantics {
                 text = AnnotatedString(label)
                 role = Role.Button

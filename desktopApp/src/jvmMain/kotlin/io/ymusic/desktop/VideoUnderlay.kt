@@ -25,8 +25,7 @@ internal class VideoUnderlay {
         setSize(1, 1)
     }
 
-    /** The Compose window to stay just below. Set once by Main after it's displayable, used by
-     *  setHole to re-establish z-order whenever the Frame transitions to visible or moves. */
+    /** The Compose window to stay just below whenever the hole moves or reappears. */
     @Volatile var ownerWindow: Window? = null
 
     /** Follows the main window: a separate top-level frame on X11/Windows, it would outlive a hide. */
@@ -41,12 +40,7 @@ internal class VideoUnderlay {
         if (panel != null) frame.add(panel, java.awt.BorderLayout.CENTER)
         frame.validate()
         frame.repaint()
-        // Force a synchronous BLACK fill on the heavyweight Canvas inside, after its HWND is
-        // realized. A fresh Canvas HWND on Windows holds transparent pixels until its first
-        // WM_PAINT writes them — DWM composites past that transparency to whatever window happens
-        // to be beneath the Compose transparent-hole (not necessarily this Frame). canvas.repaint()
-        // alone just schedules an async paint that can be deferred past the user-visible gap;
-        // drawing straight into getGraphics guarantees the Canvas has real pixels NOW.
+        // Hack: a fresh Canvas HWND is see-through until its first WM_PAINT; paint it black now, not on repaint().
         if (panel != null) {
             SwingUtilities.invokeLater { findCanvas(panel)?.let { blackoutCanvas(it) } }
         }
@@ -84,20 +78,13 @@ internal class VideoUnderlay {
         val moved = frame.x != x || frame.y != y || frame.width != w || frame.height != h
         if (moved) {
             frame.setBounds(x, y, w, h)
-            // setBounds alone does NOT re-run BorderLayout — the heavyweight Canvas inside
-            // keeps its old size and the OS HWND's client rect stays stale, which pins the
-            // D3D11 swapchain to the first-attached size (seen as video rendered into a tiny
-            // rect of a big black frame). The previous per-site DisposableEffect that
-            // dispatched videoUnderlay.attach on view switches implicitly covered this via
-            // frame.validate(); the single-attach architecture needs the explicit call here.
+            // setBounds doesn't relayout: the Canvas HWND, and the D3D11 swapchain on it, would keep the old size.
             frame.validate()
         }
         val revealed = shown && !frame.isVisible
         if (revealed) frame.isVisible = true
-        // Windows: z-order drifts whenever another app foregrounds, so DWM may composite the
-        // transparent hole against some other window; re-anchor below the owner. Only when the
-        // hole changed (activation re-anchors on its own): off macOS the restack is two toFront
-        // calls that flash the video over the UI, and this runs on every ancestor relayout.
+        // Another app can slip into the hole's z-slot; re-anchor, but only on a change: off macOS
+        // the restack is two toFront calls that flash the video over the UI.
         if (moved || revealed) ownerWindow?.let { orderJustBehind(it) }
     }
 
