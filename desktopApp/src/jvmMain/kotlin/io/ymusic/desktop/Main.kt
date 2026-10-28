@@ -1232,13 +1232,9 @@ private fun DesktopPlayerSurface(
         surfaceMountCount++
         onDispose {
             surfaceMountCount--
-            // Only hide the underlay when NO call site is active. During a mini↔NowPlaying
-            // handoff, the departing site disposes just before the arriving site mounts;
-            // nulling the hole here would briefly shrink the Frame to 1x1 and the viewer
-            // sees a flash while the Canvas HWND is still perfectly alive.
-            if (surfaceMountCount <= 0) {
-                surfaceMountCount = 0
-                videoUnderlay.setHole(0, 0, 0, 0)
+            // A swap disposes the old site before the new one mounts, in the same apply: check once it has.
+            SwingUtilities.invokeLater {
+                if (surfaceMountCount == 0) videoUnderlay.setHole(0, 0, 0, 0)
             }
         }
     }
@@ -1777,12 +1773,7 @@ private val sharedMsePanel by lazy { MseVideoPanel() }
 private val sharedLocalPanel by lazy { MseVideoPanel() }
 private val playerSurfaceWired = java.util.concurrent.atomic.AtomicBoolean(false)
 
-/**
- * How many [DesktopPlayerSurface] call sites are currently mounted. Multiple sites can co-exist
- * briefly across mini↔NowPlaying transitions; the hole only hides when ALL of them unmount so
- * we don't flash the hole to 1x1 during a handoff. Writes always happen on the EDT (Compose
- * applier for jvm Desktop).
- */
+/** Mounted [DesktopPlayerSurface] call sites; the hole closes only when none is left. EDT only. */
 private var surfaceMountCount = 0
 
 private const val DESKTOP_CHROME_UA =
