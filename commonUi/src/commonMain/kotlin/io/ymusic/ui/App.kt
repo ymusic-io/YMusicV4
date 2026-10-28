@@ -609,17 +609,19 @@ private fun AppRoot(
         // instead of stacking a fresh one.
         val openSearch: () -> Unit = {
             val existing = layers.indexOfFirst { it is AppLayer.Search }
-            val search: AppLayer.Search = when {
-                existing >= 0 && existing == layers.lastIndex -> layers[existing] as AppLayer.Search
-                existing >= 0 -> (layers.removeAt(existing) as AppLayer.Search).also { layers.add(it) }
-                else -> AppLayer.Search(SearchSession.youtube(graph, scope)).also { layers.add(it) }
+            when {
+                existing >= 0 && existing == layers.lastIndex -> Unit // already on top
+                existing >= 0 -> layers.add(layers.removeAt(existing))
+                else -> layers.add(AppLayer.Search(SearchSession.youtube(graph, scope)))
             }
-            // Hotkey from anywhere: drop back to the input mode so the field re-focuses, even if the
-            // user had already submitted a query (otherwise the results bar sits silent).
-            search.session.editing = true
         }
-        DisposableEffect(openSearch) {
-            GlobalShortcutActions.openSearch = openSearch
+        // The hotkey lands in the input even over submitted results (the results bar takes no typing).
+        val hotkeySearch: () -> Unit = {
+            openSearch()
+            (layers.lastOrNull() as? AppLayer.Search)?.session?.editing = true
+        }
+        DisposableEffect(hotkeySearch) {
+            GlobalShortcutActions.openSearch = hotkeySearch
             onDispose { GlobalShortcutActions.openSearch = {} }
         }
         DisposableEffect(drawer, scope) {
