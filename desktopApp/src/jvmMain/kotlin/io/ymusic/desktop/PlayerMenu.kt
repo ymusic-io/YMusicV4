@@ -10,8 +10,10 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import io.ymusic.ui.DefaultAccent
 import io.ymusic.ui.resources.Res
@@ -20,12 +22,14 @@ import io.ymusic.ui.resources.tray_quit
 import io.ymusic.ui.resources.tray_resume
 import io.ymusic.ui.resources.tray_stop
 import kmpcommon.log.Logger
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.jetbrains.compose.resources.stringResource
 import java.awt.MenuItem
 import java.awt.PopupMenu
 import java.awt.Taskbar
 import java.io.File
+import java.io.IOException
 
 /**
  * Pause/Resume, Stop (clear the queue) and, when [withQuit], Quit: the tray icon's right-click
@@ -89,26 +93,40 @@ internal fun JumpListTasks(exe: String, playing: Boolean, hasQueue: Boolean, log
     val toggleLabel = stringResource(if (playing) Res.string.tray_pause else Res.string.tray_resume)
     val stopLabel = stringResource(Res.string.tray_stop)
     val quitLabel = stringResource(Res.string.tray_quit)
-    val toggleGlyph = rememberVectorPainter(if (playing) Icons.Default.Pause else Icons.Default.PlayArrow)
-    val stopGlyph = rememberVectorPainter(Icons.Default.Stop)
-    val quitGlyph = rememberVectorPainter(Icons.AutoMirrored.Filled.ExitToApp)
-    LaunchedEffect(exe, toggleLabel, stopLabel, quitLabel, hasQueue) {
+    val glyphs = mapOf(
+        "toggle-true" to rememberVectorPainter(Icons.Default.Pause),
+        "toggle-false" to rememberVectorPainter(Icons.Default.PlayArrow),
+        "stop" to rememberVectorPainter(Icons.Default.Stop),
+        "quit" to rememberVectorPainter(Icons.AutoMirrored.Filled.ExitToApp),
+    )
+    var icons by remember { mutableStateOf<Map<String, File>?>(null) }
+    LaunchedEffect(Unit) {
         // Drawn here, on the composition thread: a VectorPainter reads snapshot state.
-        val icons = listOf(
-            "toggle-$playing" to toggleGlyph,
-            "stop" to stopGlyph,
-            "quit" to quitGlyph,
-        ).associate { (name, glyph) -> name to JUMP_LIST_ICON_SIZES.map { glyph.rasterize(it, tint = DefaultAccent) } }
+        val images = glyphs.mapValues { (_, glyph) -> JUMP_LIST_ICON_SIZES.map { glyph.rasterize(it, tint = DefaultAccent) } }
+        icons = withContext(Dispatchers.IO) {
+            val dir = File(ymusicDataDir(), "jumplist")
+            images.mapNotNull { (name, sizes) ->
+                val file = File(dir, "$name.ico")
+                try {
+                    WindowsJumpList.writeIcon(file, sizes)
+                    name to file
+                } catch (e: IOException) {
+                    logger.log(Logger.Level.WARN, "jump list icon not written, using the exe's", e)
+                    null
+                }
+            }.toMap()
+        }
+    }
+    val files = icons ?: return
+    LaunchedEffect(exe, playing, toggleLabel, stopLabel, quitLabel, hasQueue, files) {
         withContext(WindowsJumpList.dispatcher) {
             runCatching {
-                val dir = File(ymusicDataDir(), "jumplist")
-                val files = icons.mapValues { (name, images) -> File(dir, "$name.ico").also { WindowsJumpList.writeIcon(it, images) } }
                 val tasks = buildList {
                     if (hasQueue) {
-                        add(WindowsJumpList.Task(toggleLabel, InstanceCommand.TogglePlay, files.getValue("toggle-$playing")))
-                        add(WindowsJumpList.Task(stopLabel, InstanceCommand.Stop, files.getValue("stop")))
+                        add(WindowsJumpList.Task(toggleLabel, InstanceCommand.TogglePlay, files["toggle-$playing"]))
+                        add(WindowsJumpList.Task(stopLabel, InstanceCommand.Stop, files["stop"]))
                     }
-                    add(WindowsJumpList.Task(quitLabel, InstanceCommand.Quit, files.getValue("quit")))
+                    add(WindowsJumpList.Task(quitLabel, InstanceCommand.Quit, files["quit"]))
                 }
                 WindowsJumpList.set(exe, tasks)
             }.onFailure { logger.log(Logger.Level.WARN, "jump list update failed", it) }
