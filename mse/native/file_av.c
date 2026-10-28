@@ -151,12 +151,9 @@ struct FileAv {
     void *vt_layer;
 #endif
 #ifdef FILE_AV_WIN_HW
-    /* JAWT HWND of the heavyweight Canvas file_av_set_video_hwnd gave us. Not owned —
-       mse_d3d11_present_attach(hwnd) was called by the JNI setter, we just need to know whether
-       the swapchain is live so present_d3d11 may be tried. NULL = CPU blit path. */
+    /* Canvas HWND the JNI attached the D3D11 presenter to (not owned); NULL = CPU blit. */
     void *d3d11_hwnd;
-    /* Set by file_av_set_video_hwnd when the HW gate flips; file_av_step picks it up at a
-       safe moment (dec_loop already quiesced via the step cycle) and reopens the decoder. */
+    /* The HWND came or went: file_av_step re-checks whether the video decoder runs on D3D11VA. */
     int reopen_video;
 #endif
 #ifdef FILE_AV_AQ
@@ -1877,30 +1874,17 @@ int file_av_step(FileAv *p)
         return 0;
     }
 #ifdef FILE_AV_WIN_HW
-    if (p->reopen_video && p->vdec) {
-        /* The HW gate in open_codec sees p->d3d11_hwnd now; reopen the video decoder in-place
-           so the SW-decoded stream switches to D3D11VA (or back) without a user-visible seek.
-           Must happen with mu held — rest_video_locked drives dec_loop to idle via dec_epoch
-           and cond_wait before freeing p->vdec. The demuxer may have been read past EOF while
-           we were waiting on the HWND; re-seek to the current clock so fill_packets has data
-           for the new decoder instead of tripping file_av_step's premature-ended check. */
-        double pos = media_time_locked(p);
-        int64_t ts = (int64_t)(pos * AV_TIME_BASE);
+    /* Once the demuxer hit EOF the queued packets are all the video left: a new decoder would
+       get none and the ended check would fire early. The flag waits for a seek to clear fmt_eof. */
+    if (p->reopen_video && p->vdec && !p->fmt_eof) {
+        int hw = d3d11_vdec(p, p->fmt->streams[p->v_st]->codecpar) != NULL;
         p->reopen_video = 0;
-        mse_critf(MSE_LOG_INFO, "file-av reopen on hwnd=%p pos=%.3f", p->d3d11_hwnd, pos);
-        rest_video_locked(p);
-        p->fmt_eof = 0;
-        p->ended = 0;
-        if (p->fmt)
-            av_seek_frame(p->fmt, -1, ts, AVSEEK_FLAG_BACKWARD);
-        if (p->adec)
-            avcodec_flush_buffers(p->adec);
-        if (p->sdec)
-            avcodec_flush_buffers(p->sdec);
-        pq_clear(&p->aq);
-        p->last_vpts = -1;
-        start_video_locked(p);
-        pthread_cond_broadcast(&p->cv);
+        if (hw != (p->vdec->hw_device_ctx != NULL)) {
+            mse_critf(MSE_LOG_INFO, "file-av video decoder reopens %s",
+                      hw ? "on d3d11va" : "in software");
+            rest_video_locked(p);
+            start_video_locked(p);
+        }
     }
 #endif
     p->idle_ns = 4 * 1000 * 1000;
@@ -2114,6 +2098,9 @@ void file_av_close(FileAv *p)
 #endif
     p->fmt_eof = 0;
     p->dec_drain = 0;
+#ifdef FILE_AV_WIN_HW
+    p->reopen_video = 0;
+#endif
     free_codecs(p);
     if (p->fmt)
         avformat_close_input(&p->fmt);
@@ -2416,21 +2403,12 @@ void file_av_set_video_layer(FileAv *p, void *layer)
 #ifdef FILE_AV_WIN_HW
 void file_av_set_video_hwnd(FileAv *p, void *hwnd)
 {
-    int want_reopen = 0;
     if (!p)
         return;
     pthread_mutex_lock(&p->mu);
-    /* Flip between HWND-set and HWND-clear changes the open_codec HW gate. The reopen itself
-       must happen with p->mu held AND dec_loop idle; file_av_step is the one safe context —
-       it owns mu and knows dec_loop's state. Flag it here and file_av_step picks it up on the
-       next tick (sub-millisecond latency on the player thread). */
-    if ((p->d3d11_hwnd == NULL) != (hwnd == NULL) && p->opened && p->vdec)
-        want_reopen = 1;
-    p->d3d11_hwnd = hwnd;
-    if (want_reopen) {
+    if ((p->d3d11_hwnd == NULL) != (hwnd == NULL))
         p->reopen_video = 1;
-        pthread_cond_broadcast(&p->cv);
-    }
+    p->d3d11_hwnd = hwnd;
     pthread_mutex_unlock(&p->mu);
 }
 #endif
