@@ -1224,8 +1224,12 @@ static int present_video(FileAv *p, AVFrame *fr)
     dst_ls[0] = dw * 4;
     if (sws_scale(p->sws, (const uint8_t *const *)fr->data, fr->linesize, 0, fr->height, dst, dst_ls) < 0)
         return -1;
-    p->vw = dw;
-    p->vh = dh;
+    /* Report NATIVE frame dimensions, not swscale output. The host UI uses this for the
+       video surface aspect ratio; feeding it dw/dh (which itself depends on the UI's
+       current box size) creates a layout feedback loop that oscillates ±1px per compose
+       pass and visibly blinks the picture at ~9Hz. */
+    p->vw = fr->width;
+    p->vh = fr->height;
 #ifdef __APPLE__
     emit_frame(p, dw, dh);
 #else
