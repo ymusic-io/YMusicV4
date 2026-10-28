@@ -174,7 +174,6 @@ struct FileAv {
     int64_t samples_played;
     double seek_base;
     double dac_tick_ns;
-    float volume;
 #endif
 #ifdef FILE_AV_PLAYOUT_CLOCK
     /* Buffers queued at the device, in play order, with the frames of real audio each holds. */
@@ -1480,7 +1479,6 @@ static int start_aq(FileAv *p)
     p->ring_cap = cap;
     p->ring_r = p->ring_w = p->ring_n = 0;
     p->dac_buf_bytes = buf_bytes;
-    AudioQueueSetParameter(aq, kAudioQueueParam_Volume, p->volume);
     pthread_mutex_unlock(&p->mu);
     for (i = 0; i < AQ_NBUFS; i++) {
         AudioQueueBufferRef buf;
@@ -2046,7 +2044,6 @@ FileAv *file_av_create(void)
     p->afr = av_frame_alloc();
     p->vfr = av_frame_alloc();
 #ifdef FILE_AV_AQ
-    p->volume = 1.f;
     p->out_rate = OUT_RATE;
     p->out_ch = OUT_CH;
 #endif
@@ -2519,29 +2516,11 @@ void file_av_set_video_hwnd(FileAv *p, void *hwnd)
 }
 #endif
 
+/* audio_fx applies it at the pull; also setting the AudioQueue volume would square the gain. */
 void file_av_set_volume(FileAv *p, double vol)
 {
-#ifdef FILE_AV_AQ
-    AudioQueueRef aq;
-#endif
-    if (!p)
-        return;
-    if (vol < 0)
-        vol = 0;
-    if (vol > 1)
-        vol = 1;
-    pthread_mutex_lock(&p->mu);
-#ifdef FILE_AV_AQ
-    p->volume = (float)vol;
-    aq = p->dac;
-#endif
-    if (p->fx)
+    if (p && p->fx)
         audio_fx_set_volume(p->fx, (float)vol);
-    pthread_mutex_unlock(&p->mu);
-#ifdef FILE_AV_AQ
-    if (aq)
-        AudioQueueSetParameter(aq, kAudioQueueParam_Volume, (Float32)vol);
-#endif
 }
 
 void file_av_set_pitch(FileAv *p, double pitch)
