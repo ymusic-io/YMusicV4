@@ -3810,39 +3810,18 @@ static int scale_bgra(MseAv *a, AVFrame *frame, uint8_t **bgra, int *w, int *h)
     }
 #endif
 #ifdef MSE_WIN_HW
-    if (frame->format == AV_PIX_FMT_D3D11 && frame->data[0]) {
-        ID3D11Texture2D *tex = (ID3D11Texture2D *)frame->data[0];
-        UINT slice = (UINT)(uintptr_t)frame->data[1];
-        int rc = mse_d3d11_present_show(tex, slice, frame->width, frame->height,
-                                        a->present_owner);
-        if (rc == 0) {
-            a->hw_errs = 0;
-            *bgra = NULL;
-            *w = frame->width;
-            *h = frame->height;
-            return 0;
-        }
-        if (rc == -2) {
-            /* No swapchain attached (idle / mid-Canvas-transition). Drop silently; the next frame
-             * tries again after attach lands. CPU readback here would waste GPU→RAM bandwidth +
-             * fire on_frame → MseVideoSurface auto-flips to SW blit → Canvas starts painting over
-             * the eventual swapchain Present (two writers on one HWND). */
-            *bgra = NULL;
-            *w = frame->width;
-            *h = frame->height;
-            return 0;
-        }
-        /* Present failed with a real error; fall back to CPU copy via hwframe_transfer_data. */
-        if (!a->hw_sw)
-            a->hw_sw = av_frame_alloc();
-        if (!a->hw_sw)
-            return -1;
-        av_frame_unref(a->hw_sw);
-        if (av_hwframe_transfer_data(a->hw_sw, frame, 0) < 0)
-            return -1;
-        a->hw_sw->colorspace = frame->colorspace;
-        a->hw_sw->color_range = frame->color_range;
-        sw = a->hw_sw;
+    if (frame->format == AV_PIX_FMT_D3D11) {
+        a->hw_errs = 0;
+        /* Unpresented frames drop (present_show logs why): a CPU blit via on_frame would turn the
+           Kotlin side to SW painting on the Canvas the swapchain still owns. */
+        if (frame->data[0])
+            mse_d3d11_present_show((ID3D11Texture2D *)frame->data[0],
+                                   (UINT)(uintptr_t)frame->data[1], frame->width, frame->height,
+                                   a->present_owner);
+        *bgra = NULL;
+        *w = frame->width;
+        *h = frame->height;
+        return 0;
     }
 #endif
 #ifdef __APPLE__

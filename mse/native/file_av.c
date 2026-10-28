@@ -1159,16 +1159,21 @@ static int present_sw_vt(FileAv *p, AVFrame *fr)
 
 #ifdef FILE_AV_WIN_HW
 /* Zero-copy present: hand the decoder's AV_PIX_FMT_D3D11 texture straight to the
-   swapchain the JAWT bridge opened on p->d3d11_hwnd. No CPU readback. */
+   swapchain the JAWT bridge opened on p->d3d11_hwnd. 0 also when the frame is dropped
+   because the swapchain is gone or another engine's. */
 static int present_d3d11(FileAv *p, AVFrame *fr)
 {
     ID3D11Texture2D *tex;
     UINT slice;
+    int rc;
     if (!p->d3d11_hwnd || fr->format != AV_PIX_FMT_D3D11 || !fr->data[0])
         return -1;
     tex = (ID3D11Texture2D *)fr->data[0];
     slice = (UINT)(uintptr_t)fr->data[1];
-    if (mse_d3d11_present_show(tex, slice, fr->width, fr->height, p) != 0)
+    rc = mse_d3d11_present_show(tex, slice, fr->width, fr->height, p);
+    if (rc == -2)
+        return 0;
+    if (rc != 0)
         return -1;
     p->vw = fr->width;
     p->vh = fr->height;
