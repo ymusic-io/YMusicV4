@@ -534,11 +534,11 @@ fun main(args: Array<String>) {
                         )
                         var alwaysOnTop by remember { mutableStateOf(window.isAlwaysOnTop) }
                         LaunchedEffect(alwaysOnTop) {
-                            // Both HWNDs need the topmost bit: the Compose window AND the heavyweight
-                            // video Canvas Frame are peers under the AWT display. Pin only one and the
-                            // other falls behind when the user clicks another app.
+                            // Both peer windows need the bit or one falls behind other apps; setting it
+                            // raises the video frame last, so restack it under the UI.
                             window.isAlwaysOnTop = alwaysOnTop
                             videoUnderlay.frame.isAlwaysOnTop = alwaysOnTop
+                            videoUnderlay.orderJustBehind(window)
                         }
                         ActionIcon(
                             icon = if (alwaysOnTop) Icons.Default.PushPin else Icons.Outlined.PushPin,
