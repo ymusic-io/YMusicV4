@@ -367,9 +367,9 @@ static AVCodecContext *open_codec(FileAv *p, AVStream *st, int video)
                              : avcodec_find_decoder(st->codecpar->codec_id);
     AVCodecContext *ctx;
 #ifdef FILE_AV_WIN_HW
-    const AVCodec *hw = video ? d3d11_vdec(p, st->codecpar) : NULL;
-    if (hw)
-        c = hw;
+    const AVCodec *d3d11_codec = video ? d3d11_vdec(p, st->codecpar) : NULL;
+    if (d3d11_codec)
+        c = d3d11_codec;
 #endif
     if (!c)
         return NULL;
@@ -393,6 +393,9 @@ static AVCodecContext *open_codec(FileAv *p, AVStream *st, int video)
         }
         try_vt = 0;
 #endif
+#ifdef FILE_AV_WIN_HW
+        try_vt = 0;
+#endif
         if (try_vt) {
             AVBufferRef *hw = NULL;
             ctx->get_format = get_format_prefer_hw;
@@ -403,7 +406,7 @@ static AVCodecContext *open_codec(FileAv *p, AVStream *st, int video)
         }
 #ifdef FILE_AV_WIN_HW
         /* The mse host's process-wide device. file_av_step reopens when the HWND comes or goes. */
-        if (hw) {
+        if (d3d11_codec) {
             AVBufferRef *dev = mse_d3d11_hwdev_ref();
             if (dev) {
                 ctx->get_format = mse_d3d11_pick;
