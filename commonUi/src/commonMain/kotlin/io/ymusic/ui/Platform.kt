@@ -1,6 +1,5 @@
 package io.ymusic.ui
 
-import androidx.compose.material3.DrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 
@@ -45,19 +44,6 @@ internal expect fun Modifier.keepBelowStatusBar(): Modifier
  *  OS-maximum 200dp) so a swipe there opens the nav drawer instead of going back. No-op elsewhere. */
 @Composable
 internal expect fun Modifier.drawerEdgeGestureExclusion(enabled: Boolean): Modifier
-
-/** The app's navigation drawer. Desktop uses an accessibility-friendly fork (sheet marked
- *  [traversalIndex] -1 so screen-reader hover hit-tests land on nav items before the content
- *  behind the scrim). Touch platforms keep Material3's [androidx.compose.material3.ModalNavigationDrawer]
- *  for its swipe-to-open gesture and predictive back — mouse-less screen readers don't do
- *  point-based hit-tests, so there's nothing to fix there. */
-@Composable
-internal expect fun AppNavigationDrawer(
-    drawerContent: @Composable () -> Unit,
-    drawerState: DrawerState,
-    modifier: Modifier = Modifier,
-    content: @Composable () -> Unit,
-)
 
 /** Attach [label] as the screen-reader-announced label on an icon-only button, worked around for
  *  Compose Desktop's a11y bridge: it maps `contentDescription` to BOTH JAB `name` and

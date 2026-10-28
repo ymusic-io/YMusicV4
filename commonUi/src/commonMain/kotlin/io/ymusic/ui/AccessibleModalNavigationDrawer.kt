@@ -12,18 +12,37 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.DrawerDefaults
 import androidx.compose.material3.DrawerState
+import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
+import androidx.compose.ui.unit.LayoutDirection
 import kotlinx.coroutines.launch
 
+/** The app's navigation drawer: Material3's on touch platforms (swipe-to-open, predictive back),
+ *  [AccessibleModalNavigationDrawer] with a mouse, where screen readers hit-test by pointer. */
+@Composable
+internal fun AppNavigationDrawer(
+    drawerContent: @Composable () -> Unit,
+    drawerState: DrawerState,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    if (platformUsesTouch) {
+        ModalNavigationDrawer(drawerContent = drawerContent, modifier = modifier, drawerState = drawerState, content = content)
+    } else {
+        AccessibleModalNavigationDrawer(drawerContent = drawerContent, drawerState = drawerState, modifier = modifier, content = content)
+    }
+}
+
 /**
- * A left-anchored modal navigation drawer with screen-reader-friendly semantics.
+ * A start-anchored modal navigation drawer with screen-reader-friendly semantics.
  *
  * Material3's [androidx.compose.material3.ModalNavigationDrawer] inserts a scrim that owns a
  * "Close navigation menu" click action and whose bounds cover the entire area including the
@@ -51,6 +70,9 @@ internal fun AccessibleModalNavigationDrawer(
 ) {
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     val open = drawerState.isOpen
+    // Slide offsets are absolute, not mirrored: the start-anchored sheet sits on the right in RTL.
+    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+    val offscreen: (Int) -> Int = { width -> if (rtl) width else -width }
     // isTraversalGroup = true on the parent Box so the sheet's traversalIndex = -1f actually
     // sorts it before content/scrim siblings. Without this, Compose uses composition order and
     // the content underneath wins hit-test first.
@@ -68,8 +90,8 @@ internal fun AccessibleModalNavigationDrawer(
         }
         AnimatedVisibility(
             visible = open,
-            enter = slideInHorizontally(tween(250)) { -it },
-            exit = slideOutHorizontally(tween(250)) { -it },
+            enter = slideInHorizontally(tween(250), offscreen),
+            exit = slideOutHorizontally(tween(250), offscreen),
             modifier = Modifier.semantics {
                 isTraversalGroup = true
                 traversalIndex = -1f

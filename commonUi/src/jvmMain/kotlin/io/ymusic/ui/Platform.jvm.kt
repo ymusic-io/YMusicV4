@@ -1,6 +1,5 @@
 package io.ymusic.ui
 
-import androidx.compose.material3.DrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.semantics
@@ -14,21 +13,6 @@ internal actual val desktopLayoutHole: Boolean = true
 internal actual fun Modifier.a11yActionLabel(label: String?): Modifier =
     if (label.isNullOrEmpty()) this
     else this.semantics { text = AnnotatedString(label) }
-
-@Composable
-internal actual fun AppNavigationDrawer(
-    drawerContent: @Composable () -> Unit,
-    drawerState: DrawerState,
-    modifier: Modifier,
-    content: @Composable () -> Unit,
-) {
-    AccessibleModalNavigationDrawer(
-        drawerContent = drawerContent,
-        drawerState = drawerState,
-        modifier = modifier,
-        content = content,
-    )
-}
 
 @Composable
 internal actual fun PlatformBackHandler(enabled: Boolean, onBack: () -> Unit) {
