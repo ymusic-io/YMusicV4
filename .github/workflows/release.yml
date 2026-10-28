@@ -407,7 +407,7 @@ jobs:
       - name: Install Inno Setup
         shell: bash
         env:
-          INNO_SETUP_VERSION: 7.1.0
+          INNO_SETUP_VERSION: 6.7.1
         run: |
           set -euo pipefail
           find_iscc() {
