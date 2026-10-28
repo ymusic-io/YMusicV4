@@ -26,7 +26,11 @@ include(":projectCommon")
 include(":kmpHttp:core")
 include(":kmpHttp:json")
 include(":kmpHttp:json-benchmark")
-include(":kmpHttp:curl")
+// libcurl for the macOS/Linux native targets only: on a Windows host in kmpTargets=host mode it would
+// declare no Kotlin target at all, and nothing depends on it there.
+if (providers.gradleProperty("kmpTargets").orNull != "host" || !System.getProperty("os.name").startsWith("Windows")) {
+    include(":kmpHttp:curl")
+}
 include(":kmpHttp:testing")
 include(":kmpFfmpeg")
 include(":media-store")
