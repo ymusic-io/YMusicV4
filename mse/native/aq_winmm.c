@@ -225,7 +225,7 @@ OSStatus AudioQueueNewOutput(const AudioStreamBasicDescription *fmt, AudioQueueO
         free(q);
         return -1;
     }
-    mse_critf(MSE_LOG_INFO, "aq-winmm: waveOutOpen OK rate=%d ch=%d", q->rate, q->ch);
+    mse_logf("aq-winmm: waveOutOpen OK rate=%d ch=%d", q->rate, q->ch);
     pthread_mutex_init(&q->mu, NULL);
     pthread_cond_init(&q->cv, NULL);
     if (pthread_create(&q->th, NULL, aqw_loop, q) != 0) {
