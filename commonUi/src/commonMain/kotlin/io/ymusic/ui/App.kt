@@ -73,6 +73,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
@@ -88,6 +89,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -926,11 +928,17 @@ private fun AppRoot(
             ) {
                 // design/final/home.html: landscape (or any window this wide) puts the tab row inline in the app bar.
                 val wide = maxWidth > maxHeight && maxWidth >= 600.dp || maxWidth >= 650.dp
-                // Desktop only: fully covering Now Playing is opaque, so skip composing the shell
-                // underneath (4× overdraw savings + no stray semantics for hover hit-tests meant
-                // for Now Playing). Mobile keeps the shell composed for peek-dismiss animation.
-                val drawShell = !cullShellWhenNowPlayingCovers || !nowPlayingOpen || nowPlayingPeeking
-                if (drawShell) Box(Modifier.fillMaxSize()) {
+                // Fully covering Now Playing is opaque: skip drawing the feed/mini-player under it
+                // (4× GPU overdraw). Draw them again as soon as the sheet peeks so dismiss reveals.
+                val drawShell = !nowPlayingOpen || nowPlayingPeeking
+                Box(
+                    Modifier.fillMaxSize()
+                        .drawWithContent { if (drawShell) drawContent() }
+                        // Not with the hole open (the box is empty then): desktop's a11y point
+                        // hit-test returns the first child containing the point, so even an empty
+                        // cleared node here would shadow Now Playing.
+                        .then(if (nowPlayingOpen && !holeOpen) Modifier.clearAndSetSemantics {} else Modifier),
+                ) {
                     if (!holeOpen) AppNavigationDrawer(
                         drawerState = drawer,
                         drawerContent = {

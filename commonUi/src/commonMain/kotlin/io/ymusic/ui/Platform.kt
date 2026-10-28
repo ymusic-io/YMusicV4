@@ -59,11 +59,6 @@ internal expect fun AppNavigationDrawer(
     content: @Composable () -> Unit,
 )
 
-/** Whether to skip composing the shell when Now Playing fully covers it. True on desktop (saves
- *  4× overdraw and keeps the shell's semantics tree out of hover hit-tests). False on mobile:
- *  the shell stays composed under NowPlaying for peek-dismiss and faster back-to-shell transition. */
-internal expect val cullShellWhenNowPlayingCovers: Boolean
-
 /** Attach [label] as the screen-reader-announced label on an icon-only button, worked around for
  *  Compose Desktop's a11y bridge: it maps `contentDescription` to BOTH JAB `name` and
  *  `description`, so NVDA/JAWS read it twice ("Download Download"). On JVM we set the `text`
