@@ -43,8 +43,9 @@ WizardStyle=modern
 ; `lowest` and `DefaultDirName={localappdata}\Programs\{#AppName}` for a Chrome-style per-user
 ; install that skips the elevation prompt.
 PrivilegesRequired=admin
-ArchitecturesAllowed=x64compatible
-ArchitecturesInstallIn64BitMode=x64compatible
+; Arch: x64compatible, or arm64 for the native Windows on ARM build.
+ArchitecturesAllowed={#Arch}
+ArchitecturesInstallIn64BitMode={#Arch}
 MinVersion=10.0
 CloseApplications=force
 RestartApplications=no

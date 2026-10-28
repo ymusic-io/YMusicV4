@@ -530,6 +530,7 @@ val packageReleaseInnoSetup by tasks.registering(Exec::class) {
     inputs.file(iconFile)
     inputs.dir(appDir)
     inputs.property("version", desktopVersion)
+    inputs.property("platform", hostPlatform)
     outputs.dir(innoSetupOutDir)
 
     doFirst {
@@ -546,7 +547,8 @@ val packageReleaseInnoSetup by tasks.registering(Exec::class) {
             "/DAppSourceDir=${appDir.get().asFile.absolutePath}",
             "/DIconFile=${iconFile.absolutePath}",
             "/DOutputDir=${out.absolutePath}",
-            "/DOutputBaseName=YMusic-Setup-$desktopVersion",
+            "/DArch=${if (hostArm64) "arm64" else "x64compatible"}",
+            "/DOutputBaseName=YMusic-Setup-$desktopVersion-$hostPlatform",
             iss.absolutePath,
         )
     }
