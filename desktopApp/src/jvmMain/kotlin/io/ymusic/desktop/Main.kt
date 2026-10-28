@@ -679,7 +679,8 @@ fun main(args: Array<String>) {
             onQuit = { quit() },
         )
         if (isMac) DockMenu(playerMenu)
-        if (jumpListExe != null) JumpListTasks(jumpListExe, playing, queueNotEmpty, rootLogger.fork("jump-list"))
+        // Gone while quitting: the queue clear would otherwise republish tasks after quit cleared them.
+        if (jumpListExe != null && !quitting) JumpListTasks(jumpListExe, playing, queueNotEmpty, rootLogger.fork("jump-list"))
         LaunchedEffect(instance) {
             instance?.commands?.collect { command ->
                 if (quitting) return@collect
