@@ -1150,7 +1150,7 @@ static int present_d3d11(FileAv *p, AVFrame *fr)
         return -1;
     tex = (ID3D11Texture2D *)fr->data[0];
     slice = (UINT)(uintptr_t)fr->data[1];
-    if (mse_d3d11_present_show(tex, slice, fr->width, fr->height) != 0)
+    if (mse_d3d11_present_show(tex, slice, fr->width, fr->height, p) != 0)
         return -1;
     p->vw = fr->width;
     p->vh = fr->height;

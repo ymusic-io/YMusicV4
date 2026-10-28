@@ -50,8 +50,9 @@ int mse_d3d11_present_attach(HWND hwnd, const void *owner);
 /* No-op unless `owner` made the current attach. */
 void mse_d3d11_present_detach(const void *owner);
 /* Letterboxes the NV12 slice into the HWND's client rect. 0 = presented, -2 = no swapchain
-   (drop the frame; the next attach presents fresh ones), -1 = failed. */
-int mse_d3d11_present_show(ID3D11Texture2D *tex, UINT array_slice, int src_w, int src_h);
+   for `owner` (none attached, or another engine's): drop the frame, -1 = failed. */
+int mse_d3d11_present_show(ID3D11Texture2D *tex, UINT array_slice, int src_w, int src_h,
+                           const void *owner);
 
 #ifdef __cplusplus
 }

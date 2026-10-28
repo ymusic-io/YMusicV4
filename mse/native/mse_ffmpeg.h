@@ -68,6 +68,9 @@ void mse_av_seek(MseAv *a, double seconds);
 /* Android: borrowed ANativeWindow. Apple: borrowed AVSampleBufferDisplayLayer.
  * NULL detaches. No-op on other hosts. */
 void mse_av_set_window(MseAv *a, void *window);
+/* Windows: the owner token (the MseHost) this decoder presents under; it must be the one that
+ * attached the D3D11 swapchain. No-op on other hosts. */
+void mse_av_set_present_owner(MseAv *a, const void *owner);
 #ifdef __APPLE__
 /* Foreground after iOS suspend: catch up from last RAP still in leftover. */
 void mse_av_recover_display(MseAv *a, double clock);

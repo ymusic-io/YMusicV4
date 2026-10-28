@@ -153,6 +153,9 @@ Java_io_ymusic_mse_FileAvNative_destroy(JNIEnv *env, jclass cls, jlong handle)
     (void)cls;
     if (!p)
         return;
+#ifdef _WIN32
+    mse_d3d11_present_detach(p);
+#endif
     s = (JniSink *)file_av_user(p);
     file_av_set_sinks(p, NULL, NULL, NULL, NULL, NULL, NULL);
     file_av_destroy(p);

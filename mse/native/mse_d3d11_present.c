@@ -479,7 +479,8 @@ void mse_d3d11_present_detach(const void *owner)
     mse_d3d11_unlock();
 }
 
-int mse_d3d11_present_show(ID3D11Texture2D *tex, UINT array_slice, int src_w, int src_h)
+int mse_d3d11_present_show(ID3D11Texture2D *tex, UINT array_slice, int src_w, int src_h,
+                           const void *owner)
 {
     ID3D11Device *dev;
     ID3D11DeviceContext *ctx;
@@ -492,7 +493,7 @@ int mse_d3d11_present_show(ID3D11Texture2D *tex, UINT array_slice, int src_w, in
         return -1;
 
     mse_d3d11_lock();
-    if (!g_p.swap) {
+    if (!g_p.swap || g_p.owner != owner) {
         mse_d3d11_unlock();
         return -2;
     }

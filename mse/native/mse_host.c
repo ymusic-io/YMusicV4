@@ -19,6 +19,7 @@
 #define MSE_AQ 1
 #elif defined(_WIN32)
 #include <windows.h>
+#include "mse_d3d11.h"
 #endif
 #ifdef __APPLE__
 #include <mach/mach_time.h>
@@ -1183,6 +1184,7 @@ MseHost *mse_host_create(void)
         free(h);
         return NULL;
     }
+    mse_av_set_present_owner(h->av, h);
 #ifdef __APPLE__
     g_ios_host = h;
 #endif
@@ -1309,11 +1311,7 @@ void mse_host_destroy(MseHost *h)
     }
 #endif
 #ifdef _WIN32
-    if (h->window) {
-        extern void mse_d3d11_present_detach(const void *owner);
-        mse_d3d11_present_detach(h);
-        h->window = NULL;
-    }
+    mse_d3d11_present_detach(h);
 #endif
     pthread_mutex_lock(&h->frame_mu);
     h->last_bgra = NULL;
@@ -1624,6 +1622,7 @@ void mse_host_reset(MseHost *h)
     pthread_mutex_lock(&h->av_mu);
     mse_av_destroy(h->av);
     h->av = mse_av_create();
+    mse_av_set_present_owner(h->av, h);
     /* MediaSource reset drops MseAv (and mc_win / VT layer / blit size).
        Keep the attached window so AV1/MediaCodec can open after load.
        Keep the hole so 4K does not sws 3840×2160 (log28 hole=0x0, ~1 fps). */

@@ -102,6 +102,7 @@ struct MseAv {
 #ifdef MSE_WIN_HW
     /* Once the d3d11va init fails for a codec, software for the rest of the process. */
     enum AVCodecID d3d11_fail_id;
+    const void *present_owner;
 #endif
     int blit_w, blit_h;
     int blit_log_dw, blit_log_dh;
@@ -3836,7 +3837,8 @@ static int scale_bgra(MseAv *a, AVFrame *frame, uint8_t **bgra, int *w, int *h)
     if (frame->format == AV_PIX_FMT_D3D11 && frame->data[0]) {
         ID3D11Texture2D *tex = (ID3D11Texture2D *)frame->data[0];
         UINT slice = (UINT)(uintptr_t)frame->data[1];
-        int rc = mse_d3d11_present_show(tex, slice, frame->width, frame->height);
+        int rc = mse_d3d11_present_show(tex, slice, frame->width, frame->height,
+                                        a->present_owner);
         if (rc == 0) {
             a->hw_errs = 0;
             *bgra = NULL;
@@ -4006,6 +4008,19 @@ void mse_av_set_window(MseAv *a, void *window)
     pthread_mutex_unlock(&a->mu);
 #else
     (void)window;
+#endif
+}
+
+void mse_av_set_present_owner(MseAv *a, const void *owner)
+{
+    if (!a)
+        return;
+#ifdef MSE_WIN_HW
+    pthread_mutex_lock(&a->mu);
+    a->present_owner = owner;
+    pthread_mutex_unlock(&a->mu);
+#else
+    (void)owner;
 #endif
 }
 
