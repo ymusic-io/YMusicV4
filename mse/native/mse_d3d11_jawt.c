@@ -82,6 +82,8 @@ HWND mse_d3d11_jawt_hwnd(JNIEnv *env, jobject component)
         ds->FreeDrawingSurfaceInfo(dsi);
     ds->Unlock(ds);
     awt.FreeDrawingSurface(ds);
+    if (!hwnd)
+        mse_critf(MSE_LOG_WARN, "d3d11 jawt drawing surface has no HWND");
     return hwnd;
 }
 

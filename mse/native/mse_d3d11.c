@@ -45,14 +45,14 @@ static void d3d11_init(void)
                                D3D11_SDK_VERSION, &g_dev, &got, &g_ctx);
     }
     if (FAILED(hr)) {
-        mse_critf(MSE_LOG_INFO, "d3d11 CreateDevice failed hr=0x%08lx (software fallback)",
+        mse_critf(MSE_LOG_WARN, "d3d11 CreateDevice failed hr=0x%08lx (software fallback)",
                   (unsigned long)hr);
         g_dev = NULL;
         g_ctx = NULL;
         return;
     }
     if (got < D3D_FEATURE_LEVEL_11_0) {
-        mse_critf(MSE_LOG_INFO, "d3d11 feature level 0x%x < 11_0 (software fallback)", (unsigned)got);
+        mse_critf(MSE_LOG_WARN, "d3d11 feature level 0x%x < 11_0 (software fallback)", (unsigned)got);
         if (g_ctx) ID3D11DeviceContext_Release(g_ctx);
         if (g_dev) ID3D11Device_Release(g_dev);
         g_ctx = NULL;

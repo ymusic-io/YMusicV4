@@ -68,11 +68,21 @@ typedef struct {
     ID3D11RasterizerState *rast;
     int bb_w, bb_h;
     int resize_failed;
+    int fail_logged;
     int logged_present;
     int log_src_w, log_src_h, log_dst_w, log_dst_h;
 } D3dPresent;
 
 static D3dPresent g_p;
+
+/* Per-frame failures: one WARN until a frame presents again. */
+static void present_fail(const char *what, HRESULT hr)
+{
+    if (g_p.fail_logged)
+        return;
+    g_p.fail_logged = 1;
+    mse_critf(MSE_LOG_WARN, "d3d11 %s hr=0x%08lx", what, (unsigned long)hr);
+}
 
 static void release_views(void)
 {
@@ -109,6 +119,7 @@ static void release_swapchain(void)
     g_p.bb_w = g_p.bb_h = 0;
     g_p.logged_present = 0;
     g_p.resize_failed = 0;
+    g_p.fail_logged = 0;
 }
 
 static void release_pipeline(void)
@@ -149,13 +160,13 @@ static int ensure_backbuffer_rtv(ID3D11Device *dev)
         return -1;
     hr = IDXGISwapChain1_GetBuffer(g_p.swap, 0, &IID_ID3D11Texture2D, (void **)&bb);
     if (FAILED(hr) || !bb) {
-        mse_critf(MSE_LOG_WARN, "d3d11 present GetBuffer hr=0x%08lx", (unsigned long)hr);
+        present_fail("present GetBuffer", hr);
         return -1;
     }
     hr = ID3D11Device_CreateRenderTargetView(dev, (ID3D11Resource *)bb, NULL, &g_p.rtv);
     ID3D11Texture2D_Release(bb);
     if (FAILED(hr)) {
-        mse_critf(MSE_LOG_WARN, "d3d11 present CreateRTV hr=0x%08lx", (unsigned long)hr);
+        present_fail("present CreateRTV", hr);
         return -1;
     }
     return 0;
@@ -168,6 +179,7 @@ static int build_pipeline(ID3D11Device *dev)
     D3D11_BUFFER_DESC bd;
     D3D11_BLEND_DESC blendDesc;
     D3D11_RASTERIZER_DESC rsDesc;
+    const char *what;
     HRESULT hr;
 
     if (g_p.vs && g_p.ps && g_p.samp && g_p.cb && g_p.blend && g_p.rast)
@@ -192,6 +204,7 @@ static int build_pipeline(ID3D11Device *dev)
     }
     if (err) ID3D10Blob_Release(err);
 
+    what = "CreateVertexShader";
     hr = ID3D11Device_CreateVertexShader(dev, ID3D10Blob_GetBufferPointer(vsBlob),
                                          ID3D10Blob_GetBufferSize(vsBlob), NULL, &g_p.vs);
     ID3D10Blob_Release(vsBlob);
@@ -199,6 +212,7 @@ static int build_pipeline(ID3D11Device *dev)
         ID3D10Blob_Release(psBlob);
         goto fail;
     }
+    what = "CreatePixelShader";
     hr = ID3D11Device_CreatePixelShader(dev, ID3D10Blob_GetBufferPointer(psBlob),
                                         ID3D10Blob_GetBufferSize(psBlob), NULL, &g_p.ps);
     ID3D10Blob_Release(psBlob);
@@ -213,6 +227,7 @@ static int build_pipeline(ID3D11Device *dev)
     sd.ComparisonFunc = D3D11_COMPARISON_NEVER;
     sd.MinLOD = 0;
     sd.MaxLOD = D3D11_FLOAT32_MAX;
+    what = "CreateSamplerState";
     hr = ID3D11Device_CreateSamplerState(dev, &sd, &g_p.samp);
     if (FAILED(hr))
         goto fail;
@@ -221,6 +236,7 @@ static int build_pipeline(ID3D11Device *dev)
     bd.ByteWidth = 16; /* float4 crop */
     bd.Usage = D3D11_USAGE_DEFAULT;
     bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+    what = "CreateBuffer";
     hr = ID3D11Device_CreateBuffer(dev, &bd, NULL, &g_p.cb);
     if (FAILED(hr))
         goto fail;
@@ -228,6 +244,7 @@ static int build_pipeline(ID3D11Device *dev)
     memset(&blendDesc, 0, sizeof(blendDesc));
     blendDesc.RenderTarget[0].BlendEnable = FALSE;
     blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+    what = "CreateBlendState";
     hr = ID3D11Device_CreateBlendState(dev, &blendDesc, &g_p.blend);
     if (FAILED(hr))
         goto fail;
@@ -236,6 +253,7 @@ static int build_pipeline(ID3D11Device *dev)
     rsDesc.FillMode = D3D11_FILL_SOLID;
     rsDesc.CullMode = D3D11_CULL_NONE;
     rsDesc.DepthClipEnable = TRUE;
+    what = "CreateRasterizerState";
     hr = ID3D11Device_CreateRasterizerState(dev, &rsDesc, &g_p.rast);
     if (FAILED(hr))
         goto fail;
@@ -243,6 +261,7 @@ static int build_pipeline(ID3D11Device *dev)
     return 0;
 
 fail:
+    mse_critf(MSE_LOG_WARN, "d3d11 %s hr=0x%08lx", what, (unsigned long)hr);
     release_pipeline();
     return -1;
 }
@@ -279,8 +298,10 @@ static int draw_nv12(ID3D11Device *dev, ID3D11DeviceContext *ctx, ID3D11Texture2
     yd.Texture2DArray.FirstArraySlice = slice;
     yd.Texture2DArray.ArraySize = 1;
     hr = ID3D11Device_CreateShaderResourceView(dev, (ID3D11Resource *)tex, &yd, &srvY);
-    if (FAILED(hr))
+    if (FAILED(hr)) {
+        present_fail("CreateShaderResourceView Y", hr);
         return -1;
+    }
 
     memset(&uvd, 0, sizeof(uvd));
     uvd.Format = DXGI_FORMAT_R8G8_UNORM;
@@ -291,6 +312,7 @@ static int draw_nv12(ID3D11Device *dev, ID3D11DeviceContext *ctx, ID3D11Texture2
     uvd.Texture2DArray.ArraySize = 1;
     hr = ID3D11Device_CreateShaderResourceView(dev, (ID3D11Resource *)tex, &uvd, &srvUV);
     if (FAILED(hr)) {
+        present_fail("CreateShaderResourceView UV", hr);
         ID3D11ShaderResourceView_Release(srvY);
         return -1;
     }
@@ -378,11 +400,15 @@ int mse_d3d11_present_attach(HWND hwnd, const void *owner)
         goto done;
     }
     hr = IDXGIDevice_GetAdapter(dxgiDev, &adapter);
-    if (FAILED(hr))
+    if (FAILED(hr)) {
+        mse_critf(MSE_LOG_WARN, "d3d11 GetAdapter hr=0x%08lx", (unsigned long)hr);
         goto done;
+    }
     hr = IDXGIAdapter_GetParent(adapter, &IID_IDXGIFactory2, (void **)&factory);
-    if (FAILED(hr))
+    if (FAILED(hr)) {
+        mse_critf(MSE_LOG_WARN, "d3d11 GetParent IDXGIFactory2 hr=0x%08lx", (unsigned long)hr);
         goto done;
+    }
 
     {
         RECT rc;
@@ -419,8 +445,10 @@ int mse_d3d11_present_attach(HWND hwnd, const void *owner)
             goto done;
         }
         /* No DWM Alt+Enter — the Canvas is windowed under Compose. */
-        IDXGIFactory2_MakeWindowAssociation(factory, hwnd, DXGI_MWA_NO_ALT_ENTER |
-                                                           DXGI_MWA_NO_WINDOW_CHANGES);
+        hr = IDXGIFactory2_MakeWindowAssociation(factory, hwnd, DXGI_MWA_NO_ALT_ENTER |
+                                                                DXGI_MWA_NO_WINDOW_CHANGES);
+        if (FAILED(hr))
+            mse_critf(MSE_LOG_WARN, "d3d11 MakeWindowAssociation hr=0x%08lx", (unsigned long)hr);
         g_p.hwnd = hwnd;
         g_p.bb_w = (int)scd.Width;
         g_p.bb_h = (int)scd.Height;
@@ -504,6 +532,8 @@ int mse_d3d11_present_show(ID3D11Texture2D *tex, UINT array_slice, int src_w, in
         hr = IDXGISwapChain1_Present(g_p.swap, 1, 0);
         if (SUCCEEDED(hr)) {
             r = 0;
+            g_p.fail_logged = 0;
+#if !PRODUCTION
             if (!g_p.logged_present ||
                 g_p.log_src_w != src_w || g_p.log_src_h != src_h ||
                 g_p.log_dst_w != g_p.bb_w || g_p.log_dst_h != g_p.bb_h) {
@@ -512,11 +542,11 @@ int mse_d3d11_present_show(ID3D11Texture2D *tex, UINT array_slice, int src_w, in
                 g_p.log_src_h = src_h;
                 g_p.log_dst_w = g_p.bb_w;
                 g_p.log_dst_h = g_p.bb_h;
-                mse_critf(MSE_LOG_INFO, "d3d11 present %dx%d -> %dx%d", src_w, src_h,
-                          g_p.bb_w, g_p.bb_h);
+                mse_logf("d3d11 present %dx%d -> %dx%d", src_w, src_h, g_p.bb_w, g_p.bb_h);
             }
+#endif
         } else {
-            mse_critf(MSE_LOG_WARN, "d3d11 Present hr=0x%08lx", (unsigned long)hr);
+            present_fail("Present", hr);
         }
     }
     mse_d3d11_unlock();
