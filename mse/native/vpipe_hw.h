@@ -42,6 +42,9 @@ const VpHw *vpipe_hw_platform(void);
 const VpHw *vpipe_hw_d3d11(void);
 #elif defined(__APPLE__)
 const VpHw *vpipe_hw_vt(void);
+/* mse_caps rows for what VideoToolbox decodes in hardware on the MSE path. Returns the count. */
+struct MseCapRow;
+int vpipe_hw_vt_caps(struct MseCapRow *rows, int cap);
 #elif defined(__linux__) && !defined(__ANDROID__)
 const VpHw *vpipe_hw_linux(void);
 #endif

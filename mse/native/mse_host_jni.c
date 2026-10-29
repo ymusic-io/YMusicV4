@@ -1,4 +1,5 @@
 #include "mse_host.h"
+#include "mse_caps.h"
 #include "mse_ffmpeg.h"
 
 #include <jni.h>
@@ -246,6 +247,26 @@ Java_io_ymusic_mse_MseHostNative_dacSession(JNIEnv *env, jclass cls, jlong handl
     (void)env;
     (void)cls;
     mse_host_dac_session((MseHost *)(intptr_t)handle, session);
+}
+
+JNIEXPORT void JNICALL
+Java_io_ymusic_mse_MseHostNative_setDecoderCaps(JNIEnv *env, jclass cls, jintArray rows)
+{
+    jsize n;
+    jint *v;
+    (void)cls;
+    n = rows ? (*env)->GetArrayLength(env, rows) : 0;
+    if (n == 0 || n % MSE_CAP_ROW_INTS != 0) {
+        jclass iae = (*env)->FindClass(env, "java/lang/IllegalArgumentException");
+        if (iae)
+            (*env)->ThrowNew(env, iae, "setDecoderCaps: rows must be n x 7 ints, n > 0");
+        return;
+    }
+    v = (*env)->GetIntArrayElements(env, rows, NULL);
+    if (!v)
+        return;
+    mse_caps_set_rows((const int *)v, n / MSE_CAP_ROW_INTS);
+    (*env)->ReleaseIntArrayElements(env, rows, v, JNI_ABORT);
 }
 #endif
 

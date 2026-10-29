@@ -1,4 +1,5 @@
 #include "mse_host.h"
+#include "mse_caps.h"
 #include "mse_ffmpeg.h"
 #include "audio_fx.h"
 #include "vpresent.h"
@@ -1144,6 +1145,7 @@ MseHost *mse_host_create(void)
     MseHost *h = (MseHost *)calloc(1, sizeof(MseHost));
     if (!h)
         return NULL;
+    mse_caps_start();
     pthread_mutex_init(&h->mu, NULL);
     pthread_mutex_init(&h->av_mu, NULL);
     pthread_cond_init(&h->cv, NULL);

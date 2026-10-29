@@ -55,6 +55,11 @@ int mse_d3d11_par_ok(const struct AVCodecParameters *par);
    profile-0 decoder (enumerated once); H.264/HEVC only need the device, since their native
    decoders fall back to software internally while native av1 has no software path. */
 int mse_d3d11_can_decode(const struct AVCodec *codec);
+/* mse_caps rows for what d3d11va decodes here: codecs with a d3d11va hwaccel whose DXVA profile the
+   GPU has, 8-bit 4:2:0 only (what the present shader samples), at the largest probed size the
+   decoder accepts. Returns the count. */
+struct MseCapRow;
+int mse_d3d11_caps(struct MseCapRow *rows, int cap);
 
 #ifdef __cplusplus
 }
