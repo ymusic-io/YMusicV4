@@ -1,7 +1,6 @@
 package io.ymusic.ytmedia.cache
 
 import okio.Buffer
-import okio.EOFException
 
 /** Where and why a segment failed [SegmentCheck]: [offset] is inside the segment, [head] the bytes found there. */
 class SegmentCheckFailure(val offset: Long, val head: String, val reason: String) {
@@ -247,7 +246,7 @@ internal class StreamingSegmentCheck(private val length: Long, isInit: Boolean) 
 /**
  * Check a stored segment of [length] bytes through positional reads: [readAt] reads bytes at a segment
  * offset into a sink, like `FileHandle.read`. Reads a small window per header, so a segment costs about one
- * read per element rather than its size in bytes.
+ * read per element rather than its size in bytes. Stored bytes that end early fail the check.
  */
 internal fun checkStoredSegment(
     length: Long,
@@ -265,7 +264,10 @@ internal fun checkStoredSegment(
             val want = minOf(WINDOW_BYTES, length - windowAt)
             while (window.size < want) {
                 val n = readAt(windowAt + window.size, window, want - window.size)
-                if (n == -1L) throw EOFException("stored segment ends at ${windowAt + window.size} of $length")
+                if (n == -1L) {
+                    val at = windowAt + window.size
+                    return SegmentCheckFailure(at, "", "stored bytes end at +$at of $length")
+                }
             }
         }
         check.step(Buffer().also { window.copyTo(it, check.next - windowAt, need) })

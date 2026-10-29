@@ -6,6 +6,11 @@ object Versions {
     const val compileSdk = 36
     const val minSdk = 24
 
+    /** The oldest macOS the desktop app runs on: Compose Desktop's floor and the first Apple-silicon release.
+     *  Every macOS native passes it as its deployment target — without one, a dylib records the build
+     *  host's OS as its minimum and will not load on anything older. */
+    const val macosMin = "11.0"
+
     /** The scrape bundle's (engine.js) self-declared revision — BUMP MANUALLY on every remote push of
      *  it. Feeds its inlined BACKEND_VERSION, its embedded-const version and each shell's
      *  ENGINE_JS_VERSION. A remote engine.js applies only above the embedded revision. */

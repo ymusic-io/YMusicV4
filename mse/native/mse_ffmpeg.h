@@ -27,6 +27,21 @@ void mse_logf(const char *fmt, ...);
 /* INFO/WARN/ERROR: always emitted. Never blocks. */
 void mse_critf(int level, const char *fmt, ...);
 
+/* The uncompressed header of a VP9 packet's first frame. The fields after `key` are set on a keyframe only. */
+typedef struct {
+    int profile;
+    int key;
+    int bit_depth;
+    int ss_x, ss_y;
+    int full_range;
+} MseVp9Header;
+/* 0 when p starts with a VP9 frame header. */
+int mse_vp9_header(const uint8_t *p, size_t n, MseVp9Header *h);
+
+struct AVCodecParameters;
+/* The bundled libvpx has no high bit depth: VP9 profiles 2 and 3 decode on native vp9. */
+int mse_vp9_high_depth(const struct AVCodecParameters *par);
+
 typedef struct MseAv MseAv;
 struct VPresenter;
 

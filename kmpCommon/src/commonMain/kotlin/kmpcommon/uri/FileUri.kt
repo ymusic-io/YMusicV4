@@ -5,9 +5,10 @@ package kmpcommon.uri
  * space / `#` / `%` / non-ASCII round-trips and never mis-parses (a raw `#` would otherwise start a
  * fragment). Always use this instead of string-concatenating `"file://" + path`.
  * A Windows drive path `C:\a\b` becomes `file:///C:/a/b`; a UNC path `\\server\share\a` becomes
- * `file://server/share/a`.
+ * `file://server/share/a`; their long-path forms `\\?\C:\a\b` and `\\?\UNC\server\share\a` map the same.
  */
-fun fileUri(path: String): Uri {
+fun fileUri(rawPath: String): Uri {
+    val path = withoutLongPathPrefix(rawPath)
     if (isUncPath(path)) {
         val rest = path.substring(2).replace('\\', '/')
         val slash = rest.indexOf('/')
@@ -37,7 +38,15 @@ fun Uri.filePath(): String {
     return if (p.startsWith('/') && isDrivePath(p, 1)) p.substring(1) else p
 }
 
-private fun isUncPath(s: String): Boolean = s.length > 2 && s[0] == '\\' && s[1] == '\\' && s[2] != '\\'
+private fun withoutLongPathPrefix(s: String): String = when {
+    s.startsWith("""\\?\UNC\""", ignoreCase = true) -> """\\""" + s.substring(8)
+    s.startsWith("""\\?\""") -> s.substring(4)
+    else -> s
+}
+
+/** `\\.\…` is the device namespace, not a server. */
+private fun isUncPath(s: String): Boolean =
+    s.length > 2 && s[0] == '\\' && s[1] == '\\' && s[2] != '\\' && s[2] != '.' && s[2] != '?'
 
 private fun isDrivePath(s: String, at: Int): Boolean =
     s.length >= at + 2 && (s[at] in 'A'..'Z' || s[at] in 'a'..'z') && s[at + 1] == ':' &&
