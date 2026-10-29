@@ -7,6 +7,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,7 +15,11 @@ import androidx.compose.material3.DrawerDefaults
 import androidx.compose.material3.DrawerState
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -52,10 +57,12 @@ internal fun AppNavigationDrawer(
  * ordering from outside, so this is a minimal reimplementation we fully control:
  *
  *  * sheet is marked [traversalIndex] = -1f (visited BEFORE content and scrim by hit-test),
- *  * scrim's semantics are cleared ([clearAndSetSemantics] with no properties), so if the pointer
- *    does land in a scrim-only region the node is a silent leaf and NVDA reads nothing,
+ *  * while open, the content behind is a silent leaf ([clearAndSetSemantics]) and so is the scrim,
+ *    so the dimmed area reads nothing and screen readers cannot walk into the hidden page,
  *  * the dismiss click is a plain [pointerInput] on the scrim; it does not add an accessibility
- *    action, so there is no competing hit-test match either.
+ *    action, so there is no competing hit-test match either,
+ *  * closing returns keyboard focus to what held it before opening, else to the first focusable
+ *    item behind (the app bar's menu button); an opening with nothing focused leaves focus alone.
  *
  * The caller passes a Material3 [DrawerState] so the rest of the shell (hamburger wiring,
  * keyboard shortcuts, section selection) stays unchanged.
@@ -70,6 +77,13 @@ internal fun AccessibleModalNavigationDrawer(
 ) {
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     val open = drawerState.isOpen
+    val contentFocus = remember { FocusRequester() }
+    val focusBeforeOpen = remember { FocusMemory() }
+    LaunchedEffect(open) {
+        if (open || !focusBeforeOpen.saved) return@LaunchedEffect
+        focusBeforeOpen.saved = false
+        if (!contentFocus.restoreFocusedChild()) contentFocus.requestFocus()
+    }
     // Slide offsets are absolute, not mirrored: the start-anchored sheet sits on the right in RTL.
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val offscreen: (Int) -> Int = { width -> if (rtl) width else -width }
@@ -77,7 +91,13 @@ internal fun AccessibleModalNavigationDrawer(
     // sorts it before content/scrim siblings. Without this, Compose uses composition order and
     // the content underneath wins hit-test first.
     Box(modifier.semantics { isTraversalGroup = true }) {
-        content()
+        Box(
+            Modifier.focusRequester(contentFocus)
+                .focusGroup()
+                .then(if (open) Modifier.clearAndSetSemantics {} else Modifier),
+        ) {
+            content()
+        }
         AnimatedVisibility(visible = open, enter = fadeIn(tween(250)), exit = fadeOut(tween(250))) {
             Box(
                 Modifier.fillMaxSize()
@@ -97,7 +117,13 @@ internal fun AccessibleModalNavigationDrawer(
                 traversalIndex = -1f
             },
         ) {
+            // Composed ahead of drawerContent: saves focus before the sheet pulls it in.
+            LaunchedEffect(Unit) { focusBeforeOpen.saved = contentFocus.saveFocusedChild() }
             drawerContent()
         }
     }
+}
+
+private class FocusMemory {
+    var saved = false
 }
