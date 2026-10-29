@@ -324,6 +324,8 @@ compose.desktop {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "YMusic"
             packageVersion = desktopVersion
+            description = "Music player"
+            vendor = "YMusic"
             macOS {
                 // Stable across releases: the updater and Gatekeeper both identify the app by it.
                 bundleID = "io.ymusic.desktop"
@@ -379,6 +381,12 @@ compose.desktop {
                 // clipped to a circle; without this jpackage falls back to its default Java/Compose
                 // icon on the installer dialog, Start-menu entry, and running window.
                 iconFile.set(project.file("ymusic.ico"))
+            }
+            linux {
+                // :commonUi's ymusic_logo.xml rendered at 512 px, inset to 7/8 (Main.kt's runtime entry matches).
+                iconFile.set(project.file("ymusic.png"))
+                appCategory = "sound"
+                menuGroup = "AudioVideo;Audio;Player;"
             }
             // jlink modules the default set misses but the runtime graph uses: java.sql
             // (sqlite-jdbc), jdk.unsupported (Unsafe — JNA/coroutines/okio),
@@ -437,6 +445,31 @@ if (hostOs == "macos") {
             val process = ProcessBuilder(command).redirectErrorStream(true).start()
             val output = process.inputStream.readBytes().decodeToString()
             check(process.waitFor() == 0) { "re-signing ${app.name} failed: $output" }
+        }
+    }
+}
+
+// jpackage's .deb templates have no Homepage (App Center's "Developer website") and no StartupWMClass
+// (GNOME matches our windows to the menu entry by it), so the package is unpacked, both added, and rebuilt.
+if (hostOs == "linux") {
+    tasks.withType<AbstractJPackageTask>().matching { it.name == "packageDeb" || it.name == "packageReleaseDeb" }.configureEach {
+        val debName = "_${desktopVersion}_${if (hostArm64) "arm64" else "amd64"}.deb"
+        doLast("addDebMetadata") {
+            fun run(vararg command: String) {
+                val process = ProcessBuilder(*command).redirectErrorStream(true).start()
+                val output = process.inputStream.readBytes().decodeToString()
+                check(process.waitFor() == 0) { "${command.joinToString(" ")} failed: $output" }
+            }
+            val deb = destinationDir.get().asFile.listFiles().orEmpty().single { it.name.endsWith(debName) }
+            val root = File(temporaryDir, "deb").apply { deleteRecursively() }
+            run("dpkg-deb", "-R", deb.path, root.path)
+            val control = File(root, "DEBIAN/control")
+            control.writeText(control.readText().trimEnd() + "\nHomepage: https://ymusic.io\n")
+            root.walk().filter { it.isFile && it.name.endsWith(".desktop") }.forEach {
+                it.writeText(it.readText().trimEnd() + "\nStartupWMClass=io-ymusic-desktop-MainKt\n")
+            }
+            run("dpkg-deb", "--root-owner-group", "--build", root.path, deb.path)
+            root.deleteRecursively()
         }
     }
 }

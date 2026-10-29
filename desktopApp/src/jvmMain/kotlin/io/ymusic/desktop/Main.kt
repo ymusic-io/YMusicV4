@@ -353,9 +353,9 @@ fun main(args: Array<String>) {
             }.onFailure { rootLogger.fork("dock").log(Logger.Level.WARN, "dock icon set failed", it) }
         }
         if (isLinux) {
-            val logo = painterResource(io.ymusic.desktop.resources.Res.drawable.ymusic_logo_dock)
+            val logo = painterResource(Res.drawable.ymusic_logo)
             LaunchedEffect(logo) {
-                val image = if (isLinuxDebInstall) null else logo.rasterize(256)
+                val image = if (isLinuxDebInstall) null else logo.rasterize(256, scale = 0.875f)
                 withContext(Dispatchers.IO) {
                     runCatching { syncLinuxDesktopEntry(image) }
                         .onFailure { rootLogger.fork("desktop-entry").log(Logger.Level.WARN, "desktop entry install failed", it) }
