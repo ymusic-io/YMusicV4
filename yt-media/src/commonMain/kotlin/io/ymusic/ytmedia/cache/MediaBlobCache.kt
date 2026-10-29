@@ -1,6 +1,7 @@
 package io.ymusic.ytmedia.cache
 
 import kmpcommon.WorkerThread
+import okio.Buffer
 import okio.BufferedSink
 import okio.IOException
 import okio.Source
@@ -69,6 +70,13 @@ interface MediaBlobCache {
      */
     fun writer(key: String, position: Long, length: Long, publishOnCommit: Boolean = false): BlobWriter
 
+    /**
+     * Drop every committed span overlapping `[position, position+length)` — bytes found corrupt. The range
+     * (and the rest of any span straddling its edges) becomes a miss at once; a reader already holding one of
+     * those spans keeps reading it, and its file is deleted after the last such reader closes.
+     */
+    fun invalidate(key: String, position: Long, length: Long)
+
     /** Every stream key with at least one committed span — the `keepKeys` set for `SegmentIndex.cleanup`. */
     fun keys(): Set<String>
 
@@ -96,7 +104,13 @@ fun Throwable.isMediaCacheStorageFault(): Boolean =
     generateSequence(this) { it.cause }.any { it is MediaCacheStorageException }
 
 /** A stitched read over pinned, immutable spans. Closing it unpins them (idempotent). */
-interface PinnedSource : Source
+interface PinnedSource : Source {
+    /**
+     * Positional read of up to [byteCount] bytes at [position] (relative to the source's first byte) into
+     * [sink]; -1 at the end. For a source not read sequentially: a sequential read closes the spans it passes.
+     */
+    fun readAt(position: Long, sink: Buffer, byteCount: Long): Long
+}
 
 /**
  * A single region's writer. [sink] takes the region's bytes; the cache spills them to a temp file and

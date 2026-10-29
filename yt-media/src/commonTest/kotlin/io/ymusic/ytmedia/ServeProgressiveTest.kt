@@ -72,7 +72,11 @@ class ServeProgressiveTest {
         writeUmpPartHeader(UmpPart.MEDIA_END, 1).writeByte(headerId)
     }
 
-    /** Fill [0,40) via a SABR parse: init=0×10, seg1=1×10, seg2=2×10, seg3=3×10 (distinct per segment). */
+    /** init, seg1, seg2, seg3: 10 bytes each over [0,40), payloads distinct per segment. */
+    private val segments = listOf(webmSegment(10, 0, init = true), webmSegment(10, 1), webmSegment(10, 2), webmSegment(10, 3))
+    private val stream = segments.reduce(ByteArray::plus)
+
+    /** Fill [0,40) with [segments] via a SABR parse. */
     private suspend fun sabrFilledCache(): MediaCache {
         FileSystem.SYSTEM.deleteRecursively(dir)
         val driver = testSegmentDriver()
@@ -81,10 +85,7 @@ class ServeProgressiveTest {
             SqlDelightSegmentIndex(driver, now = { 1_000 }),
         )
         val resp = Buffer().apply {
-            putSegment(0, 0, 0, ByteArray(10) { 0 }, isInit = true)
-            putSegment(1, 1, 10, ByteArray(10) { 1 }, isInit = false)
-            putSegment(2, 2, 20, ByteArray(10) { 2 }, isInit = false)
-            putSegment(3, 3, 30, ByteArray(10) { 3 }, isInit = false)
+            segments.forEachIndexed { i, data -> putSegment(i, i, i * 10L, data, isInit = i == 0) }
         }
         SabrSession(random = Random(1)).readResponse(asyncOf(resp), SabrTrack(fmt, MemoryFile()), null, cache)
         return cache
@@ -96,17 +97,14 @@ class ServeProgressiveTest {
     @Test
     fun a_sabr_filled_key_serves_a_progressive_range_across_segment_boundaries() = runTest {
         val cache = sabrFilledCache()
-        // bytes=5-24 spans three spans: init[0,10)=0s, seg1[10,20)=1s, seg2[20,30)=2s.
-        // → 5 bytes of 0, 10 bytes of 1, 5 bytes of 2.
-        val expected = ByteArray(5) { 0 } + ByteArray(10) { 1 } + ByteArray(5) { 2 }
-        assertContentEquals(expected, cache.progressive(5, 24))
+        // bytes=5-24 spans three spans: the tail of init[0,10), all of seg1[10,20), the head of seg2[20,30).
+        assertContentEquals(stream.copyOfRange(5, 25), cache.progressive(5, 24))
     }
 
     @Test
     fun a_progressive_read_of_the_whole_stream_matches_the_download() = runTest {
         val cache = sabrFilledCache()
-        val whole = ByteArray(10) { 0 } + ByteArray(10) { 1 } + ByteArray(10) { 2 } + ByteArray(10) { 3 }
-        assertContentEquals(whole, cache.progressive(0, 39))
+        assertContentEquals(stream, cache.progressive(0, 39))
     }
 
     @Test

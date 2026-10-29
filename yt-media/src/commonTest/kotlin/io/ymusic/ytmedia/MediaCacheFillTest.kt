@@ -88,10 +88,10 @@ class MediaCacheFillTest {
                 UmpPart.NEXT_REQUEST_POLICY,
                 NextRequestPolicy(60_000, 60_000, null, byteArrayOf(1), null).encode(),
             )
-            putSegment(0, 0, 0, ByteArray(10) { 0 }, isInit = true)
-            putSegment(1, 1, 10, ByteArray(10) { 1 }, isInit = false)
-            putSegment(2, 2, 20, ByteArray(10) { 2 }, isInit = false)
-            putSegment(3, 3, 30, ByteArray(10) { 3 }, isInit = false)
+            putSegment(0, 0, 0, webmSegment(10, 0, init = true), isInit = true)
+            putSegment(1, 1, 10, webmSegment(10, 1), isInit = false)
+            putSegment(2, 2, 20, webmSegment(10, 2), isInit = false)
+            putSegment(3, 3, 30, webmSegment(10, 3), isInit = false)
         }
         val outcome = session.readResponse(asyncOf(resp), audio, null, cache)
         assertEquals(4, outcome.completedSegments)
@@ -130,7 +130,7 @@ class MediaCacheFillTest {
         assertEquals(900, blobs.totalSize())
 
         // A SABR fill for the whole segment [0, 1000) must write ONLY the 100-byte hole.
-        val whole = ByteArray(1000) { (it and 0xFF).toByte() }
+        val whole = webmSegment(1000, 7)
         val header = MediaHeader(
             headerId = 0, videoId = "vid", itag = 251, lmt = 100, xtag = null,
             startRange = 0, isInitSegment = false, segmentIndex = 1,

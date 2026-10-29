@@ -213,7 +213,15 @@ internal class SabrCacheTee(
                     return false
                 }
                 seg.fill?.let { fill ->
-                    fill.commit() // a throw here propagates to read()'s catch → markIllegal
+                    // A throw here propagates to read()'s catch → markIllegal.
+                    val failure = fill.commit()
+                    if (failure != null) {
+                        markIllegal(
+                            "segment failed its structure check, not cached (${seg.header.describe()}) " +
+                                failure.describe(seg.header.startRange),
+                        )
+                        return false
+                    }
                     sealedSegments++
                     sealedBytes += seg.length
                 }

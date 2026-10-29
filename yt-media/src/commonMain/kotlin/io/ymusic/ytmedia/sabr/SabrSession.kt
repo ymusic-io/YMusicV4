@@ -385,7 +385,14 @@ class SabrSession(
                         val state = checkNotNull(open.remove(headerId)) { "media end for unknown header $headerId" }
                         state.sink?.close()
                         state.sink = null
-                        state.cacheFill?.commit() // seal the mirrored span (its index row was saved on the header)
+                        // Seal the mirrored span (its index row was saved on the header).
+                        state.cacheFill?.commit()?.let { failure ->
+                            logger?.log(
+                                Logger.Level.WARN,
+                                "segment failed its structure check, not cached (${state.header.describe()}) " +
+                                    failure.describe(state.header.startRange),
+                            )
+                        }
                         state.cacheFill = null
                         val advanced = state.reachedFileEnd() && advanceIfContiguous(state.header, audio, video)
                         if (advanced) completed++
