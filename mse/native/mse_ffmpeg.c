@@ -136,6 +136,11 @@ struct MseAv {
     /* H.264: AV_PKT_FLAG_KEY can be a recovery point, not IDR. Don't show
        until an IDR NAL has been sent (open-GOP seek = broken picture). */
     int v_seen_idr;
+    /* The last decode-error resync: the keyframe it restarted at (-1 once a picture is shown),
+       where the decoder failed, and the decoder that retries. */
+    double v_err_key;
+    double v_err_pos;
+    char v_err_dec[64];
 #ifdef __APPLE__
     void *vt_dec;
     /* Decoded pictures waiting in PTS (display) order. H.264 B-frames are
@@ -2338,6 +2343,7 @@ MseAv *mse_av_create(void)
     a->a_sent = -1;
     a->v_sent = -1;
     a->v_switch_pts = -1;
+    a->v_err_key = -1;
     a->need_rap[0] = 1;
     a->need_rap[1] = 1;
     av_log_set_level(AV_LOG_ERROR);
@@ -3400,6 +3406,7 @@ void mse_av_change_type(MseAv *a, int audio)
         a->vinit = NULL;
         a->vinit_n = 0;
         close_video_decoder(a);
+        a->v_err_key = -1;
 #ifdef MSE_WIN_HW
         /* New stream: give D3D11VA a fresh chance even if the previous stream's codec latched off.
          * The fail latch is per-session (one problematic stream), not permanent. */
@@ -3800,6 +3807,24 @@ static void vf_resync_key(MseAv *a, double t)
     vlog("resync key=%.3f rd=%zu n=%zu t=%.3f", a->vf.f[key].pts, key, a->vf.n, t);
 }
 
+/* Feeding restarts at the first keyframe after `key`: its GOP failed twice in the same decoder. */
+static void vf_skip_gop(MseAv *a, double key)
+{
+    size_t i, next = a->vf.n;
+    for (i = 0; i < a->vf.n; i++) {
+        if (a->vf.f[i].key && a->vf.f[i].pts > key + 0.001) {
+            next = i;
+            break;
+        }
+    }
+    for (i = 0; i < a->vf.n; i++)
+        a->vf.f[i].sent = i < next;
+    a->vf.rd = next;
+    a->need_rap[0] = 1;
+    mse_critf(MSE_LOG_INFO, "mse-v decode errors at the GOP %.3f again: next keyframe %.3f", key,
+              next < a->vf.n ? a->vf.f[next].pts : -1.0);
+}
+
 /* Drop a RAP that is already behind the DAC only when there is nothing
    left to play in this GOP: no later key, or the next key is already due.
    A key 0.7s late with the next key 5s ahead must be decoded — skipping
@@ -3870,6 +3895,7 @@ void mse_av_seek(MseAv *a, double seconds)
          a->af.rd, a->vf.rd, a->vf.rd < a->vf.n ? a->vf.f[a->vf.rd].pts : -1);
     a->a_sent = seconds - 0.05;
     a->v_sent = seconds - 0.05;
+    a->v_err_key = -1;
     a->need_rap[0] = 1;
     a->need_rap[1] = 1;
     if (a->adec)
@@ -4032,6 +4058,7 @@ void mse_av_recover_display(MseAv *a, double clock)
    INVALIDDATA on their own — those must not tear the decoder down. */
 static void video_decode_error(MseAv *a, double pts, int err)
 {
+    char dec[64];
     if (a->vpar && a->vpar->codec_id == AV_CODEC_ID_VP9 && !a->vbsf)
         return;
 #ifdef __APPLE__
@@ -4074,7 +4101,16 @@ static void video_decode_error(MseAv *a, double pts, int err)
     close_video_decoder(a);
     if (a->vpar)
         open_video_decoder(a, a->vpar);
-    vf_resync_key(a, a->v_sent >= 0 ? a->v_sent : pts);
+    snprintf(dec, sizeof(dec), "%s%s", a->vdec && a->vdec->codec ? a->vdec->codec->name : "",
+             a->vdec && a->vdec->hw_device_ctx ? " hw" : "");
+    /* The same decoder failing again at or past the same point: the GOP's data is bad. */
+    if (a->v_err_key >= 0 && pts >= a->v_err_pos - 0.001 && !strcmp(dec, a->v_err_dec))
+        vf_skip_gop(a, a->v_err_key);
+    else
+        vf_resync_key(a, a->v_sent >= 0 ? a->v_sent : pts);
+    a->v_err_key = a->vf.rd < a->vf.n ? a->vf.f[a->vf.rd].pts : -1;
+    a->v_err_pos = pts;
+    snprintf(a->v_err_dec, sizeof(a->v_err_dec), "%s", dec);
 }
 
 #ifdef MSE_WIN_HW
@@ -4328,6 +4364,7 @@ static int pull_video(MseAv *a, double clock, int *w, int *h, double *pts)
             *pts = p;
             a->v_sent = p;
             a->show_late = 0;
+            a->v_err_key = -1;
             if (vdbg_ok())
                 vlog_state(a, clock, "show-hold", d);
             av_frame_free(&a->vhold);
@@ -4395,6 +4432,7 @@ static int pull_video(MseAv *a, double clock, int *w, int *h, double *pts)
             *pts = p;
             a->v_sent = p;
             a->show_late = 0;
+            a->v_err_key = -1;
             if (vdbg_ok())
                 vlog_state(a, clock, "show", d);
             av_frame_unref(frame);
