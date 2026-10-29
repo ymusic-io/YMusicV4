@@ -321,6 +321,8 @@ static void mse_emit(int level, char *msg)
 }
 
 #ifdef __APPLE__
+static enum AVPixelFormat get_hw_format(AVCodecContext *ctx, const enum AVPixelFormat *pix_fmts);
+
 static os_log_t mse_oslog(void)
 {
     static os_log_t log;
@@ -351,7 +353,8 @@ static void mse_av_log(void *ptr, int level, const char *fmt, va_list vl)
         os_log_with_type(mse_oslog(), OS_LOG_TYPE_ERROR, "ffmpeg %{public}s", buf);
         if (fmt && strstr(fmt, "hwaccel initialisation returned error")) {
             AVCodecContext *ctx = ptr;
-            MseAv *a = ctx && ctx->opaque ? (MseAv *)ctx->opaque : NULL;
+            /* The callback hears every decoder in the process: only MSE's carry an MseAv. */
+            MseAv *a = ctx && ctx->get_format == get_hw_format ? (MseAv *)ctx->opaque : NULL;
             if (a && ctx->codec_id)
                 a->vt_fail_id = ctx->codec_id;
         }
