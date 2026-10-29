@@ -33,6 +33,8 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -187,7 +189,12 @@ private fun DrawerItem(section: AppSection, active: Boolean, focusRequester: Foc
 private fun DrawerRow(icon: ImageVector, label: String, active: Boolean, focusRequester: FocusRequester? = null, onClick: () -> Unit) {
     val scheme = androidx.compose.material3.MaterialTheme.colorScheme
     val focusMod = if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier
-    Box(Modifier.fillMaxWidth().then(focusMod).clickable(onClick = onClick).background(if (active) scheme.primaryContainer else Color.Transparent)) {
+    Box(
+        Modifier.fillMaxWidth().then(focusMod)
+            .clickable(onClick = onClick)
+            .semantics { selected = active }
+            .background(if (active) scheme.primaryContainer else Color.Transparent),
+    ) {
         if (active) {
             Box(
                 Modifier
