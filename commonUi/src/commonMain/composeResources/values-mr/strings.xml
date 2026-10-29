@@ -627,5 +627,11 @@
     <string name="shortcuts_switch_tabs">टॅब बदला</string>
     <string name="shortcuts_escape">पूर्ण स्क्रीनमधून बाहेर पडा, किंवा प्लेअर स्क्रीन, मेनू अथवा पॉप-अप बंद करा</string>
     <string name="shortcuts_help">ही मदत दाखवा</string>
+    <string name="shortcuts_volume_up">आवाज वाढवा</string>
+    <string name="shortcuts_volume_down">आवाज कमी करा</string>
+    <string name="a11y_key_arrow_left">डावा बाण</string>
+    <string name="a11y_key_arrow_right">उजवा बाण</string>
+    <string name="a11y_key_arrow_up">वर बाण</string>
+    <string name="a11y_key_arrow_down">खाली बाण</string>
     <string name="cd_always_on_top">नेहमी सर्वात वर</string>
 </resources>

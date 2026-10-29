@@ -13,6 +13,7 @@
 #include <libavutil/imgutils.h>
 #include <libavutil/mem.h>
 #include <libavutil/opt.h>
+#include <libavutil/pixdesc.h>
 #include <libavutil/pixfmt.h>
 #include <libavutil/samplefmt.h>
 #include <libswresample/swresample.h>
@@ -1772,6 +1773,85 @@ static int mc_try_open(MseAv *a)
 }
 #endif
 
+typedef struct {
+    const uint8_t *p;
+    size_t n, pos;
+} Vp9Bits;
+
+static int vp9_bits(Vp9Bits *b, int k)
+{
+    int v = 0;
+    for (; k > 0; k--) {
+        if (b->pos >= b->n * 8)
+            return -1;
+        v = (v << 1) | ((b->p[b->pos >> 3] >> (7 - (b->pos & 7))) & 1);
+        b->pos++;
+    }
+    return v;
+}
+
+int mse_vp9_header(const uint8_t *p, size_t n, MseVp9Header *h)
+{
+    Vp9Bits b = { p, n, 0 };
+    int v, lo, hi;
+    memset(h, 0, sizeof(*h));
+    if (!p || vp9_bits(&b, 2) != 2)
+        return -1;
+    lo = vp9_bits(&b, 1);
+    hi = vp9_bits(&b, 1);
+    if (lo < 0 || hi < 0)
+        return -1;
+    h->profile = lo | (hi << 1);
+    if (h->profile == 3 && vp9_bits(&b, 1) != 0)
+        return -1;
+    /* show_existing_frame, then frame_type: both 0 on a keyframe. */
+    v = vp9_bits(&b, 2);
+    if (v != 0)
+        return v < 0 ? -1 : 0;
+    if (vp9_bits(&b, 2) < 0 || vp9_bits(&b, 24) != 0x498342)
+        return -1;
+    h->key = 1;
+    h->bit_depth = 8;
+    if (h->profile >= 2) {
+        if ((v = vp9_bits(&b, 1)) < 0)
+            return -1;
+        h->bit_depth = v ? 12 : 10;
+    }
+    if ((v = vp9_bits(&b, 3)) < 0)
+        return -1;
+    if (v == 7) {
+        /* RGB: full range 4:4:4. */
+        h->full_range = 1;
+        return 0;
+    }
+    if ((h->full_range = vp9_bits(&b, 1)) < 0)
+        return -1;
+    if (h->profile == 1 || h->profile == 3) {
+        h->ss_x = vp9_bits(&b, 1);
+        h->ss_y = vp9_bits(&b, 1);
+        return h->ss_x < 0 || h->ss_y < 0 ? -1 : 0;
+    }
+    h->ss_x = h->ss_y = 1;
+    return 0;
+}
+
+int mse_vp9_high_depth(const AVCodecParameters *par)
+{
+    const AVPixFmtDescriptor *d = av_pix_fmt_desc_get((enum AVPixelFormat)par->format);
+    return par->profile >= AV_PROFILE_VP9_2 || (d && d->comp[0].depth > 8);
+}
+
+/* The keyframe c tells the stream's profile, which the container seldom states. 1 when dec cannot
+   take it: libvpx-vp9 has no high bit depth. */
+static int vp9_learn_profile(AVCodecParameters *par, const AVCodecContext *dec, const Cf *c)
+{
+    MseVp9Header h;
+    if (!par || par->codec_id != AV_CODEC_ID_VP9 || !c->key || mse_vp9_header(c->data, c->n, &h) != 0)
+        return 0;
+    par->profile = h.profile;
+    return dec && mse_vp9_high_depth(par) && !strcmp(dec->codec->name, "libvpx-vp9");
+}
+
 /* Same itag/config: reuse the decoder. A new quality (size or sequence
    header) must not feed leftover packets into the new decoder — keep
    leftover covering currentTime and switch at the new GOP. */
@@ -1828,6 +1908,7 @@ static void *open_apple_vt(MseAv *a)
         if (a->vf.rd < a->vf.n) {
             frame = a->vf.f[a->vf.rd].data;
             fn = (int)a->vf.f[a->vf.rd].n;
+            vp9_learn_profile(a->vpar, NULL, &a->vf.f[a->vf.rd]);
         }
         return mse_vt_dec_open_vp9(a->vpar->extradata, a->vpar->extradata_size, a->vpar->profile,
                                    frame, fn, a->vpar->width, a->vpar->height);
@@ -3988,9 +4069,10 @@ static int pull_video(MseAv *a, double clock, int *w, int *h, double *pts, VShow
                      a->vpar->codec_id == AV_CODEC_ID_VP9 ? "vp9" : "h264",
                      a->vpar->width, a->vpar->height);
             else {
-                vlog("vt-dec open fail id=%d", (int)a->vpar->codec_id);
+                vlog("vt-dec open fail id=%d profile=%d", (int)a->vpar->codec_id, a->vpar->profile);
                 a->vt_fail_id = a->vpar->codec_id;
-                if (a->vpar->codec_id == AV_CODEC_ID_VP9)
+                /* VT turns down VP9 4:4:4, 4:2:2 and 12-bit; a profile 0 failure means no VP9 decoder. */
+                if (a->vpar->codec_id == AV_CODEC_ID_VP9 && a->vpar->profile <= 0)
                     vp9_vt_unavailable = 1;
             }
         }

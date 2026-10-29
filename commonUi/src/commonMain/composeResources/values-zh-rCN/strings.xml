@@ -619,5 +619,11 @@
     <string name="shortcuts_switch_tabs">切换标签</string>
     <string name="shortcuts_escape">退出全屏，或关闭“正在播放”、菜单或弹出窗口</string>
     <string name="shortcuts_help">显示此帮助</string>
+    <string name="shortcuts_volume_up">调高音量</string>
+    <string name="shortcuts_volume_down">调低音量</string>
+    <string name="a11y_key_arrow_left">左箭头</string>
+    <string name="a11y_key_arrow_right">右箭头</string>
+    <string name="a11y_key_arrow_up">上箭头</string>
+    <string name="a11y_key_arrow_down">下箭头</string>
     <string name="cd_always_on_top">始终置顶</string>
 </resources>

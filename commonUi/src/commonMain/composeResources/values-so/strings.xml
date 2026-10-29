@@ -627,5 +627,11 @@
     <string name="shortcuts_switch_tabs">Kala beddel tab-yada</string>
     <string name="shortcuts_escape">Ka bax shaashadda buuxda, ama xidh La daarayo, shaxda ama daaqadda soo booda</string>
     <string name="shortcuts_help">Tus caawimaaddan</string>
+    <string name="shortcuts_volume_up">Kor u qaad codka</string>
+    <string name="shortcuts_volume_down">Hoos u dhig codka</string>
+    <string name="a11y_key_arrow_left">fallaar bidix</string>
+    <string name="a11y_key_arrow_right">fallaar midig</string>
+    <string name="a11y_key_arrow_up">fallaar kor</string>
+    <string name="a11y_key_arrow_down">fallaar hoos</string>
     <string name="cd_always_on_top">Had iyo jeer xagga sare</string>
 </resources>

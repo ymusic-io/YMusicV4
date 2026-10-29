@@ -53,6 +53,7 @@ import androidx.compose.ui.graphics.toAwtImage
 import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isAltPressed
 import androidx.compose.ui.input.key.isCtrlPressed
 import androidx.compose.ui.input.key.isMetaPressed
 import androidx.compose.ui.input.key.key
@@ -165,6 +166,7 @@ import io.ymusic.ui.resources.cd_minimize
 import io.ymusic.ui.resources.folder_picker_title
 import io.ymusic.ui.resources.playlist_menu_backup
 import io.ymusic.ui.resources.playlist_menu_restore
+import io.ymusic.ui.resources.sound_volume
 import io.ymusic.ui.resources.ymusic_logo
 import io.ymusic.ui.sponsorblock.SqliteSponsorBlockStore
 import io.ymusic.ui.sponsorblock.sponsorBlockJdbcDriver
@@ -227,6 +229,7 @@ import javax.swing.SwingUtilities
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.min
+import kotlin.math.roundToInt
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import java.awt.Color as AwtColor
@@ -418,6 +421,12 @@ fun main(args: Array<String>) {
         LaunchedEffect(windowVisible, windowState.isMinimized) {
             videoUnderlay.shown = windowVisible && !windowState.isMinimized
         }
+        val volumeToastScope = rememberCoroutineScope()
+        val showVolume: (Float) -> Unit = { volume ->
+            volumeToastScope.launch {
+                io.ymusic.ui.GlobalShortcutActions.showMessage(getString(Res.string.sound_volume, (volume * 100).roundToInt()))
+            }
+        }
         Window(
             // Held back until the graph is ready: an empty window that then repaints is a flash of
             // whatever the toolkit felt like showing. Composed all along, so paintWindowGround has
@@ -441,6 +450,7 @@ fun main(args: Array<String>) {
                 if (refresh) graph?.requestRefresh()
                 refresh
             },
+            onKeyEvent = { event -> handleArrowShortcut(event, graph?.player, showVolume) },
         ) {
             paintWindowGround(Color.Transparent)
             // Not Window(icon=): that is one 32dp raster the OS nearest-scales into each of its
@@ -485,9 +495,11 @@ fun main(args: Array<String>) {
                 Column(
                     Modifier.fillMaxSize()
                         .then(if (frame.fullscreen) Modifier else Modifier.border(1.dp, frameBorder))
-                        // Arrows nothing inside consumed (lists, text fields) move focus geometrically.
+                        // Arrows nothing inside consumed (lists, text fields) move focus geometrically;
+                        // with Ctrl/Cmd/Alt they go on to the window's media shortcuts.
                         .onKeyEvent { event ->
                             if (event.type != androidx.compose.ui.input.key.KeyEventType.KeyDown) return@onKeyEvent false
+                            if (event.isCtrlPressed || event.isMetaPressed || event.isAltPressed) return@onKeyEvent false
                             val dir = when (event.key) {
                                 androidx.compose.ui.input.key.Key.DirectionDown -> androidx.compose.ui.focus.FocusDirection.Down
                                 androidx.compose.ui.input.key.Key.DirectionUp -> androidx.compose.ui.focus.FocusDirection.Up

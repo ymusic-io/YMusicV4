@@ -627,5 +627,11 @@
     <string name="shortcuts_switch_tabs">Váltás a lapok között</string>
     <string name="shortcuts_escape">Kilépés a teljes képernyőből, vagy a Most szól, a menü vagy egy felugró ablak bezárása</string>
     <string name="shortcuts_help">A súgó megjelenítése</string>
+    <string name="shortcuts_volume_up">Hangerő fel</string>
+    <string name="shortcuts_volume_down">Hangerő le</string>
+    <string name="a11y_key_arrow_left">balra nyíl</string>
+    <string name="a11y_key_arrow_right">jobbra nyíl</string>
+    <string name="a11y_key_arrow_up">felfelé nyíl</string>
+    <string name="a11y_key_arrow_down">lefelé nyíl</string>
     <string name="cd_always_on_top">Mindig felül</string>
 </resources>

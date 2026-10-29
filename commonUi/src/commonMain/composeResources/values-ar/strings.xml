@@ -792,5 +792,11 @@
     <string name="shortcuts_switch_tabs">التبديل بين علامات التبويب</string>
     <string name="shortcuts_escape">الخروج من ملء الشاشة، أو إغلاق التشغيل الآن أو القائمة أو النافذة المنبثقة</string>
     <string name="shortcuts_help">عرض هذه المساعدة</string>
+    <string name="shortcuts_volume_up">رفع مستوى الصوت</string>
+    <string name="shortcuts_volume_down">خفض مستوى الصوت</string>
+    <string name="a11y_key_arrow_left">سهم لليسار</string>
+    <string name="a11y_key_arrow_right">سهم لليمين</string>
+    <string name="a11y_key_arrow_up">سهم لأعلى</string>
+    <string name="a11y_key_arrow_down">سهم لأسفل</string>
     <string name="cd_always_on_top">دائمًا في المقدمة</string>
 </resources>

@@ -627,5 +627,11 @@
     <string name="shortcuts_switch_tabs">Sekmeler arasında geçiş yap</string>
     <string name="shortcuts_escape">Tam ekrandan çık ya da Şimdi Çalıyor'u, menüyü veya açılır pencereyi kapat</string>
     <string name="shortcuts_help">Bu yardımı göster</string>
+    <string name="shortcuts_volume_up">Sesi aç</string>
+    <string name="shortcuts_volume_down">Sesi kıs</string>
+    <string name="a11y_key_arrow_left">sol ok</string>
+    <string name="a11y_key_arrow_right">sağ ok</string>
+    <string name="a11y_key_arrow_up">yukarı ok</string>
+    <string name="a11y_key_arrow_down">aşağı ok</string>
     <string name="cd_always_on_top">Her zaman üstte</string>
 </resources>

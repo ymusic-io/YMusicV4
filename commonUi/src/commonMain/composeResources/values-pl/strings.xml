@@ -643,5 +643,11 @@
     <string name="shortcuts_switch_tabs">Przełączaj karty</string>
     <string name="shortcuts_escape">Zamknij pełny ekran, Teraz odtwarzane, menu lub wyskakujące okno</string>
     <string name="shortcuts_help">Pokaż tę pomoc</string>
+    <string name="shortcuts_volume_up">Zwiększ głośność</string>
+    <string name="shortcuts_volume_down">Zmniejsz głośność</string>
+    <string name="a11y_key_arrow_left">strzałka w lewo</string>
+    <string name="a11y_key_arrow_right">strzałka w prawo</string>
+    <string name="a11y_key_arrow_up">strzałka w górę</string>
+    <string name="a11y_key_arrow_down">strzałka w dół</string>
     <string name="cd_always_on_top">Zawsze na wierzchu</string>
 </resources>

@@ -635,5 +635,11 @@
     <string name="shortcuts_switch_tabs">Canvia de pestanya</string>
     <string name="shortcuts_escape">Surt de la pantalla completa, o tanca Ara sona, el menú o una finestra emergent</string>
     <string name="shortcuts_help">Mostra aquesta ajuda</string>
+    <string name="shortcuts_volume_up">Apuja el volum</string>
+    <string name="shortcuts_volume_down">Abaixa el volum</string>
+    <string name="a11y_key_arrow_left">fletxa esquerra</string>
+    <string name="a11y_key_arrow_right">fletxa dreta</string>
+    <string name="a11y_key_arrow_up">fletxa amunt</string>
+    <string name="a11y_key_arrow_down">fletxa avall</string>
     <string name="cd_always_on_top">Sempre visible</string>
 </resources>

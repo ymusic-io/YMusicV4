@@ -627,5 +627,11 @@
     <string name="shortcuts_switch_tabs">தாவல்களை மாற்று</string>
     <string name="shortcuts_escape">முழுத்திரையிலிருந்து வெளியேறு, அல்லது Now Playing, மெனு அல்லது பாப்-அப்பை மூடு</string>
     <string name="shortcuts_help">இந்த உதவியைக் காட்டு</string>
+    <string name="shortcuts_volume_up">ஒலியை அதிகரி</string>
+    <string name="shortcuts_volume_down">ஒலியைக் குறை</string>
+    <string name="a11y_key_arrow_left">இடது அம்பு</string>
+    <string name="a11y_key_arrow_right">வலது அம்பு</string>
+    <string name="a11y_key_arrow_up">மேல் அம்பு</string>
+    <string name="a11y_key_arrow_down">கீழ் அம்பு</string>
     <string name="cd_always_on_top">எப்போதும் மேலே</string>
 </resources>

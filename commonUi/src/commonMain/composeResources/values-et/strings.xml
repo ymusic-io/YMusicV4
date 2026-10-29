@@ -627,5 +627,11 @@
     <string name="shortcuts_switch_tabs">Vaheta vahekaarte</string>
     <string name="shortcuts_escape">Välju täisekraanist või sulge Praegu mängib, menüü või hüpikaken</string>
     <string name="shortcuts_help">Kuva see abi</string>
+    <string name="shortcuts_volume_up">Helitugevus üles</string>
+    <string name="shortcuts_volume_down">Helitugevus alla</string>
+    <string name="a11y_key_arrow_left">vasaknool</string>
+    <string name="a11y_key_arrow_right">paremnool</string>
+    <string name="a11y_key_arrow_up">ülesnool</string>
+    <string name="a11y_key_arrow_down">allanool</string>
     <string name="cd_always_on_top">Alati peal</string>
 </resources>

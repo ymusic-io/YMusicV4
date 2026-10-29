@@ -627,5 +627,11 @@
     <string name="shortcuts_switch_tabs">Tabs wechseln</string>
     <string name="shortcuts_escape">Vollbild beenden oder „Aktuelle Wiedergabe“, das Menü oder ein Pop-up schließen</string>
     <string name="shortcuts_help">Diese Hilfe anzeigen</string>
+    <string name="shortcuts_volume_up">Lauter</string>
+    <string name="shortcuts_volume_down">Leiser</string>
+    <string name="a11y_key_arrow_left">Pfeil nach links</string>
+    <string name="a11y_key_arrow_right">Pfeil nach rechts</string>
+    <string name="a11y_key_arrow_up">Pfeil nach oben</string>
+    <string name="a11y_key_arrow_down">Pfeil nach unten</string>
     <string name="cd_always_on_top">Immer im Vordergrund</string>
 </resources>

@@ -627,5 +627,11 @@
     <string name="shortcuts_switch_tabs">Անցնել ներդիրների միջև</string>
     <string name="shortcuts_escape">Դուրս գալ լիաէկրանից կամ փակել «Հիմա հնչում է» էկրանը, ընտրացանկը կամ ելնող պատուհանը</string>
     <string name="shortcuts_help">Ցուցադրել այս օգնությունը</string>
+    <string name="shortcuts_volume_up">Բարձրացնել ձայնը</string>
+    <string name="shortcuts_volume_down">Իջեցնել ձայնը</string>
+    <string name="a11y_key_arrow_left">ձախ սլաք</string>
+    <string name="a11y_key_arrow_right">աջ սլաք</string>
+    <string name="a11y_key_arrow_up">վերև սլաք</string>
+    <string name="a11y_key_arrow_down">ներքև սլաք</string>
     <string name="cd_always_on_top">Միշտ վերևում</string>
 </resources>

@@ -627,5 +627,11 @@
     <string name="shortcuts_switch_tabs">جابه‌جایی بین زبانه‌ها</string>
     <string name="shortcuts_escape">خروج از تمام‌صفحه، یا بستن صفحه پخش، منو یا پنجره بازشو</string>
     <string name="shortcuts_help">نمایش این راهنما</string>
+    <string name="shortcuts_volume_up">افزایش صدا</string>
+    <string name="shortcuts_volume_down">کاهش صدا</string>
+    <string name="a11y_key_arrow_left">پیکان چپ</string>
+    <string name="a11y_key_arrow_right">پیکان راست</string>
+    <string name="a11y_key_arrow_up">پیکان بالا</string>
+    <string name="a11y_key_arrow_down">پیکان پایین</string>
     <string name="cd_always_on_top">همیشه در بالا</string>
 </resources>

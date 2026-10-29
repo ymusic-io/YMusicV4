@@ -627,5 +627,11 @@
     <string name="shortcuts_switch_tabs">Tussen tabbladen wisselen</string>
     <string name="shortcuts_escape">Volledig scherm verlaten, of Speelt nu, het menu of een pop-up sluiten</string>
     <string name="shortcuts_help">Deze hulp tonen</string>
+    <string name="shortcuts_volume_up">Volume omhoog</string>
+    <string name="shortcuts_volume_down">Volume omlaag</string>
+    <string name="a11y_key_arrow_left">pijl-links</string>
+    <string name="a11y_key_arrow_right">pijl-rechts</string>
+    <string name="a11y_key_arrow_up">pijl-omhoog</string>
+    <string name="a11y_key_arrow_down">pijl-omlaag</string>
     <string name="cd_always_on_top">Altijd bovenop</string>
 </resources>

@@ -635,5 +635,11 @@
     <string name="shortcuts_switch_tabs">Alternar abas</string>
     <string name="shortcuts_escape">Sair da tela cheia ou fechar a tela de reprodução, o menu ou um pop-up</string>
     <string name="shortcuts_help">Mostrar esta ajuda</string>
+    <string name="shortcuts_volume_up">Aumentar volume</string>
+    <string name="shortcuts_volume_down">Diminuir volume</string>
+    <string name="a11y_key_arrow_left">seta para a esquerda</string>
+    <string name="a11y_key_arrow_right">seta para a direita</string>
+    <string name="a11y_key_arrow_up">seta para cima</string>
+    <string name="a11y_key_arrow_down">seta para baixo</string>
     <string name="cd_always_on_top">Sempre visível</string>
 </resources>

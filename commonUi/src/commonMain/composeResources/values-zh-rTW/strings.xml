@@ -619,5 +619,11 @@
     <string name="shortcuts_switch_tabs">切換分頁</string>
     <string name="shortcuts_escape">結束全螢幕，或關閉「現正播放」、選單或彈出式視窗</string>
     <string name="shortcuts_help">顯示此說明</string>
+    <string name="shortcuts_volume_up">調高音量</string>
+    <string name="shortcuts_volume_down">調低音量</string>
+    <string name="a11y_key_arrow_left">左方向鍵</string>
+    <string name="a11y_key_arrow_right">右方向鍵</string>
+    <string name="a11y_key_arrow_up">上方向鍵</string>
+    <string name="a11y_key_arrow_down">下方向鍵</string>
     <string name="cd_always_on_top">永遠在最上層</string>
 </resources>

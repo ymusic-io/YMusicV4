@@ -635,5 +635,11 @@
     <string name="shortcuts_switch_tabs">מעבר בין כרטיסיות</string>
     <string name="shortcuts_escape">יציאה ממסך מלא, או סגירת המסך המתנגן כעת, התפריט או חלון קופץ</string>
     <string name="shortcuts_help">הצגת העזרה הזו</string>
+    <string name="shortcuts_volume_up">הגברת עוצמת הקול</string>
+    <string name="shortcuts_volume_down">הנמכת עוצמת הקול</string>
+    <string name="a11y_key_arrow_left">חץ שמאלה</string>
+    <string name="a11y_key_arrow_right">חץ ימינה</string>
+    <string name="a11y_key_arrow_up">חץ למעלה</string>
+    <string name="a11y_key_arrow_down">חץ למטה</string>
     <string name="cd_always_on_top">תמיד למעלה</string>
 </resources>

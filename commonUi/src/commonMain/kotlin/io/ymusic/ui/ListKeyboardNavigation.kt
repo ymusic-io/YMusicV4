@@ -7,13 +7,20 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isAltPressed
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.isMetaPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalFocusManager
 
 internal enum class ListOrientation { Vertical, Horizontal, Both }
+
+/** Arrows held with Ctrl/Cmd/Alt are app shortcuts, not navigation or adjustment. */
+internal val KeyEvent.hasCommandModifier: Boolean get() = isCtrlPressed || isMetaPressed || isAltPressed
 
 /**
  * Arrow-key navigation for keyboard users: the arrow keys matching the list's [orientation] move
@@ -40,7 +47,7 @@ internal fun Modifier.listKeyboardNavigation(
     val horizontal = orientation == ListOrientation.Horizontal || orientation == ListOrientation.Both
     val vertical = orientation == ListOrientation.Vertical || orientation == ListOrientation.Both
     return focusGroup().onKeyEvent { event ->
-        if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
+        if (event.type != KeyEventType.KeyDown || event.hasCommandModifier) return@onKeyEvent false
         val dir = when (event.key) {
             Key.DirectionDown -> if (vertical) FocusDirection.Down else return@onKeyEvent false
             Key.DirectionUp -> if (vertical) FocusDirection.Up else return@onKeyEvent false

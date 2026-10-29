@@ -619,5 +619,11 @@
     <string name="shortcuts_switch_tabs">탭 전환</string>
     <string name="shortcuts_escape">전체 화면 종료 또는 재생 화면, 메뉴, 팝업 닫기</string>
     <string name="shortcuts_help">이 도움말 표시</string>
+    <string name="shortcuts_volume_up">볼륨 높이기</string>
+    <string name="shortcuts_volume_down">볼륨 낮추기</string>
+    <string name="a11y_key_arrow_left">왼쪽 화살표</string>
+    <string name="a11y_key_arrow_right">오른쪽 화살표</string>
+    <string name="a11y_key_arrow_up">위쪽 화살표</string>
+    <string name="a11y_key_arrow_down">아래쪽 화살표</string>
     <string name="cd_always_on_top">항상 위에 표시</string>
 </resources>

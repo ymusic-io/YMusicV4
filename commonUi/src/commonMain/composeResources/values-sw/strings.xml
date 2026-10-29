@@ -627,5 +627,11 @@
     <string name="shortcuts_switch_tabs">Badilisha vichupo</string>
     <string name="shortcuts_escape">Ondoka kwenye skrini nzima, au funga Inayocheza Sasa, menyu au dirisha ibukizi</string>
     <string name="shortcuts_help">Onyesha usaidizi huu</string>
+    <string name="shortcuts_volume_up">Ongeza sauti</string>
+    <string name="shortcuts_volume_down">Punguza sauti</string>
+    <string name="a11y_key_arrow_left">mshale wa kushoto</string>
+    <string name="a11y_key_arrow_right">mshale wa kulia</string>
+    <string name="a11y_key_arrow_up">mshale wa juu</string>
+    <string name="a11y_key_arrow_down">mshale wa chini</string>
     <string name="cd_always_on_top">Juu kila wakati</string>
 </resources>

@@ -627,5 +627,11 @@
     <string name="shortcuts_switch_tabs">Εναλλαγή καρτελών</string>
     <string name="shortcuts_escape">Έξοδος από πλήρη οθόνη ή κλείσιμο της Αναπαραγωγής τώρα, του μενού ή ενός αναδυόμενου παραθύρου</string>
     <string name="shortcuts_help">Εμφάνιση αυτής της βοήθειας</string>
+    <string name="shortcuts_volume_up">Αύξηση έντασης</string>
+    <string name="shortcuts_volume_down">Μείωση έντασης</string>
+    <string name="a11y_key_arrow_left">αριστερό βέλος</string>
+    <string name="a11y_key_arrow_right">δεξί βέλος</string>
+    <string name="a11y_key_arrow_up">πάνω βέλος</string>
+    <string name="a11y_key_arrow_down">κάτω βέλος</string>
     <string name="cd_always_on_top">Πάντα σε πρώτο πλάνο</string>
 </resources>

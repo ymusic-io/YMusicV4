@@ -800,5 +800,11 @@
     <string name="shortcuts_switch_tabs">Перемкнути вкладку</string>
     <string name="shortcuts_escape">Вийти з повноекранного режиму, закрити екран відтворення, меню або спливне вікно</string>
     <string name="shortcuts_help">Показати цю довідку</string>
+    <string name="shortcuts_volume_up">Гучніше</string>
+    <string name="shortcuts_volume_down">Тихіше</string>
+    <string name="a11y_key_arrow_left">стрілка вліво</string>
+    <string name="a11y_key_arrow_right">стрілка вправо</string>
+    <string name="a11y_key_arrow_up">стрілка вгору</string>
+    <string name="a11y_key_arrow_down">стрілка вниз</string>
     <string name="cd_always_on_top">Поверх усіх вікон</string>
 </resources>
