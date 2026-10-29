@@ -60,6 +60,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
@@ -440,7 +441,7 @@ private fun DetailsHeader(state: VideoDetailsState, details: YtVideoDetails, onO
         if (details.factoids.isNotEmpty()) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                 details.factoids.forEach { factoid ->
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Column(Modifier.semantics(mergeDescendants = true) {}, horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(factoid.value, style = androidx.compose.ui.text.TextStyle(fontSize = 16.sp, fontWeight = FontWeight.Bold, color = DesignColors.Ink))
                         Text(factoid.label, style = androidx.compose.ui.text.TextStyle(fontSize = 12.sp, color = DesignColors.InkSecondary))
                     }
