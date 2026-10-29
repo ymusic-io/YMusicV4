@@ -299,8 +299,9 @@ static int vout_push(FileAv *p, AVFrame *src)
     return 0;
 }
 
-static const AVCodec *find_vdec(enum AVCodecID id)
+static const AVCodec *find_vdec(const AVCodecParameters *par)
 {
+    enum AVCodecID id = par->codec_id;
     const AVCodec *c;
 #ifdef FILE_AV_LINUX_HW
     if ((id == AV_CODEC_ID_VP9 || id == AV_CODEC_ID_AV1) && mse_hwdev_usable(id)) {
@@ -310,7 +311,7 @@ static const AVCodec *find_vdec(enum AVCodecID id)
     }
 #endif
     if (id == AV_CODEC_ID_VP9) {
-        c = avcodec_find_decoder_by_name("libvpx-vp9");
+        c = mse_vp9_high_depth(par) ? NULL : avcodec_find_decoder_by_name("libvpx-vp9");
         if (c)
             return c;
         return avcodec_find_decoder_by_name("vp9");
@@ -376,8 +377,7 @@ static enum AVPixelFormat get_format_prefer_hw(AVCodecContext *s, const enum AVP
 
 static AVCodecContext *open_codec(FileAv *p, AVStream *st, int video)
 {
-    const AVCodec *c = video ? find_vdec(st->codecpar->codec_id)
-                             : avcodec_find_decoder(st->codecpar->codec_id);
+    const AVCodec *c = video ? find_vdec(st->codecpar) : avcodec_find_decoder(st->codecpar->codec_id);
     AVCodecContext *ctx;
 #ifdef FILE_AV_WIN_HW
     const AVCodec *d3d11_codec = video ? d3d11_vdec(p, st->codecpar) : NULL;
@@ -1857,6 +1857,27 @@ static void reopen_if_hw_rejected_locked(FileAv *p)
 }
 #endif
 
+/* A VP9 keyframe of profile 2 or 3 the container did not announce: libvpx-vp9 cannot take it, native
+   vp9 does from this packet on. Caller holds mu, dec_busy set. */
+static void reopen_if_vp9_high_depth_locked(FileAv *p, const AVPacket *pkt)
+{
+    AVStream *st;
+    MseVp9Header h;
+    if (!p->vdec || !p->fmt || !(pkt->flags & AV_PKT_FLAG_KEY) || strcmp(p->vdec->codec->name, "libvpx-vp9") ||
+        mse_vp9_header(pkt->data, (size_t)pkt->size, &h) != 0 || h.profile < 2)
+        return;
+    st = p->fmt->streams[p->v_st];
+    st->codecpar->profile = h.profile;
+    mse_critf(MSE_LOG_INFO, "file-av vp9 profile %d: libvpx-vp9 reopens as vp9", h.profile);
+    avcodec_free_context(&p->vdec);
+    p->vdec = open_codec(p, st, 1);
+    if (!p->vdec) {
+        mse_critf(MSE_LOG_WARN, "file-av vp9 profile %d: no decoder opens", h.profile);
+        set_err(p, "video decoder");
+    }
+    p->dec_drain = 0;
+}
+
 static void *dec_loop(void *arg)
 {
     FileAv *p = arg;
@@ -1902,6 +1923,14 @@ static void *dec_loop(void *arg)
                 p->dec_busy = 0;
                 pthread_cond_broadcast(&p->cv);
                 pthread_cond_wait(&p->cv, &p->mu);
+                pthread_mutex_unlock(&p->mu);
+                continue;
+            }
+            reopen_if_vp9_high_depth_locked(p, pkt);
+            if (!p->vdec) {
+                av_packet_free(&pkt);
+                p->dec_busy = 0;
+                pthread_cond_broadcast(&p->cv);
                 pthread_mutex_unlock(&p->mu);
                 continue;
             }

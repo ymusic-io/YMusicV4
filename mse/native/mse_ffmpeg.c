@@ -11,6 +11,7 @@
 #include <libavutil/imgutils.h>
 #include <libavutil/mem.h>
 #include <libavutil/opt.h>
+#include <libavutil/pixdesc.h>
 #include <libavutil/pixfmt.h>
 #include <libavutil/samplefmt.h>
 #include <libswresample/swresample.h>
@@ -19,7 +20,6 @@
 #include <TargetConditionals.h>
 #include <os/log.h>
 #include <libavutil/hwcontext.h>
-#include <libavutil/pixdesc.h>
 #include <CoreVideo/CoreVideo.h>
 #include "mse_vt_present.h"
 #include "mse_vt_blit.h"
@@ -31,7 +31,6 @@
 #ifdef MSE_WIN_HW
 #include <libavutil/hwcontext.h>
 #include <libavutil/hwcontext_d3d11va.h>
-#include <libavutil/pixdesc.h>
 #include "mse_d3d11.h"
 #endif
 
@@ -1796,11 +1795,91 @@ static int mc_try_open(MseAv *a)
 }
 #endif
 
-/* sw_only: skip VideoToolbox-hosted `av1` (simulator / vt_fail).
-   Prefer libvpx-vp9. Native `vp9` is software-only fallback when the pack
-   omitted libvpx (do not attach VT hwaccel: that path SIGILL). */
-static const AVCodec *find_video_codec(enum AVCodecID id, int sw_only)
+typedef struct {
+    const uint8_t *p;
+    size_t n, pos;
+} Vp9Bits;
+
+static int vp9_bits(Vp9Bits *b, int k)
 {
+    int v = 0;
+    for (; k > 0; k--) {
+        if (b->pos >= b->n * 8)
+            return -1;
+        v = (v << 1) | ((b->p[b->pos >> 3] >> (7 - (b->pos & 7))) & 1);
+        b->pos++;
+    }
+    return v;
+}
+
+int mse_vp9_header(const uint8_t *p, size_t n, MseVp9Header *h)
+{
+    Vp9Bits b = { p, n, 0 };
+    int v, lo, hi;
+    memset(h, 0, sizeof(*h));
+    if (!p || vp9_bits(&b, 2) != 2)
+        return -1;
+    lo = vp9_bits(&b, 1);
+    hi = vp9_bits(&b, 1);
+    if (lo < 0 || hi < 0)
+        return -1;
+    h->profile = lo | (hi << 1);
+    if (h->profile == 3 && vp9_bits(&b, 1) != 0)
+        return -1;
+    /* show_existing_frame, then frame_type: both 0 on a keyframe. */
+    v = vp9_bits(&b, 2);
+    if (v != 0)
+        return v < 0 ? -1 : 0;
+    if (vp9_bits(&b, 2) < 0 || vp9_bits(&b, 24) != 0x498342)
+        return -1;
+    h->key = 1;
+    h->bit_depth = 8;
+    if (h->profile >= 2) {
+        if ((v = vp9_bits(&b, 1)) < 0)
+            return -1;
+        h->bit_depth = v ? 12 : 10;
+    }
+    if ((v = vp9_bits(&b, 3)) < 0)
+        return -1;
+    if (v == 7) {
+        /* RGB: full range 4:4:4. */
+        h->full_range = 1;
+        return 0;
+    }
+    if ((h->full_range = vp9_bits(&b, 1)) < 0)
+        return -1;
+    if (h->profile == 1 || h->profile == 3) {
+        h->ss_x = vp9_bits(&b, 1);
+        h->ss_y = vp9_bits(&b, 1);
+        return h->ss_x < 0 || h->ss_y < 0 ? -1 : 0;
+    }
+    h->ss_x = h->ss_y = 1;
+    return 0;
+}
+
+int mse_vp9_high_depth(const AVCodecParameters *par)
+{
+    const AVPixFmtDescriptor *d = av_pix_fmt_desc_get((enum AVPixelFormat)par->format);
+    return par->profile >= AV_PROFILE_VP9_2 || (d && d->comp[0].depth > 8);
+}
+
+/* The keyframe c tells the stream's profile, which the container seldom states. 1 when dec cannot
+   take it: libvpx-vp9 has no high bit depth. */
+static int vp9_learn_profile(AVCodecParameters *par, const AVCodecContext *dec, const Cf *c)
+{
+    MseVp9Header h;
+    if (!par || par->codec_id != AV_CODEC_ID_VP9 || !c->key || mse_vp9_header(c->data, c->n, &h) != 0)
+        return 0;
+    par->profile = h.profile;
+    return dec && mse_vp9_high_depth(par) && !strcmp(dec->codec->name, "libvpx-vp9");
+}
+
+/* sw_only: skip VideoToolbox-hosted `av1` (simulator / vt_fail).
+   Prefer libvpx-vp9. Native `vp9` takes the high bit depth profiles and is the software fallback
+   when the pack omitted libvpx (do not attach VT hwaccel: that path SIGILL). */
+static const AVCodec *find_video_codec(const AVCodecParameters *par, int sw_only)
+{
+    enum AVCodecID id = par->codec_id;
     const AVCodec *c;
 #ifdef MSE_LINUX_HW
     if (!sw_only && (id == AV_CODEC_ID_VP9 || id == AV_CODEC_ID_AV1) && mse_hwdev_usable(id)) {
@@ -1818,7 +1897,7 @@ static const AVCodec *find_video_codec(enum AVCodecID id, int sw_only)
     }
 #endif
     if (id == AV_CODEC_ID_VP9) {
-        c = avcodec_find_decoder_by_name("libvpx-vp9");
+        c = mse_vp9_high_depth(par) ? NULL : avcodec_find_decoder_by_name("libvpx-vp9");
         if (c)
             return c;
         return avcodec_find_decoder_by_name("vp9");
@@ -2005,7 +2084,9 @@ static int open_decoder(MseAv *a, int video, AVCodecParameters *par)
             a->v_reopen = 1;
         }
     }
-    codec = video ? find_video_codec(par->codec_id,
+    if (video && a->vf.rd < a->vf.n)
+        vp9_learn_profile(par, NULL, &a->vf.f[a->vf.rd]);
+    codec = video ? find_video_codec(par,
 #ifdef __APPLE__
         par->codec_id == a->vt_fail_id
 #elif defined(MSE_WIN_HW)
@@ -4787,6 +4868,12 @@ int mse_av_pull_video(MseAv *a, double clock, uint8_t **bgra, int *w, int *h, do
         if (a->vf.f[a->vf.rd].pts > clock + MSE_SEND_AHEAD) {
             vlog_starve_ahead(a, clock, a->vf.rd);
             break;
+        }
+        if (vp9_learn_profile(a->vpar, a->vdec, &a->vf.f[a->vf.rd])) {
+            mse_critf(MSE_LOG_INFO, "mse-v vp9 profile %d: libvpx-vp9 reopens as vp9", a->vpar->profile);
+            close_video_decoder(a);
+            open_decoder(a, 1, a->vpar);
+            continue;
         }
         {
             double sp = a->vf.f[a->vf.rd].pts;
