@@ -43,6 +43,7 @@ jobs:
           - { slug: android-x86_64, runner: ubuntu-24.04 }
           - { slug: macos-arm64, runner: macos-14 }
           - { slug: macos-x86_64, runner: macos-15-intel }
+          - { slug: linux-x86_64, runner: ubuntu-24.04 }
           # Native under MSYS2, as on a developer machine. CLANGARM64 has no gcc: HOST_CC is
           # ffmpeg's compiler, which its configure otherwise assumes is gcc.
           - slug: windows-x86_64
@@ -100,6 +101,17 @@ jobs:
           }
         env:
           SLUG: ${{ matrix.slug }}
+
+      - if: steps.cache.outputs.cache-hit != 'true' && startsWith(matrix.slug, 'linux-')
+        working-directory: ffmpeg-build
+        run: |
+          sudo apt-get update && sudo apt-get install -y nasm automake autoconf libtool pkg-config meson ninja-build patchelf
+          scripts/build-desktop.sh || {
+            for log in .deps/.build/*/config.log; do
+              [ -f "$log" ] && { echo "::group::$log"; tail -n 80 "$log"; echo "::endgroup::"; }
+            done
+            exit 1
+          }
 
       - if: steps.cache.outputs.cache-hit != 'true' && startsWith(matrix.slug, 'macos-')
         working-directory: ffmpeg-build
@@ -471,6 +483,74 @@ jobs:
         with:
           name: ${{ matrix.slug }}-setup
           path: YMusicV4/desktopApp/build/compose/binaries/main-release/innosetup/*.exe
+          if-no-files-found: error
+
+  # The Debian package, unsigned.
+  linux:
+    name: linux ${{ matrix.slug }}
+    needs: ffmpeg
+    runs-on: ${{ matrix.runner }}
+    env:
+      # Only whether secrets.enc can be opened: the passphrase itself goes to the Restore secrets step alone.
+      HAS_SECRETS: ${{ secrets.SECRETS_PASSPHRASE != '' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { slug: linux-x86_64, runner: ubuntu-24.04 }
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          path: YMusicV4
+
+      - uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ffmpeg-build/out/${{ matrix.slug }}
+          key: ffmpeg-${{ matrix.slug }}-${{ env.FFMPEG_BUILD_REF }}
+          fail-on-cache-miss: true
+
+      # :mse compiles against the PulseAudio headers (the library is dlopen'd); jpackage builds the .deb under fakeroot.
+      - run: sudo apt-get update && sudo apt-get install -y libpulse-dev fakeroot
+
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - uses: gradle/actions/setup-gradle@0b6dd653ba04f4f93bf581ec31e66cbd7dcb644d # v4
+
+      # secrets.enc → secrets.properties + signing/. Without SECRETS_PASSPHRASE the build runs on
+      # defaults: no Sentry upload, no remote config.
+      - name: Restore secrets
+        if: env.HAS_SECRETS == 'true'
+        working-directory: YMusicV4
+        env:
+          SECRETS_PASSPHRASE: ${{ secrets.SECRETS_PASSPHRASE }}
+        run: ./decrypt.sh
+
+      - name: Package the .deb
+        working-directory: YMusicV4
+        run: ./gradlew -Pproduction=true :desktopApp:packageReleaseDeb
+
+      - name: Discard secrets
+        if: always()
+        working-directory: YMusicV4
+        run: rm -rf secrets.properties signing
+
+      - name: Upload packaging logs
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ${{ matrix.slug }}-compose-logs
+          path: YMusicV4/desktopApp/build/compose/logs/
+          if-no-files-found: ignore
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ${{ matrix.slug }}-deb
+          path: YMusicV4/desktopApp/build/compose/binaries/main-release/deb/*.deb
           if-no-files-found: error
 
   # Every module's JVM tests; JUnit aborts any test past 30 s (root build.gradle.kts).
