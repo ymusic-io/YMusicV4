@@ -59,7 +59,7 @@ function audioFlag(mime: string): number {
 }
 
 /** First codecs="..." token, lowercased. */
-function mimeCodec(mime: string): string {
+export function mimeCodec(mime: string): string {
   const m = String(mime).toLowerCase();
   const key = "codecs=";
   const i = m.indexOf(key);
@@ -90,6 +90,36 @@ function chromeRejectsCodec(mime: string): boolean {
     if (p[i] === "99") return true;
   }
   return false;
+}
+
+/** The video codecs the host's decoder table knows; any other codec keeps the container check. */
+const TABLE_VIDEO = /^(avc1|avc3|hev1|hvc1|vp8|vp08|vp9|vp09|av01)(\.|$)/;
+
+let tableLive = false;
+
+/** isTypeSupported / canPlayType consult the decoder table from now on. */
+export function useDecodeTable(): void {
+  tableLive = true;
+}
+
+/** mse_caps bits for a MediaCapabilities part (1 supported, 2 smooth, 4 powerEfficient); -1 when the
+ *  host has no decoder table (older app, Android before its rows), -2 while it still probes. */
+export function decodeCaps(
+  mime: string,
+  width: number,
+  height: number,
+  framerate: number,
+  bitrate: number,
+): number {
+  if (typeof __mseDecodingInfo !== "function") return -1;
+  return __mseDecodingInfo(mime, width, height, framerate, bitrate);
+}
+
+/** The decoder table has nothing that takes this video codec at any size. */
+export function decodeTableRejects(mime: string): boolean {
+  if (!tableLive || !TABLE_VIDEO.test(mimeCodec(mime))) return false;
+  const bits = decodeCaps(mime, 0, 0, 0, 0);
+  return bits >= 0 && (bits & 1) === 0;
 }
 
 let sbGen = 0;
@@ -772,6 +802,10 @@ class MediaSource {
         }
       }
     }
+    if (decodeTableRejects(m)) {
+      console.info("mse isTypeSupported reject " + mimeCodec(m) + ": no decoder");
+      return false;
+    }
     const ok =
       m.indexOf("audio/webm") === 0 ||
       m.indexOf("video/webm") === 0 ||
@@ -1039,6 +1073,7 @@ class HTMLMediaElement {
       !__mseVp9Ok()
     )
       return "";
+    if (decodeTableRejects(t)) return "";
     return t.indexOf("webm") >= 0 || t.indexOf("mp4") >= 0 ? "probably" : "";
   }
 
@@ -1313,6 +1348,7 @@ function attachHtmlMedia(el: object): void {
     "removeEventListener",
     "fastSeek",
     "setPlaybackRate",
+    "getVideoPlaybackQuality",
   ];
   for (let i = 0; i < methods.length; i++) {
     const n = methods[i]!;
@@ -1339,6 +1375,8 @@ function attachHtmlMedia(el: object): void {
     "readyState",
     "loop",
     "pitch",
+    "webkitDecodedFrameCount",
+    "webkitDroppedFrameCount",
   ];
   for (let i = 0; i < props.length; i++) {
     const n = props[i]!;
@@ -1437,6 +1475,74 @@ export function installMseGlobals(): void {
   } else {
     glob["URL"] = URLImpl;
   }
+}
+
+/** MediaSource.isTypeSupported as base.js sees it. */
+export function mseTypeSupported(mime: string): boolean {
+  return MediaSource["isTypeSupported"](mime);
+}
+
+function asNative<T extends Function>(name: string, impl: T, length: number): T {
+  if (typeof __nativeFn === "function") return __nativeFn(name, impl, length) as unknown as T;
+  return impl;
+}
+
+/** [totalVideoFrames, droppedVideoFrames] since the last load. */
+function frameCounts(): [number, number] {
+  const q = __mseVideoQuality();
+  return [Number(q[0]) || 0, Number(q[1]) || 0];
+}
+
+let qualityInstalled = false;
+
+/** getVideoPlaybackQuality, and Chrome's webkitDecodedFrameCount / webkitDroppedFrameCount that
+ *  base.js falls back to (its video is a DOM stub, not instanceof HTMLVideoElement), from the host's
+ *  frame counts. Elements attached afterwards get them. */
+export function installPlaybackQuality(): void {
+  if (qualityInstalled || typeof __mseVideoQuality !== "function") return;
+  qualityInstalled = true;
+  const proto = HTMLMediaElement.prototype as unknown as Record<string, unknown>;
+  proto["getVideoPlaybackQuality"] = asNative(
+    "getVideoPlaybackQuality",
+    function () {
+      const q = frameCounts();
+      const g = globalThis as unknown as Record<string, unknown>;
+      const ctor = g["VideoPlaybackQuality"] as Record<string, unknown> | undefined;
+      const qp = ctor ? ctor["prototype"] : null;
+      const perf = g["performance"] as Record<string, unknown> | undefined;
+      const now = perf ? perf["now"] : undefined;
+      const o: Record<string, unknown> =
+        qp != null && typeof qp === "object" ? Object.create(qp) : {};
+      o["creationTime"] = typeof now === "function" ? (now as () => number).call(perf) : Date.now();
+      o["totalVideoFrames"] = q[0];
+      o["droppedVideoFrames"] = q[1];
+      o["corruptedVideoFrames"] = 0;
+      return o;
+    },
+    0,
+  );
+  Object.defineProperty(proto, "webkitDecodedFrameCount", {
+    get: asNative(
+      "get webkitDecodedFrameCount",
+      function () {
+        return frameCounts()[0];
+      },
+      0,
+    ),
+    enumerable: true,
+    configurable: true,
+  });
+  Object.defineProperty(proto, "webkitDroppedFrameCount", {
+    get: asNative(
+      "get webkitDroppedFrameCount",
+      function () {
+        return frameCounts()[1];
+      },
+      0,
+    ),
+    enumerable: true,
+    configurable: true,
+  });
 }
 
 export function activeHtmlMedia(): HTMLMediaElement | null {

@@ -18,7 +18,7 @@ object Versions {
 
     /** The MSE player bundle's (player.js) revision — independent of [engineJsVersion]; BUMP
      *  MANUALLY on every remote push of it. Feeds its inlined BACKEND_VERSION and PLAYER_JS_VERSION. */
-    const val playerJsVersion = 96L
+    const val playerJsVersion = 97L
     const val targetSdk = 35
 
     // KMP
