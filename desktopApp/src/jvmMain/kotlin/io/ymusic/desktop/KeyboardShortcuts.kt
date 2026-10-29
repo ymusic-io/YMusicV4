@@ -65,16 +65,16 @@ internal fun handleGlobalShortcut(
 /**
  * Cmd/Ctrl + arrows: ←/→ previous/next, with Shift rewind/forward; ↑/↓ volume. For the window's
  * onKeyEvent, not [handleGlobalShortcut]: a focused text field gets them first for word moves and
- * selection.
+ * selection. [onVolume] gets the new volume, for the on-screen message.
  */
-internal fun handleArrowShortcut(event: KeyEvent, player: Player?): Boolean {
+internal fun handleArrowShortcut(event: KeyEvent, player: Player?, onVolume: (Float) -> Unit): Boolean {
     if (event.type != KeyEventType.KeyDown || event.isAltPressed || !(event.isMetaPressed || event.isCtrlPressed)) return false
     val shift = event.isShiftPressed
     when {
         event.key == Key.DirectionLeft -> if (shift) player?.let { seekBy(it, -SEEK_STEP_MS) } else player?.skipPrev()
         event.key == Key.DirectionRight -> if (shift) player?.let { seekBy(it, SEEK_STEP_MS) } else player?.skipNext()
-        !shift && event.key == Key.DirectionUp -> player?.let { stepVolume(it, 1) }
-        !shift && event.key == Key.DirectionDown -> player?.let { stepVolume(it, -1) }
+        !shift && event.key == Key.DirectionUp -> player?.let { onVolume(stepVolume(it, 1)) }
+        !shift && event.key == Key.DirectionDown -> player?.let { onVolume(stepVolume(it, -1)) }
         else -> return false
     }
     return true
@@ -86,10 +86,11 @@ private fun seekBy(player: Player, deltaMs: Long) {
     player.seekTo((player.progress.value.positionMs + deltaMs).coerceIn(0, cap))
 }
 
-/** Snapped to the step so repeated presses land on whole percents. */
-private fun stepVolume(player: Player, steps: Int) {
-    val snapped = ((player.volume / VOLUME_STEP).roundToInt() + steps) * VOLUME_STEP
-    player.volume = snapped.coerceIn(0f, 1f)
+/** Snapped to the step so repeated presses land on whole percents. Returns the new volume. */
+private fun stepVolume(player: Player, steps: Int): Float {
+    val snapped = (((player.volume / VOLUME_STEP).roundToInt() + steps) * VOLUME_STEP).coerceIn(0f, 1f)
+    player.volume = snapped
+    return snapped
 }
 
 /**

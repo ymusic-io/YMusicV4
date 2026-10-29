@@ -22,6 +22,9 @@ object GlobalShortcutActions {
     /** One step of the system back; false when there is nothing to step back from. */
     @Volatile var back: () -> Boolean = { false }
 
+    /** A short message in the app's snackbar, replacing the one showing. */
+    @Volatile var showMessage: (String) -> Unit = {}
+
     // Cmd/Ctrl + 1..9 → the top-most pushed tab handler wins. A plain save/restore var is racy
     // across section transitions (the entering screen can capture the leaving screen's handler
     // as its "prior" before the leaving dispose fires, then dispose wipes the new one). Keep a
