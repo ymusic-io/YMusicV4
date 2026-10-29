@@ -768,9 +768,9 @@ private fun FolderRow(bucket: MediaStoreBucket, menu: ItemActions, isDownloadLoc
         if (isDownloadLocation) {
             Icon(
                 Icons.Default.Download,
-                contentDescription = stringResource(Res.string.menu_download_location),
+                contentDescription = null,
                 tint = DesignColors.Accent,
-                modifier = Modifier.padding(top = 10.dp).size(18.dp),
+                modifier = Modifier.padding(top = 10.dp).size(18.dp).spokenAs(stringResource(Res.string.menu_download_location)),
             )
         }
         MoreMenu(menu, Modifier.padding(top = 2.dp))
@@ -1135,7 +1135,12 @@ private fun PlaylistRow(
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalAlignment = Alignment.Top,
     ) {
-        LibraryThumb(icon, badge = (entry as? UserEntry)?.count?.toString(), artUrl = (entry as? UserEntry)?.artUrl)
+        LibraryThumb(
+            icon,
+            badge = (entry as? UserEntry)?.count?.toString(),
+            artUrl = (entry as? UserEntry)?.artUrl,
+            modifier = Modifier.a11ySilent(),
+        )
         Column(Modifier.weight(1f)) {
             Text(title, style = ListTitleStyle, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Text(sub, style = ListSubStyle, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 4.dp))
@@ -1494,18 +1499,20 @@ internal fun SongList(
 
 @Composable
 internal fun SongRow(song: MediaStoreItem, coordinator: PlaybackCoordinator? = null, onPlay: () -> Unit) {
+    val sub = listOfNotNull(song.artist, song.album).joinToString(" · ")
+    val length = song.durationMs?.takeIf { it > 0 }?.let { spokenDuration(it) }
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onPlay)
+            .a11yActionLabel(listOfNotNull(song.title, length, sub.ifEmpty { null }).joinToString(", "))
             .padding(start = 16.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalAlignment = Alignment.Top,
     ) {
-        LibraryThumb(Icons.Default.MusicNote, formatDuration(song.durationMs), artUrl = localArtUrl(song))
-        Column(Modifier.weight(1f)) {
+        LibraryThumb(Icons.Default.MusicNote, formatDuration(song.durationMs), artUrl = localArtUrl(song), modifier = Modifier.a11ySilent())
+        Column(Modifier.weight(1f).a11ySilent()) {
             Text(song.title, style = ListTitleStyle, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            val sub = listOfNotNull(song.artist, song.album).joinToString(" · ")
             if (sub.isNotEmpty()) {
                 Text(
                     sub,
@@ -1739,9 +1746,10 @@ private fun LibraryGridCard(
             if (marked) {
                 Icon(
                     Icons.Default.Download,
-                    contentDescription = stringResource(Res.string.menu_download_location),
+                    contentDescription = null,
                     tint = DesignColors.Accent,
-                    modifier = Modifier.align(Alignment.TopStart).padding(6.dp).size(18.dp),
+                    modifier = Modifier.align(Alignment.TopStart).padding(6.dp).size(18.dp)
+                        .spokenAs(stringResource(Res.string.menu_download_location)),
                 )
             }
             if (menu != null) MoreMenu(menu, Modifier.align(Alignment.TopEnd))
@@ -1792,10 +1800,17 @@ private fun ShuffleAllButton(songs: List<MediaStoreItem>, coordinator: PlaybackC
 }
 
 @Composable
-internal fun LibraryThumb(icon: ImageVector, badge: String?, artUrl: String? = null, corner: Dp = 10.dp, badgeColor: Color = DesignColors.BadgeInk) {
+internal fun LibraryThumb(
+    icon: ImageVector,
+    badge: String?,
+    artUrl: String? = null,
+    corner: Dp = 10.dp,
+    badgeColor: Color = DesignColors.BadgeInk,
+    modifier: Modifier = Modifier,
+) {
     val shape = RoundedCornerShape(corner)
     Box(
-        modifier = Modifier
+        modifier = modifier
             .size(56.dp)
             .clip(shape),
         contentAlignment = Alignment.Center,
