@@ -123,6 +123,24 @@
     <string name="cd_share">공유</string>
     <string name="cd_music_video">음악</string>
     <string name="cd_album">앨범</string>
+    <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
+    <string name="a11y_kind_video">동영상</string>
+    <string name="a11y_kind_music_video">뮤직비디오</string>
+    <string name="a11y_kind_live">실시간 동영상</string>
+    <string name="a11y_kind_playlist">재생목록</string>
+    <string name="a11y_kind_album">앨범</string>
+    <string name="a11y_kind_mix">믹스</string>
+    <string name="a11y_kind_channel">채널</string>
+    <!-- A video's length as a screen reader speaks it, joined with spaces: "1 hour 5 minutes 3 seconds" -->
+    <plurals name="a11y_duration_hours">
+        <item quantity="other">%1$d시간</item>
+    </plurals>
+    <plurals name="a11y_duration_minutes">
+        <item quantity="other">%1$d분</item>
+    </plurals>
+    <plurals name="a11y_duration_seconds">
+        <item quantity="other">%1$d초</item>
+    </plurals>
 
     <!-- Library -->
     <string name="library_tab_folders">폴더</string>

@@ -123,6 +123,27 @@
     <string name="cd_share">Shiriki</string>
     <string name="cd_music_video">Muziki</string>
     <string name="cd_album">Albamu</string>
+    <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
+    <string name="a11y_kind_video">Video</string>
+    <string name="a11y_kind_music_video">Video ya muziki</string>
+    <string name="a11y_kind_live">Video mubashara</string>
+    <string name="a11y_kind_playlist">Orodha ya kucheza</string>
+    <string name="a11y_kind_album">Albamu</string>
+    <string name="a11y_kind_mix">Mchanganyiko</string>
+    <string name="a11y_kind_channel">Kituo</string>
+    <!-- A video's length as a screen reader speaks it, joined with spaces: "1 hour 5 minutes 3 seconds" -->
+    <plurals name="a11y_duration_hours">
+        <item quantity="one">saa %1$d</item>
+        <item quantity="other">saa %1$d</item>
+    </plurals>
+    <plurals name="a11y_duration_minutes">
+        <item quantity="one">dakika %1$d</item>
+        <item quantity="other">dakika %1$d</item>
+    </plurals>
+    <plurals name="a11y_duration_seconds">
+        <item quantity="one">sekunde %1$d</item>
+        <item quantity="other">sekunde %1$d</item>
+    </plurals>
 
     <!-- Library -->
     <string name="library_tab_folders">Folda</string>

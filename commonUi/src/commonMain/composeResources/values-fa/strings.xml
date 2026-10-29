@@ -123,6 +123,27 @@
     <string name="cd_share">اشتراک‌گذاری</string>
     <string name="cd_music_video">موسیقی</string>
     <string name="cd_album">آلبوم</string>
+    <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
+    <string name="a11y_kind_video">ویدیو</string>
+    <string name="a11y_kind_music_video">موزیک ویدیو</string>
+    <string name="a11y_kind_live">پخش زنده</string>
+    <string name="a11y_kind_playlist">لیست پخش</string>
+    <string name="a11y_kind_album">آلبوم</string>
+    <string name="a11y_kind_mix">میکس</string>
+    <string name="a11y_kind_channel">کانال</string>
+    <!-- A video's length as a screen reader speaks it, joined with spaces: "1 hour 5 minutes 3 seconds" -->
+    <plurals name="a11y_duration_hours">
+        <item quantity="one">%1$d ساعت</item>
+        <item quantity="other">%1$d ساعت</item>
+    </plurals>
+    <plurals name="a11y_duration_minutes">
+        <item quantity="one">%1$d دقیقه</item>
+        <item quantity="other">%1$d دقیقه</item>
+    </plurals>
+    <plurals name="a11y_duration_seconds">
+        <item quantity="one">%1$d ثانیه</item>
+        <item quantity="other">%1$d ثانیه</item>
+    </plurals>
 
     <!-- Library -->
     <string name="library_tab_folders">پوشه‌ها</string>

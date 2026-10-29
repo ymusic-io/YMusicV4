@@ -123,6 +123,27 @@
     <string name="cd_share">শেয়ার করুন</string>
     <string name="cd_music_video">মিউজিক</string>
     <string name="cd_album">অ্যালবাম</string>
+    <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
+    <string name="a11y_kind_video">ভিডিও</string>
+    <string name="a11y_kind_music_video">মিউজিক ভিডিও</string>
+    <string name="a11y_kind_live">লাইভ ভিডিও</string>
+    <string name="a11y_kind_playlist">প্লেলিস্ট</string>
+    <string name="a11y_kind_album">অ্যালবাম</string>
+    <string name="a11y_kind_mix">মিক্স</string>
+    <string name="a11y_kind_channel">চ্যানেল</string>
+    <!-- A video's length as a screen reader speaks it, joined with spaces: "1 hour 5 minutes 3 seconds" -->
+    <plurals name="a11y_duration_hours">
+        <item quantity="one">%1$d ঘণ্টা</item>
+        <item quantity="other">%1$d ঘণ্টা</item>
+    </plurals>
+    <plurals name="a11y_duration_minutes">
+        <item quantity="one">%1$d মিনিট</item>
+        <item quantity="other">%1$d মিনিট</item>
+    </plurals>
+    <plurals name="a11y_duration_seconds">
+        <item quantity="one">%1$d সেকেন্ড</item>
+        <item quantity="other">%1$d সেকেন্ড</item>
+    </plurals>
 
     <!-- Library -->
     <string name="library_tab_folders">ফোল্ডার</string>

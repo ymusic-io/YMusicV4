@@ -123,6 +123,27 @@
     <string name="cd_share">Κοινοποίηση</string>
     <string name="cd_music_video">Μουσική</string>
     <string name="cd_album">Άλμπουμ</string>
+    <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
+    <string name="a11y_kind_video">Βίντεο</string>
+    <string name="a11y_kind_music_video">Μουσικό βίντεο</string>
+    <string name="a11y_kind_live">Ζωντανή μετάδοση</string>
+    <string name="a11y_kind_playlist">Λίστα αναπαραγωγής</string>
+    <string name="a11y_kind_album">Άλμπουμ</string>
+    <string name="a11y_kind_mix">Μίξη</string>
+    <string name="a11y_kind_channel">Κανάλι</string>
+    <!-- A video's length as a screen reader speaks it, joined with spaces: "1 hour 5 minutes 3 seconds" -->
+    <plurals name="a11y_duration_hours">
+        <item quantity="one">%1$d ώρα</item>
+        <item quantity="other">%1$d ώρες</item>
+    </plurals>
+    <plurals name="a11y_duration_minutes">
+        <item quantity="one">%1$d λεπτό</item>
+        <item quantity="other">%1$d λεπτά</item>
+    </plurals>
+    <plurals name="a11y_duration_seconds">
+        <item quantity="one">%1$d δευτερόλεπτο</item>
+        <item quantity="other">%1$d δευτερόλεπτα</item>
+    </plurals>
 
     <!-- Library -->
     <string name="library_tab_folders">Φάκελοι</string>

@@ -123,6 +123,27 @@
     <string name="cd_share">सेयर गर्नुहोस्</string>
     <string name="cd_music_video">सङ्गीत</string>
     <string name="cd_album">एल्बम</string>
+    <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
+    <string name="a11y_kind_video">भिडियो</string>
+    <string name="a11y_kind_music_video">सङ्गीत भिडियो</string>
+    <string name="a11y_kind_live">लाइभ भिडियो</string>
+    <string name="a11y_kind_playlist">प्लेलिस्ट</string>
+    <string name="a11y_kind_album">एल्बम</string>
+    <string name="a11y_kind_mix">मिक्स</string>
+    <string name="a11y_kind_channel">च्यानल</string>
+    <!-- A video's length as a screen reader speaks it, joined with spaces: "1 hour 5 minutes 3 seconds" -->
+    <plurals name="a11y_duration_hours">
+        <item quantity="one">%1$d घण्टा</item>
+        <item quantity="other">%1$d घण्टा</item>
+    </plurals>
+    <plurals name="a11y_duration_minutes">
+        <item quantity="one">%1$d मिनेट</item>
+        <item quantity="other">%1$d मिनेट</item>
+    </plurals>
+    <plurals name="a11y_duration_seconds">
+        <item quantity="one">%1$d सेकेन्ड</item>
+        <item quantity="other">%1$d सेकेन्ड</item>
+    </plurals>
 
     <!-- Library -->
     <string name="library_tab_folders">फोल्डरहरू</string>

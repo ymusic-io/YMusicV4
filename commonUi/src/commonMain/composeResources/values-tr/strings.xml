@@ -123,6 +123,27 @@
     <string name="cd_share">Paylaş</string>
     <string name="cd_music_video">Müzik</string>
     <string name="cd_album">Albüm</string>
+    <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
+    <string name="a11y_kind_video">Video</string>
+    <string name="a11y_kind_music_video">Müzik videosu</string>
+    <string name="a11y_kind_live">Canlı yayın</string>
+    <string name="a11y_kind_playlist">Oynatma listesi</string>
+    <string name="a11y_kind_album">Albüm</string>
+    <string name="a11y_kind_mix">Mix</string>
+    <string name="a11y_kind_channel">Kanal</string>
+    <!-- A video's length as a screen reader speaks it, joined with spaces: "1 hour 5 minutes 3 seconds" -->
+    <plurals name="a11y_duration_hours">
+        <item quantity="one">%1$d saat</item>
+        <item quantity="other">%1$d saat</item>
+    </plurals>
+    <plurals name="a11y_duration_minutes">
+        <item quantity="one">%1$d dakika</item>
+        <item quantity="other">%1$d dakika</item>
+    </plurals>
+    <plurals name="a11y_duration_seconds">
+        <item quantity="one">%1$d saniye</item>
+        <item quantity="other">%1$d saniye</item>
+    </plurals>
 
     <!-- Library -->
     <string name="library_tab_folders">Klasörler</string>

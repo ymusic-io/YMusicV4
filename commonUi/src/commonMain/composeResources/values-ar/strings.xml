@@ -153,6 +153,39 @@
     <string name="cd_share">مشاركة</string>
     <string name="cd_music_video">موسيقى</string>
     <string name="cd_album">ألبوم</string>
+    <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
+    <string name="a11y_kind_video">فيديو</string>
+    <string name="a11y_kind_music_video">فيديو موسيقي</string>
+    <string name="a11y_kind_live">بث مباشر</string>
+    <string name="a11y_kind_playlist">قائمة تشغيل</string>
+    <string name="a11y_kind_album">ألبوم</string>
+    <string name="a11y_kind_mix">مزيج</string>
+    <string name="a11y_kind_channel">قناة</string>
+    <!-- A video's length as a screen reader speaks it, joined with spaces: "1 hour 5 minutes 3 seconds" -->
+    <plurals name="a11y_duration_hours">
+        <item quantity="zero">%1$d ساعة</item>
+        <item quantity="one">ساعة واحدة</item>
+        <item quantity="two">ساعتان</item>
+        <item quantity="few">%1$d ساعات</item>
+        <item quantity="many">%1$d ساعة</item>
+        <item quantity="other">%1$d ساعة</item>
+    </plurals>
+    <plurals name="a11y_duration_minutes">
+        <item quantity="zero">%1$d دقيقة</item>
+        <item quantity="one">دقيقة واحدة</item>
+        <item quantity="two">دقيقتان</item>
+        <item quantity="few">%1$d دقائق</item>
+        <item quantity="many">%1$d دقيقة</item>
+        <item quantity="other">%1$d دقيقة</item>
+    </plurals>
+    <plurals name="a11y_duration_seconds">
+        <item quantity="zero">%1$d ثانية</item>
+        <item quantity="one">ثانية واحدة</item>
+        <item quantity="two">ثانيتان</item>
+        <item quantity="few">%1$d ثوانٍ</item>
+        <item quantity="many">%1$d ثانية</item>
+        <item quantity="other">%1$d ثانية</item>
+    </plurals>
 
     <string name="library_tab_folders">المجلدات</string>
     <string name="library_tab_playlists">قوائم التشغيل</string>

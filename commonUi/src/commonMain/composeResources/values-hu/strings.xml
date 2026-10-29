@@ -123,6 +123,27 @@
     <string name="cd_share">Megosztás</string>
     <string name="cd_music_video">Zene</string>
     <string name="cd_album">Album</string>
+    <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
+    <string name="a11y_kind_video">Videó</string>
+    <string name="a11y_kind_music_video">Zenei videó</string>
+    <string name="a11y_kind_live">Élő közvetítés</string>
+    <string name="a11y_kind_playlist">Lejátszási lista</string>
+    <string name="a11y_kind_album">Album</string>
+    <string name="a11y_kind_mix">Mix</string>
+    <string name="a11y_kind_channel">Csatorna</string>
+    <!-- A video's length as a screen reader speaks it, joined with spaces: "1 hour 5 minutes 3 seconds" -->
+    <plurals name="a11y_duration_hours">
+        <item quantity="one">%1$d óra</item>
+        <item quantity="other">%1$d óra</item>
+    </plurals>
+    <plurals name="a11y_duration_minutes">
+        <item quantity="one">%1$d perc</item>
+        <item quantity="other">%1$d perc</item>
+    </plurals>
+    <plurals name="a11y_duration_seconds">
+        <item quantity="one">%1$d másodperc</item>
+        <item quantity="other">%1$d másodperc</item>
+    </plurals>
 
     <!-- Library -->
     <string name="library_tab_folders">Mappák</string>

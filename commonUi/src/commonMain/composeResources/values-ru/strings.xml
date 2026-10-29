@@ -123,6 +123,33 @@
     <string name="cd_share">Поделиться</string>
     <string name="cd_music_video">Музыка</string>
     <string name="cd_album">Альбом</string>
+    <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
+    <string name="a11y_kind_video">Видео</string>
+    <string name="a11y_kind_music_video">Клип</string>
+    <string name="a11y_kind_live">Прямой эфир</string>
+    <string name="a11y_kind_playlist">Плейлист</string>
+    <string name="a11y_kind_album">Альбом</string>
+    <string name="a11y_kind_mix">Микс</string>
+    <string name="a11y_kind_channel">Канал</string>
+    <!-- A video's length as a screen reader speaks it, joined with spaces: "1 hour 5 minutes 3 seconds" -->
+    <plurals name="a11y_duration_hours">
+        <item quantity="one">%1$d час</item>
+        <item quantity="few">%1$d часа</item>
+        <item quantity="many">%1$d часов</item>
+        <item quantity="other">%1$d часа</item>
+    </plurals>
+    <plurals name="a11y_duration_minutes">
+        <item quantity="one">%1$d минута</item>
+        <item quantity="few">%1$d минуты</item>
+        <item quantity="many">%1$d минут</item>
+        <item quantity="other">%1$d минуты</item>
+    </plurals>
+    <plurals name="a11y_duration_seconds">
+        <item quantity="one">%1$d секунда</item>
+        <item quantity="few">%1$d секунды</item>
+        <item quantity="many">%1$d секунд</item>
+        <item quantity="other">%1$d секунды</item>
+    </plurals>
 
     <!-- Library -->
     <string name="library_tab_folders">Папки</string>

@@ -123,6 +123,30 @@
     <string name="cd_share">שיתוף</string>
     <string name="cd_music_video">מוזיקה</string>
     <string name="cd_album">אלבום</string>
+    <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
+    <string name="a11y_kind_video">סרטון</string>
+    <string name="a11y_kind_music_video">קליפ</string>
+    <string name="a11y_kind_live">שידור חי</string>
+    <string name="a11y_kind_playlist">רשימת השמעה</string>
+    <string name="a11y_kind_album">אלבום</string>
+    <string name="a11y_kind_mix">מיקס</string>
+    <string name="a11y_kind_channel">ערוץ</string>
+    <!-- A video's length as a screen reader speaks it, joined with spaces: "1 hour 5 minutes 3 seconds" -->
+    <plurals name="a11y_duration_hours">
+        <item quantity="one">שעה אחת</item>
+        <item quantity="two">שעתיים</item>
+        <item quantity="other">%1$d שעות</item>
+    </plurals>
+    <plurals name="a11y_duration_minutes">
+        <item quantity="one">דקה אחת</item>
+        <item quantity="two">%1$d דקות</item>
+        <item quantity="other">%1$d דקות</item>
+    </plurals>
+    <plurals name="a11y_duration_seconds">
+        <item quantity="one">שנייה אחת</item>
+        <item quantity="two">%1$d שניות</item>
+        <item quantity="other">%1$d שניות</item>
+    </plurals>
 
     <!-- Library -->
     <string name="library_tab_folders">תיקיות</string>

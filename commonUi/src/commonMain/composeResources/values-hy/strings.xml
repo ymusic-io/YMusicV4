@@ -123,6 +123,27 @@
     <string name="cd_share">Կիսվել</string>
     <string name="cd_music_video">Երաժշտություն</string>
     <string name="cd_album">Ալբոմ</string>
+    <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
+    <string name="a11y_kind_video">Տեսանյութ</string>
+    <string name="a11y_kind_music_video">Տեսահոլովակ</string>
+    <string name="a11y_kind_live">Ուղիղ եթեր</string>
+    <string name="a11y_kind_playlist">Երգացանկ</string>
+    <string name="a11y_kind_album">Ալբոմ</string>
+    <string name="a11y_kind_mix">Միքս</string>
+    <string name="a11y_kind_channel">Ալիք</string>
+    <!-- A video's length as a screen reader speaks it, joined with spaces: "1 hour 5 minutes 3 seconds" -->
+    <plurals name="a11y_duration_hours">
+        <item quantity="one">%1$d ժամ</item>
+        <item quantity="other">%1$d ժամ</item>
+    </plurals>
+    <plurals name="a11y_duration_minutes">
+        <item quantity="one">%1$d րոպե</item>
+        <item quantity="other">%1$d րոպե</item>
+    </plurals>
+    <plurals name="a11y_duration_seconds">
+        <item quantity="one">%1$d վայրկյան</item>
+        <item quantity="other">%1$d վայրկյան</item>
+    </plurals>
 
     <!-- Library -->
     <string name="library_tab_folders">Թղթապանակներ</string>

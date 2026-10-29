@@ -123,6 +123,27 @@
     <string name="cd_share">Partekatu</string>
     <string name="cd_music_video">Musika</string>
     <string name="cd_album">Albuma</string>
+    <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
+    <string name="a11y_kind_video">Bideoa</string>
+    <string name="a11y_kind_music_video">Bideoklipa</string>
+    <string name="a11y_kind_live">Zuzeneko bideoa</string>
+    <string name="a11y_kind_playlist">Erreprodukzio-zerrenda</string>
+    <string name="a11y_kind_album">Albuma</string>
+    <string name="a11y_kind_mix">Nahasketa</string>
+    <string name="a11y_kind_channel">Kanala</string>
+    <!-- A video's length as a screen reader speaks it, joined with spaces: "1 hour 5 minutes 3 seconds" -->
+    <plurals name="a11y_duration_hours">
+        <item quantity="one">%1$d ordu</item>
+        <item quantity="other">%1$d ordu</item>
+    </plurals>
+    <plurals name="a11y_duration_minutes">
+        <item quantity="one">%1$d minutu</item>
+        <item quantity="other">%1$d minutu</item>
+    </plurals>
+    <plurals name="a11y_duration_seconds">
+        <item quantity="one">%1$d segundo</item>
+        <item quantity="other">%1$d segundo</item>
+    </plurals>
 
     <!-- Library -->
     <string name="library_tab_folders">Karpetak</string>

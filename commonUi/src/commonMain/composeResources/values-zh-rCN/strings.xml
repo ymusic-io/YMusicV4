@@ -123,6 +123,24 @@
     <string name="cd_share">分享</string>
     <string name="cd_music_video">音乐</string>
     <string name="cd_album">专辑</string>
+    <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
+    <string name="a11y_kind_video">视频</string>
+    <string name="a11y_kind_music_video">音乐视频</string>
+    <string name="a11y_kind_live">直播</string>
+    <string name="a11y_kind_playlist">播放列表</string>
+    <string name="a11y_kind_album">专辑</string>
+    <string name="a11y_kind_mix">合辑</string>
+    <string name="a11y_kind_channel">频道</string>
+    <!-- A video's length as a screen reader speaks it, joined with spaces: "1 hour 5 minutes 3 seconds" -->
+    <plurals name="a11y_duration_hours">
+        <item quantity="other">%1$d 小时</item>
+    </plurals>
+    <plurals name="a11y_duration_minutes">
+        <item quantity="other">%1$d 分钟</item>
+    </plurals>
+    <plurals name="a11y_duration_seconds">
+        <item quantity="other">%1$d 秒</item>
+    </plurals>
 
     <!-- Library -->
     <string name="library_tab_folders">文件夹</string>
