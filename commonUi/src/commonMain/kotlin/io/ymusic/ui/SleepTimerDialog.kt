@@ -75,9 +75,14 @@ internal fun SleepTimerButton(
 ) {
     var open by remember { mutableStateOf(false) }
     HoldVideoOverlay(open)
+    val armed = when {
+        sleepMs != null -> stringResource(Res.string.sleep_pausing_in, spokenDuration((sleepMs + 59_999) / 60_000 * 60_000))
+        afterCurrent -> stringResource(Res.string.sleep_pausing_after_track)
+        else -> null
+    }
     ActionIcon(
         painterResource(Res.drawable.ic_sleep_timer),
-        stringResource(Res.string.cd_sleep_timer),
+        listOfNotNull(stringResource(Res.string.cd_sleep_timer), armed).joinToString(", "),
         tint = if (sleepMs != null || afterCurrent) DesignColors.Accent else DesignColors.InkMuted,
         onClick = { open = true },
     )

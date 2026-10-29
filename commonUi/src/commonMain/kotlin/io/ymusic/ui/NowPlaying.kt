@@ -108,6 +108,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
@@ -119,10 +120,10 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -307,7 +308,12 @@ fun MiniPlayer(
                     AudioOnlyCover(item.displayThumbnailUrl, Modifier.fillMaxSize())
                 }
                 BufferingIndicator(status, size = 22.dp, strokeWidth = 2.dp)
-                Box(Modifier.matchParentSize().clickable(onClick = onExpand))
+                Box(
+                    Modifier.matchParentSize()
+                        .focusProperties { canFocus = false }
+                        .a11ySilent()
+                        .clickable(onClick = onExpand),
+                )
             }
             Column(
                 Modifier.weight(1f)
@@ -316,7 +322,7 @@ fun MiniPlayer(
             ) {
                 LinearProgressIndicator(
                     progress = { if (duration > 0) progress.positionMs.toFloat() / duration else 0f },
-                    modifier = Modifier.fillMaxWidth().height(4.dp),
+                    modifier = Modifier.fillMaxWidth().height(4.dp).a11ySilent(),
                     color = DesignColors.Accent,
                     trackColor = Color.Transparent,
                     strokeCap = StrokeCap.Butt,
@@ -343,15 +349,23 @@ fun MiniPlayer(
                             )
                         }
                     }
-                    IconButton(onClick = { coordinator.player.togglePlay() }) {
+                    IconButton(
+                        onClick = { coordinator.player.togglePlay() },
+                        modifier = Modifier.a11yActionLabel(
+                            stringResource(if (status.playWhenReady) Res.string.cd_pause else Res.string.cd_play),
+                        ),
+                    ) {
                         Icon(
                             if (status.playWhenReady) Icons.Default.Pause else Icons.Default.PlayArrow,
-                            stringResource(if (status.playWhenReady) Res.string.cd_pause else Res.string.cd_play),
+                            null,
                             tint = DesignColors.InkMuted,
                         )
                     }
-                    IconButton(onClick = { coordinator.player.skipNext() }) {
-                        Icon(Icons.Default.SkipNext, stringResource(Res.string.cd_next), tint = DesignColors.InkMuted)
+                    IconButton(
+                        onClick = { coordinator.player.skipNext() },
+                        modifier = Modifier.a11yActionLabel(stringResource(Res.string.cd_next)),
+                    ) {
+                        Icon(Icons.Default.SkipNext, null, tint = DesignColors.InkMuted)
                     }
                 }
             }
@@ -1034,10 +1048,12 @@ private fun CaptionToggle(player: io.ymusic.player.Player, offTint: Color, iconS
         open = false
         translateOpen = false
     }
+    val onTrack = tracks.firstOrNull { isOn(it) } ?: translations.firstOrNull { isOn(it) }
+    val captionState = onTrack?.displayName ?: stringResource(Res.string.captions_off)
     Box {
         ActionIcon(
             if (config.captionVisible) Icons.Default.ClosedCaption else Icons.Outlined.ClosedCaptionOff,
-            stringResource(Res.string.cd_captions),
+            "${stringResource(Res.string.cd_captions)}, $captionState",
             iconSize = iconSize,
             hitSize = hitSize,
             tint = if (config.captionVisible) DesignColors.Accent else offTint,
@@ -1308,12 +1324,9 @@ internal fun QualityChip(
             modifier = Modifier
                 .clip(RoundedCornerShape(6.dp))
                 .border(1.dp, DesignColors.OutlineSoft, RoundedCornerShape(6.dp))
-                .a11yActionLabel(qualityDescription)
-                .semantics {
-                    stateDescription = label
-                    role = Role.DropdownList
-                }
                 .clickable { open = true }
+                .a11yActionLabel("$qualityDescription, $label")
+                .clearAndSetSemantics { role = Role.DropdownList }
                 .padding(horizontal = 8.dp, vertical = 2.dp),
         )
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
@@ -1692,12 +1705,14 @@ private fun TransportButtons(
             onClick = { player.skipPrev() },
         )
         Box(
-            Modifier.size(circle).clip(CircleShape).background(playBackground).clickable(role = Role.Button) { player.togglePlay() },
+            Modifier.size(circle).clip(CircleShape).background(playBackground)
+                .clickable(role = Role.Button) { player.togglePlay() }
+                .a11yActionLabel(stringResource(if (playing) Res.string.cd_pause else Res.string.cd_play)),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
                 if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
-                stringResource(if (playing) Res.string.cd_pause else Res.string.cd_play),
+                null,
                 Modifier.size((26.dp * scale).evenPx()),
                 tint = playForeground,
             )
