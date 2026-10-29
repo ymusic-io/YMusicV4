@@ -150,7 +150,10 @@ import io.ymusic.settings.AppSettings
 import io.ymusic.settings.flow
 import io.ymusic.settings.put
 import io.ymusic.ui.resources.Res
+import io.ymusic.ui.resources.a11y_behind_live
 import io.ymusic.ui.resources.a11y_now_playing
+import io.ymusic.ui.resources.a11y_playback_position
+import io.ymusic.ui.resources.a11y_x_of_y
 import io.ymusic.ui.resources.audio_only
 import io.ymusic.ui.resources.badge_live
 import io.ymusic.ui.resources.captions_auto_translate
@@ -902,8 +905,8 @@ private fun BoxScope.VideoOverlayControls(
         ) {
             val overlayStyle = TextStyle(fontSize = 10.sp * scale, fontWeight = FontWeight.Bold, color = Color(0xFFEEEEEE))
             labelProgress.progressLabel?.let {
-                Text(it, style = overlayStyle)
-                Text(" / ", style = overlayStyle)
+                Text(it, style = overlayStyle, modifier = Modifier.a11ySilent())
+                Text(" / ", style = overlayStyle, modifier = Modifier.a11ySilent())
             }
             DurationLabel(player, progress, overlayStyle)
             Box(Modifier.weight(1f))
@@ -1540,7 +1543,7 @@ private fun SeekBar(player: io.ymusic.player.Player, progress: Progress) {
         MediaLtr {
             Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 val timeStyle = TextStyle(fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = DesignColors.InkSecondary)
-                Text(labelProgress.progressLabel.orEmpty(), style = timeStyle)
+                Text(labelProgress.progressLabel.orEmpty(), style = timeStyle, modifier = Modifier.a11ySilent())
                 Spacer(Modifier.weight(1f))
                 DurationLabel(player, progress, timeStyle)
             }
@@ -1563,9 +1566,9 @@ private fun DurationLabel(
         text,
         style = if (progress.highlightDuration) style.copy(color = DesignColors.Accent) else style,
         modifier = if (progress.durationIsLive && progress.seekable) {
-            Modifier.clickable { player.seekTo(progress.durationMs.coerceAtLeast(0L)) }
+            Modifier.clickable(role = Role.Button) { player.seekTo(progress.durationMs.coerceAtLeast(0L)) }
         } else {
-            Modifier
+            Modifier.a11ySilent()
         },
     )
 }
@@ -1595,9 +1598,27 @@ private fun SeekSlider(
             trackColor = trackColor,
             skipFractions = skipSegmentFractions(skipSegments, durationMs),
             modifier = Modifier.fillMaxWidth(),
+            a11y = seekBarA11y(progress),
         )
     }
 }
+
+/** The seek bar for screen readers: "Playback position, 1 minute 5 seconds of 3 minutes 45 seconds";
+ *  the arrow keys step it 5 seconds. */
+@Composable
+fun seekBarA11y(progress: Progress): SliderA11y {
+    val durationMs = progress.durationMs
+    val value = when {
+        progress.isLive && progress.atLiveHead() -> stringResource(Res.string.badge_live)
+        progress.isLive -> stringResource(Res.string.a11y_behind_live, spokenDuration(durationMs - progress.positionMs))
+        durationMs > 0 -> stringResource(Res.string.a11y_x_of_y, spokenDuration(progress.positionMs), spokenDuration(durationMs))
+        else -> spokenDuration(progress.positionMs)
+    }
+    val keyStep = if (durationMs > 0) SEEK_KEY_STEP_MS.toFloat() / durationMs else 0f
+    return SliderA11y(stringResource(Res.string.a11y_playback_position), value, keyStep)
+}
+
+private const val SEEK_KEY_STEP_MS = 5_000L
 
 /** rewind · prev · [play circle] · next · forward. Dark-on-white by default; the video overlay
  *  passes white glyphs on a translucent play circle. */
