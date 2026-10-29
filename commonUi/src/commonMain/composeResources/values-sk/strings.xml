@@ -121,8 +121,6 @@
     <string name="yt_playlist_removed_video">%1$s odstránené z playlistu</string>
     <string name="cd_add_to_playlist">Pridať do playlistu</string>
     <string name="cd_share">Zdieľať</string>
-    <string name="cd_music_video">Hudba</string>
-    <string name="cd_album">Album</string>
     <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
     <string name="a11y_kind_video">Video</string>
     <string name="a11y_kind_music_video">Hudobné video</string>
@@ -150,6 +148,12 @@
         <item quantity="many">%1$d sekundy</item>
         <item quantity="other">%1$d sekúnd</item>
     </plurals>
+    <string name="a11y_now_playing">Práve hrá</string>
+    <string name="a11y_playback_position">Pozícia prehrávania</string>
+    <string name="a11y_x_of_y">%1$s, celkovo %2$s</string>
+    <string name="a11y_behind_live">%1$s za živým vysielaním</string>
+    <string name="a11y_downloaded">Stiahnuté</string>
+    <string name="a11y_eq_preamp">Predzosilňovač</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Priečinky</string>
@@ -392,7 +396,6 @@
     <string name="account_sign_out">Odhlásiť sa</string>
     <string name="account_switch">Prepnúť účet</string>
     <string name="switch_account_hint">Vyberte požadovaný účet a potom túto obrazovku zatvorte šípkou späť — aplikácia sa obnoví pod novým účtom.</string>
-    <string name="cd_account_avatar">Profilový obrázok účtu</string>
     <string name="account_my_channel">Môj kanál</string>
     <string name="account_watch_history">História pozerania</string>
     <string name="account_watch_later">Pozrieť neskôr</string>

@@ -121,8 +121,6 @@
     <string name="yt_playlist_removed_video">%1$s प्लेलिस्टमधून काढले</string>
     <string name="cd_add_to_playlist">प्लेलिस्टमध्ये जोडा</string>
     <string name="cd_share">शेअर करा</string>
-    <string name="cd_music_video">संगीत</string>
-    <string name="cd_album">अल्बम</string>
     <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
     <string name="a11y_kind_video">व्हिडिओ</string>
     <string name="a11y_kind_music_video">म्युझिक व्हिडिओ</string>
@@ -144,6 +142,12 @@
         <item quantity="one">%1$d सेकंद</item>
         <item quantity="other">%1$d सेकंद</item>
     </plurals>
+    <string name="a11y_now_playing">आता वाजत आहे</string>
+    <string name="a11y_playback_position">प्लेबॅकची स्थिती</string>
+    <string name="a11y_x_of_y">%2$s पैकी %1$s</string>
+    <string name="a11y_behind_live">लाइव्हपेक्षा %1$s मागे</string>
+    <string name="a11y_downloaded">डाउनलोड केले</string>
+    <string name="a11y_eq_preamp">प्रीअँप</string>
 
     <!-- Library -->
     <string name="library_tab_folders">फोल्डर</string>
@@ -384,7 +388,6 @@
     <string name="account_sign_out">साइन आउट करा</string>
     <string name="account_switch">खाते बदला</string>
     <string name="switch_account_hint">हवे असलेले खाते निवडा, नंतर मागील बाणाने ही स्क्रीन बंद करा — ॲप नवीन खात्यासह रिफ्रेश होईल.</string>
-    <string name="cd_account_avatar">खात्याचे चित्र</string>
     <string name="account_my_channel">माझे चॅनल</string>
     <string name="account_watch_history">पाहण्याचा इतिहास</string>
     <string name="account_watch_later">नंतर पहा</string>

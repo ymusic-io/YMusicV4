@@ -121,8 +121,6 @@
     <string name="yt_playlist_removed_video">Το %1$s αφαιρέθηκε από τη λίστα αναπαραγωγής</string>
     <string name="cd_add_to_playlist">Προσθήκη σε λίστα αναπαραγωγής</string>
     <string name="cd_share">Κοινοποίηση</string>
-    <string name="cd_music_video">Μουσική</string>
-    <string name="cd_album">Άλμπουμ</string>
     <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
     <string name="a11y_kind_video">Βίντεο</string>
     <string name="a11y_kind_music_video">Μουσικό βίντεο</string>
@@ -144,6 +142,12 @@
         <item quantity="one">%1$d δευτερόλεπτο</item>
         <item quantity="other">%1$d δευτερόλεπτα</item>
     </plurals>
+    <string name="a11y_now_playing">Παίζει τώρα</string>
+    <string name="a11y_playback_position">Θέση αναπαραγωγής</string>
+    <string name="a11y_x_of_y">%1$s από %2$s</string>
+    <string name="a11y_behind_live">%1$s πίσω από τη ζωντανή μετάδοση</string>
+    <string name="a11y_downloaded">Έχει ληφθεί</string>
+    <string name="a11y_eq_preamp">Προενισχυτής</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Φάκελοι</string>
@@ -384,7 +388,6 @@
     <string name="account_sign_out">Αποσύνδεση</string>
     <string name="account_switch">Εναλλαγή λογαριασμού</string>
     <string name="switch_account_hint">Επιλέξτε τον λογαριασμό που θέλετε και κλείστε αυτήν την οθόνη με το βέλος επιστροφής — η εφαρμογή ανανεώνεται με τον νέο λογαριασμό.</string>
-    <string name="cd_account_avatar">Εικόνα λογαριασμού</string>
     <string name="account_my_channel">Το κανάλι μου</string>
     <string name="account_watch_history">Ιστορικό παρακολούθησης</string>
     <string name="account_watch_later">Παρακολούθηση αργότερα</string>

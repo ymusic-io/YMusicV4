@@ -121,8 +121,6 @@
     <string name="yt_playlist_removed_video">S'ha tret %1$s de la llista</string>
     <string name="cd_add_to_playlist">Afegeix a una llista</string>
     <string name="cd_share">Comparteix</string>
-    <string name="cd_music_video">Música</string>
-    <string name="cd_album">Àlbum</string>
     <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
     <string name="a11y_kind_video">Vídeo</string>
     <string name="a11y_kind_music_video">Videoclip</string>
@@ -147,6 +145,12 @@
         <item quantity="many">%1$d de segons</item>
         <item quantity="other">%1$d segons</item>
     </plurals>
+    <string name="a11y_now_playing">S'està reproduint</string>
+    <string name="a11y_playback_position">Posició de reproducció</string>
+    <string name="a11y_x_of_y">%1$s de %2$s</string>
+    <string name="a11y_behind_live">%1$s per darrere del directe</string>
+    <string name="a11y_downloaded">Descarregat</string>
+    <string name="a11y_eq_preamp">Preamplificador</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Carpetes</string>
@@ -388,7 +392,6 @@
     <string name="account_sign_out">Tanca la sessió</string>
     <string name="account_switch">Canvia de compte</string>
     <string name="switch_account_hint">Tria el compte que vulguis i tanca aquesta pantalla amb la fletxa enrere — l'aplicació s'actualitza amb el compte nou.</string>
-    <string name="cd_account_avatar">Foto del compte</string>
     <string name="account_my_channel">El meu canal</string>
     <string name="account_watch_history">Historial de reproduccions</string>
     <string name="account_watch_later">Mira més tard</string>

@@ -37,6 +37,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.awt.ComposeWindow
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -46,6 +48,7 @@ import io.ymusic.imageloader.AsyncImage
 import io.ymusic.player.isPlaying
 import io.ymusic.ui.AppGraph
 import io.ymusic.ui.SlimSeekBar
+import io.ymusic.ui.a11yActionLabel
 import io.ymusic.ui.resources.Res
 import io.ymusic.ui.resources.badge_live
 import io.ymusic.ui.resources.cd_next
@@ -55,6 +58,7 @@ import io.ymusic.ui.resources.cd_play
 import io.ymusic.ui.resources.cd_previous
 import io.ymusic.ui.resources.cd_stop_dismiss
 import io.ymusic.ui.resources.mini_player_nothing_playing
+import io.ymusic.ui.seekBarA11y
 import io.ymusic.ui.skipSegmentFractions
 import kmpcommon.log.Logger
 import org.jetbrains.compose.resources.stringResource
@@ -213,11 +217,11 @@ private fun MiniPlayerContent(graph: AppGraph, onOpenApp: () -> Unit, onDismiss:
                     )
                 }
             }
-            IconButton(onClick = onOpenApp, modifier = Modifier.size(30.dp)) {
-                Icon(Icons.AutoMirrored.Filled.OpenInNew, stringResource(Res.string.cd_open_app), Modifier.size(16.dp))
+            IconButton(onClick = onOpenApp, modifier = Modifier.size(30.dp).a11yActionLabel(stringResource(Res.string.cd_open_app))) {
+                Icon(Icons.AutoMirrored.Filled.OpenInNew, null, Modifier.size(16.dp))
             }
-            IconButton(onClick = onDismiss, modifier = Modifier.size(30.dp)) {
-                Icon(Icons.Default.Close, stringResource(Res.string.cd_stop_dismiss), Modifier.size(16.dp))
+            IconButton(onClick = onDismiss, modifier = Modifier.size(30.dp).a11yActionLabel(stringResource(Res.string.cd_stop_dismiss))) {
+                Icon(Icons.Default.Close, null, Modifier.size(16.dp))
             }
         }
 
@@ -229,6 +233,7 @@ private fun MiniPlayerContent(graph: AppGraph, onOpenApp: () -> Unit, onDismiss:
                 progress.progressLabel.orEmpty(),
                 fontSize = 10.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.clearAndSetSemantics {},
             )
             SlimSeekBar(
                 fraction = if (durationMs > 0) (progress.positionMs.toFloat() / durationMs) else 0f,
@@ -242,6 +247,7 @@ private fun MiniPlayerContent(graph: AppGraph, onOpenApp: () -> Unit, onDismiss:
                 thumbSize = 10.dp,
                 barHeight = 22.dp,
                 thumbShadow = 0.dp,
+                a11y = seekBarA11y(progress),
             )
             Text(
                 if (progress.durationIsLive) {
@@ -256,9 +262,9 @@ private fun MiniPlayerContent(graph: AppGraph, onOpenApp: () -> Unit, onDismiss:
                     MaterialTheme.colorScheme.onSurfaceVariant
                 },
                 modifier = if (progress.durationIsLive && progress.seekable) {
-                    Modifier.clickable { player.seekTo(durationMs.coerceAtLeast(0L)) }
+                    Modifier.clickable(role = Role.Button) { player.seekTo(durationMs.coerceAtLeast(0L)) }
                 } else {
-                    Modifier
+                    Modifier.clearAndSetSemantics {}
                 },
             )
         }
@@ -270,18 +276,23 @@ private fun MiniPlayerContent(graph: AppGraph, onOpenApp: () -> Unit, onDismiss:
             horizontalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterHorizontally),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            IconButton(onClick = { player.skipPrev() }, modifier = Modifier.size(32.dp)) {
-                Icon(Icons.Default.SkipPrevious, stringResource(Res.string.cd_previous), Modifier.size(20.dp))
+            IconButton(
+                onClick = { player.skipPrev() },
+                modifier = Modifier.size(32.dp).a11yActionLabel(stringResource(Res.string.cd_previous)),
+            ) {
+                Icon(Icons.Default.SkipPrevious, null, Modifier.size(20.dp))
             }
-            IconButton(onClick = { player.togglePlay() }, modifier = Modifier.size(36.dp)) {
-                Icon(
-                    if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
-                    stringResource(if (playing) Res.string.cd_pause else Res.string.cd_play),
-                    Modifier.size(26.dp),
-                )
+            IconButton(
+                onClick = { player.togglePlay() },
+                modifier = Modifier.size(36.dp).a11yActionLabel(stringResource(if (playing) Res.string.cd_pause else Res.string.cd_play)),
+            ) {
+                Icon(if (playing) Icons.Default.Pause else Icons.Default.PlayArrow, null, Modifier.size(26.dp))
             }
-            IconButton(onClick = { player.skipNext() }, modifier = Modifier.size(32.dp)) {
-                Icon(Icons.Default.SkipNext, stringResource(Res.string.cd_next), Modifier.size(20.dp))
+            IconButton(
+                onClick = { player.skipNext() },
+                modifier = Modifier.size(32.dp).a11yActionLabel(stringResource(Res.string.cd_next)),
+            ) {
+                Icon(Icons.Default.SkipNext, null, Modifier.size(20.dp))
             }
         }
     }

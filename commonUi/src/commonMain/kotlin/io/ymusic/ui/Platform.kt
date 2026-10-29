@@ -52,4 +52,15 @@ internal expect fun Modifier.drawerEdgeGestureExclusion(enabled: Boolean): Modif
  *  Android/iOS the native assistive techs don't have this double-read, so contentDescription
  *  is still the right channel. [label] may be null for a decorative glyph. Never on a node whose
  *  merged children already show the label as Text: desktop joins the texts and reads it twice. */
-internal expect fun Modifier.a11yActionLabel(label: String?): Modifier
+expect fun Modifier.a11yActionLabel(label: String?): Modifier
+
+/** A slider as screen readers see it: [label] names it, [value] says in words where it stands, and the
+ *  reader's adjust gesture sets a new [fraction] (0..1) through [onSet]. Compose Desktop's bridge speaks
+ *  no stateDescription and reads a range only as a bare number, so on JVM both go into the name. */
+internal expect fun Modifier.a11ySlider(
+    label: String?,
+    value: String,
+    fraction: Float,
+    enabled: Boolean,
+    onSet: (Float) -> Unit,
+): Modifier

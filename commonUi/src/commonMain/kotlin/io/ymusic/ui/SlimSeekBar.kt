@@ -3,6 +3,8 @@ package io.ymusic.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -20,6 +22,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
@@ -52,6 +55,10 @@ fun skipSegmentFractions(segments: List<SkipSegment>, durationMs: Long): List<Pa
     }
 }
 
+/** What a screen reader says for a [SlimSeekBar]: [label] names it, [value] says in words where it
+ *  stands. Focused, the left/right arrow keys move it by [keyStep] of its length. */
+class SliderA11y(val label: String?, val value: String, val keyStep: Float)
+
 /**
  * The app's slim seek bar, built from scratch: the M3 `Slider`'s internal layout does not center
  * its thumb/track slots inside a height-constrained row — the thumb clips into a floating dot and
@@ -81,6 +88,7 @@ fun SlimSeekBar(
     onScrub: ((Float?) -> Unit)? = null,
     skipFractions: List<Pair<Float, Float>> = emptyList(),
     skipColor: Color = DefaultSkipSegmentColor,
+    a11y: SliderA11y? = null,
 ) {
     var widthPx by remember { mutableStateOf(0) }
     var dragging by remember { mutableStateOf<Float?>(null) }
@@ -91,9 +99,18 @@ fun SlimSeekBar(
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     // Pointer x is physical; the fill grows from the start edge.
     fun fractionAt(x: Float, width: Int) = ((if (rtl) width - x else x) / width).coerceIn(0f, 1f)
+    val focus = remember { MutableInteractionSource() }
+    val focused by focus.collectIsFocusedAsState()
     Box(
         modifier
             .height(barHeight)
+            .then(
+                if (a11y == null) {
+                    Modifier
+                } else {
+                    Modifier.adjustable(a11y.label, a11y.value, shown, a11y.keyStep, enabled, focus, rtl = rtl) { seek.value(it) }
+                },
+            )
             .onSizeChanged { widthPx = it.width }
             .pointerInput(enabled, rtl) {
                 if (!enabled) return@pointerInput
@@ -161,8 +178,17 @@ fun SlimSeekBar(
             Modifier
                 .offset { IntOffset((shown * (widthPx - thumbSize.toPx())).roundToInt().coerceAtLeast(0), 0) }
                 .size(thumbSize)
+                .then(
+                    if (focused) {
+                        Modifier.drawBehind { drawCircle(thumbColor.copy(alpha = 0.3f), size.minDimension / 2 + FocusRing.toPx()) }
+                    } else {
+                        Modifier
+                    },
+                )
                 .shadow(thumbShadow, CircleShape)
                 .background(thumbColor, CircleShape),
         )
     }
 }
+
+private val FocusRing = 5.dp

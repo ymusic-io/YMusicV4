@@ -121,8 +121,6 @@
     <string name="yt_playlist_removed_video">%1$s pleylistdən silindi</string>
     <string name="cd_add_to_playlist">Pleylistə əlavə et</string>
     <string name="cd_share">Paylaş</string>
-    <string name="cd_music_video">Musiqi</string>
-    <string name="cd_album">Albom</string>
     <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
     <string name="a11y_kind_video">Video</string>
     <string name="a11y_kind_music_video">Musiqi videosu</string>
@@ -144,6 +142,12 @@
         <item quantity="one">%1$d saniyə</item>
         <item quantity="other">%1$d saniyə</item>
     </plurals>
+    <string name="a11y_now_playing">İndi oxunur</string>
+    <string name="a11y_playback_position">Oxutma mövqeyi</string>
+    <string name="a11y_x_of_y">%1$s, cəmi %2$s</string>
+    <string name="a11y_behind_live">Canlı yayımdan %1$s geridə</string>
+    <string name="a11y_downloaded">Yüklənib</string>
+    <string name="a11y_eq_preamp">Ön gücləndirici</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Qovluqlar</string>
@@ -384,7 +388,6 @@
     <string name="account_sign_out">Çıxış</string>
     <string name="account_switch">Hesabı dəyiş</string>
     <string name="switch_account_hint">İstədiyiniz hesabı seçin, sonra bu ekranı geri oxu ilə bağlayın — tətbiq yeni hesabla yenilənəcək.</string>
-    <string name="cd_account_avatar">Hesab şəkli</string>
     <string name="account_my_channel">Kanalım</string>
     <string name="account_watch_history">Baxış tarixçəsi</string>
     <string name="account_watch_later">Sonra bax</string>

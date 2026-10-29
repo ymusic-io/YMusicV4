@@ -164,8 +164,6 @@
     <string name="yt_playlist_removed_video">Removed %1$s from the playlist</string>
     <string name="cd_add_to_playlist">Add to playlist</string>
     <string name="cd_share">Share</string>
-    <string name="cd_music_video">Music</string>
-    <string name="cd_album">Album</string>
     <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
     <string name="a11y_kind_video">Video</string>
     <string name="a11y_kind_music_video">Music video</string>
@@ -187,6 +185,17 @@
         <item quantity="one">%1$d second</item>
         <item quantity="other">%1$d seconds</item>
     </plurals>
+    <!-- Screen-reader prefix of the queue row that is playing -->
+    <string name="a11y_now_playing">Now playing</string>
+    <string name="a11y_playback_position">Playback position</string>
+    <!-- A position against a total, spoken: "1 minute 5 seconds of 3 minutes 45 seconds", "12 MB of 40 MB" -->
+    <string name="a11y_x_of_y">%1$s of %2$s</string>
+    <!-- How far a live stream plays behind its live edge, spoken: "3 seconds behind live" -->
+    <string name="a11y_behind_live">%1$s behind live</string>
+    <!-- Screen-reader state of a video the Library already holds -->
+    <string name="a11y_downloaded">Downloaded</string>
+    <!-- Screen-reader name of the equalizer's PRE (preamp) fader -->
+    <string name="a11y_eq_preamp">Preamp</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Folders</string>
@@ -453,7 +462,6 @@
     <string name="account_sign_out">Sign out</string>
     <string name="account_switch">Switch account</string>
     <string name="switch_account_hint">Pick the account you want, then close this screen with the back arrow — the app refreshes under the new account.</string>
-    <string name="cd_account_avatar">Account picture</string>
     <string name="account_my_channel">My channel</string>
     <string name="account_watch_history">Watch history</string>
     <string name="account_watch_later">Watch later</string>

@@ -121,8 +121,6 @@
     <string name="yt_playlist_removed_video">Usunięto %1$s z playlisty</string>
     <string name="cd_add_to_playlist">Dodaj do playlisty</string>
     <string name="cd_share">Udostępnij</string>
-    <string name="cd_music_video">Muzyka</string>
-    <string name="cd_album">Album</string>
     <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
     <string name="a11y_kind_video">Film</string>
     <string name="a11y_kind_music_video">Teledysk</string>
@@ -150,6 +148,12 @@
         <item quantity="many">%1$d sekund</item>
         <item quantity="other">%1$d sekundy</item>
     </plurals>
+    <string name="a11y_now_playing">Teraz odtwarzane</string>
+    <string name="a11y_playback_position">Pozycja odtwarzania</string>
+    <string name="a11y_x_of_y">%1$s, łącznie %2$s</string>
+    <string name="a11y_behind_live">%1$s za transmisją na żywo</string>
+    <string name="a11y_downloaded">Pobrano</string>
+    <string name="a11y_eq_preamp">Przedwzmacniacz</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Foldery</string>
@@ -392,7 +396,6 @@
     <string name="account_sign_out">Wyloguj się</string>
     <string name="account_switch">Przełącz konto</string>
     <string name="switch_account_hint">Wybierz konto, a potem zamknij ten ekran strzałką wstecz — aplikacja odświeży się na nowym koncie.</string>
-    <string name="cd_account_avatar">Zdjęcie konta</string>
     <string name="account_my_channel">Mój kanał</string>
     <string name="account_watch_history">Historia oglądania</string>
     <string name="account_watch_later">Do obejrzenia</string>

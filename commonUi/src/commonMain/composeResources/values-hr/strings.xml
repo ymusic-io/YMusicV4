@@ -121,8 +121,6 @@
     <string name="yt_playlist_removed_video">%1$s uklonjeno s popisa za reprodukciju</string>
     <string name="cd_add_to_playlist">Dodaj na popis za reprodukciju</string>
     <string name="cd_share">Dijeli</string>
-    <string name="cd_music_video">Glazba</string>
-    <string name="cd_album">Album</string>
     <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
     <string name="a11y_kind_video">Videozapis</string>
     <string name="a11y_kind_music_video">Glazbeni videozapis</string>
@@ -147,6 +145,12 @@
         <item quantity="few">%1$d sekunde</item>
         <item quantity="other">%1$d sekundi</item>
     </plurals>
+    <string name="a11y_now_playing">Upravo svira</string>
+    <string name="a11y_playback_position">Položaj reprodukcije</string>
+    <string name="a11y_x_of_y">%1$s, ukupno %2$s</string>
+    <string name="a11y_behind_live">%1$s iza prijenosa uživo</string>
+    <string name="a11y_downloaded">Preuzeto</string>
+    <string name="a11y_eq_preamp">Pretpojačalo</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Mape</string>
@@ -388,7 +392,6 @@
     <string name="account_sign_out">Odjava</string>
     <string name="account_switch">Promijeni račun</string>
     <string name="switch_account_hint">Odaberite željeni račun, a zatim zatvorite ovaj zaslon strelicom natrag — aplikacija će se osvježiti s novim računom.</string>
-    <string name="cd_account_avatar">Slika računa</string>
     <string name="account_my_channel">Moj kanal</string>
     <string name="account_watch_history">Povijest gledanja</string>
     <string name="account_watch_later">Gledaj kasnije</string>

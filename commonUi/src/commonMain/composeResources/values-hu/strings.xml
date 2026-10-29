@@ -121,8 +121,6 @@
     <string name="yt_playlist_removed_video">%1$s eltávolítva a lejátszási listáról</string>
     <string name="cd_add_to_playlist">Hozzáadás lejátszási listához</string>
     <string name="cd_share">Megosztás</string>
-    <string name="cd_music_video">Zene</string>
-    <string name="cd_album">Album</string>
     <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
     <string name="a11y_kind_video">Videó</string>
     <string name="a11y_kind_music_video">Zenei videó</string>
@@ -144,6 +142,12 @@
         <item quantity="one">%1$d másodperc</item>
         <item quantity="other">%1$d másodperc</item>
     </plurals>
+    <string name="a11y_now_playing">Most szól</string>
+    <string name="a11y_playback_position">Lejátszási pozíció</string>
+    <string name="a11y_x_of_y">%1$s, összesen %2$s</string>
+    <string name="a11y_behind_live">%1$s késés az élő adáshoz képest</string>
+    <string name="a11y_downloaded">Letöltve</string>
+    <string name="a11y_eq_preamp">Előerősítő</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Mappák</string>
@@ -384,7 +388,6 @@
     <string name="account_sign_out">Kijelentkezés</string>
     <string name="account_switch">Fiókváltás</string>
     <string name="switch_account_hint">Válaszd ki a kívánt fiókot, majd zárd be ezt a képernyőt a vissza nyíllal — az alkalmazás az új fiókkal frissül.</string>
-    <string name="cd_account_avatar">Fiók képe</string>
     <string name="account_my_channel">Saját csatorna</string>
     <string name="account_watch_history">Megtekintési előzmények</string>
     <string name="account_watch_later">Megnézendő</string>

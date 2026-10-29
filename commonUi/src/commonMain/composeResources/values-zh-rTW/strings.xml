@@ -121,8 +121,6 @@
     <string name="yt_playlist_removed_video">已從播放清單中移除 %1$s</string>
     <string name="cd_add_to_playlist">加入播放清單</string>
     <string name="cd_share">分享</string>
-    <string name="cd_music_video">音樂</string>
-    <string name="cd_album">專輯</string>
     <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
     <string name="a11y_kind_video">影片</string>
     <string name="a11y_kind_music_video">音樂影片</string>
@@ -141,6 +139,12 @@
     <plurals name="a11y_duration_seconds">
         <item quantity="other">%1$d 秒</item>
     </plurals>
+    <string name="a11y_now_playing">正在播放</string>
+    <string name="a11y_playback_position">播放進度</string>
+    <string name="a11y_x_of_y">%1$s，共 %2$s</string>
+    <string name="a11y_behind_live">比直播慢 %1$s</string>
+    <string name="a11y_downloaded">已下載</string>
+    <string name="a11y_eq_preamp">前級放大</string>
 
     <!-- Library -->
     <string name="library_tab_folders">資料夾</string>
@@ -380,7 +384,6 @@
     <string name="account_sign_out">登出</string>
     <string name="account_switch">切換帳戶</string>
     <string name="switch_account_hint">選擇你要使用的帳戶，然後按返回箭頭關閉這個畫面 — 應用程式會以新帳戶重新整理。</string>
-    <string name="cd_account_avatar">帳戶相片</string>
     <string name="account_my_channel">我的頻道</string>
     <string name="account_watch_history">觀看記錄</string>
     <string name="account_watch_later">稍後觀看</string>

@@ -121,8 +121,6 @@
     <string name="yt_playlist_removed_video">%1$s a fost eliminat din playlist</string>
     <string name="cd_add_to_playlist">Adaugă în playlist</string>
     <string name="cd_share">Distribuie</string>
-    <string name="cd_music_video">Muzică</string>
-    <string name="cd_album">Album</string>
     <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
     <string name="a11y_kind_video">Videoclip</string>
     <string name="a11y_kind_music_video">Videoclip muzical</string>
@@ -147,6 +145,12 @@
         <item quantity="few">%1$d secunde</item>
         <item quantity="other">%1$d de secunde</item>
     </plurals>
+    <string name="a11y_now_playing">Se redă acum</string>
+    <string name="a11y_playback_position">Poziția redării</string>
+    <string name="a11y_x_of_y">%1$s din %2$s</string>
+    <string name="a11y_behind_live">%1$s în urma transmisiunii live</string>
+    <string name="a11y_downloaded">Descărcat</string>
+    <string name="a11y_eq_preamp">Preamplificator</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Dosare</string>
@@ -388,7 +392,6 @@
     <string name="account_sign_out">Deconectează-te</string>
     <string name="account_switch">Schimbă contul</string>
     <string name="switch_account_hint">Alege contul dorit, apoi închide acest ecran cu săgeata înapoi — aplicația se reîmprospătează cu noul cont.</string>
-    <string name="cd_account_avatar">Fotografia contului</string>
     <string name="account_my_channel">Canalul meu</string>
     <string name="account_watch_history">Istoricul vizionărilor</string>
     <string name="account_watch_later">Vizionează mai târziu</string>
