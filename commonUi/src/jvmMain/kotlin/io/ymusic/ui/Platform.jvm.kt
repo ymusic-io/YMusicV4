@@ -14,7 +14,7 @@ internal actual val platformUsesTouch: Boolean = false
 
 internal actual val desktopLayoutHole: Boolean = true
 
-internal actual fun Modifier.a11yActionLabel(label: String?): Modifier =
+actual fun Modifier.a11yActionLabel(label: String?): Modifier =
     if (label.isNullOrEmpty()) this
     else this.semantics { text = AnnotatedString(label) }
 
