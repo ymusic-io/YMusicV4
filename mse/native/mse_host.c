@@ -824,7 +824,7 @@ static void *vid_loop(void *arg)
         double clock, dur;
         uint8_t *bgra = NULL;
         uint8_t *show = NULL;
-        int w = 0, ht = 0, show_w = 0, show_ht = 0;
+        int w = 0, ht = 0, bw = 0, bh = 0;
         double pts = 0;
         pthread_mutex_lock(&h->mu);
         h->vbusy = 0;
@@ -863,12 +863,10 @@ static void *vid_loop(void *arg)
         clock = host_clock(h);
         dur = mse_av_duration(h->av);
 
-        if (mse_av_pull_video(h->av, clock, &bgra, &w, &ht, &pts) > 0) {
+        if (mse_av_pull_video(h->av, clock, &bgra, &bw, &bh, &w, &ht, &pts) > 0) {
             if (bgra) {
-                keep_bgra(h, w, ht, bgra);
+                keep_bgra(h, bw, bh, bgra);
                 show = bgra;
-                show_w = w;
-                show_ht = ht;
             }
             pthread_mutex_lock(&h->mu);
             h->vw = w;
@@ -879,7 +877,7 @@ static void *vid_loop(void *arg)
         }
 
         if (show && h->on_frame)
-            h->on_frame(h->user, show_w, show_ht, show);
+            h->on_frame(h->user, bw, bh, show);
         if (h->on_prog)
             h->on_prog(h->user, clock, dur, w, ht);
         maybe_notify_ended(h);
@@ -2058,10 +2056,6 @@ static void show_black(MseHost *h)
         return;
     if (h->on_frame)
         h->on_frame(h->user, w, ht, black);
-    pthread_mutex_lock(&h->mu);
-    h->vw = w;
-    h->vh = ht;
-    pthread_mutex_unlock(&h->mu);
 }
 
 void mse_host_rest_video(MseHost *h, int on)

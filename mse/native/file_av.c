@@ -1,6 +1,7 @@
 #include "file_av.h"
 #include "audio_fx.h"
 #include "mse_ffmpeg.h"
+#include "vpresent.h"
 
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
@@ -15,7 +16,6 @@
 #include <libavutil/samplefmt.h>
 #include <libavutil/time.h>
 #include <libswresample/swresample.h>
-#include <libswscale/swscale.h>
 
 #include <pthread.h>
 #include <stdio.h>
@@ -127,10 +127,10 @@ struct FileAv {
     size_t pcm_n;
     uint8_t *pcm2;
     size_t pcm2_n;
-    struct SwsContext *sws;
-    int sws_dw, sws_dh, sws_sw, sws_sh, sws_fmt;
-    uint8_t *bgra;
-    int bgra_n;
+    VPresenter *cpu;
+    /* Last picture cpu handed back; its sink runs in present_video on the player thread. */
+    const uint8_t *cpu_bgra;
+    int cpu_w, cpu_h;
     int vw, vh;
     Pq aq, vq;
     AVFrame *afr, *vfr, *vsw;
@@ -152,10 +152,7 @@ struct FileAv {
         char text[1024];
     } cap_q[8];
 
-    enum AVColorSpace col_space;
-    enum AVColorRange col_range;
 #ifdef __APPLE__
-    MseVtBlit vt_blit;
     void *vt_layer;
 #endif
 #ifdef FILE_AV_WIN_HW
@@ -505,16 +502,7 @@ static void drop_video_state_locked(FileAv *p)
     pq_clear(&p->vq);
     vout_clear(p);
     av_frame_unref(p->vfr);
-    if (p->sws) {
-        sws_freeContext(p->sws);
-        p->sws = NULL;
-    }
-    p->sws_dw = p->sws_dh = p->sws_sw = p->sws_sh = 0;
-    p->sws_fmt = -1;
-    av_freep(&p->bgra);
-    p->bgra_n = 0;
 #ifdef __APPLE__
-    mse_vt_blit_free(&p->vt_blit);
     if (p->vt_layer)
         mse_vt_flush(p->vt_layer);
 #endif
@@ -546,8 +534,6 @@ static int start_video_locked(FileAv *p)
     }
     p->vw = st->codecpar->width;
     p->vh = st->codecpar->height;
-    p->col_space = st->codecpar->color_space;
-    p->col_range = st->codecpar->color_range;
     p->v_need_key = 1;
     p->dec_drain = 0;
     pthread_cond_broadcast(&p->cv);
@@ -874,8 +860,6 @@ static int setup_decoders(FileAv *p)
         AVStream *st = p->fmt->streams[p->v_st];
         p->vw = st->codecpar->width;
         p->vh = st->codecpar->height;
-        p->col_space = st->codecpar->color_space;
-        p->col_range = st->codecpar->color_range;
         if (p->want_video && start_video_locked(p) != 0)
             return -1;
     }
@@ -978,40 +962,7 @@ static int ensure_speed_swr(FileAv *p, double speed)
     return 0;
 }
 
-static void blit_size(FileAv *p, int src_w, int src_h, int *dw, int *dh)
-{
-    int box_w = p->blit_w, box_h = p->blit_h;
-    *dw = src_w;
-    *dh = src_h;
-    if (src_w <= 0 || src_h <= 0)
-        return;
-    if (box_w <= 0 && box_h <= 0)
-        return;
-    if (box_w <= 0) {
-        if (src_h <= box_h)
-            return;
-        *dh = box_h;
-        *dw = src_w * box_h / src_h;
-    } else if (box_h <= 0) {
-        if (src_w <= box_w)
-            return;
-        *dw = box_w;
-        *dh = src_h * box_w / src_w;
-    } else if (src_w > box_w || src_h > box_h) {
-        if ((int64_t)src_w * box_h > (int64_t)box_w * src_h) {
-            *dw = box_w;
-            *dh = src_h * box_w / src_w;
-        } else {
-            *dh = box_h;
-            *dw = src_w * box_h / src_h;
-        }
-    }
-    if (*dw < 2)
-        *dw = 2;
-    if (*dh < 2)
-        *dh = 2;
-}
-
+#ifdef __APPLE__
 static AVFrame *sw_video_frame(FileAv *p, AVFrame *fr)
 {
     const AVPixFmtDescriptor *d;
@@ -1038,94 +989,15 @@ static AVFrame *sw_video_frame(FileAv *p, AVFrame *fr)
     return p->vsw;
 }
 
-static enum AVColorSpace frame_cs(const FileAv *p, const AVFrame *fr)
-{
-    if (fr->colorspace != AVCOL_SPC_UNSPECIFIED)
-        return fr->colorspace;
-    if (p->col_space != AVCOL_SPC_UNSPECIFIED)
-        return p->col_space;
-    return fr->height > 576 ? AVCOL_SPC_BT709 : AVCOL_SPC_SMPTE170M;
-}
-
-static enum AVColorRange frame_range(const FileAv *p, const AVFrame *fr)
-{
-    /* Codec/container tags win: VideoToolbox often reports full-range NV12 for tv-range HEVC. */
-    if (p->col_range == AVCOL_RANGE_MPEG || p->col_range == AVCOL_RANGE_JPEG)
-        return p->col_range;
-    if (fr->color_range != AVCOL_RANGE_UNSPECIFIED)
-        return fr->color_range;
-    return AVCOL_RANGE_MPEG;
-}
-
-static int sws_cs(enum AVColorSpace spc, int height)
-{
-    switch (spc) {
-    case AVCOL_SPC_BT709:
-        return SWS_CS_ITU709;
-    case AVCOL_SPC_BT2020_NCL:
-    case AVCOL_SPC_BT2020_CL:
-        return SWS_CS_BT2020;
-    case AVCOL_SPC_SMPTE170M:
-    case AVCOL_SPC_BT470BG:
-        return SWS_CS_ITU601;
-    default:
-        return height > 576 ? SWS_CS_ITU709 : SWS_CS_ITU601;
-    }
-}
-
-static void sws_apply_color(struct SwsContext *sws, const FileAv *p, const AVFrame *fr)
-{
-    int cs = sws_cs(frame_cs(p, fr), fr->height);
-    int src_range = frame_range(p, fr) == AVCOL_RANGE_JPEG ? 1 : 0;
-    const int *coeff = sws_getCoefficients(cs);
-    /* Same matrix both sides; dst_range=1 expands tv (16-235) to full RGB like QuickTime. */
-    sws_setColorspaceDetails(sws, coeff, src_range, coeff, 1, 0, 1 << 16, 1 << 16);
-}
-
-#ifdef __APPLE__
-/* Prefer the overlay; CPU bitmap only if the layer cannot take BGRA. */
-static void emit_frame(FileAv *p, int w, int h)
-{
-    if (p->vt_layer && p->bgra &&
-        mse_vt_show_bgra(p->vt_layer, p->bgra, w, h) == 0) {
-        if (p->on_frame)
-            p->on_frame(p->user, w, h, NULL);
-        return;
-    }
-    if (p->on_frame)
-        p->on_frame(p->user, w, h, p->bgra);
-}
-
 static int present_vt(FileAv *p, AVFrame *fr)
 {
-    int w, h, n;
-    if (!fr->data[3])
+    void *layer = p->vt_layer;
+    if (!layer || !fr->data[3] || mse_vt_show(layer, fr->data[3], fr->width, fr->height) != 0)
         return -1;
-    if (p->vt_layer &&
-        mse_vt_show(p->vt_layer, fr->data[3], fr->width, fr->height) == 0) {
-        p->vw = fr->width;
-        p->vh = fr->height;
-        if (p->on_frame)
-            p->on_frame(p->user, fr->width, fr->height, NULL);
-        return 0;
-    }
-    if (p->vt_layer)
-        return -1;
-    if (mse_vt_blit_size(fr->data[3], p->blit_w, p->blit_h, &w, &h) != 0)
-        return -1;
-    n = w * h * 4;
-    if (n > p->bgra_n) {
-        uint8_t *b = av_realloc(p->bgra, (size_t)n);
-        if (!b)
-            return -1;
-        p->bgra = b;
-        p->bgra_n = n;
-    }
-    if (mse_vt_blit_copy(&p->vt_blit, fr->data[3], p->bgra, w, h) != 0)
-        return -1;
-    p->vw = w;
-    p->vh = h;
-    emit_frame(p, w, h);
+    p->vw = fr->width;
+    p->vh = fr->height;
+    if (p->on_frame)
+        p->on_frame(p->user, fr->width, fr->height, NULL);
     return 0;
 }
 
@@ -1141,36 +1013,15 @@ static unsigned sw_cv_fmt(enum AVPixelFormat f)
 static int present_sw_vt(FileAv *p, AVFrame *fr)
 {
     unsigned fmt = sw_cv_fmt((enum AVPixelFormat)fr->format);
-    int w, h, n;
-    if (!fmt)
+    void *layer = p->vt_layer;
+    if (!fmt || !layer ||
+        mse_vt_show_sw(layer, fmt, (const uint8_t *const *)fr->data, fr->linesize, fr->width,
+                       fr->height) != 0)
         return -1;
-    if (p->vt_layer &&
-        mse_vt_show_sw(p->vt_layer, fmt, (const uint8_t *const *)fr->data, fr->linesize,
-                       fr->width, fr->height) == 0) {
-        p->vw = fr->width;
-        p->vh = fr->height;
-        if (p->on_frame)
-            p->on_frame(p->user, fr->width, fr->height, NULL);
-        return 0;
-    }
-    if (p->vt_layer)
-        return -1;
-    if (mse_vt_blit_fit(fr->width, fr->height, p->blit_w, p->blit_h, &w, &h) != 0)
-        return -1;
-    n = w * h * 4;
-    if (n > p->bgra_n) {
-        uint8_t *b = av_realloc(p->bgra, (size_t)n);
-        if (!b)
-            return -1;
-        p->bgra = b;
-        p->bgra_n = n;
-    }
-    if (mse_vt_blit_sw(&p->vt_blit, fmt, (const uint8_t *const *)fr->data, fr->linesize,
-                       fr->width, fr->height, p->bgra, w, h) != 0)
-        return -1;
-    p->vw = w;
-    p->vh = h;
-    emit_frame(p, w, h);
+    p->vw = fr->width;
+    p->vh = fr->height;
+    if (p->on_frame)
+        p->on_frame(p->user, fr->width, fr->height, NULL);
     return 0;
 }
 #endif
@@ -1181,6 +1032,7 @@ static int present_sw_vt(FileAv *p, AVFrame *fr)
    because the swapchain is gone or another engine's. */
 static int present_d3d11(FileAv *p, AVFrame *fr)
 {
+    AVStream *st = (p->fmt && p->v_st >= 0) ? p->fmt->streams[p->v_st] : NULL;
     ID3D11Texture2D *tex;
     UINT slice;
     int rc;
@@ -1188,7 +1040,8 @@ static int present_d3d11(FileAv *p, AVFrame *fr)
         return -1;
     tex = (ID3D11Texture2D *)fr->data[0];
     slice = (UINT)(uintptr_t)fr->data[1];
-    rc = mse_d3d11_present_show(tex, slice, fr->width, fr->height, p);
+    rc = mse_d3d11_present_show(tex, slice, fr->width, fr->height,
+                                vp_color_of(fr, st ? st->codecpar : NULL), p);
     if (rc == -2)
         return 0;
     if (rc != 0)
@@ -1201,81 +1054,47 @@ static int present_d3d11(FileAv *p, AVFrame *fr)
 }
 #endif
 
+static void cpu_frame(void *user, int w, int h, const uint8_t *bgra)
+{
+    FileAv *p = user;
+    p->cpu_bgra = bgra;
+    p->cpu_w = w;
+    p->cpu_h = h;
+}
+
+static int present_cpu(FileAv *p, AVFrame *fr)
+{
+    AVStream *st = (p->fmt && p->v_st >= 0) ? p->fmt->streams[p->v_st] : NULL;
+    if (vpresent_show_frame(p->cpu, p, fr, vp_color_of(fr, st ? st->codecpar : NULL)) != VP_OK)
+        return -1;
+    /* The native size: the UI sizes the hole from it, so the fitted one would feed back. */
+    p->vw = fr->width;
+    p->vh = fr->height;
+    if (p->on_frame)
+        p->on_frame(p->user, p->cpu_w, p->cpu_h, p->cpu_bgra);
+    return 0;
+}
+
 static int present_video(FileAv *p, AVFrame *fr)
 {
-    uint8_t *dst[4] = {0};
-    int dst_ls[4] = {0};
-    int dw, dh, n;
-    const AVPixFmtDescriptor *d;
     if (!p->want_video)
         return 0;
 #ifdef __APPLE__
-    if ((fr->format == AV_PIX_FMT_VIDEOTOOLBOX || fr->hw_frames_ctx || fr->data[3]) &&
-        present_vt(p, fr) == 0)
-        return 0;
+    if (p->vt_layer) {
+        if ((fr->format == AV_PIX_FMT_VIDEOTOOLBOX || fr->hw_frames_ctx || fr->data[3]) &&
+            present_vt(p, fr) == 0)
+            return 0;
+        fr = sw_video_frame(p, fr);
+        if (!fr || fr->width <= 0 || fr->height <= 0 || !fr->data[0])
+            return -1;
+        return present_sw_vt(p, fr);
+    }
 #endif
 #ifdef FILE_AV_WIN_HW
     if (fr->format == AV_PIX_FMT_D3D11 && present_d3d11(p, fr) == 0)
         return 0;
 #endif
-    fr = sw_video_frame(p, fr);
-    if (!fr || fr->width <= 0 || fr->height <= 0 || !fr->data[0])
-        return -1;
-#ifdef __APPLE__
-    if (present_sw_vt(p, fr) == 0)
-        return 0;
-    if (p->vt_layer)
-        return -1;
-#endif
-    fr->colorspace = frame_cs(p, fr);
-    fr->color_range = frame_range(p, fr);
-    d = av_pix_fmt_desc_get((enum AVPixelFormat)fr->format);
-    if (d && (d->flags & AV_PIX_FMT_FLAG_HWACCEL))
-        return -1;
-    blit_size(p, fr->width, fr->height, &dw, &dh);
-    if (!p->sws || p->sws_dw != dw || p->sws_dh != dh ||
-        p->sws_sw != fr->width || p->sws_sh != fr->height || p->sws_fmt != fr->format) {
-        int flags = SWS_ACCURATE_RND | SWS_FULL_CHR_H_INT | SWS_FULL_CHR_H_INP;
-        flags |= (dw != fr->width || dh != fr->height) ? SWS_LANCZOS : SWS_BILINEAR;
-        if (p->sws)
-            sws_freeContext(p->sws);
-        p->sws = sws_getContext(fr->width, fr->height, (enum AVPixelFormat)fr->format,
-                                dw, dh, AV_PIX_FMT_BGRA, flags, NULL, NULL, NULL);
-        p->sws_dw = dw;
-        p->sws_dh = dh;
-        p->sws_sw = fr->width;
-        p->sws_sh = fr->height;
-        p->sws_fmt = fr->format;
-        if (p->sws)
-            sws_apply_color(p->sws, p, fr);
-    }
-    if (!p->sws)
-        return -1;
-    n = dw * dh * 4;
-    if (n > p->bgra_n) {
-        uint8_t *b = av_realloc(p->bgra, (size_t)n);
-        if (!b)
-            return -1;
-        p->bgra = b;
-        p->bgra_n = n;
-    }
-    dst[0] = p->bgra;
-    dst_ls[0] = dw * 4;
-    if (sws_scale(p->sws, (const uint8_t *const *)fr->data, fr->linesize, 0, fr->height, dst, dst_ls) < 0)
-        return -1;
-    /* Report NATIVE frame dimensions, not swscale output. The host UI uses this for the
-       video surface aspect ratio; feeding it dw/dh (which itself depends on the UI's
-       current box size) creates a layout feedback loop that oscillates ±1px per compose
-       pass and visibly blinks the picture at ~9Hz. */
-    p->vw = fr->width;
-    p->vh = fr->height;
-#ifdef __APPLE__
-    emit_frame(p, dw, dh);
-#else
-    if (p->on_frame)
-        p->on_frame(p->user, dw, dh, p->bgra);
-#endif
-    return 0;
+    return present_cpu(p, fr);
 }
 
 #ifdef FILE_AV_AQ
@@ -2024,11 +1843,15 @@ int file_av_step(FileAv *p)
 
 FileAv *file_av_create(void)
 {
+    VpSink sink = { cpu_frame, NULL, NULL };
     FileAv *p = calloc(1, sizeof(*p));
     if (!p)
         return NULL;
     pthread_mutex_init(&p->mu, NULL);
     pthread_cond_init(&p->cv, NULL);
+    sink.user = p;
+    p->cpu = vpresent_create_cpu(&sink);
+    vpresent_bind(p->cpu, p);
     p->speed = 1.0;
     p->fx = audio_fx_create();
     p->want_video = 1;
@@ -2037,8 +1860,6 @@ FileAv *file_av_create(void)
     p->last_vpts = -1;
     p->blit_w = 0;
     p->blit_h = 0;
-    p->col_space = AVCOL_SPC_UNSPECIFIED;
-    p->col_range = AVCOL_RANGE_UNSPECIFIED;
     p->a_st = p->v_st = p->s_st = -1;
     p->subtitle_index = -1;
     p->afr = av_frame_alloc();
@@ -2098,6 +1919,7 @@ void file_av_destroy(FileAv *p)
     av_frame_free(&p->afr);
     av_frame_free(&p->vfr);
     av_frame_free(&p->vsw);
+    vpresent_release(p->cpu);
     free(p->pcm);
     free(p->pcm2);
     for (i = 0; i < VOUT_N; i++)
@@ -2484,6 +2306,7 @@ void file_av_set_blit_size(FileAv *p, int w, int h)
     p->blit_w = nw;
     p->blit_h = nh;
     pthread_mutex_unlock(&p->mu);
+    vpresent_set_size(p->cpu, nw, nh);
     mse_critf(MSE_LOG_INFO, "file-av blit-size %dx%d", nw, nh);
 }
 

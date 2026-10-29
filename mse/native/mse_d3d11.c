@@ -2,6 +2,7 @@
 
 #include "mse_d3d11.h"
 #include "mse_ffmpeg.h"
+#include "vpresent_impl.h"
 
 #include <pthread.h>
 #include <stdlib.h>
@@ -105,7 +106,7 @@ int mse_d3d11_check_lost(void)
     if (InterlockedExchange(&g_lost, 1) == 0) {
         mse_critf(MSE_LOG_WARN, "d3d11 device removed reason=0x%08lx: hardware video off",
                   (unsigned long)why);
-        mse_d3d11_present_drop_all();
+        vpresent_d3d11_device_lost();
     }
     return 1;
 }

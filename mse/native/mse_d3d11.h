@@ -16,6 +16,8 @@
 #include <d3d11.h>
 #include <jni.h>
 
+#include "vpresent.h"
+
 struct AVBufferRef;
 struct AVCodec;
 struct AVCodecContext;
@@ -39,7 +41,8 @@ void mse_d3d11_unlock(void);
    swapchains for the rest of the process. Recreating the device is not supported. */
 int mse_d3d11_lost(void);
 /* Asks the device (GetDeviceRemovedReason); the first removal seen logs it once, latches
-   mse_d3d11_lost and drops the swapchain. Returns mse_d3d11_lost(). */
+   mse_d3d11_lost and drops every swapchain (each D3D11 presenter turns CPU). Returns
+   mse_d3d11_lost(). */
 int mse_d3d11_check_lost(void);
 
 /* Fresh AVBufferRef wrapping the shared d3d11va hwdevice; NULL = no device.
@@ -59,19 +62,17 @@ int mse_d3d11_can_decode(const struct AVCodec *codec);
 /* HWND of a heavyweight java.awt.Canvas via JAWT, or NULL. */
 HWND mse_d3d11_jawt_hwnd(JNIEnv *env, jobject component);
 
-/* HWND composition-surface present path. Attach/detach are called from the
-   JAWT bridge; show runs from the decoder thread. All take the d3d11
-   lock internally — no external synchronization required. */
+/* Owner-token present path over one process-wide D3D11 presenter (vpresent_d3d11.c): attaching
+   another HWND replaces it. Attach/detach are called from the JAWT bridge; show runs from the
+   decoder thread. Internally synchronized. */
 int mse_d3d11_present_attach(HWND hwnd, const void *owner);
 /* No-op unless `owner` made the current attach. */
 void mse_d3d11_present_detach(const void *owner);
-/* Releases the swapchain whoever owns it; mse_d3d11_check_lost calls it on device removal. */
-void mse_d3d11_present_drop_all(void);
-/* Letterboxes the NV12 slice into the HWND's client rect. 0 = presented, -2 = no swapchain
-   for `owner` (none attached, another engine's, or the device is lost): drop the frame,
-   -1 = failed (logged once per failing streak). */
+/* Letterboxes the NV12 slice into the HWND's client rect, YUV → RGB per `c`. 0 = presented,
+   -2 = no swapchain for `owner` (none attached, another engine's, or the device is lost): drop
+   the frame, -1 = failed (logged once per failing streak). */
 int mse_d3d11_present_show(ID3D11Texture2D *tex, UINT array_slice, int src_w, int src_h,
-                           const void *owner);
+                           VpColor c, const void *owner);
 
 #ifdef __cplusplus
 }

@@ -42,7 +42,8 @@ if(NOT DEFINED PRODUCTION)
   set(PRODUCTION 0)
 endif()
 
-set(MSE_SOURCES mse_ffmpeg.c mse_host.c mse_vt.c mse_host_jni.c file_av.c file_av_jni.c audio_fx.c audio_fx_jni.c)
+set(MSE_SOURCES mse_ffmpeg.c mse_host.c mse_vt.c mse_host_jni.c audio_fx.c audio_fx_jni.c
+  vpresent.c vpresent_cpu.c)
 add_library(mseffmpegjni SHARED ${MSE_SOURCES})
 # MinGW on Windows adds a `lib` prefix to shared libs; the JVM loader expects mseffmpegjni.dll
 # (System.mapLibraryName on Windows has no prefix). Drop it so MinGW matches MSVC and the loader.
@@ -84,6 +85,9 @@ if(ANDROID)
   return()
 endif()
 
+# Local-file playback (FileAvNative) exists only in the desktop JVM app.
+target_sources(mseffmpegjni PRIVATE file_av.c file_av_jni.c)
+
 if(APPLE)
     enable_language(OBJC)
 endif()
@@ -108,7 +112,7 @@ endif()
 
 if(WIN32)
   target_sources(mseffmpegjni PRIVATE
-    mse_d3d11.c mse_d3d11_dec.c mse_d3d11_present.c mse_d3d11_jawt.c
+    mse_d3d11.c mse_d3d11_dec.c mse_d3d11_jawt.c vpresent_d3d11.c
     aq_winmm.c)
   # d3dcompiler.lib runtime-compiles the NV12 shader; dxguid.lib provides IID_* GUID symbols.
   # winmm.lib is waveOut* for aq_winmm (file_av AudioQueue shim on Windows).

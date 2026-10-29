@@ -1,5 +1,6 @@
 /* Pull-based libav MSE decoder. Kotlin owns the clock and sinks. */
 #include "mse_ffmpeg.h"
+#include "vpresent.h"
 
 #include <libavcodec/avcodec.h>
 #include <libavcodec/bsf.h>
@@ -14,7 +15,6 @@
 #include <libavutil/pixfmt.h>
 #include <libavutil/samplefmt.h>
 #include <libswresample/swresample.h>
-#include <libswscale/swscale.h>
 #ifdef __APPLE__
 #include <TargetConditionals.h>
 #include <os/log.h>
@@ -89,13 +89,10 @@ struct MseAv {
     uint8_t *pcm;
     size_t pcm_n;
     AVFrame *afr;
-    struct SwsContext *sws;
-    uint8_t *sws_pad;
-    size_t sws_pad_n;
-    uint8_t *bgra_buf[2];
-    size_t bgra_n[2];
-    int bgra_i;
-    AVFrame *hw_sw;
+    VPresenter *cpu;
+    /* Last picture cpu handed back; written by its sink on the video thread. */
+    uint8_t *cpu_bgra;
+    int cpu_w, cpu_h;
 #if defined(MSE_LINUX_HW) || defined(MSE_WIN_HW)
     int hw_errs; /* decode errors since the last good GPU frame */
 #endif
@@ -104,8 +101,6 @@ struct MseAv {
     enum AVCodecID d3d11_fail_id;
     const void *present_owner;
 #endif
-    int blit_w, blit_h;
-    int blit_log_dw, blit_log_dh;
     int rate;
     int channels;
     double duration;
@@ -145,7 +140,8 @@ struct MseAv {
 #ifdef __APPLE__
     void *vt_layer;
     void *vt_dec;
-    MseVtBlit vt_blit;
+    /* Native-size BGRA for the layer when it cannot take the frame's YUV. */
+    VpCpu *vt_cpu;
     /* Decoded pictures waiting in PTS (display) order. H.264 B-frames are
        sent in DTS order; showing them as they decode is the broken picture. */
     void *vt_q_pb[8];
@@ -1759,10 +1755,6 @@ static int mc_try_open(MseAv *a)
     if (a->vdec) {
         av_frame_free(&a->vhold);
         avcodec_free_context(&a->vdec);
-        if (a->sws) {
-            sws_freeContext(a->sws);
-            a->sws = NULL;
-        }
     }
     return 0;
 }
@@ -1771,8 +1763,9 @@ static int mc_try_open(MseAv *a)
 /* sw_only: skip VideoToolbox-hosted `av1` (simulator / vt_fail).
    Prefer libvpx-vp9. Native `vp9` is software-only fallback when the pack
    omitted libvpx (do not attach VT hwaccel: that path SIGILL). */
-static const AVCodec *find_video_codec(enum AVCodecID id, int sw_only)
+static const AVCodec *find_video_codec(const AVCodecParameters *par, int sw_only)
 {
+    enum AVCodecID id = par->codec_id;
     const AVCodec *c;
 #ifdef MSE_LINUX_HW
     if (!sw_only && (id == AV_CODEC_ID_VP9 || id == AV_CODEC_ID_AV1) && mse_hwdev_usable(id)) {
@@ -1782,8 +1775,9 @@ static const AVCodec *find_video_codec(enum AVCodecID id, int sw_only)
     }
 #endif
 #ifdef MSE_WIN_HW
-    /* d3d11va only drives the native decoders; libdav1d / libvpx-vp9 stay software. */
-    if (!sw_only && (id == AV_CODEC_ID_VP9 || id == AV_CODEC_ID_AV1)) {
+    /* d3d11va only drives the native decoders; libdav1d / libvpx-vp9 stay software. Native av1
+       has no software path: only a stream D3D11 takes may pick it. */
+    if (!sw_only && (id == AV_CODEC_ID_VP9 || id == AV_CODEC_ID_AV1) && mse_d3d11_par_ok(par)) {
         c = avcodec_find_decoder_by_name(id == AV_CODEC_ID_VP9 ? "vp9" : "av1");
         if (c && mse_d3d11_can_decode(c))
             return c;
@@ -1969,15 +1963,11 @@ static int open_decoder(MseAv *a, int video, AVCodecParameters *par)
             if (a->mc_bsf_out)
                 av_packet_unref(a->mc_bsf_out);
 #endif
-            if (a->sws) {
-                sws_freeContext(a->sws);
-                a->sws = NULL;
-            }
             a->need_rap[0] = 1;
             a->v_reopen = 1;
         }
     }
-    codec = video ? find_video_codec(par->codec_id,
+    codec = video ? find_video_codec(par,
 #ifdef __APPLE__
         par->codec_id == a->vt_fail_id
 #elif defined(MSE_WIN_HW)
@@ -2290,13 +2280,26 @@ static int send_coded(Cfb *b, AVCodecContext *dec, AVBSFContext *bsf)
     return 0;
 }
 
+static void cpu_frame(void *user, int w, int h, const uint8_t *bgra)
+{
+    MseAv *a = (MseAv *)user;
+    /* The host blanks the delivered picture in place (show_black). */
+    a->cpu_bgra = (uint8_t *)bgra;
+    a->cpu_w = w;
+    a->cpu_h = h;
+}
+
 MseAv *mse_av_create(void)
 {
+    VpSink sink = { cpu_frame, NULL, NULL };
     MseAv *a = calloc(1, sizeof(*a));
     if (!a)
         return NULL;
     pthread_mutex_init(&a->mu, NULL);
     pthread_mutex_init(&a->amu, NULL);
+    sink.user = a;
+    a->cpu = vpresent_create_cpu(&sink);
+    vpresent_bind(a->cpu, a);
     a->a_sent = -1;
     a->v_sent = -1;
     a->v_switch_pts = -1;
@@ -2356,18 +2359,13 @@ void mse_av_destroy(MseAv *a)
 #endif
     if (a->swr)
         swr_free(&a->swr);
-    if (a->sws)
-        sws_freeContext(a->sws);
-    free(a->sws_pad);
     free(a->pcm);
     av_frame_free(&a->afr);
     av_frame_free(&a->vfr);
-    av_frame_free(&a->hw_sw);
+    vpresent_release(a->cpu);
 #ifdef __APPLE__
-    mse_vt_blit_free(&a->vt_blit);
+    vp_cpu_destroy(a->vt_cpu);
 #endif
-    free(a->bgra_buf[0]);
-    free(a->bgra_buf[1]);
     free(a->ainit);
     free(a->vinit);
     free(a->pend[0]);
@@ -3008,12 +3006,6 @@ static void close_video_decoder(MseAv *a)
 #ifdef __ANDROID__
     if (a->mc_bsf_out)
         av_packet_unref(a->mc_bsf_out);
-#endif
-    if (a->sws) {
-        sws_freeContext(a->sws);
-        a->sws = NULL;
-    }
-#ifdef __ANDROID__
     mc_close(a);
 #endif
 #ifdef __APPLE__
@@ -3603,76 +3595,69 @@ void mse_av_seek(MseAv *a, double seconds)
     av_unlock_all(a);
 }
 
-static int scale_bgra(MseAv *a, AVFrame *frame, uint8_t **bgra, int *w, int *h);
 #ifdef __APPLE__
-static unsigned sw_cv_fmt(enum AVPixelFormat f);
+static unsigned sw_cv_fmt(enum AVPixelFormat f)
+{
+    if (f == AV_PIX_FMT_YUV420P || f == AV_PIX_FMT_YUVJ420P)
+        return MSE_VT_BLIT_YUV420;
+    if (f == AV_PIX_FMT_NV12)
+        return MSE_VT_BLIT_NV12;
+    return 0;
+}
 #endif
 
+/* *w, *h: the decoded size; a CPU picture comes back in *bgra (cpu_w × cpu_h). */
 static int present_frame(MseAv *a, AVFrame *frame, uint8_t **bgra, int *w, int *h)
 {
-    int r;
+    VpColor col = vp_color_of(frame, a->vpar);
+    *bgra = NULL;
+    *w = frame->width;
+    *h = frame->height;
 #ifdef __APPLE__
     if (a->vt_layer && frame->format == AV_PIX_FMT_VIDEOTOOLBOX && frame->data[3] &&
-        a->vt_fail_id != (a->vdec ? a->vdec->codec_id : (enum AVCodecID)0)) {
-        if (mse_vt_show(a->vt_layer, frame->data[3], frame->width, frame->height) == 0) {
-            *bgra = NULL;
-            *w = frame->width;
-            *h = frame->height;
-            return 0;
-        }
-    }
+        a->vt_fail_id != (a->vdec ? a->vdec->codec_id : (enum AVCodecID)0) &&
+        mse_vt_show(a->vt_layer, frame->data[3], frame->width, frame->height) == 0)
+        return 0;
     /* Layer ResizeAspect-scales. Never vImage/sws to the hole (fullscreen ~500%). */
     if (a->vt_layer) {
         unsigned fmt = sw_cv_fmt((enum AVPixelFormat)frame->format);
+        const uint8_t *pic;
+        int pw, ph;
         if (fmt &&
             mse_vt_show_sw(a->vt_layer, fmt, (const uint8_t *const *)frame->data, frame->linesize,
-                           frame->width, frame->height) == 0) {
-            *bgra = NULL;
-            *w = frame->width;
-            *h = frame->height;
+                           frame->width, frame->height) == 0)
             return 0;
-        }
-        {
-            int bw = a->blit_w, bh = a->blit_h;
-            a->blit_w = a->blit_h = 0;
-            r = scale_bgra(a, frame, bgra, w, h);
-            a->blit_w = bw;
-            a->blit_h = bh;
-        }
-        if (r != 0)
-            return r;
-        if (*bgra && mse_vt_show_bgra(a->vt_layer, *bgra, *w, *h) == 0) {
-            *bgra = NULL;
+        if (!a->vt_cpu)
+            a->vt_cpu = vp_cpu_create();
+        if (!a->vt_cpu || vp_cpu_convert(a->vt_cpu, frame, col, 0, 0, &pic, &pw, &ph) != 0)
+            return -1;
+        if (mse_vt_show_bgra(a->vt_layer, pic, pw, ph) == 0)
             return 0;
-        }
+        cpu_frame(a, pw, ph, pic);
+        *bgra = a->cpu_bgra;
         return 0;
     }
 #endif
-#ifdef __ANDROID__
-    /* TextureView/SurfaceView scale; don't sws to the view size. */
-    if (a->mc_win) {
-        int bw = a->blit_w, bh = a->blit_h;
-        a->blit_w = a->blit_h = 0;
-        r = scale_bgra(a, frame, bgra, w, h);
-        a->blit_w = bw;
-        a->blit_h = bh;
-        return r;
+#ifdef MSE_WIN_HW
+    if (frame->format == AV_PIX_FMT_D3D11) {
+        a->hw_errs = 0;
+        /* Unpresented frames drop (present_show logs why): a CPU blit via on_frame would turn the
+           Kotlin side to SW painting on the Canvas the swapchain still owns. */
+        if (frame->data[0])
+            mse_d3d11_present_show((ID3D11Texture2D *)frame->data[0],
+                                   (UINT)(uintptr_t)frame->data[1], frame->width, frame->height,
+                                   col, a->present_owner);
+        return 0;
     }
 #endif
-    return scale_bgra(a, frame, bgra, w, h);
-}
-
-static uint8_t *sws_scratch(MseAv *a, size_t n)
-{
-    uint8_t *p;
-    if (a->sws_pad && a->sws_pad_n >= n)
-        return a->sws_pad;
-    p = realloc(a->sws_pad, n);
-    if (!p)
-        return NULL;
-    a->sws_pad = p;
-    a->sws_pad_n = n;
-    return p;
+    if (vpresent_show_frame(a->cpu, a, frame, col) != VP_OK)
+        return -1;
+#ifdef MSE_LINUX_HW
+    if (frame->hw_frames_ctx)
+        a->hw_errs = 0;
+#endif
+    *bgra = a->cpu_bgra;
+    return 0;
 }
 
 static uint8_t *pcm_scratch(MseAv *a, size_t n)
@@ -3686,246 +3671,6 @@ static uint8_t *pcm_scratch(MseAv *a, size_t n)
     a->pcm = p;
     a->pcm_n = n;
     return p;
-}
-
-static uint8_t *bgra_pool(MseAv *a, int w, int h)
-{
-    int i = a->bgra_i ^ 1;
-    size_t n;
-    uint8_t *p;
-    if (w <= 0 || h <= 0)
-        return NULL;
-    if ((size_t)h != 0 && (size_t)w > (SIZE_MAX / 4) / (size_t)h)
-        return NULL;
-    n = (size_t)w * (size_t)h * 4;
-    if (a->bgra_buf[i] && a->bgra_n[i] >= n) {
-        a->bgra_i = i;
-        return a->bgra_buf[i];
-    }
-    p = realloc(a->bgra_buf[i], n);
-    if (!p)
-        return NULL;
-    a->bgra_buf[i] = p;
-    a->bgra_n[i] = n;
-    a->bgra_i = i;
-    return p;
-}
-
-/* Min-fit into the hole. Never upscale. 0×0 hole → decode size. Dest is the
-   fitted picture (Swing letterboxes the panel). */
-static int blit_fit(int src_w, int src_h, int hole_w, int hole_h, int *dw, int *dh)
-{
-    if (src_w <= 0 || src_h <= 0) {
-        *dw = 0;
-        *dh = 0;
-        return -1;
-    }
-    if (hole_w <= 0 || hole_h <= 0 || (src_w <= hole_w && src_h <= hole_h)) {
-        *dw = src_w;
-        *dh = src_h;
-        return 0;
-    }
-    if ((int64_t)src_w * hole_h <= (int64_t)src_h * hole_w) {
-        *dh = hole_h;
-        *dw = (int)((int64_t)src_w * hole_h / src_h);
-    } else {
-        *dw = hole_w;
-        *dh = (int)((int64_t)src_h * hole_w / src_w);
-    }
-    if (*dw < 1)
-        *dw = 1;
-    if (*dh < 1)
-        *dh = 1;
-    return 0;
-}
-
-#ifdef __APPLE__
-static unsigned sw_cv_fmt(enum AVPixelFormat f)
-{
-    if (f == AV_PIX_FMT_YUV420P || f == AV_PIX_FMT_YUVJ420P)
-        return MSE_VT_BLIT_YUV420;
-    if (f == AV_PIX_FMT_NV12)
-        return MSE_VT_BLIT_NV12;
-    return 0;
-}
-
-static int scale_bgra_vt_sw(MseAv *a, AVFrame *sw, uint8_t **bgra, int *w, int *h)
-{
-    unsigned fmt = sw_cv_fmt((enum AVPixelFormat)sw->format);
-    int tw, th;
-    uint8_t *tdst;
-    if (!fmt)
-        return -1;
-    if (mse_vt_blit_fit(sw->width, sw->height, a->blit_w, a->blit_h, &tw, &th) != 0)
-        return -1;
-    tdst = bgra_pool(a, tw, th);
-    if (!tdst)
-        return -1;
-    if (mse_vt_blit_sw(&a->vt_blit, fmt, (const uint8_t *const *)sw->data, sw->linesize,
-                       sw->width, sw->height, tdst, tw, th) != 0)
-        return -1;
-    if (tw != a->blit_log_dw || th != a->blit_log_dh) {
-        a->blit_log_dw = tw;
-        a->blit_log_dh = th;
-        vlog("blit vt-sw %dx%d -> %dx%d hole=%dx%d", sw->width, sw->height, tw, th,
-             a->blit_w, a->blit_h);
-    }
-    *w = tw;
-    *h = th;
-    *bgra = tdst;
-    return 0;
-}
-#endif
-
-static int scale_bgra(MseAv *a, AVFrame *frame, uint8_t **bgra, int *w, int *h)
-{
-    AVFrame *sw = frame;
-    uint8_t *dst;
-    uint8_t *conv;
-    int vis_w, vis_h, dw, dh, src_w, flags, y;
-    int linesize[4] = { 0 };
-    uint8_t *dsts[4] = { 0 };
-#if !PRODUCTION
-    double t0, xfer_ms = 0, scale_ms;
-#endif
-#ifdef MSE_LINUX_HW
-    if (frame->hw_frames_ctx) {
-        if (!a->hw_sw)
-            a->hw_sw = av_frame_alloc();
-        if (!a->hw_sw)
-            return -1;
-        av_frame_unref(a->hw_sw);
-#if !PRODUCTION
-        t0 = now_ms();
-#endif
-        if (av_hwframe_transfer_data(a->hw_sw, frame, 0) < 0)
-            return -1;
-#if !PRODUCTION
-        xfer_ms = now_ms() - t0;
-#endif
-        a->hw_sw->colorspace = frame->colorspace;
-        a->hw_sw->color_range = frame->color_range;
-        a->hw_errs = 0;
-        sw = a->hw_sw;
-    }
-#endif
-#ifdef MSE_WIN_HW
-    if (frame->format == AV_PIX_FMT_D3D11) {
-        a->hw_errs = 0;
-        /* Unpresented frames drop (present_show logs why): a CPU blit via on_frame would turn the
-           Kotlin side to SW painting on the Canvas the swapchain still owns. */
-        if (frame->data[0])
-            mse_d3d11_present_show((ID3D11Texture2D *)frame->data[0],
-                                   (UINT)(uintptr_t)frame->data[1], frame->width, frame->height,
-                                   a->present_owner);
-        *bgra = NULL;
-        *w = frame->width;
-        *h = frame->height;
-        return 0;
-    }
-#endif
-#ifdef __APPLE__
-    if (frame->format == AV_PIX_FMT_VIDEOTOOLBOX && frame->data[3]) {
-        int tw, th;
-        uint8_t *tdst;
-        if (mse_vt_blit_size(frame->data[3], a->blit_w, a->blit_h, &tw, &th) == 0 &&
-            (tdst = bgra_pool(a, tw, th)) &&
-            mse_vt_blit_copy(&a->vt_blit, frame->data[3], tdst, tw, th) == 0) {
-            if (tw != a->blit_log_dw || th != a->blit_log_dh) {
-                a->blit_log_dw = tw;
-                a->blit_log_dh = th;
-                vlog("blit vt %dx%d hole=%dx%d", tw, th, a->blit_w, a->blit_h);
-            }
-            *w = tw;
-            *h = th;
-            *bgra = tdst;
-            return 0;
-        }
-        if (!a->hw_sw)
-            a->hw_sw = av_frame_alloc();
-        if (!a->hw_sw)
-            return -1;
-        av_frame_unref(a->hw_sw);
-#if !PRODUCTION
-        t0 = now_ms();
-#endif
-        if (av_hwframe_transfer_data(a->hw_sw, frame, 0) < 0)
-            return -1;
-#if !PRODUCTION
-        xfer_ms = now_ms() - t0;
-#endif
-        sw = a->hw_sw;
-    }
-    if (scale_bgra_vt_sw(a, sw, bgra, w, h) == 0)
-        return 0;
-#endif
-    vis_w = sw->width;
-    vis_h = sw->height;
-    if (blit_fit(vis_w, vis_h, a->blit_w, a->blit_h, &dw, &dh) != 0)
-        return -1;
-    dst = bgra_pool(a, dw, dh);
-    if (!dst)
-        return -1;
-    /* libswscale bilinear SIMD drops the last (width % 8) columns. YouTube
-       854×480 (itag 397) is remainder 6; 426×240 remainder 2 is fine. Convert
-       an 8-aligned width when the plane is padded (dav1d stride 896) and copy
-       the visible columns. Packed 854 falls back to SWS_ACCURATE_RND.
-       Downscale uses plain bilinear: ACCURATE_RND is too slow for 1440p. */
-    src_w = vis_w;
-    flags = SWS_BILINEAR;
-    if (dw == vis_w && dh == vis_h && (vis_w & 7)) {
-        int aligned = (vis_w + 7) & ~7;
-        if (sw->linesize[0] >= aligned)
-            src_w = aligned;
-        else
-            flags |= SWS_ACCURATE_RND;
-    }
-    {
-        int dst_w = (dw == vis_w && dh == vis_h) ? src_w : dw;
-        struct SwsContext *prev = a->sws;
-        a->sws = sws_getCachedContext(a->sws, src_w, vis_h, (enum AVPixelFormat)sw->format,
-                                      dst_w, dh, AV_PIX_FMT_BGRA, flags, NULL, NULL, NULL);
-        if (a->sws && a->sws != prev && src_w != vis_w)
-            vlog("sws pad %dx%d ls=%d convert=%d", vis_w, vis_h, sw->linesize[0], src_w);
-    }
-    if (!a->sws)
-        return -1;
-    if (dw == vis_w && dh == vis_h && src_w != vis_w) {
-        conv = sws_scratch(a, (size_t)src_w * (size_t)vis_h * 4);
-        if (!conv)
-            return -1;
-        dsts[0] = conv;
-        linesize[0] = src_w * 4;
-    } else {
-        dsts[0] = dst;
-        linesize[0] = dw * 4;
-    }
-#if !PRODUCTION
-    t0 = now_ms();
-#endif
-    sws_scale(a->sws, (const uint8_t *const *)sw->data, sw->linesize, 0, vis_h, dsts, linesize);
-#if !PRODUCTION
-    scale_ms = now_ms() - t0;
-#endif
-    if (dw == vis_w && dh == vis_h && src_w != vis_w) {
-        size_t row = (size_t)vis_w * 4;
-        for (y = 0; y < vis_h; y++)
-            memcpy(dst + (size_t)y * row, dsts[0] + (size_t)y * (size_t)src_w * 4, row);
-    }
-    if (dw != a->blit_log_dw || dh != a->blit_log_dh) {
-        a->blit_log_dw = dw;
-        a->blit_log_dh = dh;
-        vlog("blit %dx%d -> %dx%d hole=%dx%d sws", vis_w, vis_h, dw, dh, a->blit_w, a->blit_h);
-    }
-#if !PRODUCTION
-    if (vdbg_ok())
-        vlog("sws %dx%d -> %dx%d fmt=%d xfer=%.2f scale=%.2f", vis_w, vis_h, dw, dh, sw->format,
-             xfer_ms, scale_ms);
-#endif
-    *w = dw;
-    *h = dh;
-    *bgra = dst;
-    return 0;
 }
 
 void mse_av_set_window(MseAv *a, void *window)
@@ -4020,21 +3765,8 @@ void mse_av_recover_display(MseAv *a, double clock)
 
 void mse_av_set_blit_size(MseAv *a, int w, int h)
 {
-    if (!a)
-        return;
-    if (w < 0)
-        w = 0;
-    if (h < 0)
-        h = 0;
-    pthread_mutex_lock(&a->mu);
-    if (a->blit_w == w && a->blit_h == h) {
-        pthread_mutex_unlock(&a->mu);
-        return;
-    }
-    a->blit_w = w;
-    a->blit_h = h;
-    vlog("blit-size %dx%d", w, h);
-    pthread_mutex_unlock(&a->mu);
+    if (a)
+        vpresent_set_size(a->cpu, w, h);
 }
 
 /* After INVALIDDATA dav1d stays poisoned: flush is not enough — later
@@ -4067,8 +3799,15 @@ static void video_decode_error(MseAv *a, double pts, int err)
     }
 #endif
 #ifdef MSE_WIN_HW
-    /* A removed device fails every codec; the reopen below goes software without a latch. */
-    if (a->vdec && a->vdec->hw_device_ctx && !mse_d3d11_check_lost() && ++a->hw_errs >= 3) {
+    /* ENOSYS: native av1 opened without the device (lost after the pick); the latch makes the
+       reopen below software. A removed device fails every codec; that reopen goes software
+       without a latch. */
+    if (a->vdec && err == AVERROR(ENOSYS) && a->d3d11_fail_id != a->vdec->codec_id) {
+        a->hw_errs = 0;
+        a->d3d11_fail_id = a->vdec->codec_id;
+        mse_critf(MSE_LOG_WARN, "mse-v decode-dead id=%d %s: software from now on",
+                  (int)a->vdec->codec_id, a->vdec->codec ? a->vdec->codec->name : "?");
+    } else if (a->vdec && a->vdec->hw_device_ctx && !mse_d3d11_check_lost() && ++a->hw_errs >= 3) {
         a->hw_errs = 0;
         a->d3d11_fail_id = a->vdec->codec_id;
         mse_critf(MSE_LOG_WARN, "d3d11va rejected id=%d: software from now on",
@@ -4100,61 +3839,19 @@ static int d3d11_reopen_sw(MseAv *a, double t)
 #endif
 
 #ifdef __APPLE__
-/* JVM has no AVSampleBufferDisplayLayer (JAWT SIGSEGV). Lock the NV12
-   pixel buffer and reuse scale_bgra. iOS still shows on the layer. */
+/* As present_frame, for a picture of the own VT session. */
 static int present_cvpb(MseAv *a, void *pb, uint8_t **bgra, int *w, int *h)
 {
     CVPixelBufferRef cv = (CVPixelBufferRef)pb;
-    OSType fmt;
-    AVFrame tmp;
-    int src_w, src_h, r = -1;
-
-    src_w = (int)CVPixelBufferGetWidth(cv);
-    src_h = (int)CVPixelBufferGetHeight(cv);
-    if (a->vt_layer && mse_vt_show(a->vt_layer, pb, src_w, src_h) == 0) {
-        *bgra = NULL;
-        *w = src_w;
-        *h = src_h;
-        return 0;
-    }
+    *bgra = NULL;
+    *w = (int)CVPixelBufferGetWidth(cv);
+    *h = (int)CVPixelBufferGetHeight(cv);
     if (a->vt_layer)
+        return mse_vt_show(a->vt_layer, pb, *w, *h) == 0 ? 0 : -1;
+    if (vpresent_show_cvpb(a->cpu, a, pb, vp_color_of(NULL, a->vpar)) != VP_OK)
         return -1;
-    {
-        int tw, th;
-        uint8_t *tdst;
-        if (mse_vt_blit_size(pb, a->blit_w, a->blit_h, &tw, &th) == 0 &&
-            (tdst = bgra_pool(a, tw, th)) &&
-            mse_vt_blit_copy(&a->vt_blit, pb, tdst, tw, th) == 0) {
-            *bgra = tdst;
-            *w = tw;
-            *h = th;
-            return 0;
-        }
-    }
-    fmt = CVPixelBufferGetPixelFormatType(cv);
-    if (CVPixelBufferLockBaseAddress(cv, kCVPixelBufferLock_ReadOnly) != kCVReturnSuccess)
-        return -1;
-    memset(&tmp, 0, sizeof(tmp));
-    tmp.width = src_w;
-    tmp.height = src_h;
-    if (fmt == kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange ||
-        fmt == kCVPixelFormatType_420YpCbCr8BiPlanarFullRange) {
-        tmp.format = AV_PIX_FMT_NV12;
-        tmp.data[0] = CVPixelBufferGetBaseAddressOfPlane(cv, 0);
-        tmp.data[1] = CVPixelBufferGetBaseAddressOfPlane(cv, 1);
-        tmp.linesize[0] = (int)CVPixelBufferGetBytesPerRowOfPlane(cv, 0);
-        tmp.linesize[1] = (int)CVPixelBufferGetBytesPerRowOfPlane(cv, 1);
-    } else if (fmt == kCVPixelFormatType_32BGRA) {
-        tmp.format = AV_PIX_FMT_BGRA;
-        tmp.data[0] = CVPixelBufferGetBaseAddress(cv);
-        tmp.linesize[0] = (int)CVPixelBufferGetBytesPerRow(cv);
-    } else {
-        CVPixelBufferUnlockBaseAddress(cv, kCVPixelBufferLock_ReadOnly);
-        return -1;
-    }
-    r = scale_bgra(a, &tmp, bgra, w, h);
-    CVPixelBufferUnlockBaseAddress(cv, kCVPixelBufferLock_ReadOnly);
-    return r;
+    *bgra = a->cpu_bgra;
+    return 0;
 }
 
 static void vt_q_put(MseAv *a, void *pb, int w, int h, double pts)
@@ -4274,7 +3971,7 @@ static int pull_vt(MseAv *a, double clock, uint8_t **bgra, int *w, int *h, doubl
 }
 #endif
 
-int mse_av_pull_video(MseAv *a, double clock, uint8_t **bgra, int *w, int *h, double *pts)
+static int pull_video(MseAv *a, double clock, uint8_t **bgra, int *w, int *h, double *pts)
 {
     AVFrame *frame;
     int i, got;
@@ -4514,6 +4211,19 @@ int mse_av_pull_video(MseAv *a, double clock, uint8_t **bgra, int *w, int *h, do
     av_frame_unref(frame);
     pthread_mutex_unlock(&a->mu);
     return 0;
+}
+
+int mse_av_pull_video(MseAv *a, double clock, uint8_t **bgra, int *bw, int *bh, int *w, int *h,
+                      double *pts)
+{
+    int r;
+    if (!bw || !bh)
+        return -1;
+    r = pull_video(a, clock, bgra, w, h, pts);
+    /* cpu_w/h: written by this thread's present_frame, which produced *bgra. */
+    *bw = r > 0 && *bgra ? a->cpu_w : 0;
+    *bh = r > 0 && *bgra ? a->cpu_h : 0;
+    return r;
 }
 
 int mse_av_pull_audio(MseAv *a, double clock, double until, int16_t **s16, int *frames, int *rate, int *ch,

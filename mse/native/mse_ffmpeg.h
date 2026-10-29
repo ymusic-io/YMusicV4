@@ -76,9 +76,11 @@ void mse_av_recover_display(MseAv *a, double clock);
  * (never upscale; dest is the fitted picture, not a letterboxed panel). */
 void mse_av_set_blit_size(MseAv *a, int w, int h);
 
-/* 1 = frame, 0 = none yet, -1 = error. *bgra is borrowed from MseAv (do not
- * free). Android MediaCodec / Apple VT layer return 1 with *bgra == NULL. */
-int mse_av_pull_video(MseAv *a, double clock, uint8_t **bgra, int *w, int *h, double *pts);
+/* 1 = frame, 0 = none yet, -1 = error. *w × *h is the decoded size. A CPU picture comes back
+ * in *bgra (*bw × *bh), borrowed from MseAv until the second pull after this one (do not free).
+ * Android MediaCodec / Apple VT layer / D3D11 return 1 with *bgra == NULL. */
+int mse_av_pull_video(MseAv *a, double clock, uint8_t **bgra, int *bw, int *bh, int *w, int *h,
+                      double *pts);
 /* 1 = pcm, 0 = none. *s16 is interleaved S16, borrowed until the next
  * pull_audio or destroy (do not free). Decodes up to `until`; audio more than
  * 50ms behind `clock` (the playhead) is skipped. */
