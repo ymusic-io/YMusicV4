@@ -3,9 +3,7 @@ package io.ymusic.ui
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
-import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onFirst
-import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
@@ -57,13 +55,13 @@ class AppNavigationTest {
                 val graph = AppGraph(engines = engines, player = StubPlayer(), playerSurface = {})
                 setContent { App(graph) }
 
-                onNodeWithContentDescription("Search").performClick()
+                onNodeWithActionLabel("Search").performClick()
                 onNode(hasSetTextAction()).performTextInput("son tung")
                 waitUntilAtLeastOneExists(hasText("son tung mtp"), 20_000)
                 onNodeWithText("son tung mtp").performClick()
 
-                waitUntilAtLeastOneExists(hasText("Mix - Sơn Tùng M-TP"), 20_000)
-                onNodeWithText("Mix - Sơn Tùng M-TP").performClick()
+                waitUntilAtLeastOneExists(hasText("Mix - Sơn Tùng M-TP", substring = true), 20_000)
+                onNodeWithText("Mix - Sơn Tùng M-TP", substring = true).performClick()
 
                 // The detail page is on screen right away — its bar title and the /next panel header.
                 waitUntilAtLeastOneExists(hasText("Playlist"), 10_000)
@@ -71,12 +69,12 @@ class AppNavigationTest {
 
                 // Back pops the detail onto the still-loaded SEARCH RESULTS (not Home): the
                 // results bar title and the tapped result are right there, no reload.
-                onNodeWithContentDescription("Back").performClick()
+                onNodeWithActionLabel("Back").performClick()
                 waitUntilAtLeastOneExists(hasText("son tung mtp"), 10_000)
-                waitUntilAtLeastOneExists(hasText("Mix - Sơn Tùng M-TP"), 10_000)
+                waitUntilAtLeastOneExists(hasText("Mix - Sơn Tùng M-TP", substring = true), 10_000)
 
                 // Back again leaves search for the Discover shell.
-                onNodeWithContentDescription("Back").performClick()
+                onNodeWithActionLabel("Back").performClick()
                 waitUntilAtLeastOneExists(hasText("Trending music"), 10_000)
             }
         } finally {
@@ -109,24 +107,24 @@ class AppNavigationTest {
                 setContent { App(graph) }
 
                 // Search → results → a result's detail page.
-                onNodeWithContentDescription("Search").performClick()
+                onNodeWithActionLabel("Search").performClick()
                 onNode(hasSetTextAction()).performTextInput("son tung")
                 waitUntilAtLeastOneExists(hasText("son tung mtp"), 20_000)
                 onNodeWithText("son tung mtp").performClick()
-                waitUntilAtLeastOneExists(hasText("Mix - Sơn Tùng M-TP"), 20_000)
-                onNodeWithText("Mix - Sơn Tùng M-TP").performClick()
+                waitUntilAtLeastOneExists(hasText("Mix - Sơn Tùng M-TP", substring = true), 20_000)
+                onNodeWithText("Mix - Sơn Tùng M-TP", substring = true).performClick()
                 waitUntilAtLeastOneExists(hasText("Playlist"), 10_000)
 
                 // The detail bar's search icon raises the EXISTING results layer (SINGLE_TOP):
                 // the submitted query and its loaded results are right there — no blank input.
-                onNodeWithContentDescription("Search").performClick()
+                onNodeWithActionLabel("Search").performClick()
                 waitUntilAtLeastOneExists(hasText("son tung mtp"), 10_000)
-                waitUntilAtLeastOneExists(hasText("Mix - Sơn Tùng M-TP"), 10_000)
+                waitUntilAtLeastOneExists(hasText("Mix - Sơn Tùng M-TP", substring = true), 10_000)
 
                 // The stack reordered (not grew): back lands on the detail page, then Home.
-                onNodeWithContentDescription("Back").performClick()
+                onNodeWithActionLabel("Back").performClick()
                 waitUntilAtLeastOneExists(hasText("Playlist"), 10_000)
-                onNodeWithContentDescription("Back").performClick()
+                onNodeWithActionLabel("Back").performClick()
                 waitUntilAtLeastOneExists(hasText("Trending music"), 10_000)
             }
         } finally {
@@ -160,24 +158,24 @@ class AppNavigationTest {
                 setContent { App(graph, section) }
 
                 // Discover: search → submitted results.
-                onNodeWithContentDescription("Search").performClick()
+                onNodeWithActionLabel("Search").performClick()
                 onNode(hasSetTextAction()).performTextInput("son tung")
                 waitUntilAtLeastOneExists(hasText("son tung mtp"), 20_000)
                 onNodeWithText("son tung mtp").performClick()
-                waitUntilAtLeastOneExists(hasText("Mix - Sơn Tùng M-TP"), 20_000)
+                waitUntilAtLeastOneExists(hasText("Mix - Sơn Tùng M-TP", substring = true), 20_000)
 
                 // → Library: a lateral switch, NOT a push. Library shows its own surface (no
                 // YouTube results), and no YouTube search action — Library's search is a
                 // different, local-files flow.
                 section.value = AppSection.Library
                 waitUntilAtLeastOneExists(hasText("Library"), 10_000)
-                onNodeWithText("Mix - Sơn Tùng M-TP").assertDoesNotExist()
-                onNodeWithContentDescription("Search").assertDoesNotExist()
+                onNodeWithText("Mix - Sơn Tùng M-TP", substring = true).assertDoesNotExist()
+                onNodeWithActionLabel("Search").assertDoesNotExist()
 
                 // → Discover: the section restores its RETAINED stack — the search results are
                 // right there, query and all, not a bare Discover feed.
                 section.value = AppSection.Discover
-                waitUntilAtLeastOneExists(hasText("Mix - Sơn Tùng M-TP"), 10_000)
+                waitUntilAtLeastOneExists(hasText("Mix - Sơn Tùng M-TP", substring = true), 10_000)
                 waitUntilAtLeastOneExists(hasText("son tung mtp"), 10_000)
             }
         } finally {
@@ -267,24 +265,24 @@ class AppNavigationTest {
 
                 // Library's bar has its OWN search (local files, not YouTube).
                 waitUntilAtLeastOneExists(hasText("Folders"), 20_000)
-                onNodeWithContentDescription("Search").performClick()
+                onNodeWithActionLabel("Search").performClick()
                 onNode(hasSetTextAction()).performTextInput("anh")
 
                 // Filter-as-you-type: the matching song, its artist section, and the online CTA.
-                waitUntilAtLeastOneExists(hasText("Tinh Ta Bien Bac Dong Xanh"), 10_000)
+                waitUntilAtLeastOneExists(hasText("Tinh Ta Bien Bac Dong Xanh", substring = true), 10_000)
                 onNodeWithText("Search “anh” online").assertExists()
                 onNodeWithText("Something Else").assertDoesNotExist()
 
                 // An artist match drills into its songs in place (the song row also carries
                 // "Bao Anh" as its subtitle — the artist ROW is the one with the song count).
                 onNode(hasText("Bao Anh") and hasText("1 song")).performClick()
-                waitUntilAtLeastOneExists(hasText("Tinh Ta Bien Bac Dong Xanh"), 10_000)
+                waitUntilAtLeastOneExists(hasText("Tinh Ta Bien Bac Dong Xanh", substring = true), 10_000)
 
                 // The online CTA jumps to Discover and runs the query as a YouTube search.
                 // Two Backs while drilled in (input bar + drill header); either exits the drill.
-                onAllNodesWithContentDescription("Back").onFirst().performClick()
+                onAllNodesWithActionLabel("Back").onFirst().performClick()
                 onNodeWithText("Search “anh” online").performClick()
-                waitUntilAtLeastOneExists(hasText("Mix - Sơn Tùng M-TP"), 20_000)
+                waitUntilAtLeastOneExists(hasText("Mix - Sơn Tùng M-TP", substring = true), 20_000)
                 assertEquals(AppSection.Discover, section.value)
             }
         } finally {

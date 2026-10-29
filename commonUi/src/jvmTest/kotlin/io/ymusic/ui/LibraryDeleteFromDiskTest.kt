@@ -3,7 +3,6 @@ package io.ymusic.ui
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasText
-import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runComposeUiTest
@@ -70,7 +69,7 @@ class LibraryDeleteFromDiskTest {
                 waitUntilAtLeastOneExists(hasText("DoomedSong"), 5_000)
 
                 // Songs sort by title: DoomedSong is the first row's ⋮.
-                onAllNodesWithContentDescription("More")[0].performClick()
+                onAllNodesWithActionLabel("More")[0].performClick()
                 onNodeWithText("Remove from disk").performClick()
 
                 // The confirm dialog names the file; canceling deletes nothing.
@@ -80,7 +79,7 @@ class LibraryDeleteFromDiskTest {
                 assertTrue(deleted.isEmpty(), "cancel must not delete")
 
                 // Confirm: the hook gets the item, the row leaves the list, the sibling stays.
-                onAllNodesWithContentDescription("More")[0].performClick()
+                onAllNodesWithActionLabel("More")[0].performClick()
                 onNodeWithText("Remove from disk").performClick()
                 waitUntilAtLeastOneExists(hasText("Delete file?"), 5_000)
                 onNodeWithText("Delete").performClick()
