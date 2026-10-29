@@ -4,7 +4,6 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onAllNodesWithText
-import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runComposeUiTest
@@ -98,7 +97,7 @@ class DetailScreensTest {
                 assertTrue(queue.all { it is PlayableItem.YtMedia }, "$queue")
 
                 // The FAB shuffles the whole playlist, starting anywhere in it.
-                onNodeWithContentDescription("Shuffle").performClick()
+                onNodeWithText("Shuffle").performClick()
                 assertEquals(true, player.lastShuffle)
                 assertTrue(player.lastPlayIndex in 0..3, "${player.lastPlayIndex}")
             }
