@@ -23,6 +23,10 @@
     <string name="downloads_none_title">Zatiaľ žiadne stiahnuté súbory</string>
     <string name="downloads_none_message">Stiahnuté skladby a videá sa prehrávajú offline.</string>
     <string name="downloads_failed">Sťahovanie zlyhalo</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Zobraziť vo Finderi</string>
+    <string name="menu_reveal_explorer">Zobraziť v Prieskumníkovi</string>
+    <string name="menu_reveal_file_manager">Zobraziť v správcovi súborov</string>
     <string name="section_settings">Nastavenia</string>
     <string name="section_donate">Podporiť</string>
     <string name="section_feedback">Spätná väzba</string>

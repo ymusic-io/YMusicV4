@@ -37,7 +37,10 @@
     <string name="downloads_action_pause">إيقاف مؤقت</string>
     <string name="downloads_action_resume">استئناف</string>
     <string name="downloads_action_reveal_library">إظهار في المكتبة</string>
-    <string name="downloads_action_reveal_finder">إظهار في Finder</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">إظهار في Finder</string>
+    <string name="menu_reveal_explorer">إظهار في مستكشف الملفات</string>
+    <string name="menu_reveal_file_manager">إظهار في مدير الملفات</string>
     <string name="downloads_completed_date">%2$d %1$s %3$d</string>
     <string-array name="month_abbr">
         <item>يناير</item>

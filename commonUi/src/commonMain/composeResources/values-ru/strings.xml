@@ -23,6 +23,10 @@
     <string name="downloads_none_title">Загрузок пока нет</string>
     <string name="downloads_none_message">Скачанные песни и видео воспроизводятся офлайн.</string>
     <string name="downloads_failed">Не удалось скачать</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Показать в Finder</string>
+    <string name="menu_reveal_explorer">Показать в Проводнике</string>
+    <string name="menu_reveal_file_manager">Показать в файловом менеджере</string>
     <string name="section_settings">Настройки</string>
     <string name="section_donate">Поддержать</string>
     <string name="section_feedback">Обратная связь</string>

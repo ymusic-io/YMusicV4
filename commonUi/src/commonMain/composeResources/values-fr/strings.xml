@@ -23,6 +23,10 @@
     <string name="downloads_none_title">Aucun téléchargement pour l’instant</string>
     <string name="downloads_none_message">Les titres et vidéos téléchargés se lisent hors connexion.</string>
     <string name="downloads_failed">Échec du téléchargement</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Afficher dans le Finder</string>
+    <string name="menu_reveal_explorer">Afficher dans l'Explorateur de fichiers</string>
+    <string name="menu_reveal_file_manager">Afficher dans le gestionnaire de fichiers</string>
     <string name="section_settings">Paramètres</string>
     <string name="section_donate">Faire un don</string>
     <string name="section_feedback">Commentaires</string>
