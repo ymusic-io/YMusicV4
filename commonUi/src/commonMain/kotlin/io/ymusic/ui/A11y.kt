@@ -94,6 +94,7 @@ internal fun Modifier.adjustable(
     onSet: (Float) -> Unit,
 ): Modifier = a11ySlider(label, value, fraction, enabled, onSet)
     .onKeyEvent { event ->
+        if (event.hasCommandModifier) return@onKeyEvent false
         val toward = when (event.key) {
             Key.DirectionUp -> if (vertical) 1f else return@onKeyEvent false
             Key.DirectionDown -> if (vertical) -1f else return@onKeyEvent false

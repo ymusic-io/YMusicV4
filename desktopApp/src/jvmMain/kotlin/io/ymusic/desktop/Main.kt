@@ -53,6 +53,7 @@ import androidx.compose.ui.graphics.toAwtImage
 import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isAltPressed
 import androidx.compose.ui.input.key.isCtrlPressed
 import androidx.compose.ui.input.key.isMetaPressed
 import androidx.compose.ui.input.key.key
@@ -442,6 +443,7 @@ fun main(args: Array<String>) {
                 if (refresh) graph?.requestRefresh()
                 refresh
             },
+            onKeyEvent = { event -> handleArrowShortcut(event, graph?.player) },
         ) {
             paintWindowGround(Color.Transparent)
             // Not Window(icon=): that is one 32dp raster the OS nearest-scales into each of its
@@ -486,9 +488,11 @@ fun main(args: Array<String>) {
                 Column(
                     Modifier.fillMaxSize()
                         .then(if (frame.fullscreen) Modifier else Modifier.border(1.dp, frameBorder))
-                        // Arrows nothing inside consumed (lists, text fields) move focus geometrically.
+                        // Arrows nothing inside consumed (lists, text fields) move focus geometrically;
+                        // with Ctrl/Cmd/Alt they go on to the window's media shortcuts.
                         .onKeyEvent { event ->
                             if (event.type != androidx.compose.ui.input.key.KeyEventType.KeyDown) return@onKeyEvent false
+                            if (event.isCtrlPressed || event.isMetaPressed || event.isAltPressed) return@onKeyEvent false
                             val dir = when (event.key) {
                                 androidx.compose.ui.input.key.Key.DirectionDown -> androidx.compose.ui.focus.FocusDirection.Down
                                 androidx.compose.ui.input.key.Key.DirectionUp -> androidx.compose.ui.focus.FocusDirection.Up

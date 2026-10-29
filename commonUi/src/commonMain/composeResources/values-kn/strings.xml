@@ -627,7 +627,11 @@
     <string name="shortcuts_switch_tabs">ಟ್ಯಾಬ್‌ಗಳನ್ನು ಬದಲಿಸಿ</string>
     <string name="shortcuts_escape">ಪೂರ್ಣ ಪರದೆಯಿಂದ ನಿರ್ಗಮಿಸಿ, ಅಥವಾ Now Playing, ಮೆನು ಅಥವಾ ಪಾಪ್-ಅಪ್ ಮುಚ್ಚಿ</string>
     <string name="shortcuts_help">ಈ ಸಹಾಯವನ್ನು ತೋರಿಸಿ</string>
-    <string name="a11y_key_left_bracket">ಎಡ ಚೌಕ ಆವರಣ</string>
-    <string name="a11y_key_right_bracket">ಬಲ ಚೌಕ ಆವರಣ</string>
+    <string name="shortcuts_volume_up">ಧ್ವನಿ ಹೆಚ್ಚಿಸಿ</string>
+    <string name="shortcuts_volume_down">ಧ್ವನಿ ಕಡಿಮೆ ಮಾಡಿ</string>
+    <string name="a11y_key_arrow_left">ಎಡ ಬಾಣ</string>
+    <string name="a11y_key_arrow_right">ಬಲ ಬಾಣ</string>
+    <string name="a11y_key_arrow_up">ಮೇಲಿನ ಬಾಣ</string>
+    <string name="a11y_key_arrow_down">ಕೆಳಗಿನ ಬಾಣ</string>
     <string name="cd_always_on_top">ಯಾವಾಗಲೂ ಮೇಲೆ</string>
 </resources>

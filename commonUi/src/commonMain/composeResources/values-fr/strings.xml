@@ -635,7 +635,11 @@
     <string name="shortcuts_switch_tabs">Changer d'onglet</string>
     <string name="shortcuts_escape">Quitter le plein écran, ou fermer la lecture en cours, le menu ou une fenêtre pop-up</string>
     <string name="shortcuts_help">Afficher cette aide</string>
-    <string name="a11y_key_left_bracket">crochet gauche</string>
-    <string name="a11y_key_right_bracket">crochet droit</string>
+    <string name="shortcuts_volume_up">Augmenter le volume</string>
+    <string name="shortcuts_volume_down">Baisser le volume</string>
+    <string name="a11y_key_arrow_left">flèche gauche</string>
+    <string name="a11y_key_arrow_right">flèche droite</string>
+    <string name="a11y_key_arrow_up">flèche haut</string>
+    <string name="a11y_key_arrow_down">flèche bas</string>
     <string name="cd_always_on_top">Toujours au premier plan</string>
 </resources>

@@ -643,7 +643,11 @@
     <string name="shortcuts_switch_tabs">Переключить вкладку</string>
     <string name="shortcuts_escape">Выйти из полноэкранного режима, закрыть экран воспроизведения, меню или всплывающее окно</string>
     <string name="shortcuts_help">Показать эту справку</string>
-    <string name="a11y_key_left_bracket">левая квадратная скобка</string>
-    <string name="a11y_key_right_bracket">правая квадратная скобка</string>
+    <string name="shortcuts_volume_up">Громче</string>
+    <string name="shortcuts_volume_down">Тише</string>
+    <string name="a11y_key_arrow_left">стрелка влево</string>
+    <string name="a11y_key_arrow_right">стрелка вправо</string>
+    <string name="a11y_key_arrow_up">стрелка вверх</string>
+    <string name="a11y_key_arrow_down">стрелка вниз</string>
     <string name="cd_always_on_top">Поверх всех окон</string>
 </resources>

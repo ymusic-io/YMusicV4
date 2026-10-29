@@ -635,7 +635,11 @@
     <string name="shortcuts_switch_tabs">Cambia scheda</string>
     <string name="shortcuts_escape">Esci da schermo intero o chiudi la schermata di riproduzione, il menu o un popup</string>
     <string name="shortcuts_help">Mostra questa guida</string>
-    <string name="a11y_key_left_bracket">parentesi quadra aperta</string>
-    <string name="a11y_key_right_bracket">parentesi quadra chiusa</string>
+    <string name="shortcuts_volume_up">Alza il volume</string>
+    <string name="shortcuts_volume_down">Abbassa il volume</string>
+    <string name="a11y_key_arrow_left">freccia sinistra</string>
+    <string name="a11y_key_arrow_right">freccia destra</string>
+    <string name="a11y_key_arrow_up">freccia su</string>
+    <string name="a11y_key_arrow_down">freccia giù</string>
     <string name="cd_always_on_top">Sempre in primo piano</string>
 </resources>

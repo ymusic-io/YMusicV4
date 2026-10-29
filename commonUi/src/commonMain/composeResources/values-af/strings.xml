@@ -627,7 +627,11 @@
     <string name="shortcuts_switch_tabs">Wissel oortjies</string>
     <string name="shortcuts_escape">Verlaat volskerm, of maak Speel nou, die kieslys of 'n opspringvenster toe</string>
     <string name="shortcuts_help">Wys hierdie hulp</string>
-    <string name="a11y_key_left_bracket">linkerhakie</string>
-    <string name="a11y_key_right_bracket">regterhakie</string>
+    <string name="shortcuts_volume_up">Volume harder</string>
+    <string name="shortcuts_volume_down">Volume sagter</string>
+    <string name="a11y_key_arrow_left">linkerpyltjie</string>
+    <string name="a11y_key_arrow_right">regterpyltjie</string>
+    <string name="a11y_key_arrow_up">oppyltjie</string>
+    <string name="a11y_key_arrow_down">afpyltjie</string>
     <string name="cd_always_on_top">Altyd bo-op</string>
 </resources>
