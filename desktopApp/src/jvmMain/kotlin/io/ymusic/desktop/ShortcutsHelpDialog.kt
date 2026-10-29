@@ -27,6 +27,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.ymusic.ui.resources.Res
+import io.ymusic.ui.resources.cd_back
 import io.ymusic.ui.resources.cd_close
 import io.ymusic.ui.resources.cd_forward10
 import io.ymusic.ui.resources.cd_fullscreen
@@ -59,6 +60,7 @@ internal fun ShortcutsHelpDialog(onDismiss: () -> Unit) {
         "$cmd + F" to Res.string.cd_search,
         "$cmd + 1…9" to Res.string.shortcuts_switch_tabs,
         "Esc" to Res.string.shortcuts_escape,
+        "Esc Esc" to Res.string.cd_back,
         "F1" to Res.string.shortcuts_help,
     )
     AlertDialog(

@@ -66,6 +66,7 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -902,9 +903,8 @@ private fun AppRoot(
         // layer of the CURRENT section's stack pops. A lateral section with nothing left to unwind
         // steps back to Discover — which restores its own retained stack — and only from Discover's
         // root is back left to the OS to exit the app.
-        PlatformBackHandler(
-            enabled = drawer.isOpen || nowPlayingOpen || layers.isNotEmpty() || section != AppSection.Discover,
-        ) {
+        val backEnabled = drawer.isOpen || nowPlayingOpen || layers.isNotEmpty() || section != AppSection.Discover
+        val onBack: () -> Unit = {
             val top = layers.lastOrNull()
             when {
                 drawer.isOpen -> scope.launch { drawer.close() }
@@ -918,6 +918,12 @@ private fun AppRoot(
                 layers.isNotEmpty() -> popLayer()
                 else -> onSection(AppSection.Discover)
             }
+        }
+        PlatformBackHandler(enabled = backEnabled, onBack = onBack)
+        val latestBack by rememberUpdatedState(onBack.takeIf { backEnabled })
+        DisposableEffect(Unit) {
+            GlobalShortcutActions.back = { latestBack?.let { it(); true } ?: false }
+            onDispose { GlobalShortcutActions.back = { false } }
         }
 
         // Keep the shared video surface hosted while a YouTube item or a pictured local item is

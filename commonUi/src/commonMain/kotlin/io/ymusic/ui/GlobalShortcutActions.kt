@@ -19,6 +19,9 @@ object GlobalShortcutActions {
     /** Returns true if a drawer was actually closed (so Esc can know to stop its cascade). */
     @Volatile var closeNavDrawerIfOpen: () -> Boolean = { false }
 
+    /** One step of the system back; false when there is nothing to step back from. */
+    @Volatile var back: () -> Boolean = { false }
+
     // Cmd/Ctrl + 1..9 → the top-most pushed tab handler wins. A plain save/restore var is racy
     // across section transitions (the entering screen can capture the leaving screen's handler
     // as its "prior" before the leaving dispose fires, then dispose wipes the new one). Keep a

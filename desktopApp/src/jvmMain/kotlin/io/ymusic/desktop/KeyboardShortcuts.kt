@@ -1,6 +1,7 @@
 package io.ymusic.desktop
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.KeyEventType
@@ -14,6 +15,7 @@ import androidx.navigationevent.compose.rememberNavigationEventState
 import io.ymusic.player.Player
 import io.ymusic.ui.GlobalShortcutActions
 import kotlinx.coroutines.flow.MutableStateFlow
+import java.awt.Toolkit
 
 private const val SEEK_STEP_MS = 10_000L
 
@@ -67,17 +69,34 @@ internal fun handleGlobalShortcut(
 }
 
 /**
- * Esc peels back full screen → Now Playing → nav drawer. A back handler rather than a key handler:
- * the scene turns an unconsumed Esc into a back event for the newest handler first, so an open
- * popup or dialog closes before this cascade runs.
+ * Esc peels back full screen → Now Playing → nav drawer; with none of those open, a double Esc is the
+ * system back (search → home). A back handler rather than a key handler: the scene turns an
+ * unconsumed Esc into a back event for the newest handler first, so an open popup or dialog closes
+ * before this cascade runs.
  */
 @Composable
 internal fun EscapeCascade(nowPlayingOpen: MutableStateFlow<Boolean>?, frame: DesktopFrame) {
+    val idleEscAt = remember { longArrayOf(0L) }
     NavigationBackHandler(state = rememberNavigationEventState(NavigationEventInfo.None)) {
         when {
             frame.fullscreen -> frame.toggleFullscreen()
             nowPlayingOpen?.value == true -> nowPlayingOpen.value = false
-            else -> GlobalShortcutActions.closeNavDrawerIfOpen()
+            GlobalShortcutActions.closeNavDrawerIfOpen() -> Unit
+            else -> {
+                val now = System.nanoTime()
+                if (idleEscAt[0] != 0L && now - idleEscAt[0] <= doubleEscWindowNs()) {
+                    idleEscAt[0] = 0L
+                    GlobalShortcutActions.back()
+                } else {
+                    idleEscAt[0] = now
+                }
+            }
         }
     }
+}
+
+/** The OS double-click interval, which users who need more time lengthen. */
+private fun doubleEscWindowNs(): Long {
+    val ms = Toolkit.getDefaultToolkit().getDesktopProperty("awt.multiClickInterval") as? Int ?: 500
+    return ms.coerceIn(200, 2000) * 1_000_000L
 }
