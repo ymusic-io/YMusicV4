@@ -635,5 +635,7 @@
     <string name="shortcuts_switch_tabs">Comută între file</string>
     <string name="shortcuts_escape">Ieși din ecranul complet sau închide Se redă acum, meniul ori o fereastră pop-up</string>
     <string name="shortcuts_help">Afișează acest ajutor</string>
+    <string name="a11y_key_left_bracket">paranteză pătrată deschisă</string>
+    <string name="a11y_key_right_bracket">paranteză pătrată închisă</string>
     <string name="cd_always_on_top">Mereu deasupra</string>
 </resources>

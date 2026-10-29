@@ -619,5 +619,7 @@
     <string name="shortcuts_switch_tabs">Tukar tab</string>
     <string name="shortcuts_escape">Keluar dari skrin penuh, atau tutup Sedang Dimainkan, menu atau tetingkap timbul</string>
     <string name="shortcuts_help">Tunjukkan bantuan ini</string>
+    <string name="a11y_key_left_bracket">kurungan siku kiri</string>
+    <string name="a11y_key_right_bracket">kurungan siku kanan</string>
     <string name="cd_always_on_top">Sentiasa di atas</string>
 </resources>

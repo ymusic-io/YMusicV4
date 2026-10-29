@@ -741,5 +741,7 @@
     <string name="shortcuts_switch_tabs">Chuyển thẻ</string>
     <string name="shortcuts_escape">Thoát toàn màn hình, hoặc đóng Đang phát, menu hay cửa sổ bật lên</string>
     <string name="shortcuts_help">Hiện trợ giúp này</string>
+    <string name="a11y_key_left_bracket">ngoặc vuông trái</string>
+    <string name="a11y_key_right_bracket">ngoặc vuông phải</string>
     <string name="cd_always_on_top">Luôn ở trên cùng</string>
 </resources>

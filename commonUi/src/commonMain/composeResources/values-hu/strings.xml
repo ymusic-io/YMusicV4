@@ -627,5 +627,7 @@
     <string name="shortcuts_switch_tabs">Váltás a lapok között</string>
     <string name="shortcuts_escape">Kilépés a teljes képernyőből, vagy a Most szól, a menü vagy egy felugró ablak bezárása</string>
     <string name="shortcuts_help">A súgó megjelenítése</string>
+    <string name="a11y_key_left_bracket">bal szögletes zárójel</string>
+    <string name="a11y_key_right_bracket">jobb szögletes zárójel</string>
     <string name="cd_always_on_top">Mindig felül</string>
 </resources>

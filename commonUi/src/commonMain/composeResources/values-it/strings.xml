@@ -635,5 +635,7 @@
     <string name="shortcuts_switch_tabs">Cambia scheda</string>
     <string name="shortcuts_escape">Esci da schermo intero o chiudi la schermata di riproduzione, il menu o un popup</string>
     <string name="shortcuts_help">Mostra questa guida</string>
+    <string name="a11y_key_left_bracket">parentesi quadra aperta</string>
+    <string name="a11y_key_right_bracket">parentesi quadra chiusa</string>
     <string name="cd_always_on_top">Sempre in primo piano</string>
 </resources>

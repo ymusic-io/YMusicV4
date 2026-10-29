@@ -619,5 +619,7 @@
     <string name="shortcuts_switch_tabs">タブを切り替え</string>
     <string name="shortcuts_escape">全画面表示を終了、または再生画面・メニュー・ポップアップを閉じる</string>
     <string name="shortcuts_help">このヘルプを表示</string>
+    <string name="a11y_key_left_bracket">左角括弧</string>
+    <string name="a11y_key_right_bracket">右角括弧</string>
     <string name="cd_always_on_top">常に手前に表示</string>
 </resources>

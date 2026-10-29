@@ -627,5 +627,7 @@
     <string name="shortcuts_switch_tabs">Lumipat ng tab</string>
     <string name="shortcuts_escape">Lumabas sa full screen, o isara ang Now Playing, ang menu o isang pop-up</string>
     <string name="shortcuts_help">Ipakita ang tulong na ito</string>
+    <string name="a11y_key_left_bracket">kaliwang bracket</string>
+    <string name="a11y_key_right_bracket">kanang bracket</string>
     <string name="cd_always_on_top">Laging nasa ibabaw</string>
 </resources>

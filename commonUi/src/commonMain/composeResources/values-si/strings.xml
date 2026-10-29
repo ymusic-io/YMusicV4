@@ -627,5 +627,7 @@
     <string name="shortcuts_switch_tabs">ටැබ් මාරු කරන්න</string>
     <string name="shortcuts_escape">සම්පූර්ණ තිරයෙන් ඉවත් වන්න, නැතහොත් දැන් වාදනය වන තිරය, මෙනුව හෝ උත්පතන කවුළුව වසන්න</string>
     <string name="shortcuts_help">මෙම උදව්ව පෙන්වන්න</string>
+    <string name="a11y_key_left_bracket">වම් හතරැස් වරහන</string>
+    <string name="a11y_key_right_bracket">දකුණු හතරැස් වරහන</string>
     <string name="cd_always_on_top">සැමවිටම ඉහළින්</string>
 </resources>

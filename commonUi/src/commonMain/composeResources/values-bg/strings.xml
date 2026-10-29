@@ -627,5 +627,7 @@
     <string name="shortcuts_switch_tabs">Превключване между разделите</string>
     <string name="shortcuts_escape">Изход от цял екран или затваряне на „Сега се изпълнява“, менюто или изскачащ прозорец</string>
     <string name="shortcuts_help">Показване на тази помощ</string>
+    <string name="a11y_key_left_bracket">лява квадратна скоба</string>
+    <string name="a11y_key_right_bracket">дясна квадратна скоба</string>
     <string name="cd_always_on_top">Винаги отгоре</string>
 </resources>

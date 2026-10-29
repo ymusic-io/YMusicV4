@@ -627,5 +627,7 @@
     <string name="shortcuts_switch_tabs">جابه‌جایی بین زبانه‌ها</string>
     <string name="shortcuts_escape">خروج از تمام‌صفحه، یا بستن صفحه پخش، منو یا پنجره بازشو</string>
     <string name="shortcuts_help">نمایش این راهنما</string>
+    <string name="a11y_key_left_bracket">کروشه باز</string>
+    <string name="a11y_key_right_bracket">کروشه بسته</string>
     <string name="cd_always_on_top">همیشه در بالا</string>
 </resources>

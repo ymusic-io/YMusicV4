@@ -643,5 +643,7 @@
     <string name="shortcuts_switch_tabs">Przełączaj karty</string>
     <string name="shortcuts_escape">Zamknij pełny ekran, Teraz odtwarzane, menu lub wyskakujące okno</string>
     <string name="shortcuts_help">Pokaż tę pomoc</string>
+    <string name="a11y_key_left_bracket">lewy nawias kwadratowy</string>
+    <string name="a11y_key_right_bracket">prawy nawias kwadratowy</string>
     <string name="cd_always_on_top">Zawsze na wierzchu</string>
 </resources>

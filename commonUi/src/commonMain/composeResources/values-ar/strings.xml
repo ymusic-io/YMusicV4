@@ -792,5 +792,7 @@
     <string name="shortcuts_switch_tabs">التبديل بين علامات التبويب</string>
     <string name="shortcuts_escape">الخروج من ملء الشاشة، أو إغلاق التشغيل الآن أو القائمة أو النافذة المنبثقة</string>
     <string name="shortcuts_help">عرض هذه المساعدة</string>
+    <string name="a11y_key_left_bracket">قوس مربع أيسر</string>
+    <string name="a11y_key_right_bracket">قوس مربع أيمن</string>
     <string name="cd_always_on_top">دائمًا في المقدمة</string>
 </resources>

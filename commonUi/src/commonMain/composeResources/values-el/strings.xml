@@ -627,5 +627,7 @@
     <string name="shortcuts_switch_tabs">Εναλλαγή καρτελών</string>
     <string name="shortcuts_escape">Έξοδος από πλήρη οθόνη ή κλείσιμο της Αναπαραγωγής τώρα, του μενού ή ενός αναδυόμενου παραθύρου</string>
     <string name="shortcuts_help">Εμφάνιση αυτής της βοήθειας</string>
+    <string name="a11y_key_left_bracket">αριστερή αγκύλη</string>
+    <string name="a11y_key_right_bracket">δεξιά αγκύλη</string>
     <string name="cd_always_on_top">Πάντα σε πρώτο πλάνο</string>
 </resources>

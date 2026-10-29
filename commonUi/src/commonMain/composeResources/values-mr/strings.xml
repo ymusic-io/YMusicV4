@@ -627,5 +627,7 @@
     <string name="shortcuts_switch_tabs">टॅब बदला</string>
     <string name="shortcuts_escape">पूर्ण स्क्रीनमधून बाहेर पडा, किंवा प्लेअर स्क्रीन, मेनू अथवा पॉप-अप बंद करा</string>
     <string name="shortcuts_help">ही मदत दाखवा</string>
+    <string name="a11y_key_left_bracket">डावा चौकोनी कंस</string>
+    <string name="a11y_key_right_bracket">उजवा चौकोनी कंस</string>
     <string name="cd_always_on_top">नेहमी सर्वात वर</string>
 </resources>
