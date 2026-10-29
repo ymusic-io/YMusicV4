@@ -355,12 +355,15 @@ class SabrSession(
                             else -> throw IOException("unexpected media header ${header.videoId} ${header.cacheKey} seg ${header.segmentIndex}")
                         }
                         val state = PartState(header, file)
-                        // Mirror into the player cache only when writable (a download is read-only) and the
-                        // file is exactly at the segment's start — a fresh, full write with no server-resent
-                        // prefix to skip. That keeps the cache span's declared range equal to the bytes we
-                        // actually store (per DownloadFile the file position IS the format's contiguous byte
-                        // offset). A resumed/overlapping segment is left uncached rather than mislabeled.
-                        if (mediaCache != null && !cacheReadOnly && file.length() == header.startRange) {
+                        // Mirror into the player cache only when writable (a download is read-only), the
+                        // file is exactly at the segment's start and the response carries the segment from
+                        // its first byte — a fresh, full write with no prefix to skip. That keeps the cache
+                        // span's declared range equal to the bytes we actually store (per DownloadFile the
+                        // file position IS the format's contiguous byte offset). A resumed/overlapping
+                        // segment is left uncached rather than mislabeled.
+                        if (mediaCache != null && !cacheReadOnly && header.dataOffset == 0L &&
+                            file.length() == header.startRange
+                        ) {
                             state.cacheFill = mediaCache.openSegmentFill(header)
                         }
                         open[header.headerId] = state
@@ -388,7 +391,8 @@ class SabrSession(
                         if (advanced) completed++
                         val h = state.header
                         note(
-                            "    itag ${h.itag} seg ${h.segmentIndex} [${h.startRange}+${h.contentLength}] got=${state.totalRead} " +
+                            "    itag ${h.itag} seg ${h.segmentIndex} [${h.startRange}+${h.contentLength}] " +
+                                "off=${h.dataOffset} got=${state.totalRead} " +
                                 "file=${state.file.length()} " +
                                 when {
                                     state.beyondFileEnd -> "beyond-file-end"
@@ -461,7 +465,7 @@ class SabrSession(
             return
         }
         val fileEnd = state.file.length()
-        val partStart = state.header.startRange + state.totalRead
+        val partStart = state.header.startRange + state.header.dataOffset + state.totalRead
         val partEnd = partStart + dataSize
         if (fileEnd in partStart until partEnd) {
             val skips = fileEnd - partStart
@@ -500,7 +504,7 @@ class SabrSession(
 
     /** The segment counts as complete only once the file holds all of its bytes. */
     private fun PartState.reachedFileEnd(): Boolean {
-        val length = if (header.contentLength > 0) header.contentLength else totalRead
+        val length = if (header.contentLength > 0) header.contentLength else header.dataOffset + totalRead
         return !beyondFileEnd && file.length() >= header.startRange + length
     }
 
@@ -512,7 +516,7 @@ class SabrSession(
         val seeded = seedCursor(segmentIndex, track)
         logger?.log(
             Logger.Level.WARN,
-            "itag ${header.itag} seg ${header.segmentIndex} [${header.startRange}+${header.contentLength}] past file end " +
+            "${header.describe()} past file end " +
                 "${track.file.length()} (${if (fromCache) "cache" else "network"} round); cursor seg ${cursor?.segmentIndex} " +
                 "reseeded to ${seeded?.segmentIndex}\n${roundTrail.joinToString("\n")}",
         )
