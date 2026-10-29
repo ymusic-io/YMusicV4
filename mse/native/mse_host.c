@@ -1765,6 +1765,18 @@ int mse_host_frames(MseHost *h)
     return atomic_load_explicit(&h->frames, memory_order_relaxed);
 }
 
+void mse_host_video_quality(MseHost *h, int *total, int *dropped)
+{
+    int shown = 0, late = 0;
+    if (h) {
+        pthread_mutex_lock(&h->av_mu);
+        mse_av_video_quality(h->av, &shown, &late);
+        pthread_mutex_unlock(&h->av_mu);
+    }
+    *total = shown + late;
+    *dropped = late;
+}
+
 #ifdef __ANDROID__
 int mse_host_audio_session(MseHost *h)
 {

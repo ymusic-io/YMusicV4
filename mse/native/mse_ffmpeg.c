@@ -30,6 +30,7 @@
 #include <math.h>
 #include <pthread.h>
 #include <stdarg.h>
+#include <stdatomic.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stddef.h>
@@ -141,6 +142,10 @@ struct MseAv {
     double v_err_key;
     double v_err_pos;
     char v_err_dec[64];
+    /* getVideoPlaybackQuality: pictures shown, and those dropped for missing their time (decoded
+       too late, or a stale GOP skipped undecoded). Read without a->mu. */
+    atomic_int q_shown;
+    atomic_int q_dropped;
 #ifdef __APPLE__
     void *vt_dec;
     /* Decoded pictures waiting in PTS (display) order. H.264 B-frames are
@@ -201,6 +206,14 @@ typedef struct {
 #if !PRODUCTION
 static int vdbg_n;
 #endif
+
+/* Under show_late the pictures before the playhead are a seek's or a resume's run-up, not drops. */
+static void v_count_dropped(MseAv *a, int n)
+{
+    if (!a->show_late && n > 0)
+        atomic_fetch_add_explicit(&a->q_dropped, n, memory_order_relaxed);
+}
+
 static void vf_resync_key(MseAv *a, double t);
 static void close_video_decoder(MseAv *a);
 #ifdef __ANDROID__
@@ -1627,6 +1640,7 @@ static int pull_mc(MseAv *a, double clock, int *w, int *h, double *pts)
             mc_cost_note_out(a, p);
             mc_hold_drop(a, 0);
             a->mc_n_dropped++;
+            v_count_dropped(a, 1);
         } else {
             mc_hold_drop(a, 1);
             a->mc_n_shown++;
@@ -1675,6 +1689,7 @@ static int pull_mc(MseAv *a, double clock, int *w, int *h, double *pts)
                 mc_cost_note_out(a, p);
                 AMediaCodec_releaseOutputBuffer(a->mc, (size_t)ox, 0);
                 a->mc_n_dropped++;
+                v_count_dropped(a, 1);
                 continue;
             }
             AMediaCodec_releaseOutputBuffer(a->mc, (size_t)ox, 1);
@@ -3682,6 +3697,7 @@ static int vf_skip_stale(MseAv *a, double clock)
         return 0;
     for (i = a->vf.rd; i < next; i++)
         a->vf.f[i].sent = 1;
+    v_count_dropped(a, (int)(next - a->vf.rd));
     a->vf.rd = next;
     a->need_rap[0] = 1;
 #ifdef __ANDROID__
@@ -3964,6 +3980,7 @@ static int vt_q_take(MseAv *a, double clock, int *w, int *h, double *pts, VShow 
         }
         if (p < clock - late) {
             mse_vt_pb_release(pb);
+            v_count_dropped(a, 1);
             continue;
         }
         pick_cvpb(a, pb, w, h, s);
@@ -4125,6 +4142,7 @@ static int pull_video(MseAv *a, double clock, int *w, int *h, double *pts, VShow
         if (p < clock - late && !(a->show_late && p >= clock - 0.35)) {
             vlog_state(a, clock, "hold-late", d);
             av_frame_free(&a->vhold);
+            v_count_dropped(a, 1);
         } else if (!a->v_seen_idr) {
             av_frame_free(&a->vhold);
         } else {
@@ -4176,6 +4194,7 @@ static int pull_video(MseAv *a, double clock, int *w, int *h, double *pts, VShow
                 if (vdbg_ok() || d < -0.25)
                     vlog_state(a, clock, "recv-late", d);
                 av_frame_unref(frame);
+                v_count_dropped(a, 1);
                 /* 4K libvpx sits ~0.5s behind. Breaking here never reached
                    the 1s catch-up present → 0fps at clock 18s/25s (log28 20:47). */
                 if (late_skips++ < 8)
@@ -4285,9 +4304,19 @@ int mse_av_pull_video(MseAv *a, double clock, int *w, int *h, double *pts)
         return r;
 #ifdef __APPLE__
     if (s.cvpb)
-        return show_picked(a, &s);
+        r = show_picked(a, &s);
 #endif
-    return s.f ? show_picked(a, &s) : r;
+    if (s.f)
+        r = show_picked(a, &s);
+    if (r > 0)
+        atomic_fetch_add_explicit(&a->q_shown, 1, memory_order_relaxed);
+    return r;
+}
+
+void mse_av_video_quality(MseAv *a, int *shown, int *dropped)
+{
+    *shown = a ? atomic_load_explicit(&a->q_shown, memory_order_relaxed) : 0;
+    *dropped = a ? atomic_load_explicit(&a->q_dropped, memory_order_relaxed) : 0;
 }
 
 int mse_av_pull_audio(MseAv *a, double clock, double until, int16_t **s16, int *frames, int *rate, int *ch,
