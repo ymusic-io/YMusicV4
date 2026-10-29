@@ -513,6 +513,7 @@ class YMusicApplication : Application() {
                 ),
                 SqlDelightSegmentIndex(driver, now = { System.currentTimeMillis() }),
                 SqlDelightCacheStats(driver),
+                logger = rootLogger.fork("player-cache"),
             )
         }
         val mediaProxyClient = KmpHttpClient.create {
