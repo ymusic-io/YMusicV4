@@ -1771,8 +1771,9 @@ static int mc_try_open(MseAv *a)
 /* sw_only: skip VideoToolbox-hosted `av1` (simulator / vt_fail).
    Prefer libvpx-vp9. Native `vp9` is software-only fallback when the pack
    omitted libvpx (do not attach VT hwaccel: that path SIGILL). */
-static const AVCodec *find_video_codec(enum AVCodecID id, int sw_only)
+static const AVCodec *find_video_codec(const AVCodecParameters *par, int sw_only)
 {
+    enum AVCodecID id = par->codec_id;
     const AVCodec *c;
 #ifdef MSE_LINUX_HW
     if (!sw_only && (id == AV_CODEC_ID_VP9 || id == AV_CODEC_ID_AV1) && mse_hwdev_usable(id)) {
@@ -1782,8 +1783,9 @@ static const AVCodec *find_video_codec(enum AVCodecID id, int sw_only)
     }
 #endif
 #ifdef MSE_WIN_HW
-    /* d3d11va only drives the native decoders; libdav1d / libvpx-vp9 stay software. */
-    if (!sw_only && (id == AV_CODEC_ID_VP9 || id == AV_CODEC_ID_AV1)) {
+    /* d3d11va only drives the native decoders; libdav1d / libvpx-vp9 stay software. Native av1
+       has no software path: only a stream D3D11 takes may pick it. */
+    if (!sw_only && (id == AV_CODEC_ID_VP9 || id == AV_CODEC_ID_AV1) && mse_d3d11_par_ok(par)) {
         c = avcodec_find_decoder_by_name(id == AV_CODEC_ID_VP9 ? "vp9" : "av1");
         if (c && mse_d3d11_can_decode(c))
             return c;
@@ -1977,7 +1979,7 @@ static int open_decoder(MseAv *a, int video, AVCodecParameters *par)
             a->v_reopen = 1;
         }
     }
-    codec = video ? find_video_codec(par->codec_id,
+    codec = video ? find_video_codec(par,
 #ifdef __APPLE__
         par->codec_id == a->vt_fail_id
 #elif defined(MSE_WIN_HW)
@@ -4067,8 +4069,15 @@ static void video_decode_error(MseAv *a, double pts, int err)
     }
 #endif
 #ifdef MSE_WIN_HW
-    /* A removed device fails every codec; the reopen below goes software without a latch. */
-    if (a->vdec && a->vdec->hw_device_ctx && !mse_d3d11_check_lost() && ++a->hw_errs >= 3) {
+    /* ENOSYS: native av1 opened without the device (lost after the pick); the latch makes the
+       reopen below software. A removed device fails every codec; that reopen goes software
+       without a latch. */
+    if (a->vdec && err == AVERROR(ENOSYS) && a->d3d11_fail_id != a->vdec->codec_id) {
+        a->hw_errs = 0;
+        a->d3d11_fail_id = a->vdec->codec_id;
+        mse_critf(MSE_LOG_WARN, "mse-v decode-dead id=%d %s: software from now on",
+                  (int)a->vdec->codec_id, a->vdec->codec ? a->vdec->codec->name : "?");
+    } else if (a->vdec && a->vdec->hw_device_ctx && !mse_d3d11_check_lost() && ++a->hw_errs >= 3) {
         a->hw_errs = 0;
         a->d3d11_fail_id = a->vdec->codec_id;
         mse_critf(MSE_LOG_WARN, "d3d11va rejected id=%d: software from now on",
