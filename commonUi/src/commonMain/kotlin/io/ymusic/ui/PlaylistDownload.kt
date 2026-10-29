@@ -236,7 +236,7 @@ private fun LoadedHeader(session: PlaylistDownloadSession, ready: Pager.State.Re
             FeedChip(pluralStringResource(Res.plurals.playlist_videos_loaded, videos.size, videos.size), selected = false, onClick = null)
             when {
                 ready?.loadingMore == true -> CircularProgressIndicator(Modifier.size(18.dp), color = DesignColors.Accent, strokeWidth = 2.dp)
-                ready?.continuation != null -> FeedChip(stringResource(Res.string.playlist_load_more), selected = true) { session.pager.loadMore() }
+                ready?.continuation != null -> FeedChip(stringResource(Res.string.playlist_load_more), selected = true, choice = false) { session.pager.loadMore() }
             }
             Box(Modifier.weight(1f))
             Box {

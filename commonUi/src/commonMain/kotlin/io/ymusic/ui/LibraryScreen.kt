@@ -1375,7 +1375,7 @@ private val OpenPlaylistSaver = listSaver<Pair<Long, String>?, Any>(
 @Composable
 internal fun LibraryChip(label: String, selected: Boolean, icon: ImageVector? = null, onClick: () -> Unit) {
     val content = if (selected) Color.White else DesignColors.Ink
-    ChipTapArea(onClick) { indication ->
+    ChipTapArea(onClick, selected = selected) { indication ->
         Row(
             Modifier
                 .clip(RoundedCornerShape(999.dp))

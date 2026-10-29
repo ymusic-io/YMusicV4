@@ -173,7 +173,7 @@ private fun LabelValue(label: String, value: String) {
 @Composable
 private fun RateChip(label: String, selected: Boolean, onClick: () -> Unit) {
     val shape = RoundedCornerShape(999.dp)
-    ChipTapArea(onClick) { indication ->
+    ChipTapArea(onClick, selected = selected) { indication ->
         Text(
             label,
             style = TextStyle(
