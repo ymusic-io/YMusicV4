@@ -67,6 +67,7 @@ import androidx.compose.ui.unit.sp
 import io.ymusic.dynamicengine.yt.YtFeedItem
 import io.ymusic.dynamicengine.yt.YtSectionHeader
 import io.ymusic.ui.resources.Res
+import io.ymusic.ui.resources.a11y_downloaded
 import io.ymusic.ui.resources.a11y_kind_album
 import io.ymusic.ui.resources.a11y_kind_channel
 import io.ymusic.ui.resources.a11y_kind_live
@@ -75,11 +76,9 @@ import io.ymusic.ui.resources.a11y_kind_music_video
 import io.ymusic.ui.resources.a11y_kind_playlist
 import io.ymusic.ui.resources.a11y_kind_video
 import io.ymusic.ui.resources.badge_live
-import io.ymusic.ui.resources.cd_album
 import io.ymusic.ui.resources.cd_collapse
 import io.ymusic.ui.resources.cd_expand
 import io.ymusic.ui.resources.cd_more
-import io.ymusic.ui.resources.cd_music_video
 import io.ymusic.ui.resources.cd_view_all
 import io.ymusic.ui.resources.chart_top_music_videos
 import io.ymusic.ui.resources.chart_top_music_videos_daily
@@ -551,7 +550,7 @@ internal fun MoreMenu(actions: ItemActions, modifier: Modifier = Modifier) {
 /**
  * What a screen reader says for a feed card, in place of its children: the kind (the thumbnail
  * is the only visual cue), the title, the length in words (a clock badge reads "five oh three"),
- * then the subtitle.
+ * the subtitle, then the thumbnail's downloaded mark.
  */
 @Composable
 private fun feedItemLabel(item: YtFeedItem): String {
@@ -572,6 +571,7 @@ private fun feedItemLabel(item: YtFeedItem): String {
         item.durationMs?.let { spokenDuration(it) },
         item.itemCount?.takeIf { it !in sub },
         sub,
+        if (isAvailableOffline(item)) stringResource(Res.string.a11y_downloaded) else null,
     ).filter { it.isNotEmpty() }.joinToString(", ")
 }
 
@@ -663,37 +663,40 @@ internal fun Badges(item: YtFeedItem, modifier: Modifier, textSize: Int, iconSiz
             item.itemCount?.let { Text(it, style = badgeText) }
         }
         item.duration != null -> Row(
-            modifier.background(DesignColors.BadgeInk, RoundedCornerShape(3.dp)).padding(horizontal = 5.dp, vertical = 2.dp),
+            modifier.background(DesignColors.BadgeInk, RoundedCornerShape(3.dp)).padding(horizontal = 5.dp, vertical = 2.dp)
+                .spokenAs(
+                    listOfNotNull(
+                        if (item.musicVideo) stringResource(Res.string.a11y_kind_music_video) else null,
+                        spokenLength(item.durationMs, item.duration) ?: item.duration,
+                    ).joinToString(", "),
+                ),
             horizontalArrangement = Arrangement.spacedBy(2.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             // YouTube's music-video mark: the note glyph ahead of the duration.
             if (item.musicVideo) {
-                Icon(
-                    Icons.Outlined.MusicNote,
-                    stringResource(Res.string.cd_music_video),
-                    Modifier.size(iconSize),
-                    tint = Color.White,
-                )
+                Icon(Icons.Outlined.MusicNote, null, Modifier.size(iconSize), tint = Color.White)
             }
             Text(item.duration!!, style = badgeText)
         }
         item.musicVideo -> Icon(
             Icons.Outlined.MusicNote,
-            stringResource(Res.string.cd_music_video),
+            null,
             modifier
                 .background(DesignColors.BadgeInk, RoundedCornerShape(3.dp))
                 .padding(horizontal = 4.dp, vertical = 2.dp)
-                .size(iconSize),
+                .size(iconSize)
+                .spokenAs(stringResource(Res.string.a11y_kind_music_video)),
             tint = Color.White,
         )
         item.album -> Icon(
             Icons.Outlined.Album,
-            stringResource(Res.string.cd_album),
+            null,
             modifier
                 .background(DesignColors.BadgeScrim, RoundedCornerShape(3.dp))
                 .padding(horizontal = 4.dp, vertical = 2.dp)
-                .size(iconSize),
+                .size(iconSize)
+                .spokenAs(stringResource(Res.string.a11y_kind_album)),
             tint = Color.White,
         )
     }
