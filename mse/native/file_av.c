@@ -18,6 +18,7 @@
 #include <libswresample/swresample.h>
 
 #include <pthread.h>
+#include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -39,8 +40,6 @@
 #endif
 #ifdef __APPLE__
 #include <mach/mach_time.h>
-#include "mse_vt_blit.h"
-#include "mse_vt_present.h"
 #endif
 #include "mse_ffmpeg.h"
 
@@ -101,8 +100,6 @@ struct FileAv {
     AVPacket *v_first; /* first packet into the current vdec, until it yields a frame */
 #endif
     int audio_index; /* -1 = first audio */
-    int blit_w;
-    int blit_h;
     double speed;
     AudioFx *fx;
     double hold;
@@ -127,19 +124,17 @@ struct FileAv {
     size_t pcm_n;
     uint8_t *pcm2;
     size_t pcm2_n;
-    VPresenter *cpu;
-    /* Last picture cpu handed back; its sink runs in present_video on the player thread. */
-    const uint8_t *cpu_bgra;
-    int cpu_w, cpu_h;
+    /* mu. present_head shows through a reference taken under it. */
+    VPresenter *vp;
+    atomic_int frames;
     int vw, vh;
     Pq aq, vq;
-    AVFrame *afr, *vfr, *vsw;
+    AVFrame *afr, *vfr;
     AVFrame *vout[VOUT_N];
     int vout_rd, vout_n;
     StreamInfo *streams;
     int nstreams;
 
-    FileAvFrameFn on_frame;
     FileAvPcmFn on_pcm;
     FileAvProgressFn on_prog;
     FileAvEventFn on_event;
@@ -152,13 +147,9 @@ struct FileAv {
         char text[1024];
     } cap_q[8];
 
-#ifdef __APPLE__
-    void *vt_layer;
-#endif
 #ifdef FILE_AV_WIN_HW
-    /* Canvas HWND the JNI attached the D3D11 presenter to (not owned); NULL = CPU blit. */
-    void *d3d11_hwnd;
-    /* The HWND came or went: file_av_step re-checks whether the video decoder runs on D3D11VA. */
+    /* The presenter's D3D11 support changed: file_av_step re-checks whether the video decoder
+       runs on D3D11VA. */
     int reopen_video;
 #endif
 #ifdef FILE_AV_AQ
@@ -323,13 +314,13 @@ static const AVCodec *find_vdec(enum AVCodecID id)
 }
 
 #ifdef FILE_AV_WIN_HW
-/* The native decoder to run on D3D11VA, or NULL for software: only with a Canvas to present
-   into (readback + swscale is slower than software decoding at 4K60). */
+/* The native decoder to run on D3D11VA, or NULL for software: only into a presenter that draws
+   D3D11 textures (readback + swscale is slower than software decoding at 4K60). mu held. */
 static const AVCodec *d3d11_vdec(const FileAv *p, const AVCodecParameters *par)
 {
     const char *name;
     const AVCodec *c;
-    if (!p || !p->d3d11_hwnd || !mse_d3d11_par_ok(par))
+    if (!p || !vpresent_zero_copy(p->vp, AV_PIX_FMT_D3D11) || !mse_d3d11_par_ok(par))
         return NULL;
     switch (par->codec_id) {
     case AV_CODEC_ID_H264:
@@ -415,7 +406,7 @@ static AVCodecContext *open_codec(FileAv *p, AVStream *st, int video)
             }
         }
 #ifdef FILE_AV_WIN_HW
-        /* The mse host's process-wide device. file_av_step reopens when the HWND comes or goes. */
+        /* The mse host's process-wide device. file_av_step reopens when the presenter changes. */
         if (d3d11_codec) {
             AVBufferRef *dev = mse_d3d11_hwdev_ref();
             if (dev) {
@@ -502,10 +493,7 @@ static void drop_video_state_locked(FileAv *p)
     pq_clear(&p->vq);
     vout_clear(p);
     av_frame_unref(p->vfr);
-#ifdef __APPLE__
-    if (p->vt_layer)
-        mse_vt_flush(p->vt_layer);
-#endif
+    vpresent_flush(p->vp, p);
     p->dec_drain = 0;
     p->last_vpts = -1;
     p->v_need_key = 1;
@@ -551,7 +539,6 @@ static void free_codecs(FileAv *p)
     swr_free(&p->swr_speed);
     p->swr_speed_in = 0;
     pq_clear(&p->aq);
-    av_frame_free(&p->vsw);
 }
 
 static double pkt_pts_sec(const FileAv *p, const AVPacket *pkt)
@@ -960,141 +947,6 @@ static int ensure_speed_swr(FileAv *p, double speed)
     av_channel_layout_uninit(&ch);
     p->swr_speed_in = in_rate;
     return 0;
-}
-
-#ifdef __APPLE__
-static AVFrame *sw_video_frame(FileAv *p, AVFrame *fr)
-{
-    const AVPixFmtDescriptor *d;
-    if (!fr)
-        return NULL;
-    if (!fr->hw_frames_ctx)
-        return fr;
-    if (!p->vsw)
-        p->vsw = av_frame_alloc();
-    if (!p->vsw)
-        return NULL;
-    av_frame_unref(p->vsw);
-    if (av_hwframe_transfer_data(p->vsw, fr, 0) < 0)
-        return NULL;
-    p->vsw->pts = fr->pts;
-    p->vsw->best_effort_timestamp = fr->best_effort_timestamp;
-    p->vsw->colorspace = fr->colorspace;
-    p->vsw->color_range = fr->color_range;
-    p->vsw->color_primaries = fr->color_primaries;
-    p->vsw->color_trc = fr->color_trc;
-    d = av_pix_fmt_desc_get((enum AVPixelFormat)p->vsw->format);
-    if (d && (d->flags & AV_PIX_FMT_FLAG_HWACCEL))
-        return NULL;
-    return p->vsw;
-}
-
-static int present_vt(FileAv *p, AVFrame *fr)
-{
-    void *layer = p->vt_layer;
-    if (!layer || !fr->data[3] || mse_vt_show(layer, fr->data[3], fr->width, fr->height) != 0)
-        return -1;
-    p->vw = fr->width;
-    p->vh = fr->height;
-    if (p->on_frame)
-        p->on_frame(p->user, fr->width, fr->height, NULL);
-    return 0;
-}
-
-static unsigned sw_cv_fmt(enum AVPixelFormat f)
-{
-    if (f == AV_PIX_FMT_YUV420P || f == AV_PIX_FMT_YUVJ420P)
-        return MSE_VT_BLIT_YUV420;
-    if (f == AV_PIX_FMT_NV12)
-        return MSE_VT_BLIT_NV12;
-    return 0;
-}
-
-static int present_sw_vt(FileAv *p, AVFrame *fr)
-{
-    unsigned fmt = sw_cv_fmt((enum AVPixelFormat)fr->format);
-    void *layer = p->vt_layer;
-    if (!fmt || !layer ||
-        mse_vt_show_sw(layer, fmt, (const uint8_t *const *)fr->data, fr->linesize, fr->width,
-                       fr->height) != 0)
-        return -1;
-    p->vw = fr->width;
-    p->vh = fr->height;
-    if (p->on_frame)
-        p->on_frame(p->user, fr->width, fr->height, NULL);
-    return 0;
-}
-#endif
-
-#ifdef FILE_AV_WIN_HW
-/* Zero-copy present: hand the decoder's AV_PIX_FMT_D3D11 texture straight to the
-   swapchain the JAWT bridge opened on p->d3d11_hwnd. 0 also when the frame is dropped
-   because the swapchain is gone or another engine's. */
-static int present_d3d11(FileAv *p, AVFrame *fr)
-{
-    AVStream *st = (p->fmt && p->v_st >= 0) ? p->fmt->streams[p->v_st] : NULL;
-    ID3D11Texture2D *tex;
-    UINT slice;
-    int rc;
-    if (!p->d3d11_hwnd || fr->format != AV_PIX_FMT_D3D11 || !fr->data[0])
-        return -1;
-    tex = (ID3D11Texture2D *)fr->data[0];
-    slice = (UINT)(uintptr_t)fr->data[1];
-    rc = mse_d3d11_present_show(tex, slice, fr->width, fr->height,
-                                vp_color_of(fr, st ? st->codecpar : NULL), p);
-    if (rc == -2)
-        return 0;
-    if (rc != 0)
-        return -1;
-    p->vw = fr->width;
-    p->vh = fr->height;
-    if (p->on_frame)
-        p->on_frame(p->user, fr->width, fr->height, NULL);
-    return 0;
-}
-#endif
-
-static void cpu_frame(void *user, int w, int h, const uint8_t *bgra)
-{
-    FileAv *p = user;
-    p->cpu_bgra = bgra;
-    p->cpu_w = w;
-    p->cpu_h = h;
-}
-
-static int present_cpu(FileAv *p, AVFrame *fr)
-{
-    AVStream *st = (p->fmt && p->v_st >= 0) ? p->fmt->streams[p->v_st] : NULL;
-    if (vpresent_show_frame(p->cpu, p, fr, vp_color_of(fr, st ? st->codecpar : NULL)) != VP_OK)
-        return -1;
-    /* The native size: the UI sizes the hole from it, so the fitted one would feed back. */
-    p->vw = fr->width;
-    p->vh = fr->height;
-    if (p->on_frame)
-        p->on_frame(p->user, p->cpu_w, p->cpu_h, p->cpu_bgra);
-    return 0;
-}
-
-static int present_video(FileAv *p, AVFrame *fr)
-{
-    if (!p->want_video)
-        return 0;
-#ifdef __APPLE__
-    if (p->vt_layer) {
-        if ((fr->format == AV_PIX_FMT_VIDEOTOOLBOX || fr->hw_frames_ctx || fr->data[3]) &&
-            present_vt(p, fr) == 0)
-            return 0;
-        fr = sw_video_frame(p, fr);
-        if (!fr || fr->width <= 0 || fr->height <= 0 || !fr->data[0])
-            return -1;
-        return present_sw_vt(p, fr);
-    }
-#endif
-#ifdef FILE_AV_WIN_HW
-    if (fr->format == AV_PIX_FMT_D3D11 && present_d3d11(p, fr) == 0)
-        return 0;
-#endif
-    return present_cpu(p, fr);
 }
 
 #ifdef FILE_AV_AQ
@@ -1578,28 +1430,31 @@ static void set_idle(FileAv *p, double sec)
     p->idle_ns = ns;
 }
 
-static int hole_ready(const FileAv *p)
-{
-#ifdef __APPLE__
-    if (p->vt_layer)
-        return 1;
-#endif
-    return p->blit_w > 0 || p->blit_h > 0;
-}
-
 static int present_head(FileAv *p)
 {
     AVFrame *fr = vout_head(p);
     AVStream *st = (p->fmt && p->v_st >= 0) ? p->fmt->streams[p->v_st] : NULL;
+    VPresenter *vp = p->vp;
+    VpColor c;
+    int show = p->want_video, r;
     double pts;
     if (!fr)
         return 0;
     pts = frame_pts(st, fr, 0);
+    c = vp_color_of(fr, st ? st->codecpar : NULL);
     p->idle_ns = 0;
     p->last_vpts = pts;
+    vpresent_retain(vp);
     pthread_mutex_unlock(&p->mu);
-    present_video(p, fr);
+    r = show ? vpresent_show_frame(vp, p, fr, c) : VP_DROPPED;
+    vpresent_release(vp);
     pthread_mutex_lock(&p->mu);
+    if (r == VP_OK) {
+        /* The native size: the UI sizes the hole from it. */
+        p->vw = fr->width;
+        p->vh = fr->height;
+        atomic_fetch_add(&p->frames, 1);
+    }
     if (p->playing && p->origin_ns == 0)
         p->origin_ns = now_ns();
     vout_pop(p);
@@ -1615,7 +1470,7 @@ static int pump_video(FileAv *p, double clock)
     int drops;
     if (!p->vdec || !p->want_video)
         return 0;
-    if (!hole_ready(p)) {
+    if (!p->vp) {
         set_idle(p, 0.004);
         return 0;
     }
@@ -1843,23 +1698,17 @@ int file_av_step(FileAv *p)
 
 FileAv *file_av_create(void)
 {
-    VpSink sink = { .on_frame = cpu_frame };
     FileAv *p = calloc(1, sizeof(*p));
     if (!p)
         return NULL;
     pthread_mutex_init(&p->mu, NULL);
     pthread_cond_init(&p->cv, NULL);
-    sink.user = p;
-    p->cpu = vpresent_create_cpu(&sink);
-    vpresent_bind(p->cpu, p);
     p->speed = 1.0;
     p->fx = audio_fx_create();
     p->want_video = 1;
     p->v_need_key = 0;
     p->audio_index = -1;
     p->last_vpts = -1;
-    p->blit_w = 0;
-    p->blit_h = 0;
     p->a_st = p->v_st = p->s_st = -1;
     p->subtitle_index = -1;
     p->afr = av_frame_alloc();
@@ -1910,17 +1759,11 @@ void file_av_destroy(FileAv *p)
     stop_aq(p);
 #endif
     file_av_close(p);
-#ifdef __APPLE__
-    if (p->vt_layer) {
-        mse_vt_detach(p->vt_layer);
-        p->vt_layer = NULL;
-    }
-    mse_vt_release_component(p, NULL);
-#endif
+    vpresent_unbind(p->vp, p);
+    vpresent_release(p->vp);
+    p->vp = NULL;
     av_frame_free(&p->afr);
     av_frame_free(&p->vfr);
-    av_frame_free(&p->vsw);
-    vpresent_release(p->cpu);
     free(p->pcm);
     free(p->pcm2);
     for (i = 0; i < VOUT_N; i++)
@@ -2016,10 +1859,6 @@ void file_av_close(FileAv *p)
     p->nstreams = 0;
     p->a_st = p->v_st = p->s_st = -1;
     p->vw = p->vh = 0;
-#ifdef __APPLE__
-    if (p->vt_layer)
-        mse_vt_flush(p->vt_layer);
-#endif
     pthread_mutex_unlock(&p->mu);
 }
 
@@ -2291,55 +2130,31 @@ void file_av_set_video_enabled(FileAv *p, int on)
     pthread_mutex_unlock(&p->mu);
 }
 
-void file_av_set_blit_max(FileAv *p, int max_height)
+void file_av_bind_presenter(FileAv *p, VPresenter *vp)
 {
-    file_av_set_blit_size(p, 0, max_height);
-}
-
-void file_av_set_blit_size(FileAv *p, int w, int h)
-{
-    int nw, nh;
+    VPresenter *old;
     if (!p)
         return;
+    /* Before present_head can see it, so its first picture is not dropped. */
+    vpresent_bind(vp, p);
+    vpresent_retain(vp);
     pthread_mutex_lock(&p->mu);
-    nw = w > 0 ? w : 0;
-    nh = h > 0 ? h : 0;
-    p->blit_w = nw;
-    p->blit_h = nh;
-    pthread_mutex_unlock(&p->mu);
-    vpresent_set_size(p->cpu, nw, nh);
-    mse_critf(MSE_LOG_INFO, "file-av blit-size %dx%d", nw, nh);
-}
-
-#ifdef __APPLE__
-void file_av_set_video_layer(FileAv *p, void *layer)
-{
-    void *old;
-    if (!p)
-        return;
-    pthread_mutex_lock(&p->mu);
-    old = p->vt_layer;
-    p->vt_layer = layer;
-    pthread_mutex_unlock(&p->mu);
-    if (old && old != layer)
-        mse_vt_detach(old);
-    mse_vt_release_component(p, layer);
-}
-
-#endif
-
+    old = p->vp;
+    p->vp = vp;
 #ifdef FILE_AV_WIN_HW
-void file_av_set_video_hwnd(FileAv *p, void *hwnd)
-{
-    if (!p)
-        return;
-    pthread_mutex_lock(&p->mu);
-    if ((p->d3d11_hwnd == NULL) != (hwnd == NULL))
+    if (vpresent_zero_copy(old, AV_PIX_FMT_D3D11) != vpresent_zero_copy(vp, AV_PIX_FMT_D3D11))
         p->reopen_video = 1;
-    p->d3d11_hwnd = hwnd;
-    pthread_mutex_unlock(&p->mu);
-}
 #endif
+    pthread_mutex_unlock(&p->mu);
+    if (old != vp)
+        vpresent_unbind(old, p);
+    vpresent_release(old);
+}
+
+int file_av_frames(FileAv *p)
+{
+    return p ? atomic_load(&p->frames) : 0;
+}
 
 /* audio_fx applies it at the pull; also setting the AudioQueue volume would square the gain. */
 void file_av_set_volume(FileAv *p, double vol)
@@ -2495,14 +2310,12 @@ int file_av_stream_at(FileAv *p, int i, int *kind, int *index, int *w, int *h,
     return 0;
 }
 
-void file_av_set_sinks(FileAv *p, FileAvFrameFn on_frame, FileAvPcmFn on_pcm,
-                       FileAvProgressFn on_prog, FileAvEventFn on_event,
-                       FileAvCaptionFn on_caption, void *user)
+void file_av_set_sinks(FileAv *p, FileAvPcmFn on_pcm, FileAvProgressFn on_prog,
+                       FileAvEventFn on_event, FileAvCaptionFn on_caption, void *user)
 {
     if (!p)
         return;
     pthread_mutex_lock(&p->mu);
-    p->on_frame = on_frame;
     p->on_pcm = on_pcm;
     p->on_prog = on_prog;
     p->on_event = on_event;

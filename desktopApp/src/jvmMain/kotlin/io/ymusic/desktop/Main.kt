@@ -108,8 +108,8 @@ import io.ymusic.mediastore.model.BucketDraft
 import io.ymusic.mse.DesktopVideoSurface
 import io.ymusic.mse.FileAvNative
 import io.ymusic.mse.PresentMode
+import io.ymusic.mse.VideoEngine
 import io.ymusic.player.LocalPlayerContext
-import io.ymusic.player.LocalVideoSurface
 import io.ymusic.player.PlaybackStatus
 import io.ymusic.player.PlayerEngines
 import io.ymusic.player.createLocalPlayer
@@ -217,7 +217,6 @@ import java.awt.event.ComponentEvent
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import java.awt.image.BufferedImage
-import java.awt.image.DataBufferInt
 import java.io.File
 import javax.swing.JPanel
 import javax.swing.SwingUtilities
@@ -851,7 +850,7 @@ private suspend fun buildGraph(settings: AppStoreSettings, session: CookieSessio
         variantIndex = DiskVariantIndex(FileSystem.SYSTEM, File(dataDir, "image-variants").absolutePath.toPath()),
     ).also { loaderRef = it }
 
-    val localSurface = LocalVideoSurface()
+    val localVideo = DesktopVideoSurface()
     val mseSurface = io.ymusic.mse.MseVideoSurface(DesktopVideoSurface())
 
     // Player cache: SABR miss is forwarded and teed to disk so re-plays/downloads reuse it.
@@ -894,7 +893,7 @@ private suspend fun buildGraph(settings: AppStoreSettings, session: CookieSessio
     val player = withContext(Dispatchers.Main) {
         createPlayer(
             PlayerEngines(
-                local = { createLocalPlayer(LocalPlayerContext(localSurface, resolveFfmpeg())) },
+                local = { createLocalPlayer(LocalPlayerContext(localVideo, resolveFfmpeg())) },
                 youtube = {
                     io.ymusic.player.mse.MsePlayer.create(
                         client = http.engine,
@@ -1081,7 +1080,7 @@ private suspend fun buildGraph(settings: AppStoreSettings, session: CookieSessio
         openDocument = { _ -> pickOpenFile()?.let { file -> withContext(Dispatchers.IO) { FileSystem.SYSTEM.source(file.toOkioPath()) } } },
         windowResizing = windowResizing,
     ) { modifier ->
-        DesktopPlayerSurface(localSurface, mseSurface, windowResizing, player.status, modifier)
+        DesktopPlayerSurface(localVideo, mseSurface, windowResizing, player.status, modifier)
     }
 }
 
@@ -1094,7 +1093,7 @@ private val panelSwapScope = kotlinx.coroutines.CoroutineScope(
  * every attach re-creates the Canvas peer (a new HWND, hence a decoder reopen and an audio glitch).
  */
 private fun wirePlayerSurfacesOnce(
-    localSurface: LocalVideoSurface,
+    localVideo: DesktopVideoSurface,
     mseSurface: io.ymusic.mse.MseVideoSurface,
 ) {
     if (!playerSurfaceWired.compareAndSet(false, true)) return
@@ -1104,43 +1103,41 @@ private fun wirePlayerSurfacesOnce(
             SwingUtilities.invokeLater { VideoOverlayNative.poke() }
         }
     }
-    val mseVideo = mseSurface.video
-    sharedMsePanel.video = mseVideo
-    sharedMsePanel.onPainted = { mseVideo.painting = it }
-    mseVideo.onCpuFrame = { sharedMsePanel.setImage(it) }
-    sharedMsePanel.onPeer = { mseVideo.setCanvas(it) }
-    panelSwapScope.launch {
-        mseVideo.mode.collect { mode ->
-            SwingUtilities.invokeLater { sharedMsePanel.setHardware(mode == PresentMode.GPU) }
-        }
-    }
-    sharedLocalPanel.onPainted = { localSurface.swingShown = it }
-    localSurface.swingBlit = { sharedLocalPanel.setImage(it) }
-    sharedLocalPanel.onPeer = { localSurface.nativePeer = it }
-    sharedLocalPanel.extraSnapshot = {
-        localSurface.swingShown?.let { copyRgb(it) }
-    }
-    localSurface.onNativePresent = { sharedLocalPanel.setHardware(it) }
+    wirePanel(sharedMsePanel, mseSurface.video)
+    wirePanel(sharedLocalPanel, localVideo)
     // Swaps only when the engine does (local file <-> YouTube MSE), never on a view switch.
     panelSwapScope.launch {
-        localSurface.visible.collect { visible ->
+        localVideo.active.collect { engine ->
             SwingUtilities.invokeLater {
-                videoUnderlay.attach(if (visible) sharedLocalPanel else sharedMsePanel)
+                videoUnderlay.attach(if (engine == VideoEngine.LOCAL) sharedLocalPanel else sharedMsePanel)
             }
+        }
+    }
+}
+
+private fun wirePanel(panel: MseVideoPanel, video: DesktopVideoSurface) {
+    panel.video = video
+    panel.onPainted = { video.painting = it }
+    video.onCpuFrame = { panel.setImage(it) }
+    panel.onPeer = { video.setCanvas(it) }
+    panelSwapScope.launch {
+        video.mode.collect { mode ->
+            SwingUtilities.invokeLater { panel.setHardware(mode == PresentMode.GPU) }
         }
     }
 }
 
 @Composable
 private fun DesktopPlayerSurface(
-    localSurface: LocalVideoSurface,
+    localVideo: DesktopVideoSurface,
     mseSurface: io.ymusic.mse.MseVideoSurface,
     windowResizing: MutableStateFlow<Boolean>,
     playbackStatus: kotlinx.coroutines.flow.StateFlow<PlaybackStatus>,
     modifier: Modifier,
 ) {
-    wirePlayerSurfacesOnce(localSurface, mseSurface)
-    val localVisible by localSurface.visible.collectAsState()
+    wirePlayerSurfacesOnce(localVideo, mseSurface)
+    val activeEngine by localVideo.active.collectAsState()
+    val localVisible = activeEngine == VideoEngine.LOCAL
     val status by playbackStatus.collectAsState()
     val msePanel = sharedMsePanel
     val localPanel = sharedLocalPanel
@@ -1169,7 +1166,7 @@ private fun DesktopPlayerSurface(
             .onSizeChanged {
                 if (it.width > 0 && it.height > 0) {
                     mseSurface.setBlitSize(it.width, it.height)
-                    localSurface.setBlitSize(it.width, it.height)
+                    localVideo.setSize(it.width, it.height)
                 }
             }
             .onGloballyPositioned { coords ->
@@ -1234,10 +1231,8 @@ private class MseVideoPanel : JPanel(BorderLayout()) {
 
     @Volatile var onPeer: ((Canvas?) -> Unit)? = null
 
-    /** The presenter surface of this Canvas: overlay layout, hiding and stills go through it when set. */
+    /** The presenter surface of this Canvas: overlay layout, hiding and stills go through it. */
     @Volatile var video: DesktopVideoSurface? = null
-
-    @Volatile var extraSnapshot: (() -> BufferedImage?)? = null
     private val pending = java.util.concurrent.atomic.AtomicBoolean(false)
     private var overlayX = Int.MIN_VALUE
     private var overlayY = Int.MIN_VALUE
@@ -1343,29 +1338,14 @@ private class MseVideoPanel : JPanel(BorderLayout()) {
         overlayY = loc.y
         overlayW = canvas.width
         overlayH = canvas.height
-        val v = video
-        if (v != null) {
-            v.layout(loc.x, loc.y, canvas.width, canvas.height)
-        } else {
-            FileAvNative.layoutVideo(loc.x, loc.y, canvas.width, canvas.height)
-        }
+        video?.layout(loc.x, loc.y, canvas.width, canvas.height)
     }
 
     override fun contains(x: Int, y: Int): Boolean = false
 
     fun captureStill(): BufferedImage? {
         img?.let { return copyRgb(it) }
-        video?.let { return it.snapshot() }
-        val wh = IntArray(2)
-        val bgra = FileAvNative.snapshotOverlay(wh)
-        if (bgra != null && wh[0] > 0 && wh[1] > 0) return bgraToRgb(wh[0], wh[1], bgra)
-        extraSnapshot?.invoke()?.let { return it }
-        return null
-    }
-
-    private fun setOverlayHidden(hidden: Boolean) {
-        val v = video
-        if (v != null) v.setOverlayHidden(hidden) else FileAvNative.setOverlayHidden(hidden)
+        return video?.snapshot()
     }
 
     fun setCovered(covered: Boolean) {
@@ -1373,12 +1353,12 @@ private class MseVideoPanel : JPanel(BorderLayout()) {
         this.covered = covered
         if (covered) {
             val snap = captureStill()
-            setOverlayHidden(true)
+            video?.setOverlayHidden(true)
             hardware = false
             img = snap
             canvas.repaint()
         } else {
-            setOverlayHidden(false)
+            video?.setOverlayHidden(false)
             hardware = nativeLive
             if (nativeLive) img = null
             overlayX = Int.MIN_VALUE
@@ -1413,23 +1393,6 @@ private fun copyRgb(src: BufferedImage): BufferedImage {
     g.drawImage(src, 0, 0, null)
     g.dispose()
     return dst
-}
-
-private fun bgraToRgb(width: Int, height: Int, bgra: ByteArray): BufferedImage {
-    val img = BufferedImage(width, height, BufferedImage.TYPE_INT_RGB)
-    val pixels = (img.raster.dataBuffer as DataBufferInt).data
-    val n = minOf(pixels.size, width * height, bgra.size / 4)
-    var i = 0
-    var p = 0
-    while (i < n) {
-        val b = bgra[p].toInt() and 0xff
-        val g = bgra[p + 1].toInt() and 0xff
-        val r = bgra[p + 2].toInt() and 0xff
-        pixels[i] = (r shl 16) or (g shl 8) or b
-        i++
-        p += 4
-    }
-    return img
 }
 
 /** FileDialog pick + full scan into [store]; returns how it ended, or null when the pick was canceled. */
