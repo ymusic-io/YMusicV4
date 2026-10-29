@@ -244,9 +244,6 @@ int mse_vt_show(void *p, void *cv_pixel_buffer, int w, int h)
     mse_keep_still(pb);
     vt_missed_bg = 0;
     mse_vt_drop_hold();
-#if TARGET_OS_OSX
-    mse_vt_shim_shown(p);
-#endif
     {
         static int shown;
         if (shown < 3) {
@@ -284,12 +281,6 @@ int mse_vt_show_bgra(void *p, const uint8_t *bgra, int w, int h)
     r = mse_vt_show(p, pb, w, h);
     CVPixelBufferRelease(pb);
     return r;
-}
-
-int mse_vt_show_sw(void *p, unsigned cv_pix_fmt,
-                   const uint8_t *const *data, const int *linesize, int w, int h)
-{
-    return mse_vt_show_yuv(p, cv_pix_fmt, data, linesize, w, h, MSE_VT_MATRIX_709);
 }
 
 int mse_vt_show_yuv(void *p, unsigned cv_pix_fmt, const uint8_t *const *data,

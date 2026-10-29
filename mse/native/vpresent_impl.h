@@ -58,16 +58,11 @@ void vpresent_d3d11_device_lost(void);
 
 /* vpresent_vt.c. Takes `overlay` (macOS) on success; NULL leaves it with the caller. */
 VPresenter *vp_vt_create(void *layer, void *overlay, const VpSink *s);
-/* NULL unless p is a VT presenter. */
-void *vp_vt_layer(VPresenter *p);
-void *vp_vt_overlay(VPresenter *p);
 
 #if TARGET_OS_OSX
 /* mse_vt_present.m: a VT presenter's JAWT overlay, a retained opaque handle. Once bound, a failed
    view install turns p CPU; p's destroy unbinds with NULL. */
 void vt_overlay_bind(void *ov, VPresenter *p);
-/* 1 while the view is in the window and not unhosted. */
-int vt_overlay_hosted(void *ov);
 void vt_overlay_layout(void *ov, int x, int y, int w, int h);
 void vt_overlay_set_hidden(void *ov, int hidden);
 /* After vt_overlay_set_hidden(0): shows the view; a presented frame calls it. */

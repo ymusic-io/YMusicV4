@@ -11,7 +11,6 @@
 #import <dlfcn.h>
 #import <math.h>
 #import <pthread.h>
-#import <stdlib.h>
 #import <string.h>
 
 /* Overlay sits on AWTView and takes the hit. Forward mouse-up to Java
@@ -201,7 +200,6 @@ MSE_JNI_MOUSE(scrollWheel)
 @public
     void *_layer; /* CFRetained AVSampleBufferDisplayLayer */
     NSView *_host;
-    int _installed;
     int _unhosted;
     int _deferredShow;
     id _endLiveObs;
@@ -713,7 +711,6 @@ static MseVtOverlay *ov_create(JNIEnv *env, jobject obj, jint x, jint y, jint w,
         [parent addSubview:host];
         host.window.acceptsMouseMovedEvents = YES;
         ov->_host = host;
-        ov->_installed = 1;
         ov_watch_live_resize(ov, host.window);
         mse_critf(MSE_LOG_INFO, "mse-v jawt layer attached %.0fx%.0f @ %.0f,%.0f parent=%s",
                   frame.size.width, frame.size.height, frame.origin.x, frame.origin.y,
@@ -732,12 +729,6 @@ void vt_overlay_bind(void *handle, VPresenter *p)
     pthread_mutex_unlock(&ov->_vpMu);
     if (p && lost)
         vp_gpu_lost(p);
-}
-
-int vt_overlay_hosted(void *handle)
-{
-    MseVtOverlay *ov = (__bridge MseVtOverlay *)handle;
-    return ov && ov->_installed && !ov->_unhosted;
 }
 
 void vt_overlay_layout(void *handle, int x, int y, int w, int h)
@@ -850,152 +841,4 @@ VPresenter *vpresent_create_vt_overlay(void *envp, void *canvas, const VpSink *s
     return overlay_presenter(env, (jobject)canvas, x, y, w, h, s);
 }
 
-/* Owner-token API over one process-wide overlay presenter. Each hold owns a presenter reference;
-   g_shim is the overlay on screen, cleared when its last hold goes. */
-typedef struct ShimHold {
-    struct ShimHold *next;
-    const void *owner;
-    VPresenter *p;
-    int last;
-} ShimHold;
-
-static pthread_mutex_t g_shim_mu = PTHREAD_MUTEX_INITIALIZER;
-static VPresenter *g_shim;
-static ShimHold *g_holds;
-
-/* Caller holds g_shim_mu. p's layer, held by owner; NULL when out of memory. */
-static void *shim_hold_locked(const void *owner, VPresenter *p)
-{
-    ShimHold *h;
-    for (h = g_holds; h; h = h->next) {
-        if (h->owner == owner && h->p == p)
-            return vp_vt_layer(p);
-    }
-    h = calloc(1, sizeof(*h));
-    if (!h)
-        return NULL;
-    vpresent_retain(p);
-    h->owner = owner;
-    h->p = p;
-    h->next = g_holds;
-    g_holds = h;
-    return vp_vt_layer(p);
-}
-
-static VPresenter *shim_current(void)
-{
-    VPresenter *p;
-    pthread_mutex_lock(&g_shim_mu);
-    p = g_shim;
-    vpresent_retain(p);
-    pthread_mutex_unlock(&g_shim_mu);
-    return p;
-}
-
-void *mse_vt_attach_component(void *envp, void *component, const void *owner)
-{
-    JNIEnv *env = (JNIEnv *)envp;
-    jobject obj = (jobject)component;
-    jint jx = 0, jy = 0, jw = 0, jh = 0;
-    VPresenter *p, *old = NULL;
-    void *layer = NULL;
-
-    if (!env || !obj)
-        return NULL;
-    mse_bind_mouse_jni(env);
-    if (mse_java_screen_rect(env, obj, &jx, &jy, &jw, &jh) != 0) {
-        pthread_mutex_lock(&g_shim_mu);
-        if (g_shim)
-            layer = shim_hold_locked(owner, g_shim);
-        pthread_mutex_unlock(&g_shim_mu);
-        return layer;
-    }
-    p = shim_current();
-    if (p && vt_overlay_hosted(vp_vt_overlay(p))) {
-        vpresent_vt_layout(p, jx, jy, jw, jh);
-        pthread_mutex_lock(&g_shim_mu);
-        if (g_shim == p)
-            layer = shim_hold_locked(owner, p);
-        pthread_mutex_unlock(&g_shim_mu);
-        vpresent_release(p);
-        return layer;
-    }
-    vpresent_release(p);
-    p = overlay_presenter(env, obj, jx, jy, jw, jh, NULL);
-    if (!p)
-        return NULL;
-    pthread_mutex_lock(&g_shim_mu);
-    layer = shim_hold_locked(owner, p);
-    if (layer) {
-        old = g_shim;
-        g_shim = p;
-    }
-    pthread_mutex_unlock(&g_shim_mu);
-    if (old)
-        vpresent_detach(old);
-    if (!layer)
-        vpresent_detach(p);
-    vpresent_release(p);
-    return layer;
-}
-
-void mse_vt_release_component(const void *owner, const void *keep)
-{
-    ShimHold **it, *h, *o, *gone = NULL;
-    pthread_mutex_lock(&g_shim_mu);
-    it = &g_holds;
-    while ((h = *it) != NULL) {
-        if (h->owner != owner || (keep && vp_vt_layer(h->p) == keep)) {
-            it = &h->next;
-            continue;
-        }
-        *it = h->next;
-        h->next = gone;
-        gone = h;
-    }
-    for (h = gone; h; h = h->next) {
-        h->last = 1;
-        for (o = g_holds; o; o = o->next) {
-            if (o->p == h->p) {
-                h->last = 0;
-                break;
-            }
-        }
-        if (h->last && g_shim == h->p)
-            g_shim = NULL;
-    }
-    pthread_mutex_unlock(&g_shim_mu);
-    while (gone) {
-        h = gone;
-        gone = h->next;
-        if (h->last)
-            vpresent_detach(h->p);
-        vpresent_release(h->p);
-        free(h);
-    }
-}
-
-void mse_vt_shim_shown(void *layer)
-{
-    VPresenter *p = shim_current();
-    if (!p)
-        return;
-    if (vp_vt_layer(p) == layer)
-        vt_overlay_reveal(vp_vt_overlay(p));
-    vpresent_release(p);
-}
-
-void mse_vt_set_overlay_hidden(int hid)
-{
-    VPresenter *p = shim_current();
-    vpresent_vt_set_hidden(p, hid);
-    vpresent_release(p);
-}
-
-void mse_vt_layout_screen(int x, int y, int w, int h)
-{
-    VPresenter *p = shim_current();
-    vpresent_vt_layout(p, x, y, w, h);
-    vpresent_release(p);
-}
 #endif

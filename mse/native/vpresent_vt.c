@@ -193,16 +193,10 @@ VPresenter *vpresent_create_vt_layer(void *layer, const VpSink *s)
     return vp_vt_create(layer, NULL, s);
 }
 
-void *vp_vt_layer(VPresenter *p)
+static void *vp_vt_layer(VPresenter *p)
 {
     VtPresent *v = vt_of(p);
     return v ? v->layer : NULL;
-}
-
-void *vp_vt_overlay(VPresenter *p)
-{
-    VtPresent *v = vt_of(p);
-    return v ? v->overlay : NULL;
 }
 
 void vpresent_vt_layout(VPresenter *p, int x, int y, int w, int h)

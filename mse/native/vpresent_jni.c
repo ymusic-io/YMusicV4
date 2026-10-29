@@ -9,7 +9,7 @@
 #include <string.h>
 
 #ifdef _WIN32
-#include "mse_d3d11.h"
+#include <windows.h>
 #include <jawt.h>
 #include <jawt_md.h>
 #endif
@@ -158,7 +158,7 @@ static int bind_jawt(void)
     return 1;
 }
 
-HWND mse_d3d11_jawt_hwnd(JNIEnv *env, jobject component)
+static HWND jawt_hwnd(JNIEnv *env, jobject component)
 {
     JAWT awt;
     JAWT_DrawingSurface *ds;
@@ -242,7 +242,7 @@ Java_io_ymusic_mse_VideoPresenterNative_create(JNIEnv *env, jclass cls, jobject 
     vs.user = s;
 #if defined(_WIN32)
     if (canvas) {
-        HWND hwnd = mse_d3d11_jawt_hwnd(env, canvas);
+        HWND hwnd = jawt_hwnd(env, canvas);
         if (hwnd)
             p = vpresent_create_d3d11(hwnd, &vs);
     }

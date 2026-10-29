@@ -11,7 +11,6 @@
 #include <libavutil/frame.h>
 #include <libavutil/pixfmt.h>
 
-#include <pthread.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -876,99 +875,6 @@ void vpresent_d3d11_device_lost(void)
         vpresent_release(lost[i]);
     }
     free(lost);
-}
-
-/* Owner-token API over one process-wide presenter. */
-static pthread_mutex_t g_shim_mu = PTHREAD_MUTEX_INITIALIZER;
-static VPresenter *g_shim;
-static const void *g_shim_owner;
-
-/* Caller holds g_shim_mu. */
-static int shim_on(HWND hwnd)
-{
-    D3dPresent *d;
-    int on;
-    if (!g_shim)
-        return 0;
-    d = g_shim->impl;
-    mse_d3d11_lock();
-    on = d->hwnd == hwnd && d->swap;
-    mse_d3d11_unlock();
-    return on;
-}
-
-int mse_d3d11_present_attach(HWND hwnd, const void *owner)
-{
-    VPresenter *p;
-    int ok = 0;
-    if (!hwnd || !mse_d3d11_device() || mse_d3d11_lost())
-        return 0;
-    pthread_mutex_lock(&g_shim_mu);
-    if (shim_on(hwnd)) {
-        vpresent_unbind(g_shim, g_shim_owner);
-        vpresent_bind(g_shim, owner);
-        g_shim_owner = owner;
-        pthread_mutex_unlock(&g_shim_mu);
-        return 1;
-    }
-    if (g_shim) {
-        vpresent_detach(g_shim);
-        vpresent_release(g_shim);
-        g_shim = NULL;
-        g_shim_owner = NULL;
-    }
-    p = vpresent_create_d3d11(hwnd, NULL);
-    if (p) {
-        vpresent_bind(p, owner);
-        g_shim = p;
-        g_shim_owner = owner;
-        ok = 1;
-    }
-    pthread_mutex_unlock(&g_shim_mu);
-    return ok;
-}
-
-void mse_d3d11_present_detach(const void *owner)
-{
-    pthread_mutex_lock(&g_shim_mu);
-    if (g_shim && g_shim_owner == owner) {
-        vpresent_detach(g_shim);
-        vpresent_release(g_shim);
-        g_shim = NULL;
-        g_shim_owner = NULL;
-    }
-    pthread_mutex_unlock(&g_shim_mu);
-}
-
-int mse_d3d11_present_show(ID3D11Texture2D *tex, UINT array_slice, int src_w, int src_h,
-                           VpColor c, const void *owner)
-{
-    D3D11_TEXTURE2D_DESC td;
-    VPresenter *p;
-    AVFrame f;
-    int r;
-    if (!mse_d3d11_device() || !mse_d3d11_context() || mse_d3d11_lost())
-        return -2;
-    if (!tex)
-        return -1;
-    if (!texture_nv12(tex, &td))
-        return -1;
-    pthread_mutex_lock(&g_shim_mu);
-    p = g_shim;
-    if (p)
-        vpresent_retain(p);
-    pthread_mutex_unlock(&g_shim_mu);
-    if (!p)
-        return -2;
-    memset(&f, 0, sizeof(f));
-    f.format = AV_PIX_FMT_D3D11;
-    f.data[0] = (uint8_t *)tex;
-    f.data[1] = (uint8_t *)(uintptr_t)array_slice;
-    f.width = src_w;
-    f.height = src_h;
-    r = vpresent_show_frame(p, owner, &f, c);
-    vpresent_release(p);
-    return r == VP_OK ? 0 : r == VP_DROPPED ? -2 : -1;
 }
 
 #endif /* _WIN32 */
