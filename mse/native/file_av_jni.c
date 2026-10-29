@@ -409,10 +409,13 @@ Java_io_ymusic_mse_FileAvNative_setVideoComponent(JNIEnv *env, jclass cls, jlong
 {
     (void)cls;
 #ifdef __APPLE__
+    FileAv *p = (FileAv *)(intptr_t)handle;
     void *layer = NULL;
+    if (!p)
+        return JNI_FALSE;
     if (component)
-        layer = mse_vt_attach_component(env, component);
-    file_av_set_video_layer((FileAv *)(intptr_t)handle, layer);
+        layer = mse_vt_attach_component(env, component, p);
+    file_av_set_video_layer(p, layer);
     return layer ? JNI_TRUE : JNI_FALSE;
 #elif defined(_WIN32)
     FileAv *p = (FileAv *)(intptr_t)handle;

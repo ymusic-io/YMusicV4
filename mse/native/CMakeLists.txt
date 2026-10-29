@@ -121,7 +121,8 @@ if(WIN32)
 endif()
 
 if(APPLE)
-  target_sources(mseffmpegjni PRIVATE mse_vt_present.m mse_vt_layer.m mse_vt_dec.m mse_vt_blit.c)
+  target_sources(mseffmpegjni PRIVATE
+    mse_vt_present.m mse_vt_layer.m mse_vt_dec.m mse_vt_blit.c vpresent_vt.c)
   set_source_files_properties(mse_vt_present.m mse_vt_layer.m mse_vt_dec.m PROPERTIES COMPILE_FLAGS "-fobjc-arc")
   # JAWT is dlopen'd at runtime (System.loadLibrary("jawt")). Do not link libjawt:
   # its install name is @rpath/libjawt.dylib and the JVM, not this DSO, owns that rpath.

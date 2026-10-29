@@ -1915,6 +1915,7 @@ void file_av_destroy(FileAv *p)
         mse_vt_detach(p->vt_layer);
         p->vt_layer = NULL;
     }
+    mse_vt_release_component(p, NULL);
 #endif
     av_frame_free(&p->afr);
     av_frame_free(&p->vfr);
@@ -2322,6 +2323,7 @@ void file_av_set_video_layer(FileAv *p, void *layer)
     pthread_mutex_unlock(&p->mu);
     if (old && old != layer)
         mse_vt_detach(old);
+    mse_vt_release_component(p, layer);
 }
 
 #endif

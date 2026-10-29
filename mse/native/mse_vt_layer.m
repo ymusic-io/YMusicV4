@@ -195,14 +195,6 @@ void mse_vt_detach(void *p)
     layer = (__bridge AVSampleBufferDisplayLayer *)p;
     [layer flushAndRemoveImage];
     mse_vt_drop_hold();
-#if TARGET_OS_OSX
-    /* JAWT overlay retains the layer; iOS Kotlin owns it and must not CFRelease. */
-    if (p == mse_vt_jawt_layer) {
-        mse_vt_jawt_layer = NULL;
-        mse_vt_jawt_unhost();
-        CFRelease(p);
-    }
-#endif
 }
 
 int mse_vt_show(void *p, void *cv_pixel_buffer, int w, int h)
@@ -253,7 +245,7 @@ int mse_vt_show(void *p, void *cv_pixel_buffer, int w, int h)
     vt_missed_bg = 0;
     mse_vt_drop_hold();
 #if TARGET_OS_OSX
-    mse_vt_reveal_overlay();
+    mse_vt_shim_shown(p);
 #endif
     {
         static int shown;
@@ -297,7 +289,14 @@ int mse_vt_show_bgra(void *p, const uint8_t *bgra, int w, int h)
 int mse_vt_show_sw(void *p, unsigned cv_pix_fmt,
                    const uint8_t *const *data, const int *linesize, int w, int h)
 {
+    return mse_vt_show_yuv(p, cv_pix_fmt, data, linesize, w, h, MSE_VT_MATRIX_709);
+}
+
+int mse_vt_show_yuv(void *p, unsigned cv_pix_fmt, const uint8_t *const *data,
+                    const int *linesize, int w, int h, int matrix)
+{
     CVPixelBufferRef pb = NULL;
+    CFStringRef ycbcr, primaries;
     size_t nplane, i, y;
     int r;
     if (!p || !data || !linesize || w <= 0 || h <= 0)
@@ -306,10 +305,24 @@ int mse_vt_show_sw(void *p, unsigned cv_pix_fmt,
                             (OSType)cv_pix_fmt, NULL, &pb) != kCVReturnSuccess ||
         !pb)
         return -1;
-    CVBufferSetAttachment(pb, kCVImageBufferYCbCrMatrixKey,
-                          kCVImageBufferYCbCrMatrix_ITU_R_709_2, kCVAttachmentMode_ShouldPropagate);
-    CVBufferSetAttachment(pb, kCVImageBufferColorPrimariesKey,
-                          kCVImageBufferColorPrimaries_ITU_R_709_2, kCVAttachmentMode_ShouldPropagate);
+    switch (matrix) {
+    case MSE_VT_MATRIX_601:
+        ycbcr = kCVImageBufferYCbCrMatrix_ITU_R_601_4;
+        primaries = kCVImageBufferColorPrimaries_SMPTE_C;
+        break;
+    case MSE_VT_MATRIX_2020:
+        ycbcr = kCVImageBufferYCbCrMatrix_ITU_R_2020;
+        primaries = kCVImageBufferColorPrimaries_ITU_R_2020;
+        break;
+    default:
+        ycbcr = kCVImageBufferYCbCrMatrix_ITU_R_709_2;
+        primaries = kCVImageBufferColorPrimaries_ITU_R_709_2;
+        break;
+    }
+    CVBufferSetAttachment(pb, kCVImageBufferYCbCrMatrixKey, ycbcr,
+                          kCVAttachmentMode_ShouldPropagate);
+    CVBufferSetAttachment(pb, kCVImageBufferColorPrimariesKey, primaries,
+                          kCVAttachmentMode_ShouldPropagate);
     CVBufferSetAttachment(pb, kCVImageBufferTransferFunctionKey,
                           kCVImageBufferTransferFunction_ITU_R_709_2, kCVAttachmentMode_ShouldPropagate);
     CVPixelBufferLockBaseAddress(pb, 0);

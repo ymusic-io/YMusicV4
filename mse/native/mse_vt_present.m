@@ -1,6 +1,7 @@
 #ifdef __APPLE__
 #import "mse_vt_present.h"
 #import "mse_ffmpeg.h"
+#import "vpresent_impl.h"
 #import <jni.h>
 #import <jawt.h>
 #import <jawt_md.h>
@@ -9,14 +10,9 @@
 #import <QuartzCore/QuartzCore.h>
 #import <dlfcn.h>
 #import <math.h>
+#import <pthread.h>
+#import <stdlib.h>
 #import <string.h>
-
-void *mse_vt_jawt_layer;
-static NSView *mse_vt_jawt_view;
-static id mse_end_live_obs;
-static NSWindow *mse_live_win;
-static int mse_pending_layout;
-static int mse_px, mse_py, mse_pw, mse_ph;
 
 /* Overlay sits on AWTView and takes the hit. Forward mouse-up to Java
    (FileAvNative.onOverlayMouse) so the desktop shell can toggle chrome.
@@ -30,7 +26,6 @@ static id mse_fs_exit_obs;
 static id mse_fs_resize_obs;
 static id mse_fs_move_obs;
 static unsigned mse_fs_gen;
-static int mse_overlay_deferred_show;
 
 static void mse_bind_mouse_jni(JNIEnv *env)
 {
@@ -60,30 +55,6 @@ static void mse_bind_mouse_jni(JNIEnv *env)
         if (!mse_fs_mid && (*env)->ExceptionCheck(env))
             (*env)->ExceptionClear(env);
     }
-}
-
-static void mse_clear_live_obs(void);
-static void mse_apply_host_frame(int x, int y, int w, int h);
-
-static void mse_watch_live_resize(NSWindow *win)
-{
-    if (!win)
-        return;
-    if (mse_live_win == win && mse_end_live_obs)
-        return;
-    mse_clear_live_obs();
-    mse_live_win = win;
-    mse_end_live_obs = [NSNotificationCenter.defaultCenter
-        addObserverForName:NSWindowDidEndLiveResizeNotification
-                    object:win
-                     queue:nil
-                usingBlock:^(NSNotification *note) {
-                    (void)note;
-                    if (mse_pending_layout) {
-                        mse_pending_layout = 0;
-                        mse_apply_host_frame(mse_px, mse_py, mse_pw, mse_ph);
-                    }
-                }];
 }
 
 static jint mse_awt_mods(NSEvent *e)
@@ -224,29 +195,43 @@ MSE_JNI_MOUSE(scrollWheel)
 #undef MSE_JNI_MOUSE
 @end
 
-static NSRect mse_screen_to_view(NSView *parent, jint x, jint y, jint w, jint h);
+/* One Canvas's overlay: an AVSampleBufferDisplayLayer in an MseVtHostView. _host and the
+   live-resize fields are main-thread only. */
+@interface MseVtOverlay : NSObject {
+@public
+    void *_layer; /* CFRetained AVSampleBufferDisplayLayer */
+    NSView *_host;
+    int _installed;
+    int _unhosted;
+    int _deferredShow;
+    id _endLiveObs;
+    NSWindow *_liveWin;
+    int _pendingLayout;
+    int _px, _py, _pw, _ph;
+    pthread_mutex_t _vpMu;
+    VPresenter *_vp; /* _vpMu */
+    int _lost;       /* _vpMu */
+}
+@end
 
-static void mse_clear_live_obs(void)
+@implementation MseVtOverlay
+- (instancetype)init
 {
-    if (!mse_end_live_obs)
-        return;
-    [NSNotificationCenter.defaultCenter removeObserver:mse_end_live_obs];
-    mse_end_live_obs = nil;
-    mse_live_win = nil;
+    self = [super init];
+    if (self)
+        pthread_mutex_init(&_vpMu, NULL);
+    return self;
 }
 
-static void mse_apply_host_frame(int x, int y, int w, int h)
+- (void)dealloc
 {
-    NSView *host = mse_vt_jawt_view;
-    NSView *parent = host.superview;
-    NSRect frame;
-    if (!host || !parent)
-        return;
-    frame = mse_screen_to_view(parent, x, y, w, h);
-    if (NSEqualRects(host.frame, frame))
-        return;
-    host.frame = frame;
+    if (_endLiveObs)
+        [NSNotificationCenter.defaultCenter removeObserver:_endLiveObs];
+    if (_layer)
+        CFRelease(_layer);
+    pthread_mutex_destroy(&_vpMu);
 }
+@end
 
 static jboolean (*mse_jawt_get_awt)(JNIEnv *, JAWT *);
 
@@ -286,57 +271,6 @@ static int jawt_bind(void)
 static void mse_on_main(void (^block)(void))
 {
     dispatch_async(dispatch_get_main_queue(), block);
-}
-
-void mse_vt_jawt_unhost(void)
-{
-    NSView *v = mse_vt_jawt_view;
-    mse_vt_jawt_view = nil;
-    mse_pending_layout = 0;
-    mse_clear_live_obs();
-    if (!v)
-        return;
-    mse_on_main(^{
-        [v removeFromSuperview];
-    });
-}
-
-void mse_vt_set_overlay_hidden(int hid)
-{
-    NSView *v = mse_vt_jawt_view;
-    if (hid) {
-        mse_overlay_deferred_show = 0;
-        if (!v)
-            return;
-        if ([NSThread isMainThread])
-            v.hidden = YES;
-        else
-            mse_on_main(^{
-                v.hidden = YES;
-            });
-        return;
-    }
-    /* Stay hidden until mse_vt_reveal_overlay (next presented frame). */
-    mse_overlay_deferred_show = 1;
-}
-
-void mse_vt_reveal_overlay(void)
-{
-    NSView *v;
-    if (!mse_overlay_deferred_show)
-        return;
-    mse_overlay_deferred_show = 0;
-    v = mse_vt_jawt_view;
-    if (!v)
-        return;
-    if ([NSThread isMainThread])
-        v.hidden = NO;
-    else
-        mse_on_main(^{
-            NSView *host = mse_vt_jawt_view;
-            if (host)
-                host.hidden = NO;
-        });
 }
 
 static NSView *mse_content_view(CALayer *wl);
@@ -635,54 +569,138 @@ static NSRect mse_screen_to_view(NSView *parent, jint x, jint y, jint w, jint h)
     return [parent convertRect:win fromView:nil];
 }
 
-void mse_vt_layout_screen(int x, int y, int w, int h)
+static void ov_clear_live_obs(MseVtOverlay *ov)
 {
-    if (w <= 0 || h <= 0)
+    if (!ov->_endLiveObs)
         return;
-    /* Always async: inlining on main from AWT doLayout set the NSView frame,
-       which re-entered AWT layout (~300% CPU). Skip while the user is dragging
-       the window edge — apply once on NSWindowDidEndLiveResize. */
-    dispatch_async(dispatch_get_main_queue(), ^{
-        NSView *host = mse_vt_jawt_view;
-        NSWindow *win;
-        if (!host)
-            return;
-        win = host.window;
-        mse_watch_live_resize(win);
-        if (win && win.inLiveResize) {
-            mse_px = x;
-            mse_py = y;
-            mse_pw = w;
-            mse_ph = h;
-            mse_pending_layout = 1;
-            return;
-        }
-        mse_pending_layout = 0;
-        mse_apply_host_frame(x, y, w, h);
-    });
+    [NSNotificationCenter.defaultCenter removeObserver:ov->_endLiveObs];
+    ov->_endLiveObs = nil;
+    ov->_liveWin = nil;
 }
 
-static void *mse_vt_host_new(CALayer *wl, CALayer *canvas_layer, jint x, jint y, jint w, jint h)
+static void ov_apply_host_frame(MseVtOverlay *ov, int x, int y, int w, int h)
 {
+    NSView *host = ov->_host;
+    NSView *parent = host.superview;
+    NSRect frame;
+    if (!host || !parent)
+        return;
+    frame = mse_screen_to_view(parent, x, y, w, h);
+    if (NSEqualRects(host.frame, frame))
+        return;
+    host.frame = frame;
+}
+
+static void ov_watch_live_resize(MseVtOverlay *ov, NSWindow *win)
+{
+    __weak MseVtOverlay *weak = ov;
+    if (!win)
+        return;
+    if (ov->_liveWin == win && ov->_endLiveObs)
+        return;
+    ov_clear_live_obs(ov);
+    ov->_liveWin = win;
+    ov->_endLiveObs = [NSNotificationCenter.defaultCenter
+        addObserverForName:NSWindowDidEndLiveResizeNotification
+                    object:win
+                     queue:nil
+                usingBlock:^(NSNotification *note) {
+                    MseVtOverlay *o = weak;
+                    (void)note;
+                    if (o && o->_pendingLayout) {
+                        o->_pendingLayout = 0;
+                        ov_apply_host_frame(o, o->_px, o->_py, o->_pw, o->_ph);
+                    }
+                }];
+}
+
+/* Main thread: the view could not be installed, so the presenter paints on the CPU. */
+static void ov_lost(MseVtOverlay *ov)
+{
+    VPresenter *p = NULL;
+    pthread_mutex_lock(&ov->_vpMu);
+    ov->_lost = 1;
+    if (ov->_vp && vp_retain_live(ov->_vp))
+        p = ov->_vp;
+    pthread_mutex_unlock(&ov->_vpMu);
+    if (!p)
+        return;
+    vp_gpu_lost(p);
+    vpresent_release(p);
+}
+
+static MseVtOverlay *ov_create(JNIEnv *env, jobject obj, jint x, jint y, jint w, jint h)
+{
+    jclass canvas;
+    JAWT awt;
+    JAWT_DrawingSurface *ds;
+    JAWT_DrawingSurfaceInfo *dsi;
+    id<JAWT_SurfaceLayers> sl;
+    CALayer *wl;
     AVSampleBufferDisplayLayer *layer;
-    void *retained;
+    MseVtOverlay *ov;
+
+    if (!jawt_bind())
+        return nil;
+    canvas = (*env)->FindClass(env, "java/awt/Canvas");
+    if (!canvas || !(*env)->IsInstanceOf(env, obj, canvas)) {
+        mse_critf(MSE_LOG_WARN, "mse-v jawt not a Canvas");
+        if ((*env)->ExceptionCheck(env))
+            (*env)->ExceptionClear(env);
+        return nil;
+    }
+    memset(&awt, 0, sizeof(awt));
+    awt.version = JAWT_VERSION_1_7;
+    if (mse_jawt_get_awt(env, &awt) == JNI_FALSE) {
+        mse_critf(MSE_LOG_WARN, "mse-v jawt GetAWT failed");
+        return nil;
+    }
+    ds = awt.GetDrawingSurface(env, obj);
+    if (!ds) {
+        mse_critf(MSE_LOG_WARN, "mse-v jawt GetDrawingSurface failed");
+        return nil;
+    }
+    if ((ds->Lock(ds) & JAWT_LOCK_ERROR) != 0) {
+        mse_critf(MSE_LOG_WARN, "mse-v jawt Lock failed");
+        awt.FreeDrawingSurface(ds);
+        return nil;
+    }
+    dsi = ds->GetDrawingSurfaceInfo(ds);
+    if (!dsi || !dsi->platformInfo) {
+        mse_critf(MSE_LOG_WARN, "mse-v jawt GetDrawingSurfaceInfo failed");
+        ds->Unlock(ds);
+        awt.FreeDrawingSurface(ds);
+        return nil;
+    }
+    sl = (__bridge id<JAWT_SurfaceLayers>)dsi->platformInfo;
+    if (!mse_is_surface_layers(sl)) {
+        mse_critf(MSE_LOG_WARN, "mse-v jawt platformInfo is not SurfaceLayers");
+        ds->FreeDrawingSurfaceInfo(dsi);
+        ds->Unlock(ds);
+        awt.FreeDrawingSurface(ds);
+        return nil;
+    }
+    wl = sl.windowLayer;
+    ds->FreeDrawingSurfaceInfo(dsi);
+    ds->Unlock(ds);
+    awt.FreeDrawingSurface(ds);
 
     layer = [AVSampleBufferDisplayLayer layer];
     layer.videoGravity = AVLayerVideoGravityResizeAspect;
     layer.backgroundColor = CGColorGetConstantColor(kCGColorBlack);
     layer.actions = @{ @"contents": [NSNull null], @"bounds": [NSNull null], @"frame": [NSNull null] };
-    retained = (void *)CFBridgingRetain(layer);
-    if (mse_vt_jawt_layer && mse_vt_jawt_layer != retained)
-        mse_vt_detach(mse_vt_jawt_layer);
-    mse_vt_jawt_layer = retained;
+    ov = [[MseVtOverlay alloc] init];
+    ov->_layer = (void *)CFBridgingRetain(layer);
     mse_on_main(^{
-        NSView *parent = mse_content_view(wl);
+        NSView *parent;
         NSView *host;
         NSRect frame;
-        if (mse_vt_jawt_layer != retained)
+        if (ov->_unhosted)
             return;
+        parent = mse_content_view(wl);
         if (!parent) {
             mse_critf(MSE_LOG_WARN, "mse-v jawt no content view");
+            ov_lost(ov);
             return;
         }
         /* Child of AWTView: the picture is visible. A sibling under AWTView is a
@@ -691,90 +709,293 @@ static void *mse_vt_host_new(CALayer *wl, CALayer *canvas_layer, jint x, jint y,
         frame = mse_screen_to_view(parent, x, y, w, h);
         host = [[MseVtHostView alloc] initWithFrame:frame];
         host.wantsLayer = YES;
-        host.layer = (__bridge AVSampleBufferDisplayLayer *)retained;
+        host.layer = (__bridge AVSampleBufferDisplayLayer *)ov->_layer;
         [parent addSubview:host];
         host.window.acceptsMouseMovedEvents = YES;
-        mse_vt_jawt_view = host;
-        mse_watch_live_resize(host.window);
-        (void)canvas_layer;
+        ov->_host = host;
+        ov->_installed = 1;
+        ov_watch_live_resize(ov, host.window);
         mse_critf(MSE_LOG_INFO, "mse-v jawt layer attached %.0fx%.0f @ %.0f,%.0f parent=%s",
-                 frame.size.width, frame.size.height, frame.origin.x, frame.origin.y,
-                 parent.className.UTF8String ?: "?");
+                  frame.size.width, frame.size.height, frame.origin.x, frame.origin.y,
+                  parent.className.UTF8String ?: "?");
     });
-    return retained;
+    return ov;
 }
 
-void *mse_vt_attach_component(void *envp, void *component)
+void vt_overlay_bind(void *handle, VPresenter *p)
+{
+    MseVtOverlay *ov = (__bridge MseVtOverlay *)handle;
+    int lost;
+    pthread_mutex_lock(&ov->_vpMu);
+    ov->_vp = p;
+    lost = ov->_lost;
+    pthread_mutex_unlock(&ov->_vpMu);
+    if (p && lost)
+        vp_gpu_lost(p);
+}
+
+int vt_overlay_hosted(void *handle)
+{
+    MseVtOverlay *ov = (__bridge MseVtOverlay *)handle;
+    return ov && ov->_installed && !ov->_unhosted;
+}
+
+void vt_overlay_layout(void *handle, int x, int y, int w, int h)
+{
+    MseVtOverlay *ov = (__bridge MseVtOverlay *)handle;
+    if (w <= 0 || h <= 0)
+        return;
+    /* Always async: inlining on main from AWT doLayout set the NSView frame,
+       which re-entered AWT layout (~300% CPU). Skip while the user is dragging
+       the window edge — apply once on NSWindowDidEndLiveResize. */
+    dispatch_async(dispatch_get_main_queue(), ^{
+        NSView *host = ov->_host;
+        NSWindow *win;
+        if (!host)
+            return;
+        win = host.window;
+        ov_watch_live_resize(ov, win);
+        if (win && win.inLiveResize) {
+            ov->_px = x;
+            ov->_py = y;
+            ov->_pw = w;
+            ov->_ph = h;
+            ov->_pendingLayout = 1;
+            return;
+        }
+        ov->_pendingLayout = 0;
+        ov_apply_host_frame(ov, x, y, w, h);
+    });
+}
+
+void vt_overlay_set_hidden(void *handle, int hid)
+{
+    MseVtOverlay *ov = (__bridge MseVtOverlay *)handle;
+    if (!hid) {
+        /* Stays hidden until vt_overlay_reveal (next presented frame). */
+        ov->_deferredShow = 1;
+        return;
+    }
+    ov->_deferredShow = 0;
+    if ([NSThread isMainThread])
+        ov->_host.hidden = YES;
+    else
+        mse_on_main(^{
+            ov->_host.hidden = YES;
+        });
+}
+
+void vt_overlay_reveal(void *handle)
+{
+    MseVtOverlay *ov = (__bridge MseVtOverlay *)handle;
+    if (!ov->_deferredShow)
+        return;
+    ov->_deferredShow = 0;
+    if ([NSThread isMainThread])
+        ov->_host.hidden = NO;
+    else
+        mse_on_main(^{
+            ov->_host.hidden = NO;
+        });
+}
+
+void vt_overlay_unhost(void *handle)
+{
+    MseVtOverlay *ov = (__bridge MseVtOverlay *)handle;
+    if (ov->_unhosted)
+        return;
+    ov->_unhosted = 1;
+    mse_on_main(^{
+        NSView *v = ov->_host;
+        ov->_host = nil;
+        ov->_pendingLayout = 0;
+        ov_clear_live_obs(ov);
+        [v removeFromSuperview];
+    });
+}
+
+void vt_overlay_release(void *handle)
+{
+    if (handle)
+        CFRelease(handle);
+}
+
+static VPresenter *overlay_presenter(JNIEnv *env, jobject obj, jint x, jint y, jint w, jint h,
+                                     const VpSink *s)
+{
+    MseVtOverlay *ov = ov_create(env, obj, x, y, w, h);
+    void *handle;
+    VPresenter *p;
+    if (!ov)
+        return NULL;
+    handle = (void *)CFBridgingRetain(ov);
+    p = vp_vt_create(ov->_layer, handle, s);
+    if (!p) {
+        vt_overlay_unhost(handle);
+        vt_overlay_release(handle);
+    }
+    return p;
+}
+
+VPresenter *vpresent_create_vt_overlay(void *envp, void *canvas, const VpSink *s)
+{
+    JNIEnv *env = (JNIEnv *)envp;
+    jint x = 0, y = 0, w = 0, h = 0;
+    if (!env || !canvas)
+        return NULL;
+    mse_bind_mouse_jni(env);
+    /* Not on screen yet: an empty frame until vpresent_vt_layout. */
+    if (mse_java_screen_rect(env, (jobject)canvas, &x, &y, &w, &h) != 0)
+        x = y = w = h = 0;
+    return overlay_presenter(env, (jobject)canvas, x, y, w, h, s);
+}
+
+/* Owner-token API over one process-wide overlay presenter. Each hold owns a presenter reference;
+   g_shim is the overlay on screen, cleared when its last hold goes. */
+typedef struct ShimHold {
+    struct ShimHold *next;
+    const void *owner;
+    VPresenter *p;
+    int last;
+} ShimHold;
+
+static pthread_mutex_t g_shim_mu = PTHREAD_MUTEX_INITIALIZER;
+static VPresenter *g_shim;
+static ShimHold *g_holds;
+
+/* Caller holds g_shim_mu. p's layer, held by owner; NULL when out of memory. */
+static void *shim_hold_locked(const void *owner, VPresenter *p)
+{
+    ShimHold *h;
+    for (h = g_holds; h; h = h->next) {
+        if (h->owner == owner && h->p == p)
+            return vp_vt_layer(p);
+    }
+    h = calloc(1, sizeof(*h));
+    if (!h)
+        return NULL;
+    vpresent_retain(p);
+    h->owner = owner;
+    h->p = p;
+    h->next = g_holds;
+    g_holds = h;
+    return vp_vt_layer(p);
+}
+
+static VPresenter *shim_current(void)
+{
+    VPresenter *p;
+    pthread_mutex_lock(&g_shim_mu);
+    p = g_shim;
+    vpresent_retain(p);
+    pthread_mutex_unlock(&g_shim_mu);
+    return p;
+}
+
+void *mse_vt_attach_component(void *envp, void *component, const void *owner)
 {
     JNIEnv *env = (JNIEnv *)envp;
     jobject obj = (jobject)component;
-    jclass canvas;
-    JAWT awt;
-    JAWT_DrawingSurface *ds;
-    JAWT_DrawingSurfaceInfo *dsi;
-    id<JAWT_SurfaceLayers> sl;
-    CALayer *wl;
     jint jx = 0, jy = 0, jw = 0, jh = 0;
-    void *retained;
+    VPresenter *p, *old = NULL;
+    void *layer = NULL;
 
     if (!env || !obj)
         return NULL;
     mse_bind_mouse_jni(env);
-    if (mse_java_screen_rect(env, obj, &jx, &jy, &jw, &jh) != 0)
-        return mse_vt_jawt_layer;
-    if (mse_vt_jawt_layer && mse_vt_jawt_view) {
-        mse_vt_layout_screen(jx, jy, jw, jh);
-        return mse_vt_jawt_layer;
+    if (mse_java_screen_rect(env, obj, &jx, &jy, &jw, &jh) != 0) {
+        pthread_mutex_lock(&g_shim_mu);
+        if (g_shim)
+            layer = shim_hold_locked(owner, g_shim);
+        pthread_mutex_unlock(&g_shim_mu);
+        return layer;
     }
-    if (!jawt_bind())
+    p = shim_current();
+    if (p && vt_overlay_hosted(vp_vt_overlay(p))) {
+        vpresent_vt_layout(p, jx, jy, jw, jh);
+        pthread_mutex_lock(&g_shim_mu);
+        if (g_shim == p)
+            layer = shim_hold_locked(owner, p);
+        pthread_mutex_unlock(&g_shim_mu);
+        vpresent_release(p);
+        return layer;
+    }
+    vpresent_release(p);
+    p = overlay_presenter(env, obj, jx, jy, jw, jh, NULL);
+    if (!p)
         return NULL;
-    canvas = (*env)->FindClass(env, "java/awt/Canvas");
-    if (!canvas || !(*env)->IsInstanceOf(env, obj, canvas)) {
-        mse_critf(MSE_LOG_WARN, "mse-v jawt not a Canvas");
-        if ((*env)->ExceptionCheck(env))
-            (*env)->ExceptionClear(env);
-        return NULL;
+    pthread_mutex_lock(&g_shim_mu);
+    layer = shim_hold_locked(owner, p);
+    if (layer) {
+        old = g_shim;
+        g_shim = p;
     }
-    memset(&awt, 0, sizeof(awt));
-    awt.version = JAWT_VERSION_1_7;
-    if (mse_jawt_get_awt(env, &awt) == JNI_FALSE) {
-        mse_critf(MSE_LOG_WARN, "mse-v jawt GetAWT failed");
-        return NULL;
+    pthread_mutex_unlock(&g_shim_mu);
+    if (old)
+        vpresent_detach(old);
+    if (!layer)
+        vpresent_detach(p);
+    vpresent_release(p);
+    return layer;
+}
+
+void mse_vt_release_component(const void *owner, const void *keep)
+{
+    ShimHold **it, *h, *o, *gone = NULL;
+    pthread_mutex_lock(&g_shim_mu);
+    it = &g_holds;
+    while ((h = *it) != NULL) {
+        if (h->owner != owner || (keep && vp_vt_layer(h->p) == keep)) {
+            it = &h->next;
+            continue;
+        }
+        *it = h->next;
+        h->next = gone;
+        gone = h;
     }
-    ds = awt.GetDrawingSurface(env, obj);
-    if (!ds) {
-        mse_critf(MSE_LOG_WARN, "mse-v jawt GetDrawingSurface failed");
-        return NULL;
+    for (h = gone; h; h = h->next) {
+        h->last = 1;
+        for (o = g_holds; o; o = o->next) {
+            if (o->p == h->p) {
+                h->last = 0;
+                break;
+            }
+        }
+        if (h->last && g_shim == h->p)
+            g_shim = NULL;
     }
-    if ((ds->Lock(ds) & JAWT_LOCK_ERROR) != 0) {
-        mse_critf(MSE_LOG_WARN, "mse-v jawt Lock failed");
-        awt.FreeDrawingSurface(ds);
-        return NULL;
+    pthread_mutex_unlock(&g_shim_mu);
+    while (gone) {
+        h = gone;
+        gone = h->next;
+        if (h->last)
+            vpresent_detach(h->p);
+        vpresent_release(h->p);
+        free(h);
     }
-    dsi = ds->GetDrawingSurfaceInfo(ds);
-    if (!dsi || !dsi->platformInfo) {
-        mse_critf(MSE_LOG_WARN, "mse-v jawt GetDrawingSurfaceInfo failed");
-        ds->Unlock(ds);
-        awt.FreeDrawingSurface(ds);
-        return NULL;
-    }
-    sl = (__bridge id<JAWT_SurfaceLayers>)dsi->platformInfo;
-    if (!mse_is_surface_layers(sl)) {
-        mse_critf(MSE_LOG_WARN, "mse-v jawt platformInfo is not SurfaceLayers");
-        ds->FreeDrawingSurfaceInfo(dsi);
-        ds->Unlock(ds);
-        awt.FreeDrawingSurface(ds);
-        return NULL;
-    }
-    wl = sl.windowLayer;
-    {
-        CALayer *cl = sl.layer;
-        ds->FreeDrawingSurfaceInfo(dsi);
-        ds->Unlock(ds);
-        awt.FreeDrawingSurface(ds);
-        retained = mse_vt_host_new(wl, cl, jx, jy, jw, jh);
-        return retained;
-    }
-    return retained;
+}
+
+void mse_vt_shim_shown(void *layer)
+{
+    VPresenter *p = shim_current();
+    if (!p)
+        return;
+    if (vp_vt_layer(p) == layer)
+        vt_overlay_reveal(vp_vt_overlay(p));
+    vpresent_release(p);
+}
+
+void mse_vt_set_overlay_hidden(int hid)
+{
+    VPresenter *p = shim_current();
+    vpresent_vt_set_hidden(p, hid);
+    vpresent_release(p);
+}
+
+void mse_vt_layout_screen(int x, int y, int w, int h)
+{
+    VPresenter *p = shim_current();
+    vpresent_vt_layout(p, x, y, w, h);
+    vpresent_release(p);
 }
 #endif

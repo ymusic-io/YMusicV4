@@ -527,7 +527,7 @@ Java_io_ymusic_mse_MseHostNative_setVideoComponent(JNIEnv *env, jclass cls, jlon
     if (!h)
         return JNI_FALSE;
     if (component)
-        layer = mse_vt_attach_component(env, component);
+        layer = mse_vt_attach_component(env, component, h);
     mse_host_set_video_surface(h, layer);
     return layer ? JNI_TRUE : JNI_FALSE;
 }

@@ -24,6 +24,7 @@
 #define MSE_AQ 1
 #endif
 #ifdef __APPLE__
+#include <TargetConditionals.h>
 #include <mach/mach_time.h>
 #include <os/log.h>
 #include <sys/sysctl.h>
@@ -1307,6 +1308,9 @@ void mse_host_destroy(MseHost *h)
         mse_vt_detach(h->window);
         h->window = NULL;
     }
+#if TARGET_OS_OSX
+    mse_vt_release_component(h, NULL);
+#endif
 #endif
 #ifdef _WIN32
     mse_d3d11_present_detach(h);
@@ -1350,6 +1354,9 @@ void mse_host_set_video_surface(MseHost *h, void *window)
     pthread_mutex_unlock(&h->av_mu);
     if (old && old != window)
         mse_vt_detach(old);
+#if TARGET_OS_OSX
+    mse_vt_release_component(h, window);
+#endif
 #else
     (void)window;
     (void)old;
