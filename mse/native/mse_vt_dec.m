@@ -88,9 +88,11 @@ static int vt_create_session(struct MseVtDec *d)
     spec = CFDictionaryCreateMutable(kCFAllocatorDefault, 1,
                                      &kCFTypeDictionaryKeyCallBacks,
                                      &kCFTypeDictionaryValueCallBacks);
-    /* Enable HW; do not Require it. Simulator / Intel use Apple software VT. */
-    CFDictionarySetValue(spec, kVTVideoDecoderSpecification_EnableHardwareAcceleratedVideoDecoder,
-                         kCFBooleanTrue);
+    /* Enable HW; do not Require it. Simulator / Intel use Apple software VT. iOS before 17 has no
+       such key and decodes in hardware where it can. */
+    if (__builtin_available(macOS 10.9, iOS 17.0, *))
+        CFDictionarySetValue(spec, kVTVideoDecoderSpecification_EnableHardwareAcceleratedVideoDecoder,
+                             kCFBooleanTrue);
     dst = vt_dst_attrs(d->w, d->h);
     cb.decompressionOutputCallback = vt_dec_cb;
     cb.decompressionOutputRefCon = d;
@@ -202,7 +204,8 @@ void *mse_vt_dec_open_vp9(const uint8_t *vpcc, int vpcc_n, int w, int h)
         vpcc = syn;
         vpcc_n = 12;
     }
-    if (__builtin_available(macOS 11.0, iOS 14.0, *)) {
+    /* Without the supplemental decoder (iOS before 26.2) the session may not open: VP9 goes software. */
+    if (__builtin_available(macOS 11.0, iOS 26.2, *)) {
         VTRegisterSupplementalVideoDecoderIfAvailable(kCMVideoCodecType_VP9);
         mse_critf(MSE_LOG_INFO, "mse-v vt-dec vp9 hw=%d",
                  (int)VTIsHardwareDecodeSupported(kCMVideoCodecType_VP9));
