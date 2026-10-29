@@ -240,8 +240,8 @@ private fun LoadedHeader(session: PlaylistDownloadSession, ready: Pager.State.Re
             }
             Box(Modifier.weight(1f))
             Box {
-                IconButton(onClick = { menuOpen = true }) {
-                    Icon(Icons.Default.MoreVert, stringResource(Res.string.cd_more), tint = DesignColors.InkSoft)
+                IconButton(onClick = { menuOpen = true }, modifier = Modifier.a11yActionLabel(stringResource(Res.string.cd_more))) {
+                    Icon(Icons.Default.MoreVert, null, tint = DesignColors.InkSoft)
                 }
                 DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }, containerColor = DesignColors.Surface) {
                     val pickable = videos.filter { !it.live }

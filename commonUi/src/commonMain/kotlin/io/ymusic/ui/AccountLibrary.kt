@@ -50,7 +50,6 @@ import io.ymusic.ui.resources.account_subscriptions
 import io.ymusic.ui.resources.account_switch
 import io.ymusic.ui.resources.account_watch_history
 import io.ymusic.ui.resources.account_watch_later
-import io.ymusic.ui.resources.cd_account_avatar
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -155,7 +154,7 @@ private fun BoxScope.AccountAvatarFallback(name: String?) {
                 style = TextStyle(fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = DesignColors.OnInk),
             )
         } else {
-            Icon(Icons.Filled.Person, stringResource(Res.string.cd_account_avatar), tint = DesignColors.OnInk)
+            Icon(Icons.Filled.Person, null, tint = DesignColors.OnInk)
         }
     }
 }
@@ -167,7 +166,7 @@ private fun AccountCard(account: YtAccountInfo, onSignOut: () -> Unit, onSwitchA
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(13.dp),
     ) {
-        Box(Modifier.size(46.dp)) {
+        Box(Modifier.size(46.dp).a11ySilent()) {
             // The disc only backs the fallback: under the photo its AA edge bleeds through as a dark ring.
             val fallback: @Composable BoxScope.() -> Unit = { AccountAvatarFallback(account.name) }
             if (account.thumbs.isNotEmpty()) ThumbImage(account.thumbs, CircleShape, fallback) else fallback()

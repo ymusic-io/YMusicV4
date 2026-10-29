@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -58,6 +59,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
@@ -499,35 +501,32 @@ private fun RatingPill(state: VideoDetailsState, details: YtVideoDetails) {
         Modifier.clip(RoundedCornerShape(999.dp)).background(DesignColors.SurfaceDim),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        val likeCount = if (liked) details.likeCountLiked ?: details.likeCount else details.likeCount
         Row(
             Modifier
-                .clickable { tap(YtVideoDetails.LIKE) }
+                .toggleable(value = liked, role = Role.Checkbox) { tap(YtVideoDetails.LIKE) }
+                .a11yActionLabel(listOfNotNull(stringResource(Res.string.video_details_like), likeCount).joinToString(", "))
                 .padding(horizontal = DesignSpacing.Space16, vertical = DesignSpacing.Space8),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(DesignSpacing.Space8),
         ) {
-            Icon(
-                if (liked) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp,
-                stringResource(Res.string.video_details_like),
-                Modifier.size(18.dp),
-                tint = ink,
-            )
-            (if (liked) details.likeCountLiked ?: details.likeCount else details.likeCount)?.let {
-                Text(it, style = androidx.compose.ui.text.TextStyle(fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = ink))
+            Icon(if (liked) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp, null, Modifier.size(18.dp), tint = ink)
+            likeCount?.let {
+                Text(
+                    it,
+                    style = androidx.compose.ui.text.TextStyle(fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = ink),
+                    modifier = Modifier.a11ySilent(),
+                )
             }
         }
         Box(Modifier.size(width = 1.dp, height = 20.dp).background(DesignColors.Divider))
         Box(
             Modifier
-                .clickable { tap(YtVideoDetails.DISLIKE) }
+                .toggleable(value = disliked, role = Role.Checkbox) { tap(YtVideoDetails.DISLIKE) }
+                .a11yActionLabel(stringResource(Res.string.video_details_dislike))
                 .padding(horizontal = DesignSpacing.Space16, vertical = DesignSpacing.Space8),
         ) {
-            Icon(
-                if (disliked) Icons.Filled.ThumbDown else Icons.Outlined.ThumbDown,
-                stringResource(Res.string.video_details_dislike),
-                Modifier.size(18.dp),
-                tint = ink,
-            )
+            Icon(if (disliked) Icons.Filled.ThumbDown else Icons.Outlined.ThumbDown, null, Modifier.size(18.dp), tint = ink)
         }
     }
 }
@@ -539,9 +538,10 @@ private fun SharePill(onClick: () -> Unit) {
             .clip(RoundedCornerShape(999.dp))
             .background(DesignColors.SurfaceDim)
             .clickable(onClick = onClick)
+            .a11yActionLabel(stringResource(Res.string.cd_share))
             .padding(horizontal = DesignSpacing.Space16, vertical = DesignSpacing.Space8),
     ) {
-        Icon(Icons.Outlined.Share, stringResource(Res.string.cd_share), Modifier.size(18.dp), tint = DesignColors.Ink)
+        Icon(Icons.Outlined.Share, null, Modifier.size(18.dp), tint = DesignColors.Ink)
     }
 }
 
@@ -693,12 +693,16 @@ private fun CommentField(
             CircularProgressIndicator(Modifier.padding(DesignSpacing.Space8).size(24.dp), strokeWidth = 2.dp)
         } else {
             onCancel?.let {
-                IconButton(onClick = it) {
-                    Icon(Icons.Default.Close, stringResource(Res.string.dialog_cancel), tint = DesignColors.InkSecondary)
+                IconButton(onClick = it, modifier = Modifier.a11yActionLabel(stringResource(Res.string.dialog_cancel))) {
+                    Icon(Icons.Default.Close, null, tint = DesignColors.InkSecondary)
                 }
             }
-            IconButton(onClick = send, enabled = draft.isNotBlank() && draft.trim() != initial) {
-                Icon(Icons.AutoMirrored.Filled.Send, stringResource(Res.string.video_details_post), tint = DesignColors.Accent)
+            IconButton(
+                onClick = send,
+                enabled = draft.isNotBlank() && draft.trim() != initial,
+                modifier = Modifier.a11yActionLabel(stringResource(Res.string.video_details_post)),
+            ) {
+                Icon(Icons.AutoMirrored.Filled.Send, null, tint = DesignColors.Accent)
             }
         }
     }
@@ -826,30 +830,40 @@ private fun CommentActions(state: VideoDetailsState, comment: YtComment, canRepl
             Row(
                 Modifier
                     .clip(RoundedCornerShape(999.dp))
-                    .then(if (canLike) Modifier.clickable { state.rateComment(comment, YtVideoDetails.LIKE) } else Modifier)
+                    .then(
+                        if (canLike) {
+                            Modifier.toggleable(value = liked, role = Role.Checkbox) { state.rateComment(comment, YtVideoDetails.LIKE) }
+                        } else {
+                            Modifier
+                        },
+                    )
+                    .a11yActionLabel(listOfNotNull(stringResource(Res.string.video_details_like), count).joinToString(", "))
                     .padding(vertical = DesignSpacing.Space4, horizontal = if (canLike) DesignSpacing.Space4 else 0.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(DesignSpacing.Space4),
             ) {
                 Icon(
                     if (liked) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp,
-                    stringResource(Res.string.video_details_like),
+                    null,
                     Modifier.size(14.dp),
                     tint = if (liked) DesignColors.Ink else muted,
                 )
-                count?.let { Text(it, style = androidx.compose.ui.text.TextStyle(fontSize = 12.sp, color = muted)) }
+                count?.let {
+                    Text(it, style = androidx.compose.ui.text.TextStyle(fontSize = 12.sp, color = muted), modifier = Modifier.a11ySilent())
+                }
             }
         }
         if (canDislike) {
             Box(
                 Modifier
                     .clip(RoundedCornerShape(999.dp))
-                    .clickable { state.rateComment(comment, YtVideoDetails.DISLIKE) }
+                    .toggleable(value = disliked, role = Role.Checkbox) { state.rateComment(comment, YtVideoDetails.DISLIKE) }
+                    .a11yActionLabel(stringResource(Res.string.video_details_dislike))
                     .padding(DesignSpacing.Space4),
             ) {
                 Icon(
                     if (disliked) Icons.Filled.ThumbDown else Icons.Outlined.ThumbDown,
-                    stringResource(Res.string.video_details_dislike),
+                    null,
                     Modifier.size(14.dp),
                     tint = if (disliked) DesignColors.Ink else muted,
                 )

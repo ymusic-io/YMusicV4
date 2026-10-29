@@ -113,7 +113,7 @@ private fun DrawerHeader(appVersion: String?, premium: Boolean, onCheckUpdate: (
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Image(
                 painterResource(Res.drawable.ymusic_logo),
-                contentDescription = stringResource(Res.string.app_name),
+                contentDescription = null,
                 modifier = Modifier.size(46.dp).clip(RoundedCornerShape(13.dp)),
             )
             Column {

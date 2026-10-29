@@ -917,8 +917,8 @@ private fun FeedSortMenu(options: List<YtChip>, modifier: Modifier = Modifier, o
             ) {
                 Icon(
                     Icons.AutoMirrored.Filled.Sort,
-                    stringResource(Res.string.cd_sort),
-                    Modifier.size(16.dp),
+                    null,
+                    Modifier.size(16.dp).spokenAs(stringResource(Res.string.cd_sort)),
                     tint = DesignColors.InkSoft,
                 )
                 Text(
