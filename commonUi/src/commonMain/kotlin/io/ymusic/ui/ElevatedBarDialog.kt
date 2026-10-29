@@ -151,7 +151,7 @@ fun ElevatedBarDialog(
 }
 
 private fun arrowMovesFocus(event: KeyEvent, focusManager: FocusManager): Boolean {
-    if (event.type != KeyEventType.KeyDown) return false
+    if (event.type != KeyEventType.KeyDown || event.hasCommandModifier) return false
     return when (event.key) {
         Key.DirectionDown -> focusManager.moveFocus(FocusDirection.Next)
         Key.DirectionUp -> focusManager.moveFocus(FocusDirection.Previous)
