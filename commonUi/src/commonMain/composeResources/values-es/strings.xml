@@ -23,6 +23,10 @@
     <string name="downloads_none_title">Aún no hay descargas</string>
     <string name="downloads_none_message">Las canciones y los vídeos descargados se reproducen sin conexión.</string>
     <string name="downloads_failed">Error en la descarga</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Mostrar en Finder</string>
+    <string name="menu_reveal_explorer">Mostrar en el Explorador de archivos</string>
+    <string name="menu_reveal_file_manager">Mostrar en el gestor de archivos</string>
     <string name="section_settings">Ajustes</string>
     <string name="section_donate">Donar</string>
     <string name="section_feedback">Comentarios</string>

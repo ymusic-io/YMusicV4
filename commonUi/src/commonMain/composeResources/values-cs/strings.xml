@@ -23,6 +23,10 @@
     <string name="downloads_none_title">Zatím žádná stahování</string>
     <string name="downloads_none_message">Stažené skladby a videa se přehrávají offline.</string>
     <string name="downloads_failed">Stahování se nezdařilo</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Zobrazit ve Finderu</string>
+    <string name="menu_reveal_explorer">Zobrazit v Průzkumníku souborů</string>
+    <string name="menu_reveal_file_manager">Zobrazit ve správci souborů</string>
     <string name="section_settings">Nastavení</string>
     <string name="section_donate">Podpořit</string>
     <string name="section_feedback">Zpětná vazba</string>

@@ -23,6 +23,10 @@
     <string name="downloads_none_title">இதுவரை பதிவிறக்கங்கள் இல்லை</string>
     <string name="downloads_none_message">பதிவிறக்கிய பாடல்களும் வீடியோக்களும் ஆஃப்லைனில் இயங்கும்.</string>
     <string name="downloads_failed">பதிவிறக்கம் தோல்வியடைந்தது</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Finder-இல் காட்டு</string>
+    <string name="menu_reveal_explorer">கோப்பு எக்ஸ்ப்ளோரரில் காட்டு</string>
+    <string name="menu_reveal_file_manager">கோப்பு மேலாளரில் காட்டு</string>
     <string name="section_settings">அமைப்புகள்</string>
     <string name="section_donate">நன்கொடை அளி</string>
     <string name="section_feedback">கருத்து</string>

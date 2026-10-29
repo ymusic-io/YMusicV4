@@ -23,6 +23,10 @@
     <string name="downloads_none_title">Δεν υπάρχουν λήψεις ακόμα</string>
     <string name="downloads_none_message">Τα τραγούδια και τα βίντεο που κατεβάσατε παίζουν εκτός σύνδεσης.</string>
     <string name="downloads_failed">Η λήψη απέτυχε</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Εμφάνιση στο Finder</string>
+    <string name="menu_reveal_explorer">Εμφάνιση στην Εξερεύνηση αρχείων</string>
+    <string name="menu_reveal_file_manager">Εμφάνιση στη διαχείριση αρχείων</string>
     <string name="section_settings">Ρυθμίσεις</string>
     <string name="section_donate">Δωρεά</string>
     <string name="section_feedback">Σχόλια</string>

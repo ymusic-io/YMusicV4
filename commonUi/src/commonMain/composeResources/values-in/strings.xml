@@ -23,6 +23,10 @@
     <string name="downloads_none_title">Belum ada download</string>
     <string name="downloads_none_message">Lagu dan video yang didownload dapat diputar offline.</string>
     <string name="downloads_failed">Download gagal</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Tampilkan di Finder</string>
+    <string name="menu_reveal_explorer">Tampilkan di File Explorer</string>
+    <string name="menu_reveal_file_manager">Tampilkan di pengelola file</string>
     <string name="section_settings">Setelan</string>
     <string name="section_donate">Donasi</string>
     <string name="section_feedback">Masukan</string>

@@ -23,6 +23,10 @@
     <string name="downloads_none_title">ಇನ್ನೂ ಯಾವುದೇ ಡೌನ್‌ಲೋಡ್‌ಗಳಿಲ್ಲ</string>
     <string name="downloads_none_message">ಡೌನ್‌ಲೋಡ್ ಮಾಡಿದ ಹಾಡುಗಳು ಮತ್ತು ವೀಡಿಯೊಗಳು ಆಫ್‌ಲೈನ್‌ನಲ್ಲಿ ಪ್ಲೇ ಆಗುತ್ತವೆ.</string>
     <string name="downloads_failed">ಡೌನ್‌ಲೋಡ್ ವಿಫಲವಾಗಿದೆ</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Finder ನಲ್ಲಿ ತೋರಿಸಿ</string>
+    <string name="menu_reveal_explorer">ಫೈಲ್ ಎಕ್ಸ್‌ಪ್ಲೋರರ್‌ನಲ್ಲಿ ತೋರಿಸಿ</string>
+    <string name="menu_reveal_file_manager">ಫೈಲ್ ಮ್ಯಾನೇಜರ್‌ನಲ್ಲಿ ತೋರಿಸಿ</string>
     <string name="section_settings">ಸೆಟ್ಟಿಂಗ್‌ಗಳು</string>
     <string name="section_donate">ದೇಣಿಗೆ ನೀಡಿ</string>
     <string name="section_feedback">ಪ್ರತಿಕ್ರಿಯೆ</string>
