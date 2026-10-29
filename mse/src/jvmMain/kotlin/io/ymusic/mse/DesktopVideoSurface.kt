@@ -116,8 +116,9 @@ class DesktopVideoSurface(private val cpuOnly: Boolean = false) {
         }
     }
 
-    /** Drops the CPU picture. */
-    fun clear() {
+    /** Drops the CPU picture, unless the presenter belongs to another engine than [engine]. */
+    fun clear(engine: VideoEngine) {
+        if (_active.value != engine) return
         synchronized(frameLock) { lastPub = null }
         onCpuFrame?.invoke(null)
     }

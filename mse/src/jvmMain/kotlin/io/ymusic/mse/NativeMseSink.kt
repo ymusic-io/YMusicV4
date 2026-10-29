@@ -14,7 +14,7 @@ class NativeMseSink(val host: Long, private val surface: MseVideoSurface?) : Mse
     fun destroy(clearSurface: Boolean = true) {
         if (!released.compareAndSet(false, true)) return
         MseHostNative.destroy(host)
-        if (clearSurface) surface?.video?.clear()
+        if (clearSurface) surface?.video?.clear(VideoEngine.MSE)
     }
 
     /** Only for the JNI method lookup: every desktop mse_host plays its audio through its AudioQueue DAC. */
