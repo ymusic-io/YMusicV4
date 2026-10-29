@@ -1957,6 +1957,9 @@ static void *dec_loop(void *arg)
 #endif
             p->dec_busy = 0;
             pthread_cond_broadcast(&p->cv);
+            /* Drained: nothing more until a seek or close. */
+            if (got == AVERROR_EOF)
+                pthread_cond_wait(&p->cv, &p->mu);
             pthread_mutex_unlock(&p->mu);
             continue;
         }
