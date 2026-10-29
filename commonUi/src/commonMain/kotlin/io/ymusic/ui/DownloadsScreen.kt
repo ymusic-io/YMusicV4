@@ -66,7 +66,6 @@ import io.ymusic.ui.resources.download_size_kb
 import io.ymusic.ui.resources.download_size_mb
 import io.ymusic.ui.resources.downloads_action_pause
 import io.ymusic.ui.resources.downloads_action_resume
-import io.ymusic.ui.resources.downloads_action_reveal_finder
 import io.ymusic.ui.resources.downloads_action_reveal_library
 import io.ymusic.ui.resources.downloads_completed_date
 import io.ymusic.ui.resources.downloads_empty_all
@@ -594,7 +593,8 @@ private fun actionsFor(
                 fileActions.addToPlaylist?.let { add(stringResource(Res.string.menu_add_to_playlist) to it) }
                 onOtherFormat?.let { add(otherFormat to it) }
                 onRevealLibrary?.let { add(stringResource(Res.string.downloads_action_reveal_library) to it) }
-                onRevealFolder?.let { add(stringResource(Res.string.downloads_action_reveal_finder) to it) }
+                val revealLabel = LocalRevealInFileManager.current?.label
+                if (onRevealFolder != null && revealLabel != null) add(stringResource(revealLabel) to onRevealFolder)
                 fileActions.rename?.let { add(stringResource(Res.string.menu_rename) to it) }
                 fileActions.share?.let { add(stringResource(Res.string.cd_share) to it) }
                 add(stringResource(Res.string.menu_remove) to { service.remove(task.id) })

@@ -38,7 +38,6 @@
     <string name="downloads_action_pause">Призупинити</string>
     <string name="downloads_action_resume">Відновити</string>
     <string name="downloads_action_reveal_library">Показати в бібліотеці</string>
-    <string name="downloads_action_reveal_finder">Показати у файловому менеджері</string>
     <!-- A finished download's date: %1$s = month from month_abbr, %2$d = day, %3$d = year. -->
     <string name="downloads_completed_date">%2$d %1$s %3$d</string>
     <string-array name="month_abbr">

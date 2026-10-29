@@ -37,7 +37,6 @@
     <string name="downloads_action_pause">Tạm dừng</string>
     <string name="downloads_action_resume">Tiếp tục</string>
     <string name="downloads_action_reveal_library">Hiện trong Thư viện</string>
-    <string name="downloads_action_reveal_finder">Hiện trong Finder</string>
     <string name="downloads_completed_date">%2$d %1$s, %3$d</string>
     <string-array name="month_abbr">
         <item>thg 1</item>
