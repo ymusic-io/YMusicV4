@@ -1,11 +1,8 @@
 package io.ymusic.ui
 
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
-import androidx.compose.foundation.indication
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -25,14 +22,18 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusManager
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.KeyEventType
@@ -59,9 +60,8 @@ import androidx.compose.ui.zIndex
  * follow it. [buttons] fills the bottom bar (right-aligned). [maxWidth] widens it past the 560dp
  * picker width for a dialog with more to lay out (the download options). [titleAction] sits at the
  * title bar's end (the equalizer's preset menu). [dismissOnClickOutside] false keeps it open on a
- * stray tap outside (a dialog holding a draft). [keyboardNav] makes the title the first focus stop,
- * focused on open so a screen reader announces the dialog by name, and lets Up/Down walk the focus
- * stops that don't use those keys themselves.
+ * stray tap outside (a dialog holding a draft). [keyboardNav] lets Up/Down walk the focus stops that
+ * don't use those keys themselves.
  */
 @Composable
 fun ElevatedBarDialog(
@@ -94,9 +94,13 @@ fun ElevatedBarDialog(
             }
             // Read inside the Dialog: it has its own focus owner.
             val focusManager = LocalFocusManager.current
+            // The title takes focus on open so a screen reader announces the dialog by name. It draws no
+            // focus highlight, so once focus moves on it leaves the Tab order rather than become an
+            // invisible stop.
             val titleFocus = remember { FocusRequester() }
-            val titleInteraction = remember { MutableInteractionSource() }
-            if (keyboardNav) LaunchedEffect(Unit) { titleFocus.requestFocus() }
+            var titleHadFocus by remember { mutableStateOf(false) }
+            var titleFocusable by remember { mutableStateOf(true) }
+            LaunchedEffect(Unit) { titleFocus.requestFocus() }
             Surface(
                 shape = RoundedCornerShape(4.dp),
                 color = DesignColors.Surface,
@@ -117,16 +121,12 @@ fun ElevatedBarDialog(
                                 style = TextStyle(fontSize = 17.sp, fontWeight = FontWeight.Bold, color = DesignColors.Ink),
                                 modifier = Modifier
                                     .weight(1f)
-                                    .then(
-                                        if (keyboardNav) {
-                                            Modifier
-                                                .focusRequester(titleFocus)
-                                                .focusable(interactionSource = titleInteraction)
-                                                .indication(titleInteraction, LocalIndication.current)
-                                        } else {
-                                            Modifier
-                                        },
-                                    )
+                                    .focusRequester(titleFocus)
+                                    .onFocusChanged {
+                                        if (it.isFocused) titleHadFocus = true else if (titleHadFocus) titleFocusable = false
+                                    }
+                                    .focusProperties { canFocus = titleFocusable }
+                                    .focusable()
                                     .padding(vertical = 16.dp),
                             )
                             titleAction?.invoke()
