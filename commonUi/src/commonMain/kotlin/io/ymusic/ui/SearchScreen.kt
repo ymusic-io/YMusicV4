@@ -389,7 +389,7 @@ private fun FilterDialog(
 @Composable
 private fun FilterPill(option: YtFilterOption, onClick: () -> Unit) {
     val shape = RoundedCornerShape(999.dp)
-    ChipTapArea(onClick, enabled = !option.disabled) { indication ->
+    ChipTapArea(onClick, enabled = !option.disabled, selected = option.selected) { indication ->
         Text(
             option.label,
             style = TextStyle(
