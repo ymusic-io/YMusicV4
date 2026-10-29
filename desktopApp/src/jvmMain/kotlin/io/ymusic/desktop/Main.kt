@@ -458,6 +458,7 @@ fun main(args: Array<String>) {
             val frameBorder =
                 if (darkBar) Color.White.copy(alpha = 0.14f) else palette.OutlineSoft
             CompositionLocalProvider(LocalAppWindow provides window) {
+                EscapeCascade(graph?.pip?.nowPlayingOpen, frame)
                 DisposableEffect(window) {
                     frame.host = window
                     mainWindow = window

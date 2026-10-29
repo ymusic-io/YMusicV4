@@ -259,6 +259,7 @@ kotlin {
                 implementation(compose.materialIconsExtended)
                 implementation(compose.components.resources)
                 implementation(Libs.Jna.core)
+                implementation(Libs.NavigationEvent.compose) // Esc as a back event, after popups'
                 implementation(Libs.SqlDelight.sqliteDriver) // AppStore
                 implementation(project(":telemetry")) // api: sentry-kotlin-multiplatform + SentryLogger
                 implementation(project(":kmpHttp:core"))

@@ -1,5 +1,6 @@
 package io.ymusic.desktop
 
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.KeyEventType
@@ -7,6 +8,9 @@ import androidx.compose.ui.input.key.isCtrlPressed
 import androidx.compose.ui.input.key.isMetaPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.type
+import androidx.navigationevent.NavigationEventInfo
+import androidx.navigationevent.compose.NavigationBackHandler
+import androidx.navigationevent.compose.rememberNavigationEventState
 import io.ymusic.player.Player
 import io.ymusic.ui.GlobalShortcutActions
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -58,13 +62,22 @@ internal fun handleGlobalShortcut(
             GlobalShortcutActions.selectTabByIndex(digitIndex(event.key)!!)
             true
         }
-        event.key == Key.Escape -> when {
-            // Known gap: this runs before an open popup/dialog sees Esc (CMP sends it a back event after the window handlers).
-            frame.fullscreen -> { frame.toggleFullscreen(); true }
-            nowPlayingOpen?.value == true -> { nowPlayingOpen.value = false; true }
-            GlobalShortcutActions.closeNavDrawerIfOpen() -> true
-            else -> false
-        }
         else -> false
+    }
+}
+
+/**
+ * Esc peels back full screen → Now Playing → nav drawer. A back handler rather than a key handler:
+ * the scene turns an unconsumed Esc into a back event for the newest handler first, so an open
+ * popup or dialog closes before this cascade runs.
+ */
+@Composable
+internal fun EscapeCascade(nowPlayingOpen: MutableStateFlow<Boolean>?, frame: DesktopFrame) {
+    NavigationBackHandler(state = rememberNavigationEventState(NavigationEventInfo.None)) {
+        when {
+            frame.fullscreen -> frame.toggleFullscreen()
+            nowPlayingOpen?.value == true -> nowPlayingOpen.value = false
+            else -> GlobalShortcutActions.closeNavDrawerIfOpen()
+        }
     }
 }

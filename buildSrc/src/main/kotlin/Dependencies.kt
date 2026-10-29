@@ -22,6 +22,7 @@ object Versions {
     const val kotlinxSerialization = "1.9.0"
     const val kotlinxDateTime = "0.8.0"
     const val composeMultiplatform = "1.11.1"
+    const val navigationEvent = "1.0.1" // the androidx.navigationevent composeMultiplatform ships with
     const val okhttp = "5.4.0"
     const val okio = "3.17.0"
     const val sqldelight = "2.3.2"
@@ -146,6 +147,10 @@ object Libs {
 
     object Jna {
         const val core = "net.java.dev.jna:jna:${Versions.jna}"
+    }
+
+    object NavigationEvent {
+        const val compose = "org.jetbrains.androidx.navigationevent:navigationevent-compose:${Versions.navigationEvent}"
     }
 
     object Sentry {
