@@ -79,10 +79,6 @@ struct MseAv {
     AVCodecContext *adec;
     /* Libav video decoding (desktop, iOS); never opened on Android. */
     VPipe *vpipe;
-    /* The stream vpipe's decoder was opened for. */
-    enum AVCodecID vdec_id;
-    int vdec_w;
-    int vdec_h;
     /* No decoder takes vpar: no reopen until new parameters. */
     int v_dead;
     /* Pts of the last packet vpipe took. */
@@ -115,7 +111,6 @@ struct MseAv {
     size_t junk_n[2];
     uint8_t junk_head[2][4];
     int need_rap[2];
-    int v_reopen;
     double starve_log_pts;
     double starve_log_clock;
     AVFrame *vfr;
@@ -1926,7 +1921,7 @@ static void vbsf_free(MseAv *a)
         av_packet_unref(a->vbsf_out);
 }
 
-/* Caller holds a->mu. */
+/* The video thread, a->mu held, vpipe closed. */
 static int open_video_decoder(MseAv *a, AVCodecParameters *par)
 {
     if (a->v_rest
@@ -1939,30 +1934,12 @@ static int open_video_decoder(MseAv *a, AVCodecParameters *par)
     /* Video decodes in MediaCodec only: a CPU blit would hold the window from it for good. */
     return -1;
 #endif
-    if (vpipe_is_open(a->vpipe)) {
-        int same = a->vdec_id == par->codec_id;
-        if (same && par->width > 0 && a->vdec_w > 0 &&
-            (par->width != a->vdec_w || par->height != a->vdec_h)) {
-            vlog("reopen size %dx%d -> %dx%d", a->vdec_w, a->vdec_h, par->width, par->height);
-            same = 0;
-        } else if (!same)
-            vlog("reopen codec %d -> %d", (int)a->vdec_id, (int)par->codec_id);
-        if (same)
-            return 0;
-        vpipe_close(a->vpipe);
-        vbsf_free(a);
-        a->need_rap[0] = 1;
-        a->v_reopen = 1;
-    }
     if (a->v_dead)
         return -1;
     if (vpipe_open(a->vpipe, par, (AVRational){ 1, 1000 }) < 0) {
         a->v_dead = 1;
         return -1;
     }
-    a->vdec_id = par->codec_id;
-    a->vdec_w = par->width;
-    a->vdec_h = par->height;
     if (par->codec_id == AV_CODEC_ID_VP9 && !a->vbsf) {
         const AVBitStreamFilter *f = av_bsf_get_by_name("vp9_superframe");
         if (f && av_bsf_alloc(f, &a->vbsf) == 0) {
@@ -2037,14 +2014,6 @@ static void apply_pending_video_rep(MseAv *a)
         return;
     }
 #endif
-#ifdef __APPLE__
-    if (apple_vt_codec(a->vpar)) {
-        a->v_reopen = 0;
-        return;
-    }
-#endif
-    open_video_decoder(a, a->vpar);
-    a->v_reopen = 0;
 }
 
 static void maybe_apply_video_rep(MseAv *a)
@@ -3050,15 +3019,6 @@ MseAvIngest mse_av_append(MseAv *a, int audio, const uint8_t *p, int n, double t
                         vlog("video-rep %dx%d -> %dx%d keep vf=%zu",
                              a->vpar->width, a->vpar->height, par->width, par->height,
                              a->vf.n);
-                        if (!vpipe_is_open(a->vpipe)
-#ifdef __APPLE__
-                            && !apple_vt_codec(a->vpar)
-#endif
-#ifdef __ANDROID__
-                            && !a->mc
-#endif
-                        )
-                            open_video_decoder(a, a->vpar);
                     }
                     avcodec_parameters_free(&par);
                     par = NULL;
@@ -3080,27 +3040,11 @@ MseAvIngest mse_av_append(MseAv *a, int audio, const uint8_t *p, int n, double t
                         a->mc_fail = 0;
                         a->mc_open_tries = 0;
                     }
-                    /* MediaCodec opens on the video thread (pull_video): a configure here holds the
+#endif
+                    /* Video decoders open on the video thread (pull_video): an open here holds the
                        JS thread, and the audio appends queued behind it, for tens of ms. */
                     avcodec_parameters_free(&par);
                     par = NULL;
-#endif
-#ifdef __APPLE__
-                    /* Native VTDecompressionSession in pull_video. A second
-                       ffmpeg h264_videotoolbox session on the simulator
-                       enqueued black frames (61 fps, empty picture). VP9
-                       uses the same Apple session — ffmpeg's VT hwaccel
-                       wraps native `vp9` (log15 SIGILL). */
-                    if (par && apple_vt_codec(par)) {
-                        avcodec_parameters_free(&par);
-                        par = NULL;
-                    }
-#endif
-                    if (par) {
-                        open_video_decoder(a, par);
-                        avcodec_parameters_free(&par);
-                        par = NULL;
-                    }
                 }
             }
         }
@@ -3118,10 +3062,6 @@ MseAvIngest mse_av_append(MseAv *a, int audio, const uint8_t *p, int n, double t
         }
         if (!audio)
             maybe_apply_video_rep(a);
-        if (!audio && a->v_reopen) {
-            vf_resync_key(a, a->v_sent >= 0 ? a->v_sent : r.first);
-            a->v_reopen = 0;
-        }
         cfb_free(&tmp);
         if (a->pend_n[idx] > total)
             memmove(a->pend[idx], a->pend[idx] + total, a->pend_n[idx] - total);
@@ -3178,7 +3118,6 @@ static void close_video_decoder(MseAv *a)
 #endif
     a->need_rap[0] = 1;
     a->v_seen_idr = 0;
-    a->v_reopen = 0;
 #ifdef __APPLE__
     while (a->vt_q_n > 0) {
         a->vt_q_n--;
