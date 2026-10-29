@@ -21,9 +21,11 @@ typedef struct {
     jmethodID onProgress;
     jmethodID onEvent;
     jmethodID onCaption;
-    jobject direct;
-    const uint8_t *direct_ptr;
-    int direct_n;
+    /* The CPU presenter alternates two picture buffers. */
+    jobject direct[2];
+    const uint8_t *direct_ptr[2];
+    int direct_n[2];
+    int direct_last;
 } JniSink;
 
 static JNIEnv *sink_env(JniSink *s)
@@ -41,20 +43,30 @@ static JNIEnv *sink_env(JniSink *s)
 static jobject direct_for(JNIEnv *env, JniSink *s, const uint8_t *bgra, int n)
 {
     jobject local;
-    if (s->direct && s->direct_ptr == bgra && s->direct_n >= n)
-        return s->direct;
-    if (s->direct) {
-        (*env)->DeleteGlobalRef(env, s->direct);
-        s->direct = NULL;
+    int i;
+    for (i = 0; i < 2; i++) {
+        if (s->direct[i] && s->direct_ptr[i] == bgra && s->direct_n[i] >= n) {
+            s->direct_last = i;
+            return s->direct[i];
+        }
+    }
+    /* The least recently used: with alternating buffers, the one not shown last. */
+    i = s->direct_last ^ 1;
+    if (s->direct[i]) {
+        (*env)->DeleteGlobalRef(env, s->direct[i]);
+        s->direct[i] = NULL;
     }
     local = (*env)->NewDirectByteBuffer(env, (void *)bgra, (jlong)n);
     if (!local)
         return NULL;
-    s->direct = (*env)->NewGlobalRef(env, local);
+    s->direct[i] = (*env)->NewGlobalRef(env, local);
     (*env)->DeleteLocalRef(env, local);
-    s->direct_ptr = bgra;
-    s->direct_n = n;
-    return s->direct;
+    if (!s->direct[i])
+        return NULL;
+    s->direct_ptr[i] = bgra;
+    s->direct_n[i] = n;
+    s->direct_last = i;
+    return s->direct[i];
 }
 
 static void on_frame(void *user, int w, int h, const uint8_t *bgra)
@@ -130,8 +142,10 @@ static void drop_sink(JNIEnv *env, JniSink *s)
 {
     if (!s)
         return;
-    if (s->direct)
-        (*env)->DeleteGlobalRef(env, s->direct);
+    if (s->direct[0])
+        (*env)->DeleteGlobalRef(env, s->direct[0]);
+    if (s->direct[1])
+        (*env)->DeleteGlobalRef(env, s->direct[1]);
     if (s->sink)
         (*env)->DeleteGlobalRef(env, s->sink);
     free(s);
