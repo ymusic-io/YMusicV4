@@ -110,10 +110,14 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
@@ -439,7 +443,14 @@ fun NowPlayingScreen(
         // No full-screen fill: the video hole is opaque (TextureView) and the chrome paints
         // Surface itself. A wrapping Surface under the picture is 1× overdraw on every pixel.
         CompositionLocalProvider(LocalOpenChannel provides onOpenChannel, LocalOpenLogin provides onLogin) {
-            Box(Modifier.fillMaxSize(), content = { shell() })
+            // A key press brings back auto-hidden video controls, so Tab can reach them again.
+            Box(
+                Modifier.fillMaxSize().onPreviewKeyEvent { event ->
+                    if (event.type == KeyEventType.KeyDown && VideoOverlayNative.armed) VideoOverlayNative.show()
+                    false
+                },
+                content = { shell() },
+            )
         }
     }
 }
@@ -809,8 +820,8 @@ private val QueueLargeRowsFrom = 380.dp
 
 /**
  * Hosts video-overlay [content] with player-style auto-hide: it fades out after a few seconds of
- * playback, and a tap/click on the video toggles it. Dragging the seek bar holds it visible.
- * While paused nothing auto-hides.
+ * playback, and a tap/click on the video toggles it. Dragging the seek bar or keyboard focus inside
+ * holds it visible. While paused nothing auto-hides.
  */
 @Composable
 private fun BoxScope.AutoHidingOverlay(
@@ -828,8 +839,11 @@ private fun BoxScope.AutoHidingOverlay(
                 },
         )
     }
+    var focusWithin by remember { mutableStateOf(false) }
+    LaunchedEffect(show) { if (!show) focusWithin = false }
+    HoldVideoOverlay(show && focusWithin)
     if (show) {
-        Box(Modifier.fillMaxSize(), content = content)
+        Box(Modifier.fillMaxSize().onFocusChanged { focusWithin = it.hasFocus }, content = content)
     }
 }
 
