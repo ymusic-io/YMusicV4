@@ -362,15 +362,40 @@ static enum AVPixelFormat get_format_prefer_hw(AVCodecContext *s, const enum AVP
     return sw;
 }
 
-static AVCodecContext *open_codec(FileAv *p, AVStream *st, int video)
+/* Audio and subtitles. */
+static AVCodecContext *open_codec(AVStream *st)
 {
-    const AVCodec *c = video ? find_vdec(st->codecpar->codec_id)
-                             : avcodec_find_decoder(st->codecpar->codec_id);
+    const AVCodec *c = avcodec_find_decoder(st->codecpar->codec_id);
     AVCodecContext *ctx;
+    if (!c)
+        return NULL;
+    ctx = avcodec_alloc_context3(c);
+    if (!ctx)
+        return NULL;
+    if (avcodec_parameters_to_context(ctx, st->codecpar) < 0) {
+        avcodec_free_context(&ctx);
+        return NULL;
+    }
+    ctx->pkt_timebase = st->time_base;
+    if (avcodec_open2(ctx, c, NULL) < 0) {
+        avcodec_free_context(&ctx);
+        return NULL;
+    }
+    return ctx;
+}
+
+static AVCodecContext *open_video_codec(FileAv *p, AVStream *st)
+{
+    enum AVCodecID id = st->codecpar->codec_id;
+    const AVCodec *c = find_vdec(id);
+    AVCodecContext *ctx;
+    int try_vt = (id == AV_CODEC_ID_H264 || id == AV_CODEC_ID_HEVC);
 #ifdef FILE_AV_WIN_HW
-    const AVCodec *d3d11_codec = video ? d3d11_vdec(p, st->codecpar) : NULL;
+    const AVCodec *d3d11_codec = d3d11_vdec(p, st->codecpar);
     if (d3d11_codec)
         c = d3d11_codec;
+#else
+    (void)p;
 #endif
     if (!c)
         return NULL;
@@ -382,53 +407,48 @@ static AVCodecContext *open_codec(FileAv *p, AVStream *st, int video)
         return NULL;
     }
     ctx->pkt_timebase = st->time_base;
-    if (video) {
-        enum AVCodecID id = st->codecpar->codec_id;
-        int try_vt = (id == AV_CODEC_ID_H264 || id == AV_CODEC_ID_HEVC);
 #ifdef FILE_AV_LINUX_HW
-        if ((try_vt || id == AV_CODEC_ID_VP9 || id == AV_CODEC_ID_AV1) && mse_hwdev_usable(id)) {
-            ctx->get_format = mse_hwdev_get_format;
-            ctx->hw_device_ctx = av_buffer_ref(mse_hwdev_get());
-            /* vout[] + vfr hold surfaces outside the decoder's fixed CUDA pool. */
+    if ((try_vt || id == AV_CODEC_ID_VP9 || id == AV_CODEC_ID_AV1) && mse_hwdev_usable(id)) {
+        ctx->get_format = mse_hwdev_get_format;
+        ctx->hw_device_ctx = av_buffer_ref(mse_hwdev_get());
+        /* vout[] + vfr hold surfaces outside the decoder's fixed CUDA pool. */
+        ctx->extra_hw_frames = VOUT_N + 2;
+    }
+    try_vt = 0;
+#endif
+#ifdef FILE_AV_WIN_HW
+    try_vt = 0;
+#endif
+    if (try_vt) {
+        AVBufferRef *hw = NULL;
+        ctx->get_format = get_format_prefer_hw;
+        if (av_hwdevice_ctx_create(&hw, AV_HWDEVICE_TYPE_VIDEOTOOLBOX, NULL, NULL, 0) == 0) {
+            ctx->hw_device_ctx = hw;
+            ctx->extra_hw_frames = 4;
+        }
+    }
+#ifdef FILE_AV_WIN_HW
+    /* The mse host's process-wide device. file_av_step reopens when the presenter changes. */
+    if (d3d11_codec) {
+        AVBufferRef *dev = mse_d3d11_hwdev_ref();
+        if (dev) {
+            ctx->get_format = mse_d3d11_pick;
+            ctx->hw_device_ctx = dev;
             ctx->extra_hw_frames = VOUT_N + 2;
         }
-        try_vt = 0;
+    }
 #endif
-#ifdef FILE_AV_WIN_HW
-        try_vt = 0;
-#endif
-        if (try_vt) {
-            AVBufferRef *hw = NULL;
-            ctx->get_format = get_format_prefer_hw;
-            if (av_hwdevice_ctx_create(&hw, AV_HWDEVICE_TYPE_VIDEOTOOLBOX, NULL, NULL, 0) == 0) {
-                ctx->hw_device_ctx = hw;
-                ctx->extra_hw_frames = 4;
-            }
-        }
-#ifdef FILE_AV_WIN_HW
-        /* The mse host's process-wide device. file_av_step reopens when the presenter changes. */
-        if (d3d11_codec) {
-            AVBufferRef *dev = mse_d3d11_hwdev_ref();
-            if (dev) {
-                ctx->get_format = mse_d3d11_pick;
-                ctx->hw_device_ctx = dev;
-                ctx->extra_hw_frames = VOUT_N + 2;
-            }
-        }
-#endif
-        /* libav's API default is one thread: libdav1d alone decodes 4K AV1 at ~25 fps on an M4. */
-        if (!ctx->hw_device_ctx) {
-            ctx->thread_count = 0;
-            ctx->thread_type = FF_THREAD_FRAME | FF_THREAD_SLICE;
-        }
+    /* libav's API default is one thread: libdav1d alone decodes 4K AV1 at ~25 fps on an M4. */
+    if (!ctx->hw_device_ctx) {
+        ctx->thread_count = 0;
+        ctx->thread_type = FF_THREAD_FRAME | FF_THREAD_SLICE;
     }
     if (avcodec_open2(ctx, c, NULL) < 0) {
         avcodec_free_context(&ctx);
         return NULL;
     }
-    if (video)
-        mse_critf(MSE_LOG_INFO, "file-av open %s %dx%d vt=%d", c->name, ctx->width, ctx->height,
-                  ctx->hw_device_ctx ? 1 : 0);
+    mse_critf(MSE_LOG_INFO, "file-av open %s %dx%d vt=%d", c->name, ctx->width, ctx->height,
+              ctx->hw_device_ctx ? 1 : 0);
     return ctx;
 }
 
@@ -516,7 +536,7 @@ static int start_video_locked(FileAv *p)
     if (p->v_st < 0 || p->vdec || !p->fmt)
         return 0;
     st = p->fmt->streams[p->v_st];
-    p->vdec = open_codec(p, st, 1);
+    p->vdec = open_video_codec(p, st);
     if (!p->vdec) {
         set_err(p, "video decoder");
         return -1;
@@ -732,7 +752,7 @@ static void open_sdec_locked(FileAv *p)
     st = p->fmt->streams[p->subtitle_index];
     if (!st || st->codecpar->codec_type != AVMEDIA_TYPE_SUBTITLE)
         return;
-    p->sdec = open_codec(p, st, 0);
+    p->sdec = open_codec(st);
     /* Decoder is optional: bundled libav often ships without mov_text. */
     p->s_st = p->subtitle_index;
 }
@@ -838,7 +858,7 @@ static int setup_decoders(FileAv *p)
     p->a_st = pick_audio(p);
     p->v_st = pick_video(p);
     if (p->a_st >= 0) {
-        p->adec = open_codec(p, p->fmt->streams[p->a_st], 0);
+        p->adec = open_codec(p->fmt->streams[p->a_st]);
         if (!p->adec) {
             set_err(p, "audio decoder");
             return -1;
@@ -1514,7 +1534,7 @@ static void reopen_if_hw_rejected_locked(FileAv *p)
     mse_critf(MSE_LOG_INFO, "file-av reopen %s in software", avcodec_get_name(p->vdec->codec_id));
     avcodec_free_context(&p->vdec);
     st = p->fmt->streams[p->v_st];
-    p->vdec = open_codec(p, st, 1);
+    p->vdec = open_video_codec(p, st);
     if (!p->vdec) {
         av_packet_free(&p->v_first);
         set_err(p, "video decoder");
