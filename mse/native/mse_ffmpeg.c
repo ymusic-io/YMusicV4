@@ -65,6 +65,11 @@ typedef struct {
 struct MseAv {
     pthread_mutex_t mu;
     pthread_mutex_t amu;
+    /* Taken after mu, never before it: a picked picture is shown under it only while v_epoch
+       still matches. */
+    pthread_mutex_t show_mu;
+    /* Bumped (under mu and show_mu) when picked pictures must not be shown any more. */
+    unsigned v_epoch;
     uint8_t *ainit;
     size_t ainit_n;
     uint8_t *vinit;
@@ -183,6 +188,19 @@ struct MseAv {
     int64_t mc_stats_t0;
 #endif
 };
+
+/* A picture pull_video picked to show once a->mu is released. */
+typedef struct {
+    AVFrame *f;
+#ifdef __APPLE__
+    /* Retained VideoToolbox session picture, shown on vp under engine. */
+    void *cvpb;
+    VPresenter *vp;
+    const void *engine;
+    VpColor color;
+#endif
+    unsigned epoch;
+} VShow;
 
 #if !PRODUCTION
 static int vdbg_n;
@@ -2146,6 +2164,7 @@ MseAv *mse_av_create(void)
     }
     pthread_mutex_init(&a->mu, NULL);
     pthread_mutex_init(&a->amu, NULL);
+    pthread_mutex_init(&a->show_mu, NULL);
     a->a_sent = -1;
     a->v_sent = -1;
     a->v_switch_pts = -1;
@@ -2228,6 +2247,7 @@ void mse_av_destroy(MseAv *a)
 #ifdef __APPLE__
     vpresent_release(vp);
 #endif
+    pthread_mutex_destroy(&a->show_mu);
     pthread_mutex_destroy(&a->amu);
     pthread_mutex_destroy(&a->mu);
     free(a);
@@ -3134,6 +3154,9 @@ static void flush_layer(MseAv *a)
 /* Caller holds a->mu. */
 static void close_video_decoder(MseAv *a)
 {
+    pthread_mutex_lock(&a->show_mu);
+    a->v_epoch++;
+    pthread_mutex_unlock(&a->show_mu);
     if (vpipe_is_open(a->vpipe)
 #ifdef __APPLE__
         || a->vt_dec
@@ -3754,12 +3777,17 @@ void mse_av_seek(MseAv *a, double seconds)
     av_unlock_all(a);
 }
 
-/* *w, *h: the decoded size. A frame with no presenter counts as shown. */
-static int present_frame(MseAv *a, AVFrame *frame, int *w, int *h)
+/* Caller holds a->mu. *w, *h: the decoded size. */
+static void pick_frame(MseAv *a, AVFrame *frame, int *w, int *h, VShow *s)
 {
     *w = frame->width;
     *h = frame->height;
-    return vpipe_present(a->vpipe, frame) == VP_FAIL ? -1 : 0;
+    if (frame != a->vfr) {
+        av_frame_unref(a->vfr);
+        av_frame_move_ref(a->vfr, frame);
+    }
+    s->f = a->vfr;
+    s->epoch = a->v_epoch;
 }
 
 static uint8_t *pcm_scratch(MseAv *a, size_t n)
@@ -3884,17 +3912,18 @@ static void video_decode_error(MseAv *a, double pos, int r)
 }
 
 #ifdef __APPLE__
-/* As present_frame, for a picture of the own VT session. */
-static int present_cvpb(MseAv *a, void *pb, int *w, int *h)
+/* As pick_frame, for a picture of the own VT session; takes over the reference to pb. */
+static void pick_cvpb(MseAv *a, void *pb, int *w, int *h, VShow *s)
 {
     CVPixelBufferRef cv = (CVPixelBufferRef)pb;
     *w = (int)CVPixelBufferGetWidth(cv);
     *h = (int)CVPixelBufferGetHeight(cv);
-    if (!a->vp)
-        return 0;
-    return vpresent_show_cvpb(a->vp, a->vp_engine, pb, vp_color_of(NULL, a->vpar)) == VP_FAIL
-               ? -1
-               : 0;
+    s->cvpb = pb;
+    s->vp = a->vp;
+    vpresent_retain(s->vp);
+    s->engine = a->vp_engine;
+    s->color = vp_color_of(NULL, a->vpar);
+    s->epoch = a->v_epoch;
 }
 
 static void vt_q_put(MseAv *a, void *pb, int w, int h, double pts)
@@ -3924,37 +3953,16 @@ static void vt_q_put(MseAv *a, void *pb, int w, int h, double pts)
     a->vt_q_n++;
 }
 
-static int vt_q_take(MseAv *a, double clock, int *w, int *h, double *pts)
+static int vt_q_take(MseAv *a, double clock, int *w, int *h, double *pts, VShow *s)
 {
     const double early = 0.04;
     const double late = 0.08;
     while (a->vt_q_n > 0) {
         double p = a->vt_q_pts[0];
-        void *pb;
+        void *pb = a->vt_q_pb[0];
         int i;
         if (p > clock + early)
             return 0;
-        pb = a->vt_q_pb[0];
-        if (p < clock - late) {
-            mse_vt_pb_release(pb);
-        } else if (present_cvpb(a, pb, w, h) == 0) {
-            mse_vt_pb_release(pb);
-            *pts = p;
-            a->v_sent = p;
-            a->show_late = 0;
-            a->vt_q_n--;
-            for (i = 0; i < a->vt_q_n; i++) {
-                a->vt_q_pb[i] = a->vt_q_pb[i + 1];
-                a->vt_q_pts[i] = a->vt_q_pts[i + 1];
-                a->vt_q_w[i] = a->vt_q_w[i + 1];
-                a->vt_q_h[i] = a->vt_q_h[i + 1];
-            }
-            if (vdbg_ok())
-                vlog("vt-show pts=%.3f clock=%.3f q=%d", p, clock, a->vt_q_n);
-            return 1;
-        } else {
-            mse_vt_pb_release(pb);
-        }
         a->vt_q_n--;
         for (i = 0; i < a->vt_q_n; i++) {
             a->vt_q_pb[i] = a->vt_q_pb[i + 1];
@@ -3962,17 +3970,28 @@ static int vt_q_take(MseAv *a, double clock, int *w, int *h, double *pts)
             a->vt_q_w[i] = a->vt_q_w[i + 1];
             a->vt_q_h[i] = a->vt_q_h[i + 1];
         }
+        if (p < clock - late) {
+            mse_vt_pb_release(pb);
+            continue;
+        }
+        pick_cvpb(a, pb, w, h, s);
+        *pts = p;
+        a->v_sent = p;
+        a->show_late = 0;
+        if (vdbg_ok())
+            vlog("vt-show pts=%.3f clock=%.3f q=%d", p, clock, a->vt_q_n);
+        return 1;
     }
     return 0;
 }
 
-static int pull_vt(MseAv *a, double clock, int *w, int *h, double *pts)
+static int pull_vt(MseAv *a, double clock, int *w, int *h, double *pts, VShow *s)
 {
     const double late = 0.08;
     int i;
     if (!a->vt_dec)
         return 0;
-    if (vt_q_take(a, clock, w, h, pts))
+    if (vt_q_take(a, clock, w, h, pts, s))
         return 1;
     if (a->vt_q_n >= 4)
         return 0;
@@ -3986,11 +4005,11 @@ static int pull_vt(MseAv *a, double clock, int *w, int *h, double *pts)
             a->vf.rd++;
         }
         if (a->vf.rd >= a->vf.n)
-            return vt_q_take(a, clock, w, h, pts);
+            return vt_q_take(a, clock, w, h, pts, s);
         c = &a->vf.f[a->vf.rd];
         /* Send in DTS order. A P 50ms ahead is a ref for the B due now. */
         if (c->dts > clock + MSE_SEND_AHEAD && c->pts > clock + MSE_SEND_AHEAD)
-            return vt_q_take(a, clock, w, h, pts);
+            return vt_q_take(a, clock, w, h, pts, s);
         output = (a->v_seen_idr || coded_is_rap(a, c)) && c->pts >= clock - late;
         if (mse_vt_dec_send(a->vt_dec, c->data, (int)c->n, output) < 0) {
             c->sent = 1;
@@ -4005,7 +4024,7 @@ static int pull_vt(MseAv *a, double clock, int *w, int *h, double *pts)
         a->vf.rd++;
         if (output && mse_vt_dec_recv(a->vt_dec, &pb, &rw, &rh) && pb)
             vt_q_put(a, pb, rw, rh, c->pts);
-        if (vt_q_take(a, clock, w, h, pts))
+        if (vt_q_take(a, clock, w, h, pts, s))
             return 1;
         if (a->vt_q_n >= 4)
             return 0;
@@ -4014,7 +4033,9 @@ static int pull_vt(MseAv *a, double clock, int *w, int *h, double *pts)
 }
 #endif
 
-static int pull_video(MseAv *a, double clock, int *w, int *h, double *pts)
+/* Under a->mu: 1 = picked a picture to show (*s), 0 = none, -1 = error. Android's MediaCodec
+   renders here. */
+static int pull_video(MseAv *a, double clock, int *w, int *h, double *pts, VShow *s)
 {
     AVFrame *frame;
     int i, got;
@@ -4062,7 +4083,7 @@ static int pull_video(MseAv *a, double clock, int *w, int *h, double *pts)
             }
         }
         if (a->vt_dec) {
-            int r = pull_vt(a, clock, w, h, pts);
+            int r = pull_vt(a, clock, w, h, pts, s);
             pthread_mutex_unlock(&a->mu);
             return r;
         }
@@ -4090,6 +4111,13 @@ static int pull_video(MseAv *a, double clock, int *w, int *h, double *pts)
         pthread_mutex_unlock(&a->mu);
         return 0;
     }
+    if (!a->vfr) {
+        a->vfr = av_frame_alloc();
+        if (!a->vfr) {
+            pthread_mutex_unlock(&a->mu);
+            return -1;
+        }
+    }
     if (a->vhold) {
         double p = a->vhold->pts != AV_NOPTS_VALUE ? a->vhold->pts / 1000.0 : clock;
         double d = p - clock;
@@ -4106,7 +4134,8 @@ static int pull_video(MseAv *a, double clock, int *w, int *h, double *pts)
             av_frame_free(&a->vhold);
         } else if (!a->v_seen_idr) {
             av_frame_free(&a->vhold);
-        } else if (present_frame(a, a->vhold, w, h) == 0) {
+        } else {
+            pick_frame(a, a->vhold, w, h, s);
             *pts = p;
             a->v_sent = p;
             a->show_late = 0;
@@ -4116,15 +4145,6 @@ static int pull_video(MseAv *a, double clock, int *w, int *h, double *pts)
             av_frame_free(&a->vhold);
             pthread_mutex_unlock(&a->mu);
             return 1;
-        } else {
-            av_frame_free(&a->vhold);
-        }
-    }
-    if (!a->vfr) {
-        a->vfr = av_frame_alloc();
-        if (!a->vfr) {
-            pthread_mutex_unlock(&a->mu);
-            return -1;
         }
     }
     frame = a->vfr;
@@ -4173,15 +4193,13 @@ static int pull_video(MseAv *a, double clock, int *w, int *h, double *pts)
                 av_frame_unref(frame);
                 continue;
             }
-            if (present_frame(a, frame, w, h) < 0)
-                break;
+            pick_frame(a, frame, w, h, s);
             *pts = p;
             a->v_sent = p;
             a->show_late = 0;
             a->v_err_key = -1;
             if (vdbg_ok())
                 vlog_state(a, clock, "show", d);
-            av_frame_unref(frame);
             pthread_mutex_unlock(&a->mu);
             return 1;
         }
@@ -4241,9 +4259,42 @@ static int pull_video(MseAv *a, double clock, int *w, int *h, double *pts)
     return 0;
 }
 
+/* Outside a->mu: shows the picture pull_video picked, unless it went stale meanwhile. */
+static int show_picked(MseAv *a, VShow *s)
+{
+    int r = VP_DROPPED;
+    pthread_mutex_lock(&a->show_mu);
+    if (s->epoch != a->v_epoch)
+        r = VP_FAIL;
+    else if (s->f)
+        r = vpipe_present(a->vpipe, s->f);
+#ifdef __APPLE__
+    else if (s->cvpb && s->vp)
+        r = vpresent_show_cvpb(s->vp, s->engine, s->cvpb, s->color);
+#endif
+    pthread_mutex_unlock(&a->show_mu);
+    if (s->f)
+        av_frame_unref(s->f);
+#ifdef __APPLE__
+    mse_vt_pb_release(s->cvpb);
+    vpresent_release(s->vp);
+#endif
+    return r == VP_FAIL ? 0 : 1;
+}
+
 int mse_av_pull_video(MseAv *a, double clock, int *w, int *h, double *pts)
 {
-    return pull_video(a, clock, w, h, pts);
+    VShow s;
+    int r;
+    memset(&s, 0, sizeof(s));
+    r = pull_video(a, clock, w, h, pts, &s);
+    if (r <= 0)
+        return r;
+#ifdef __APPLE__
+    if (s.cvpb)
+        return show_picked(a, &s);
+#endif
+    return s.f ? show_picked(a, &s) : r;
 }
 
 int mse_av_pull_audio(MseAv *a, double clock, double until, int16_t **s16, int *frames, int *rate, int *ch,

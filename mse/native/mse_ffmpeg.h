@@ -75,7 +75,7 @@ void mse_av_recover_display(MseAv *a, double clock);
 #endif
 
 /* 1 = a frame was presented (or dropped by the presenter), 0 = none yet, -1 = error. *w × *h is
- * the decoded size. */
+ * the decoded size. The presenter call runs on the calling thread, outside the video lock. */
 int mse_av_pull_video(MseAv *a, double clock, int *w, int *h, double *pts);
 /* 1 = pcm, 0 = none. *s16 is interleaved S16, borrowed until the next
  * pull_audio or destroy (do not free). Decodes up to `until`; audio more than
