@@ -208,11 +208,13 @@ val mseCmakeConfigure by tasks.registering(Exec::class) {
     inputs.property("ffmpegRoot", ffmpegDesktopPrefix?.absolutePath ?: "")
     inputs.property("production", productionC)
     inputs.property("mingwHome", mingwToolchainHome()?.absolutePath ?: "")
+    inputs.property("macosMin", Versions.macosMin)
     outputs.file(File(out, "CMakeCache.txt"))
     environment("JAVA_HOME", javaHomeForJni)
     val args = listOf(
         "cmake", "-S", mseNativeSrc.absolutePath, "-B", out.absolutePath,
         "-DCMAKE_BUILD_TYPE=Release",
+        "-DCMAKE_OSX_DEPLOYMENT_TARGET=${Versions.macosMin}",
         "-DFFMPEG_ROOT=${ffmpegDesktopPrefix?.absolutePath ?: ""}",
         "-DPRODUCTION=$productionC",
     )
