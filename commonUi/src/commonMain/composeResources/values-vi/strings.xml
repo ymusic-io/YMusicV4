@@ -151,8 +151,6 @@
     <string name="yt_playlist_removed_video">Đã xóa %1$s khỏi danh sách phát</string>
     <string name="cd_add_to_playlist">Thêm vào danh sách phát</string>
     <string name="cd_share">Chia sẻ</string>
-    <string name="cd_music_video">Âm nhạc</string>
-    <string name="cd_album">Album</string>
     <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
     <string name="a11y_kind_video">Video</string>
     <string name="a11y_kind_music_video">Video âm nhạc</string>
@@ -457,7 +455,6 @@
     <string name="account_sign_out">Đăng xuất</string>
     <string name="account_switch">Chuyển tài khoản</string>
     <string name="switch_account_hint">Chọn tài khoản bạn muốn, rồi đóng màn hình này bằng nút quay lại — ứng dụng sẽ làm mới theo tài khoản mới.</string>
-    <string name="cd_account_avatar">Ảnh đại diện tài khoản</string>
     <string name="account_my_channel">Kênh của tôi</string>
     <string name="account_watch_history">Lịch sử xem</string>
     <string name="account_watch_later">Xem sau</string>

@@ -121,8 +121,6 @@
     <string name="yt_playlist_removed_video">%1$s uit die snitlys verwyder</string>
     <string name="cd_add_to_playlist">Voeg by snitlys</string>
     <string name="cd_share">Deel</string>
-    <string name="cd_music_video">Musiek</string>
-    <string name="cd_album">Album</string>
     <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
     <string name="a11y_kind_video">Video</string>
     <string name="a11y_kind_music_video">Musiekvideo</string>
@@ -390,7 +388,6 @@
     <string name="account_sign_out">Meld af</string>
     <string name="account_switch">Wissel rekening</string>
     <string name="switch_account_hint">Kies die rekening wat jy wil hê en maak dan hierdie skerm met die terugpyl toe — die app verfris onder die nuwe rekening.</string>
-    <string name="cd_account_avatar">Rekeningprent</string>
     <string name="account_my_channel">My kanaal</string>
     <string name="account_watch_history">Kykgeskiedenis</string>
     <string name="account_watch_later">Kyk later</string>

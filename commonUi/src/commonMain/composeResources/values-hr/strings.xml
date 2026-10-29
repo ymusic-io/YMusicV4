@@ -121,8 +121,6 @@
     <string name="yt_playlist_removed_video">%1$s uklonjeno s popisa za reprodukciju</string>
     <string name="cd_add_to_playlist">Dodaj na popis za reprodukciju</string>
     <string name="cd_share">Dijeli</string>
-    <string name="cd_music_video">Glazba</string>
-    <string name="cd_album">Album</string>
     <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
     <string name="a11y_kind_video">Videozapis</string>
     <string name="a11y_kind_music_video">Glazbeni videozapis</string>
@@ -394,7 +392,6 @@
     <string name="account_sign_out">Odjava</string>
     <string name="account_switch">Promijeni račun</string>
     <string name="switch_account_hint">Odaberite željeni račun, a zatim zatvorite ovaj zaslon strelicom natrag — aplikacija će se osvježiti s novim računom.</string>
-    <string name="cd_account_avatar">Slika računa</string>
     <string name="account_my_channel">Moj kanal</string>
     <string name="account_watch_history">Povijest gledanja</string>
     <string name="account_watch_later">Gledaj kasnije</string>

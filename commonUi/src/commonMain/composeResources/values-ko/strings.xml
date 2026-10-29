@@ -121,8 +121,6 @@
     <string name="yt_playlist_removed_video">재생목록에서 %1$s을(를) 삭제했습니다</string>
     <string name="cd_add_to_playlist">재생목록에 추가</string>
     <string name="cd_share">공유</string>
-    <string name="cd_music_video">음악</string>
-    <string name="cd_album">앨범</string>
     <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
     <string name="a11y_kind_video">동영상</string>
     <string name="a11y_kind_music_video">뮤직비디오</string>
@@ -386,7 +384,6 @@
     <string name="account_sign_out">로그아웃</string>
     <string name="account_switch">계정 전환</string>
     <string name="switch_account_hint">원하는 계정을 선택한 후 뒤로 화살표로 이 화면을 닫으세요 — 앱이 새 계정으로 새로고침됩니다.</string>
-    <string name="cd_account_avatar">계정 사진</string>
     <string name="account_my_channel">내 채널</string>
     <string name="account_watch_history">시청 기록</string>
     <string name="account_watch_later">나중에 볼 동영상</string>

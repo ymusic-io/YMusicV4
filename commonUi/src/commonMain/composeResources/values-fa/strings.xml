@@ -121,8 +121,6 @@
     <string name="yt_playlist_removed_video">%1$s از لیست پخش حذف شد</string>
     <string name="cd_add_to_playlist">افزودن به لیست پخش</string>
     <string name="cd_share">اشتراک‌گذاری</string>
-    <string name="cd_music_video">موسیقی</string>
-    <string name="cd_album">آلبوم</string>
     <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
     <string name="a11y_kind_video">ویدیو</string>
     <string name="a11y_kind_music_video">موزیک ویدیو</string>
@@ -390,7 +388,6 @@
     <string name="account_sign_out">خروج از حساب</string>
     <string name="account_switch">تغییر حساب</string>
     <string name="switch_account_hint">حساب مورد نظر را انتخاب کنید، سپس این صفحه را با پیکان بازگشت ببندید — برنامه با حساب جدید تازه‌سازی می‌شود.</string>
-    <string name="cd_account_avatar">تصویر حساب</string>
     <string name="account_my_channel">کانال من</string>
     <string name="account_watch_history">تاریخچه تماشا</string>
     <string name="account_watch_later">تماشا در آینده</string>

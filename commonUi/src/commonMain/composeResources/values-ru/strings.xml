@@ -121,8 +121,6 @@
     <string name="yt_playlist_removed_video">«%1$s» удалено из плейлиста</string>
     <string name="cd_add_to_playlist">Добавить в плейлист</string>
     <string name="cd_share">Поделиться</string>
-    <string name="cd_music_video">Музыка</string>
-    <string name="cd_album">Альбом</string>
     <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
     <string name="a11y_kind_video">Видео</string>
     <string name="a11y_kind_music_video">Клип</string>
@@ -398,7 +396,6 @@
     <string name="account_sign_out">Выйти</string>
     <string name="account_switch">Сменить аккаунт</string>
     <string name="switch_account_hint">Выберите нужный аккаунт, затем закройте этот экран стрелкой «Назад» — приложение обновится под новым аккаунтом.</string>
-    <string name="cd_account_avatar">Фото аккаунта</string>
     <string name="account_my_channel">Мой канал</string>
     <string name="account_watch_history">История просмотра</string>
     <string name="account_watch_later">Смотреть позже</string>

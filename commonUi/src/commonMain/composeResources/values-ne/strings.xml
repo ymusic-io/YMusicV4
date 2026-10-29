@@ -121,8 +121,6 @@
     <string name="yt_playlist_removed_video">%1$s प्लेलिस्टबाट हटाइयो</string>
     <string name="cd_add_to_playlist">प्लेलिस्टमा थप्नुहोस्</string>
     <string name="cd_share">सेयर गर्नुहोस्</string>
-    <string name="cd_music_video">सङ्गीत</string>
-    <string name="cd_album">एल्बम</string>
     <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
     <string name="a11y_kind_video">भिडियो</string>
     <string name="a11y_kind_music_video">सङ्गीत भिडियो</string>
@@ -390,7 +388,6 @@
     <string name="account_sign_out">साइन आउट</string>
     <string name="account_switch">खाता बदल्नुहोस्</string>
     <string name="switch_account_hint">चाहेको खाता छान्नुहोस्, अनि पछाडि जाने तीरले यो स्क्रिन बन्द गर्नुहोस् — एप नयाँ खातासँग रिफ्रेस हुन्छ।</string>
-    <string name="cd_account_avatar">खाताको तस्बिर</string>
     <string name="account_my_channel">मेरो च्यानल</string>
     <string name="account_watch_history">हेरेको इतिहास</string>
     <string name="account_watch_later">पछि हेर्नुहोस्</string>

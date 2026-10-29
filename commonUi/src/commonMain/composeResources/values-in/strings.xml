@@ -121,8 +121,6 @@
     <string name="yt_playlist_removed_video">%1$s dihapus dari daftar putar</string>
     <string name="cd_add_to_playlist">Tambahkan ke daftar putar</string>
     <string name="cd_share">Bagikan</string>
-    <string name="cd_music_video">Musik</string>
-    <string name="cd_album">Album</string>
     <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
     <string name="a11y_kind_video">Video</string>
     <string name="a11y_kind_music_video">Video musik</string>
@@ -386,7 +384,6 @@
     <string name="account_sign_out">Keluar</string>
     <string name="account_switch">Ganti akun</string>
     <string name="switch_account_hint">Pilih akun yang Anda inginkan, lalu tutup layar ini dengan panah kembali — aplikasi akan dimuat ulang dengan akun baru.</string>
-    <string name="cd_account_avatar">Foto akun</string>
     <string name="account_my_channel">Channel saya</string>
     <string name="account_watch_history">Riwayat tontonan</string>
     <string name="account_watch_later">Tonton nanti</string>

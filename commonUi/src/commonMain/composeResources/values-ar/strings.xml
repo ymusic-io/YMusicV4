@@ -151,8 +151,6 @@
     <string name="yt_playlist_removed_video">تمت إزالة %1$s من قائمة التشغيل</string>
     <string name="cd_add_to_playlist">إضافة إلى قائمة التشغيل</string>
     <string name="cd_share">مشاركة</string>
-    <string name="cd_music_video">موسيقى</string>
-    <string name="cd_album">ألبوم</string>
     <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
     <string name="a11y_kind_video">فيديو</string>
     <string name="a11y_kind_music_video">فيديو موسيقي</string>
@@ -477,7 +475,6 @@
     <string name="account_sign_out">تسجيل الخروج</string>
     <string name="account_switch">تبديل الحساب</string>
     <string name="switch_account_hint">اختر الحساب الذي تريده، ثم أغلق هذه الشاشة بسهم الرجوع — سيتم تحديث التطبيق بالحساب الجديد.</string>
-    <string name="cd_account_avatar">صورة الحساب</string>
     <string name="account_my_channel">قناتي</string>
     <string name="account_watch_history">سجل المشاهدة</string>
     <string name="account_watch_later">المشاهدة لاحقًا</string>

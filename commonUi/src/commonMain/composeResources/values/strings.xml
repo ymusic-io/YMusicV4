@@ -164,8 +164,6 @@
     <string name="yt_playlist_removed_video">Removed %1$s from the playlist</string>
     <string name="cd_add_to_playlist">Add to playlist</string>
     <string name="cd_share">Share</string>
-    <string name="cd_music_video">Music</string>
-    <string name="cd_album">Album</string>
     <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
     <string name="a11y_kind_video">Video</string>
     <string name="a11y_kind_music_video">Music video</string>
@@ -464,7 +462,6 @@
     <string name="account_sign_out">Sign out</string>
     <string name="account_switch">Switch account</string>
     <string name="switch_account_hint">Pick the account you want, then close this screen with the back arrow — the app refreshes under the new account.</string>
-    <string name="cd_account_avatar">Account picture</string>
     <string name="account_my_channel">My channel</string>
     <string name="account_watch_history">Watch history</string>
     <string name="account_watch_later">Watch later</string>

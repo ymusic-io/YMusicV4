@@ -121,8 +121,6 @@
     <string name="yt_playlist_removed_video">„%1$s“ е премахнат от плейлиста</string>
     <string name="cd_add_to_playlist">Добави в плейлист</string>
     <string name="cd_share">Сподели</string>
-    <string name="cd_music_video">Музика</string>
-    <string name="cd_album">Албум</string>
     <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
     <string name="a11y_kind_video">Видеоклип</string>
     <string name="a11y_kind_music_video">Музикален видеоклип</string>
@@ -390,7 +388,6 @@
     <string name="account_sign_out">Изход</string>
     <string name="account_switch">Смяна на профила</string>
     <string name="switch_account_hint">Изберете желания профил, после затворете този екран със стрелката назад — приложението ще се опресни с новия профил.</string>
-    <string name="cd_account_avatar">Снимка на профила</string>
     <string name="account_my_channel">Моят канал</string>
     <string name="account_watch_history">История на гледане</string>
     <string name="account_watch_later">Гледай по-късно</string>

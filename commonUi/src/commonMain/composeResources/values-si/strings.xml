@@ -121,8 +121,6 @@
     <string name="yt_playlist_removed_video">%1$s ධාවන ලැයිස්තුවෙන් ඉවත් කරන ලදී</string>
     <string name="cd_add_to_playlist">ධාවන ලැයිස්තුවට එක් කරන්න</string>
     <string name="cd_share">බෙදා ගන්න</string>
-    <string name="cd_music_video">සංගීතය</string>
-    <string name="cd_album">ඇල්බමය</string>
     <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
     <string name="a11y_kind_video">වීඩියෝ</string>
     <string name="a11y_kind_music_video">සංගීත වීඩියෝ</string>
@@ -390,7 +388,6 @@
     <string name="account_sign_out">වරන්න</string>
     <string name="account_switch">ගිණුම මාරු කරන්න</string>
     <string name="switch_account_hint">ඔබට අවශ්‍ය ගිණුම තෝරා, ආපසු ඊතලයෙන් මෙම තිරය වසන්න — යෙදුම නව ගිණුම යටතේ නැවුම් වේ.</string>
-    <string name="cd_account_avatar">ගිණුම් පින්තූරය</string>
     <string name="account_my_channel">මගේ නාලිකාව</string>
     <string name="account_watch_history">නැරඹුම් ඉතිහාසය</string>
     <string name="account_watch_later">පසුව නරඹන්න</string>

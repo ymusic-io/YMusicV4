@@ -121,8 +121,6 @@
     <string name="yt_playlist_removed_video">%1$s removido da playlist</string>
     <string name="cd_add_to_playlist">Adicionar à playlist</string>
     <string name="cd_share">Compartilhar</string>
-    <string name="cd_music_video">Música</string>
-    <string name="cd_album">Álbum</string>
     <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
     <string name="a11y_kind_video">Vídeo</string>
     <string name="a11y_kind_music_video">Videoclipe</string>
@@ -394,7 +392,6 @@
     <string name="account_sign_out">Sair</string>
     <string name="account_switch">Trocar de conta</string>
     <string name="switch_account_hint">Escolha a conta que você quer e feche esta tela com a seta de voltar — o app atualiza com a nova conta.</string>
-    <string name="cd_account_avatar">Foto da conta</string>
     <string name="account_my_channel">Meu canal</string>
     <string name="account_watch_history">Histórico de exibição</string>
     <string name="account_watch_later">Assistir mais tarde</string>

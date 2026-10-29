@@ -121,8 +121,6 @@
     <string name="yt_playlist_removed_video">%1$s verwijderd uit de afspeellijst</string>
     <string name="cd_add_to_playlist">Toevoegen aan afspeellijst</string>
     <string name="cd_share">Delen</string>
-    <string name="cd_music_video">Muziek</string>
-    <string name="cd_album">Album</string>
     <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
     <string name="a11y_kind_video">Video</string>
     <string name="a11y_kind_music_video">Muziekvideo</string>
@@ -390,7 +388,6 @@
     <string name="account_sign_out">Uitloggen</string>
     <string name="account_switch">Account wisselen</string>
     <string name="switch_account_hint">Kies het gewenste account en sluit dit scherm met de terugpijl — de app vernieuwt met het nieuwe account.</string>
-    <string name="cd_account_avatar">Accountfoto</string>
     <string name="account_my_channel">Mijn kanaal</string>
     <string name="account_watch_history">Kijkgeschiedenis</string>
     <string name="account_watch_later">Later bekijken</string>

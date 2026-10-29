@@ -121,8 +121,6 @@
     <string name="yt_playlist_removed_video">%1$s oynatma listesinden kaldırıldı</string>
     <string name="cd_add_to_playlist">Oynatma listesine ekle</string>
     <string name="cd_share">Paylaş</string>
-    <string name="cd_music_video">Müzik</string>
-    <string name="cd_album">Albüm</string>
     <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
     <string name="a11y_kind_video">Video</string>
     <string name="a11y_kind_music_video">Müzik videosu</string>
@@ -390,7 +388,6 @@
     <string name="account_sign_out">Çıkış yap</string>
     <string name="account_switch">Hesap değiştir</string>
     <string name="switch_account_hint">İstediğiniz hesabı seçin, ardından bu ekranı geri okuyla kapatın — uygulama yeni hesapla yenilenir.</string>
-    <string name="cd_account_avatar">Hesap resmi</string>
     <string name="account_my_channel">Kanalım</string>
     <string name="account_watch_history">İzleme geçmişi</string>
     <string name="account_watch_later">Daha sonra izle</string>

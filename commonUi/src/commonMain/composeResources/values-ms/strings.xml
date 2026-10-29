@@ -121,8 +121,6 @@
     <string name="yt_playlist_removed_video">%1$s dialih keluar daripada senarai main</string>
     <string name="cd_add_to_playlist">Tambah ke senarai main</string>
     <string name="cd_share">Kongsi</string>
-    <string name="cd_music_video">Muzik</string>
-    <string name="cd_album">Album</string>
     <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
     <string name="a11y_kind_video">Video</string>
     <string name="a11y_kind_music_video">Video muzik</string>
@@ -386,7 +384,6 @@
     <string name="account_sign_out">Log keluar</string>
     <string name="account_switch">Tukar akaun</string>
     <string name="switch_account_hint">Pilih akaun yang anda mahu, kemudian tutup skrin ini dengan anak panah kembali — apl akan dimuat semula di bawah akaun baharu.</string>
-    <string name="cd_account_avatar">Gambar akaun</string>
     <string name="account_my_channel">Saluran saya</string>
     <string name="account_watch_history">Sejarah tontonan</string>
     <string name="account_watch_later">Tonton kemudian</string>
