@@ -448,6 +448,10 @@ private fun AppRoot(
                 snackbarHostState.showSnackbar(message)
             }
         }
+        DisposableEffect(snackbarHostState) {
+            GlobalShortcutActions.showMessage = showSnackbar
+            onDispose { GlobalShortcutActions.showMessage = {} }
+        }
         LaunchedEffect(uriFailures) {
             uriFailures.collect { uri -> showSnackbar(getString(Res.string.link_open_failed, uri)) }
         }
