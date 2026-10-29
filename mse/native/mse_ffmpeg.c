@@ -1975,21 +1975,24 @@ static int apple_vt_codec(const AVCodecParameters *par)
     return 0;
 }
 
+/* vpcC for a stream without one: profile, depth, chroma and range from the keyframe; BT.709 colour. */
 static void vp9_vpcc_from_par(uint8_t out[12], const AVCodecParameters *par,
                               const uint8_t *frame, int n)
 {
-    int profile = 0, bpp = 8;
+    MseVp9Header h;
     memset(out, 0, 12);
-    if (par->profile >= 0 && par->profile <= 3)
-        profile = par->profile;
-    if (frame && n >= 1 && (frame[0] >> 6) == 2) {
-        profile = (frame[0] >> 4) & 3;
-        if (profile >= 2)
-            bpp = 10;
+    if (!frame || mse_vp9_header(frame, (size_t)n, &h) != 0) {
+        memset(&h, 0, sizeof(h));
+        h.profile = par->profile >= 0 && par->profile <= 3 ? par->profile : 0;
+    }
+    if (!h.key) {
+        h.bit_depth = h.profile >= 2 ? 10 : 8;
+        h.ss_x = h.ss_y = !(h.profile & 1);
     }
     out[0] = 1;
-    out[4] = (uint8_t)profile;
-    out[6] = (uint8_t)((bpp << 4) | (1 << 1));
+    out[4] = (uint8_t)h.profile;
+    /* chromaSubsampling: 1 = 4:2:0 co-sited, 2 = 4:2:2, 3 = 4:4:4. */
+    out[6] = (uint8_t)((h.bit_depth << 4) | ((h.ss_x ? (h.ss_y ? 1 : 2) : 3) << 1) | h.full_range);
     out[7] = 1;
     out[8] = 1;
     out[9] = 1;
@@ -2013,6 +2016,7 @@ static void *open_apple_vt(MseAv *a)
         if (a->vf.rd < a->vf.n) {
             frame = a->vf.f[a->vf.rd].data;
             fn = (int)a->vf.f[a->vf.rd].n;
+            vp9_learn_profile(a->vpar, NULL, &a->vf.f[a->vf.rd]);
         }
         if (!extra || extra_n < 12 || extra[0] != 1) {
             vp9_vpcc_from_par(vpcc, a->vpar, frame, fn);
@@ -4708,9 +4712,10 @@ int mse_av_pull_video(MseAv *a, double clock, uint8_t **bgra, int *w, int *h, do
                      a->vpar->codec_id == AV_CODEC_ID_VP9 ? "vp9" : "h264",
                      a->vpar->width, a->vpar->height);
             else {
-                vlog("vt-dec open fail id=%d", (int)a->vpar->codec_id);
+                vlog("vt-dec open fail id=%d profile=%d", (int)a->vpar->codec_id, a->vpar->profile);
                 a->vt_fail_id = a->vpar->codec_id;
-                if (a->vpar->codec_id == AV_CODEC_ID_VP9)
+                /* VT turns down VP9 4:4:4, 4:2:2 and 12-bit; a profile 0 failure means no VP9 decoder. */
+                if (a->vpar->codec_id == AV_CODEC_ID_VP9 && a->vpar->profile <= 0)
                     vp9_vt_unavailable = 1;
             }
         }
