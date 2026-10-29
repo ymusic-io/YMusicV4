@@ -1548,7 +1548,7 @@ int file_av_step(FileAv *p)
 FileAv *file_av_create(void)
 {
     FileAv *p = calloc(1, sizeof(*p));
-    VpParams prm = { .tag = "file-av", .held_frames = VOUT_N };
+    VpParams prm = { .tag = "file-av", .held_frames = VOUT_N, .hw_session = 1 };
     if (!p)
         return NULL;
     p->vpipe = vpipe_create(&prm);

@@ -25,8 +25,9 @@ typedef struct VpHw {
     int (*lost)(void);
     /* vpipe gave up on the codec on this device; a backend may remember it past the stream. */
     void (*reject)(enum AVCodecID id);
-    /* Optional session decoders (decoder() NULL for the codec): frames come out as pix_fmt frames.
-       open: NULL = no session. send/receive follow avcodec_send_packet / avcodec_receive_frame. */
+    /* Optional session decoders (decoder() NULL for the codec), only for a VpParams.hw_session
+       engine: frames come out as pix_fmt frames. open: NULL = no session. send/receive follow
+       avcodec_send_packet / avcodec_receive_frame. */
     void *(*session_open)(const AVCodecParameters *par, AVRational pkt_timebase);
     int (*session_send)(void *s, const AVPacket *pkt);
     int (*session_receive)(void *s, AVFrame *out);

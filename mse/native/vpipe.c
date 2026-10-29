@@ -258,6 +258,8 @@ static const char *hw_refusal(VPipe *vp, int *zero_copy)
         return "no-device";
     if (latched(vp, vp->par->codec_id))
         return "latched";
+    if (hw->session_open && !vp->prm.hw_session && !hw->decoder(vp->par->codec_id))
+        return "unsupported";
     if (!hw->usable(vp->par))
         return "unsupported";
     pthread_mutex_lock(&vp->pmu);
@@ -320,7 +322,7 @@ static const char *open_hw(VPipe *vp, int zero_copy, const char *on)
         }
         vp->cur.sess = s;
         vp->cur.hw = 1;
-        vp->cur.name = hw->name;
+        vp->cur.name = avcodec_get_name(id);
         log_open(vp, zero_copy ? "zero-copy" : "readback", on);
         return NULL;
     }

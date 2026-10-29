@@ -31,6 +31,7 @@ typedef struct {
     int held_frames;          /* decoded frames the engine keeps outside the decoder */
     int low_delay;            /* software decoders keep the engine's tuned thread counts */
     int sw_error_reopen;      /* a software decode error reopens the decoder (VP_RESYNC) */
+    int hw_session;           /* the backend's session decoders may take the stream */
 } VpParams;
 
 VPipe *vpipe_create(const VpParams *prm);
