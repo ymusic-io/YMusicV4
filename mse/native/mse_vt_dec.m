@@ -182,21 +182,23 @@ void *mse_vt_dec_open(const uint8_t *avcc, int avcc_n, int w, int h)
     return d;
 }
 
-/* FullBox vpcC, version 1, 4:2:0 BT.709. */
+/* FullBox vpcC, version 1: profile, depth, chroma and range from the keyframe; BT.709 colour. */
 static void vp9_vpcc_synth(uint8_t out[12], int profile, const uint8_t *frame, int n)
 {
-    int bpp = 8;
+    MseVp9Header h;
     memset(out, 0, 12);
-    if (profile < 0 || profile > 3)
-        profile = 0;
-    if (frame && n >= 1 && (frame[0] >> 6) == 2) {
-        profile = (frame[0] >> 4) & 3;
-        if (profile >= 2)
-            bpp = 10;
+    if (!frame || n <= 0 || mse_vp9_header(frame, (size_t)n, &h) != 0) {
+        memset(&h, 0, sizeof(h));
+        h.profile = profile >= 0 && profile <= 3 ? profile : 0;
+    }
+    if (!h.key) {
+        h.bit_depth = h.profile >= 2 ? 10 : 8;
+        h.ss_x = h.ss_y = !(h.profile & 1);
     }
     out[0] = 1;
-    out[4] = (uint8_t)profile;
-    out[6] = (uint8_t)((bpp << 4) | (1 << 1));
+    out[4] = (uint8_t)h.profile;
+    /* chromaSubsampling: 1 = 4:2:0 co-sited, 2 = 4:2:2, 3 = 4:4:4. */
+    out[6] = (uint8_t)((h.bit_depth << 4) | ((h.ss_x ? (h.ss_y ? 1 : 2) : 3) << 1) | h.full_range);
     out[7] = 1;
     out[8] = 1;
     out[9] = 1;
