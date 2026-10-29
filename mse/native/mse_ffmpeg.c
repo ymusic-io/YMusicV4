@@ -1,5 +1,6 @@
 /* Pull-based libav MSE decoder. Kotlin owns the clock and sinks. */
 #include "mse_ffmpeg.h"
+#include "vpipe.h"
 #include "vpresent.h"
 
 #include <libavcodec/avcodec.h>
@@ -16,22 +17,13 @@
 #include <libavutil/samplefmt.h>
 #include <libswresample/swresample.h>
 #ifdef __APPLE__
-#include <TargetConditionals.h>
 #include <os/log.h>
-#include <libavutil/hwcontext.h>
-#include <libavutil/pixdesc.h>
 #include <CoreVideo/CoreVideo.h>
 #include "mse_vt_present.h"
 #endif
 #if defined(__linux__) && !defined(__ANDROID__)
 #define MSE_LINUX_HW 1
 #include "mse_hwdev.h"
-#endif
-#ifdef MSE_WIN_HW
-#include <libavutil/hwcontext.h>
-#include <libavutil/hwcontext_d3d11va.h>
-#include <libavutil/pixdesc.h>
-#include "mse_d3d11.h"
 #endif
 
 #include <math.h>
@@ -80,7 +72,16 @@ struct MseAv {
     Cfb af;
     Cfb vf;
     AVCodecContext *adec;
-    AVCodecContext *vdec;
+    /* Libav video decoding (desktop, iOS); never opened on Android. */
+    VPipe *vpipe;
+    /* The stream vpipe's decoder was opened for. */
+    enum AVCodecID vdec_id;
+    int vdec_w;
+    int vdec_h;
+    /* No decoder takes vpar: no reopen until new parameters. */
+    int v_dead;
+    /* Pts of the last packet vpipe took. */
+    double v_fed;
     SwrContext *swr;
     int swr_rate;
     int swr_ch;
@@ -88,14 +89,10 @@ struct MseAv {
     uint8_t *pcm;
     size_t pcm_n;
     AVFrame *afr;
+#ifdef __APPLE__
+    /* The VideoToolbox session's pictures and the layer flush bypass vpipe. */
     VPresenter *vp;
     const void *vp_engine;
-#if defined(MSE_LINUX_HW) || defined(MSE_WIN_HW)
-    int hw_errs; /* decode errors since the last good GPU frame */
-#endif
-#ifdef MSE_WIN_HW
-    /* Codec d3d11va failed on; it decodes in software (libvpx / libdav1d) until changeType. */
-    enum AVCodecID d3d11_fail_id;
 #endif
     int rate;
     int channels;
@@ -119,6 +116,8 @@ struct MseAv {
     AVFrame *vfr;
     AVFrame *vhold;
     AVBSFContext *vbsf;
+    /* vbsf output vpipe had no room for; sent before anything else. */
+    AVPacket *vbsf_out;
     AVCodecParameters *vpar;
     /* New quality (size/extradata) while leftover still covers currentTime.
        Chrome changeType keeps those packets; switch the decoder at the new GOP. */
@@ -149,7 +148,7 @@ struct MseAv {
     double vt_q_pts[8];
     int vt_q_w[8], vt_q_h[8];
     int vt_q_n;
-    /* Codec that failed VideoToolbox. Skip VT for that id (simulator AV1). */
+    /* Codec whose VideoToolbox session did not open: it decodes through vpipe. */
     enum AVCodecID vt_fail_id;
 #endif
 #ifdef __ANDROID__
@@ -326,8 +325,6 @@ static void mse_emit(int level, char *msg)
 }
 
 #ifdef __APPLE__
-static enum AVPixelFormat get_hw_format(AVCodecContext *ctx, const enum AVPixelFormat *pix_fmts);
-
 static os_log_t mse_oslog(void)
 {
     static os_log_t log;
@@ -356,13 +353,6 @@ static void mse_av_log(void *ptr, int level, const char *fmt, va_list vl)
             buf[--n] = 0;
 #ifdef __APPLE__
         os_log_with_type(mse_oslog(), OS_LOG_TYPE_ERROR, "ffmpeg %{public}s", buf);
-        if (fmt && strstr(fmt, "hwaccel initialisation returned error")) {
-            AVCodecContext *ctx = ptr;
-            /* The callback hears every decoder in the process: only MSE's carry an MseAv. */
-            MseAv *a = ctx && ctx->get_format == get_hw_format ? (MseAv *)ctx->opaque : NULL;
-            if (a && ctx->codec_id)
-                a->vt_fail_id = ctx->codec_id;
-        }
 #endif
 #ifdef MSE_LINUX_HW
         if (fmt && strstr(fmt, "hwaccel initialisation returned error")) {
@@ -459,9 +449,9 @@ static void vlog_state(MseAv *a, double clock, const char *why, double extra)
     }
     if (a->vhold && a->vhold->pts != AV_NOPTS_VALUE)
         hp = a->vhold->pts / 1000.0;
-    vlog("%s clock=%.3f extra=%.3f v_sent=%.3f hold=%.3f vf rd=%zu/%zu next=%.3f q=%.3f..%.3f nkey=%d next_key=%.3f rap=%d delay=%d bframes=%d",
+    vlog("%s clock=%.3f extra=%.3f v_sent=%.3f hold=%.3f vf rd=%zu/%zu next=%.3f q=%.3f..%.3f nkey=%d next_key=%.3f rap=%d dec=%s",
          why, clock, extra, a->v_sent, hp, a->vf.rd, a->vf.n, np, p0, p1, nkey, nk, a->need_rap[0],
-         a->vdec ? a->vdec->delay : -1, a->vdec ? a->vdec->has_b_frames : -1);
+         vpipe_describe(a->vpipe));
 }
 #else
 #define vdbg_ok() 0
@@ -1104,26 +1094,6 @@ fail:
     free(blob);
     return -1;
 }
-
-#ifdef __APPLE__
-static enum AVPixelFormat get_hw_format(AVCodecContext *ctx, const enum AVPixelFormat *pix_fmts)
-{
-    const enum AVPixelFormat *p;
-    MseAv *a = ctx && ctx->opaque ? (MseAv *)ctx->opaque : NULL;
-    int allow_vt = !a || a->vt_fail_id != ctx->codec_id;
-    if (allow_vt) {
-        for (p = pix_fmts; *p != AV_PIX_FMT_NONE; p++) {
-            if (*p == AV_PIX_FMT_VIDEOTOOLBOX)
-                return *p;
-        }
-    }
-    for (p = pix_fmts; *p != AV_PIX_FMT_NONE; p++) {
-        if (*p != AV_PIX_FMT_VIDEOTOOLBOX)
-            return *p;
-    }
-    return pix_fmts[0];
-}
-#endif
 
 #ifdef __ANDROID__
 static const char *mc_mime(enum AVCodecID id)
@@ -1781,74 +1751,13 @@ static int mc_try_open(MseAv *a)
         return -1;
     }
     a->mc_open_tries = 0;
-    if (a->vdec) {
+    if (vpipe_is_open(a->vpipe)) {
         av_frame_free(&a->vhold);
-        avcodec_free_context(&a->vdec);
+        vpipe_close(a->vpipe);
     }
     return 0;
 }
 #endif
-
-/* sw_only: skip VideoToolbox-hosted `av1` (simulator / vt_fail).
-   Prefer libvpx-vp9. Native `vp9` is software-only fallback when the pack
-   omitted libvpx (do not attach VT hwaccel: that path SIGILL). */
-static const AVCodec *find_video_codec(const AVCodecParameters *par, int sw_only)
-{
-    enum AVCodecID id = par->codec_id;
-    const AVCodec *c;
-#ifdef MSE_LINUX_HW
-    if (!sw_only && (id == AV_CODEC_ID_VP9 || id == AV_CODEC_ID_AV1) && mse_hwdev_usable(id)) {
-        c = avcodec_find_decoder_by_name(id == AV_CODEC_ID_VP9 ? "vp9" : "av1");
-        if (c)
-            return c;
-    }
-#endif
-#ifdef MSE_WIN_HW
-    /* d3d11va only drives the native decoders; libdav1d / libvpx-vp9 stay software. Native av1
-       has no software path: only a stream D3D11 takes may pick it. */
-    if (!sw_only && (id == AV_CODEC_ID_VP9 || id == AV_CODEC_ID_AV1) && mse_d3d11_par_ok(par)) {
-        c = avcodec_find_decoder_by_name(id == AV_CODEC_ID_VP9 ? "vp9" : "av1");
-        if (c && mse_d3d11_can_decode(c))
-            return c;
-    }
-#endif
-    if (id == AV_CODEC_ID_VP9) {
-        c = avcodec_find_decoder_by_name("libvpx-vp9");
-        if (c)
-            return c;
-        return avcodec_find_decoder_by_name("vp9");
-    }
-    if (id == AV_CODEC_ID_VP8) {
-        c = avcodec_find_decoder_by_name("libvpx");
-        if (c)
-            return c;
-        return NULL;
-    }
-    if (id == AV_CODEC_ID_AV1) {
-        if (sw_only) {
-            c = avcodec_find_decoder_by_name("libdav1d");
-            return c;
-        }
-#if defined(__APPLE__) && TARGET_OS_SIMULATOR
-        c = avcodec_find_decoder_by_name("libdav1d");
-        if (c)
-            return c;
-        return NULL;
-#endif
-#ifdef __APPLE__
-        /* find_decoder(AV1) returns libdav1d once it is linked. Native `av1`
-           is the VideoToolbox wrapper — 4K stays on the GPU. */
-        c = avcodec_find_decoder_by_name("av1");
-        if (c)
-            return c;
-#endif
-        c = avcodec_find_decoder_by_name("libdav1d");
-        if (c)
-            return c;
-        return avcodec_find_decoder(id);
-    }
-    return avcodec_find_decoder(id);
-}
 
 /* Same itag/config: reuse the decoder. A new quality (size or sequence
    header) must not feed leftover packets into the new decoder — keep
@@ -1941,22 +1850,6 @@ static void *open_apple_vt(MseAv *a)
 }
 #endif
 
-#ifdef MSE_WIN_HW
-/* A software pick (hwaccel init failed, or the stream does not fit D3D11) latches the codec so
-   d3d11_reopen_sw swaps in a decoder configured for software. */
-static enum AVPixelFormat get_d3d11_format(AVCodecContext *ctx, const enum AVPixelFormat *fmts)
-{
-    enum AVPixelFormat f = mse_d3d11_pick(ctx, fmts);
-    MseAv *a = ctx->opaque;
-    if (f != AV_PIX_FMT_D3D11 && a && a->d3d11_fail_id != ctx->codec_id) {
-        a->d3d11_fail_id = ctx->codec_id;
-        mse_critf(MSE_LOG_INFO, "d3d11va off id=%d sw=%s: reopening in software",
-                  (int)ctx->codec_id, av_get_pix_fmt_name(ctx->sw_pix_fmt));
-    }
-    return f;
-}
-#endif
-
 static void log_no_decoder(enum AVCodecID id)
 {
     static int logged_id;
@@ -2000,10 +1893,24 @@ static int open_audio_decoder(MseAv *a, AVCodecParameters *par)
     return 0;
 }
 
+static void vbsf_flush(MseAv *a)
+{
+    if (a->vbsf)
+        av_bsf_flush(a->vbsf);
+    if (a->vbsf_out)
+        av_packet_unref(a->vbsf_out);
+}
+
+static void vbsf_free(MseAv *a)
+{
+    av_bsf_free(&a->vbsf);
+    if (a->vbsf_out)
+        av_packet_unref(a->vbsf_out);
+}
+
+/* Caller holds a->mu. */
 static int open_video_decoder(MseAv *a, AVCodecParameters *par)
 {
-    const AVCodec *codec;
-    int vp9;
     if (a->v_rest
 #ifdef __APPLE__
         || a->v_bg_park
@@ -2014,169 +1921,30 @@ static int open_video_decoder(MseAv *a, AVCodecParameters *par)
     /* Video decodes in MediaCodec only: a CPU blit would hold the window from it for good. */
     return -1;
 #endif
-    vp9 = par->codec_id == AV_CODEC_ID_VP9 || par->codec_id == AV_CODEC_ID_VP8;
-    if (a->vdec) {
-        int same = a->vdec->codec_id == par->codec_id;
-        int cw = a->vdec->width > 0 ? a->vdec->width : a->vdec->coded_width;
-        int ch = a->vdec->height > 0 ? a->vdec->height : a->vdec->coded_height;
-        if (same && par->width > 0 && cw > 0 &&
-            (par->width != cw || par->height != ch)) {
-            vlog("reopen size %dx%d -> %dx%d", cw, ch, par->width, par->height);
+    if (vpipe_is_open(a->vpipe)) {
+        int same = a->vdec_id == par->codec_id;
+        if (same && par->width > 0 && a->vdec_w > 0 &&
+            (par->width != a->vdec_w || par->height != a->vdec_h)) {
+            vlog("reopen size %dx%d -> %dx%d", a->vdec_w, a->vdec_h, par->width, par->height);
             same = 0;
         } else if (!same)
-            vlog("reopen codec %d -> %d", (int)a->vdec->codec_id, (int)par->codec_id);
+            vlog("reopen codec %d -> %d", (int)a->vdec_id, (int)par->codec_id);
         if (same)
             return 0;
-        avcodec_free_context(&a->vdec);
-        av_bsf_free(&a->vbsf);
+        vpipe_close(a->vpipe);
+        vbsf_free(a);
         a->need_rap[0] = 1;
         a->v_reopen = 1;
     }
-    codec = find_video_codec(par,
-#ifdef __APPLE__
-        par->codec_id == a->vt_fail_id
-#elif defined(MSE_WIN_HW)
-        par->codec_id == a->d3d11_fail_id
-#else
-        0
-#endif
-        );
-    if (!codec) {
-        log_no_decoder(par->codec_id);
+    if (a->v_dead)
+        return -1;
+    if (vpipe_open(a->vpipe, par, (AVRational){ 1, 1000 }) < 0) {
+        a->v_dead = 1;
         return -1;
     }
-#ifdef __APPLE__
-    /* VT-failed AV1 with no dav1d: do not reopen the hwaccel-only `av1`. */
-    if (par->codec_id == AV_CODEC_ID_AV1 && par->codec_id == a->vt_fail_id &&
-        !avcodec_find_decoder_by_name("libdav1d"))
-        return -1;
-#endif
-    a->vdec = avcodec_alloc_context3(codec);
-    if (!a->vdec)
-        return -1;
-    if (avcodec_parameters_to_context(a->vdec, par) < 0) {
-        avcodec_free_context(&a->vdec);
-        return -1;
-    }
-    /* libvpx VP9: Chrome uses ~4 decoder threads (VpxVideoDecoder).
-       libdav1d: one thread cannot keep 1080p; Alder Lake AVX-512 SIGILL
-       was workers=1. Use cores (capped) for AV1 software. */
-    if (vp9) {
-        a->vdec->thread_count = 4;
-        a->vdec->thread_type = FF_THREAD_FRAME;
-    } else if (par->codec_id == AV_CODEC_ID_AV1) {
-        int n = av_cpu_count();
-        if (n < 2)
-            n = 2;
-        if (n > 8)
-            n = 8;
-        a->vdec->thread_count = n;
-        a->vdec->thread_type = FF_THREAD_FRAME;
-    } else {
-        a->vdec->thread_count = 1;
-        a->vdec->thread_type = 0;
-    }
-#ifdef __APPLE__
-    /* H.264/AV1 VideoToolbox. ffmpeg used to Require HW; simulator has none
-       so session create failed. After the allow-sw patch, VT still runs
-       (Apple software decoder on sim, HW on device). */
-    a->vdec->opaque = a;
-    if (!vp9 && par->codec_id != a->vt_fail_id) {
-        AVBufferRef *hw = NULL;
-        if (av_hwdevice_ctx_create(&hw, AV_HWDEVICE_TYPE_VIDEOTOOLBOX, NULL, NULL, 0) >= 0) {
-            a->vdec->hw_device_ctx = av_buffer_ref(hw);
-            a->vdec->get_format = get_hw_format;
-            av_buffer_unref(&hw);
-        }
-    } else if (!vp9) {
-        vlog("vt skip id=%d fail=%d", (int)par->codec_id, (int)a->vt_fail_id);
-    }
-#endif
-#ifdef MSE_LINUX_HW
-    if (mse_hwdev_usable(par->codec_id) &&
-        (par->codec_id == AV_CODEC_ID_H264 || par->codec_id == AV_CODEC_ID_HEVC ||
-         par->codec_id == AV_CODEC_ID_VP9 || par->codec_id == AV_CODEC_ID_AV1)) {
-        a->vdec->hw_device_ctx = av_buffer_ref(mse_hwdev_get());
-        a->vdec->get_format = mse_hwdev_get_format;
-        /* vhold + the receive frame sit outside the decoder's fixed CUDA surface pool. */
-        a->vdec->extra_hw_frames = 4;
-        a->vdec->thread_count = 1;
-        a->vdec->thread_type = 0;
-    }
-#endif
-#ifdef MSE_WIN_HW
-    /* D3D11VA wraps the process-wide device, not a swapchain: it decodes with or without an
-     * attached Canvas. */
-    a->vdec->opaque = a;
-    if (par->codec_id != a->d3d11_fail_id && mse_d3d11_par_ok(par) &&
-        mse_d3d11_can_decode(codec)) {
-        AVBufferRef *hw = mse_d3d11_hwdev_ref();
-        if (hw) {
-            a->vdec->hw_device_ctx = hw;
-            a->vdec->get_format = get_d3d11_format;
-            a->vdec->extra_hw_frames = 4;
-            a->vdec->thread_count = 1;
-            a->vdec->thread_type = 0;
-        }
-    }
-#endif
-    if (avcodec_open2(a->vdec, codec, NULL) < 0) {
-#ifdef __APPLE__
-        if (a->vdec->hw_device_ctx) {
-            av_buffer_unref(&a->vdec->hw_device_ctx);
-            a->vdec->hw_device_ctx = NULL;
-            a->vdec->get_format = NULL;
-            a->vt_fail_id = par->codec_id;
-            if (avcodec_open2(a->vdec, codec, NULL) >= 0)
-                goto opened;
-        }
-#endif
-#ifdef MSE_LINUX_HW
-        if (a->vdec->hw_device_ctx) {
-            mse_hwdev_mark_failed(par->codec_id);
-            avcodec_free_context(&a->vdec);
-            return open_video_decoder(a, par);
-        }
-#endif
-#ifdef MSE_WIN_HW
-        if (a->vdec->hw_device_ctx) {
-            a->d3d11_fail_id = par->codec_id;
-            mse_critf(MSE_LOG_WARN, "d3d11va open-fail id=%d: software from now on",
-                      (int)par->codec_id);
-            avcodec_free_context(&a->vdec);
-            return open_video_decoder(a, par);
-        }
-#endif
-        mse_critf(MSE_LOG_WARN, "mse-v open decoder fail id=%d %s", (int)par->codec_id,
-                  codec->name);
-        avcodec_free_context(&a->vdec);
-        return -1;
-    }
-#ifdef __APPLE__
-    if (a->vt_fail_id == par->codec_id && a->vdec->hw_device_ctx) {
-        avcodec_free_context(&a->vdec);
-        return open_video_decoder(a, par);
-    }
-#endif
-#ifdef MSE_LINUX_HW
-    if (a->vdec->hw_device_ctx && !mse_hwdev_usable(par->codec_id)) {
-        avcodec_free_context(&a->vdec);
-        return open_video_decoder(a, par);
-    }
-#endif
-#ifdef __APPLE__
-opened:
-#endif
-    a->vdec->pkt_timebase = (AVRational){ 1, 1000 };
-    a->vdec->time_base = (AVRational){ 1, 1000 };
-    vlog("open %s %dx%d threads=%d vt=%d", codec->name, a->vdec->width, a->vdec->height,
-         a->vdec->thread_count,
-#if defined(__APPLE__) || defined(MSE_LINUX_HW) || defined(MSE_WIN_HW)
-         a->vdec->hw_device_ctx ? 1 : 0
-#else
-         0
-#endif
-    );
+    a->vdec_id = par->codec_id;
+    a->vdec_w = par->width;
+    a->vdec_h = par->height;
     if (par->codec_id == AV_CODEC_ID_VP9 && !a->vbsf) {
         const AVBitStreamFilter *f = av_bsf_get_by_name("vp9_superframe");
         if (f && av_bsf_alloc(f, &a->vbsf) == 0) {
@@ -2234,6 +2002,7 @@ static void apply_pending_video_rep(MseAv *a)
     a->vpar = a->vpar_next;
     a->vpar_next = NULL;
     a->v_switch_pts = -1;
+    a->v_dead = 0;
 #ifdef __ANDROID__
     a->mc_fail = 0;
     a->mc_open_tries = 0;
@@ -2269,20 +2038,14 @@ static void maybe_apply_video_rep(MseAv *a)
     apply_pending_video_rep(a);
 }
 
-static int send_coded(Cfb *b, AVCodecContext *dec, AVBSFContext *bsf)
+static AVPacket *coded_packet(const Cf *cf)
 {
-    AVPacket *pkt;
-    Cf *cf;
-    int r;
-    if (!dec || b->rd >= b->n)
-        return 0;
-    cf = &b->f[b->rd];
-    pkt = av_packet_alloc();
+    AVPacket *pkt = av_packet_alloc();
     if (!pkt)
-        return -1;
+        return NULL;
     if (av_new_packet(pkt, (int)cf->n) < 0) {
         av_packet_free(&pkt);
-        return -1;
+        return NULL;
     }
     memcpy(pkt->data, cf->data, cf->n);
     pkt->pts = (int64_t)(cf->pts * 1000.0);
@@ -2290,54 +2053,97 @@ static int send_coded(Cfb *b, AVCodecContext *dec, AVBSFContext *bsf)
     pkt->time_base = (AVRational){ 1, 1000 };
     if (cf->key)
         pkt->flags |= AV_PKT_FLAG_KEY;
-    if (bsf) {
-        r = av_bsf_send_packet(bsf, pkt);
-        av_packet_free(&pkt);
-        if (r == AVERROR(EAGAIN))
-            return 0;
-        if (r < 0)
-            return r;
-        cf->sent = 1;
-        b->rd++;
-        pkt = av_packet_alloc();
-        if (!pkt)
-            return -1;
-        for (;;) {
-            r = av_bsf_receive_packet(bsf, pkt);
-            if (r == AVERROR(EAGAIN) || r == AVERROR_EOF)
-                break;
-            if (r < 0) {
-                av_packet_free(&pkt);
-                return r;
-            }
-            r = avcodec_send_packet(dec, pkt);
-            av_packet_unref(pkt);
-            if (r == AVERROR(EAGAIN))
-                continue;
-            if (r < 0 && r != AVERROR_EOF) {
-                av_packet_free(&pkt);
-                return r;
-            }
-        }
-        av_packet_free(&pkt);
+    return pkt;
+}
+
+static int send_coded(Cfb *b, AVCodecContext *dec)
+{
+    AVPacket *pkt;
+    int r;
+    if (!dec || b->rd >= b->n)
         return 0;
-    }
+    pkt = coded_packet(&b->f[b->rd]);
+    if (!pkt)
+        return -1;
     r = avcodec_send_packet(dec, pkt);
     av_packet_free(&pkt);
     if (r == AVERROR(EAGAIN))
         return 0;
     if (r < 0 && r != AVERROR_EOF)
         return r;
-    cf->sent = 1;
+    b->f[b->rd].sent = 1;
     b->rd++;
     return 0;
+}
+
+/* vbsf's output into vpipe, the held packet first. AVERROR(EAGAIN) while vpipe is full. */
+static int vbsf_drain(MseAv *a)
+{
+    int r;
+    if (!a->vbsf_out && !(a->vbsf_out = av_packet_alloc()))
+        return AVERROR(ENOMEM);
+    for (;;) {
+        if (!a->vbsf_out->data) {
+            r = av_bsf_receive_packet(a->vbsf, a->vbsf_out);
+            if (r == AVERROR(EAGAIN) || r == AVERROR_EOF)
+                return 0;
+            if (r < 0) {
+                mse_critf(MSE_LOG_WARN, "mse-v vp9_superframe out: %s", av_err2str(r));
+                return r;
+            }
+        }
+        r = vpipe_send(a->vpipe, a->vbsf_out, (a->vbsf_out->flags & AV_PKT_FLAG_KEY) != 0);
+        if (r == AVERROR(EAGAIN))
+            return r;
+        av_packet_unref(a->vbsf_out);
+        if (r < 0)
+            return r;
+    }
+}
+
+/* vf's next frame into vpipe. AVERROR(EAGAIN): not taken. Else the frame is consumed and the
+   result is vpipe's: 0, VP_RESYNC, VP_DEAD, or the error of a packet the decoder rejected. */
+static int send_video(MseAv *a)
+{
+    Cf *cf = &a->vf.f[a->vf.rd];
+    AVPacket *pkt;
+    int r;
+    if (a->vbsf && (r = vbsf_drain(a)) != 0)
+        return r;
+    pkt = coded_packet(cf);
+    if (!pkt) {
+        mse_critf(MSE_LOG_WARN, "mse-v no memory for a %zu-byte packet", cf->n);
+        return AVERROR(ENOMEM);
+    }
+    if (a->vbsf) {
+        r = av_bsf_send_packet(a->vbsf, pkt);
+        if (r < 0 && r != AVERROR(EAGAIN))
+            mse_critf(MSE_LOG_WARN, "mse-v vp9_superframe pts=%.3f: %s", cf->pts, av_err2str(r));
+    } else {
+        r = vpipe_send(a->vpipe, pkt, coded_is_rap(a, cf));
+    }
+    av_packet_free(&pkt);
+    if (r == AVERROR(EAGAIN))
+        return r;
+    cf->sent = 1;
+    a->vf.rd++;
+    if (r < 0 || !a->vbsf)
+        return r;
+    r = vbsf_drain(a);
+    return r == AVERROR(EAGAIN) ? 0 : r;
 }
 
 MseAv *mse_av_create(void)
 {
     MseAv *a = calloc(1, sizeof(*a));
+    VpParams prm = { .tag = "mse-v", .held_frames = 2, .low_delay = 1, .sw_error_reopen = 1 };
     if (!a)
         return NULL;
+    a->vpipe = vpipe_create(&prm);
+    if (!a->vpipe) {
+        free(a);
+        return NULL;
+    }
     pthread_mutex_init(&a->mu, NULL);
     pthread_mutex_init(&a->amu, NULL);
     a->a_sent = -1;
@@ -2386,13 +2192,15 @@ static void av_unlock_all(MseAv *a)
 
 void mse_av_destroy(MseAv *a)
 {
+#ifdef __APPLE__
     VPresenter *vp;
+#endif
     if (!a)
         return;
     av_lock_all(a);
     avcodec_free_context(&a->adec);
-    avcodec_free_context(&a->vdec);
     av_bsf_free(&a->vbsf);
+    av_packet_free(&a->vbsf_out);
     avcodec_parameters_free(&a->vpar);
     avcodec_parameters_free(&a->vpar_next);
 #ifdef __ANDROID__
@@ -2404,8 +2212,10 @@ void mse_av_destroy(MseAv *a)
     free(a->pcm);
     av_frame_free(&a->afr);
     av_frame_free(&a->vfr);
+#ifdef __APPLE__
     vp = a->vp;
     a->vp = NULL;
+#endif
     free(a->ainit);
     free(a->vinit);
     free(a->pend[0]);
@@ -2414,7 +2224,10 @@ void mse_av_destroy(MseAv *a)
     cfb_free(&a->vf);
     av_frame_free(&a->vhold);
     av_unlock_all(a);
+    vpipe_destroy(a->vpipe);
+#ifdef __APPLE__
     vpresent_release(vp);
+#endif
     pthread_mutex_destroy(&a->amu);
     pthread_mutex_destroy(&a->mu);
     free(a);
@@ -3217,7 +3030,7 @@ MseAvIngest mse_av_append(MseAv *a, int audio, const uint8_t *p, int n, double t
                         vlog("video-rep %dx%d -> %dx%d keep vf=%zu",
                              a->vpar->width, a->vpar->height, par->width, par->height,
                              a->vf.n);
-                        if (!a->vdec
+                        if (!vpipe_is_open(a->vpipe)
 #ifdef __APPLE__
                             && !apple_vt_codec(a->vpar)
 #endif
@@ -3321,15 +3134,15 @@ static void flush_layer(MseAv *a)
 /* Caller holds a->mu. */
 static void close_video_decoder(MseAv *a)
 {
-    if (a->vdec
+    if (vpipe_is_open(a->vpipe)
 #ifdef __APPLE__
         || a->vt_dec
 #endif
     )
         vlog("close-video");
     av_frame_free(&a->vhold);
-    avcodec_free_context(&a->vdec);
-    av_bsf_free(&a->vbsf);
+    vpipe_close(a->vpipe);
+    vbsf_free(a);
 #ifdef __ANDROID__
     if (a->mc_bsf_out)
         av_packet_unref(a->mc_bsf_out);
@@ -3371,10 +3184,10 @@ void mse_av_abort(MseAv *a, int audio)
     a->need_rap[idx] = 1;
     if (audio && a->adec)
         avcodec_flush_buffers(a->adec);
-    if (!audio && a->vdec)
-        avcodec_flush_buffers(a->vdec);
-    if (!audio && a->vbsf)
-        av_bsf_flush(a->vbsf);
+    if (!audio) {
+        vpipe_flush(a->vpipe);
+        vbsf_flush(a);
+    }
 #ifdef __ANDROID__
     if (!audio)
         mc_flush(a);
@@ -3407,11 +3220,8 @@ void mse_av_change_type(MseAv *a, int audio)
         a->vinit_n = 0;
         close_video_decoder(a);
         a->v_err_key = -1;
-#ifdef MSE_WIN_HW
-        /* New stream: give D3D11VA a fresh chance even if the previous stream's codec latched off.
-         * The fail latch is per-session (one problematic stream), not permanent. */
-        a->d3d11_fail_id = AV_CODEC_ID_NONE;
-#endif
+        vpipe_new_stream(a->vpipe);
+        a->v_dead = 0;
     }
     vlog("changeType a=%d", audio);
     av_unlock(a, audio);
@@ -3575,10 +3385,10 @@ void mse_av_flush(MseAv *a, int audio, int video)
     av_lock_all(a);
     if (audio && a->adec)
         avcodec_flush_buffers(a->adec);
-    if (video && a->vdec)
-        avcodec_flush_buffers(a->vdec);
-    if (video && a->vbsf)
-        av_bsf_flush(a->vbsf);
+    if (video) {
+        vpipe_flush(a->vpipe);
+        vbsf_flush(a);
+    }
 #ifdef __ANDROID__
     if (video)
         mc_flush(a);
@@ -3914,8 +3724,7 @@ void mse_av_seek(MseAv *a, double seconds)
 #endif
             close_video_decoder(a);
     } else {
-        if (a->vdec)
-            avcodec_flush_buffers(a->vdec);
+        vpipe_flush(a->vpipe);
 #ifdef __APPLE__
         if (a->vt_dec)
             mse_vt_dec_flush(a->vt_dec);
@@ -3930,8 +3739,7 @@ void mse_av_seek(MseAv *a, double seconds)
         a->vt_q_pb[a->vt_q_n] = NULL;
     }
 #endif
-    if (a->vbsf)
-        av_bsf_flush(a->vbsf);
+    vbsf_flush(a);
 #ifdef __ANDROID__
     mc_flush(a);
 #endif
@@ -3951,15 +3759,7 @@ static int present_frame(MseAv *a, AVFrame *frame, int *w, int *h)
 {
     *w = frame->width;
     *h = frame->height;
-#if defined(MSE_LINUX_HW) || defined(MSE_WIN_HW)
-    if (frame->hw_frames_ctx)
-        a->hw_errs = 0;
-#endif
-    if (!a->vp)
-        return 0;
-    return vpresent_show_frame(a->vp, a->vp_engine, frame, vp_color_of(frame, a->vpar)) == VP_FAIL
-               ? -1
-               : 0;
+    return vpipe_present(a->vpipe, frame) == VP_FAIL ? -1 : 0;
 }
 
 static uint8_t *pcm_scratch(MseAv *a, size_t n)
@@ -4000,9 +3800,13 @@ void mse_av_set_window(MseAv *a, void *window)
 
 void mse_av_set_presenter(MseAv *a, VPresenter *p, const void *engine)
 {
+#ifdef __APPLE__
     VPresenter *old;
+#endif
     if (!a)
         return;
+    vpipe_set_presenter(a->vpipe, p, engine);
+#ifdef __APPLE__
     vpresent_retain(p);
     pthread_mutex_lock(&a->mu);
     old = a->vp;
@@ -4010,6 +3814,7 @@ void mse_av_set_presenter(MseAv *a, VPresenter *p, const void *engine)
     a->vp_engine = engine;
     pthread_mutex_unlock(&a->mu);
     vpresent_release(old);
+#endif
 }
 
 #ifdef __APPLE__
@@ -4051,84 +3856,32 @@ void mse_av_recover_display(MseAv *a, double clock)
 }
 #endif
 
-/* After INVALIDDATA dav1d stays poisoned: flush is not enough — later
-   keys also fail (log21 12.045/18.018 key=1) and the clock starve-aheads
-   with a frozen picture. Close and reopen, then resync from the previous
-   key near the playhead. Split VP9 superframes without a BSF are
-   INVALIDDATA on their own — those must not tear the decoder down. */
-static void video_decode_error(MseAv *a, double pts, int err)
+/* r from vpipe at the packet `pos`: VP_DEAD = no decoder takes the stream (vpipe logged why),
+   VP_RESYNC = vpipe replaced the decoder, else the decoder kept its state and is flushed. */
+static void video_decode_error(MseAv *a, double pos, int r)
 {
-    char dec[64];
-    if (a->vpar && a->vpar->codec_id == AV_CODEC_ID_VP9 && !a->vbsf)
-        return;
-#ifdef __APPLE__
-    if (a->vdec && a->vdec->hw_device_ctx) {
-        a->vt_fail_id = a->vdec->codec_id;
-        mse_critf(MSE_LOG_WARN, "mse-v vt-fail software id=%d", (int)a->vt_fail_id);
-    } else if (a->vdec && err == AVERROR(ENOSYS)) {
-        /* Software `av1` send() is ENOSYS without libdav1d. Do not reopen.
-           dav1d Invalid OBU after rest is a missing key, not ENOSYS. */
-        a->vt_fail_id = a->vdec->codec_id;
-        mse_critf(MSE_LOG_WARN, "mse-v decode-dead id=%d t=%.3f", (int)a->vt_fail_id, pts);
+    const char *dec;
+    if (r == VP_DEAD) {
+        a->v_dead = 1;
         close_video_decoder(a);
         return;
     }
-#endif
-#ifdef MSE_LINUX_HW
-    /* Stream switches and seeks error in software too; only a run of them condemns the GPU. */
-    if (a->vdec && a->vdec->hw_device_ctx && ++a->hw_errs >= 3) {
-        a->hw_errs = 0;
-        mse_hwdev_mark_failed(a->vdec->codec_id);
-    }
-#endif
-#ifdef MSE_WIN_HW
-    /* ENOSYS: native av1 opened without the device (lost after the pick); the latch makes the
-       reopen below software. A removed device fails every codec; that reopen goes software
-       without a latch. */
-    if (a->vdec && err == AVERROR(ENOSYS) && a->d3d11_fail_id != a->vdec->codec_id) {
-        a->hw_errs = 0;
-        a->d3d11_fail_id = a->vdec->codec_id;
-        mse_critf(MSE_LOG_WARN, "mse-v decode-dead id=%d %s: software from now on",
-                  (int)a->vdec->codec_id, a->vdec->codec ? a->vdec->codec->name : "?");
-    } else if (a->vdec && a->vdec->hw_device_ctx && !mse_d3d11_check_lost() && ++a->hw_errs >= 3) {
-        a->hw_errs = 0;
-        a->d3d11_fail_id = a->vdec->codec_id;
-        mse_critf(MSE_LOG_WARN, "d3d11va rejected id=%d: software from now on",
-                  (int)a->vdec->codec_id);
-    }
-#endif
-    mse_critf(MSE_LOG_WARN, "mse-v decode-err close-reopen t=%.3f", pts);
-    close_video_decoder(a);
-    if (a->vpar)
-        open_video_decoder(a, a->vpar);
-    snprintf(dec, sizeof(dec), "%s%s", a->vdec && a->vdec->codec ? a->vdec->codec->name : "",
-             a->vdec && a->vdec->hw_device_ctx ? " hw" : "");
+    if (r != VP_RESYNC)
+        vpipe_flush(a->vpipe);
+    av_frame_free(&a->vhold);
+    vbsf_flush(a);
+    a->v_seen_idr = 0;
+    dec = vpipe_describe(a->vpipe);
+    vlog("decode-err r=%d at %.3f, %s resyncs", r, pos, dec);
     /* The same decoder failing again at or past the same point: the GOP's data is bad. */
-    if (a->v_err_key >= 0 && pts >= a->v_err_pos - 0.001 && !strcmp(dec, a->v_err_dec))
+    if (a->v_err_key >= 0 && pos >= a->v_err_pos - 0.001 && !strcmp(dec, a->v_err_dec))
         vf_skip_gop(a, a->v_err_key);
     else
-        vf_resync_key(a, a->v_sent >= 0 ? a->v_sent : pts);
+        vf_resync_key(a, a->v_sent >= 0 ? a->v_sent : pos);
     a->v_err_key = a->vf.rd < a->vf.n ? a->vf.f[a->vf.rd].pts : -1;
-    a->v_err_pos = pts;
+    a->v_err_pos = pos;
     snprintf(a->v_err_dec, sizeof(a->v_err_dec), "%s", dec);
 }
-
-#ifdef MSE_WIN_HW
-/* A latched codec (or any, once the device is lost) still in its D3D11-configured context
-   decodes single-threaded or not at all (native av1); reopen it as libvpx / libdav1d /
-   threaded. 1 if it reopened. */
-static int d3d11_reopen_sw(MseAv *a, double t)
-{
-    if (!a->vdec || !a->vdec->hw_device_ctx ||
-        (a->vdec->codec_id != a->d3d11_fail_id && !mse_d3d11_lost()))
-        return 0;
-    close_video_decoder(a);
-    if (a->vpar)
-        open_video_decoder(a, a->vpar);
-    vf_resync_key(a, a->v_sent >= 0 ? a->v_sent : t);
-    return 1;
-}
-#endif
 
 #ifdef __APPLE__
 /* As present_frame, for a picture of the own VT session. */
@@ -4330,17 +4083,10 @@ static int pull_video(MseAv *a, double clock, int *w, int *h, double *pts)
         return r;
     }
 #endif
-    if (!a->vdec && a->vpar && a->vf.rd < a->vf.n &&
+    if (!vpipe_is_open(a->vpipe) && a->vpar && a->vf.rd < a->vf.n &&
         (!a->need_rap[0] || coded_is_rap(a, &a->vf.f[a->vf.rd])))
         open_video_decoder(a, a->vpar);
-#ifdef __APPLE__
-    if (a->vdec && a->vdec->hw_device_ctx && a->vt_fail_id == a->vdec->codec_id)
-        video_decode_error(a, clock, 0);
-#endif
-#ifdef MSE_WIN_HW
-    d3d11_reopen_sw(a, clock);
-#endif
-    if (!a->vdec || a->vf.n == 0) {
+    if (!vpipe_is_open(a->vpipe) || a->vf.n == 0) {
         pthread_mutex_unlock(&a->mu);
         return 0;
     }
@@ -4385,9 +4131,9 @@ static int pull_video(MseAv *a, double clock, int *w, int *h, double *pts)
     {
     int late_skips = 0;
     for (i = 0; i < 96; i++) {
-        if (!a->vdec)
+        if (!vpipe_is_open(a->vpipe))
             break;
-        got = avcodec_receive_frame(a->vdec, frame);
+        got = vpipe_receive(a->vpipe, frame);
         if (got == 0) {
             double p = frame->pts != AV_NOPTS_VALUE ? frame->pts / 1000.0 : clock;
             double d = p - clock;
@@ -4439,11 +4185,15 @@ static int pull_video(MseAv *a, double clock, int *w, int *h, double *pts)
             pthread_mutex_unlock(&a->mu);
             return 1;
         }
+        if (got != AVERROR(EAGAIN) && got != AVERROR_EOF) {
+            video_decode_error(a, a->v_fed, got);
+            continue;
+        }
         maybe_apply_video_rep(a);
-        if (!a->vdec && a->vpar && a->vf.rd < a->vf.n &&
+        if (!vpipe_is_open(a->vpipe) && a->vpar && a->vf.rd < a->vf.n &&
             (!a->need_rap[0] || coded_is_rap(a, &a->vf.f[a->vf.rd])))
             open_video_decoder(a, a->vpar);
-        if (!a->vdec)
+        if (!vpipe_is_open(a->vpipe))
             break;
         {
             size_t rd0 = a->vf.rd;
@@ -4467,27 +4217,14 @@ static int pull_video(MseAv *a, double clock, int *w, int *h, double *pts)
         }
         {
             double sp = a->vf.f[a->vf.rd].pts;
-            int key = a->vf.f[a->vf.rd].key;
             int rap = coded_is_rap(a, &a->vf.f[a->vf.rd]);
-            int sr = send_coded(&a->vf, a->vdec, a->vbsf);
-#ifdef MSE_WIN_HW
-            if (d3d11_reopen_sw(a, clock))
+            int sr = send_video(a);
+            if (sr == AVERROR(EAGAIN))
                 continue;
-#endif
+            a->v_fed = sp;
             if (sr < 0) {
-                char err[64];
-                av_strerror(sr, err, sizeof(err));
-                mse_critf(MSE_LOG_WARN, "mse-v send-err pts=%.3f key=%d r=%d %s", sp, key, sr,
-                          err);
                 vlog_state(a, clock, "send-fail", sp);
-                /* Split VP9 superframes without a BSF are INVALIDDATA on
-                   their own — drop this packet, keep the GOP. */
-                if (a->vpar && a->vpar->codec_id == AV_CODEC_ID_VP9 && !a->vbsf) {
-                    a->vf.f[a->vf.rd].sent = 1;
-                    a->vf.rd++;
-                } else {
-                    video_decode_error(a, sp, sr);
-                }
+                video_decode_error(a, sp, sr);
                 continue;
             }
             if (rap) {
@@ -4495,7 +4232,7 @@ static int pull_video(MseAv *a, double clock, int *w, int *h, double *pts)
                 a->v_seen_idr = 1;
             }
             if (vdbg_ok())
-                vlog("send pts=%.3f key=%d clock=%.3f", sp, key, clock);
+                vlog("send pts=%.3f rap=%d clock=%.3f", sp, rap, clock);
         }
     }
     }
@@ -4556,7 +4293,7 @@ int mse_av_pull_audio(MseAv *a, double clock, double until, int16_t **s16, int *
             }
             if (a->af.rd >= a->af.n || a->af.f[a->af.rd].pts > until + 0.08)
                 break;
-            if (send_coded(&a->af, a->adec, NULL) < 0)
+            if (send_coded(&a->af, a->adec) < 0)
                 break;
         }
     }
