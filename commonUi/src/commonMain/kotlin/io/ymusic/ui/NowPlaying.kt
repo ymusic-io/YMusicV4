@@ -150,6 +150,7 @@ import io.ymusic.settings.AppSettings
 import io.ymusic.settings.flow
 import io.ymusic.settings.put
 import io.ymusic.ui.resources.Res
+import io.ymusic.ui.resources.a11y_now_playing
 import io.ymusic.ui.resources.audio_only
 import io.ymusic.ui.resources.badge_live
 import io.ymusic.ui.resources.captions_auto_translate
@@ -190,6 +191,7 @@ import io.ymusic.ui.resources.menu_reload_player
 import io.ymusic.ui.resources.menu_search_lyrics
 import io.ymusic.ui.resources.menu_speed_pitch
 import io.ymusic.ui.resources.menu_start_radio
+import io.ymusic.ui.resources.play_again_track_of
 import io.ymusic.ui.resources.playback_add_folder_again
 import io.ymusic.ui.resources.playback_botguard_failed
 import io.ymusic.ui.resources.playback_failed
@@ -1767,6 +1769,7 @@ private fun QueueHeader(
         Text(
             "${currentIndex + 1} / $total",
             style = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = DesignColors.InkFaint),
+            modifier = Modifier.spokenAs(stringResource(Res.string.play_again_track_of, currentIndex + 1, total)),
         )
         if (onLocateCurrent != null) {
             ActionIcon(
@@ -1878,6 +1881,12 @@ private fun QueueRowContent(
     var menuOpen by remember { mutableStateOf(false) }
     val sub = listOfNotNull(item.displayDuration, item.displaySubtitle).joinToString(" · ")
     val playLabel = stringResource(Res.string.cd_play)
+    val label = listOfNotNull(
+        if (current) stringResource(Res.string.a11y_now_playing) else null,
+        item.displayTitle,
+        item.displayDuration?.let { spokenLength(item.durationMs, it) },
+        item.displaySubtitle,
+    ).joinToString(", ")
     Row(
         Modifier
             .fillMaxWidth()
@@ -1890,10 +1899,8 @@ private fun QueueRowContent(
             )
             .then(if (current) Modifier.background(DesignColors.Accent.copy(alpha = 0.1f)) else Modifier)
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
-            .semantics(mergeDescendants = true) {
-                if (current) selected = true
-            }
             .clickable(role = Role.Button, onClickLabel = playLabel) { coordinator.player.playAt(index) }
+            .a11yActionLabel(label)
             .padding(horizontal = 16.dp, vertical = if (large) 10.dp else 8.dp),
         horizontalArrangement = Arrangement.spacedBy(if (large) 12.dp else 8.dp),
         verticalAlignment = Alignment.Top,
@@ -1917,14 +1924,14 @@ private fun QueueRowContent(
             tint = if (current) DesignColors.Accent else DesignColors.Outline,
         )
         Box(
-            Modifier.size(if (large) 60.dp else 48.dp).clip(RoundedCornerShape(6.dp)),
+            Modifier.size(if (large) 60.dp else 48.dp).clip(RoundedCornerShape(6.dp)).a11ySilent(),
             contentAlignment = Alignment.Center,
         ) {
             ArtImage(item.displayThumbnailUrl, RoundedCornerShape(6.dp)) {
                 ThumbPlaceholder(Icons.Outlined.Image, 18.dp)
             }
         }
-        Column(Modifier.weight(1f)) {
+        Column(Modifier.weight(1f).a11ySilent()) {
             Text(
                 item.displayTitle,
                 style = TextStyle(
