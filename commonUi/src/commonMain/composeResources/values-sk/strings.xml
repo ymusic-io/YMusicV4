@@ -643,7 +643,11 @@
     <string name="shortcuts_switch_tabs">Prepínať karty</string>
     <string name="shortcuts_escape">Ukončiť celú obrazovku alebo zavrieť Práve hrá, ponuku či vyskakovacie okno</string>
     <string name="shortcuts_help">Zobraziť túto nápovedu</string>
-    <string name="a11y_key_left_bracket">ľavá hranatá zátvorka</string>
-    <string name="a11y_key_right_bracket">pravá hranatá zátvorka</string>
+    <string name="shortcuts_volume_up">Zvýšiť hlasitosť</string>
+    <string name="shortcuts_volume_down">Znížiť hlasitosť</string>
+    <string name="a11y_key_arrow_left">šípka doľava</string>
+    <string name="a11y_key_arrow_right">šípka doprava</string>
+    <string name="a11y_key_arrow_up">šípka hore</string>
+    <string name="a11y_key_arrow_down">šípka dole</string>
     <string name="cd_always_on_top">Vždy navrchu</string>
 </resources>

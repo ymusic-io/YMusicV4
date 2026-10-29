@@ -627,7 +627,11 @@
     <string name="shortcuts_switch_tabs">ടാബുകൾ മാറുക</string>
     <string name="shortcuts_escape">പൂർണ്ണ സ്ക്രീനിൽ നിന്ന് പുറത്തുകടക്കുക, അല്ലെങ്കിൽ Now Playing, മെനു, പോപ്പ്-അപ്പ് എന്നിവ അടയ്ക്കുക</string>
     <string name="shortcuts_help">ഈ സഹായം കാണിക്കുക</string>
-    <string name="a11y_key_left_bracket">ഇടത് ചതുര ബ്രാക്കറ്റ്</string>
-    <string name="a11y_key_right_bracket">വലത് ചതുര ബ്രാക്കറ്റ്</string>
+    <string name="shortcuts_volume_up">ശബ്ദം കൂട്ടുക</string>
+    <string name="shortcuts_volume_down">ശബ്ദം കുറയ്ക്കുക</string>
+    <string name="a11y_key_arrow_left">ഇടത് അമ്പ്</string>
+    <string name="a11y_key_arrow_right">വലത് അമ്പ്</string>
+    <string name="a11y_key_arrow_up">മുകളിലേക്കുള്ള അമ്പ്</string>
+    <string name="a11y_key_arrow_down">താഴേക്കുള്ള അമ്പ്</string>
     <string name="cd_always_on_top">എപ്പോഴും മുകളിൽ</string>
 </resources>

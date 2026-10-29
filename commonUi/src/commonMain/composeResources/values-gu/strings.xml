@@ -627,7 +627,11 @@
     <string name="shortcuts_switch_tabs">ટૅબ બદલો</string>
     <string name="shortcuts_escape">પૂર્ણ સ્ક્રીનમાંથી બહાર નીકળો, અથવા Now Playing, મેનુ કે પૉપ-અપ બંધ કરો</string>
     <string name="shortcuts_help">આ મદદ બતાવો</string>
-    <string name="a11y_key_left_bracket">ડાબો ચોરસ કૌંસ</string>
-    <string name="a11y_key_right_bracket">જમણો ચોરસ કૌંસ</string>
+    <string name="shortcuts_volume_up">અવાજ વધારો</string>
+    <string name="shortcuts_volume_down">અવાજ ઘટાડો</string>
+    <string name="a11y_key_arrow_left">ડાબો તીર</string>
+    <string name="a11y_key_arrow_right">જમણો તીર</string>
+    <string name="a11y_key_arrow_up">ઉપર તીર</string>
+    <string name="a11y_key_arrow_down">નીચે તીર</string>
     <string name="cd_always_on_top">હંમેશાં ટોચ પર</string>
 </resources>

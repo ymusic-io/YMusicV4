@@ -635,7 +635,11 @@
     <string name="shortcuts_switch_tabs">Cambiar de pestaña</string>
     <string name="shortcuts_escape">Salir de pantalla completa o cerrar la pantalla de reproducción, el menú o una ventana emergente</string>
     <string name="shortcuts_help">Mostrar esta ayuda</string>
-    <string name="a11y_key_left_bracket">corchete izquierdo</string>
-    <string name="a11y_key_right_bracket">corchete derecho</string>
+    <string name="shortcuts_volume_up">Subir volumen</string>
+    <string name="shortcuts_volume_down">Bajar volumen</string>
+    <string name="a11y_key_arrow_left">flecha izquierda</string>
+    <string name="a11y_key_arrow_right">flecha derecha</string>
+    <string name="a11y_key_arrow_up">flecha arriba</string>
+    <string name="a11y_key_arrow_down">flecha abajo</string>
     <string name="cd_always_on_top">Siempre visible</string>
 </resources>

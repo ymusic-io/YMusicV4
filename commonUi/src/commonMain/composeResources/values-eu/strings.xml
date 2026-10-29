@@ -627,7 +627,11 @@
     <string name="shortcuts_switch_tabs">Aldatu fitxaz</string>
     <string name="shortcuts_escape">Irten pantaila osotik, edo itxi Orain erreproduzitzen, menua edo leiho gainerakor bat</string>
     <string name="shortcuts_help">Erakutsi laguntza hau</string>
-    <string name="a11y_key_left_bracket">ezkerreko kortxetea</string>
-    <string name="a11y_key_right_bracket">eskuineko kortxetea</string>
+    <string name="shortcuts_volume_up">Igo bolumena</string>
+    <string name="shortcuts_volume_down">Jaitsi bolumena</string>
+    <string name="a11y_key_arrow_left">ezkerreko gezia</string>
+    <string name="a11y_key_arrow_right">eskuineko gezia</string>
+    <string name="a11y_key_arrow_up">gora gezia</string>
+    <string name="a11y_key_arrow_down">behera gezia</string>
     <string name="cd_always_on_top">Beti gainean</string>
 </resources>

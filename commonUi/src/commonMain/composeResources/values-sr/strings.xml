@@ -635,7 +635,11 @@
     <string name="shortcuts_switch_tabs">Промени картицу</string>
     <string name="shortcuts_escape">Изађи из целог екрана или затвори „Сада се пушта“, мени или искачући прозор</string>
     <string name="shortcuts_help">Прикажи ову помоћ</string>
-    <string name="a11y_key_left_bracket">лева угласта заграда</string>
-    <string name="a11y_key_right_bracket">десна угласта заграда</string>
+    <string name="shortcuts_volume_up">Појачај звук</string>
+    <string name="shortcuts_volume_down">Утишај звук</string>
+    <string name="a11y_key_arrow_left">стрелица лево</string>
+    <string name="a11y_key_arrow_right">стрелица десно</string>
+    <string name="a11y_key_arrow_up">стрелица горе</string>
+    <string name="a11y_key_arrow_down">стрелица доле</string>
     <string name="cd_always_on_top">Увек на врху</string>
 </resources>

@@ -627,7 +627,11 @@
     <string name="shortcuts_switch_tabs">Tablar arasında keç</string>
     <string name="shortcuts_escape">Tam ekrandan çıx və ya İndi oxudulur ekranını, menyunu, yaxud açılan pəncərəni bağla</string>
     <string name="shortcuts_help">Bu yardımı göstər</string>
-    <string name="a11y_key_left_bracket">sol kvadrat mötərizə</string>
-    <string name="a11y_key_right_bracket">sağ kvadrat mötərizə</string>
+    <string name="shortcuts_volume_up">Səsi artır</string>
+    <string name="shortcuts_volume_down">Səsi azalt</string>
+    <string name="a11y_key_arrow_left">sol ox</string>
+    <string name="a11y_key_arrow_right">sağ ox</string>
+    <string name="a11y_key_arrow_up">yuxarı ox</string>
+    <string name="a11y_key_arrow_down">aşağı ox</string>
     <string name="cd_always_on_top">Həmişə üstdə</string>
 </resources>

@@ -783,7 +783,11 @@
     <string name="shortcuts_switch_tabs">Switch tabs</string>
     <string name="shortcuts_escape">Exit full screen, or close Now Playing, the menu or a pop-up</string>
     <string name="shortcuts_help">Show this help</string>
-    <string name="a11y_key_left_bracket">left bracket</string>
-    <string name="a11y_key_right_bracket">right bracket</string>
+    <string name="shortcuts_volume_up">Volume up</string>
+    <string name="shortcuts_volume_down">Volume down</string>
+    <string name="a11y_key_arrow_left">left arrow</string>
+    <string name="a11y_key_arrow_right">right arrow</string>
+    <string name="a11y_key_arrow_up">up arrow</string>
+    <string name="a11y_key_arrow_down">down arrow</string>
     <string name="cd_always_on_top">Always on top</string>
 </resources>

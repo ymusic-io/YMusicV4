@@ -627,7 +627,11 @@
     <string name="shortcuts_switch_tabs">Префрли картичка</string>
     <string name="shortcuts_escape">Излези од цел екран или затвори „Сега се пушта“, мени или скокачки прозорец</string>
     <string name="shortcuts_help">Прикажи ја оваа помош</string>
-    <string name="a11y_key_left_bracket">лева аглеста заграда</string>
-    <string name="a11y_key_right_bracket">десна аглеста заграда</string>
+    <string name="shortcuts_volume_up">Зголеми звук</string>
+    <string name="shortcuts_volume_down">Намали звук</string>
+    <string name="a11y_key_arrow_left">стрелка лево</string>
+    <string name="a11y_key_arrow_right">стрелка десно</string>
+    <string name="a11y_key_arrow_up">стрелка горе</string>
+    <string name="a11y_key_arrow_down">стрелка долу</string>
     <string name="cd_always_on_top">Секогаш најгоре</string>
 </resources>

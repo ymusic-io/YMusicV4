@@ -627,7 +627,11 @@
     <string name="shortcuts_switch_tabs">Превключване между разделите</string>
     <string name="shortcuts_escape">Изход от цял екран или затваряне на „Сега се изпълнява“, менюто или изскачащ прозорец</string>
     <string name="shortcuts_help">Показване на тази помощ</string>
-    <string name="a11y_key_left_bracket">лява квадратна скоба</string>
-    <string name="a11y_key_right_bracket">дясна квадратна скоба</string>
+    <string name="shortcuts_volume_up">Увеличаване на звука</string>
+    <string name="shortcuts_volume_down">Намаляване на звука</string>
+    <string name="a11y_key_arrow_left">стрелка наляво</string>
+    <string name="a11y_key_arrow_right">стрелка надясно</string>
+    <string name="a11y_key_arrow_up">стрелка нагоре</string>
+    <string name="a11y_key_arrow_down">стрелка надолу</string>
     <string name="cd_always_on_top">Винаги отгоре</string>
 </resources>

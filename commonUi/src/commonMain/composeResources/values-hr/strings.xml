@@ -635,7 +635,11 @@
     <string name="shortcuts_switch_tabs">Promijeni karticu</string>
     <string name="shortcuts_escape">Izađi iz cijelog zaslona ili zatvori Sada svira, izbornik ili skočni prozor</string>
     <string name="shortcuts_help">Prikaži ovu pomoć</string>
-    <string name="a11y_key_left_bracket">lijeva uglata zagrada</string>
-    <string name="a11y_key_right_bracket">desna uglata zagrada</string>
+    <string name="shortcuts_volume_up">Pojačaj glasnoću</string>
+    <string name="shortcuts_volume_down">Smanji glasnoću</string>
+    <string name="a11y_key_arrow_left">strelica lijevo</string>
+    <string name="a11y_key_arrow_right">strelica desno</string>
+    <string name="a11y_key_arrow_up">strelica gore</string>
+    <string name="a11y_key_arrow_down">strelica dolje</string>
     <string name="cd_always_on_top">Uvijek na vrhu</string>
 </resources>
