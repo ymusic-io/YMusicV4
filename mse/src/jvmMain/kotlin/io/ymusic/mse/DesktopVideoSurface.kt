@@ -34,9 +34,6 @@ class DesktopVideoSurface(private val cpuOnly: Boolean = false) {
     /** The engine the presenter is bound to: [VideoEngine.LOCAL] while claimed, else [VideoEngine.MSE]. */
     val active: StateFlow<VideoEngine> = _active.asStateFlow()
 
-    /** A Canvas is set: engines get its presenter (GPU, or CPU where the GPU path failed on it). */
-    val hasCanvas: Boolean get() = canvas != null
-
     /** Each CPU picture (null = clear), on the presenting thread. */
     @Volatile
     var onCpuFrame: ((BufferedImage?) -> Unit)? = null
@@ -50,8 +47,6 @@ class DesktopVideoSurface(private val cpuOnly: Boolean = false) {
     }
 
     private val bindLock = Any()
-
-    @Volatile
     private var canvas: Canvas? = null
     private var handle = 0L
     private var sink: Sink? = null
