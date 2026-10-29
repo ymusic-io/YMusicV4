@@ -11,7 +11,8 @@ import javax.swing.SwingUtilities
 
 /**
  * Video-only owner Frame behind the transparent Compose UI. Owned dialogs stay above this
- * Frame, so the canvas cannot restack over chrome. Never toFront, never key.
+ * Frame, so the canvas cannot restack over chrome. Never toFront, never key. Never shown on Linux:
+ * the Compose window there has no alpha visual, so nothing behind it shows through ([ComposeVideoFrame]).
  */
 internal class VideoUnderlay {
     val frame: Frame = Frame("YMusic video").apply { // title matched in mse_vt_present fullscreen restack
@@ -32,7 +33,7 @@ internal class VideoUnderlay {
     var shown = true
         set(value) {
             field = value
-            frame.isVisible = value
+            frame.isVisible = value && !isLinux
         }
 
     fun attach(panel: JComponent?) {
@@ -66,6 +67,7 @@ internal class VideoUnderlay {
     }
 
     fun setHole(x: Int, y: Int, w: Int, h: Int) {
+        if (isLinux) return
         if (!SwingUtilities.isEventDispatchThread()) {
             SwingUtilities.invokeLater { setHole(x, y, w, h) }
             return
