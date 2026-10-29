@@ -13,8 +13,8 @@ import java.awt.Toolkit
 import java.awt.Window
 
 /**
- * Floating, zoom (fit the work area), and fullscreen: native on macOS, elsewhere the undecorated
- * window sized to its monitor's full bounds.
+ * Floating, zoom (fit the work area), and fullscreen: native on macOS, the window manager's on Linux,
+ * on Windows the undecorated window sized to its monitor's full bounds.
  *
  * Never uses [WindowPlacement.Maximized]: AWT's maximized flag fights
  * [NSWindow.toggleFullScreen] and forgets the floating size.
@@ -62,6 +62,7 @@ internal class DesktopFrame(
     fun toggleFullscreen() {
         val w = host ?: return
         if (isMac) return FileAvNative.toggleFullScreen(w)
+        if (isLinux) return toggleWmFullscreen(w)
         if (fullscreen) return onNativeFullscreen(false)
         if (!zoomed) {
             floatingSize = state.size
@@ -70,6 +71,22 @@ internal class DesktopFrame(
         fullscreen = true
         val b = w.graphicsConfiguration.bounds
         put(DpSize(b.width.dp, b.height.dp), WindowPosition(b.x.dp, b.y.dp))
+    }
+
+    /**
+     * The window manager's own fullscreen (_NET_WM_STATE_FULLSCREEN), entered and left through AWT. A
+     * monitor-sized undecorated window is promoted to that state by Mutter anyway, and then ignores the
+     * resize that would end it; leaving the state restores the window's previous frame.
+     */
+    private fun toggleWmFullscreen(w: Window) {
+        val device = w.graphicsConfiguration.device
+        if (fullscreen) {
+            if (device.fullScreenWindow === w) device.fullScreenWindow = null
+            fullscreen = false
+        } else {
+            fullscreen = true
+            device.fullScreenWindow = w
+        }
     }
 
     fun onNativeFullscreen(on: Boolean) {
