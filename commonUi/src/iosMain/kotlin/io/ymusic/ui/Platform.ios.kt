@@ -18,6 +18,14 @@ internal actual fun Modifier.a11yActionLabel(label: String?): Modifier =
     if (label.isNullOrEmpty()) this
     else this.semantics { contentDescription = label }
 
+internal actual fun Modifier.a11ySlider(
+    label: String?,
+    value: String,
+    fraction: Float,
+    enabled: Boolean,
+    onSet: (Float) -> Unit,
+): Modifier = rangeSliderSemantics(label, value, fraction, enabled, onSet)
+
 @Composable
 internal actual fun PlatformBackHandler(enabled: Boolean, onBack: () -> Unit) {
     // iOS has no system back button; the edge-swipe gesture can be wired here later.

@@ -67,9 +67,6 @@ import androidx.compose.ui.unit.sp
 import io.ymusic.dynamicengine.yt.YtFeedItem
 import io.ymusic.dynamicengine.yt.YtSectionHeader
 import io.ymusic.ui.resources.Res
-import io.ymusic.ui.resources.a11y_duration_hours
-import io.ymusic.ui.resources.a11y_duration_minutes
-import io.ymusic.ui.resources.a11y_duration_seconds
 import io.ymusic.ui.resources.a11y_kind_album
 import io.ymusic.ui.resources.a11y_kind_channel
 import io.ymusic.ui.resources.a11y_kind_live
@@ -96,7 +93,6 @@ import io.ymusic.ui.resources.chart_top_songs_weekly
 import io.ymusic.ui.resources.chart_trending_music_videos
 import io.ymusic.ui.resources.play_all
 import io.ymusic.ui.resources.section_subscribed_channels
-import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -577,19 +573,6 @@ private fun feedItemLabel(item: YtFeedItem): String {
         item.itemCount?.takeIf { it !in sub },
         sub,
     ).filter { it.isNotEmpty() }.joinToString(", ")
-}
-
-@Composable
-private fun spokenDuration(ms: Long): String {
-    val total = ms / 1000
-    val h = (total / 3600).toInt()
-    val m = (total % 3600 / 60).toInt()
-    val s = (total % 60).toInt()
-    return listOfNotNull(
-        if (h > 0) pluralStringResource(Res.plurals.a11y_duration_hours, h, h) else null,
-        if (m > 0) pluralStringResource(Res.plurals.a11y_duration_minutes, m, m) else null,
-        if (s > 0 || total == 0L) pluralStringResource(Res.plurals.a11y_duration_seconds, s, s) else null,
-    ).joinToString(" ")
 }
 
 @Composable
