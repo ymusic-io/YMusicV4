@@ -44,6 +44,7 @@ jobs:
           - { slug: macos-arm64, runner: macos-14 }
           - { slug: macos-x86_64, runner: macos-15-intel }
           - { slug: linux-x86_64, runner: ubuntu-24.04 }
+          - { slug: linux-arm64, runner: ubuntu-24.04-arm }
           # Native under MSYS2, as on a developer machine. CLANGARM64 has no gcc: HOST_CC is
           # ffmpeg's compiler, which its configure otherwise assumes is gcc.
           - slug: windows-x86_64
@@ -501,6 +502,7 @@ jobs:
       matrix:
         include:
           - { slug: linux-x86_64, runner: ubuntu-24.04 }
+          - { slug: linux-arm64, runner: ubuntu-24.04-arm }
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
