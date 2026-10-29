@@ -48,6 +48,7 @@ class DynamicEnginePlayer private constructor(
         height: Int? = null,
         freshConfig: Boolean = false,
     ): JsonObject {
+        nativeMse?.awaitDecoderTable(logger)
         return engine.jsonCommand(
             "player/init",
             { w ->
@@ -361,6 +362,10 @@ class DynamicEnginePlayer private constructor(
 internal interface NativeMseHost {
     fun setVideoSurface(surface: MseVideoSurface?)
     fun setSpeed(speed: Float, tempo: Float)
+
+    /** Where the decoder table comes from outside C (Android), it is in place before player/init reads it. */
+    suspend fun awaitDecoderTable(logger: Logger?) {}
+
     fun close()
 }
 

@@ -86,4 +86,4 @@ Module detail for the one-line summary in the root [`AGENTS.md`](../AGENTS.md) â
   `canPlayType` answer from the host's decoder table (`__mseDecodingInfo`, `:mse` `mse_caps.c`), and
   `getVideoPlaybackQuality` / `webkit*FrameCount` from its frame counts (`__mseVideoQuality`) â€” installed after
   the BotGuard snapshot, so the snapshot sees the same env on every host. A host without the natives or without a
-  table (Android until its MediaCodec rows) keeps the env it had before.
+  table (an Android player whose MediaCodecList walk had not finished by `player/init`) keeps the env it had before.
