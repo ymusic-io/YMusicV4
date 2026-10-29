@@ -23,6 +23,10 @@
     <string name="downloads_none_title">Brak pobranych plików</string>
     <string name="downloads_none_message">Pobrane utwory i filmy działają offline.</string>
     <string name="downloads_failed">Pobieranie nie powiodło się</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Pokaż w Finderze</string>
+    <string name="menu_reveal_explorer">Pokaż w Eksploratorze plików</string>
+    <string name="menu_reveal_file_manager">Pokaż w menedżerze plików</string>
     <string name="section_settings">Ustawienia</string>
     <string name="section_donate">Wesprzyj</string>
     <string name="section_feedback">Opinie</string>

@@ -23,6 +23,10 @@
     <string name="downloads_none_title">ഇതുവരെ ഡൗൺലോഡുകളൊന്നുമില്ല</string>
     <string name="downloads_none_message">ഡൗൺലോഡ് ചെയ്ത പാട്ടുകളും വീഡിയോകളും ഓഫ്‌ലൈനായി പ്ലേ ചെയ്യാം.</string>
     <string name="downloads_failed">ഡൗൺലോഡ് പരാജയപ്പെട്ടു</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Finder-ൽ കാണിക്കുക</string>
+    <string name="menu_reveal_explorer">ഫയൽ എക്സ്പ്ലോററിൽ കാണിക്കുക</string>
+    <string name="menu_reveal_file_manager">ഫയൽ മാനേജറിൽ കാണിക്കുക</string>
     <string name="section_settings">ക്രമീകരണങ്ങൾ</string>
     <string name="section_donate">സംഭാവന ചെയ്യുക</string>
     <string name="section_feedback">ഫീഡ്‌ബാക്ക്</string>

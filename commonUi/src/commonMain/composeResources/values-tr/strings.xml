@@ -23,6 +23,10 @@
     <string name="downloads_none_title">Henüz indirme yok</string>
     <string name="downloads_none_message">İndirilen şarkılar ve videolar çevrimdışı çalar.</string>
     <string name="downloads_failed">İndirme başarısız</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Finder'da göster</string>
+    <string name="menu_reveal_explorer">Dosya Gezgini'nde göster</string>
+    <string name="menu_reveal_file_manager">Dosya yöneticisinde göster</string>
     <string name="section_settings">Ayarlar</string>
     <string name="section_donate">Bağış yap</string>
     <string name="section_feedback">Geri bildirim</string>

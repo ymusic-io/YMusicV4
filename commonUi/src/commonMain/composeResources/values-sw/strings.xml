@@ -23,6 +23,10 @@
     <string name="downloads_none_title">Bado hakuna vipakuliwa</string>
     <string name="downloads_none_message">Nyimbo na video zilizopakuliwa hucheza nje ya mtandao.</string>
     <string name="downloads_failed">Imeshindwa kupakua</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Onyesha kwenye Finder</string>
+    <string name="menu_reveal_explorer">Onyesha kwenye Kichunguzi cha Faili</string>
+    <string name="menu_reveal_file_manager">Onyesha kwenye kidhibiti faili</string>
     <string name="section_settings">Mipangilio</string>
     <string name="section_donate">Changia</string>
     <string name="section_feedback">Maoni</string>

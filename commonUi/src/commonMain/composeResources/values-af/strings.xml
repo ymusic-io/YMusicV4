@@ -23,6 +23,10 @@
     <string name="downloads_none_title">Nog geen aflaaie nie</string>
     <string name="downloads_none_message">Afgelaaide liedjies en video’s speel aflyn.</string>
     <string name="downloads_failed">Aflaai het misluk</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Wys in Finder</string>
+    <string name="menu_reveal_explorer">Wys in Lêerverkenner</string>
+    <string name="menu_reveal_file_manager">Wys in lêerbestuurder</string>
     <string name="section_settings">Instellings</string>
     <string name="section_donate">Skenk</string>
     <string name="section_feedback">Terugvoer</string>

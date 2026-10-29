@@ -23,6 +23,10 @@
     <string name="downloads_none_title">Још нема преузимања</string>
     <string name="downloads_none_message">Преузете песме и видео снимци пуштају се офлајн.</string>
     <string name="downloads_failed">Преузимање није успело</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Прикажи у Finder-у</string>
+    <string name="menu_reveal_explorer">Прикажи у Истраживачу датотека</string>
+    <string name="menu_reveal_file_manager">Прикажи у менаџеру датотека</string>
     <string name="section_settings">Подешавања</string>
     <string name="section_donate">Донирајте</string>
     <string name="section_feedback">Повратне информације</string>

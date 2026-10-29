@@ -23,6 +23,10 @@
     <string name="downloads_none_title">Încă nu există descărcări</string>
     <string name="downloads_none_message">Melodiile și videoclipurile descărcate rulează offline.</string>
     <string name="downloads_failed">Descărcarea nu a reușit</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Afișează în Finder</string>
+    <string name="menu_reveal_explorer">Afișează în Explorer fișiere</string>
+    <string name="menu_reveal_file_manager">Afișează în managerul de fișiere</string>
     <string name="section_settings">Setări</string>
     <string name="section_donate">Donează</string>
     <string name="section_feedback">Feedback</string>

@@ -23,6 +23,10 @@
     <string name="downloads_none_title">Nessun download per ora</string>
     <string name="downloads_none_message">Brani e video scaricati si riproducono offline.</string>
     <string name="downloads_failed">Download non riuscito</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Mostra nel Finder</string>
+    <string name="menu_reveal_explorer">Mostra in Esplora file</string>
+    <string name="menu_reveal_file_manager">Mostra nel gestore file</string>
     <string name="section_settings">Impostazioni</string>
     <string name="section_donate">Fai una donazione</string>
     <string name="section_feedback">Feedback</string>

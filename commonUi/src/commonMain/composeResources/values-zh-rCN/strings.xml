@@ -23,6 +23,10 @@
     <string name="downloads_none_title">暂无下载</string>
     <string name="downloads_none_message">已下载的歌曲和视频可离线播放。</string>
     <string name="downloads_failed">下载失败</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">在 Finder 中显示</string>
+    <string name="menu_reveal_explorer">在文件资源管理器中显示</string>
+    <string name="menu_reveal_file_manager">在文件管理器中显示</string>
     <string name="section_settings">设置</string>
     <string name="section_donate">捐赠</string>
     <string name="section_feedback">反馈</string>
