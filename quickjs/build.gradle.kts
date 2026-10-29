@@ -188,10 +188,7 @@ val javaHomeForJni: String = run {
         ?: error("No JDK with JNI headers (include/jni.h) found. Checked: $candidates")
 }
 
-// Without an explicit deployment target, the MachO header records the BUILD HOST's SDK as the
-// minimum OS — a lib built here refused to load on anything below macOS 14.8. 11.0 is Compose
-// Desktop's own floor (and the first Apple-silicon release).
-val macDeploymentTarget = "11.0"
+val macDeploymentTarget = Versions.macosMin
 
 // Windows: the CMake project uses GCC/Clang-only syntax (`__attribute__((format))`, POSIX headers,
 // `--gc-sections`), so MSVC can't compile it; mingwCmakeArgs points CMake at MinGW-w64 instead.

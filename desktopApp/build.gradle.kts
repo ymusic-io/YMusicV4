@@ -327,6 +327,7 @@ compose.desktop {
             macOS {
                 // Stable across releases: the updater and Gatekeeper both identify the app by it.
                 bundleID = "io.ymusic.desktop"
+                minimumSystemVersion = Versions.macosMin
                 // The rounded-square dock tile; the runtime Taskbar icon (dev runs) is the same
                 // artwork from src/jvmMain/resources/ymusic_dock.png. macOS 26+ draws the
                 // CFBundleIconName icon from macos/Assets.car instead (installMacIconAssets).

@@ -38,7 +38,8 @@ import okio.EOFException
  * never reframed. A parse error, a cache-write failure, or an inconsistent-framing check flips
  * [illegalState] — open fills are aborted and caching is disabled for the rest of this response — but the
  * pass-through is left intact: a cache miss is always safe, caching corrupt bytes or corrupting the
- * player's stream is not.
+ * player's stream is not. A segment whose framing is intact but whose bytes fail the structure check is
+ * only left out.
  */
 internal class SabrCacheTee(
     private val network: AsyncSource,
@@ -216,14 +217,16 @@ internal class SabrCacheTee(
                     // A throw here propagates to read()'s catch → markIllegal.
                     val failure = fill.commit()
                     if (failure != null) {
-                        markIllegal(
-                            "segment failed its structure check, not cached (${seg.header.describe()}) " +
+                        // The framing checked out, so only this segment's bytes are bad: later ones still cache.
+                        logger?.log(
+                            Logger.Level.WARN,
+                            "sabr-fill segment failed its structure check, not cached (${seg.header.describe()}) " +
                                 failure.describe(seg.header.startRange),
                         )
-                        return false
+                    } else {
+                        sealedSegments++
+                        sealedBytes += seg.length
                     }
-                    sealedSegments++
-                    sealedBytes += seg.length
                 }
             }
 

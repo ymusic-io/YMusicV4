@@ -751,8 +751,9 @@ private fun AppRoot(
                 (layers.lastOrNull() as? AppLayer.Search)?.session?.editing = true
             }
         }
-        DisposableEffect(hotkeySearch) {
-            GlobalShortcutActions.openSearch = hotkeySearch
+        val latestHotkeySearch by rememberUpdatedState(hotkeySearch)
+        DisposableEffect(Unit) {
+            GlobalShortcutActions.openSearch = { latestHotkeySearch() }
             onDispose { GlobalShortcutActions.openSearch = {} }
         }
         // The "Search "q" online" hand-off: jump to Discover and run q as a YouTube search there,
