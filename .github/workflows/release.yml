@@ -140,6 +140,7 @@ jobs:
           }
 
   android:
+    if: false # TEMP linux-only test run
     needs: ffmpeg
     runs-on: ubuntu-24.04
     env:
@@ -239,6 +240,7 @@ jobs:
           if-no-files-found: error
 
   macos:
+    if: false # TEMP linux-only test run
     name: macos ${{ matrix.slug }}
     needs: ffmpeg
     runs-on: ${{ matrix.runner }}
@@ -381,6 +383,7 @@ jobs:
 
   # The Inno Setup installer (YMusic-Setup-<version>-<platform>.exe), unsigned.
   windows:
+    if: false # TEMP linux-only test run
     name: windows ${{ matrix.slug }}
     needs: ffmpeg
     runs-on: ${{ matrix.runner }}
@@ -555,6 +558,7 @@ jobs:
 
   # Every module's JVM tests; JUnit aborts any test past 30 s (root build.gradle.kts).
   test:
+    if: false # TEMP linux-only test run
     needs: ffmpeg
     runs-on: macos-14
     steps:
@@ -605,6 +609,7 @@ jobs:
   # Today's engine.js / player.js on the host of every shipped tag from compat/floor.txt on, one
   # concurrent job per tag (compat/README.md).
   compat-bundles:
+    if: false # TEMP linux-only test run
     runs-on: ubuntu-24.04
     outputs:
       tags: ${{ steps.tags.outputs.tags }}
