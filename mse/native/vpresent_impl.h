@@ -38,7 +38,16 @@ struct VPresenter {
 VPresenter *vp_alloc(const VpOps *ops, void *impl, const VpSink *s, int mode);
 /* Fires on_mode after mu is released. */
 void vp_set_mode(VPresenter *p, int mode);
+/* The surface died under a live presenter: GPU mode becomes CPU (detached stays NONE). */
+void vp_gpu_lost(VPresenter *p);
+/* A reference unless the presenter is already being destroyed. */
+int vp_retain_live(VPresenter *p);
 void vp_fit_size(VPresenter *p, int *w, int *h);
+
+#ifdef _WIN32
+/* mse_d3d11_check_lost: drops every D3D11 presenter's swapchain and turns it CPU. */
+void vpresent_d3d11_device_lost(void);
+#endif
 
 /* CPU mode, under present_mu: convert at the fit size and hand the BGRA to the sink. */
 int vp_cpu_show(VPresenter *p, const struct AVFrame *f, VpColor c);

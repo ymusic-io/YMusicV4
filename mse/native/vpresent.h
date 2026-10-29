@@ -36,6 +36,10 @@ typedef struct {
 } VpSink;
 
 VPresenter *vpresent_create_cpu(const VpSink *s);
+#ifdef _WIN32
+/* A swapchain on the HWND; NULL when D3D11 cannot present there. */
+VPresenter *vpresent_create_d3d11(void *hwnd, const VpSink *s);
+#endif
 void vpresent_retain(VPresenter *p);
 void vpresent_release(VPresenter *p);
 /* Surface gone: drops it now; later shows are VP_DROPPED. */

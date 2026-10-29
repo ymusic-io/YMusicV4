@@ -28,6 +28,13 @@ VPresenter *vp_alloc(const VpOps *ops, void *impl, const VpSink *s, int mode)
     return p;
 }
 
+static void mode_changed(VPresenter *p, int mode)
+{
+    mse_critf(MSE_LOG_INFO, "vpresent mode %s kind=%s", mode_name(mode), p->ops->kind);
+    if (p->sink.on_mode)
+        p->sink.on_mode(p->sink.user, mode);
+}
+
 void vp_set_mode(VPresenter *p, int mode)
 {
     int old;
@@ -35,11 +42,30 @@ void vp_set_mode(VPresenter *p, int mode)
     old = atomic_load(&p->mode);
     atomic_store(&p->mode, mode);
     pthread_mutex_unlock(&p->mu);
-    if (old == mode)
-        return;
-    mse_critf(MSE_LOG_INFO, "vpresent mode %s kind=%s", mode_name(mode), p->ops->kind);
-    if (p->sink.on_mode)
-        p->sink.on_mode(p->sink.user, mode);
+    if (old != mode)
+        mode_changed(p, mode);
+}
+
+void vp_gpu_lost(VPresenter *p)
+{
+    int flip;
+    pthread_mutex_lock(&p->mu);
+    flip = !p->detached && atomic_load(&p->mode) == VP_MODE_GPU;
+    if (flip)
+        atomic_store(&p->mode, VP_MODE_CPU);
+    pthread_mutex_unlock(&p->mu);
+    if (flip)
+        mode_changed(p, VP_MODE_CPU);
+}
+
+int vp_retain_live(VPresenter *p)
+{
+    int n = atomic_load(&p->refs);
+    while (n > 0) {
+        if (atomic_compare_exchange_weak(&p->refs, &n, n + 1))
+            return 1;
+    }
+    return 0;
 }
 
 void vp_fit_size(VPresenter *p, int *w, int *h)
