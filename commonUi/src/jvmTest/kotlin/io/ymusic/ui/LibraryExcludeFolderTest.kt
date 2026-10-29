@@ -5,7 +5,6 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onAllNodesWithText
-import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runComposeUiTest
@@ -70,7 +69,7 @@ class LibraryExcludeFolderTest {
                 onNodeWithText("Folders").performClick()
                 onNodeWithText("Music").performClick()
                 waitUntilAtLeastOneExists(hasText("Rock"), 5_000)
-                onNodeWithContentDescription("More").performClick() // Rock is the only row here
+                onNodeWithActionLabel("More").performClick() // Rock is the only row here
                 onNodeWithText("Exclude folder").performClick()
 
                 // Rock's song leaves the library; the sibling stays. The folder itself is still listed.

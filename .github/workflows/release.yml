@@ -3,9 +3,13 @@ name: release
 # The shipping build, run by pushing a release tag: git tag release-v4.0.0 && git push <remote> release-v4.0.0
 # Any branch: the tag alone picks the commit. The draft release waits for the tests and the bundle
 # compat check as well as the builds.
+# A push to a test branch (or a manual run) builds, tests and keeps the installers as run artifacts:
+# only a release-* tag creates a draft release.
 on:
   push:
     tags: ['release-*']
+    branches: [dev-windows]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -589,6 +593,7 @@ jobs:
   # reviewed and published by hand.
   release:
     needs: [android, macos, windows, test, compat]
+    if: startsWith(github.ref, 'refs/tags/release-')
     runs-on: ubuntu-24.04
     env:
       # Only whether secrets.enc can be opened: the passphrase itself goes to the Restore secrets step alone.
