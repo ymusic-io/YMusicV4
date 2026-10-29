@@ -1,4 +1,5 @@
 #include "mse_host.h"
+#include "mse_caps.h"
 #include "mse_ffmpeg.h"
 #include "audio_fx.h"
 #include "vpresent.h"
@@ -1144,6 +1145,7 @@ MseHost *mse_host_create(void)
     MseHost *h = (MseHost *)calloc(1, sizeof(MseHost));
     if (!h)
         return NULL;
+    mse_caps_start();
     pthread_mutex_init(&h->mu, NULL);
     pthread_mutex_init(&h->av_mu, NULL);
     pthread_cond_init(&h->cv, NULL);
@@ -1761,6 +1763,18 @@ int mse_host_frames(MseHost *h)
     if (!h)
         return 0;
     return atomic_load_explicit(&h->frames, memory_order_relaxed);
+}
+
+void mse_host_video_quality(MseHost *h, int *total, int *dropped)
+{
+    int shown = 0, late = 0;
+    if (h) {
+        pthread_mutex_lock(&h->av_mu);
+        mse_av_video_quality(h->av, &shown, &late);
+        pthread_mutex_unlock(&h->av_mu);
+    }
+    *total = shown + late;
+    *dropped = late;
 }
 
 #ifdef __ANDROID__

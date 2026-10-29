@@ -1,6 +1,7 @@
 #ifdef __APPLE__
 
 #include "vpipe_hw.h"
+#include "mse_caps.h"
 #include "mse_ffmpeg.h"
 #include "mse_vt_present.h"
 
@@ -93,6 +94,44 @@ static int vt_usable(const AVCodecParameters *par)
         return g_av1;
     }
     return 1;
+}
+
+static int add_hw(MseCapRow *r, int cap, int n, int codec, int bits, int w, int h)
+{
+    if (n >= cap)
+        return n;
+    r[n].codec = codec;
+    r[n].max_bits = bits;
+    r[n].chroma = MSE_CAP_420;
+    r[n].max_w = w;
+    r[n].max_h = h;
+    r[n].max_fps = 0;
+    r[n].hw = 1;
+    return n + 1;
+}
+
+/* VideoToolbox reports no size limit, so these are Apple silicon's: H.264 to 4096x2304, HEVC / VP9 /
+   AV1 to 8K on a Mac and 4096x2304 on an iPhone or iPad. MSE decodes H.264 (8-bit) and VP9 (8/10-bit
+   4:2:0) on its own sessions, HEVC and AV1 through the hwaccel. */
+int vpipe_hw_vt_caps(MseCapRow *rows, int cap)
+{
+#if TARGET_OS_IPHONE
+    const int big_w = 4096, big_h = 2304;
+#else
+    const int big_w = 8192, big_h = 4352;
+#endif
+    int n = 0;
+    if (VTIsHardwareDecodeSupported(kCMVideoCodecType_H264))
+        n = add_hw(rows, cap, n, MSE_CAP_H264, 8, 4096, 2304);
+    pthread_once(&g_vp9_once, vp9_probe);
+    if (g_vp9)
+        n = add_hw(rows, cap, n, MSE_CAP_VP9, 10, big_w, big_h);
+    if (vt_decoder(AV_CODEC_ID_HEVC) && VTIsHardwareDecodeSupported(kCMVideoCodecType_HEVC))
+        n = add_hw(rows, cap, n, MSE_CAP_HEVC, 10, big_w, big_h);
+    pthread_once(&g_av1_once, av1_probe);
+    if (vt_decoder(AV_CODEC_ID_AV1) && g_av1)
+        n = add_hw(rows, cap, n, MSE_CAP_AV1, 10, big_w, big_h);
+    return n;
 }
 
 static pthread_once_t g_dev_once = PTHREAD_ONCE_INIT;

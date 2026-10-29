@@ -46,6 +46,9 @@ int mse_host_frames(MseHost *h);
 /* 1 and the reason in out when video cannot be decoded; the player fails playback. */
 int mse_host_video_failure(MseHost *h, char *out, int cap);
 int64_t mse_host_samples_played(MseHost *h);
+/* HTMLVideoElement.getVideoPlaybackQuality since the last load: pictures shown + dropped, and those
+   dropped for missing their time. */
+void mse_host_video_quality(MseHost *h, int *total, int *dropped);
 #ifdef __ANDROID__
 /* Android plays the PCM ring through a Kotlin AudioSink thread (MseAudioOutput) driving these. */
 enum { MSE_DAC_GEN, MSE_DAC_RATE, MSE_DAC_CH, MSE_DAC_RUN, MSE_DAC_DRAIN, MSE_DAC_STATE_N };

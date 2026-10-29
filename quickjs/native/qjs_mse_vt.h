@@ -31,6 +31,10 @@ typedef struct QjsMseVt {
     void (*end_of_stream)(void *);
     int (*prepare_append)(void *, int audio, int n);
     void (*set_pitch)(void *, double);
+    /* Process-wide, no host: MediaCapabilities bits (1 supported, 2 smooth, 4 powerEfficient), -1 no
+       decoder table, -2 still probing. Never waits. */
+    int (*decoding_info)(const char *content_type, int w, int h, double fps, double bitrate);
+    void (*video_quality)(void *, int *total, int *dropped);
 } QjsMseVt;
 
 #ifdef __cplusplus

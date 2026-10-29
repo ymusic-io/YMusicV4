@@ -82,3 +82,8 @@ Module detail for the one-line summary in the root [`AGENTS.md`](../AGENTS.md) �
   (`fetch`) → KEVLAR_WATCH `Application.create` / `loadVideoById`. Native `:mse` via `protocol/mse.ts`.
   The snapshot env must fill Chrome's 5 PDF `navigator.plugins` (empty `{length:5}` fat-snapshots and no `webPo`).
   Player ads (`/youtubei/v1/player`) and SABR (`/videoplayback`) rewrite as `HttpRequest.addInterceptor`; fetch/XHR only build the request.
+  Device decode caps (`media_caps.ts`): `navigator.mediaCapabilities` and the table half of `isTypeSupported` /
+  `canPlayType` answer from the host's decoder table (`__mseDecodingInfo`, `:mse` `mse_caps.c`), and
+  `getVideoPlaybackQuality` / `webkit*FrameCount` from its frame counts (`__mseVideoQuality`) — installed after
+  the BotGuard snapshot, so the snapshot sees the same env on every host. A host without the natives or without a
+  table (an Android player whose MediaCodecList walk had not finished by `player/init`) keeps the env it had before.

@@ -1,6 +1,7 @@
 #ifdef _WIN32
 
 #include "mse_d3d11.h"
+#include "mse_caps.h"
 #include "mse_ffmpeg.h"
 
 #include <libavutil/buffer.h>
@@ -17,7 +18,15 @@
 static pthread_once_t g_once = PTHREAD_ONCE_INIT;
 static AVBufferRef *g_hwdev;      /* process-wide; borrow via mse_d3d11_hwdev_ref() */
 
-/* The 8-bit DXVA decoder profiles ffmpeg's d3d11va opens for VP9 / AV1 (libavcodec/dxva2.c). */
+/* The 8-bit DXVA decoder profiles ffmpeg's d3d11va opens (libavcodec/dxva2.c). */
+static const GUID k_h264_e =
+    { 0x1b81be68, 0xa0c7, 0x11d3, { 0xb9, 0x84, 0x00, 0xc0, 0x4f, 0x2e, 0x73, 0xc5 } };
+static const GUID k_h264_f =
+    { 0x1b81be69, 0xa0c7, 0x11d3, { 0xb9, 0x84, 0x00, 0xc0, 0x4f, 0x2e, 0x73, 0xc5 } };
+static const GUID k_h264_intel =
+    { 0x604f8e68, 0x4951, 0x4c54, { 0x88, 0xfe, 0xab, 0xd2, 0x5c, 0x15, 0xb3, 0xd6 } };
+static const GUID k_hevc_main =
+    { 0x5b11d51b, 0x2f4c, 0x4452, { 0xbc, 0xc3, 0x09, 0xf2, 0xa1, 0x16, 0x0c, 0xc0 } };
 static const GUID k_vp9_profile0 =
     { 0x463707f8, 0xa1d0, 0x4585, { 0x87, 0x6d, 0x83, 0xaa, 0x6d, 0x60, 0xb8, 0x9e } };
 static const GUID k_av1_profile0 =
@@ -193,6 +202,78 @@ int mse_d3d11_can_decode(const AVCodec *codec)
     default:
         return 0;
     }
+}
+
+static int decodes_at(ID3D11VideoDevice *vd, const GUID *g, UINT w, UINT h)
+{
+    D3D11_VIDEO_DECODER_DESC desc;
+    UINT n = 0;
+    memset(&desc, 0, sizeof(desc));
+    desc.Guid = *g;
+    desc.SampleWidth = w;
+    desc.SampleHeight = h;
+    desc.OutputFormat = DXGI_FORMAT_NV12;
+    return SUCCEEDED(ID3D11VideoDevice_GetVideoDecoderConfigCount(vd, &desc, &n)) && n > 0;
+}
+
+int mse_d3d11_caps(MseCapRow *rows, int cap)
+{
+    static const struct {
+        int codec;
+        const char *decoder;
+        const GUID *guid[3];
+    } kinds[] = {
+        { MSE_CAP_H264, "h264", { &k_h264_f, &k_h264_e, &k_h264_intel } },
+        { MSE_CAP_HEVC, "hevc", { &k_hevc_main, NULL, NULL } },
+        { MSE_CAP_VP9, "vp9", { &k_vp9_profile0, NULL, NULL } },
+        { MSE_CAP_AV1, "av1", { &k_av1_profile0, NULL, NULL } },
+    };
+    static const UINT sizes[][2] = {
+        { 1280, 720 }, { 1920, 1088 }, { 2560, 1440 }, { 3840, 2160 },
+        { 4096, 2304 }, { 7680, 4320 }, { 8192, 4352 },
+    };
+    ID3D11VideoDevice *vd = NULL;
+    HRESULT hr;
+    size_t k, g, s;
+    int n = 0;
+    pthread_once(&g_once, hwdev_init);
+    if (!g_hwdev || mse_d3d11_lost())
+        return 0;
+    hr = ID3D11Device_QueryInterface(mse_d3d11_device(), &IID_ID3D11VideoDevice, (void **)&vd);
+    if (FAILED(hr) || !vd) {
+        mse_critf(MSE_LOG_WARN, "d3d11 caps: no ID3D11VideoDevice hr=0x%08lx", (unsigned long)hr);
+        return 0;
+    }
+    for (k = 0; k < sizeof(kinds) / sizeof(kinds[0]) && n < cap; k++) {
+        const AVCodec *c = avcodec_find_decoder_by_name(kinds[k].decoder);
+        UINT bw = 0, bh = 0;
+        if (!c || !has_d3d11_config(c))
+            continue;
+        for (g = 0; g < 3 && kinds[k].guid[g]; g++) {
+            if (!has_profile(vd, kinds[k].guid[g]))
+                continue;
+            for (s = 0; s < sizeof(sizes) / sizeof(sizes[0]); s++) {
+                if (!decodes_at(vd, kinds[k].guid[g], sizes[s][0], sizes[s][1]))
+                    break;
+                if ((uint64_t)sizes[s][0] * sizes[s][1] > (uint64_t)bw * bh) {
+                    bw = sizes[s][0];
+                    bh = sizes[s][1];
+                }
+            }
+        }
+        if (!bw)
+            continue;
+        rows[n].codec = kinds[k].codec;
+        rows[n].max_bits = 8;
+        rows[n].chroma = MSE_CAP_420;
+        rows[n].max_w = (int)bw;
+        rows[n].max_h = (int)bh;
+        rows[n].max_fps = 0;
+        rows[n].hw = 1;
+        n++;
+    }
+    ID3D11VideoDevice_Release(vd);
+    return n;
 }
 
 #endif /* _WIN32 */
