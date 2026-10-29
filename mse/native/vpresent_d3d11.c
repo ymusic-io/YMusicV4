@@ -848,7 +848,7 @@ VPresenter *vpresent_create_d3d11(void *hwnd, const VpSink *s)
     }
     mse_d3d11_unlock();
     if (!ok) {
-        vpresent_release(p);
+        vp_discard(p);
         return NULL;
     }
     return p;

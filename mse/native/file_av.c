@@ -1843,7 +1843,7 @@ int file_av_step(FileAv *p)
 
 FileAv *file_av_create(void)
 {
-    VpSink sink = { cpu_frame, NULL, NULL };
+    VpSink sink = { .on_frame = cpu_frame };
     FileAv *p = calloc(1, sizeof(*p));
     if (!p)
         return NULL;

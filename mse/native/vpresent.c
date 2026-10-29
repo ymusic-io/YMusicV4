@@ -91,7 +91,15 @@ void vpresent_release(VPresenter *p)
     vp_cpu_destroy(p->cpu);
     pthread_mutex_destroy(&p->mu);
     pthread_mutex_destroy(&p->present_mu);
+    if (p->sink.release)
+        p->sink.release(p->sink.user);
     free(p);
+}
+
+void vp_discard(VPresenter *p)
+{
+    p->sink.release = NULL;
+    vpresent_release(p);
 }
 
 void vpresent_detach(VPresenter *p)

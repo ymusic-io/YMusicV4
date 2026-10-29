@@ -85,8 +85,9 @@ if(ANDROID)
   return()
 endif()
 
-# Local-file playback (FileAvNative) exists only in the desktop JVM app.
-target_sources(mseffmpegjni PRIVATE file_av.c file_av_jni.c)
+# Local-file playback (FileAvNative) and the Canvas presenters (VideoPresenterNative) exist only in
+# the desktop JVM app.
+target_sources(mseffmpegjni PRIVATE file_av.c file_av_jni.c vpresent_jni.c)
 
 if(APPLE)
     enable_language(OBJC)
@@ -112,7 +113,7 @@ endif()
 
 if(WIN32)
   target_sources(mseffmpegjni PRIVATE
-    mse_d3d11.c mse_d3d11_dec.c mse_d3d11_jawt.c vpresent_d3d11.c
+    mse_d3d11.c mse_d3d11_dec.c vpresent_d3d11.c
     aq_winmm.c)
   # d3dcompiler.lib runtime-compiles the NV12 shader; dxguid.lib provides IID_* GUID symbols.
   # winmm.lib is waveOut* for aq_winmm (file_av AudioQueue shim on Windows).

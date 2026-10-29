@@ -2291,7 +2291,7 @@ static void cpu_frame(void *user, int w, int h, const uint8_t *bgra)
 
 MseAv *mse_av_create(void)
 {
-    VpSink sink = { cpu_frame, NULL, NULL };
+    VpSink sink = { .on_frame = cpu_frame };
     MseAv *a = calloc(1, sizeof(*a));
     if (!a)
         return NULL;

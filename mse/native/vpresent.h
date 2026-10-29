@@ -32,6 +32,8 @@ typedef struct {
     void (*on_frame)(void *user, int w, int h, const uint8_t *bgra);
     /* Any thread, never under mu. */
     void (*on_mode)(void *user, int mode);
+    /* The presenter is freed: the sink's last call. Not called when the create fails. */
+    void (*release)(void *user);
     void *user;
 } VpSink;
 

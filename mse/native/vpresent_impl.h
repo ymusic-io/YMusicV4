@@ -38,6 +38,8 @@ struct VPresenter {
 };
 
 VPresenter *vp_alloc(const VpOps *ops, void *impl, const VpSink *s, int mode);
+/* A create that failed after vp_alloc: frees p without the sink's release. */
+void vp_discard(VPresenter *p);
 /* Fires on_mode after mu is released. */
 void vp_set_mode(VPresenter *p, int mode);
 /* The surface died under a live presenter: GPU mode becomes CPU (detached stays NONE). */
