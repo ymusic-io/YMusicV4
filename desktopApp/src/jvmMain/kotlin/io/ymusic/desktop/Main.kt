@@ -1049,10 +1049,11 @@ private suspend fun buildGraph(settings: AppStoreSettings, session: CookieSessio
         revealInFolder = { uri ->
             withContext(Dispatchers.IO) {
                 val path = Uri.parse(uri).filePath()
-                runCatching { ProcessBuilder("open", "-R", path).start() } // mac Finder reveal
-                    .onFailure { rootLogger.fork("reveal").log(Logger.Level.WARN, "Finder reveal failed for $path", it) }
+                runCatching { revealInFileManager(path) }
+                    .onFailure { rootLogger.fork("reveal").log(Logger.Level.WARN, "file manager reveal failed for $path", it) }
             }
         },
+        revealInFolderLabel = fileManagerRevealLabel(),
         appVersion = "$APP_VERSION_NAME · ${desktopArch()}",
         appVersionName = APP_VERSION_NAME,
         appVersionCode = APP_VERSION_CODE,

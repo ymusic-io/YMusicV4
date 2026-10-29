@@ -197,6 +197,12 @@ private class LibraryContent(
  *  which hides the menu item. */
 internal val LocalLibraryReveal = compositionLocalOf<((MediaStoreItem) -> Unit)?> { null }
 
+/** "Reveal in Finder" / "… in File Explorer" for a local file or folder uri, with its label; null
+ *  where the platform has no file manager to reveal in (mobile), which hides the menu item. */
+internal val LocalRevealInFileManager = compositionLocalOf<RevealInFileManager?> { null }
+
+internal class RevealInFileManager(val label: StringResource, val reveal: (uri: String) -> Unit)
+
 /** A song's "Remove from disk" REQUEST — opens [LibraryScreen]'s confirm dialog; nothing is
  *  deleted until the user confirms there. Null (no shell delete hook) hides the menu item. */
 internal val LocalLibraryDelete = compositionLocalOf<((MediaStoreItem) -> Unit)?> { null }
@@ -792,6 +798,8 @@ private fun folderActions(
     val exclude = stringResource(Res.string.menu_exclude_folder)
     val include = stringResource(Res.string.menu_include_folder)
     val downloadLocation = stringResource(Res.string.menu_download_location)
+    val revealInFileManager = LocalRevealInFileManager.current
+    val revealInFileManagerLabel = revealInFileManager?.let { stringResource(it.label) }
     return ItemActions(
         buildList {
             when {
@@ -801,6 +809,9 @@ private fun folderActions(
             }
             if (onToggleDownloadLocation != null && !bucket.excluded) {
                 add(downloadLocation to { onToggleDownloadLocation(bucket) })
+            }
+            if (revealInFileManager != null && revealInFileManagerLabel != null) {
+                add(revealInFileManagerLabel to { revealInFileManager.reveal(bucket.uri.toString()) })
             }
         },
         checked = if (isDownloadLocation) setOf(downloadLocation) else emptySet(),
@@ -1540,6 +1551,8 @@ private fun songActions(song: MediaStoreItem, coordinator: PlaybackCoordinator):
     val showInFolder = stringResource(Res.string.menu_show_in_folder)
     val removeFromDisk = stringResource(Res.string.menu_remove_from_disk)
     val reveal = LocalLibraryReveal.current
+    val revealInFileManager = LocalRevealInFileManager.current
+    val revealInFileManagerLabel = revealInFileManager?.let { stringResource(it.label) }
     val requestDelete = LocalLibraryDelete.current
     val addToPlaylist = LocalAddToPlaylist.current
     val removeFromPlaylist = LocalPlaylistRemove.current
@@ -1560,6 +1573,9 @@ private fun songActions(song: MediaStoreItem, coordinator: PlaybackCoordinator):
                 add(goToAlbum to { goToGroup(LibraryGroupKind.Album, song) })
             }
             if (reveal != null && song.bucketId != null) add(showInFolder to { reveal(song) })
+            if (revealInFileManager != null && revealInFileManagerLabel != null) {
+                add(revealInFileManagerLabel to { revealInFileManager.reveal(song.uri.toString()) })
+            }
             if (requestDelete != null) add(removeFromDisk to { requestDelete(song) })
         },
     )

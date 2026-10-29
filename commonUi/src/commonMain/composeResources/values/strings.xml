@@ -42,7 +42,10 @@
     <string name="downloads_action_pause">Pause</string>
     <string name="downloads_action_resume">Resume</string>
     <string name="downloads_action_reveal_library">Reveal in Library</string>
-    <string name="downloads_action_reveal_finder">Reveal in Finder</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Reveal in Finder</string>
+    <string name="menu_reveal_explorer">Reveal in File Explorer</string>
+    <string name="menu_reveal_file_manager">Reveal in File Manager</string>
     <!-- A finished download's date: %1$s = month from month_abbr, %2$d = day, %3$d = year. -->
     <string name="downloads_completed_date">%1$s %2$d, %3$d</string>
     <string-array name="month_abbr">
