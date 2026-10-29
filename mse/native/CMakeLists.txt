@@ -42,7 +42,8 @@ if(NOT DEFINED PRODUCTION)
   set(PRODUCTION 0)
 endif()
 
-set(MSE_SOURCES mse_ffmpeg.c mse_host.c mse_vt.c mse_host_jni.c audio_fx.c audio_fx_jni.c)
+set(MSE_SOURCES mse_ffmpeg.c mse_host.c mse_vt.c mse_host_jni.c audio_fx.c audio_fx_jni.c
+  vpresent.c vpresent_cpu.c)
 add_library(mseffmpegjni SHARED ${MSE_SOURCES})
 # MinGW on Windows adds a `lib` prefix to shared libs; the JVM loader expects mseffmpegjni.dll
 # (System.mapLibraryName on Windows has no prefix). Drop it so MinGW matches MSVC and the loader.
