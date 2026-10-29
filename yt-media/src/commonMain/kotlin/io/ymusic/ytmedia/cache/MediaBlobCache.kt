@@ -63,8 +63,11 @@ interface MediaBlobCache {
      * - a **negative** [length] means the total is **unknown** (a stream): the writer stores whatever it
      *   is given, block by block, until commit. No whole-region dedupe (only the per-block one on commit),
      *   so it never returns a no-op.
+     *
+     * With [publishOnCommit] no block becomes readable before [BlobWriter.commit], and [BlobWriter.abort]
+     * drops every block — for bytes that are only trustworthy as a whole (a segment checked at its end).
      */
-    fun writer(key: String, position: Long, length: Long): BlobWriter
+    fun writer(key: String, position: Long, length: Long, publishOnCommit: Boolean = false): BlobWriter
 
     /** Every stream key with at least one committed span — the `keepKeys` set for `SegmentIndex.cleanup`. */
     fun keys(): Set<String>
@@ -104,10 +107,12 @@ interface PinnedSource : Source
 interface BlobWriter {
     val sink: BufferedSink
 
-    /** Commit the trailing partial block and release the region. Blocks already committed mid-stream stay. */
+    /** Commit the trailing partial block (and, for a `publishOnCommit` writer, every held block) and release
+     *  the region. Blocks already committed mid-stream stay. */
     fun commit()
 
     /** Drop the uncommitted temp block and release the region. Blocks committed mid-stream still stay
-     *  (they are valid cached bytes for their own ranges — the point of per-block commit). */
+     *  (they are valid cached bytes for their own ranges — the point of per-block commit); a
+     *  `publishOnCommit` writer committed none, and drops the ones it held. */
     fun abort()
 }

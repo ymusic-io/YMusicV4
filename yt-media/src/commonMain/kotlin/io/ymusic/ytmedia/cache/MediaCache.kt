@@ -26,8 +26,9 @@ class MediaCache(
      * Begin mirroring one segment into the cache. The metadata row is saved **now** (on the MEDIA_HEADER,
      * a queryable hint) while the bytes are committed later on [SegmentFill.commit] (the MEDIA_END, the
      * truth) — so a crash in between leaves an orphan row that `index.cleanup(blobs.keys())` prunes, with
-     * no cross-store transaction (plan §3b). The returned writer is a no-op if these bytes are already
-     * cached or being written elsewhere.
+     * no cross-store transaction (plan §3b). No byte of the segment is readable before that commit, and an
+     * abort leaves none behind. The returned writer is a no-op if these bytes are already cached or being
+     * written elsewhere.
      */
     fun openSegmentFill(header: MediaHeader): SegmentFill {
         index.save(header)
@@ -50,7 +51,7 @@ class MediaCache(
             if (cached > 0) { pos += cached; continue } // a cached run — skip it, don't rewrite
             if (cached == 0L) break // defensive: cachedLength only returns 0 when nothing remains
             val hole = -cached
-            gaps += GapWriter(pos, pos + hole, blobs.writer(key, pos, hole))
+            gaps += GapWriter(pos, pos + hole, blobs.writer(key, pos, hole, publishOnCommit = true))
             pos += hole
         }
         return SegmentFill(start, gaps)
