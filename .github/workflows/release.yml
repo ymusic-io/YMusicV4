@@ -22,7 +22,7 @@ env:
   # The ffmpeg-build commit the apps link against. Bumping it rebuilds every ffmpeg pack once;
   # otherwise each pack comes from the cache keyed on this ref.
   FFMPEG_BUILD_REPO: ymusic-io/ffmpeg-build
-  FFMPEG_BUILD_REF: 2b229c8d7f9469895b0483e5640fbeb2056b2d88
+  FFMPEG_BUILD_REF: d0a89492c442dbca24dfabd044b866299f0a97b1
   # The NDK (r28c) for the Android ffmpeg packs and the app's own native code, installed with the
   # runner's sdkmanager: the image's ANDROID_NDK_LATEST_HOME moves (r30 fails android-x86_64).
   NDK_VERSION: 28.2.13676358
