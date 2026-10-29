@@ -1,7 +1,6 @@
 package io.ymusic.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -29,11 +28,6 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.key
-import androidx.compose.ui.input.key.onKeyEvent
-import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -114,19 +108,7 @@ fun SlimSeekBar(
                 if (a11y == null) {
                     Modifier
                 } else {
-                    Modifier
-                        .a11ySlider(a11y.label, a11y.value, shown, enabled) { seek.value(it) }
-                        .onKeyEvent { event ->
-                            val toward = when (event.key) {
-                                Key.DirectionRight -> 1f
-                                Key.DirectionLeft -> -1f
-                                else -> return@onKeyEvent false
-                            }
-                            if (!enabled || event.type != KeyEventType.KeyDown) return@onKeyEvent false
-                            seek.value((shown + (if (rtl) -toward else toward) * a11y.keyStep).coerceIn(0f, 1f))
-                            true
-                        }
-                        .focusable(enabled, focus)
+                    Modifier.adjustable(a11y.label, a11y.value, shown, a11y.keyStep, enabled, focus, rtl = rtl) { seek.value(it) }
                 },
             )
             .onSizeChanged { widthPx = it.width }

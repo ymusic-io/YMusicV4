@@ -1,7 +1,14 @@
 package io.ymusic.ui
 
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -69,6 +76,36 @@ internal fun Modifier.rangeSliderSemantics(
         disabled()
     }
 }
+
+/**
+ * [a11ySlider] that keyboard users can also reach and move: focusable, and the arrow keys along its
+ * axis step [fraction] by [step] (up / toward the end raises); the other two arrows stay with focus
+ * navigation, so Left/Right walk an equalizer's faders.
+ */
+internal fun Modifier.adjustable(
+    label: String?,
+    value: String,
+    fraction: Float,
+    step: Float,
+    enabled: Boolean,
+    interactionSource: MutableInteractionSource,
+    vertical: Boolean = false,
+    rtl: Boolean = false,
+    onSet: (Float) -> Unit,
+): Modifier = a11ySlider(label, value, fraction, enabled, onSet)
+    .onKeyEvent { event ->
+        val toward = when (event.key) {
+            Key.DirectionUp -> if (vertical) 1f else return@onKeyEvent false
+            Key.DirectionDown -> if (vertical) -1f else return@onKeyEvent false
+            Key.DirectionRight -> if (vertical) return@onKeyEvent false else if (rtl) -1f else 1f
+            Key.DirectionLeft -> if (vertical) return@onKeyEvent false else if (rtl) 1f else -1f
+            else -> return@onKeyEvent false
+        }
+        if (!enabled || event.type != KeyEventType.KeyDown) return@onKeyEvent false
+        onSet((fraction + toward * step).coerceIn(0f, 1f))
+        true
+    }
+    .focusable(enabled, interactionSource)
 
 /** A non-interactive node read as [spoken] instead of its visible text and children. */
 internal fun Modifier.spokenAs(spoken: String): Modifier = clearAndSetSemantics { text = AnnotatedString(spoken) }
