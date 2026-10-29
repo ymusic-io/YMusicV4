@@ -333,19 +333,22 @@ fun LibraryScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
                     ) { current ->
                         tabStateHolder.SaveableStateProvider(current.name) {
                             when (current) {
-                                LibraryTab.Folders -> FoldersTab(
-                                    store,
-                                    loaded,
-                                    coordinator,
-                                    graph.scanLibraryFolder,
-                                    graph.rescanLibrary,
-                                    scanController,
-                                    revealBucket,
-                                    onRevealHandled = { revealBucket = null },
-                                    downloadLocation = downloadLocation,
-                                    onToggleDownloadLocation = onToggleDownloadLocation,
-                                    settings = graph.settings,
-                                )
+                                // Its songs are already shown in their folder: no "Show in folder".
+                                LibraryTab.Folders -> CompositionLocalProvider(LocalLibraryReveal provides null) {
+                                    FoldersTab(
+                                        store,
+                                        loaded,
+                                        coordinator,
+                                        graph.scanLibraryFolder,
+                                        graph.rescanLibrary,
+                                        scanController,
+                                        revealBucket,
+                                        onRevealHandled = { revealBucket = null },
+                                        downloadLocation = downloadLocation,
+                                        onToggleDownloadLocation = onToggleDownloadLocation,
+                                        settings = graph.settings,
+                                    )
+                                }
                                 LibraryTab.Playlists -> PlaylistsTab(store, graph, loaded, coordinator, graph.playHistory)
                                 LibraryTab.Songs -> if (loaded.songs.isEmpty()) {
                                     EmptyState(stringResource(Res.string.library_no_songs), onReload = null)
