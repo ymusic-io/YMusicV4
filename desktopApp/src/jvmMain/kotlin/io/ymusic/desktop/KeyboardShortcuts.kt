@@ -63,7 +63,7 @@ internal fun handleGlobalShortcut(
 }
 
 /**
- * Cmd/Ctrl + arrows: ←/→ previous/next, with Shift rewind/forward, Shift + ↑/↓ volume. For the window's
+ * Cmd/Ctrl + arrows: ←/→ previous/next, with Shift rewind/forward; ↑/↓ volume. For the window's
  * onKeyEvent, not [handleGlobalShortcut]: a focused text field gets them first for word moves and
  * selection.
  */
@@ -73,8 +73,8 @@ internal fun handleArrowShortcut(event: KeyEvent, player: Player?): Boolean {
     when {
         event.key == Key.DirectionLeft -> if (shift) player?.let { seekBy(it, -SEEK_STEP_MS) } else player?.skipPrev()
         event.key == Key.DirectionRight -> if (shift) player?.let { seekBy(it, SEEK_STEP_MS) } else player?.skipNext()
-        shift && event.key == Key.DirectionUp -> player?.let { stepVolume(it, 1) }
-        shift && event.key == Key.DirectionDown -> player?.let { stepVolume(it, -1) }
+        !shift && event.key == Key.DirectionUp -> player?.let { stepVolume(it, 1) }
+        !shift && event.key == Key.DirectionDown -> player?.let { stepVolume(it, -1) }
         else -> return false
     }
     return true
