@@ -16,16 +16,20 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* NV12 → BGRA. BT.709 limited-range (16..235 / 16..240).
-   The vertex shader draws a triangle covering the viewport (SV_VertexID);
-   draw_nv12 sets the viewport to the letterboxed picture rect. 10-bit (P010)
-   never gets here: mse_d3d11_pick keeps it in software. */
+/* The vertex shader draws a triangle covering the viewport (SV_VertexID); draw() sets the
+   viewport to the letterboxed picture rect. YUV → RGB is the 3×4 matrix m0..m2 (yuv_rows). Only
+   8-bit 4:2:0 reaches the YUV shaders: mse_d3d11_pick keeps 10-bit decodes in software, and other
+   software formats arrive as BGRA. */
 static const char kShaderHlsl[] =
     "cbuffer K : register(b0) {\n"
     "    float4 crop;\n" /* xy = picture share of the padded texture, zw unused */
+    "    float4 m0;\n"
+    "    float4 m1;\n"
+    "    float4 m2;\n"
     "}\n"
-    "Texture2DArray<float>  TexY : register(t0);\n"
-    "Texture2DArray<float2> TexUV : register(t1);\n"
+    "Texture2DArray<float4> Tex0 : register(t0);\n"
+    "Texture2DArray<float4> Tex1 : register(t1);\n"
+    "Texture2DArray<float4> Tex2 : register(t2);\n"
     "SamplerState Samp : register(s0);\n"
     "struct VSOut { float4 pos : SV_Position; float2 uv : TEXCOORD0; };\n"
     "VSOut VSMain(uint id : SV_VertexID)\n"
@@ -36,31 +40,40 @@ static const char kShaderHlsl[] =
     "    o.pos = float4(corner * float2(2, -2) + float2(-1, 1), 0, 1);\n"
     "    return o;\n"
     "}\n"
-    "float4 PSMain(VSOut i) : SV_Target\n"
+    /* A one-slice view always indexes into z=0. Stop half a texel short of the padding, or the
+       linear filter blends it in. */
+    "float4 Fetch(Texture2DArray<float4> t, float2 uv)\n"
     "{\n"
-    /* A one-slice view always indexes into z=0. */
-    "    float yw, yh, yn, cw, ch, cn;\n"
-    "    TexY.GetDimensions(yw, yh, yn);\n"
-    "    TexUV.GetDimensions(cw, ch, cn);\n"
-    /* Stop half a texel short of the padding, or the linear filter blends it in. */
-    "    float2 yuv = min(i.uv, crop.xy - 0.5 / float2(yw, yh));\n"
-    "    float2 cuv = min(i.uv, crop.xy - 0.5 / float2(cw, ch));\n"
-    "    float y  = TexY.Sample(Samp, float3(yuv, 0)).r;\n"
-    "    float2 uv = TexUV.Sample(Samp, float3(cuv, 0)).rg;\n"
-    "    y  = (y  - 16.0/255.0) * (255.0/219.0);\n"
-    "    float cb = (uv.x - 128.0/255.0) * (255.0/224.0);\n"
-    "    float cr = (uv.y - 128.0/255.0) * (255.0/224.0);\n"
-    /* BT.709 */
-    "    float r = y + 1.5748 * cr;\n"
-    "    float g = y - 0.1873 * cb - 0.4681 * cr;\n"
-    "    float b = y + 1.8556 * cb;\n"
-    "    return float4(saturate(r), saturate(g), saturate(b), 1.0);\n"
+    "    float w, h, n;\n"
+    "    t.GetDimensions(w, h, n);\n"
+    "    return t.Sample(Samp, float3(min(uv, crop.xy - 0.5 / float2(w, h)), 0));\n"
+    "}\n"
+    "float4 Rgb(float y, float u, float v)\n"
+    "{\n"
+    "    float4 c = float4(y, u, v, 1.0);\n"
+    "    return float4(saturate(float3(dot(m0, c), dot(m1, c), dot(m2, c))), 1.0);\n"
+    "}\n"
+    "float4 PSNV12(VSOut i) : SV_Target\n"
+    "{\n"
+    "    float2 uv = Fetch(Tex1, i.uv).rg;\n"
+    "    return Rgb(Fetch(Tex0, i.uv).r, uv.x, uv.y);\n"
+    "}\n"
+    "float4 PSI420(VSOut i) : SV_Target\n"
+    "{\n"
+    "    return Rgb(Fetch(Tex0, i.uv).r, Fetch(Tex1, i.uv).r, Fetch(Tex2, i.uv).r);\n"
+    "}\n"
+    "float4 PSBGRA(VSOut i) : SV_Target\n"
+    "{\n"
+    "    return float4(Fetch(Tex0, i.uv).rgb, 1.0);\n"
     "}\n";
+
+enum { PS_NV12, PS_I420, PS_BGRA, PS_N };
+static const char *const kPsEntry[PS_N] = { "PSNV12", "PSI420", "PSBGRA" };
 
 /* Device-scoped: one process-wide device, so one pipeline. d3d11 lock. */
 static struct {
     ID3D11VertexShader *vs;
-    ID3D11PixelShader *ps;
+    ID3D11PixelShader *ps[PS_N];
     ID3D11SamplerState *samp;
     ID3D11Buffer *cb;
     ID3D11BlendState *blend;
@@ -79,6 +92,10 @@ typedef struct D3dPresent {
     int fail_logged;
     int logged_present;
     int log_src_w, log_src_h, log_dst_w, log_dst_h;
+    /* Dynamic textures software frames are written into: Y + UV, Y + U + V, or BGRA. */
+    ID3D11Texture2D *up[3];
+    ID3D11ShaderResourceView *up_srv[3];
+    int up_ps, up_w, up_h;
 } D3dPresent;
 
 /* Live presenters, so a device loss reaches every swapchain. d3d11 lock. */
@@ -108,11 +125,28 @@ static void unbind_rtv(D3dPresent *d)
         ID3D11DeviceContext_OMSetRenderTargets(ctx, 0, NULL, NULL);
 }
 
+static void release_upload(D3dPresent *d)
+{
+    int i;
+    for (i = 0; i < 3; i++) {
+        if (d->up_srv[i]) {
+            ID3D11ShaderResourceView_Release(d->up_srv[i]);
+            d->up_srv[i] = NULL;
+        }
+        if (d->up[i]) {
+            ID3D11Texture2D_Release(d->up[i]);
+            d->up[i] = NULL;
+        }
+    }
+    d->up_w = d->up_h = 0;
+}
+
 static void release_swapchain(D3dPresent *d)
 {
     ID3D11DeviceContext *ctx = mse_d3d11_context();
     unbind_rtv(d);
     release_views(d);
+    release_upload(d);
     if (d->swap) {
         IDXGISwapChain1_Release(d->swap);
         d->swap = NULL;
@@ -131,6 +165,7 @@ static void release_swapchain(D3dPresent *d)
 
 static void release_pipeline(void)
 {
+    int i;
     if (g_pipe.cb) {
         ID3D11Buffer_Release(g_pipe.cb);
         g_pipe.cb = NULL;
@@ -139,9 +174,11 @@ static void release_pipeline(void)
         ID3D11SamplerState_Release(g_pipe.samp);
         g_pipe.samp = NULL;
     }
-    if (g_pipe.ps) {
-        ID3D11PixelShader_Release(g_pipe.ps);
-        g_pipe.ps = NULL;
+    for (i = 0; i < PS_N; i++) {
+        if (g_pipe.ps[i]) {
+            ID3D11PixelShader_Release(g_pipe.ps[i]);
+            g_pipe.ps[i] = NULL;
+        }
     }
     if (g_pipe.vs) {
         ID3D11VertexShader_Release(g_pipe.vs);
@@ -179,52 +216,58 @@ static int ensure_backbuffer_rtv(D3dPresent *d, ID3D11Device *dev)
     return 0;
 }
 
+static ID3DBlob *compile(const char *entry, const char *target)
+{
+    ID3DBlob *blob = NULL, *err = NULL;
+    HRESULT hr = D3DCompile(kShaderHlsl, sizeof(kShaderHlsl) - 1, "vpresent_d3d11", NULL, NULL,
+                            entry, target, 0, 0, &blob, &err);
+    if (FAILED(hr)) {
+        mse_critf(MSE_LOG_WARN, "d3d11 %s compile hr=0x%08lx %s", entry, (unsigned long)hr,
+                  err ? (const char *)ID3D10Blob_GetBufferPointer(err) : "");
+        blob = NULL;
+    }
+    if (err)
+        ID3D10Blob_Release(err);
+    return blob;
+}
+
 static int build_pipeline(ID3D11Device *dev)
 {
-    ID3DBlob *vsBlob = NULL, *psBlob = NULL, *err = NULL;
+    ID3DBlob *blob;
     D3D11_SAMPLER_DESC sd;
     D3D11_BUFFER_DESC bd;
     D3D11_BLEND_DESC blendDesc;
     D3D11_RASTERIZER_DESC rsDesc;
     const char *what;
     HRESULT hr;
+    int i;
 
-    if (g_pipe.vs && g_pipe.ps && g_pipe.samp && g_pipe.cb && g_pipe.blend && g_pipe.rast)
+    if (g_pipe.vs && g_pipe.ps[PS_N - 1] && g_pipe.samp && g_pipe.cb && g_pipe.blend &&
+        g_pipe.rast)
         return 0;
 
-    hr = D3DCompile(kShaderHlsl, sizeof(kShaderHlsl) - 1, "mse_nv12", NULL, NULL,
-                    "VSMain", "vs_4_0", 0, 0, &vsBlob, &err);
-    if (FAILED(hr)) {
-        mse_critf(MSE_LOG_WARN, "d3d11 VS compile hr=0x%08lx %s", (unsigned long)hr,
-                  err ? (const char *)ID3D10Blob_GetBufferPointer(err) : "");
-        if (err) ID3D10Blob_Release(err);
+    blob = compile("VSMain", "vs_4_0");
+    if (!blob)
         return -1;
-    }
-    hr = D3DCompile(kShaderHlsl, sizeof(kShaderHlsl) - 1, "mse_nv12", NULL, NULL,
-                    "PSMain", "ps_4_0", 0, 0, &psBlob, &err);
-    if (FAILED(hr)) {
-        mse_critf(MSE_LOG_WARN, "d3d11 PS compile hr=0x%08lx %s", (unsigned long)hr,
-                  err ? (const char *)ID3D10Blob_GetBufferPointer(err) : "");
-        if (err) ID3D10Blob_Release(err);
-        ID3D10Blob_Release(vsBlob);
-        return -1;
-    }
-    if (err) ID3D10Blob_Release(err);
-
     what = "CreateVertexShader";
-    hr = ID3D11Device_CreateVertexShader(dev, ID3D10Blob_GetBufferPointer(vsBlob),
-                                         ID3D10Blob_GetBufferSize(vsBlob), NULL, &g_pipe.vs);
-    ID3D10Blob_Release(vsBlob);
-    if (FAILED(hr)) {
-        ID3D10Blob_Release(psBlob);
-        goto fail;
-    }
-    what = "CreatePixelShader";
-    hr = ID3D11Device_CreatePixelShader(dev, ID3D10Blob_GetBufferPointer(psBlob),
-                                        ID3D10Blob_GetBufferSize(psBlob), NULL, &g_pipe.ps);
-    ID3D10Blob_Release(psBlob);
+    hr = ID3D11Device_CreateVertexShader(dev, ID3D10Blob_GetBufferPointer(blob),
+                                         ID3D10Blob_GetBufferSize(blob), NULL, &g_pipe.vs);
+    ID3D10Blob_Release(blob);
     if (FAILED(hr))
         goto fail;
+    what = "CreatePixelShader";
+    for (i = 0; i < PS_N; i++) {
+        blob = compile(kPsEntry[i], "ps_4_0");
+        if (!blob) {
+            release_pipeline();
+            return -1;
+        }
+        hr = ID3D11Device_CreatePixelShader(dev, ID3D10Blob_GetBufferPointer(blob),
+                                            ID3D10Blob_GetBufferSize(blob), NULL, &g_pipe.ps[i]);
+        ID3D10Blob_Release(blob);
+        if (FAILED(hr))
+            goto fail;
+    }
 
     memset(&sd, 0, sizeof(sd));
     sd.Filter = D3D11_FILTER_MIN_MAG_LINEAR_MIP_POINT;
@@ -240,7 +283,7 @@ static int build_pipeline(ID3D11Device *dev)
         goto fail;
 
     memset(&bd, 0, sizeof(bd));
-    bd.ByteWidth = 16; /* float4 crop */
+    bd.ByteWidth = 64; /* float4 crop, m0, m1, m2 */
     bd.Usage = D3D11_USAGE_DEFAULT;
     bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
     what = "CreateBuffer";
@@ -280,49 +323,59 @@ static void clear_backbuffer(D3dPresent *d, ID3D11DeviceContext *ctx)
         ID3D11DeviceContext_ClearRenderTargetView(ctx, d->rtv, black);
 }
 
-static int draw_nv12(D3dPresent *d, ID3D11Device *dev, ID3D11DeviceContext *ctx,
-                     ID3D11Texture2D *tex, const D3D11_TEXTURE2D_DESC *td, UINT slice, int src_w,
-                     int src_h)
+/* rgb = rows · (y, u, v, 1): the range expansion and the matrix of c in one affine map. */
+static void yuv_rows(VpColor c, float m[12])
 {
-    D3D11_SHADER_RESOURCE_VIEW_DESC yd, uvd;
-    ID3D11ShaderResourceView *srvY = NULL, *srvUV = NULL;
-    ID3D11ShaderResourceView *srvs[2];
+    const double co = 128.0 / 255.0;
+    double kr, kb, kg, ys, yo, cs, rv, gu, gv, bu;
+    if (c.matrix == AVCOL_SPC_SMPTE170M) {
+        kr = 0.299;
+        kb = 0.114;
+    } else if (c.matrix == AVCOL_SPC_BT2020_NCL) {
+        kr = 0.2627;
+        kb = 0.0593;
+    } else {
+        kr = 0.2126;
+        kb = 0.0722;
+    }
+    kg = 1.0 - kr - kb;
+    if (c.full_range) {
+        ys = 1.0;
+        yo = 0.0;
+        cs = 1.0;
+    } else {
+        ys = 255.0 / 219.0;
+        yo = 16.0 / 255.0;
+        cs = 255.0 / 224.0;
+    }
+    rv = 2.0 * (1.0 - kr);
+    bu = 2.0 * (1.0 - kb);
+    gu = -bu * kb / kg;
+    gv = -rv * kr / kg;
+    m[0] = (float)ys;
+    m[1] = 0.0f;
+    m[2] = (float)(rv * cs);
+    m[3] = (float)(-ys * yo - rv * cs * co);
+    m[4] = (float)ys;
+    m[5] = (float)(gu * cs);
+    m[6] = (float)(gv * cs);
+    m[7] = (float)(-ys * yo - (gu + gv) * cs * co);
+    m[8] = (float)ys;
+    m[9] = (float)(bu * cs);
+    m[10] = 0.0f;
+    m[11] = (float)(-ys * yo - bu * cs * co);
+}
+
+/* Letterboxes the n views into the backbuffer through pixel shader ps. crop_x/y: the picture's
+   share of the textures. */
+static void draw(D3dPresent *d, ID3D11DeviceContext *ctx, int ps,
+                 ID3D11ShaderResourceView *const *srvs, int n, float crop_x, float crop_y,
+                 int src_w, int src_h, VpColor c)
+{
+    ID3D11ShaderResourceView *none[3] = { NULL, NULL, NULL };
     D3D11_VIEWPORT vp;
-    float crop[4];
+    float k[16];
     int vw = d->bb_w, vh = d->bb_h;
-    HRESULT hr;
-
-    if (!tex || !d->rtv)
-        return -1;
-
-    /* ffmpeg's d3d11va always creates an array texture (the hwaccel requires
-       it); we create a one-element view at the frame's array slice. */
-    memset(&yd, 0, sizeof(yd));
-    yd.Format = DXGI_FORMAT_R8_UNORM;
-    yd.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
-    yd.Texture2DArray.MostDetailedMip = 0;
-    yd.Texture2DArray.MipLevels = 1;
-    yd.Texture2DArray.FirstArraySlice = slice;
-    yd.Texture2DArray.ArraySize = 1;
-    hr = ID3D11Device_CreateShaderResourceView(dev, (ID3D11Resource *)tex, &yd, &srvY);
-    if (FAILED(hr)) {
-        present_fail(d, "CreateShaderResourceView Y", hr);
-        return -1;
-    }
-
-    memset(&uvd, 0, sizeof(uvd));
-    uvd.Format = DXGI_FORMAT_R8G8_UNORM;
-    uvd.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
-    uvd.Texture2DArray.MostDetailedMip = 0;
-    uvd.Texture2DArray.MipLevels = 1;
-    uvd.Texture2DArray.FirstArraySlice = slice;
-    uvd.Texture2DArray.ArraySize = 1;
-    hr = ID3D11Device_CreateShaderResourceView(dev, (ID3D11Resource *)tex, &uvd, &srvUV);
-    if (FAILED(hr)) {
-        present_fail(d, "CreateShaderResourceView UV", hr);
-        ID3D11ShaderResourceView_Release(srvY);
-        return -1;
-    }
 
     /* Largest centered rect with the picture's aspect; the clear left the bars black. */
     if (src_w > 0 && src_h > 0 && d->bb_w > 0 && d->bb_h > 0) {
@@ -333,13 +386,12 @@ static int draw_nv12(D3dPresent *d, ID3D11Device *dev, ID3D11DeviceContext *ctx,
         if (vw < 1) vw = 1;
         if (vh < 1) vh = 1;
     }
-    /* d3d11va pads the pool texture (128-aligned for AV1/HEVC); the padding is never written. */
-    crop[0] = src_w > 0 && td->Width > 0 ? (float)src_w / (float)td->Width : 1.0f;
-    crop[1] = src_h > 0 && td->Height > 0 ? (float)src_h / (float)td->Height : 1.0f;
-    crop[2] = 0.0f;
-    crop[3] = 0.0f;
-
-    ID3D11DeviceContext_UpdateSubresource(ctx, (ID3D11Resource *)g_pipe.cb, 0, NULL, crop, 0, 0);
+    k[0] = crop_x;
+    k[1] = crop_y;
+    k[2] = 0.0f;
+    k[3] = 0.0f;
+    yuv_rows(c, k + 4);
+    ID3D11DeviceContext_UpdateSubresource(ctx, (ID3D11Resource *)g_pipe.cb, 0, NULL, k, 0, 0);
 
     memset(&vp, 0, sizeof(vp));
     vp.TopLeftX = (float)((d->bb_w - vw) / 2);
@@ -355,23 +407,145 @@ static int draw_nv12(D3dPresent *d, ID3D11Device *dev, ID3D11DeviceContext *ctx,
     ID3D11DeviceContext_IASetInputLayout(ctx, NULL);
     ID3D11DeviceContext_VSSetShader(ctx, g_pipe.vs, NULL, 0);
     ID3D11DeviceContext_VSSetConstantBuffers(ctx, 0, 1, &g_pipe.cb);
-    ID3D11DeviceContext_PSSetShader(ctx, g_pipe.ps, NULL, 0);
+    ID3D11DeviceContext_PSSetShader(ctx, g_pipe.ps[ps], NULL, 0);
     ID3D11DeviceContext_PSSetConstantBuffers(ctx, 0, 1, &g_pipe.cb);
-    srvs[0] = srvY;
-    srvs[1] = srvUV;
-    ID3D11DeviceContext_PSSetShaderResources(ctx, 0, 2, srvs);
+    ID3D11DeviceContext_PSSetShaderResources(ctx, 0, (UINT)n, srvs);
     ID3D11DeviceContext_PSSetSamplers(ctx, 0, 1, &g_pipe.samp);
     ID3D11DeviceContext_Draw(ctx, 3, 0);
 
-    /* Unbind SRVs so a subsequent decode write to the same array slice does
-       not fight an input binding (D3D11 debug layer whinges). */
-    srvs[0] = NULL;
-    srvs[1] = NULL;
-    ID3D11DeviceContext_PSSetShaderResources(ctx, 0, 2, srvs);
+    /* Unbind the views so a later decode into the same array slice does not fight an input
+       binding (D3D11 debug layer whinges). */
+    ID3D11DeviceContext_PSSetShaderResources(ctx, 0, (UINT)n, none);
+}
 
-    ID3D11ShaderResourceView_Release(srvY);
-    ID3D11ShaderResourceView_Release(srvUV);
+static int draw_texture(D3dPresent *d, ID3D11Device *dev, ID3D11DeviceContext *ctx,
+                        ID3D11Texture2D *tex, const D3D11_TEXTURE2D_DESC *td, UINT slice,
+                        int src_w, int src_h, VpColor c)
+{
+    D3D11_SHADER_RESOURCE_VIEW_DESC sd;
+    ID3D11ShaderResourceView *srvs[2] = { NULL, NULL };
+    HRESULT hr;
+
+    /* ffmpeg's d3d11va always creates an array texture (the hwaccel requires
+       it); we create a one-element view at the frame's array slice. */
+    memset(&sd, 0, sizeof(sd));
+    sd.Format = DXGI_FORMAT_R8_UNORM;
+    sd.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
+    sd.Texture2DArray.MostDetailedMip = 0;
+    sd.Texture2DArray.MipLevels = 1;
+    sd.Texture2DArray.FirstArraySlice = slice;
+    sd.Texture2DArray.ArraySize = 1;
+    hr = ID3D11Device_CreateShaderResourceView(dev, (ID3D11Resource *)tex, &sd, &srvs[0]);
+    if (FAILED(hr)) {
+        present_fail(d, "CreateShaderResourceView Y", hr);
+        return -1;
+    }
+    sd.Format = DXGI_FORMAT_R8G8_UNORM;
+    hr = ID3D11Device_CreateShaderResourceView(dev, (ID3D11Resource *)tex, &sd, &srvs[1]);
+    if (FAILED(hr)) {
+        present_fail(d, "CreateShaderResourceView UV", hr);
+        ID3D11ShaderResourceView_Release(srvs[0]);
+        return -1;
+    }
+    /* d3d11va pads the pool texture (128-aligned for AV1/HEVC); the padding is never written. */
+    draw(d, ctx, PS_NV12, srvs, 2,
+         src_w > 0 && td->Width > 0 ? (float)src_w / (float)td->Width : 1.0f,
+         src_h > 0 && td->Height > 0 ? (float)src_h / (float)td->Height : 1.0f, src_w, src_h, c);
+    ID3D11ShaderResourceView_Release(srvs[0]);
+    ID3D11ShaderResourceView_Release(srvs[1]);
     return 0;
+}
+
+static int ensure_upload(D3dPresent *d, ID3D11Device *dev, int ps, int w, int h)
+{
+    static const DXGI_FORMAT kNv12[] = { DXGI_FORMAT_R8_UNORM, DXGI_FORMAT_R8G8_UNORM };
+    static const DXGI_FORMAT kI420[] = { DXGI_FORMAT_R8_UNORM, DXGI_FORMAT_R8_UNORM,
+                                         DXGI_FORMAT_R8_UNORM };
+    static const DXGI_FORMAT kBgra[] = { DXGI_FORMAT_B8G8R8A8_UNORM };
+    const DXGI_FORMAT *fmt = ps == PS_NV12 ? kNv12 : ps == PS_I420 ? kI420 : kBgra;
+    int n = ps == PS_NV12 ? 2 : ps == PS_I420 ? 3 : 1, i;
+    HRESULT hr;
+
+    if (d->up[0] && d->up_ps == ps && d->up_w == w && d->up_h == h)
+        return 0;
+    release_upload(d);
+    for (i = 0; i < n; i++) {
+        D3D11_TEXTURE2D_DESC td;
+        D3D11_SHADER_RESOURCE_VIEW_DESC sd;
+        memset(&td, 0, sizeof(td));
+        td.Width = (UINT)(i ? (w + 1) / 2 : w);
+        td.Height = (UINT)(i ? (h + 1) / 2 : h);
+        td.MipLevels = 1;
+        td.ArraySize = 1;
+        td.Format = fmt[i];
+        td.SampleDesc.Count = 1;
+        td.Usage = D3D11_USAGE_DYNAMIC;
+        td.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+        td.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+        hr = ID3D11Device_CreateTexture2D(dev, &td, NULL, &d->up[i]);
+        if (FAILED(hr)) {
+            present_fail(d, "upload CreateTexture2D", hr);
+            release_upload(d);
+            return -1;
+        }
+        memset(&sd, 0, sizeof(sd));
+        sd.Format = fmt[i];
+        sd.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
+        sd.Texture2DArray.MipLevels = 1;
+        sd.Texture2DArray.ArraySize = 1;
+        hr = ID3D11Device_CreateShaderResourceView(dev, (ID3D11Resource *)d->up[i], &sd,
+                                                   &d->up_srv[i]);
+        if (FAILED(hr)) {
+            present_fail(d, "upload CreateShaderResourceView", hr);
+            release_upload(d);
+            return -1;
+        }
+    }
+    d->up_ps = ps;
+    d->up_w = w;
+    d->up_h = h;
+    return 0;
+}
+
+static int upload_plane(D3dPresent *d, ID3D11DeviceContext *ctx, ID3D11Texture2D *t,
+                        const uint8_t *src, int ls, int row_bytes, int rows)
+{
+    D3D11_MAPPED_SUBRESOURCE m;
+    uint8_t *dst;
+    int y;
+    HRESULT hr = ID3D11DeviceContext_Map(ctx, (ID3D11Resource *)t, 0, D3D11_MAP_WRITE_DISCARD, 0,
+                                         &m);
+    if (FAILED(hr)) {
+        present_fail(d, "upload Map", hr);
+        return -1;
+    }
+    dst = (uint8_t *)m.pData;
+    if (m.RowPitch == (UINT)row_bytes && ls == row_bytes) {
+        memcpy(dst, src, (size_t)row_bytes * (size_t)rows);
+    } else {
+        for (y = 0; y < rows; y++)
+            memcpy(dst + (size_t)y * m.RowPitch, src + (ptrdiff_t)y * ls, (size_t)row_bytes);
+    }
+    ID3D11DeviceContext_Unmap(ctx, (ID3D11Resource *)t, 0);
+    return 0;
+}
+
+/* Software picture into the upload textures: f's planes, or the BGRA bgra (w × h). */
+static int upload(D3dPresent *d, ID3D11Device *dev, ID3D11DeviceContext *ctx, int ps,
+                  const AVFrame *f, const uint8_t *bgra, int w, int h)
+{
+    int cw = (w + 1) / 2, ch = (h + 1) / 2;
+    if (ensure_upload(d, dev, ps, w, h) != 0)
+        return -1;
+    if (ps == PS_BGRA)
+        return upload_plane(d, ctx, d->up[0], bgra, w * 4, w * 4, h);
+    if (upload_plane(d, ctx, d->up[0], f->data[0], f->linesize[0], w, h) != 0)
+        return -1;
+    if (ps == PS_NV12)
+        return upload_plane(d, ctx, d->up[1], f->data[1], f->linesize[1], cw * 2, ch);
+    if (upload_plane(d, ctx, d->up[1], f->data[1], f->linesize[1], cw, ch) != 0)
+        return -1;
+    return upload_plane(d, ctx, d->up[2], f->data[2], f->linesize[2], cw, ch);
 }
 
 static int create_swapchain(D3dPresent *d, ID3D11Device *dev, HWND hwnd)
@@ -496,23 +670,72 @@ static int texture_nv12(ID3D11Texture2D *tex, D3D11_TEXTURE2D_DESC *td)
     return 0;
 }
 
+/* The backbuffer drawn: present it. Caller holds the d3d11 lock. */
+static int present_swap(D3dPresent *d, int src_w, int src_h, const char *path)
+{
+    HRESULT hr = IDXGISwapChain1_Present(d->swap, 1, 0);
+    if (FAILED(hr)) {
+        present_fail(d, "Present", hr);
+        return VP_FAIL;
+    }
+    d->fail_logged = 0;
+#if !PRODUCTION
+    if (!d->logged_present || d->log_src_w != src_w || d->log_src_h != src_h ||
+        d->log_dst_w != d->bb_w || d->log_dst_h != d->bb_h) {
+        d->logged_present = 1;
+        d->log_src_w = src_w;
+        d->log_src_h = src_h;
+        d->log_dst_w = d->bb_w;
+        d->log_dst_h = d->bb_h;
+        mse_logf("d3d11 present %s %dx%d -> %dx%d", path, src_w, src_h, d->bb_w, d->bb_h);
+    }
+#else
+    (void)src_w;
+    (void)src_h;
+    (void)path;
+#endif
+    return VP_OK;
+}
+
 static int d3d_show(VPresenter *p, const AVFrame *f, VpColor c)
 {
+    static const char *const kPath[PS_N] = { "nv12", "i420", "bgra" };
     D3dPresent *d = p->impl;
     ID3D11Device *dev = mse_d3d11_device();
     ID3D11DeviceContext *ctx = mse_d3d11_context();
-    ID3D11Texture2D *tex;
+    ID3D11Texture2D *tex = NULL;
     D3D11_TEXTURE2D_DESC td;
-    int src_w = f->width, src_h = f->height;
+    const uint8_t *bgra = NULL;
+    int src_w = f->width, src_h = f->height, bw = 0, bh = 0, ps;
     int r = VP_FAIL;
-    HRESULT hr;
 
-    (void)c;
     if (!dev || !ctx || mse_d3d11_lost())
         return VP_DROPPED;
-    tex = f->format == AV_PIX_FMT_D3D11 ? (ID3D11Texture2D *)f->data[0] : NULL;
-    if (!tex || !texture_nv12(tex, &td))
+    if (src_w <= 0 || src_h <= 0)
         return VP_FAIL;
+    if (f->format == AV_PIX_FMT_D3D11) {
+        tex = (ID3D11Texture2D *)f->data[0];
+        if (!tex || !texture_nv12(tex, &td))
+            return VP_FAIL;
+        ps = PS_NV12;
+    } else if (f->format == AV_PIX_FMT_NV12 && f->data[0] && f->data[1]) {
+        ps = PS_NV12;
+    } else if ((f->format == AV_PIX_FMT_YUV420P || f->format == AV_PIX_FMT_YUVJ420P) &&
+               f->data[0] && f->data[1] && f->data[2]) {
+        ps = PS_I420;
+    } else {
+        /* Other formats convert to BGRA, at most backbuffer-sized, before the d3d11 lock. */
+        int fit_w, fit_h;
+        mse_d3d11_lock();
+        fit_w = d->bb_w;
+        fit_h = d->bb_h;
+        mse_d3d11_unlock();
+        if (!p->cpu)
+            p->cpu = vp_cpu_create();
+        if (!p->cpu || vp_cpu_convert(p->cpu, f, c, fit_w, fit_h, &bgra, &bw, &bh) != 0)
+            return VP_FAIL;
+        ps = PS_BGRA;
+    }
 
     mse_d3d11_lock();
     if (!d->swap) {
@@ -522,28 +745,19 @@ static int d3d_show(VPresenter *p, const AVFrame *f, VpColor c)
     resize_backbuffer(d);
     if (ensure_backbuffer_rtv(d, dev) != 0)
         goto out;
-    clear_backbuffer(d, ctx);
-    if (draw_nv12(d, dev, ctx, tex, &td, (UINT)(uintptr_t)f->data[1], src_w, src_h) == 0) {
-        hr = IDXGISwapChain1_Present(d->swap, 1, 0);
-        if (SUCCEEDED(hr)) {
-            r = VP_OK;
-            d->fail_logged = 0;
-#if !PRODUCTION
-            if (!d->logged_present ||
-                d->log_src_w != src_w || d->log_src_h != src_h ||
-                d->log_dst_w != d->bb_w || d->log_dst_h != d->bb_h) {
-                d->logged_present = 1;
-                d->log_src_w = src_w;
-                d->log_src_h = src_h;
-                d->log_dst_w = d->bb_w;
-                d->log_dst_h = d->bb_h;
-                mse_logf("d3d11 present %dx%d -> %dx%d", src_w, src_h, d->bb_w, d->bb_h);
-            }
-#endif
-        } else {
-            present_fail(d, "Present", hr);
-        }
+    if (tex) {
+        clear_backbuffer(d, ctx);
+        if (draw_texture(d, dev, ctx, tex, &td, (UINT)(uintptr_t)f->data[1], src_w, src_h, c) != 0)
+            goto out;
+    } else {
+        if (upload(d, dev, ctx, ps, f, bgra, ps == PS_BGRA ? bw : src_w,
+                   ps == PS_BGRA ? bh : src_h) != 0)
+            goto out;
+        clear_backbuffer(d, ctx);
+        draw(d, ctx, ps, d->up_srv, ps == PS_I420 ? 3 : ps == PS_NV12 ? 2 : 1, 1.0f, 1.0f, src_w,
+             src_h, c);
     }
+    r = present_swap(d, src_w, src_h, tex ? "d3d11" : kPath[ps]);
 out:
     if (r != VP_OK && mse_d3d11_check_lost())
         r = VP_DROPPED;
@@ -727,9 +941,8 @@ void mse_d3d11_present_detach(const void *owner)
 }
 
 int mse_d3d11_present_show(ID3D11Texture2D *tex, UINT array_slice, int src_w, int src_h,
-                           const void *owner)
+                           VpColor c, const void *owner)
 {
-    static const VpColor bt709 = { AVCOL_SPC_BT709, 0 };
     D3D11_TEXTURE2D_DESC td;
     VPresenter *p;
     AVFrame f;
@@ -753,7 +966,7 @@ int mse_d3d11_present_show(ID3D11Texture2D *tex, UINT array_slice, int src_w, in
     f.data[1] = (uint8_t *)(uintptr_t)array_slice;
     f.width = src_w;
     f.height = src_h;
-    r = vpresent_show_frame(p, owner, &f, bt709);
+    r = vpresent_show_frame(p, owner, &f, c);
     vpresent_release(p);
     return r == VP_OK ? 0 : r == VP_DROPPED ? -2 : -1;
 }

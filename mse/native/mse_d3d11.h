@@ -16,6 +16,8 @@
 #include <d3d11.h>
 #include <jni.h>
 
+#include "vpresent.h"
+
 struct AVBufferRef;
 struct AVCodec;
 struct AVCodecContext;
@@ -66,11 +68,11 @@ HWND mse_d3d11_jawt_hwnd(JNIEnv *env, jobject component);
 int mse_d3d11_present_attach(HWND hwnd, const void *owner);
 /* No-op unless `owner` made the current attach. */
 void mse_d3d11_present_detach(const void *owner);
-/* Letterboxes the NV12 slice into the HWND's client rect. 0 = presented, -2 = no swapchain
-   for `owner` (none attached, another engine's, or the device is lost): drop the frame,
-   -1 = failed (logged once per failing streak). */
+/* Letterboxes the NV12 slice into the HWND's client rect, YUV → RGB per `c`. 0 = presented,
+   -2 = no swapchain for `owner` (none attached, another engine's, or the device is lost): drop
+   the frame, -1 = failed (logged once per failing streak). */
 int mse_d3d11_present_show(ID3D11Texture2D *tex, UINT array_slice, int src_w, int src_h,
-                           const void *owner);
+                           VpColor c, const void *owner);
 
 #ifdef __cplusplus
 }

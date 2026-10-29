@@ -3646,7 +3646,7 @@ static int present_frame(MseAv *a, AVFrame *frame, uint8_t **bgra, int *w, int *
         if (frame->data[0])
             mse_d3d11_present_show((ID3D11Texture2D *)frame->data[0],
                                    (UINT)(uintptr_t)frame->data[1], frame->width, frame->height,
-                                   a->present_owner);
+                                   col, a->present_owner);
         return 0;
     }
 #endif

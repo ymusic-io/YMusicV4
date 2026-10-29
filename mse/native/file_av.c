@@ -1032,6 +1032,7 @@ static int present_sw_vt(FileAv *p, AVFrame *fr)
    because the swapchain is gone or another engine's. */
 static int present_d3d11(FileAv *p, AVFrame *fr)
 {
+    AVStream *st = (p->fmt && p->v_st >= 0) ? p->fmt->streams[p->v_st] : NULL;
     ID3D11Texture2D *tex;
     UINT slice;
     int rc;
@@ -1039,7 +1040,8 @@ static int present_d3d11(FileAv *p, AVFrame *fr)
         return -1;
     tex = (ID3D11Texture2D *)fr->data[0];
     slice = (UINT)(uintptr_t)fr->data[1];
-    rc = mse_d3d11_present_show(tex, slice, fr->width, fr->height, p);
+    rc = mse_d3d11_present_show(tex, slice, fr->width, fr->height,
+                                vp_color_of(fr, st ? st->codecpar : NULL), p);
     if (rc == -2)
         return 0;
     if (rc != 0)

@@ -244,7 +244,8 @@ int vpresent_snapshot(VPresenter *p, uint32_t *xrgb, int cap_px, int *w, int *h)
     if (!p)
         return 0;
     pthread_mutex_lock(&p->present_mu);
-    n = vp_cpu_snapshot(p, xrgb, cap_px, w, h);
+    /* In GPU mode the CPU buffers hold upload scratch, not the picture on screen. */
+    n = atomic_load(&p->mode) == VP_MODE_CPU ? vp_cpu_snapshot(p, xrgb, cap_px, w, h) : 0;
     pthread_mutex_unlock(&p->present_mu);
     return n;
 }
