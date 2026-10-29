@@ -9,6 +9,8 @@ import androidx.compose.ui.window.WindowPlacement
 import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.WindowState
 import io.ymusic.mse.FileAvNative
+import java.awt.GraphicsConfiguration
+import java.awt.GraphicsEnvironment
 import java.awt.Toolkit
 import java.awt.Window
 
@@ -40,8 +42,9 @@ internal class DesktopFrame(
     fun noteFloatingIfIdle() {
         if (fullscreen || zoomed) return
         if (state.placement != WindowPlacement.Floating) return
-        floatingSize = state.size
-        floatingPosition = state.position
+        val (size, position) = linuxFloatingFrame(state.size, state.position)
+        floatingSize = size
+        floatingPosition = position
     }
 
     fun toggleZoom() {
@@ -112,11 +115,28 @@ internal class DesktopFrame(
     }
 }
 
-internal fun workArea(w: Window): Pair<DpSize, WindowPosition> {
-    val gc = w.graphicsConfiguration
+internal fun workArea(w: Window): Pair<DpSize, WindowPosition> = workArea(w.graphicsConfiguration)
+
+private fun workArea(gc: GraphicsConfiguration): Pair<DpSize, WindowPosition> {
     val b = gc.bounds
     val insets = Toolkit.getDefaultToolkit().getScreenInsets(gc)
     val width = (b.width - insets.left - insets.right).coerceAtLeast(320)
     val height = (b.height - insets.top - insets.bottom).coerceAtLeast(480)
     return DpSize(width.dp, height.dp) to WindowPosition((b.x + insets.left).dp, (b.y + insets.top).dp)
+}
+
+private fun covers(size: DpSize, gc: GraphicsConfiguration): Boolean =
+    size.width.value >= gc.bounds.width && size.height.value >= gc.bounds.height
+
+/**
+ * A floating frame for Linux that is not its monitor's full size: GNOME takes an undecorated window that
+ * covers the monitor for a fullscreen one, and then ignores the resizes that would shrink it.
+ */
+internal fun linuxFloatingFrame(size: DpSize, position: WindowPosition): Pair<DpSize, WindowPosition> {
+    if (!isLinux) return size to position
+    val screens = GraphicsEnvironment.getLocalGraphicsEnvironment().screenDevices.map { it.defaultConfiguration }
+    val at = (position as? WindowPosition.Absolute)?.let { p ->
+        screens.firstOrNull { it.bounds.contains(p.x.value.toInt(), p.y.value.toInt()) }
+    } ?: screens.firstOrNull()
+    return if (at != null && covers(size, at)) workArea(at) else size to position
 }
