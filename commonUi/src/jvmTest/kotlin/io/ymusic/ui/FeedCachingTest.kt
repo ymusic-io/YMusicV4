@@ -2,7 +2,6 @@ package io.ymusic.ui
 
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasText
-import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.test.waitUntilAtLeastOneExists
@@ -44,16 +43,16 @@ class FeedCachingTest {
             runComposeUiTest {
                 val graph = AppGraph(engines = engines, player = StubPlayer(), playerSurface = {})
                 setContent { App(graph) }
-                onNodeWithContentDescription("Home").performClick()
+                onNodeWithActionLabel("Home").performClick()
 
                 waitUntilAtLeastOneExists(hasText("Mock Text 010", substring = true), 20_000)
                 // The startup Trending tab is a /browse too.
                 val loadedCalls = browseCalls.get()
 
                 // Into the search layer and straight back out.
-                onNodeWithContentDescription("Search").performClick()
+                onNodeWithActionLabel("Search").performClick()
                 waitUntilAtLeastOneExists(hasText("Search YouTube", substring = true), 10_000)
-                onNodeWithContentDescription("Back").performClick()
+                onNodeWithActionLabel("Back").performClick()
 
                 // The feed is right back — same loaded page, no new /browse.
                 waitUntilAtLeastOneExists(hasText("Mock Text 010", substring = true), 10_000)

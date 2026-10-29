@@ -2,7 +2,6 @@ package io.ymusic.ui
 
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasText
-import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runComposeUiTest
@@ -54,7 +53,7 @@ class LibraryScanLifecycleTest {
                 setContent { App(graph, section) }
 
                 waitUntilAtLeastOneExists(hasText("Folders"), 20_000)
-                onNodeWithContentDescription("Rescan folders").performClick()
+                onNodeWithActionLabel("Rescan folders").performClick()
                 waitUntilAtLeastOneExists(hasText("Scanning 129…"), 10_000)
 
                 // Leave the Folders tab and come back — the scan must still be running.

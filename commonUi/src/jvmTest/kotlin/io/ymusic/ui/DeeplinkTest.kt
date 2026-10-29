@@ -2,7 +2,6 @@ package io.ymusic.ui
 
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasText
-import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.test.waitUntilAtLeastOneExists
@@ -71,10 +70,10 @@ class DeeplinkTest {
             runComposeUiTest {
                 val graph = AppGraph(engines = engines, player = StubPlayer(), playerSurface = {})
                 setContent { App(graph) }
-                onNodeWithContentDescription("Home").performClick()
+                onNodeWithActionLabel("Home").performClick()
 
                 waitUntilAtLeastOneExists(hasText("Sky Decade"), 20_000)
-                onNodeWithContentDescription("View all").performClick()
+                onNodeWithActionLabel("View all").performClick()
 
                 // Playlist detail opens, seeded with the shelf title, then loads via VL browse.
                 waitUntilAtLeastOneExists(hasText("Playlist"), 10_000)
