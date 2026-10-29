@@ -1,6 +1,7 @@
 #include "file_av.h"
 #include "audio_fx.h"
 #include "mse_ffmpeg.h"
+#include "vpipe.h"
 #include "vpresent.h"
 
 #include <libavcodec/avcodec.h>
@@ -8,9 +9,7 @@
 #include <libavutil/channel_layout.h>
 #include <libavutil/frame.h>
 #include <libavutil/imgutils.h>
-#include <libavutil/hwcontext.h>
 #include <libavutil/opt.h>
-#include <libavutil/pixdesc.h>
 #include <libavutil/pixfmt.h>
 #include <libavutil/rational.h>
 #include <libavutil/samplefmt.h>
@@ -18,7 +17,6 @@
 #include <libswresample/swresample.h>
 
 #include <pthread.h>
-#include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -29,14 +27,10 @@
 #define FILE_AV_AQ 1
 #elif defined(__linux__) && !defined(__ANDROID__)
 #include "aq_pulse.h"
-#include "mse_hwdev.h"
 #define FILE_AV_AQ 1
-#define FILE_AV_LINUX_HW 1
 #elif defined(_WIN32)
 #include "aq_winmm.h"
 #define FILE_AV_AQ 1
-#define FILE_AV_WIN_HW 1
-#include "mse_d3d11.h"
 #endif
 #ifdef __APPLE__
 #include <mach/mach_time.h>
@@ -96,9 +90,8 @@ struct FileAv {
     int ended;
     int want_video;
     int v_need_key; /* after rest: drop until a key at/after the clock */
-#ifdef FILE_AV_LINUX_HW
-    AVPacket *v_first; /* first packet into the current vdec, until it yields a frame */
-#endif
+    int v_open;     /* the video decoder is open */
+    int v_dead;     /* 1: the video decoder gave up, not reported yet; 2: reported */
     int audio_index; /* -1 = first audio */
     double speed;
     AudioFx *fx;
@@ -113,7 +106,6 @@ struct FileAv {
 
     AVFormatContext *fmt;
     AVCodecContext *adec;
-    AVCodecContext *vdec;
     AVCodecContext *sdec;
     int a_st, v_st, s_st;
     int subtitle_index; /* -1 off; kept across close so reopen restores */
@@ -124,9 +116,10 @@ struct FileAv {
     size_t pcm_n;
     uint8_t *pcm2;
     size_t pcm2_n;
-    /* mu. present_head shows through a reference taken under it. */
+    /* mu; vpipe holds its own reference. */
     VPresenter *vp;
-    atomic_int frames;
+    /* Decoder calls run on dec_loop, or under mu while dec_loop is idle. */
+    VPipe *vpipe;
     int vw, vh;
     Pq aq, vq;
     AVFrame *afr, *vfr;
@@ -147,11 +140,6 @@ struct FileAv {
         char text[1024];
     } cap_q[8];
 
-#ifdef FILE_AV_WIN_HW
-    /* The presenter's D3D11 support changed: file_av_step re-checks whether the video decoder
-       runs on D3D11VA. */
-    int reopen_video;
-#endif
 #ifdef FILE_AV_AQ
     /* AudioQueue DAC. samples_played is the gold clock (same as leftover MSE). */
     AudioQueueRef dac;
@@ -287,81 +275,6 @@ static int vout_push(FileAv *p, AVFrame *src)
     return 0;
 }
 
-static const AVCodec *find_vdec(enum AVCodecID id)
-{
-    const AVCodec *c;
-#ifdef FILE_AV_LINUX_HW
-    if ((id == AV_CODEC_ID_VP9 || id == AV_CODEC_ID_AV1) && mse_hwdev_usable(id)) {
-        c = avcodec_find_decoder_by_name(id == AV_CODEC_ID_VP9 ? "vp9" : "av1");
-        if (c)
-            return c;
-    }
-#endif
-    if (id == AV_CODEC_ID_VP9) {
-        c = avcodec_find_decoder_by_name("libvpx-vp9");
-        if (c)
-            return c;
-        return avcodec_find_decoder_by_name("vp9");
-    }
-    if (id == AV_CODEC_ID_VP8)
-        return avcodec_find_decoder_by_name("libvpx");
-    if (id == AV_CODEC_ID_AV1) {
-        c = avcodec_find_decoder_by_name("libdav1d");
-        if (c)
-            return c;
-    }
-    return avcodec_find_decoder(id);
-}
-
-#ifdef FILE_AV_WIN_HW
-/* The native decoder to run on D3D11VA, or NULL for software: only into a presenter that draws
-   D3D11 textures (readback + swscale is slower than software decoding at 4K60). mu held. */
-static const AVCodec *d3d11_vdec(const FileAv *p, const AVCodecParameters *par)
-{
-    const char *name;
-    const AVCodec *c;
-    if (!p || !vpresent_zero_copy(p->vp, AV_PIX_FMT_D3D11) || !mse_d3d11_par_ok(par))
-        return NULL;
-    switch (par->codec_id) {
-    case AV_CODEC_ID_H264:
-        name = "h264";
-        break;
-    case AV_CODEC_ID_HEVC:
-        name = "hevc";
-        break;
-    case AV_CODEC_ID_VP9:
-        name = "vp9";
-        break;
-    case AV_CODEC_ID_AV1:
-        name = "av1";
-        break;
-    default:
-        return NULL;
-    }
-    c = avcodec_find_decoder_by_name(name);
-    return c && mse_d3d11_can_decode(c) ? c : NULL;
-}
-#endif
-
-/* Prefer VideoToolbox/etc so 4K HEVC can keep up; blit still goes through swscale
- * after av_hwframe_transfer_data. Fall back to the first software pixfmt. */
-static enum AVPixelFormat get_format_prefer_hw(AVCodecContext *s, const enum AVPixelFormat *fmt)
-{
-    const enum AVPixelFormat *p;
-    enum AVPixelFormat sw = AV_PIX_FMT_NONE;
-    (void)s;
-    for (p = fmt; *p != AV_PIX_FMT_NONE; p++) {
-        const AVPixFmtDescriptor *d = av_pix_fmt_desc_get(*p);
-        if (!d)
-            continue;
-        if (d->flags & AV_PIX_FMT_FLAG_HWACCEL)
-            return *p;
-        if (sw == AV_PIX_FMT_NONE)
-            sw = *p;
-    }
-    return sw;
-}
-
 /* Audio and subtitles. */
 static AVCodecContext *open_codec(AVStream *st)
 {
@@ -381,74 +294,6 @@ static AVCodecContext *open_codec(AVStream *st)
         avcodec_free_context(&ctx);
         return NULL;
     }
-    return ctx;
-}
-
-static AVCodecContext *open_video_codec(FileAv *p, AVStream *st)
-{
-    enum AVCodecID id = st->codecpar->codec_id;
-    const AVCodec *c = find_vdec(id);
-    AVCodecContext *ctx;
-    int try_vt = (id == AV_CODEC_ID_H264 || id == AV_CODEC_ID_HEVC);
-#ifdef FILE_AV_WIN_HW
-    const AVCodec *d3d11_codec = d3d11_vdec(p, st->codecpar);
-    if (d3d11_codec)
-        c = d3d11_codec;
-#else
-    (void)p;
-#endif
-    if (!c)
-        return NULL;
-    ctx = avcodec_alloc_context3(c);
-    if (!ctx)
-        return NULL;
-    if (avcodec_parameters_to_context(ctx, st->codecpar) < 0) {
-        avcodec_free_context(&ctx);
-        return NULL;
-    }
-    ctx->pkt_timebase = st->time_base;
-#ifdef FILE_AV_LINUX_HW
-    if ((try_vt || id == AV_CODEC_ID_VP9 || id == AV_CODEC_ID_AV1) && mse_hwdev_usable(id)) {
-        ctx->get_format = mse_hwdev_get_format;
-        ctx->hw_device_ctx = av_buffer_ref(mse_hwdev_get());
-        /* vout[] + vfr hold surfaces outside the decoder's fixed CUDA pool. */
-        ctx->extra_hw_frames = VOUT_N + 2;
-    }
-    try_vt = 0;
-#endif
-#ifdef FILE_AV_WIN_HW
-    try_vt = 0;
-#endif
-    if (try_vt) {
-        AVBufferRef *hw = NULL;
-        ctx->get_format = get_format_prefer_hw;
-        if (av_hwdevice_ctx_create(&hw, AV_HWDEVICE_TYPE_VIDEOTOOLBOX, NULL, NULL, 0) == 0) {
-            ctx->hw_device_ctx = hw;
-            ctx->extra_hw_frames = 4;
-        }
-    }
-#ifdef FILE_AV_WIN_HW
-    /* The mse host's process-wide device. file_av_step reopens when the presenter changes. */
-    if (d3d11_codec) {
-        AVBufferRef *dev = mse_d3d11_hwdev_ref();
-        if (dev) {
-            ctx->get_format = mse_d3d11_pick;
-            ctx->hw_device_ctx = dev;
-            ctx->extra_hw_frames = VOUT_N + 2;
-        }
-    }
-#endif
-    /* libav's API default is one thread: libdav1d alone decodes 4K AV1 at ~25 fps on an M4. */
-    if (!ctx->hw_device_ctx) {
-        ctx->thread_count = 0;
-        ctx->thread_type = FF_THREAD_FRAME | FF_THREAD_SLICE;
-    }
-    if (avcodec_open2(ctx, c, NULL) < 0) {
-        avcodec_free_context(&ctx);
-        return NULL;
-    }
-    mse_critf(MSE_LOG_INFO, "file-av open %s %dx%d vt=%d", c->name, ctx->width, ctx->height,
-              ctx->hw_device_ctx ? 1 : 0);
     return ctx;
 }
 
@@ -504,17 +349,15 @@ static double media_time_locked(FileAv *p)
     return t;
 }
 
-/* vdec idle. Does not wait on dec_loop. */
+/* dec_loop idle. Does not wait on it. */
 static void drop_video_state_locked(FileAv *p)
 {
-    avcodec_free_context(&p->vdec);
-#ifdef FILE_AV_LINUX_HW
-    av_packet_free(&p->v_first);
-#endif
+    vpipe_close(p->vpipe);
+    p->v_open = 0;
     pq_clear(&p->vq);
     vout_clear(p);
     av_frame_unref(p->vfr);
-    vpresent_flush(p->vp, p);
+    vpipe_flush_picture(p->vpipe);
     p->dec_drain = 0;
     p->last_vpts = -1;
     p->v_need_key = 1;
@@ -533,14 +376,15 @@ static void rest_video_locked(FileAv *p)
 static int start_video_locked(FileAv *p)
 {
     AVStream *st;
-    if (p->v_st < 0 || p->vdec || !p->fmt)
+    if (p->v_st < 0 || p->v_open || !p->fmt)
         return 0;
     st = p->fmt->streams[p->v_st];
-    p->vdec = open_video_codec(p, st);
-    if (!p->vdec) {
-        set_err(p, "video decoder");
+    if (vpipe_open(p->vpipe, st->codecpar, st->time_base) < 0) {
+        vpipe_failure(p->vpipe, p->err, (int)sizeof(p->err));
         return -1;
     }
+    p->v_open = 1;
+    p->v_dead = 0;
     p->vw = st->codecpar->width;
     p->vh = st->codecpar->height;
     p->v_need_key = 1;
@@ -850,7 +694,7 @@ static int pick_video(FileAv *p)
 
 static int need_video(const FileAv *p)
 {
-    return p->want_video && p->vdec != NULL;
+    return p->want_video && p->v_open;
 }
 
 static int setup_decoders(FileAv *p)
@@ -898,7 +742,7 @@ static int fill_packets(FileAv *p)
         if (pkt->stream_index == p->a_st) {
             if (pq_push(&p->aq, pkt) < 0)
                 av_packet_free(&pkt);
-        } else if (pkt->stream_index == p->v_st && p->want_video && p->vdec) {
+        } else if (pkt->stream_index == p->v_st && p->want_video && p->v_open) {
             if (p->v_need_key) {
                 double t = pkt_pts_sec(p, pkt);
                 double clock = media_time_locked(p);
@@ -1455,26 +1299,20 @@ static int present_head(FileAv *p)
 {
     AVFrame *fr = vout_head(p);
     AVStream *st = (p->fmt && p->v_st >= 0) ? p->fmt->streams[p->v_st] : NULL;
-    VPresenter *vp = p->vp;
-    VpColor c;
     int show = p->want_video, r;
     double pts;
     if (!fr)
         return 0;
     pts = frame_pts(st, fr, 0);
-    c = vp_color_of(fr, st ? st->codecpar : NULL);
     p->idle_ns = 0;
     p->last_vpts = pts;
-    vpresent_retain(vp);
     pthread_mutex_unlock(&p->mu);
-    r = show ? vpresent_show_frame(vp, p, fr, c) : VP_DROPPED;
-    vpresent_release(vp);
+    r = show ? vpipe_present(p->vpipe, fr) : VP_DROPPED;
     pthread_mutex_lock(&p->mu);
     if (r == VP_OK) {
         /* The native size: the UI sizes the hole from it. */
         p->vw = fr->width;
         p->vh = fr->height;
-        atomic_fetch_add(&p->frames, 1);
     }
     if (p->playing && p->origin_ns == 0)
         p->origin_ns = now_ns();
@@ -1489,7 +1327,7 @@ static int pump_video(FileAv *p, double clock)
     AVFrame *fr;
     double pts;
     int drops;
-    if (!p->vdec || !p->want_video)
+    if (!p->v_open || !p->want_video)
         return 0;
     if (!p->vp) {
         set_idle(p, 0.004);
@@ -1523,33 +1361,32 @@ static int pump_video(FileAv *p, double clock)
     return present_head(p);
 }
 
-#ifdef FILE_AV_LINUX_HW
-/* The GPU turned the codec down (native av1 has no software path): swap in a software decoder and
-   replay the packet it started from, so the queued GOP stays decodable. Caller holds mu, dec_busy set. */
-static void reopen_if_hw_rejected_locked(FileAv *p)
+/* mu held. VP_DEAD stops video (file_av_step reports it); VP_RESYNC restarts at a keyframe unless a
+   seek already did. */
+static void video_result_locked(FileAv *p, int r, int epoch)
 {
-    AVStream *st;
-    if (!p->vdec || !p->vdec->hw_device_ctx || mse_hwdev_usable(p->vdec->codec_id) || !p->fmt)
-        return;
-    mse_critf(MSE_LOG_INFO, "file-av reopen %s in software", avcodec_get_name(p->vdec->codec_id));
-    avcodec_free_context(&p->vdec);
-    st = p->fmt->streams[p->v_st];
-    p->vdec = open_video_codec(p, st);
-    if (!p->vdec) {
-        av_packet_free(&p->v_first);
-        set_err(p, "video decoder");
+    if (r == VP_DEAD) {
+        vpipe_failure(p->vpipe, p->err, (int)sizeof(p->err));
+        p->v_open = 0;
+        p->v_dead = 1;
+        pq_clear(&p->vq);
+        vout_clear(p);
         return;
     }
-    p->dec_drain = 0;
-    if (p->v_first) {
-        AVPacket *first = p->v_first;
-        AVCodecContext *dec = p->vdec;
-        pthread_mutex_unlock(&p->mu);
-        avcodec_send_packet(dec, first);
-        pthread_mutex_lock(&p->mu);
+    if (r != VP_RESYNC || epoch != p->dec_epoch)
+        return;
+    for (;;) {
+        AVPacket *head = p->vq.rd < p->vq.n ? p->vq.p[p->vq.rd] : NULL;
+        if (!head) {
+            p->v_need_key = 1;
+            return;
+        }
+        if (head->flags & AV_PKT_FLAG_KEY)
+            return;
+        head = pq_pop(&p->vq);
+        av_packet_free(&head);
     }
 }
-#endif
 
 static void *dec_loop(void *arg)
 {
@@ -1563,7 +1400,7 @@ static void *dec_loop(void *arg)
                 pthread_mutex_unlock(&p->mu);
                 return NULL;
             }
-            if (p->opened && p->playing && p->vdec && p->want_video && p->vout_n < VOUT_N)
+            if (p->opened && p->playing && p->v_open && p->want_video && p->vout_n < VOUT_N)
                 break;
             pthread_cond_wait(&p->cv, &p->mu);
         }
@@ -1571,9 +1408,11 @@ static void *dec_loop(void *arg)
         p->dec_busy = 1;
         pthread_mutex_unlock(&p->mu);
 
-        got = avcodec_receive_frame(p->vdec, p->vfr);
+        got = vpipe_receive(p->vpipe, p->vfr);
         pthread_mutex_lock(&p->mu);
-        if (p->stop || !p->opened || !p->vdec || epoch != p->dec_epoch) {
+        if (got == VP_DEAD)
+            video_result_locked(p, got, epoch);
+        if (p->stop || !p->opened || !p->v_open || epoch != p->dec_epoch) {
             av_frame_unref(p->vfr);
             p->dec_busy = 0;
             pthread_cond_broadcast(&p->cv);
@@ -1585,8 +1424,9 @@ static void *dec_loop(void *arg)
             if (!pkt && p->fmt_eof && !p->dec_drain) {
                 p->dec_drain = 1;
                 pthread_mutex_unlock(&p->mu);
-                avcodec_send_packet(p->vdec, NULL);
+                got = vpipe_send(p->vpipe, NULL, 0);
                 pthread_mutex_lock(&p->mu);
+                video_result_locked(p, got, epoch);
                 p->dec_busy = 0;
                 pthread_cond_broadcast(&p->cv);
                 pthread_mutex_unlock(&p->mu);
@@ -1599,17 +1439,11 @@ static void *dec_loop(void *arg)
                 pthread_mutex_unlock(&p->mu);
                 continue;
             }
-#ifdef FILE_AV_LINUX_HW
-            if (!p->v_first && p->vdec->hw_device_ctx)
-                p->v_first = av_packet_clone(pkt);
-#endif
             pthread_mutex_unlock(&p->mu);
-            avcodec_send_packet(p->vdec, pkt);
+            got = vpipe_send(p->vpipe, pkt, (pkt->flags & AV_PKT_FLAG_KEY) != 0);
             av_packet_free(&pkt);
             pthread_mutex_lock(&p->mu);
-#ifdef FILE_AV_LINUX_HW
-            reopen_if_hw_rejected_locked(p);
-#endif
+            video_result_locked(p, got, epoch);
             p->dec_busy = 0;
             pthread_cond_broadcast(&p->cv);
             pthread_mutex_unlock(&p->mu);
@@ -1617,17 +1451,15 @@ static void *dec_loop(void *arg)
         }
         if (got < 0) {
             av_frame_unref(p->vfr);
-#ifdef FILE_AV_LINUX_HW
-            reopen_if_hw_rejected_locked(p);
-#endif
+            video_result_locked(p, got, epoch);
             p->dec_busy = 0;
             pthread_cond_broadcast(&p->cv);
+            /* Drained: nothing more until a seek or close. */
+            if (got == AVERROR_EOF)
+                pthread_cond_wait(&p->cv, &p->mu);
             pthread_mutex_unlock(&p->mu);
             continue;
         }
-#ifdef FILE_AV_LINUX_HW
-        av_packet_free(&p->v_first);
-#endif
         p->dec_busy = 0;
         pthread_cond_broadcast(&p->cv);
         while (!p->stop && p->opened && epoch == p->dec_epoch && p->vout_n >= VOUT_N)
@@ -1652,21 +1484,17 @@ int file_av_step(FileAv *p)
         pthread_mutex_unlock(&p->mu);
         return 0;
     }
-#ifdef FILE_AV_WIN_HW
-    /* Once the demuxer hit EOF the queued packets are all the video left: a new decoder would
-       get none and the ended check would fire early. The flag waits for a seek to clear fmt_eof. */
-    if (p->vdec && !p->fmt_eof &&
-        (p->reopen_video || (p->vdec->hw_device_ctx && mse_d3d11_check_lost()))) {
-        int hw = d3d11_vdec(p, p->fmt->streams[p->v_st]->codecpar) != NULL;
-        p->reopen_video = 0;
-        if (hw != (p->vdec->hw_device_ctx != NULL)) {
-            mse_critf(MSE_LOG_INFO, "file-av video decoder reopens %s",
-                      hw ? "on d3d11va" : "in software");
-            rest_video_locked(p);
-            start_video_locked(p);
-        }
+    if (p->v_dead == 1) {
+        char err[sizeof(p->err)];
+        FileAvEventFn ev = p->on_event;
+        void *user = p->user;
+        p->v_dead = 2;
+        snprintf(err, sizeof(err), "%s", p->err);
+        pthread_mutex_unlock(&p->mu);
+        if (ev)
+            ev(user, 0, err);
+        return 0;
     }
-#endif
     p->idle_ns = 4 * 1000 * 1000;
     if (p->origin_ns == 0 && !p->adec && !p->want_video)
         p->origin_ns = now_ns();
@@ -1720,8 +1548,14 @@ int file_av_step(FileAv *p)
 FileAv *file_av_create(void)
 {
     FileAv *p = calloc(1, sizeof(*p));
+    VpParams prm = { "file-av", p, VOUT_N, 0, 0 };
     if (!p)
         return NULL;
+    p->vpipe = vpipe_create(&prm);
+    if (!p->vpipe) {
+        free(p);
+        return NULL;
+    }
     pthread_mutex_init(&p->mu, NULL);
     pthread_cond_init(&p->cv, NULL);
     p->speed = 1.0;
@@ -1780,6 +1614,7 @@ void file_av_destroy(FileAv *p)
     stop_aq(p);
 #endif
     file_av_close(p);
+    vpipe_destroy(p->vpipe);
     vpresent_unbind(p->vp, p);
     vpresent_release(p->vp);
     p->vp = NULL;
@@ -1817,6 +1652,7 @@ int file_av_open(FileAv *p, const char *path)
     p->fmt_eof = 0;
     p->dec_drain = 0;
     p->fmt = NULL;
+    vpipe_new_stream(p->vpipe);
     r = avformat_open_input(&p->fmt, path, NULL, NULL);
     if (r < 0) {
         char buf[128];
@@ -1869,9 +1705,7 @@ void file_av_close(FileAv *p)
 #endif
     p->fmt_eof = 0;
     p->dec_drain = 0;
-#ifdef FILE_AV_WIN_HW
-    p->reopen_video = 0;
-#endif
+    p->v_dead = 0;
     free_codecs(p);
     if (p->fmt)
         avformat_close_input(&p->fmt);
@@ -1970,8 +1804,8 @@ void file_av_seek(FileAv *p, double seconds)
     av_seek_frame(p->fmt, -1, ts, AVSEEK_FLAG_BACKWARD);
     if (p->adec)
         avcodec_flush_buffers(p->adec);
-    if (p->vdec)
-        avcodec_flush_buffers(p->vdec);
+    if (p->v_open)
+        vpipe_flush(p->vpipe);
     if (p->sdec)
         avcodec_flush_buffers(p->sdec);
     p->cap_n = 0;
@@ -2145,8 +1979,8 @@ void file_av_set_video_enabled(FileAv *p, int on)
     p->want_video = want;
     if (!want)
         rest_video_locked(p);
-    else if (p->opened)
-        start_video_locked(p);
+    else if (p->opened && start_video_locked(p) < 0)
+        p->v_dead = 1;
     pthread_cond_broadcast(&p->cv);
     pthread_mutex_unlock(&p->mu);
 }
@@ -2159,13 +1993,10 @@ void file_av_bind_presenter(FileAv *p, VPresenter *vp)
     /* Before present_head can see it, so its first picture is not dropped. */
     vpresent_bind(vp, p);
     vpresent_retain(vp);
+    vpipe_set_presenter(p->vpipe, vp);
     pthread_mutex_lock(&p->mu);
     old = p->vp;
     p->vp = vp;
-#ifdef FILE_AV_WIN_HW
-    if (vpresent_zero_copy(old, AV_PIX_FMT_D3D11) != vpresent_zero_copy(vp, AV_PIX_FMT_D3D11))
-        p->reopen_video = 1;
-#endif
     pthread_mutex_unlock(&p->mu);
     if (old != vp)
         vpresent_unbind(old, p);
@@ -2174,7 +2005,7 @@ void file_av_bind_presenter(FileAv *p, VPresenter *vp)
 
 int file_av_frames(FileAv *p)
 {
-    return p ? atomic_load(&p->frames) : 0;
+    return p ? vpipe_frames(p->vpipe) : 0;
 }
 
 /* audio_fx applies it at the pull; also setting the AudioQueue volume would square the gain. */

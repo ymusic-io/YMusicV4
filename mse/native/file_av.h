@@ -43,7 +43,7 @@ void file_av_set_subtitle_index(FileAv *p, int stream_index);
 void file_av_set_video_enabled(FileAv *p, int on);
 /* Where pictures go, bound with this FileAv as the token (NULL unbinds; video waits for one). Any
    thread; FileAv holds its own reference. Windows decodes on D3D11VA only into a presenter that
-   draws D3D11 textures: a change reopens the decoder. */
+   draws D3D11 textures: a change reopens the decoder at the next keyframe. */
 void file_av_bind_presenter(FileAv *p, struct VPresenter *vp);
 /* Pictures the presenter showed. */
 int file_av_frames(FileAv *p);
