@@ -1548,7 +1548,7 @@ int file_av_step(FileAv *p)
 FileAv *file_av_create(void)
 {
     FileAv *p = calloc(1, sizeof(*p));
-    VpParams prm = { "file-av", p, VOUT_N, 0, 0 };
+    VpParams prm = { .tag = "file-av", .held_frames = VOUT_N };
     if (!p)
         return NULL;
     p->vpipe = vpipe_create(&prm);
@@ -1993,7 +1993,7 @@ void file_av_bind_presenter(FileAv *p, VPresenter *vp)
     /* Before present_head can see it, so its first picture is not dropped. */
     vpresent_bind(vp, p);
     vpresent_retain(vp);
-    vpipe_set_presenter(p->vpipe, vp);
+    vpipe_set_presenter(p->vpipe, vp, p);
     pthread_mutex_lock(&p->mu);
     old = p->vp;
     p->vp = vp;

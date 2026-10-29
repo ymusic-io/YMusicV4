@@ -28,7 +28,6 @@ typedef struct VPipe VPipe;
 
 typedef struct {
     const char *tag;          /* log tag: "mse-v", "file-av" */
-    const void *engine;       /* presenter bind token */
     int held_frames;          /* decoded frames the engine keeps outside the decoder */
     int low_delay;            /* software decoders keep the engine's tuned thread counts */
     int sw_error_reopen;      /* a software decode error reopens the decoder (VP_RESYNC) */
@@ -49,9 +48,10 @@ int vpipe_send(VPipe *vp, const AVPacket *pkt, int is_rap);
 /* 0 = a frame, AVERROR(EAGAIN), AVERROR_EOF, VP_RESYNC, VP_DEAD, or a decode AVERROR. */
 int vpipe_receive(VPipe *vp, AVFrame *out);
 
-/* NULL keeps the last presenter's capabilities for the decoder choice. A change of them reopens
-   the decoder at the next keyframe sent. */
-void vpipe_set_presenter(VPipe *vp, VPresenter *p);
+/* Frames are shown on p under the bind token `engine`. NULL keeps the last presenter's
+   capabilities for the decoder choice. A change of them reopens the decoder at the next keyframe
+   sent. */
+void vpipe_set_presenter(VPipe *vp, VPresenter *p, const void *engine);
 /* VP_OK / VP_DROPPED (no presenter, or not bound to this engine) / VP_FAIL. */
 int vpipe_present(VPipe *vp, const AVFrame *f);
 void vpipe_flush_picture(VPipe *vp);

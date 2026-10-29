@@ -59,6 +59,7 @@ struct VPipe {
     char desc[64];
     pthread_mutex_t pmu;
     VPresenter *vp;            /* pmu */
+    const void *engine;        /* pmu */
     /* The last non-NULL presenter: the decoder choice follows what it can draw. pmu. */
     VPresenter *caps;
     atomic_int reconfig;
@@ -686,13 +687,14 @@ int vpipe_receive(VPipe *vp, AVFrame *out)
     return AVERROR(EAGAIN);
 }
 
-void vpipe_set_presenter(VPipe *vp, VPresenter *p)
+void vpipe_set_presenter(VPipe *vp, VPresenter *p, const void *engine)
 {
     VPresenter *old, *old_caps = NULL;
     vpresent_retain(p);
     pthread_mutex_lock(&vp->pmu);
     old = vp->vp;
     vp->vp = p;
+    vp->engine = engine;
     if (p && p != vp->caps) {
         old_caps = vp->caps;
         vpresent_retain(p);
@@ -707,14 +709,16 @@ void vpipe_set_presenter(VPipe *vp, VPresenter *p)
 int vpipe_present(VPipe *vp, const AVFrame *f)
 {
     VPresenter *p;
+    const void *engine;
     VpColor c;
     int r;
     pthread_mutex_lock(&vp->pmu);
     p = vp->vp;
+    engine = vp->engine;
     vpresent_retain(p);
     c = vp_color_of(f, vp->par);
     pthread_mutex_unlock(&vp->pmu);
-    r = p ? vpresent_show_frame(p, vp->prm.engine, f, c) : VP_DROPPED;
+    r = p ? vpresent_show_frame(p, engine, f, c) : VP_DROPPED;
     vpresent_release(p);
     if (r == VP_OK)
         atomic_fetch_add(&vp->frames, 1);
@@ -724,11 +728,13 @@ int vpipe_present(VPipe *vp, const AVFrame *f)
 void vpipe_flush_picture(VPipe *vp)
 {
     VPresenter *p;
+    const void *engine;
     pthread_mutex_lock(&vp->pmu);
     p = vp->vp;
+    engine = vp->engine;
     vpresent_retain(p);
     pthread_mutex_unlock(&vp->pmu);
-    vpresent_flush(p, vp->prm.engine);
+    vpresent_flush(p, engine);
     vpresent_release(p);
 }
 
