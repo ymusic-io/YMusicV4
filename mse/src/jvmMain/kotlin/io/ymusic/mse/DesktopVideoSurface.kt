@@ -38,6 +38,13 @@ class DesktopVideoSurface(private val cpuOnly: Boolean = false) {
     @Volatile
     var onCpuFrame: ((BufferedImage?) -> Unit)? = null
 
+    /**
+     * Each CPU picture as tight BGRA rows (null = clear), on the presenting thread and valid only during
+     * the call, for a consumer that draws the pixels itself. While set, [onCpuFrame] gets no pictures.
+     */
+    @Volatile
+    var onCpuBgra: ((width: Int, height: Int, bgra: ByteBuffer?) -> Unit)? = null
+
     /** The picture the panel is painting; frames are never written into it. */
     @Volatile
     var painting: BufferedImage? = null
@@ -115,6 +122,7 @@ class DesktopVideoSurface(private val cpuOnly: Boolean = false) {
     fun clear(engine: VideoEngine) {
         if (_active.value != engine) return
         synchronized(frameLock) { lastPub = null }
+        onCpuBgra?.invoke(0, 0, null)
         onCpuFrame?.invoke(null)
     }
 
@@ -217,6 +225,7 @@ class DesktopVideoSurface(private val cpuOnly: Boolean = false) {
         @Keep
         override fun onFrame(width: Int, height: Int, bgra: ByteBuffer) {
             if (!live) return
+            onCpuBgra?.let { return it(width, height, bgra) }
             val img = synchronized(frameLock) {
                 val img = grab(width, height)
                 val pixels = (img.raster.dataBuffer as DataBufferInt).data
