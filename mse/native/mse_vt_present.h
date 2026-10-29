@@ -36,7 +36,10 @@ void mse_vt_resume_presents(void *layer);
    ffmpeg's videotoolbox hwaccel wraps native `vp9` (SIGILL); this is
    Apple's session, the Chrome path. */
 void *mse_vt_dec_open(const uint8_t *avcc, int avcc_n, int w, int h);
-void *mse_vt_dec_open_vp9(const uint8_t *vpcc, int vpcc_n, int w, int h);
+/* extradata is used when it is a vpcC box, else one is synthesised from profile (< 0 = unknown)
+   or, when given, from frame: the stream's first coded frame. */
+void *mse_vt_dec_open_vp9(const uint8_t *extradata, int extradata_n, int profile,
+                          const uint8_t *frame, int frame_n, int w, int h);
 void mse_vt_dec_close(void *dec);
 void mse_vt_dec_flush(void *dec);
 int mse_vt_dec_send(void *dec, const uint8_t *data, int n, int output);

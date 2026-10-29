@@ -1813,26 +1813,6 @@ static int apple_vt_codec(const AVCodecParameters *par)
     return 0;
 }
 
-static void vp9_vpcc_from_par(uint8_t out[12], const AVCodecParameters *par,
-                              const uint8_t *frame, int n)
-{
-    int profile = 0, bpp = 8;
-    memset(out, 0, 12);
-    if (par->profile >= 0 && par->profile <= 3)
-        profile = par->profile;
-    if (frame && n >= 1 && (frame[0] >> 6) == 2) {
-        profile = (frame[0] >> 4) & 3;
-        if (profile >= 2)
-            bpp = 10;
-    }
-    out[0] = 1;
-    out[4] = (uint8_t)profile;
-    out[6] = (uint8_t)((bpp << 4) | (1 << 1));
-    out[7] = 1;
-    out[8] = 1;
-    out[9] = 1;
-}
-
 static void *open_apple_vt(MseAv *a)
 {
     if (!a->vpar)
@@ -1841,23 +1821,16 @@ static void *open_apple_vt(MseAv *a)
         return mse_vt_dec_open(a->vpar->extradata, a->vpar->extradata_size,
                                a->vpar->width, a->vpar->height);
     if (a->vpar->codec_id == AV_CODEC_ID_VP9) {
-        uint8_t vpcc[12];
-        if (vp9_vt_unavailable)
-            return NULL;
-        const uint8_t *extra = a->vpar->extradata;
-        int extra_n = a->vpar->extradata_size;
         const uint8_t *frame = NULL;
         int fn = 0;
+        if (vp9_vt_unavailable)
+            return NULL;
         if (a->vf.rd < a->vf.n) {
             frame = a->vf.f[a->vf.rd].data;
             fn = (int)a->vf.f[a->vf.rd].n;
         }
-        if (!extra || extra_n < 12 || extra[0] != 1) {
-            vp9_vpcc_from_par(vpcc, a->vpar, frame, fn);
-            extra = vpcc;
-            extra_n = 12;
-        }
-        return mse_vt_dec_open_vp9(extra, extra_n, a->vpar->width, a->vpar->height);
+        return mse_vt_dec_open_vp9(a->vpar->extradata, a->vpar->extradata_size, a->vpar->profile,
+                                   frame, fn, a->vpar->width, a->vpar->height);
     }
     return NULL;
 }

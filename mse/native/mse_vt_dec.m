@@ -180,25 +180,40 @@ void *mse_vt_dec_open(const uint8_t *avcc, int avcc_n, int w, int h)
     return d;
 }
 
-void *mse_vt_dec_open_vp9(const uint8_t *vpcc, int vpcc_n, int w, int h)
+/* FullBox vpcC, version 1, 4:2:0 BT.709. */
+static void vp9_vpcc_synth(uint8_t out[12], int profile, const uint8_t *frame, int n)
+{
+    int bpp = 8;
+    memset(out, 0, 12);
+    if (profile < 0 || profile > 3)
+        profile = 0;
+    if (frame && n >= 1 && (frame[0] >> 6) == 2) {
+        profile = (frame[0] >> 4) & 3;
+        if (profile >= 2)
+            bpp = 10;
+    }
+    out[0] = 1;
+    out[4] = (uint8_t)profile;
+    out[6] = (uint8_t)((bpp << 4) | (1 << 1));
+    out[7] = 1;
+    out[8] = 1;
+    out[9] = 1;
+}
+
+void *mse_vt_dec_open_vp9(const uint8_t *extradata, int extradata_n, int profile,
+                          const uint8_t *frame, int frame_n, int w, int h)
 {
     struct MseVtDec *d;
     CFMutableDictionaryRef atoms = NULL, ext = NULL;
     CFDataRef data = NULL;
+    const uint8_t *vpcc = extradata;
+    int vpcc_n = extradata_n;
     uint8_t syn[12];
     OSStatus st;
     if (w <= 0 || h <= 0)
         return NULL;
-    if (!vpcc || vpcc_n < 8) {
-        /* FullBox vpcC: version=1, profile 0, 8-bit 4:2:0 BT.709. */
-        memset(syn, 0, sizeof(syn));
-        syn[0] = 1;
-        syn[4] = 0;
-        syn[5] = 0;
-        syn[6] = (8 << 4) | (1 << 1);
-        syn[7] = 1;
-        syn[8] = 1;
-        syn[9] = 1;
+    if (!vpcc || vpcc_n < 12 || vpcc[0] != 1) {
+        vp9_vpcc_synth(syn, profile, frame, frame_n);
         vpcc = syn;
         vpcc_n = 12;
     }
