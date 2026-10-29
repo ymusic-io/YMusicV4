@@ -1,5 +1,34 @@
 # Changelog
 
+## Unreleased
+
+### NEW
+- Windows: YMusic for Windows, x64 and Arm64, with a setup installer, updates from inside the app and hardware video decoding ([e4ca5ebb0](https://github.com/ymusic-io/YMusicV4/commit/e4ca5ebb0ffedb82cb71813cfc2347849f925c7b), [6f99cf173](https://github.com/ymusic-io/YMusicV4/commit/6f99cf1733899aacbbce794be4cd4aa99b8aa127), [32abdcef5](https://github.com/ymusic-io/YMusicV4/commit/32abdcef55f2c25609c9d64d52d6d01477632600))
+- Windows: Play/Pause, Stop and Quit from the taskbar Jump List ([f99eb85c1](https://github.com/ymusic-io/YMusicV4/commit/f99eb85c1b185a80c4336c09700648741c083309), [87f4eebbf](https://github.com/ymusic-io/YMusicV4/commit/87f4eebbfaf541bd3d7d0f39a21f14136ef94e8d))
+- Desktop: keyboard shortcuts, listed with F1: Ctrl/Cmd+←/→ previous/next, Ctrl/Cmd+Shift+←/→ seek 10 s, Ctrl/Cmd+↑/↓ volume (the new level shows), Ctrl/Cmd+F search, Ctrl/Cmd+1–9 tabs, and Esc twice goes back ([2ffb98e29](https://github.com/ymusic-io/YMusicV4/commit/2ffb98e298fdc0f5e43c0d90e8447607d9a6e86a), [e86708448](https://github.com/ymusic-io/YMusicV4/commit/e867084486a8cafbbf402b2404eecaa9334a339f), [c174a000a](https://github.com/ymusic-io/YMusicV4/commit/c174a000a1aef2b0e2ed5c2d7b7349d3c5e20f87), [ec435d52a](https://github.com/ymusic-io/YMusicV4/commit/ec435d52a2086a7a6e653febab857387778b2d3a), [a62e09569](https://github.com/ymusic-io/YMusicV4/commit/a62e09569ebb4f89c9f4c31bbb7e0558041fdd01), [f41887482](https://github.com/ymusic-io/YMusicV4/commit/f418874821981f4c5c06ca7514ffaad771de603d))
+- Desktop: move through the whole app with the keyboard: arrow keys in lists, tab rows, menus and dialogs, and Tab reaches the video controls ([b2070f4bd](https://github.com/ymusic-io/YMusicV4/commit/b2070f4bd1114cbf2a182a7d1f8921297fdf5165), [ef25f28f1](https://github.com/ymusic-io/YMusicV4/commit/ef25f28f1721a59851b9d2a62117c41bfc1557f8), [9d2df9b8d](https://github.com/ymusic-io/YMusicV4/commit/9d2df9b8dc4882cc3aad1e6101cd724124594acb))
+- Desktop: keep the window above other windows with the pin button in the title bar ([02cd7a556](https://github.com/ymusic-io/YMusicV4/commit/02cd7a556f08875c32b54d7ae58706244c741685))
+- Desktop: Pause/Resume, Stop and Quit from the tray icon's right-click menu, and from the Dock icon's menu on macOS ([eea1a758a](https://github.com/ymusic-io/YMusicV4/commit/eea1a758adfc6f4f1327661ddca523721604dad8))
+- Desktop: Reveal in Finder / File Explorer for Library songs and folders ([6202caafa](https://github.com/ymusic-io/YMusicV4/commit/6202caafa9e60db290d8ee99cbd436219be93182))
+
+### FIXED
+- 4K YouTube videos lagged the whole device when it couldn't decode AV1 in hardware: YouTube now learns which formats the device plays smoothly and picks one of those ([245f0c801](https://github.com/ymusic-io/YMusicV4/commit/245f0c801d95ff60acd053955007a952660c2c3c), [98a0c0f46](https://github.com/ymusic-io/YMusicV4/commit/98a0c0f467ef771a105d7da01eac95ed13d7f842), [fd2cefe2c](https://github.com/ymusic-io/YMusicV4/commit/fd2cefe2c095a6694bb1fc70c741d83f34851b23))
+- A 4K YouTube video played again from the cache could freeze while the sound played on ([3bdc6d33e](https://github.com/ymusic-io/YMusicV4/commit/3bdc6d33e38887c7f2c469eb6999b2ea8313eb62), [1661d6099](https://github.com/ymusic-io/YMusicV4/commit/1661d6099b44f818d3fb1c856d4397c62514b794), [81433c4e3](https://github.com/ymusic-io/YMusicV4/commit/81433c4e3ec74153297e7291ace879ac70b6e8ad), [47fe9b652](https://github.com/ymusic-io/YMusicV4/commit/47fe9b652c229bca1941ee191b25ca4817ae1505))
+- A YouTube video could turn black with the sound playing after a quality switch, until you seeked ([3fc1de287](https://github.com/ymusic-io/YMusicV4/commit/3fc1de287855273b51407715c386e49a43fc134b))
+- Desktop and iOS: 10-bit (HDR) VP9 videos, from YouTube or from files, played with no picture ([ee3af6a43](https://github.com/ymusic-io/YMusicV4/commit/ee3af6a43fa3368bfaf246915e4a026f31296569), [b58ef31d6](https://github.com/ymusic-io/YMusicV4/commit/b58ef31d6cd0c1e837b6640ad95aab24ec3279db), [0791fb4ea](https://github.com/ymusic-io/YMusicV4/commit/0791fb4eab341411140fa3652f54b0c057360836))
+- A damaged frame in a video froze the picture until the next keyframe while the decoder restarted over and over ([851ba6322](https://github.com/ymusic-io/YMusicV4/commit/851ba6322d35d9e0639cf60abbcb1387c7278a0f))
+- macOS 13 and older (Apple silicon), 14 and older (Intel): songs and videos didn't play ([c6e913070](https://github.com/ymusic-io/YMusicV4/commit/c6e91307027a0227a371b659dbd0b731fb90cbca))
+- Desktop: local 4K AV1 videos dropped every other frame ([9529b1400](https://github.com/ymusic-io/YMusicV4/commit/9529b140060929ee8d987dfe5d22176af7ea7055))
+- Desktop: opening YMusic again didn't bring its window to the front when it was behind other apps ([dc038bcd6](https://github.com/ymusic-io/YMusicV4/commit/dc038bcd6d552e7f96e23926d59b1d313c8fd453))
+- Desktop: on some computers the app quit right after launching ([b7b9bf892](https://github.com/ymusic-io/YMusicV4/commit/b7b9bf8927a50ee061252633078d4f56770008de))
+- Desktop: quitting lost the playing song's watch time and its Play again position ([380bf5e22](https://github.com/ymusic-io/YMusicV4/commit/380bf5e22cc4a7cdcd947d0f23b14f602a436236), [7744b7f6a](https://github.com/ymusic-io/YMusicV4/commit/7744b7f6ae00b20aceab54f3363296490acdbac3))
+- Desktop: the cookie password screen was white under the dark theme ([87ee84b5a](https://github.com/ymusic-io/YMusicV4/commit/87ee84b5ad8f307114c38c4fda7b3b22af8374cc))
+- Desktop: the tray mini player opened at the top of the main screen; it now opens next to the tray icon, on the screen you clicked ([60936563a](https://github.com/ymusic-io/YMusicV4/commit/60936563a912b73db16424c79ff635cf6e4f167f))
+
+### IMPROVED
+- Screen readers read feed cards, song rows, the queue, the seek bar, sliders, chips and Now Playing's buttons in full and once, with their state ([a9da88f16](https://github.com/ymusic-io/YMusicV4/commit/a9da88f1630ada440b1526e83d084a3f227cb601), [68e808dc3](https://github.com/ymusic-io/YMusicV4/commit/68e808dc323e18e35d9b44f04ed1fb9493f6018c), [79eda45ba](https://github.com/ymusic-io/YMusicV4/commit/79eda45ba5a4016e0e37e66f57c6ac92064af609), [22654e720](https://github.com/ymusic-io/YMusicV4/commit/22654e720914b4376fd8e987f70f6aeacde831b8), [00142196f](https://github.com/ymusic-io/YMusicV4/commit/00142196fdf77fe066ade5f72ce368d6383cccd8), [f0ca5b7fc](https://github.com/ymusic-io/YMusicV4/commit/f0ca5b7fce990c9dd2077e46c47ad902c8aad262))
+- Macs with Apple silicon decode local VP9 videos in hardware ([5d0ea43d6](https://github.com/ymusic-io/YMusicV4/commit/5d0ea43d61db606acddb6b7f182886067c1f4190))
+
 ## 4.0.12
 
 ### NEW
