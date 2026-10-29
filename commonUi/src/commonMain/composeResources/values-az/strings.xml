@@ -144,6 +144,12 @@
         <item quantity="one">%1$d saniyə</item>
         <item quantity="other">%1$d saniyə</item>
     </plurals>
+    <string name="a11y_now_playing">İndi oxunur</string>
+    <string name="a11y_playback_position">Oxutma mövqeyi</string>
+    <string name="a11y_x_of_y">%1$s, cəmi %2$s</string>
+    <string name="a11y_behind_live">Canlı yayımdan %1$s geridə</string>
+    <string name="a11y_downloaded">Yüklənib</string>
+    <string name="a11y_eq_preamp">Ön gücləndirici</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Qovluqlar</string>

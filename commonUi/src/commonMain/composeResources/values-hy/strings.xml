@@ -144,6 +144,12 @@
         <item quantity="one">%1$d վայրկյան</item>
         <item quantity="other">%1$d վայրկյան</item>
     </plurals>
+    <string name="a11y_now_playing">Հիմա նվագվում է</string>
+    <string name="a11y_playback_position">Նվագարկման դիրքը</string>
+    <string name="a11y_x_of_y">%1$s, ընդամենը %2$s</string>
+    <string name="a11y_behind_live">Ուղիղ եթերից %1$s հետ</string>
+    <string name="a11y_downloaded">Ներբեռնված է</string>
+    <string name="a11y_eq_preamp">Նախաուժեղարար</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Թղթապանակներ</string>

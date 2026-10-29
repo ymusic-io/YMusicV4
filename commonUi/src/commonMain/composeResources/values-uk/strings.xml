@@ -189,6 +189,12 @@
         <item quantity="many">%1$d секунд</item>
         <item quantity="other">%1$d секунди</item>
     </plurals>
+    <string name="a11y_now_playing">Зараз грає</string>
+    <string name="a11y_playback_position">Позиція відтворення</string>
+    <string name="a11y_x_of_y">%1$s, усього %2$s</string>
+    <string name="a11y_behind_live">Відставання від ефіру: %1$s</string>
+    <string name="a11y_downloaded">Завантажено</string>
+    <string name="a11y_eq_preamp">Попередній підсилювач</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Папки</string>

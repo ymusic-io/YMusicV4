@@ -144,6 +144,12 @@
         <item quantity="one">%1$d सेकंड</item>
         <item quantity="other">%1$d सेकंड</item>
     </plurals>
+    <string name="a11y_now_playing">अभी चल रहा है</string>
+    <string name="a11y_playback_position">प्लेबैक की स्थिति</string>
+    <string name="a11y_x_of_y">%2$s में से %1$s</string>
+    <string name="a11y_behind_live">लाइव से %1$s पीछे</string>
+    <string name="a11y_downloaded">डाउनलोड किया गया</string>
+    <string name="a11y_eq_preamp">प्रीएम्प</string>
 
     <!-- Library -->
     <string name="library_tab_folders">फ़ोल्डर</string>

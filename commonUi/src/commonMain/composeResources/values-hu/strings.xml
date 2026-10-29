@@ -144,6 +144,12 @@
         <item quantity="one">%1$d másodperc</item>
         <item quantity="other">%1$d másodperc</item>
     </plurals>
+    <string name="a11y_now_playing">Most szól</string>
+    <string name="a11y_playback_position">Lejátszási pozíció</string>
+    <string name="a11y_x_of_y">%1$s, összesen %2$s</string>
+    <string name="a11y_behind_live">%1$s késés az élő adáshoz képest</string>
+    <string name="a11y_downloaded">Letöltve</string>
+    <string name="a11y_eq_preamp">Előerősítő</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Mappák</string>

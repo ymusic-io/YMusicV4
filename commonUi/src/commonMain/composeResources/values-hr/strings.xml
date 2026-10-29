@@ -147,6 +147,12 @@
         <item quantity="few">%1$d sekunde</item>
         <item quantity="other">%1$d sekundi</item>
     </plurals>
+    <string name="a11y_now_playing">Upravo svira</string>
+    <string name="a11y_playback_position">Položaj reprodukcije</string>
+    <string name="a11y_x_of_y">%1$s, ukupno %2$s</string>
+    <string name="a11y_behind_live">%1$s iza prijenosa uživo</string>
+    <string name="a11y_downloaded">Preuzeto</string>
+    <string name="a11y_eq_preamp">Pretpojačalo</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Mape</string>

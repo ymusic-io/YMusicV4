@@ -144,6 +144,12 @@
         <item quantity="one">%1$d സെക്കൻഡ്</item>
         <item quantity="other">%1$d സെക്കൻഡ്</item>
     </plurals>
+    <string name="a11y_now_playing">ഇപ്പോൾ പ്ലേ ചെയ്യുന്നു</string>
+    <string name="a11y_playback_position">പ്ലേബാക്ക് സ്ഥാനം</string>
+    <string name="a11y_x_of_y">%2$s-ൽ %1$s</string>
+    <string name="a11y_behind_live">തത്സമയത്തിൽ നിന്ന് %1$s പിന്നിൽ</string>
+    <string name="a11y_downloaded">ഡൗൺലോഡ് ചെയ്തു</string>
+    <string name="a11y_eq_preamp">പ്രീആമ്പ്</string>
 
     <!-- Library -->
     <string name="library_tab_folders">ഫോൾഡറുകൾ</string>

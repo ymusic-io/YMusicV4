@@ -147,6 +147,12 @@
         <item quantity="few">%1$d secunde</item>
         <item quantity="other">%1$d de secunde</item>
     </plurals>
+    <string name="a11y_now_playing">Se redă acum</string>
+    <string name="a11y_playback_position">Poziția redării</string>
+    <string name="a11y_x_of_y">%1$s din %2$s</string>
+    <string name="a11y_behind_live">%1$s în urma transmisiunii live</string>
+    <string name="a11y_downloaded">Descărcat</string>
+    <string name="a11y_eq_preamp">Preamplificator</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Dosare</string>

@@ -150,6 +150,12 @@
         <item quantity="many">%1$d sekundy</item>
         <item quantity="other">%1$d sekund</item>
     </plurals>
+    <string name="a11y_now_playing">Právě hraje</string>
+    <string name="a11y_playback_position">Pozice přehrávání</string>
+    <string name="a11y_x_of_y">%1$s, celkem %2$s</string>
+    <string name="a11y_behind_live">%1$s za živým vysíláním</string>
+    <string name="a11y_downloaded">Staženo</string>
+    <string name="a11y_eq_preamp">Předzesilovač</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Složky</string>

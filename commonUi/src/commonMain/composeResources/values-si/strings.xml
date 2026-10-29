@@ -144,6 +144,12 @@
         <item quantity="one">තත්පර %1$d</item>
         <item quantity="other">තත්පර %1$d</item>
     </plurals>
+    <string name="a11y_now_playing">දැන් වාදනය වේ</string>
+    <string name="a11y_playback_position">වාදන ස්ථානය</string>
+    <string name="a11y_x_of_y">%2$s න් %1$s</string>
+    <string name="a11y_behind_live">සජීවී විකාශයට වඩා %1$s පසුපසින්</string>
+    <string name="a11y_downloaded">බාගත කර ඇත</string>
+    <string name="a11y_eq_preamp">පූර්ව වර්ධකය</string>
 
     <!-- Library -->
     <string name="library_tab_folders">ෆෝල්ඩර</string>

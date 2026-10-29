@@ -141,6 +141,12 @@
     <plurals name="a11y_duration_seconds">
         <item quantity="other">%1$d วินาที</item>
     </plurals>
+    <string name="a11y_now_playing">กำลังเล่น</string>
+    <string name="a11y_playback_position">ตำแหน่งการเล่น</string>
+    <string name="a11y_x_of_y">%1$s จาก %2$s</string>
+    <string name="a11y_behind_live">ช้ากว่าสด %1$s</string>
+    <string name="a11y_downloaded">ดาวน์โหลดแล้ว</string>
+    <string name="a11y_eq_preamp">พรีแอมป์</string>
 
     <!-- Library -->
     <string name="library_tab_folders">โฟลเดอร์</string>

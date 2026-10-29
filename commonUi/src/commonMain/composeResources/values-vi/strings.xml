@@ -171,6 +171,12 @@
     <plurals name="a11y_duration_seconds">
         <item quantity="other">%1$d giây</item>
     </plurals>
+    <string name="a11y_now_playing">Đang phát</string>
+    <string name="a11y_playback_position">Vị trí phát</string>
+    <string name="a11y_x_of_y">%1$s trên %2$s</string>
+    <string name="a11y_behind_live">Chậm %1$s so với trực tiếp</string>
+    <string name="a11y_downloaded">Đã tải xuống</string>
+    <string name="a11y_eq_preamp">Tiền khuếch đại</string>
 
     <string name="library_tab_folders">Thư mục</string>
     <string name="library_tab_playlists">Danh sách phát</string>

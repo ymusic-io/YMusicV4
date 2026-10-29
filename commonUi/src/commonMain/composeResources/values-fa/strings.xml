@@ -144,6 +144,12 @@
         <item quantity="one">%1$d ثانیه</item>
         <item quantity="other">%1$d ثانیه</item>
     </plurals>
+    <string name="a11y_now_playing">در حال پخش</string>
+    <string name="a11y_playback_position">موقعیت پخش</string>
+    <string name="a11y_x_of_y">%1$s از %2$s</string>
+    <string name="a11y_behind_live">%1$s عقب‌تر از پخش زنده</string>
+    <string name="a11y_downloaded">دانلود شده</string>
+    <string name="a11y_eq_preamp">پیش‌تقویت‌کننده</string>
 
     <!-- Library -->
     <string name="library_tab_folders">پوشه‌ها</string>

@@ -144,6 +144,12 @@
         <item quantity="one">%1$d வினாடி</item>
         <item quantity="other">%1$d வினாடிகள்</item>
     </plurals>
+    <string name="a11y_now_playing">இப்போது இயங்குகிறது</string>
+    <string name="a11y_playback_position">இயக்க நிலை</string>
+    <string name="a11y_x_of_y">%2$s இல் %1$s</string>
+    <string name="a11y_behind_live">நேரலையை விட %1$s பின்னால்</string>
+    <string name="a11y_downloaded">பதிவிறக்கப்பட்டது</string>
+    <string name="a11y_eq_preamp">முன்பெருக்கி</string>
 
     <!-- Library -->
     <string name="library_tab_folders">கோப்புறைகள்</string>

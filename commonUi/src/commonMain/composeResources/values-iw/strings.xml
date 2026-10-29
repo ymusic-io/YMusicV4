@@ -147,6 +147,12 @@
         <item quantity="two">%1$d שניות</item>
         <item quantity="other">%1$d שניות</item>
     </plurals>
+    <string name="a11y_now_playing">מתנגן עכשיו</string>
+    <string name="a11y_playback_position">מיקום ההשמעה</string>
+    <string name="a11y_x_of_y">%1$s מתוך %2$s</string>
+    <string name="a11y_behind_live">%1$s מאחורי השידור החי</string>
+    <string name="a11y_downloaded">הורד</string>
+    <string name="a11y_eq_preamp">קדם-מגבר</string>
 
     <!-- Library -->
     <string name="library_tab_folders">תיקיות</string>

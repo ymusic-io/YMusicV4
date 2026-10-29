@@ -144,6 +144,12 @@
         <item quantity="one">%1$d секунда</item>
         <item quantity="other">%1$d секунди</item>
     </plurals>
+    <string name="a11y_now_playing">Сега звучи</string>
+    <string name="a11y_playback_position">Позиция на възпроизвеждане</string>
+    <string name="a11y_x_of_y">%1$s от %2$s</string>
+    <string name="a11y_behind_live">%1$s зад предаването на живо</string>
+    <string name="a11y_downloaded">Изтеглено</string>
+    <string name="a11y_eq_preamp">Предусилвател</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Папки</string>

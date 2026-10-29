@@ -147,6 +147,12 @@
         <item quantity="few">%1$d секунде</item>
         <item quantity="other">%1$d секунди</item>
     </plurals>
+    <string name="a11y_now_playing">Управо свира</string>
+    <string name="a11y_playback_position">Позиција репродукције</string>
+    <string name="a11y_x_of_y">%1$s, укупно %2$s</string>
+    <string name="a11y_behind_live">%1$s иза преноса уживо</string>
+    <string name="a11y_downloaded">Преузето</string>
+    <string name="a11y_eq_preamp">Претпојачало</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Фасцикле</string>

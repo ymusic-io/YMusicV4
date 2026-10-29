@@ -186,6 +186,12 @@
         <item quantity="many">%1$d ثانية</item>
         <item quantity="other">%1$d ثانية</item>
     </plurals>
+    <string name="a11y_now_playing">قيد التشغيل الآن</string>
+    <string name="a11y_playback_position">موضع التشغيل</string>
+    <string name="a11y_x_of_y">%1$s من %2$s</string>
+    <string name="a11y_behind_live">متأخر %1$s عن البث المباشر</string>
+    <string name="a11y_downloaded">تم التنزيل</string>
+    <string name="a11y_eq_preamp">مضخم مسبق</string>
 
     <string name="library_tab_folders">المجلدات</string>
     <string name="library_tab_playlists">قوائم التشغيل</string>

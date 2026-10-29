@@ -147,6 +147,12 @@
         <item quantity="many">%1$d secondes</item>
         <item quantity="other">%1$d secondes</item>
     </plurals>
+    <string name="a11y_now_playing">En cours de lecture</string>
+    <string name="a11y_playback_position">Position de lecture</string>
+    <string name="a11y_x_of_y">%1$s sur %2$s</string>
+    <string name="a11y_behind_live">%1$s de retard sur le direct</string>
+    <string name="a11y_downloaded">Téléchargé</string>
+    <string name="a11y_eq_preamp">Préampli</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Dossiers</string>

@@ -147,6 +147,12 @@
         <item quantity="many">%1$d segundos</item>
         <item quantity="other">%1$d segundos</item>
     </plurals>
+    <string name="a11y_now_playing">Tocando agora</string>
+    <string name="a11y_playback_position">Posição da reprodução</string>
+    <string name="a11y_x_of_y">%1$s de %2$s</string>
+    <string name="a11y_behind_live">%1$s atrás do ao vivo</string>
+    <string name="a11y_downloaded">Baixado</string>
+    <string name="a11y_eq_preamp">Pré-amplificador</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Pastas</string>

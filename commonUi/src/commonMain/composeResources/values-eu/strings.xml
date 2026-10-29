@@ -144,6 +144,12 @@
         <item quantity="one">%1$d segundo</item>
         <item quantity="other">%1$d segundo</item>
     </plurals>
+    <string name="a11y_now_playing">Orain erreproduzitzen</string>
+    <string name="a11y_playback_position">Erreprodukzioaren posizioa</string>
+    <string name="a11y_x_of_y">%1$s, guztira %2$s</string>
+    <string name="a11y_behind_live">Zuzenekotik %1$s atzerago</string>
+    <string name="a11y_downloaded">Deskargatuta</string>
+    <string name="a11y_eq_preamp">Aurreanplifikadorea</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Karpetak</string>

@@ -141,6 +141,12 @@
     <plurals name="a11y_duration_seconds">
         <item quantity="other">%1$d 秒</item>
     </plurals>
+    <string name="a11y_now_playing">再生中</string>
+    <string name="a11y_playback_position">再生位置</string>
+    <string name="a11y_x_of_y">%2$s中%1$s</string>
+    <string name="a11y_behind_live">ライブから%1$s遅れ</string>
+    <string name="a11y_downloaded">ダウンロード済み</string>
+    <string name="a11y_eq_preamp">プリアンプ</string>
 
     <!-- Library -->
     <string name="library_tab_folders">フォルダ</string>

@@ -141,6 +141,12 @@
     <plurals name="a11y_duration_seconds">
         <item quantity="other">%1$d 秒</item>
     </plurals>
+    <string name="a11y_now_playing">正在播放</string>
+    <string name="a11y_playback_position">播放进度</string>
+    <string name="a11y_x_of_y">%1$s，共 %2$s</string>
+    <string name="a11y_behind_live">比直播慢 %1$s</string>
+    <string name="a11y_downloaded">已下载</string>
+    <string name="a11y_eq_preamp">前级放大</string>
 
     <!-- Library -->
     <string name="library_tab_folders">文件夹</string>

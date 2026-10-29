@@ -141,6 +141,12 @@
     <plurals name="a11y_duration_seconds">
         <item quantity="other">%1$d detik</item>
     </plurals>
+    <string name="a11y_now_playing">Sedang diputar</string>
+    <string name="a11y_playback_position">Posisi pemutaran</string>
+    <string name="a11y_x_of_y">%1$s dari %2$s</string>
+    <string name="a11y_behind_live">%1$s di belakang siaran langsung</string>
+    <string name="a11y_downloaded">Sudah diunduh</string>
+    <string name="a11y_eq_preamp">Penguat awal</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Folder</string>

@@ -144,6 +144,12 @@
         <item quantity="one">%1$d sekund</item>
         <item quantity="other">%1$d sekundit</item>
     </plurals>
+    <string name="a11y_now_playing">Praegu mängib</string>
+    <string name="a11y_playback_position">Esituse asukoht</string>
+    <string name="a11y_x_of_y">%1$s, kokku %2$s</string>
+    <string name="a11y_behind_live">%1$s otse-eetrist maas</string>
+    <string name="a11y_downloaded">Alla laaditud</string>
+    <string name="a11y_eq_preamp">Eelvõimendi</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Kaustad</string>

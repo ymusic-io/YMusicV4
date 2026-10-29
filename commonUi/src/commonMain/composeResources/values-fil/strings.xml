@@ -144,6 +144,12 @@
         <item quantity="one">%1$d segundo</item>
         <item quantity="other">%1$d na segundo</item>
     </plurals>
+    <string name="a11y_now_playing">Tumutugtog ngayon</string>
+    <string name="a11y_playback_position">Posisyon ng pag-playback</string>
+    <string name="a11y_x_of_y">%1$s ng %2$s</string>
+    <string name="a11y_behind_live">%1$s sa likod ng live</string>
+    <string name="a11y_downloaded">Na-download</string>
+    <string name="a11y_eq_preamp">Preamp</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Mga folder</string>

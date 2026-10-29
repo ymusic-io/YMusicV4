@@ -144,6 +144,12 @@
         <item quantity="one">sekunde %1$d</item>
         <item quantity="other">sekunde %1$d</item>
     </plurals>
+    <string name="a11y_now_playing">Inacheza sasa</string>
+    <string name="a11y_playback_position">Mahali pa uchezaji</string>
+    <string name="a11y_x_of_y">%1$s kati ya %2$s</string>
+    <string name="a11y_behind_live">%1$s nyuma ya mubashara</string>
+    <string name="a11y_downloaded">Imepakuliwa</string>
+    <string name="a11y_eq_preamp">Kikuza sauti cha awali</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Folda</string>

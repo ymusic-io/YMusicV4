@@ -144,6 +144,12 @@
         <item quantity="one">%1$d sekonde</item>
         <item quantity="other">%1$d sekondes</item>
     </plurals>
+    <string name="a11y_now_playing">Speel tans</string>
+    <string name="a11y_playback_position">Speelposisie</string>
+    <string name="a11y_x_of_y">%1$s van %2$s</string>
+    <string name="a11y_behind_live">%1$s agter regstreeks</string>
+    <string name="a11y_downloaded">Afgelaai</string>
+    <string name="a11y_eq_preamp">Voorversterker</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Vouers</string>

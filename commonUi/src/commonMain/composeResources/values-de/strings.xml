@@ -144,6 +144,12 @@
         <item quantity="one">%1$d Sekunde</item>
         <item quantity="other">%1$d Sekunden</item>
     </plurals>
+    <string name="a11y_now_playing">Wird gerade abgespielt</string>
+    <string name="a11y_playback_position">Wiedergabeposition</string>
+    <string name="a11y_x_of_y">%1$s von %2$s</string>
+    <string name="a11y_behind_live">%1$s hinter dem Livestream</string>
+    <string name="a11y_downloaded">Heruntergeladen</string>
+    <string name="a11y_eq_preamp">Vorverstärker</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Ordner</string>

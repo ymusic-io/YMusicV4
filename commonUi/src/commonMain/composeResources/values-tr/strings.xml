@@ -144,6 +144,12 @@
         <item quantity="one">%1$d saniye</item>
         <item quantity="other">%1$d saniye</item>
     </plurals>
+    <string name="a11y_now_playing">Şimdi çalıyor</string>
+    <string name="a11y_playback_position">Oynatma konumu</string>
+    <string name="a11y_x_of_y">%1$s, toplam %2$s</string>
+    <string name="a11y_behind_live">Canlı yayının %1$s gerisinde</string>
+    <string name="a11y_downloaded">İndirildi</string>
+    <string name="a11y_eq_preamp">Ön yükseltici</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Klasörler</string>

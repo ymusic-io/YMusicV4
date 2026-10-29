@@ -144,6 +144,12 @@
         <item quantity="one">%1$d δευτερόλεπτο</item>
         <item quantity="other">%1$d δευτερόλεπτα</item>
     </plurals>
+    <string name="a11y_now_playing">Παίζει τώρα</string>
+    <string name="a11y_playback_position">Θέση αναπαραγωγής</string>
+    <string name="a11y_x_of_y">%1$s από %2$s</string>
+    <string name="a11y_behind_live">%1$s πίσω από τη ζωντανή μετάδοση</string>
+    <string name="a11y_downloaded">Έχει ληφθεί</string>
+    <string name="a11y_eq_preamp">Προενισχυτής</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Φάκελοι</string>
