@@ -204,12 +204,12 @@ static enum AVPixelFormat vp_get_format(AVCodecContext *ctx, const enum AVPixelF
     return f;
 }
 
-static const AVCodec *sw_decoder(enum AVCodecID id)
+static const AVCodec *sw_decoder(const AVCodecParameters *par)
 {
     const AVCodec *c;
-    switch (id) {
+    switch (par->codec_id) {
     case AV_CODEC_ID_VP9:
-        c = avcodec_find_decoder_by_name("libvpx-vp9");
+        c = mse_vp9_high_depth(par) ? NULL : avcodec_find_decoder_by_name("libvpx-vp9");
         return c ? c : avcodec_find_decoder_by_name("vp9");
     case AV_CODEC_ID_VP8:
         c = avcodec_find_decoder_by_name("libvpx");
@@ -218,7 +218,7 @@ static const AVCodec *sw_decoder(enum AVCodecID id)
         /* Native av1 decodes only through a hwaccel. */
         return avcodec_find_decoder_by_name("libdav1d");
     default:
-        return avcodec_find_decoder(id);
+        return avcodec_find_decoder(par->codec_id);
     }
 }
 
@@ -356,7 +356,7 @@ static const char *open_hw(VPipe *vp, int zero_copy, const char *on)
 static int open_sw(VPipe *vp, const char *why, const char *on)
 {
     enum AVCodecID id = vp->par->codec_id;
-    const AVCodec *c = sw_decoder(id);
+    const AVCodec *c = sw_decoder(vp->par);
     int r;
     if (!c)
         return dead(vp, "no software decoder for %s", avcodec_get_name(id));
@@ -474,6 +474,23 @@ static int decode_error(VPipe *vp, int err, int at)
     return reopen_resync(vp);
 }
 
+/* A VP9 keyframe tells the stream's profile, which containers seldom state. 1 when cur no longer
+   fits it: libvpx-vp9 has no high bit depth, the hardware backends refuse it. */
+static int vp9_profile_moves(VPipe *vp, const AVPacket *pkt)
+{
+    MseVp9Header h;
+    int zero_copy;
+    if (vp->par->codec_id != AV_CODEC_ID_VP9 || mse_vp9_header(pkt->data, (size_t)pkt->size, &h) != 0 ||
+        !h.key || h.profile == vp->par->profile)
+        return 0;
+    pthread_mutex_lock(&vp->pmu);
+    vp->par->profile = h.profile;
+    pthread_mutex_unlock(&vp->pmu);
+    if (vp->cur.hw)
+        return hw_refusal(vp, &zero_copy) != NULL;
+    return vp->cur.ctx && vp->cur.ctx->codec != sw_decoder(vp->par);
+}
+
 /* pend[0] into cur: 0 = in, EAGAIN = cur is full, VP_RETRY, VP_RESYNC, VP_DEAD, or the error the
    packet was dropped for. */
 static int feed(VPipe *vp)
@@ -482,6 +499,15 @@ static int feed(VPipe *vp)
     int r;
     if (vp->cur.hw && vp->hw->lost && vp->hw->lost())
         return fallback(vp, FB_REJECTED, "device lost");
+    if (vp->pend_rap[0] && vp9_profile_moves(vp, pkt)) {
+        mse_critf(MSE_LOG_INFO, "vpipe %s %s gives way at a VP9 profile %d keyframe", tag(vp), vp->cur.name,
+                  vp->par->profile);
+        q_clear(vp);
+        dec_free(vp, &vp->cur);
+        vp->errs = 0;
+        r = open_dec(vp, "profile");
+        return r < 0 ? r : VP_RETRY;
+    }
     r = dec_send(vp, &vp->cur, pkt);
     if (r == AVERROR(EAGAIN))
         return r;

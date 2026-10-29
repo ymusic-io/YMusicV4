@@ -1841,15 +1841,12 @@ int mse_vp9_high_depth(const AVCodecParameters *par)
     return par->profile >= AV_PROFILE_VP9_2 || (d && d->comp[0].depth > 8);
 }
 
-/* The keyframe c tells the stream's profile, which the container seldom states. 1 when dec cannot
-   take it: libvpx-vp9 has no high bit depth. */
-static int vp9_learn_profile(AVCodecParameters *par, const AVCodecContext *dec, const Cf *c)
+/* The keyframe c tells the stream's profile, which the container seldom states. */
+static void vp9_learn_profile(AVCodecParameters *par, const Cf *c)
 {
     MseVp9Header h;
-    if (!par || par->codec_id != AV_CODEC_ID_VP9 || !c->key || mse_vp9_header(c->data, c->n, &h) != 0)
-        return 0;
-    par->profile = h.profile;
-    return dec && mse_vp9_high_depth(par) && !strcmp(dec->codec->name, "libvpx-vp9");
+    if (par && par->codec_id == AV_CODEC_ID_VP9 && c->key && mse_vp9_header(c->data, c->n, &h) == 0)
+        par->profile = h.profile;
 }
 
 /* Same itag/config: reuse the decoder. A new quality (size or sequence
@@ -1908,7 +1905,7 @@ static void *open_apple_vt(MseAv *a)
         if (a->vf.rd < a->vf.n) {
             frame = a->vf.f[a->vf.rd].data;
             fn = (int)a->vf.f[a->vf.rd].n;
-            vp9_learn_profile(a->vpar, NULL, &a->vf.f[a->vf.rd]);
+            vp9_learn_profile(a->vpar, &a->vf.f[a->vf.rd]);
         }
         return mse_vt_dec_open_vp9(a->vpar->extradata, a->vpar->extradata_size, a->vpar->profile,
                                    frame, fn, a->vpar->width, a->vpar->height);
@@ -1990,6 +1987,8 @@ static int open_video_decoder(MseAv *a, AVCodecParameters *par)
 #endif
     if (a->v_dead)
         return -1;
+    if (a->vf.rd < a->vf.n)
+        vp9_learn_profile(par, &a->vf.f[a->vf.rd]);
     if (vpipe_open(a->vpipe, par, (AVRational){ 1, 1000 }) < 0) {
         a->v_dead = 1;
         return -1;
