@@ -1104,7 +1104,8 @@ private suspend fun buildGraph(settings: AppStoreSettings, session: CookieSessio
 
 /**
  * EDT, once per process, before any engine loads: puts the one video Canvas in the underlay. Never
- * attach it again: a new Canvas peer is a new HWND / NSView, hence a new swapchain or overlay.
+ * attach it again: a new Canvas peer is a new HWND / NSView, hence a new swapchain or overlay. Linux has
+ * no Canvas: its CPU pictures go to [ComposeVideoFrame].
  */
 private fun wireVideoOnce(scope: CoroutineScope) {
     if (!videoWired.compareAndSet(false, true)) return
@@ -1113,6 +1114,10 @@ private fun wireVideoOnce(scope: CoroutineScope) {
         if (id == MouseEvent.MOUSE_RELEASED) {
             SwingUtilities.invokeLater { VideoOverlayNative.poke() }
         }
+    }
+    if (isLinux) {
+        videoSurface.onCpuBgra = ComposeVideoFrame::publish
+        return
     }
     videoSurface.onCpuFrame = { videoPanel.setImage(it) }
     scope.launch(Dispatchers.Main) {
@@ -1173,7 +1178,8 @@ private fun DesktopPlayerSurface(
                 }
             },
     ) {
-        if (windowResizingNow) {
+        if (isLinux) ComposeVideoFrame.Layer()
+        if (windowResizingNow && !isLinux) {
             Box(Modifier.fillMaxSize().background(Color.Black)) {
                 still?.let { bmp ->
                     Image(bmp, null, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
