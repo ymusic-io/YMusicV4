@@ -250,6 +250,7 @@ private suspend fun buildIosGraph(container: UIView): AppGraph {
             now = { (NSDate().timeIntervalSince1970 * 1000).toLong() },
         ),
         SqlDelightCacheStats(cacheDriver),
+        logger = rootLogger.fork("player-cache"),
     )
     val mediaProxy = LocalMediaProxy(
         cache = playerCache,

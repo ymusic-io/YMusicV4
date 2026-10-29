@@ -874,6 +874,7 @@ private suspend fun buildGraph(settings: AppStoreSettings, session: CookieSessio
             ),
             SqlDelightSegmentIndex(driver, now = { System.currentTimeMillis() }),
             SqlDelightCacheStats(driver),
+            logger = rootLogger.fork("player-cache"),
         )
     }
     val mediaProxy = withContext(Dispatchers.IO) {

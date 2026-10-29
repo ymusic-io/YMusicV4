@@ -425,9 +425,10 @@ static AVCodecContext *open_codec(FileAv *p, AVStream *st, int video)
             }
         }
 #endif
-        if ((id == AV_CODEC_ID_VP9 || id == AV_CODEC_ID_VP8) && !ctx->hw_device_ctx) {
-            ctx->thread_count = 4;
-            ctx->thread_type = FF_THREAD_FRAME;
+        /* libav's API default is one thread: libdav1d alone decodes 4K AV1 at ~25 fps on an M4. */
+        if (!ctx->hw_device_ctx) {
+            ctx->thread_count = 0;
+            ctx->thread_type = FF_THREAD_FRAME | FF_THREAD_SLICE;
         }
     }
     if (avcodec_open2(ctx, c, NULL) < 0) {
