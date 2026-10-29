@@ -23,6 +23,10 @@
     <string name="downloads_none_title">Henüz indirme yok</string>
     <string name="downloads_none_message">İndirilen şarkılar ve videolar çevrimdışı çalar.</string>
     <string name="downloads_failed">İndirme başarısız</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Finder'da göster</string>
+    <string name="menu_reveal_explorer">Dosya Gezgini'nde göster</string>
+    <string name="menu_reveal_file_manager">Dosya yöneticisinde göster</string>
     <string name="section_settings">Ayarlar</string>
     <string name="section_donate">Bağış yap</string>
     <string name="section_feedback">Geri bildirim</string>
@@ -121,8 +125,6 @@
     <string name="yt_playlist_removed_video">%1$s oynatma listesinden kaldırıldı</string>
     <string name="cd_add_to_playlist">Oynatma listesine ekle</string>
     <string name="cd_share">Paylaş</string>
-    <string name="cd_music_video">Müzik</string>
-    <string name="cd_album">Albüm</string>
     <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
     <string name="a11y_kind_video">Video</string>
     <string name="a11y_kind_music_video">Müzik videosu</string>
@@ -144,6 +146,12 @@
         <item quantity="one">%1$d saniye</item>
         <item quantity="other">%1$d saniye</item>
     </plurals>
+    <string name="a11y_now_playing">Şimdi çalıyor</string>
+    <string name="a11y_playback_position">Oynatma konumu</string>
+    <string name="a11y_x_of_y">%1$s, toplam %2$s</string>
+    <string name="a11y_behind_live">Canlı yayının %1$s gerisinde</string>
+    <string name="a11y_downloaded">İndirildi</string>
+    <string name="a11y_eq_preamp">Ön yükseltici</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Klasörler</string>
@@ -384,7 +392,6 @@
     <string name="account_sign_out">Çıkış yap</string>
     <string name="account_switch">Hesap değiştir</string>
     <string name="switch_account_hint">İstediğiniz hesabı seçin, ardından bu ekranı geri okuyla kapatın — uygulama yeni hesapla yenilenir.</string>
-    <string name="cd_account_avatar">Hesap resmi</string>
     <string name="account_my_channel">Kanalım</string>
     <string name="account_watch_history">İzleme geçmişi</string>
     <string name="account_watch_later">Daha sonra izle</string>

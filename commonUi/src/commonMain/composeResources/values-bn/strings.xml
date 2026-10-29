@@ -23,6 +23,10 @@
     <string name="downloads_none_title">এখনও কোনো ডাউনলোড নেই</string>
     <string name="downloads_none_message">ডাউনলোড করা গান ও ভিডিও অফলাইনে চলে।</string>
     <string name="downloads_failed">ডাউনলোড ব্যর্থ হয়েছে</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Finder-এ দেখান</string>
+    <string name="menu_reveal_explorer">ফাইল এক্সপ্লোরারে দেখান</string>
+    <string name="menu_reveal_file_manager">ফাইল ম্যানেজারে দেখান</string>
     <string name="section_settings">সেটিংস</string>
     <string name="section_donate">অনুদান দিন</string>
     <string name="section_feedback">মতামত</string>
@@ -121,8 +125,6 @@
     <string name="yt_playlist_removed_video">প্লেলিস্ট থেকে %1$s সরানো হয়েছে</string>
     <string name="cd_add_to_playlist">প্লেলিস্টে যোগ করুন</string>
     <string name="cd_share">শেয়ার করুন</string>
-    <string name="cd_music_video">মিউজিক</string>
-    <string name="cd_album">অ্যালবাম</string>
     <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
     <string name="a11y_kind_video">ভিডিও</string>
     <string name="a11y_kind_music_video">মিউজিক ভিডিও</string>
@@ -144,6 +146,12 @@
         <item quantity="one">%1$d সেকেন্ড</item>
         <item quantity="other">%1$d সেকেন্ড</item>
     </plurals>
+    <string name="a11y_now_playing">এখন চলছে</string>
+    <string name="a11y_playback_position">প্লেব্যাকের অবস্থান</string>
+    <string name="a11y_x_of_y">%2$s-এর মধ্যে %1$s</string>
+    <string name="a11y_behind_live">লাইভ থেকে %1$s পিছিয়ে</string>
+    <string name="a11y_downloaded">ডাউনলোড করা হয়েছে</string>
+    <string name="a11y_eq_preamp">প্রিঅ্যাম্প</string>
 
     <!-- Library -->
     <string name="library_tab_folders">ফোল্ডার</string>
@@ -384,7 +392,6 @@
     <string name="account_sign_out">সাইন আউট</string>
     <string name="account_switch">অ্যাকাউন্ট বদলান</string>
     <string name="switch_account_hint">যে অ্যাকাউন্ট চান সেটি বেছে নিন, তারপর পেছনের তীর দিয়ে এই স্ক্রিন বন্ধ করুন — অ্যাপটি নতুন অ্যাকাউন্টে রিফ্রেশ হবে।</string>
-    <string name="cd_account_avatar">অ্যাকাউন্টের ছবি</string>
     <string name="account_my_channel">আমার চ্যানেল</string>
     <string name="account_watch_history">দেখার ইতিহাস</string>
     <string name="account_watch_later">পরে দেখুন</string>

@@ -109,6 +109,9 @@ struct MseAv {
        continuations so PTS stay cluster-relative. */
     uint8_t cluster_tc[2][16];
     size_t cluster_tc_n[2];
+    /* Bytes dropped from pend by a resync still looking for a restart point, and the first of them. */
+    size_t junk_n[2];
+    uint8_t junk_head[2][4];
     int need_rap[2];
     int v_reopen;
     double starve_log_pts;
@@ -751,9 +754,20 @@ static int has_marker(const uint8_t *p, size_t n, const uint8_t *m, size_t mn)
 #define MSE_ID_BLOCK        0xA1u
 #define MSE_ID_TIMECODE     0xE7u
 #define MSE_ID_PREVSIZE     0xABu
+#define MSE_ID_SEEKHEAD     0x114D9B74u
+#define MSE_ID_INFO         0x1549A966u
+#define MSE_ID_TRACKS       0x1654AE6Bu
+#define MSE_ID_CUES         0x1C53BB6Bu
+#define MSE_ID_TAGS         0x1254C367u
+#define MSE_ID_CHAPTERS     0x1043A770u
+#define MSE_ID_ATTACHMENTS  0x1941A469u
+#define MSE_ID_VOID         0xECu
+#define MSE_ID_CRC32        0xBFu
 /* log28: 1440p60 itag 308 Cluster clen=9425394. 8MB treated that GOP as
    incomplete, leftover stayed empty, SABR would not refetch. 4K GOPs are larger. */
 #define MSE_CLUSTER_MAX (128ull * 1024ull * 1024ull)
+/* Cues/Tags/Void between Clusters are KBs; a larger one is junk that only looks like one. */
+#define MSE_WEBM_META_MAX (16ull * 1024ull * 1024ull)
 
 static int ebml_head(const uint8_t *p, size_t n, uint32_t *id, uint64_t *sz, int *unk, int *hdr)
 {
@@ -792,6 +806,20 @@ static int ebml_head(const uint8_t *p, size_t n, uint32_t *id, uint64_t *sz, int
     *sz = v;
     *hdr = idw + szw;
     return 1;
+}
+
+/* ebml_head that tells junk from a short buffer: -1 = no element header can start here. */
+static int ebml_peek(const uint8_t *p, size_t n, uint32_t *id, uint64_t *sz, int *unk, int *hdr)
+{
+    int idw;
+    if (n < 1)
+        return 0;
+    if (p[0] < 0x10)
+        return -1;
+    idw = p[0] >= 0x80 ? 1 : p[0] >= 0x40 ? 2 : p[0] >= 0x20 ? 3 : 4;
+    if (n > (size_t)idw && p[idw] == 0)
+        return -1;
+    return ebml_head(p, n, id, sz, unk, hdr);
 }
 
 /* 1 = walked; *off_out = first Cluster offset, or n if the buffer is init-only. 0 = need more. */
@@ -2525,6 +2553,265 @@ static int cluster_prefix(const uint8_t *p, size_t n, size_t *hdr_out, size_t *b
     return 1;
 }
 
+#define MSE_FRONT_JUNK (-1)
+#define MSE_FRONT_WAIT 0
+#define MSE_FRONT_SKIP 1
+
+/* Front of a WebM pend no recognizer took: WAIT while it can still complete, SKIP *skip bytes of a
+   whole non-media element, JUNK for what cluster_total / continuation_total / cluster_prefix would
+   wait on forever. */
+static int webm_front(const uint8_t *p, size_t n, size_t *skip)
+{
+    uint32_t id;
+    uint64_t sz;
+    int unk, hdr, r;
+    size_t off;
+    r = ebml_peek(p, n, &id, &sz, &unk, &hdr);
+    if (r <= 0)
+        return r < 0 ? MSE_FRONT_JUNK : MSE_FRONT_WAIT;
+    switch (id) {
+    case MSE_ID_CLUSTER:
+        if (!unk)
+            return sz > MSE_CLUSTER_MAX ? MSE_FRONT_JUNK : MSE_FRONT_WAIT;
+        off = (size_t)hdr;
+        break;
+    case MSE_ID_TIMECODE:
+    case MSE_ID_PREVSIZE:
+        if (unk || sz > 8)
+            return MSE_FRONT_JUNK;
+        off = 0;
+        break;
+    case MSE_ID_SIMPLEBLOCK:
+    case MSE_ID_BLOCKGROUP:
+    case MSE_ID_BLOCK:
+        off = 0;
+        break;
+    case MSE_ID_SEGMENT:
+        *skip = (size_t)hdr;
+        return MSE_FRONT_SKIP;
+    case MSE_ID_CRC32:
+        if (unk || sz != 4)
+            return MSE_FRONT_JUNK;
+        *skip = (size_t)hdr + 4;
+        return (size_t)hdr + 4 > n ? MSE_FRONT_WAIT : MSE_FRONT_SKIP;
+    case MSE_ID_SEEKHEAD:
+    case MSE_ID_INFO:
+    case MSE_ID_TRACKS:
+    case MSE_ID_CUES:
+    case MSE_ID_TAGS:
+    case MSE_ID_CHAPTERS:
+    case MSE_ID_ATTACHMENTS:
+    case MSE_ID_VOID:
+        if (unk || sz > MSE_WEBM_META_MAX)
+            return MSE_FRONT_JUNK;
+        *skip = (size_t)hdr + (size_t)sz;
+        return *skip > n ? MSE_FRONT_WAIT : MSE_FRONT_SKIP;
+    default:
+        return MSE_FRONT_JUNK;
+    }
+    while (off < n) {
+        r = ebml_peek(p + off, n - off, &id, &sz, &unk, &hdr);
+        if (r <= 0)
+            return r < 0 ? MSE_FRONT_JUNK : MSE_FRONT_WAIT;
+        /* Only an empty unknown-size Cluster gets here: cluster_total never completes it. */
+        if (id == MSE_ID_CLUSTER || id == MSE_ID_EBML) {
+            *skip = off;
+            return off ? MSE_FRONT_SKIP : MSE_FRONT_JUNK;
+        }
+        if (unk || sz > MSE_CLUSTER_MAX)
+            return MSE_FRONT_JUNK;
+        if (off + (size_t)hdr + (size_t)sz > n)
+            return MSE_FRONT_WAIT;
+        off += (size_t)hdr + (size_t)sz;
+    }
+    return MSE_FRONT_WAIT;
+}
+
+static int fmp4_top_box(uint32_t type)
+{
+    return type == BOX_MOOF || type == BOX_MDAT || type == BOX_STYP || type == BOX_SIDX ||
+           type == BOX_FTYP || type == BOX_MOOV || type == BOX_FREE || type == BOX_SKIP ||
+           type == 0x656d7367u /* emsg */ || type == 0x70726674u /* prft */ ||
+           type == 0x73736978u /* ssix */ || type == 0x6d667261u /* mfra */ ||
+           type == 0x75756964u /* uuid */;
+}
+
+/* Front of an fMP4 pend fmp4_frag_len could not complete: WAIT while its boxes are legal and
+   still arriving, else JUNK. */
+static int fmp4_front(const uint8_t *p, size_t n)
+{
+    size_t off = 0;
+    while (n - off >= 8) {
+        uint64_t sz = be32(p + off);
+        if (!fmp4_top_box(be32(p + off + 4)))
+            return MSE_FRONT_JUNK;
+        if (sz == 1) {
+            if (n - off < 16)
+                return MSE_FRONT_WAIT;
+            sz = ((uint64_t)be32(p + off + 8) << 32) | be32(p + off + 12);
+            if (sz < 16)
+                return MSE_FRONT_JUNK;
+        } else if (sz < 8) {
+            return MSE_FRONT_JUNK;
+        }
+        if (sz > MSE_CLUSTER_MAX)
+            return MSE_FRONT_JUNK;
+        if (sz > n - off)
+            return MSE_FRONT_WAIT;
+        off += (size_t)sz;
+    }
+    return MSE_FRONT_WAIT;
+}
+
+static int fourcc_char(uint8_t c)
+{
+    return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == ' ';
+}
+
+/* 1 = a stream can restart at p, 0 = it cannot, -1 = too few bytes to tell. A bare Cluster ID
+   also occurs inside VP9/AV1 payloads, so a Cluster counts only when it opens with its Timecode. */
+static int restart_at(const uint8_t *p, size_t n)
+{
+    static const uint8_t cl[4] = { 0x1F, 0x43, 0xB6, 0x75 };
+    static const uint8_t eb[4] = { 0x1A, 0x45, 0xDF, 0xA3 };
+    static const char boxes[4][5] = { "moof", "styp", "sidx", "ftyp" };
+    size_t m = n < 4 ? n : 4;
+    uint32_t id, type;
+    uint64_t sz;
+    int unk, hdr, r, i;
+    if (memcmp(p, cl, m) == 0 || memcmp(p, eb, m) == 0) {
+        if (n < 4)
+            return -1;
+        r = ebml_peek(p, n, &id, &sz, &unk, &hdr);
+        if (r == 0)
+            return -1;
+        if (r > 0 && id == MSE_ID_CLUSTER && (unk || sz <= MSE_CLUSTER_MAX)) {
+            if (n < (size_t)hdr + 2)
+                return -1;
+            if (p[hdr] == MSE_ID_TIMECODE && p[hdr + 1] >= 0x81 && p[hdr + 1] <= 0x88 &&
+                (unk || sz >= (uint64_t)(p[hdr + 1] & 0x7F) + 2))
+                return 1;
+        } else if (r > 0 && id == MSE_ID_EBML && !unk && sz >= 4 && sz <= 4096) {
+            if (n <= (size_t)hdr)
+                return -1;
+            if (p[hdr] == 0x42)
+                return 1;
+        }
+        return 0;
+    }
+    if (n < 8) {
+        for (i = 0; i < 4; i++) {
+            if (n <= 4 || memcmp(p + 4, boxes[i], n - 4) == 0)
+                return -1;
+        }
+        return 0;
+    }
+    sz = be32(p);
+    type = be32(p + 4);
+    if (type == BOX_MOOF) {
+        if (sz < 24 || sz > MSE_CLUSTER_MAX)
+            return 0;
+        if (n < 16)
+            return -1;
+        return be32(p + 12) == 0x6d666864u /* mfhd */;
+    }
+    if (type == BOX_STYP || type == BOX_FTYP) {
+        if (sz < 16 || sz > 1024)
+            return 0;
+        if (n < 12)
+            return -1;
+        return fourcc_char(p[8]) && fourcc_char(p[9]) && fourcc_char(p[10]) && fourcc_char(p[11]);
+    }
+    if (type == BOX_SIDX) {
+        if (sz < 32 || sz > MSE_CLUSTER_MAX)
+            return 0;
+        if (n < 12)
+            return -1;
+        return p[8] <= 1 && p[9] == 0 && p[10] == 0 && p[11] == 0;
+    }
+    return 0;
+}
+
+/* Offset of the first restart point at or after `from` (*found = 1), or of the first byte that
+   could still begin one once more bytes arrive (*found = 0). */
+static size_t restart_scan(const uint8_t *p, size_t n, size_t from, int *found)
+{
+    size_t k;
+    for (k = from; k < n; k++) {
+        int r;
+        if (n - k >= 8 && p[k] != 0x1F && p[k] != 0x1A && p[k + 4] != 'm' && p[k + 4] != 's' &&
+            p[k + 4] != 'f')
+            continue;
+        r = restart_at(p + k, n - k);
+        if (r != 0) {
+            *found = r > 0;
+            return k;
+        }
+    }
+    *found = 0;
+    return n;
+}
+
+static void pend_drop(MseAv *a, int idx, size_t k)
+{
+    if (k >= a->pend_n[idx]) {
+        a->pend_n[idx] = 0;
+        return;
+    }
+    memmove(a->pend[idx], a->pend[idx] + k, a->pend_n[idx] - k);
+    a->pend_n[idx] -= k;
+}
+
+static void junk_end(MseAv *a, int idx)
+{
+    const uint8_t *h = a->junk_head[idx];
+    const uint8_t *init = idx ? a->ainit : a->vinit;
+    size_t init_n = idx ? a->ainit_n : a->vinit_n;
+    if (!a->junk_n[idx])
+        return;
+    mse_critf(MSE_LOG_WARN, "mse-%c %s resync dropped=%zu head=%02x%02x%02x%02x", idx ? 'a' : 'v',
+              init && looks_fmp4(init, init_n) ? "fmp4" : "webm", a->junk_n[idx], h[0], h[1], h[2],
+              h[3]);
+    a->junk_n[idx] = 0;
+}
+
+/* Drops pend up to the next restart point. 1 = the front is one, parse on; 0 = wait for more bytes
+   (the resync carries over to the next append). */
+static int pend_resync(MseAv *a, int idx, size_t from)
+{
+    size_t k;
+    int found;
+    if (!a->junk_n[idx]) {
+        memset(a->junk_head[idx], 0, sizeof(a->junk_head[idx]));
+        memcpy(a->junk_head[idx], a->pend[idx], a->pend_n[idx] < 4 ? a->pend_n[idx] : 4);
+    }
+    k = restart_scan(a->pend[idx], a->pend_n[idx], from, &found);
+    pend_drop(a, idx, k);
+    a->junk_n[idx] += k;
+    a->need_rap[idx] = 1;
+    a->cluster_tc_n[idx] = 0;
+    if (!found)
+        return 0;
+    junk_end(a, idx);
+    return 1;
+}
+
+/* Where mse_av_append would wait for more bytes. 1 = the front was dropped, parse on; 0 = wait.
+   A pend longer than any legal element can never parse. */
+static int pend_unstick(MseAv *a, int idx, int front, size_t skip)
+{
+    if (front == MSE_FRONT_WAIT && a->pend_n[idx] > MSE_CLUSTER_MAX)
+        front = MSE_FRONT_JUNK;
+    if (front == MSE_FRONT_SKIP) {
+        vlog("pend skip a=%d n=%zu b0=%02x", idx, skip, a->pend[idx][0]);
+        pend_drop(a, idx, skip);
+        return 1;
+    }
+    if (front == MSE_FRONT_JUNK)
+        return pend_resync(a, idx, 1);
+    return 0;
+}
+
 static void save_cluster_tc(MseAv *a, int idx, const uint8_t *p, size_t n)
 {
     size_t off = 0;
@@ -2724,7 +3011,10 @@ MseAvIngest mse_av_append(MseAv *a, int audio, const uint8_t *p, int n, double t
         double dur;
         int nadd;
         int prefix = 0;
+        int front;
         wrap = 0;
+        if (a->junk_n[idx] && !pend_resync(a, idx, 0))
+            break;
         if (looks_ebml(a->pend[idx], a->pend_n[idx])) {
             if (*initn && looks_fmp4(*initp, *initn)) {
                 free(*initp);
@@ -2734,6 +3024,8 @@ MseAvIngest mse_av_append(MseAv *a, int audio, const uint8_t *p, int n, double t
             if (!find_cluster(a->pend[idx], a->pend_n[idx], &coff)) {
                 if (!audio && a->pend_n[idx] > 0 && (a->pend_n[idx] < 64 || a->pend_n[idx] % 4096 == 0))
                     vlog("webm wait-ebml n=%zu b0=%02x", a->pend_n[idx], a->pend[idx][0]);
+                if (pend_unstick(a, idx, MSE_FRONT_WAIT, 0))
+                    continue;
                 break;
             }
             if (coff > 0) {
@@ -2781,6 +3073,9 @@ MseAvIngest mse_av_append(MseAv *a, int audio, const uint8_t *p, int n, double t
             } else {
                 if (!audio && !*initn)
                     vlog("fmp4 wait-init n=%zu b0=%02x", a->pend_n[idx], a->pend[idx][0]);
+                front = *initn ? fmp4_front(a->pend[idx], a->pend_n[idx]) : MSE_FRONT_WAIT;
+                if (pend_unstick(a, idx, front, 0))
+                    continue;
                 break;
             }
         } else if (!cluster_total(a->pend[idx], a->pend_n[idx], &total) || total == 0 ||
@@ -2796,9 +3091,17 @@ MseAvIngest mse_av_append(MseAv *a, int audio, const uint8_t *p, int n, double t
                     wrap = 1;
                     prefix = 1;
                 } else {
+                    size_t skip = 0;
                     if (!audio && a->pend_n[idx] > 0 &&
                         (a->pend_n[idx] < 96 || a->pend_n[idx] % (1024u * 1024u) == 0))
                         vlog("webm wait-cluster n=%zu b0=%02x", a->pend_n[idx], a->pend[idx][0]);
+                    /* An fMP4 track whose front is not a box has lost its framing. */
+                    if (*initn && looks_fmp4(*initp, *initn))
+                        front = MSE_FRONT_JUNK;
+                    else
+                        front = webm_front(a->pend[idx], a->pend_n[idx], &skip);
+                    if (pend_unstick(a, idx, front, skip))
+                        continue;
                     break;
                 }
             } else {
@@ -2850,6 +3153,8 @@ MseAvIngest mse_av_append(MseAv *a, int audio, const uint8_t *p, int n, double t
             if (par)
                 avcodec_parameters_free(&par);
             cfb_free(&tmp);
+            if (pend_unstick(a, idx, MSE_FRONT_WAIT, 0))
+                continue;
             break;
         }
         if (!audio && nadd > 0 && !wrap && *initn >= 4 && be32(*initp) == MSE_ID_EBML)
@@ -3029,6 +3334,7 @@ void mse_av_abort(MseAv *a, int audio)
     idx = audio ? 1 : 0;
     a->pend_n[idx] = 0;
     a->cluster_tc_n[idx] = 0;
+    junk_end(a, idx);
     a->need_rap[idx] = 1;
     if (audio && a->adec)
         avcodec_flush_buffers(a->adec);
@@ -3051,6 +3357,7 @@ void mse_av_change_type(MseAv *a, int audio)
     if (audio) {
         a->pend_n[1] = 0;
         a->cluster_tc_n[1] = 0;
+        junk_end(a, 1);
         a->need_rap[1] = 1;
         free(a->ainit);
         a->ainit = NULL;
@@ -3061,6 +3368,7 @@ void mse_av_change_type(MseAv *a, int audio)
     } else {
         a->pend_n[0] = 0;
         a->cluster_tc_n[0] = 0;
+        junk_end(a, 0);
         free(a->vinit);
         a->vinit = NULL;
         a->vinit_n = 0;
@@ -3218,6 +3526,7 @@ void mse_av_remove(MseAv *a, int audio, double start, double end)
     if (!audio && a->vf.n == 0) {
         a->pend_n[0] = 0;
         a->cluster_tc_n[0] = 0;
+        junk_end(a, 0);
         close_video_decoder(a);
     }
     if (!audio)
@@ -3243,11 +3552,13 @@ void mse_av_flush(MseAv *a, int audio, int video)
     if (audio) {
         a->pend_n[1] = 0;
         a->cluster_tc_n[1] = 0;
+        junk_end(a, 1);
         a->need_rap[1] = 1;
     }
     if (video) {
         a->pend_n[0] = 0;
         a->cluster_tc_n[0] = 0;
+        junk_end(a, 0);
         a->need_rap[0] = 1;
         av_frame_free(&a->vhold);
     }

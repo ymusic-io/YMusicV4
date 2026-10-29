@@ -917,8 +917,8 @@ private fun FeedSortMenu(options: List<YtChip>, modifier: Modifier = Modifier, o
             ) {
                 Icon(
                     Icons.AutoMirrored.Filled.Sort,
-                    stringResource(Res.string.cd_sort),
-                    Modifier.size(16.dp),
+                    null,
+                    Modifier.size(16.dp).spokenAs(stringResource(Res.string.cd_sort)),
                     tint = DesignColors.InkSoft,
                 )
                 Text(
@@ -947,10 +947,11 @@ private fun FeedSortMenu(options: List<YtChip>, modifier: Modifier = Modifier, o
     }
 }
 
-/** One feed filter pill; [onClick] null = a non-interactive label in the same style. */
+/** One feed filter pill; [onClick] null = a non-interactive label in the same style. [choice] false
+ *  when [selected] only emphasizes an action, so screen readers don't call it selected. */
 @Composable
-fun FeedChip(title: String, selected: Boolean, onClick: (() -> Unit)?) {
-    ChipTapArea(onClick) { indication ->
+fun FeedChip(title: String, selected: Boolean, choice: Boolean = true, onClick: (() -> Unit)?) {
+    ChipTapArea(onClick, selected = selected.takeIf { choice }) { indication ->
         Text(
             title,
             style = TextStyle(fontSize = ChipTextSize, color = if (selected) Color.White else DesignColors.InkSoft),

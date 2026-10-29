@@ -23,6 +23,10 @@
     <string name="downloads_none_title">ダウンロードはまだありません</string>
     <string name="downloads_none_message">ダウンロードした曲や動画はオフラインで再生できます。</string>
     <string name="downloads_failed">ダウンロードに失敗しました</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Finderで表示</string>
+    <string name="menu_reveal_explorer">エクスプローラーで表示</string>
+    <string name="menu_reveal_file_manager">ファイルマネージャーで表示</string>
     <string name="section_settings">設定</string>
     <string name="section_donate">寄付</string>
     <string name="section_feedback">フィードバック</string>
@@ -121,8 +125,6 @@
     <string name="yt_playlist_removed_video">%1$s をプレイリストから削除しました</string>
     <string name="cd_add_to_playlist">プレイリストに追加</string>
     <string name="cd_share">共有</string>
-    <string name="cd_music_video">音楽</string>
-    <string name="cd_album">アルバム</string>
     <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
     <string name="a11y_kind_video">動画</string>
     <string name="a11y_kind_music_video">ミュージックビデオ</string>
@@ -141,6 +143,12 @@
     <plurals name="a11y_duration_seconds">
         <item quantity="other">%1$d 秒</item>
     </plurals>
+    <string name="a11y_now_playing">再生中</string>
+    <string name="a11y_playback_position">再生位置</string>
+    <string name="a11y_x_of_y">%2$s中%1$s</string>
+    <string name="a11y_behind_live">ライブから%1$s遅れ</string>
+    <string name="a11y_downloaded">ダウンロード済み</string>
+    <string name="a11y_eq_preamp">プリアンプ</string>
 
     <!-- Library -->
     <string name="library_tab_folders">フォルダ</string>
@@ -380,7 +388,6 @@
     <string name="account_sign_out">サインアウト</string>
     <string name="account_switch">アカウントを切り替え</string>
     <string name="switch_account_hint">使用するアカウントを選び、戻る矢印でこの画面を閉じてください — アプリが新しいアカウントで更新されます。</string>
-    <string name="cd_account_avatar">アカウントの画像</string>
     <string name="account_my_channel">マイチャンネル</string>
     <string name="account_watch_history">再生履歴</string>
     <string name="account_watch_later">後で見る</string>

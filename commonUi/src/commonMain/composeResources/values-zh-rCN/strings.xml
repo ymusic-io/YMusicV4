@@ -23,6 +23,10 @@
     <string name="downloads_none_title">暂无下载</string>
     <string name="downloads_none_message">已下载的歌曲和视频可离线播放。</string>
     <string name="downloads_failed">下载失败</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">在访达中显示</string>
+    <string name="menu_reveal_explorer">在文件资源管理器中显示</string>
+    <string name="menu_reveal_file_manager">在文件管理器中显示</string>
     <string name="section_settings">设置</string>
     <string name="section_donate">捐赠</string>
     <string name="section_feedback">反馈</string>
@@ -121,8 +125,6 @@
     <string name="yt_playlist_removed_video">已从播放列表中移除 %1$s</string>
     <string name="cd_add_to_playlist">添加到播放列表</string>
     <string name="cd_share">分享</string>
-    <string name="cd_music_video">音乐</string>
-    <string name="cd_album">专辑</string>
     <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
     <string name="a11y_kind_video">视频</string>
     <string name="a11y_kind_music_video">音乐视频</string>
@@ -141,6 +143,12 @@
     <plurals name="a11y_duration_seconds">
         <item quantity="other">%1$d 秒</item>
     </plurals>
+    <string name="a11y_now_playing">正在播放</string>
+    <string name="a11y_playback_position">播放进度</string>
+    <string name="a11y_x_of_y">%1$s，共 %2$s</string>
+    <string name="a11y_behind_live">比直播慢 %1$s</string>
+    <string name="a11y_downloaded">已下载</string>
+    <string name="a11y_eq_preamp">前级放大</string>
 
     <!-- Library -->
     <string name="library_tab_folders">文件夹</string>
@@ -380,7 +388,6 @@
     <string name="account_sign_out">退出登录</string>
     <string name="account_switch">切换帐号</string>
     <string name="switch_account_hint">选择你要使用的帐号，然后点按返回箭头关闭此页面 — 应用将以新帐号刷新。</string>
-    <string name="cd_account_avatar">帐号头像</string>
     <string name="account_my_channel">我的频道</string>
     <string name="account_watch_history">观看记录</string>
     <string name="account_watch_later">稍后观看</string>

@@ -55,6 +55,9 @@ SELECT DISTINCT itag, lmt FROM segment;
 deleteStreamOlderThan:
 DELETE FROM segment WHERE itag = ? AND lmt = ? AND download_time < ?;
 
+deleteSegment:
+DELETE FROM segment WHERE itag = ? AND lmt = ? AND seg_index = ?;
+
 -- FORMAT_INITIALIZATION_METADATA (UMP part 42) per format, captured by the tee from the network response.
 -- A synthesized cache hit replays it before a format's init segment so the hit looks like a real response
 -- (the player needs it to (re)initialize the format). Small; keyed like the segment table.

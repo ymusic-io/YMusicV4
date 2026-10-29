@@ -879,12 +879,13 @@ private fun TabOverflowHint(towardStart: Boolean, modifier: Modifier, onClick: (
             .fillMaxHeight()
             .background(Brush.horizontalGradient(if (towardStart) colors else colors.reversed()))
             .clickable(role = Role.Button, onClick = onClick)
+            .a11yActionLabel(stringResource(Res.string.cd_more_tabs))
             .padding(horizontal = 2.dp),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
             if (towardStart) Icons.Default.ChevronLeft else Icons.Default.ChevronRight,
-            stringResource(Res.string.cd_more_tabs),
+            null,
             Modifier.size(20.dp),
             tint = DesignColors.InkSoft,
         )

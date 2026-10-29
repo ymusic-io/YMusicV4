@@ -23,6 +23,10 @@
     <string name="downloads_none_title">Դեռ ներբեռնումներ չկան</string>
     <string name="downloads_none_message">Ներբեռնված երգերն ու տեսանյութերը նվագարկվում են անցանց։</string>
     <string name="downloads_failed">Ներբեռնումը ձախողվեց</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Ցույց տալ Finder-ում</string>
+    <string name="menu_reveal_explorer">Ցույց տալ File Explorer-ում</string>
+    <string name="menu_reveal_file_manager">Ցույց տալ ֆայլերի կառավարիչում</string>
     <string name="section_settings">Կարգավորումներ</string>
     <string name="section_donate">Նվիրաբերել</string>
     <string name="section_feedback">Հետադարձ կապ</string>
@@ -121,8 +125,6 @@
     <string name="yt_playlist_removed_video">%1$s-ը հեռացվեց երգացանկից</string>
     <string name="cd_add_to_playlist">Ավելացնել երգացանկում</string>
     <string name="cd_share">Կիսվել</string>
-    <string name="cd_music_video">Երաժշտություն</string>
-    <string name="cd_album">Ալբոմ</string>
     <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
     <string name="a11y_kind_video">Տեսանյութ</string>
     <string name="a11y_kind_music_video">Տեսահոլովակ</string>
@@ -144,6 +146,12 @@
         <item quantity="one">%1$d վայրկյան</item>
         <item quantity="other">%1$d վայրկյան</item>
     </plurals>
+    <string name="a11y_now_playing">Հիմա նվագվում է</string>
+    <string name="a11y_playback_position">Նվագարկման դիրքը</string>
+    <string name="a11y_x_of_y">%1$s, ընդամենը %2$s</string>
+    <string name="a11y_behind_live">Ուղիղ եթերից %1$s հետ</string>
+    <string name="a11y_downloaded">Ներբեռնված է</string>
+    <string name="a11y_eq_preamp">Նախաուժեղարար</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Թղթապանակներ</string>
@@ -384,7 +392,6 @@
     <string name="account_sign_out">Դուրս գալ</string>
     <string name="account_switch">Փոխել հաշիվը</string>
     <string name="switch_account_hint">Ընտրեք ցանկալի հաշիվը, ապա փակեք այս էկրանը հետ սլաքով — հավելվածը կթարմացվի նոր հաշվով։</string>
-    <string name="cd_account_avatar">Հաշվի նկար</string>
     <string name="account_my_channel">Իմ ալիքը</string>
     <string name="account_watch_history">Դիտումների պատմություն</string>
     <string name="account_watch_later">Դիտել ավելի ուշ</string>

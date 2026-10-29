@@ -23,6 +23,10 @@
     <string name="downloads_none_title">Nog geen aflaaie nie</string>
     <string name="downloads_none_message">Afgelaaide liedjies en video’s speel aflyn.</string>
     <string name="downloads_failed">Aflaai het misluk</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Wys in Finder</string>
+    <string name="menu_reveal_explorer">Wys in Lêerverkenner</string>
+    <string name="menu_reveal_file_manager">Wys in lêerbestuurder</string>
     <string name="section_settings">Instellings</string>
     <string name="section_donate">Skenk</string>
     <string name="section_feedback">Terugvoer</string>
@@ -121,8 +125,6 @@
     <string name="yt_playlist_removed_video">%1$s uit die snitlys verwyder</string>
     <string name="cd_add_to_playlist">Voeg by snitlys</string>
     <string name="cd_share">Deel</string>
-    <string name="cd_music_video">Musiek</string>
-    <string name="cd_album">Album</string>
     <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
     <string name="a11y_kind_video">Video</string>
     <string name="a11y_kind_music_video">Musiekvideo</string>
@@ -144,6 +146,12 @@
         <item quantity="one">%1$d sekonde</item>
         <item quantity="other">%1$d sekondes</item>
     </plurals>
+    <string name="a11y_now_playing">Speel tans</string>
+    <string name="a11y_playback_position">Speelposisie</string>
+    <string name="a11y_x_of_y">%1$s van %2$s</string>
+    <string name="a11y_behind_live">%1$s agter regstreeks</string>
+    <string name="a11y_downloaded">Afgelaai</string>
+    <string name="a11y_eq_preamp">Voorversterker</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Vouers</string>
@@ -384,7 +392,6 @@
     <string name="account_sign_out">Meld af</string>
     <string name="account_switch">Wissel rekening</string>
     <string name="switch_account_hint">Kies die rekening wat jy wil hê en maak dan hierdie skerm met die terugpyl toe — die app verfris onder die nuwe rekening.</string>
-    <string name="cd_account_avatar">Rekeningprent</string>
     <string name="account_my_channel">My kanaal</string>
     <string name="account_watch_history">Kykgeskiedenis</string>
     <string name="account_watch_later">Kyk later</string>

@@ -11,6 +11,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.offset
@@ -35,7 +37,8 @@ internal fun Modifier.chipPadding(leadingIcon: Boolean = false): Modifier = padd
 /**
  * The clickable around a chip, reaching [ChipTapOverhang] past the pill above and below. [content]
  * draws the pill and applies the given modifier after its clip — it carries the press/hover indication.
- * A null [onClick] lays the pill out plain.
+ * A null [onClick] lays the pill out plain. A non-null [selected] is the chip's choice state for
+ * screen readers.
  */
 @Composable
 internal fun ChipTapArea(
@@ -43,6 +46,7 @@ internal fun ChipTapArea(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
+    selected: Boolean? = null,
     content: @Composable (indication: Modifier) -> Unit,
 ) {
     if (onClick == null) {
@@ -53,6 +57,7 @@ internal fun ChipTapArea(
         Box(
             Modifier
                 .clickable(interactionSource, indication = null, enabled = enabled, role = Role.Button, onClick = onClick)
+                .then(if (selected != null) Modifier.semantics { this.selected = selected } else Modifier)
                 .padding(vertical = ChipTapOverhang),
             propagateMinConstraints = true,
         ) {

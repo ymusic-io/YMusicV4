@@ -23,6 +23,10 @@
     <string name="downloads_none_title">अभी तक कोई डाउनलोड नहीं</string>
     <string name="downloads_none_message">डाउनलोड किए गए गाने और वीडियो ऑफ़लाइन चलते हैं।</string>
     <string name="downloads_failed">डाउनलोड विफल रहा</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Finder में दिखाएं</string>
+    <string name="menu_reveal_explorer">फ़ाइल एक्सप्लोरर में दिखाएं</string>
+    <string name="menu_reveal_file_manager">फ़ाइल मैनेजर में दिखाएं</string>
     <string name="section_settings">सेटिंग्स</string>
     <string name="section_donate">दान करें</string>
     <string name="section_feedback">फ़ीडबैक</string>
@@ -121,8 +125,6 @@
     <string name="yt_playlist_removed_video">%1$s को प्लेलिस्ट से हटाया गया</string>
     <string name="cd_add_to_playlist">प्लेलिस्ट में जोड़ें</string>
     <string name="cd_share">शेयर करें</string>
-    <string name="cd_music_video">संगीत</string>
-    <string name="cd_album">एल्बम</string>
     <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
     <string name="a11y_kind_video">वीडियो</string>
     <string name="a11y_kind_music_video">म्यूज़िक वीडियो</string>
@@ -144,6 +146,12 @@
         <item quantity="one">%1$d सेकंड</item>
         <item quantity="other">%1$d सेकंड</item>
     </plurals>
+    <string name="a11y_now_playing">अभी चल रहा है</string>
+    <string name="a11y_playback_position">प्लेबैक की स्थिति</string>
+    <string name="a11y_x_of_y">%2$s में से %1$s</string>
+    <string name="a11y_behind_live">लाइव से %1$s पीछे</string>
+    <string name="a11y_downloaded">डाउनलोड किया गया</string>
+    <string name="a11y_eq_preamp">प्रीएम्प</string>
 
     <!-- Library -->
     <string name="library_tab_folders">फ़ोल्डर</string>
@@ -384,7 +392,6 @@
     <string name="account_sign_out">साइन आउट करें</string>
     <string name="account_switch">खाता बदलें</string>
     <string name="switch_account_hint">अपना मनचाहा खाता चुनें, फिर बैक ऐरो से यह स्क्रीन बंद करें — ऐप नए खाते के साथ रीफ़्रेश होगा।</string>
-    <string name="cd_account_avatar">खाते की तस्वीर</string>
     <string name="account_my_channel">मेरा चैनल</string>
     <string name="account_watch_history">देखने का इतिहास</string>
     <string name="account_watch_later">बाद में देखें</string>

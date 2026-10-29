@@ -23,6 +23,10 @@
     <string name="downloads_none_title">Bado hakuna vipakuliwa</string>
     <string name="downloads_none_message">Nyimbo na video zilizopakuliwa hucheza nje ya mtandao.</string>
     <string name="downloads_failed">Imeshindwa kupakua</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Onyesha kwenye Finder</string>
+    <string name="menu_reveal_explorer">Onyesha kwenye Kichunguzi cha Faili</string>
+    <string name="menu_reveal_file_manager">Onyesha kwenye kidhibiti faili</string>
     <string name="section_settings">Mipangilio</string>
     <string name="section_donate">Changia</string>
     <string name="section_feedback">Maoni</string>
@@ -121,8 +125,6 @@
     <string name="yt_playlist_removed_video">%1$s imeondolewa kwenye orodha ya kucheza</string>
     <string name="cd_add_to_playlist">Ongeza kwenye orodha ya kucheza</string>
     <string name="cd_share">Shiriki</string>
-    <string name="cd_music_video">Muziki</string>
-    <string name="cd_album">Albamu</string>
     <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
     <string name="a11y_kind_video">Video</string>
     <string name="a11y_kind_music_video">Video ya muziki</string>
@@ -144,6 +146,12 @@
         <item quantity="one">sekunde %1$d</item>
         <item quantity="other">sekunde %1$d</item>
     </plurals>
+    <string name="a11y_now_playing">Inacheza sasa</string>
+    <string name="a11y_playback_position">Mahali pa uchezaji</string>
+    <string name="a11y_x_of_y">%1$s kati ya %2$s</string>
+    <string name="a11y_behind_live">%1$s nyuma ya mubashara</string>
+    <string name="a11y_downloaded">Imepakuliwa</string>
+    <string name="a11y_eq_preamp">Kikuza sauti cha awali</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Folda</string>
@@ -384,7 +392,6 @@
     <string name="account_sign_out">Ondoka</string>
     <string name="account_switch">Badilisha akaunti</string>
     <string name="switch_account_hint">Chagua akaunti unayotaka, kisha funga skrini hii kwa mshale wa kurudi nyuma — programu itaonyesha upya ikitumia akaunti mpya.</string>
-    <string name="cd_account_avatar">Picha ya akaunti</string>
     <string name="account_my_channel">Kituo changu</string>
     <string name="account_watch_history">Historia ya kutazama</string>
     <string name="account_watch_later">Tazama baadaye</string>

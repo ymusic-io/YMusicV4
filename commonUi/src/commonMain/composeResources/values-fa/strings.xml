@@ -23,6 +23,10 @@
     <string name="downloads_none_title">هنوز دانلودی نیست</string>
     <string name="downloads_none_message">آهنگ‌ها و ویدیوهای دانلودشده آفلاین پخش می‌شوند.</string>
     <string name="downloads_failed">دانلود ناموفق بود</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">نمایش در Finder</string>
+    <string name="menu_reveal_explorer">نمایش در کاوشگر فایل</string>
+    <string name="menu_reveal_file_manager">نمایش در مدیر فایل</string>
     <string name="section_settings">تنظیمات</string>
     <string name="section_donate">حمایت مالی</string>
     <string name="section_feedback">بازخورد</string>
@@ -121,8 +125,6 @@
     <string name="yt_playlist_removed_video">%1$s از لیست پخش حذف شد</string>
     <string name="cd_add_to_playlist">افزودن به لیست پخش</string>
     <string name="cd_share">اشتراک‌گذاری</string>
-    <string name="cd_music_video">موسیقی</string>
-    <string name="cd_album">آلبوم</string>
     <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
     <string name="a11y_kind_video">ویدیو</string>
     <string name="a11y_kind_music_video">موزیک ویدیو</string>
@@ -144,6 +146,12 @@
         <item quantity="one">%1$d ثانیه</item>
         <item quantity="other">%1$d ثانیه</item>
     </plurals>
+    <string name="a11y_now_playing">در حال پخش</string>
+    <string name="a11y_playback_position">موقعیت پخش</string>
+    <string name="a11y_x_of_y">%1$s از %2$s</string>
+    <string name="a11y_behind_live">%1$s عقب‌تر از پخش زنده</string>
+    <string name="a11y_downloaded">دانلود شده</string>
+    <string name="a11y_eq_preamp">پیش‌تقویت‌کننده</string>
 
     <!-- Library -->
     <string name="library_tab_folders">پوشه‌ها</string>
@@ -384,7 +392,6 @@
     <string name="account_sign_out">خروج از حساب</string>
     <string name="account_switch">تغییر حساب</string>
     <string name="switch_account_hint">حساب مورد نظر را انتخاب کنید، سپس این صفحه را با پیکان بازگشت ببندید — برنامه با حساب جدید تازه‌سازی می‌شود.</string>
-    <string name="cd_account_avatar">تصویر حساب</string>
     <string name="account_my_channel">کانال من</string>
     <string name="account_watch_history">تاریخچه تماشا</string>
     <string name="account_watch_later">تماشا در آینده</string>

@@ -23,6 +23,10 @@
     <string name="downloads_none_title">Weli wax la soo dejiyay ma jiraan</string>
     <string name="downloads_none_message">Heesaha iyo fiidiyowyada la soo dejiyay waxay ku shaqeeyaan khadka la’aan.</string>
     <string name="downloads_failed">Soo dejintu way guuldareysatay</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Ku tus Finder</string>
+    <string name="menu_reveal_explorer">Ku tus File Explorer</string>
+    <string name="menu_reveal_file_manager">Ku tus maareeyaha faylasha</string>
     <string name="section_settings">Fadhiga</string>
     <string name="section_donate">Ugu deeq</string>
     <string name="section_feedback">Warcelin</string>
@@ -121,8 +125,6 @@
     <string name="yt_playlist_removed_video">%1$s waa laga saaray xulka</string>
     <string name="cd_add_to_playlist">Ku dar xul</string>
     <string name="cd_share">La wadaag</string>
-    <string name="cd_music_video">Heeso</string>
-    <string name="cd_album">Albam</string>
     <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
     <string name="a11y_kind_video">Muuqaal</string>
     <string name="a11y_kind_music_video">Muuqaal hees</string>
@@ -144,6 +146,12 @@
         <item quantity="one">%1$d ilbiriqsi</item>
         <item quantity="other">%1$d ilbiriqsi</item>
     </plurals>
+    <string name="a11y_now_playing">Hadda socda</string>
+    <string name="a11y_playback_position">Meesha ciyaarista</string>
+    <string name="a11y_x_of_y">%1$s ee %2$s</string>
+    <string name="a11y_behind_live">%1$s ka dambeeya tooska</string>
+    <string name="a11y_downloaded">La dajiyay</string>
+    <string name="a11y_eq_preamp">Kordhiye hore</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Khaanadaha</string>
@@ -384,7 +392,6 @@
     <string name="account_sign_out">Ka bax</string>
     <string name="account_switch">Baddal akoonka</string>
     <string name="switch_account_hint">Dooro akoonka aad rabto, kadibna shaashaddan ku xidh fallaadha dib-u-noqoshada — app-ku wuxuu isku cusboonaysiinayaa akoonka cusub.</string>
-    <string name="cd_account_avatar">Sawirka akoonka</string>
     <string name="account_my_channel">Kanaalkayga</string>
     <string name="account_watch_history">Waxaad daawatay</string>
     <string name="account_watch_later">Hadhow daawo</string>

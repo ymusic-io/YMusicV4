@@ -197,6 +197,12 @@ private class LibraryContent(
  *  which hides the menu item. */
 internal val LocalLibraryReveal = compositionLocalOf<((MediaStoreItem) -> Unit)?> { null }
 
+/** "Reveal in Finder" / "… in File Explorer" for a local file or folder uri, with its label; null
+ *  where the platform has no file manager to reveal in (mobile), which hides the menu item. */
+internal val LocalRevealInFileManager = compositionLocalOf<RevealInFileManager?> { null }
+
+internal class RevealInFileManager(val label: StringResource, val reveal: (uri: String) -> Unit)
+
 /** A song's "Remove from disk" REQUEST — opens [LibraryScreen]'s confirm dialog; nothing is
  *  deleted until the user confirms there. Null (no shell delete hook) hides the menu item. */
 internal val LocalLibraryDelete = compositionLocalOf<((MediaStoreItem) -> Unit)?> { null }
@@ -327,19 +333,22 @@ fun LibraryScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
                     ) { current ->
                         tabStateHolder.SaveableStateProvider(current.name) {
                             when (current) {
-                                LibraryTab.Folders -> FoldersTab(
-                                    store,
-                                    loaded,
-                                    coordinator,
-                                    graph.scanLibraryFolder,
-                                    graph.rescanLibrary,
-                                    scanController,
-                                    revealBucket,
-                                    onRevealHandled = { revealBucket = null },
-                                    downloadLocation = downloadLocation,
-                                    onToggleDownloadLocation = onToggleDownloadLocation,
-                                    settings = graph.settings,
-                                )
+                                // Its songs are already shown in their folder: no "Show in folder".
+                                LibraryTab.Folders -> CompositionLocalProvider(LocalLibraryReveal provides null) {
+                                    FoldersTab(
+                                        store,
+                                        loaded,
+                                        coordinator,
+                                        graph.scanLibraryFolder,
+                                        graph.rescanLibrary,
+                                        scanController,
+                                        revealBucket,
+                                        onRevealHandled = { revealBucket = null },
+                                        downloadLocation = downloadLocation,
+                                        onToggleDownloadLocation = onToggleDownloadLocation,
+                                        settings = graph.settings,
+                                    )
+                                }
                                 LibraryTab.Playlists -> PlaylistsTab(store, graph, loaded, coordinator, graph.playHistory)
                                 LibraryTab.Songs -> if (loaded.songs.isEmpty()) {
                                     EmptyState(stringResource(Res.string.library_no_songs), onReload = null)
@@ -768,9 +777,9 @@ private fun FolderRow(bucket: MediaStoreBucket, menu: ItemActions, isDownloadLoc
         if (isDownloadLocation) {
             Icon(
                 Icons.Default.Download,
-                contentDescription = stringResource(Res.string.menu_download_location),
+                contentDescription = null,
                 tint = DesignColors.Accent,
-                modifier = Modifier.padding(top = 10.dp).size(18.dp),
+                modifier = Modifier.padding(top = 10.dp).size(18.dp).spokenAs(stringResource(Res.string.menu_download_location)),
             )
         }
         MoreMenu(menu, Modifier.padding(top = 2.dp))
@@ -792,6 +801,8 @@ private fun folderActions(
     val exclude = stringResource(Res.string.menu_exclude_folder)
     val include = stringResource(Res.string.menu_include_folder)
     val downloadLocation = stringResource(Res.string.menu_download_location)
+    val revealInFileManager = LocalRevealInFileManager.current
+    val revealInFileManagerLabel = revealInFileManager?.let { stringResource(it.label) }
     return ItemActions(
         buildList {
             when {
@@ -801,6 +812,9 @@ private fun folderActions(
             }
             if (onToggleDownloadLocation != null && !bucket.excluded) {
                 add(downloadLocation to { onToggleDownloadLocation(bucket) })
+            }
+            if (revealInFileManager != null && revealInFileManagerLabel != null) {
+                add(revealInFileManagerLabel to { revealInFileManager.reveal(bucket.uri.toString()) })
             }
         },
         checked = if (isDownloadLocation) setOf(downloadLocation) else emptySet(),
@@ -1135,7 +1149,12 @@ private fun PlaylistRow(
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalAlignment = Alignment.Top,
     ) {
-        LibraryThumb(icon, badge = (entry as? UserEntry)?.count?.toString(), artUrl = (entry as? UserEntry)?.artUrl)
+        LibraryThumb(
+            icon,
+            badge = (entry as? UserEntry)?.count?.toString(),
+            artUrl = (entry as? UserEntry)?.artUrl,
+            modifier = Modifier.a11ySilent(),
+        )
         Column(Modifier.weight(1f)) {
             Text(title, style = ListTitleStyle, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Text(sub, style = ListSubStyle, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 4.dp))
@@ -1370,7 +1389,7 @@ private val OpenPlaylistSaver = listSaver<Pair<Long, String>?, Any>(
 @Composable
 internal fun LibraryChip(label: String, selected: Boolean, icon: ImageVector? = null, onClick: () -> Unit) {
     val content = if (selected) Color.White else DesignColors.Ink
-    ChipTapArea(onClick) { indication ->
+    ChipTapArea(onClick, selected = selected) { indication ->
         Row(
             Modifier
                 .clip(RoundedCornerShape(999.dp))
@@ -1494,18 +1513,20 @@ internal fun SongList(
 
 @Composable
 internal fun SongRow(song: MediaStoreItem, coordinator: PlaybackCoordinator? = null, onPlay: () -> Unit) {
+    val sub = listOfNotNull(song.artist, song.album).joinToString(" · ")
+    val length = song.durationMs?.takeIf { it > 0 }?.let { spokenDuration(it) }
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onPlay)
+            .a11yActionLabel(listOfNotNull(song.title, length, sub.ifEmpty { null }).joinToString(", "))
             .padding(start = 16.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalAlignment = Alignment.Top,
     ) {
-        LibraryThumb(Icons.Default.MusicNote, formatDuration(song.durationMs), artUrl = localArtUrl(song))
-        Column(Modifier.weight(1f)) {
+        LibraryThumb(Icons.Default.MusicNote, formatDuration(song.durationMs), artUrl = localArtUrl(song), modifier = Modifier.a11ySilent())
+        Column(Modifier.weight(1f).a11ySilent()) {
             Text(song.title, style = ListTitleStyle, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            val sub = listOfNotNull(song.artist, song.album).joinToString(" · ")
             if (sub.isNotEmpty()) {
                 Text(
                     sub,
@@ -1533,6 +1554,8 @@ private fun songActions(song: MediaStoreItem, coordinator: PlaybackCoordinator):
     val showInFolder = stringResource(Res.string.menu_show_in_folder)
     val removeFromDisk = stringResource(Res.string.menu_remove_from_disk)
     val reveal = LocalLibraryReveal.current
+    val revealInFileManager = LocalRevealInFileManager.current
+    val revealInFileManagerLabel = revealInFileManager?.let { stringResource(it.label) }
     val requestDelete = LocalLibraryDelete.current
     val addToPlaylist = LocalAddToPlaylist.current
     val removeFromPlaylist = LocalPlaylistRemove.current
@@ -1553,6 +1576,9 @@ private fun songActions(song: MediaStoreItem, coordinator: PlaybackCoordinator):
                 add(goToAlbum to { goToGroup(LibraryGroupKind.Album, song) })
             }
             if (reveal != null && song.bucketId != null) add(showInFolder to { reveal(song) })
+            if (revealInFileManager != null && revealInFileManagerLabel != null) {
+                add(revealInFileManagerLabel to { revealInFileManager.reveal(song.uri.toString()) })
+            }
             if (requestDelete != null) add(removeFromDisk to { requestDelete(song) })
         },
     )
@@ -1739,9 +1765,10 @@ private fun LibraryGridCard(
             if (marked) {
                 Icon(
                     Icons.Default.Download,
-                    contentDescription = stringResource(Res.string.menu_download_location),
+                    contentDescription = null,
                     tint = DesignColors.Accent,
-                    modifier = Modifier.align(Alignment.TopStart).padding(6.dp).size(18.dp),
+                    modifier = Modifier.align(Alignment.TopStart).padding(6.dp).size(18.dp)
+                        .spokenAs(stringResource(Res.string.menu_download_location)),
                 )
             }
             if (menu != null) MoreMenu(menu, Modifier.align(Alignment.TopEnd))
@@ -1792,10 +1819,17 @@ private fun ShuffleAllButton(songs: List<MediaStoreItem>, coordinator: PlaybackC
 }
 
 @Composable
-internal fun LibraryThumb(icon: ImageVector, badge: String?, artUrl: String? = null, corner: Dp = 10.dp, badgeColor: Color = DesignColors.BadgeInk) {
+internal fun LibraryThumb(
+    icon: ImageVector,
+    badge: String?,
+    artUrl: String? = null,
+    corner: Dp = 10.dp,
+    badgeColor: Color = DesignColors.BadgeInk,
+    modifier: Modifier = Modifier,
+) {
     val shape = RoundedCornerShape(corner)
     Box(
-        modifier = Modifier
+        modifier = modifier
             .size(56.dp)
             .clip(shape),
         contentAlignment = Alignment.Center,

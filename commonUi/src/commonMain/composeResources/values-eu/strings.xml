@@ -23,6 +23,10 @@
     <string name="downloads_none_title">Oraindik ez dago deskargarik</string>
     <string name="downloads_none_message">Deskargatutako abestiak eta bideoak konexiorik gabe erreproduzitzen dira.</string>
     <string name="downloads_failed">Deskargak huts egin du</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Erakutsi Finder-en</string>
+    <string name="menu_reveal_explorer">Erakutsi Fitxategi-arakatzailean</string>
+    <string name="menu_reveal_file_manager">Erakutsi fitxategi-kudeatzailean</string>
     <string name="section_settings">Ezarpenak</string>
     <string name="section_donate">Egin dohaintza</string>
     <string name="section_feedback">Iritzia</string>
@@ -121,8 +125,6 @@
     <string name="yt_playlist_removed_video">Erreprodukzio-zerrendatik kendu da: %1$s</string>
     <string name="cd_add_to_playlist">Gehitu erreprodukzio-zerrendara</string>
     <string name="cd_share">Partekatu</string>
-    <string name="cd_music_video">Musika</string>
-    <string name="cd_album">Albuma</string>
     <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
     <string name="a11y_kind_video">Bideoa</string>
     <string name="a11y_kind_music_video">Bideoklipa</string>
@@ -144,6 +146,12 @@
         <item quantity="one">%1$d segundo</item>
         <item quantity="other">%1$d segundo</item>
     </plurals>
+    <string name="a11y_now_playing">Orain erreproduzitzen</string>
+    <string name="a11y_playback_position">Erreprodukzioaren posizioa</string>
+    <string name="a11y_x_of_y">%1$s, guztira %2$s</string>
+    <string name="a11y_behind_live">Zuzenekotik %1$s atzerago</string>
+    <string name="a11y_downloaded">Deskargatuta</string>
+    <string name="a11y_eq_preamp">Aurreanplifikadorea</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Karpetak</string>
@@ -384,7 +392,6 @@
     <string name="account_sign_out">Amaitu saioa</string>
     <string name="account_switch">Aldatu kontua</string>
     <string name="switch_account_hint">Aukeratu nahi duzun kontua eta itxi pantaila hau atzera-geziarekin — aplikazioa kontu berriarekin freskatuko da.</string>
-    <string name="cd_account_avatar">Kontuaren argazkia</string>
     <string name="account_my_channel">Nire kanala</string>
     <string name="account_watch_history">Ikusitakoen historia</string>
     <string name="account_watch_later">Ikusteko geroago</string>

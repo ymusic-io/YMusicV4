@@ -23,6 +23,10 @@
     <string name="downloads_none_title">אין עדיין הורדות</string>
     <string name="downloads_none_message">שירים וסרטונים שהורדו מתנגנים ללא חיבור.</string>
     <string name="downloads_failed">ההורדה נכשלה</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">הצג ב-Finder</string>
+    <string name="menu_reveal_explorer">הצג בסייר הקבצים</string>
+    <string name="menu_reveal_file_manager">הצג במנהל הקבצים</string>
     <string name="section_settings">הגדרות</string>
     <string name="section_donate">תרומה</string>
     <string name="section_feedback">משוב</string>
@@ -121,8 +125,6 @@
     <string name="yt_playlist_removed_video">%1$s הוסר מרשימת ההשמעה</string>
     <string name="cd_add_to_playlist">הוסף לרשימת השמעה</string>
     <string name="cd_share">שיתוף</string>
-    <string name="cd_music_video">מוזיקה</string>
-    <string name="cd_album">אלבום</string>
     <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
     <string name="a11y_kind_video">סרטון</string>
     <string name="a11y_kind_music_video">קליפ</string>
@@ -147,6 +149,12 @@
         <item quantity="two">%1$d שניות</item>
         <item quantity="other">%1$d שניות</item>
     </plurals>
+    <string name="a11y_now_playing">מתנגן עכשיו</string>
+    <string name="a11y_playback_position">מיקום ההשמעה</string>
+    <string name="a11y_x_of_y">%1$s מתוך %2$s</string>
+    <string name="a11y_behind_live">%1$s מאחורי השידור החי</string>
+    <string name="a11y_downloaded">הורד</string>
+    <string name="a11y_eq_preamp">קדם-מגבר</string>
 
     <!-- Library -->
     <string name="library_tab_folders">תיקיות</string>
@@ -388,7 +396,6 @@
     <string name="account_sign_out">יציאה מהחשבון</string>
     <string name="account_switch">החלפת חשבון</string>
     <string name="switch_account_hint">בחר את החשבון הרצוי, ואז סגור את המסך הזה בחץ החזרה — האפליקציה תתרענן עם החשבון החדש.</string>
-    <string name="cd_account_avatar">תמונת החשבון</string>
     <string name="account_my_channel">הערוץ שלי</string>
     <string name="account_watch_history">היסטוריית צפייה</string>
     <string name="account_watch_later">צפייה בהמשך</string>

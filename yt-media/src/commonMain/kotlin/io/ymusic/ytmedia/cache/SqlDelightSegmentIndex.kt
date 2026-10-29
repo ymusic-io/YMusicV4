@@ -50,6 +50,10 @@ class SqlDelightSegmentIndex(
     override fun findByByteOffset(itag: Int, lmt: Long, byteIndex: Long): MediaHeader? =
         queries.findByByteOffset(itag.toLong(), lmt, byteIndex, ::toHeader).executeAsOneOrNull()
 
+    override fun delete(itag: Int, lmt: Long, seg: Int) {
+        queries.deleteSegment(itag.toLong(), lmt, seg.toLong())
+    }
+
     override fun markDownloadTime(itag: Int, lmt: Long) {
         queries.markDownloadTime(now(), itag.toLong(), lmt)
     }

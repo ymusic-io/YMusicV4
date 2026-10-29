@@ -40,9 +40,14 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.center
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.toAwtImage
 import androidx.compose.ui.graphics.toComposeImageBitmap
@@ -508,16 +513,16 @@ fun main(args: Array<String>) {
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            MacTrafficLight(Color(0xFFFF5F57), stringResource(Res.string.cd_close), "✕", closeApp)
+                            MacTrafficLight(Color(0xFFFF5F57), stringResource(Res.string.cd_close), TrafficGlyph.Close, closeApp)
                             MacTrafficLight(
                                 Color(0xFFFEBC2E),
                                 stringResource(Res.string.cd_minimize),
-                                "─",
+                                TrafficGlyph.Minimize,
                             ) { window.extendedState = java.awt.Frame.ICONIFIED }
                             MacTrafficLight(
                                 Color(0xFF28C840),
                                 stringResource(Res.string.cd_fullscreen),
-                                "＋",
+                                TrafficGlyph.Fullscreen,
                                 onClick = { frame.toggleFullscreen() },
                             )
                         }
@@ -867,6 +872,7 @@ private suspend fun buildGraph(settings: AppStoreSettings, session: CookieSessio
             ),
             SqlDelightSegmentIndex(driver, now = { System.currentTimeMillis() }),
             SqlDelightCacheStats(driver),
+            logger = rootLogger.fork("player-cache"),
         )
     }
     val mediaProxy = withContext(Dispatchers.IO) {
@@ -1042,10 +1048,11 @@ private suspend fun buildGraph(settings: AppStoreSettings, session: CookieSessio
         revealInFolder = { uri ->
             withContext(Dispatchers.IO) {
                 val path = Uri.parse(uri).filePath()
-                runCatching { ProcessBuilder("open", "-R", path).start() } // mac Finder reveal
-                    .onFailure { rootLogger.fork("reveal").log(Logger.Level.WARN, "Finder reveal failed for $path", it) }
+                runCatching { revealInFileManager(path) }
+                    .onFailure { rootLogger.fork("reveal").log(Logger.Level.WARN, "file manager reveal failed for $path", it) }
             }
         },
+        revealInFolderLabel = fileManagerRevealLabel(),
         appVersion = "$APP_VERSION_NAME · ${desktopArch()}",
         appVersionName = APP_VERSION_NAME,
         appVersionCode = APP_VERSION_CODE,
@@ -1662,7 +1669,7 @@ private fun readAppResource(name: String): String =
         .readBytes().decodeToString()
 
 @Composable
-private fun MacTrafficLight(color: Color, label: String, glyph: String, onClick: () -> Unit) {
+private fun MacTrafficLight(color: Color, label: String, glyph: TrafficGlyph, onClick: () -> Unit) {
     val hover = remember { MutableInteractionSource() }
     val hovered by hover.collectIsHoveredAsState()
     Box(
@@ -1670,6 +1677,11 @@ private fun MacTrafficLight(color: Color, label: String, glyph: String, onClick:
             .size(12.dp)
             .clip(CircleShape)
             .background(color)
+            // Stroked from the exact centre: a Text centres its font's line box, not the glyph.
+            .drawWithContent {
+                drawContent()
+                if (hovered) drawTrafficGlyph(glyph)
+            }
             .hoverable(hover)
             // Out of the Tab cycle like other apps' window chrome; the keyboard has Alt+F4 / Win+Down / F11.
             .focusProperties { canFocus = false }
@@ -1679,10 +1691,31 @@ private fun MacTrafficLight(color: Color, label: String, glyph: String, onClick:
                 text = AnnotatedString(label)
                 role = Role.Button
             },
-        contentAlignment = Alignment.Center,
-    ) {
-        if (hovered) {
-            Text(glyph, color = Color(0x99000000), fontSize = 8.sp, fontWeight = FontWeight.Bold)
+    )
+}
+
+private enum class TrafficGlyph { Close, Minimize, Fullscreen }
+
+private fun DrawScope.drawTrafficGlyph(glyph: TrafficGlyph) {
+    val ink = Color(0x99000000)
+    val stroke = 1.2.dp.toPx()
+    val c = size.center
+    fun line(dx0: Float, dy0: Float, dx1: Float, dy1: Float) =
+        drawLine(ink, Offset(c.x + dx0, c.y + dy0), Offset(c.x + dx1, c.y + dy1), stroke, StrokeCap.Round)
+    when (glyph) {
+        TrafficGlyph.Close -> {
+            val a = 2.2.dp.toPx()
+            line(-a, -a, a, a)
+            line(a, -a, -a, a)
+        }
+        TrafficGlyph.Minimize -> {
+            val a = 3.dp.toPx()
+            line(-a, 0f, a, 0f)
+        }
+        TrafficGlyph.Fullscreen -> {
+            val a = 3.dp.toPx()
+            line(-a, 0f, a, 0f)
+            line(0f, -a, 0f, a)
         }
     }
 }

@@ -317,6 +317,7 @@ class VideoPlaybackAbrRequest(
 // optional int64 start_ms = 11;
 // optional int64 duration_ms = 12;
 // optional int64 content_length = 14;
+// optional int64 data_offset = 17; (unofficial name)
 data class MediaHeader(
     val headerId: Int,
     val videoId: String,
@@ -331,6 +332,12 @@ data class MediaHeader(
     val startMs: Long?,
     val durationMs: Long?,
     val contentLength: Long,
+    /**
+     * Offset inside the segment where this response's MEDIA_DATA starts: non-zero when the server resumes
+     * a segment an earlier response delivered in part. [contentLength] still counts the whole segment.
+     * Response-only, never encoded: index rows and synthesized hits describe whole segments.
+     */
+    val dataOffset: Long = 0,
 ) {
     companion object {
         fun from(fields: List<ProtoField>) = MediaHeader(
@@ -346,10 +353,14 @@ data class MediaHeader(
             startMs = fields.varint(11),
             durationMs = fields.varint(12),
             contentLength = fields.varint(14) ?: 0L,
+            dataOffset = fields.varint(17) ?: 0L,
         )
     }
 
     val cacheKey get() = formatCacheKey(itag, lmt)
+
+    /** The segment's identity and byte placement, for log lines. */
+    fun describe() = "itag=$itag seg=$segmentIndex range=$startRange+$contentLength dataOffset=$dataOffset"
 
     fun encode() = ProtoWriter()
         .varint(1, headerId)

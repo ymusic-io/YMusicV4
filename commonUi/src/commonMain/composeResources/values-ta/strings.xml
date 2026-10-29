@@ -23,6 +23,10 @@
     <string name="downloads_none_title">இதுவரை பதிவிறக்கங்கள் இல்லை</string>
     <string name="downloads_none_message">பதிவிறக்கிய பாடல்களும் வீடியோக்களும் ஆஃப்லைனில் இயங்கும்.</string>
     <string name="downloads_failed">பதிவிறக்கம் தோல்வியடைந்தது</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Finder-இல் காட்டு</string>
+    <string name="menu_reveal_explorer">கோப்பு எக்ஸ்ப்ளோரரில் காட்டு</string>
+    <string name="menu_reveal_file_manager">கோப்பு மேலாளரில் காட்டு</string>
     <string name="section_settings">அமைப்புகள்</string>
     <string name="section_donate">நன்கொடை அளி</string>
     <string name="section_feedback">கருத்து</string>
@@ -121,8 +125,6 @@
     <string name="yt_playlist_removed_video">பிளேலிஸ்ட்டிலிருந்து %1$s அகற்றப்பட்டது</string>
     <string name="cd_add_to_playlist">பிளேலிஸ்ட்டில் சேர்</string>
     <string name="cd_share">பகிர்</string>
-    <string name="cd_music_video">இசை</string>
-    <string name="cd_album">ஆல்பம்</string>
     <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
     <string name="a11y_kind_video">வீடியோ</string>
     <string name="a11y_kind_music_video">இசை வீடியோ</string>
@@ -144,6 +146,12 @@
         <item quantity="one">%1$d வினாடி</item>
         <item quantity="other">%1$d வினாடிகள்</item>
     </plurals>
+    <string name="a11y_now_playing">இப்போது இயங்குகிறது</string>
+    <string name="a11y_playback_position">இயக்க நிலை</string>
+    <string name="a11y_x_of_y">%2$s இல் %1$s</string>
+    <string name="a11y_behind_live">நேரலையை விட %1$s பின்னால்</string>
+    <string name="a11y_downloaded">பதிவிறக்கப்பட்டது</string>
+    <string name="a11y_eq_preamp">முன்பெருக்கி</string>
 
     <!-- Library -->
     <string name="library_tab_folders">கோப்புறைகள்</string>
@@ -384,7 +392,6 @@
     <string name="account_sign_out">வெளியேறு</string>
     <string name="account_switch">கணக்கை மாற்று</string>
     <string name="switch_account_hint">உங்களுக்கு வேண்டிய கணக்கைத் தேர்ந்தெடுத்து, பின் அம்புக்குறியால் இந்தத் திரையை மூடவும் — ஆப்ஸ் புதிய கணக்கில் புதுப்பிக்கப்படும்.</string>
-    <string name="cd_account_avatar">கணக்குப் படம்</string>
     <string name="account_my_channel">எனது சேனல்</string>
     <string name="account_watch_history">பார்த்த வரலாறு</string>
     <string name="account_watch_later">பின்னர் பார்</string>

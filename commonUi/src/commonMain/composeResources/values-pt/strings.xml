@@ -23,6 +23,10 @@
     <string name="downloads_none_title">Ainda não há downloads</string>
     <string name="downloads_none_message">Músicas e vídeos baixados tocam offline.</string>
     <string name="downloads_failed">Falha no download</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Mostrar no Finder</string>
+    <string name="menu_reveal_explorer">Mostrar no Explorador de Arquivos</string>
+    <string name="menu_reveal_file_manager">Mostrar no gerenciador de arquivos</string>
     <string name="section_settings">Configurações</string>
     <string name="section_donate">Doar</string>
     <string name="section_feedback">Feedback</string>
@@ -121,8 +125,6 @@
     <string name="yt_playlist_removed_video">%1$s removido da playlist</string>
     <string name="cd_add_to_playlist">Adicionar à playlist</string>
     <string name="cd_share">Compartilhar</string>
-    <string name="cd_music_video">Música</string>
-    <string name="cd_album">Álbum</string>
     <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
     <string name="a11y_kind_video">Vídeo</string>
     <string name="a11y_kind_music_video">Videoclipe</string>
@@ -147,6 +149,12 @@
         <item quantity="many">%1$d segundos</item>
         <item quantity="other">%1$d segundos</item>
     </plurals>
+    <string name="a11y_now_playing">Tocando agora</string>
+    <string name="a11y_playback_position">Posição da reprodução</string>
+    <string name="a11y_x_of_y">%1$s de %2$s</string>
+    <string name="a11y_behind_live">%1$s atrás do ao vivo</string>
+    <string name="a11y_downloaded">Baixado</string>
+    <string name="a11y_eq_preamp">Pré-amplificador</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Pastas</string>
@@ -388,7 +396,6 @@
     <string name="account_sign_out">Sair</string>
     <string name="account_switch">Trocar de conta</string>
     <string name="switch_account_hint">Escolha a conta que você quer e feche esta tela com a seta de voltar — o app atualiza com a nova conta.</string>
-    <string name="cd_account_avatar">Foto da conta</string>
     <string name="account_my_channel">Meu canal</string>
     <string name="account_watch_history">Histórico de exibição</string>
     <string name="account_watch_later">Assistir mais tarde</string>

@@ -43,6 +43,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -57,6 +58,7 @@ import io.ymusic.dynamicengine.yt.YtThumb
 import io.ymusic.mediastore.BetterMediaStore
 import io.ymusic.mediastore.model.MediaStoreItem
 import io.ymusic.ui.resources.Res
+import io.ymusic.ui.resources.a11y_x_of_y
 import io.ymusic.ui.resources.cd_share
 import io.ymusic.ui.resources.dialog_cancel
 import io.ymusic.ui.resources.download_other_format
@@ -64,7 +66,6 @@ import io.ymusic.ui.resources.download_size_kb
 import io.ymusic.ui.resources.download_size_mb
 import io.ymusic.ui.resources.downloads_action_pause
 import io.ymusic.ui.resources.downloads_action_resume
-import io.ymusic.ui.resources.downloads_action_reveal_finder
 import io.ymusic.ui.resources.downloads_action_reveal_library
 import io.ymusic.ui.resources.downloads_completed_date
 import io.ymusic.ui.resources.downloads_empty_all
@@ -327,7 +328,7 @@ private fun DownloadCard(
         modifier = modifier.fillMaxWidth(),
     ) {
         Column(Modifier.padding(CardPadding), verticalArrangement = Arrangement.spacedBy(DesignSpacing.Space8)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(CardGap)) {
+            Row(Modifier.semantics(mergeDescendants = true) {}, horizontalArrangement = Arrangement.spacedBy(CardGap)) {
                 LibraryThumb(icon = Icons.Outlined.FileDownload, badge = null, artUrl = task.thumbnailUrl, corner = MediaCardCorner)
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(DesignSpacing.Space4)) {
                     Text(
@@ -347,7 +348,7 @@ private fun DownloadCard(
                 MoreMenu(actionsFor(task, service, onRetry, onPlay, onRevealLibrary, onRevealFolder, fileActions, onOtherFormat))
             }
             if (task.showsBar()) {
-                Box(Modifier.fillMaxWidth().padding(start = ContentIndent)) { DownloadBar(task, c) }
+                Box(Modifier.fillMaxWidth().padding(start = ContentIndent).a11ySilent()) { DownloadBar(task, c) }
             }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(CardGap)) {
                 Box(Modifier.width(ThumbSize), contentAlignment = Alignment.Center) { FormatBadge(task.format) }
@@ -357,12 +358,17 @@ private fun DownloadCard(
                     horizontalArrangement = Arrangement.spacedBy(DesignSpacing.Space8),
                 ) {
                     when (task.state) {
-                        DownloadState.DOWNLOADING, DownloadState.PAUSED -> Text(
-                            "${humanSize(task.downloadedBytes)} / ${humanSize(task.totalBytes)}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = c.inkMuted,
-                            fontFamily = FontFamily.Monospace,
-                        )
+                        DownloadState.DOWNLOADING, DownloadState.PAUSED -> {
+                            val done = humanSize(task.downloadedBytes)
+                            val total = humanSize(task.totalBytes)
+                            Text(
+                                "$done / $total",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = c.inkMuted,
+                                fontFamily = FontFamily.Monospace,
+                                modifier = Modifier.spokenAs(stringResource(Res.string.a11y_x_of_y, done, total)),
+                            )
+                        }
                         DownloadState.COMPLETED -> {
                             Text(humanSize(task.totalBytes), style = MaterialTheme.typography.labelSmall, color = c.inkMuted, fontFamily = FontFamily.Monospace)
                             Text(formatShortDate(task.updatedAt), style = MaterialTheme.typography.labelSmall, color = c.inkMuted)
@@ -587,7 +593,8 @@ private fun actionsFor(
                 fileActions.addToPlaylist?.let { add(stringResource(Res.string.menu_add_to_playlist) to it) }
                 onOtherFormat?.let { add(otherFormat to it) }
                 onRevealLibrary?.let { add(stringResource(Res.string.downloads_action_reveal_library) to it) }
-                onRevealFolder?.let { add(stringResource(Res.string.downloads_action_reveal_finder) to it) }
+                val revealLabel = LocalRevealInFileManager.current?.label
+                if (onRevealFolder != null && revealLabel != null) add(stringResource(revealLabel) to onRevealFolder)
                 fileActions.rename?.let { add(stringResource(Res.string.menu_rename) to it) }
                 fileActions.share?.let { add(stringResource(Res.string.cd_share) to it) }
                 add(stringResource(Res.string.menu_remove) to { service.remove(task.id) })

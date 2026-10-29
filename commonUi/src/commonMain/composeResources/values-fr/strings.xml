@@ -23,6 +23,10 @@
     <string name="downloads_none_title">Aucun téléchargement pour l’instant</string>
     <string name="downloads_none_message">Les titres et vidéos téléchargés se lisent hors connexion.</string>
     <string name="downloads_failed">Échec du téléchargement</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Afficher dans le Finder</string>
+    <string name="menu_reveal_explorer">Afficher dans l'Explorateur de fichiers</string>
+    <string name="menu_reveal_file_manager">Afficher dans le gestionnaire de fichiers</string>
     <string name="section_settings">Paramètres</string>
     <string name="section_donate">Faire un don</string>
     <string name="section_feedback">Commentaires</string>
@@ -121,8 +125,6 @@
     <string name="yt_playlist_removed_video">%1$s retiré de la playlist</string>
     <string name="cd_add_to_playlist">Ajouter à une playlist</string>
     <string name="cd_share">Partager</string>
-    <string name="cd_music_video">Musique</string>
-    <string name="cd_album">Album</string>
     <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
     <string name="a11y_kind_video">Vidéo</string>
     <string name="a11y_kind_music_video">Clip musical</string>
@@ -147,6 +149,12 @@
         <item quantity="many">%1$d secondes</item>
         <item quantity="other">%1$d secondes</item>
     </plurals>
+    <string name="a11y_now_playing">En cours de lecture</string>
+    <string name="a11y_playback_position">Position de lecture</string>
+    <string name="a11y_x_of_y">%1$s sur %2$s</string>
+    <string name="a11y_behind_live">%1$s de retard sur le direct</string>
+    <string name="a11y_downloaded">Téléchargé</string>
+    <string name="a11y_eq_preamp">Préampli</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Dossiers</string>
@@ -388,7 +396,6 @@
     <string name="account_sign_out">Se déconnecter</string>
     <string name="account_switch">Changer de compte</string>
     <string name="switch_account_hint">Choisissez le compte souhaité, puis fermez cet écran avec la flèche de retour — l'app se recharge avec le nouveau compte.</string>
-    <string name="cd_account_avatar">Photo du compte</string>
     <string name="account_my_channel">Ma chaîne</string>
     <string name="account_watch_history">Historique des vidéos regardées</string>
     <string name="account_watch_later">À regarder plus tard</string>

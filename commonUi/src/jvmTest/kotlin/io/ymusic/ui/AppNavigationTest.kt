@@ -342,11 +342,11 @@ class AppNavigationTest {
 
                 // Pick the Songs tab, leave, come back: still on Songs.
                 onNodeWithText("Songs").performClick()
-                waitUntilAtLeastOneExists(hasText("Local Song A"), 10_000)
+                waitUntilAtLeastOneExists(hasText("Local Song A", substring = true), 10_000)
                 section.value = AppSection.Discover
                 waitUntilAtLeastOneExists(hasText("Trending music"), 10_000)
                 section.value = AppSection.Library
-                waitUntilAtLeastOneExists(hasText("Local Song A"), 10_000)
+                waitUntilAtLeastOneExists(hasText("Local Song A", substring = true), 10_000)
 
                 // And Folders kept its position through the tab switch too.
                 onNodeWithText("Folders").performClick()
@@ -356,21 +356,21 @@ class AppNavigationTest {
                 onNodeWithText("Playlists").performClick()
                 waitUntilAtLeastOneExists(hasText("MyList"), 10_000)
                 onNodeWithText("MyList").performClick()
-                waitUntilAtLeastOneExists(hasText("Local Song A"), 10_000)
+                waitUntilAtLeastOneExists(hasText("Local Song A", substring = true), 10_000)
                 section.value = AppSection.Discover
                 waitUntilAtLeastOneExists(hasText("Trending music"), 10_000)
                 section.value = AppSection.Library
-                waitUntilAtLeastOneExists(hasText("Local Song A"), 10_000)
+                waitUntilAtLeastOneExists(hasText("Local Song A", substring = true), 10_000)
 
                 // Same for a grouped tab: open an artist, away and back — still inside.
                 onNodeWithText("Artists").performClick()
                 waitUntilAtLeastOneExists(hasText("ArtistX"), 10_000)
                 onNodeWithText("ArtistX").performClick()
-                waitUntilAtLeastOneExists(hasText("Local Song A"), 10_000)
+                waitUntilAtLeastOneExists(hasText("Local Song A", substring = true), 10_000)
                 section.value = AppSection.Discover
                 waitUntilAtLeastOneExists(hasText("Trending music"), 10_000)
                 section.value = AppSection.Library
-                waitUntilAtLeastOneExists(hasText("Local Song A"), 10_000)
+                waitUntilAtLeastOneExists(hasText("Local Song A", substring = true), 10_000)
             }
         } finally {
             runBlocking { engines.close() }

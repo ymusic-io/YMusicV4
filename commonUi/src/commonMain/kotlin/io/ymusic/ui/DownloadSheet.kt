@@ -221,8 +221,8 @@ private fun SheetHeader(state: DownloadOptionsState, onRename: () -> Unit) {
                 style = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = DesignColors.Ink, lineHeight = 20.sp),
             )
         }
-        IconButton(onClick = onRename) {
-            Icon(Icons.Outlined.Edit, stringResource(Res.string.download_edit_name), tint = DesignColors.InkSoft)
+        IconButton(onClick = onRename, modifier = Modifier.a11yActionLabel(stringResource(Res.string.download_edit_name))) {
+            Icon(Icons.Outlined.Edit, null, tint = DesignColors.InkSoft)
         }
     }
 }

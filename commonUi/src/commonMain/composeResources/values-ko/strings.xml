@@ -23,6 +23,10 @@
     <string name="downloads_none_title">아직 다운로드가 없습니다</string>
     <string name="downloads_none_message">다운로드한 노래와 동영상은 오프라인으로 재생됩니다.</string>
     <string name="downloads_failed">다운로드 실패</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Finder에서 보기</string>
+    <string name="menu_reveal_explorer">파일 탐색기에서 보기</string>
+    <string name="menu_reveal_file_manager">파일 관리자에서 보기</string>
     <string name="section_settings">설정</string>
     <string name="section_donate">후원하기</string>
     <string name="section_feedback">피드백</string>
@@ -121,8 +125,6 @@
     <string name="yt_playlist_removed_video">재생목록에서 %1$s을(를) 삭제했습니다</string>
     <string name="cd_add_to_playlist">재생목록에 추가</string>
     <string name="cd_share">공유</string>
-    <string name="cd_music_video">음악</string>
-    <string name="cd_album">앨범</string>
     <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
     <string name="a11y_kind_video">동영상</string>
     <string name="a11y_kind_music_video">뮤직비디오</string>
@@ -141,6 +143,12 @@
     <plurals name="a11y_duration_seconds">
         <item quantity="other">%1$d초</item>
     </plurals>
+    <string name="a11y_now_playing">지금 재생 중</string>
+    <string name="a11y_playback_position">재생 위치</string>
+    <string name="a11y_x_of_y">%2$s 중 %1$s</string>
+    <string name="a11y_behind_live">실시간보다 %1$s 늦음</string>
+    <string name="a11y_downloaded">다운로드됨</string>
+    <string name="a11y_eq_preamp">프리앰프</string>
 
     <!-- Library -->
     <string name="library_tab_folders">폴더</string>
@@ -380,7 +388,6 @@
     <string name="account_sign_out">로그아웃</string>
     <string name="account_switch">계정 전환</string>
     <string name="switch_account_hint">원하는 계정을 선택한 후 뒤로 화살표로 이 화면을 닫으세요 — 앱이 새 계정으로 새로고침됩니다.</string>
-    <string name="cd_account_avatar">계정 사진</string>
     <string name="account_my_channel">내 채널</string>
     <string name="account_watch_history">시청 기록</string>
     <string name="account_watch_later">나중에 볼 동영상</string>

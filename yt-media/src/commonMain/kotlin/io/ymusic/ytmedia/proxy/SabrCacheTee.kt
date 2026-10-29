@@ -55,8 +55,9 @@ internal class SabrCacheTee(
         if (verbose) logger?.debug(message)
     }
 
-    /** A segment being mirrored: its writer, declared [length], and how many media bytes are still owed. */
-    private class OpenSeg(val fill: SegmentFill, val length: Long) {
+    /** A segment in this response: its writer (null when not mirrored), the media bytes this response
+     *  carries ([length]), and how many of them are still owed. */
+    private class OpenSeg(val header: MediaHeader, val fill: SegmentFill?, val length: Long) {
         var remaining = length
     }
 
@@ -181,7 +182,8 @@ internal class SabrCacheTee(
                         return false
                     }
                     val take = minOf(partRemaining, scan.size)
-                    seg.fill.sink.write(scan, take)
+                    val fill = seg.fill
+                    if (fill != null) fill.sink.write(scan, take) else scan.skip(take)
                     seg.remaining -= take
                     partRemaining -= take
                 }
@@ -206,13 +208,23 @@ internal class SabrCacheTee(
                 if (seg.remaining > 0L) {
                     // Short of the declared contentLength: a wrong-length span would desync the index, so drop
                     // it and stop caching rather than commit a truncated segment.
-                    seg.fill.abort()
-                    markIllegal("MEDIA_END for id $id short by ${seg.remaining} bytes")
+                    seg.fill?.abort()
+                    markIllegal("MEDIA_END for id $id short by ${seg.remaining} of ${seg.length} bytes (${seg.header.describe()})")
                     return false
                 }
-                seg.fill.commit() // a throw here propagates to read()'s catch → markIllegal
-                sealedSegments++
-                sealedBytes += seg.length
+                seg.fill?.let { fill ->
+                    // A throw here propagates to read()'s catch → markIllegal.
+                    val failure = fill.commit()
+                    if (failure != null) {
+                        markIllegal(
+                            "segment failed its structure check, not cached (${seg.header.describe()}) " +
+                                failure.describe(seg.header.startRange),
+                        )
+                        return false
+                    }
+                    sealedSegments++
+                    sealedBytes += seg.length
+                }
             }
 
             else -> {
@@ -235,22 +247,32 @@ internal class SabrCacheTee(
                 headerBuf = null
                 // A malformed header proto throws here → read()'s catch flips illegalState (don't cache a
                 // segment whose byte range we can't trust).
-                val header = MediaHeader.from(ProtoReader(bytes).readAllFields())
+                val fields = ProtoReader(bytes).readAllFields()
+                val header = MediaHeader.from(fields)
                 if (open.containsKey(header.headerId)) {
                     // A second live segment on the same id before the first's MEDIA_END — lost framing.
                     markIllegal("duplicate MEDIA_HEADER id ${header.headerId}, still open")
+                } else if (header.dataOffset != 0L && header.dataOffset !in 0 until header.contentLength) {
+                    markIllegal("MEDIA_HEADER data offset outside its segment (${header.describe()})")
                 } else {
                     logVerbose {
                         "media-header vid=${header.videoId} itag=${header.itag} seg=${header.segmentIndex} " +
                             "range=${header.startRange}+${header.contentLength} t=${header.startMs}+${header.durationMs}ms"
                     }
                     // DIAGNOSTIC: a media segment with no start_ms can't be time-looked-up on serve (cache
-                    // never hits). Dump the raw fields to find where the timing actually is (e.g. time_range).
-                    if (header.segmentIndex != 0 && header.startMs == null) {
-                        logVerbose { "  ^ MEDIA_HEADER has no start_ms; raw fields: ${rawFields(bytes)}" }
+                    // never hits); fields past 15 are ones the parser may not know. Dump the raw fields.
+                    if (header.segmentIndex != 0 && header.startMs == null || fields.any { it.fieldNumber > 15 }) {
+                        logVerbose { "  ^ MEDIA_HEADER raw fields: ${rawFields(bytes)}" }
                     }
-                    // Row saved now, span sealed on MEDIA_END (writer no-ops if already cached/in-flight).
-                    open[header.headerId] = OpenSeg(cache.openSegmentFill(header), header.contentLength)
+                    open[header.headerId] = if (header.dataOffset > 0) {
+                        // Only the tail arrives: caching it would leave the segment a hole, and a later full
+                        // fetch rewrites it anyway.
+                        logger?.log(Logger.Level.WARN, "resumed segment, not cached (${header.describe()})")
+                        OpenSeg(header, fill = null, length = header.contentLength - header.dataOffset)
+                    } else {
+                        // Row saved now, span sealed on MEDIA_END (writer no-ops if already cached/in-flight).
+                        OpenSeg(header, cache.openSegmentFill(header), header.contentLength)
+                    }
                 }
             }
             // A data part is self-contained; clear the pointer so the next MEDIA_DATA starts from null
@@ -297,7 +319,7 @@ internal class SabrCacheTee(
 
     private fun abortOpen() {
         open.values.forEach { segment ->
-            runCatching { segment.fill.abort() }
+            runCatching { segment.fill?.abort() }
                 .onFailure { logger?.log(Logger.Level.WARN, "sabr-fill abort failed", it) }
         }
         open.clear()

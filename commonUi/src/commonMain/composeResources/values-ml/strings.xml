@@ -23,6 +23,10 @@
     <string name="downloads_none_title">ഇതുവരെ ഡൗൺലോഡുകളൊന്നുമില്ല</string>
     <string name="downloads_none_message">ഡൗൺലോഡ് ചെയ്ത പാട്ടുകളും വീഡിയോകളും ഓഫ്‌ലൈനായി പ്ലേ ചെയ്യാം.</string>
     <string name="downloads_failed">ഡൗൺലോഡ് പരാജയപ്പെട്ടു</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Finder-ൽ കാണിക്കുക</string>
+    <string name="menu_reveal_explorer">ഫയൽ എക്സ്പ്ലോററിൽ കാണിക്കുക</string>
+    <string name="menu_reveal_file_manager">ഫയൽ മാനേജറിൽ കാണിക്കുക</string>
     <string name="section_settings">ക്രമീകരണങ്ങൾ</string>
     <string name="section_donate">സംഭാവന ചെയ്യുക</string>
     <string name="section_feedback">ഫീഡ്‌ബാക്ക്</string>
@@ -121,8 +125,6 @@
     <string name="yt_playlist_removed_video">പ്ലേലിസ്റ്റിൽ നിന്ന് %1$s നീക്കം ചെയ്തു</string>
     <string name="cd_add_to_playlist">പ്ലേലിസ്റ്റിലേക്ക് ചേർക്കുക</string>
     <string name="cd_share">പങ്കിടുക</string>
-    <string name="cd_music_video">സംഗീതം</string>
-    <string name="cd_album">ആൽബം</string>
     <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
     <string name="a11y_kind_video">വീഡിയോ</string>
     <string name="a11y_kind_music_video">മ്യൂസിക് വീഡിയോ</string>
@@ -144,6 +146,12 @@
         <item quantity="one">%1$d സെക്കൻഡ്</item>
         <item quantity="other">%1$d സെക്കൻഡ്</item>
     </plurals>
+    <string name="a11y_now_playing">ഇപ്പോൾ പ്ലേ ചെയ്യുന്നു</string>
+    <string name="a11y_playback_position">പ്ലേബാക്ക് സ്ഥാനം</string>
+    <string name="a11y_x_of_y">%2$s-ൽ %1$s</string>
+    <string name="a11y_behind_live">തത്സമയത്തിൽ നിന്ന് %1$s പിന്നിൽ</string>
+    <string name="a11y_downloaded">ഡൗൺലോഡ് ചെയ്തു</string>
+    <string name="a11y_eq_preamp">പ്രീആമ്പ്</string>
 
     <!-- Library -->
     <string name="library_tab_folders">ഫോൾഡറുകൾ</string>
@@ -384,7 +392,6 @@
     <string name="account_sign_out">സൈൻ ഔട്ട്</string>
     <string name="account_switch">അക്കൗണ്ട് മാറുക</string>
     <string name="switch_account_hint">നിങ്ങൾക്ക് വേണ്ട അക്കൗണ്ട് തിരഞ്ഞെടുക്കുക, തുടർന്ന് ബാക്ക് ആരോ ഉപയോഗിച്ച് ഈ സ്ക്രീൻ അടയ്ക്കുക — ആപ്പ് പുതിയ അക്കൗണ്ടിൽ പുതുക്കും.</string>
-    <string name="cd_account_avatar">അക്കൗണ്ട് ചിത്രം</string>
     <string name="account_my_channel">എന്റെ ചാനൽ</string>
     <string name="account_watch_history">കണ്ട ചരിത്രം</string>
     <string name="account_watch_later">പിന്നീട് കാണുക</string>

@@ -23,6 +23,10 @@
     <string name="downloads_none_title">තවම බාගැනීම් නැත</string>
     <string name="downloads_none_message">බාගත් ගීත සහ වීඩියෝ නොබැඳිව වාදනය වේ.</string>
     <string name="downloads_failed">බාගැනීම අසාර්ථකයි</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Finder තුළ පෙන්වන්න</string>
+    <string name="menu_reveal_explorer">ගොනු ගවේෂකය තුළ පෙන්වන්න</string>
+    <string name="menu_reveal_file_manager">ගොනු කළමනාකරු තුළ පෙන්වන්න</string>
     <string name="section_settings">සැකසීම්</string>
     <string name="section_donate">පරිත්‍යාග කරන්න</string>
     <string name="section_feedback">ප්‍රතිපෝෂණ</string>
@@ -121,8 +125,6 @@
     <string name="yt_playlist_removed_video">%1$s ධාවන ලැයිස්තුවෙන් ඉවත් කරන ලදී</string>
     <string name="cd_add_to_playlist">ධාවන ලැයිස්තුවට එක් කරන්න</string>
     <string name="cd_share">බෙදා ගන්න</string>
-    <string name="cd_music_video">සංගීතය</string>
-    <string name="cd_album">ඇල්බමය</string>
     <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
     <string name="a11y_kind_video">වීඩියෝ</string>
     <string name="a11y_kind_music_video">සංගීත වීඩියෝ</string>
@@ -144,6 +146,12 @@
         <item quantity="one">තත්පර %1$d</item>
         <item quantity="other">තත්පර %1$d</item>
     </plurals>
+    <string name="a11y_now_playing">දැන් වාදනය වේ</string>
+    <string name="a11y_playback_position">වාදන ස්ථානය</string>
+    <string name="a11y_x_of_y">%2$s න් %1$s</string>
+    <string name="a11y_behind_live">සජීවී විකාශයට වඩා %1$s පසුපසින්</string>
+    <string name="a11y_downloaded">බාගත කර ඇත</string>
+    <string name="a11y_eq_preamp">පූර්ව වර්ධකය</string>
 
     <!-- Library -->
     <string name="library_tab_folders">ෆෝල්ඩර</string>
@@ -384,7 +392,6 @@
     <string name="account_sign_out">වරන්න</string>
     <string name="account_switch">ගිණුම මාරු කරන්න</string>
     <string name="switch_account_hint">ඔබට අවශ්‍ය ගිණුම තෝරා, ආපසු ඊතලයෙන් මෙම තිරය වසන්න — යෙදුම නව ගිණුම යටතේ නැවුම් වේ.</string>
-    <string name="cd_account_avatar">ගිණුම් පින්තූරය</string>
     <string name="account_my_channel">මගේ නාලිකාව</string>
     <string name="account_watch_history">නැරඹුම් ඉතිහාසය</string>
     <string name="account_watch_later">පසුව නරඹන්න</string>
