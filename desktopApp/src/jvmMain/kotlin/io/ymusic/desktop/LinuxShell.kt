@@ -92,13 +92,27 @@ internal fun clearAwtPointerAutoGrab() {
         .invoke(null, null)
 }
 
+/** Installed from the .deb, whose menu entry already carries our StartupWMClass. */
+internal val isLinuxDebInstall = System.getProperty("jpackage.app-path")?.startsWith("/opt/") == true
+
 /**
  * GNOME Shell takes window icons only from a .desktop entry matched by StartupWMClass, so a hidden
- * (NoDisplay) entry maps our windows to the logo. Rewritten only when its contents change.
+ * (NoDisplay) entry maps our windows to the logo. Rewritten only when its contents change; a null
+ * [icon] removes it, as a second entry with the same StartupWMClass would compete with the .deb's.
  */
 @WorkerThread
-internal fun installLinuxDesktopEntry(icon: BufferedImage) {
-    val iconFile = File(ymusicDataDir().apply { mkdirs() }, "ymusic.png")
+internal fun syncLinuxDesktopEntry(icon: BufferedImage?) {
+    val iconFile = File(ymusicDataDir(), "ymusic.png")
+    val dataHome = System.getenv("XDG_DATA_HOME")?.takeIf { it.isNotBlank() }?.let(::File)
+        ?: File(System.getProperty("user.home"), ".local/share")
+    val entryFile = File(File(dataHome, "applications"), "io.ymusic.desktop.desktop")
+    if (icon == null) {
+        entryFile.delete()
+        iconFile.delete()
+        return
+    }
+
+    iconFile.parentFile.mkdirs()
     val png = ByteArrayOutputStream().also { ImageIO.write(icon, "png", it) }.toByteArray()
     if (!iconFile.exists() || !iconFile.readBytes().contentEquals(png)) iconFile.writeBytes(png)
 
@@ -114,8 +128,6 @@ internal fun installLinuxDesktopEntry(icon: BufferedImage) {
         |NoDisplay=true
         |
     """.trimMargin()
-    val dataHome = System.getenv("XDG_DATA_HOME")?.takeIf { it.isNotBlank() }?.let(::File)
-        ?: File(System.getProperty("user.home"), ".local/share")
-    val entryFile = File(File(dataHome, "applications").apply { mkdirs() }, "io.ymusic.desktop.desktop")
+    entryFile.parentFile.mkdirs()
     if (!entryFile.exists() || entryFile.readText() != entry) entryFile.writeText(entry)
 }

@@ -355,9 +355,9 @@ fun main(args: Array<String>) {
         if (isLinux) {
             val logo = painterResource(io.ymusic.desktop.resources.Res.drawable.ymusic_logo_dock)
             LaunchedEffect(logo) {
-                val image = logo.rasterize(256)
+                val image = if (isLinuxDebInstall) null else logo.rasterize(256)
                 withContext(Dispatchers.IO) {
-                    runCatching { installLinuxDesktopEntry(image) }
+                    runCatching { syncLinuxDesktopEntry(image) }
                         .onFailure { rootLogger.fork("desktop-entry").log(Logger.Level.WARN, "desktop entry install failed", it) }
                 }
             }
