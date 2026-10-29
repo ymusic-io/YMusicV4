@@ -1485,7 +1485,7 @@ private fun loadWindowPrefs(): Pair<DpSize, WindowPosition> {
         isOnScreen(x, y) -> WindowPosition(x.dp, y.dp)
         else -> WindowPosition.Aligned(Alignment.Center)
     }
-    return size to position
+    return linuxFloatingFrame(size, position)
 }
 
 /** True when a title-bar point of a window at ([x], [y]) lands on some connected screen. */
