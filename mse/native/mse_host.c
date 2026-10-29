@@ -1,6 +1,7 @@
 #include "mse_host.h"
 #include "mse_ffmpeg.h"
 #include "audio_fx.h"
+#include "vpresent.h"
 
 #include <limits.h>
 #include <pthread.h>
@@ -19,11 +20,11 @@
 #define MSE_AQ 1
 #elif defined(_WIN32)
 #include <windows.h>
-#include "mse_d3d11.h"
 #include "aq_winmm.h"
 #define MSE_AQ 1
 #endif
 #ifdef __APPLE__
+#include <TargetConditionals.h>
 #include <mach/mach_time.h>
 #include <os/log.h>
 #include <sys/sysctl.h>
@@ -56,8 +57,7 @@ void mse_host_set_js_event(void (*fn)(const char *name))
 
 struct MseHost {
     pthread_mutex_t mu;
-    pthread_mutex_t frame_mu;
-    /* Guards the av pointer for callers off the JS thread: reset frees and replaces it. */
+    /* Guards the av pointer for callers off the JS thread (reset frees and replaces it), and vp. */
     pthread_mutex_t av_mu;
     pthread_cond_t cv;
     pthread_t dec;
@@ -75,22 +75,19 @@ struct MseHost {
     double seek_base;
     double yt_dur;
     MseAv *av;
-    MseFrameFn on_frame;
+    VPresenter *vp;
+#ifdef __APPLE__
+    /* iOS: the presenter wrapping `window`. av_mu. */
+    VPresenter *layer_vp;
+#endif
     MsePcmFn on_pcm;
     MseProgressFn on_prog;
     void *user;
     void *window;
     int vw;
     int vh;
-    /* JVM hole. Survives mse_host_reset (new MseAv). 0×0 = decode size. */
-    int blit_w;
-    int blit_h;
     /* Atomic, not under mu: the UI thread polls it and must never wait on the decode lock. */
     atomic_int frames;
-    uint8_t *last_bgra; /* borrowed from MseAv ping-pong; do not free */
-    int last_w;
-    int last_h;
-    int frame_gen;
     double vpts;
     int rate;
     int ch;
@@ -777,20 +774,6 @@ static int ring_ms(MseHost *h)
 }
 #endif
 
-/* Decode thread pulls frames; JS thread only appends/seeks. on_frame/on_pcm
-   run on the decode thread. Do not touch MseHost from a third thread. */
-static void keep_bgra(MseHost *h, int w, int ht, uint8_t *bgra)
-{
-    if (!bgra || w <= 0 || ht <= 0)
-        return;
-    pthread_mutex_lock(&h->frame_mu);
-    h->last_bgra = bgra;
-    h->last_w = w;
-    h->last_h = ht;
-    h->frame_gen++;
-    pthread_mutex_unlock(&h->frame_mu);
-}
-
 static void maybe_notify_ended(MseHost *h)
 {
     int playing;
@@ -822,9 +805,7 @@ static void *vid_loop(void *arg)
     MseHost *h = (MseHost *)arg;
     while (1) {
         double clock, dur;
-        uint8_t *bgra = NULL;
-        uint8_t *show = NULL;
-        int w = 0, ht = 0, bw = 0, bh = 0;
+        int w = 0, ht = 0;
         double pts = 0;
         pthread_mutex_lock(&h->mu);
         h->vbusy = 0;
@@ -863,11 +844,7 @@ static void *vid_loop(void *arg)
         clock = host_clock(h);
         dur = mse_av_duration(h->av);
 
-        if (mse_av_pull_video(h->av, clock, &bgra, &bw, &bh, &w, &ht, &pts) > 0) {
-            if (bgra) {
-                keep_bgra(h, bw, bh, bgra);
-                show = bgra;
-            }
+        if (mse_av_pull_video(h->av, clock, &w, &ht, &pts) > 0) {
             pthread_mutex_lock(&h->mu);
             h->vw = w;
             h->vh = ht;
@@ -876,8 +853,6 @@ static void *vid_loop(void *arg)
             atomic_fetch_add_explicit(&h->frames, 1, memory_order_relaxed);
         }
 
-        if (show && h->on_frame)
-            h->on_frame(h->user, bw, bh, show);
         if (h->on_prog)
             h->on_prog(h->user, clock, dur, w, ht);
         maybe_notify_ended(h);
@@ -1170,7 +1145,6 @@ MseHost *mse_host_create(void)
     if (!h)
         return NULL;
     pthread_mutex_init(&h->mu, NULL);
-    pthread_mutex_init(&h->frame_mu, NULL);
     pthread_mutex_init(&h->av_mu, NULL);
     pthread_cond_init(&h->cv, NULL);
     h->av = mse_av_create();
@@ -1182,7 +1156,6 @@ MseHost *mse_host_create(void)
         free(h);
         return NULL;
     }
-    mse_av_set_present_owner(h->av, h);
 #ifdef __APPLE__
     g_ios_host = h;
 #endif
@@ -1260,6 +1233,10 @@ static void wait_idle(MseHost *h)
 
 void mse_host_destroy(MseHost *h)
 {
+    VPresenter *vp;
+#ifdef __APPLE__
+    VPresenter *layer_vp;
+#endif
     if (!h)
         return;
     pthread_mutex_lock(&h->mu);
@@ -1301,37 +1278,66 @@ void mse_host_destroy(MseHost *h)
         ANativeWindow_release((ANativeWindow *)h->window);
     h->window = NULL;
 #endif
-#ifdef __APPLE__
-    mse_av_set_window(h->av, NULL);
-    if (h->window) {
-        mse_vt_detach(h->window);
-        h->window = NULL;
-    }
-#endif
-#ifdef _WIN32
-    mse_d3d11_present_detach(h);
-#endif
-    pthread_mutex_lock(&h->frame_mu);
-    h->last_bgra = NULL;
-    h->last_w = 0;
-    h->last_h = 0;
-    pthread_mutex_unlock(&h->frame_mu);
     pthread_mutex_lock(&h->av_mu);
+    vp = h->vp;
+    h->vp = NULL;
+#ifdef __APPLE__
+    layer_vp = h->layer_vp;
+    h->layer_vp = NULL;
+    h->window = NULL;
+#endif
     mse_av_destroy(h->av);
     h->av = NULL;
     pthread_mutex_unlock(&h->av_mu);
+    vpresent_unbind(vp, h);
+    vpresent_release(vp);
+#ifdef __APPLE__
+    vpresent_detach(layer_vp);
+    vpresent_release(layer_vp);
+#endif
     audio_fx_destroy(h->fx);
     free(h->fx_pcm);
-    pthread_mutex_destroy(&h->frame_mu);
     pthread_mutex_destroy(&h->av_mu);
     pthread_mutex_destroy(&h->mu);
     pthread_cond_destroy(&h->cv);
     free(h);
 }
 
+void mse_host_bind_presenter(MseHost *h, VPresenter *p)
+{
+    VPresenter *old;
+    if (!h)
+        return;
+    /* Before the decoder sees it, so its first frame is not dropped. */
+    vpresent_bind(p, h);
+    vpresent_retain(p);
+    pthread_mutex_lock(&h->av_mu);
+    old = h->vp;
+    h->vp = p;
+    mse_av_set_presenter(h->av, p, h);
+    pthread_mutex_unlock(&h->av_mu);
+    if (old != p)
+        vpresent_unbind(old, h);
+    vpresent_release(old);
+}
+
+/* A reference to the bound presenter, or NULL. */
+static VPresenter *host_presenter(MseHost *h)
+{
+    VPresenter *vp;
+    pthread_mutex_lock(&h->av_mu);
+    vp = h->vp;
+    vpresent_retain(vp);
+    pthread_mutex_unlock(&h->av_mu);
+    return vp;
+}
+
 void mse_host_set_video_surface(MseHost *h, void *window)
 {
     void *old;
+#ifdef __APPLE__
+    VPresenter *p = NULL, *old_vp;
+#endif
     if (!h)
         return;
     pthread_mutex_lock(&h->mu);
@@ -1345,41 +1351,34 @@ void mse_host_set_video_surface(MseHost *h, void *window)
     if (old)
         ANativeWindow_release((ANativeWindow *)old);
 #elif defined(__APPLE__)
+    if (window == old)
+        return;
+    if (window) {
+        p = vpresent_create_vt_layer(window, NULL);
+        if (!p)
+            mse_critf(MSE_LOG_WARN, "mse-v no presenter for layer %p", window);
+    }
     pthread_mutex_lock(&h->av_mu);
-    mse_av_set_window(h->av, window);
+    old_vp = h->layer_vp;
+    h->layer_vp = p;
     pthread_mutex_unlock(&h->av_mu);
-    if (old && old != window)
-        mse_vt_detach(old);
+    mse_host_bind_presenter(h, p);
+    vpresent_detach(old_vp);
+    vpresent_release(old_vp);
 #else
     (void)window;
     (void)old;
 #endif
 }
 
-void mse_host_set_sinks(MseHost *h, MseFrameFn on_frame, MsePcmFn on_pcm, MseProgressFn on_prog, void *user)
+void mse_host_set_sinks(MseHost *h, MsePcmFn on_pcm, MseProgressFn on_prog, void *user)
 {
     if (!h)
         return;
     pthread_mutex_lock(&h->mu);
-    h->on_frame = on_frame;
     h->on_pcm = on_pcm;
     h->on_prog = on_prog;
     h->user = user;
-    pthread_mutex_unlock(&h->mu);
-}
-
-void mse_host_set_blit_size(MseHost *h, int w, int ht)
-{
-    if (!h)
-        return;
-    if (w < 0)
-        w = 0;
-    if (ht < 0)
-        ht = 0;
-    pthread_mutex_lock(&h->mu);
-    h->blit_w = w;
-    h->blit_h = ht;
-    mse_av_set_blit_size(h->av, w, ht);
     pthread_mutex_unlock(&h->mu);
 }
 
@@ -1581,20 +1580,14 @@ void mse_host_reset(MseHost *h)
     ring_flush(h);
 #endif
     h->vpts = -1;
-    pthread_mutex_lock(&h->frame_mu);
-    h->last_bgra = NULL;
-    h->last_w = 0;
-    h->last_h = 0;
-    pthread_mutex_unlock(&h->frame_mu);
     pthread_mutex_lock(&h->av_mu);
     mse_av_destroy(h->av);
     h->av = mse_av_create();
-    mse_av_set_present_owner(h->av, h);
-    /* MediaSource reset drops MseAv (and mc_win / VT layer / blit size).
-       Keep the attached window so AV1/MediaCodec can open after load.
-       Keep the hole so 4K does not sws 3840×2160 (log28 hole=0x0, ~1 fps). */
+    /* The new MseAv keeps the window (Android: MediaCodec opens after load) and the presenter. */
+#ifdef __ANDROID__
     mse_av_set_window(h->av, h->window);
-    mse_av_set_blit_size(h->av, h->blit_w, h->blit_h);
+#endif
+    mse_av_set_presenter(h->av, h->vp, h);
     pthread_mutex_unlock(&h->av_mu);
     pthread_cond_broadcast(&h->cv);
     pthread_mutex_unlock(&h->mu);
@@ -1739,29 +1732,17 @@ int mse_host_video_size(MseHost *h, int *w, int *ht)
 
 int mse_host_copy_frame(MseHost *h, uint8_t *dst, int cap, int *w, int *ht, int *gen)
 {
+    VPresenter *vp;
     int n;
     if (!h)
         return 0;
-    pthread_mutex_lock(&h->frame_mu);
-    if (!h->last_bgra || h->last_w <= 0 || h->last_h <= 0) {
-        pthread_mutex_unlock(&h->frame_mu);
-        return 0;
-    }
-    if ((uint64_t)h->last_w * (uint64_t)h->last_h > (uint64_t)(INT_MAX / 4)) {
-        pthread_mutex_unlock(&h->frame_mu);
-        return 0;
-    }
-    n = h->last_w * h->last_h * 4;
-    if (w)
-        *w = h->last_w;
-    if (ht)
-        *ht = h->last_h;
+    vp = host_presenter(h);
+    /* Little-endian XRGB ints are BGRA bytes. */
+    n = vpresent_snapshot(vp, (uint32_t *)dst, dst && cap > 0 ? cap / 4 : 0, w, ht);
+    vpresent_release(vp);
     if (gen)
-        *gen = h->frame_gen;
-    if (dst && cap >= n)
-        memcpy(dst, h->last_bgra, (size_t)n);
-    pthread_mutex_unlock(&h->frame_mu);
-    return n;
+        *gen = atomic_load(&h->frames);
+    return n > 0 && n <= INT_MAX / 4 ? n * 4 : 0;
 }
 
 int mse_host_video_failure(MseHost *h, char *out, int cap)
@@ -1985,6 +1966,13 @@ int mse_host_append(MseHost *h, int audio, const uint8_t *p, int n, double ts_of
     return r.n >= 0 ? 1 : 0;
 }
 
+static void show_black(MseHost *h)
+{
+    VPresenter *vp = host_presenter(h);
+    vpresent_flush(vp, h);
+    vpresent_release(vp);
+}
+
 void mse_host_remove(MseHost *h, int audio, double start, double end)
 {
     double pairs[2];
@@ -1994,27 +1982,7 @@ void mse_host_remove(MseHost *h, int audio, double start, double end)
     mse_av_remove(h->av, audio, start, end);
     /* Audio-only (or a full video wipe) — stop showing the last decoded frame. */
     if (!audio && mse_av_buffered(h->av, 0, pairs, 1) <= 0) {
-        uint8_t *black = NULL;
-        int w = 0, ht = 0;
-        pthread_mutex_lock(&h->frame_mu);
-        if (h->last_bgra && h->last_w > 0 && h->last_h > 0 &&
-            (uint64_t)h->last_w * (uint64_t)h->last_h <= (uint64_t)(INT_MAX / 4)) {
-            memset(h->last_bgra, 0, (size_t)h->last_w * (size_t)h->last_h * 4);
-            black = h->last_bgra;
-            w = h->last_w;
-            ht = h->last_h;
-            h->frame_gen++;
-        }
-        pthread_mutex_unlock(&h->frame_mu);
-        if (black) {
-            if (h->on_frame)
-                h->on_frame(h->user, w, ht, black);
-        }
-        pthread_mutex_lock(&h->frame_mu);
-        h->last_bgra = NULL;
-        h->last_w = 0;
-        h->last_h = 0;
-        pthread_mutex_unlock(&h->frame_mu);
+        show_black(h);
         pthread_mutex_lock(&h->mu);
         h->vw = 0;
         h->vh = 0;
@@ -2032,30 +2000,6 @@ void mse_host_change_type(MseHost *h, int audio)
 {
     if (h)
         mse_av_change_type(h->av, audio);
-}
-
-static void show_black(MseHost *h)
-{
-    uint8_t *black = NULL;
-    int w = 0, ht = 0;
-    if (!h)
-        return;
-    pthread_mutex_lock(&h->frame_mu);
-    if (!h->last_bgra || h->last_w <= 0 || h->last_h <= 0) {
-        pthread_mutex_unlock(&h->frame_mu);
-        return;
-    }
-    memset(h->last_bgra, 0, (size_t)h->last_w * (size_t)h->last_h * 4);
-    w = h->last_w;
-    ht = h->last_h;
-    black = h->last_bgra;
-    if (black)
-        h->frame_gen++;
-    pthread_mutex_unlock(&h->frame_mu);
-    if (!black)
-        return;
-    if (h->on_frame)
-        h->on_frame(h->user, w, ht, black);
 }
 
 void mse_host_rest_video(MseHost *h, int on)

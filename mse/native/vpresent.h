@@ -32,6 +32,8 @@ typedef struct {
     void (*on_frame)(void *user, int w, int h, const uint8_t *bgra);
     /* Any thread, never under mu. */
     void (*on_mode)(void *user, int mode);
+    /* The presenter is freed: the sink's last call. Not called when the create fails. */
+    void (*release)(void *user);
     void *user;
 } VpSink;
 
@@ -39,6 +41,20 @@ VPresenter *vpresent_create_cpu(const VpSink *s);
 #ifdef _WIN32
 /* A swapchain on the HWND; NULL when D3D11 cannot present there. */
 VPresenter *vpresent_create_d3d11(void *hwnd, const VpSink *s);
+#endif
+#ifdef __APPLE__
+/* Shows into a borrowed AVSampleBufferDisplayLayer (iOS: the Kotlin-owned one); never releases it. */
+VPresenter *vpresent_create_vt_layer(void *layer, const VpSink *s);
+/* macOS JVM (mse_vt_present.m): its own layer in an NSView over the JAWT Canvas (JNIEnv *env,
+   jobject canvas); NULL when JAWT gives no surface. Turns CPU if the view cannot be installed. */
+VPresenter *vpresent_create_vt_overlay(void *env, void *canvas, const VpSink *s);
+/* Overlay presenters only: the Canvas screen rect (AWT y-down), and hiding the view (the
+   unhide waits for the next presented frame). No-ops for other presenters. */
+void vpresent_vt_layout(VPresenter *p, int x, int y, int w, int h);
+void vpresent_vt_set_hidden(VPresenter *p, int hidden);
+/* VT presenters: mse_vt_picture_ok / mse_vt_resume_presents on its layer. */
+int vpresent_vt_picture_ok(VPresenter *p);
+void vpresent_vt_resume(VPresenter *p);
 #endif
 void vpresent_retain(VPresenter *p);
 void vpresent_release(VPresenter *p);
@@ -58,7 +74,8 @@ int vpresent_show_frame(VPresenter *p, const void *engine, const struct AVFrame 
 int vpresent_show_cvpb(VPresenter *p, const void *engine, void *cvpb, VpColor c);
 #endif
 void vpresent_flush(VPresenter *p, const void *engine);
-/* Last CPU picture as XRGB pixels; returns its pixel count, copies only when it fits cap_px. */
+/* Last picture as XRGB pixels (CPU mode, or a GPU kind that reads its picture back); returns its
+   pixel count, copies only when it fits cap_px. */
 int vpresent_snapshot(VPresenter *p, uint32_t *xrgb, int cap_px, int *w, int *h);
 
 /* Frame tags first, then the stream's; untagged is BT.709 above 576 lines, else BT.601. The

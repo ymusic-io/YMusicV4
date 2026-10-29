@@ -309,10 +309,14 @@ int vp_cpu_convert(VpCpu *c, const AVFrame *f, VpColor col, int fit_w, int fit_h
     if (!c || !f || !bgra || !w || !h || f->width <= 0 || f->height <= 0)
         return -1;
 #ifdef __APPLE__
-    /* GPU-scales on the VT surface; falls back to the download below. */
-    if (f->format == AV_PIX_FMT_VIDEOTOOLBOX && f->data[3] &&
-        blit_cvpb(c, f->data[3], fit_w, fit_h, bgra, w, h) == 0)
-        return 0;
+    /* GPU-scales on the VT surface; falls back to a download, or for a session picture (no
+       frames context) to its planes. */
+    if (f->format == AV_PIX_FMT_VIDEOTOOLBOX && f->data[3]) {
+        if (!f->hw_frames_ctx)
+            return vp_cpu_convert_cvpb(c, f->data[3], col, fit_w, fit_h, bgra, w, h);
+        if (blit_cvpb(c, f->data[3], fit_w, fit_h, bgra, w, h) == 0)
+            return 0;
+    }
 #endif
     if (f->hw_frames_ctx) {
         sw = download(c, f);

@@ -91,7 +91,15 @@ void vpresent_release(VPresenter *p)
     vp_cpu_destroy(p->cpu);
     pthread_mutex_destroy(&p->mu);
     pthread_mutex_destroy(&p->present_mu);
+    if (p->sink.release)
+        p->sink.release(p->sink.user);
     free(p);
+}
+
+void vp_discard(VPresenter *p)
+{
+    p->sink.release = NULL;
+    vpresent_release(p);
 }
 
 void vpresent_detach(VPresenter *p)
@@ -240,12 +248,16 @@ void vpresent_flush(VPresenter *p, const void *engine)
 
 int vpresent_snapshot(VPresenter *p, uint32_t *xrgb, int cap_px, int *w, int *h)
 {
-    int n;
+    int mode, n = 0;
     if (!p)
         return 0;
     pthread_mutex_lock(&p->present_mu);
+    mode = atomic_load(&p->mode);
     /* In GPU mode the CPU buffers hold upload scratch, not the picture on screen. */
-    n = atomic_load(&p->mode) == VP_MODE_CPU ? vp_cpu_snapshot(p, xrgb, cap_px, w, h) : 0;
+    if (mode == VP_MODE_CPU)
+        n = vp_cpu_snapshot(p, xrgb, cap_px, w, h);
+    else if (mode == VP_MODE_GPU && p->ops->snapshot)
+        n = p->ops->snapshot(p, xrgb, cap_px, w, h);
     pthread_mutex_unlock(&p->present_mu);
     return n;
 }

@@ -9,8 +9,8 @@ extern "C" {
 #endif
 
 typedef struct MseHost MseHost;
+struct VPresenter;
 
-typedef void (*MseFrameFn)(void *user, int w, int h, const uint8_t *bgra);
 typedef void (*MsePcmFn)(void *user, int rate, int ch, const int16_t *s16, int nbytes);
 typedef void (*MseProgressFn)(void *user, double pos, double dur, int w, int h);
 
@@ -18,13 +18,15 @@ MseHost *mse_host_create(void);
 void mse_host_destroy(MseHost *h);
 /* Function table for QuickJS `__mse*` trampolines. */
 const void *mse_host_vtable(void);
-void mse_host_set_sinks(MseHost *h, MseFrameFn on_frame, MsePcmFn on_pcm, MseProgressFn on_prog, void *user);
+void mse_host_set_sinks(MseHost *h, MsePcmFn on_pcm, MseProgressFn on_prog, void *user);
 /* Host→JS `"event"` pipe. JNI/Apple set this to MseJsEventBridge.fire. */
 void mse_host_set_js_event(void (*fn)(const char *name));
-/* JNI/app: the only host call. JS drives play/pause/currentTime via C trampolines. */
+/* Android: borrowed ANativeWindow. iOS: the Kotlin-owned AVSampleBufferDisplayLayer, shown
+   through a presenter wrapping it. NULL detaches. */
 void mse_host_set_video_surface(MseHost *h, void *window);
-/* JVM desktop: convert/scale dest. 0×0 = decode size. See mse_av_set_blit_size. */
-void mse_host_set_blit_size(MseHost *h, int w, int ht);
+/* Desktop: the presenter video goes to, bound with this host as the token (NULL unbinds). Any
+   thread; the host holds its own reference. */
+void mse_host_bind_presenter(MseHost *h, struct VPresenter *p);
 
 void mse_host_play(MseHost *h);
 void mse_host_pause(MseHost *h);
@@ -60,7 +62,9 @@ int mse_host_dac_poll(MseHost *h, uint8_t *dst, int cap, int wait_ms, int state[
 void mse_host_dac_report(MseHost *h, int gen, int64_t position, int64_t written, int pending, int64_t buffer_us);
 void mse_host_dac_session(MseHost *h, int session);
 #endif
-/* Last decoded BGRA. dst=NULL or cap too small → returns bytes needed (w/h/gen still set). 0 = none. */
+/* The picture on screen as BGRA, when the presenter can read it back (vpresent_snapshot); gen is the
+   presented-frame count. dst=NULL or cap too small → returns bytes needed (w/h/gen still set).
+   0 = none. */
 int mse_host_copy_frame(MseHost *h, uint8_t *dst, int cap, int *w, int *ht, int *gen);
 
 int mse_host_append(MseHost *h, int audio, const uint8_t *p, int n, double ts_off, double win_start, double win_end);
