@@ -43,7 +43,7 @@ if(NOT DEFINED PRODUCTION)
 endif()
 
 set(MSE_SOURCES mse_ffmpeg.c mse_host.c mse_vt.c mse_host_jni.c audio_fx.c audio_fx_jni.c
-  vpresent.c vpresent_cpu.c)
+  vpresent.c vpresent_cpu.c vpipe.c)
 add_library(mseffmpegjni SHARED ${MSE_SOURCES})
 # MinGW on Windows adds a `lib` prefix to shared libs; the JVM loader expects mseffmpegjni.dll
 # (System.mapLibraryName on Windows has no prefix). Drop it so MinGW matches MSVC and the loader.
@@ -106,14 +106,14 @@ elseif(UNIX)
     "-Wl,-rpath,${FFMPEG_ROOT}/lib")
   # libpulse-simple is dlopen'd by aq_pulse.c; only its headers are needed here.
   find_path(PULSE_INCLUDE_DIR pulse/simple.h REQUIRED)
-  target_sources(mseffmpegjni PRIVATE aq_pulse.c mse_hwdev.c)
+  target_sources(mseffmpegjni PRIVATE aq_pulse.c mse_hwdev.c vpipe_hw_linux.c)
   target_include_directories(mseffmpegjni PRIVATE ${PULSE_INCLUDE_DIR})
   target_link_libraries(mseffmpegjni PRIVATE dl m pthread)
 endif()
 
 if(WIN32)
   target_sources(mseffmpegjni PRIVATE
-    mse_d3d11.c mse_d3d11_dec.c vpresent_d3d11.c
+    mse_d3d11.c mse_d3d11_dec.c vpresent_d3d11.c vpipe_hw_d3d11.c
     aq_winmm.c)
   # d3dcompiler.lib runtime-compiles the NV12 shader; dxguid.lib provides IID_* GUID symbols.
   # winmm.lib is waveOut* for aq_winmm (file_av AudioQueue shim on Windows).
@@ -123,7 +123,7 @@ endif()
 
 if(APPLE)
   target_sources(mseffmpegjni PRIVATE
-    mse_vt_present.m mse_vt_layer.m mse_vt_dec.m mse_vt_blit.c vpresent_vt.c)
+    mse_vt_present.m mse_vt_layer.m mse_vt_dec.m mse_vt_blit.c vpresent_vt.c vpipe_hw_vt.c)
   set_source_files_properties(mse_vt_present.m mse_vt_layer.m mse_vt_dec.m PROPERTIES COMPILE_FLAGS "-fobjc-arc")
   # JAWT is dlopen'd at runtime (System.loadLibrary("jawt")). Do not link libjawt:
   # its install name is @rpath/libjawt.dylib and the JVM, not this DSO, owns that rpath.
