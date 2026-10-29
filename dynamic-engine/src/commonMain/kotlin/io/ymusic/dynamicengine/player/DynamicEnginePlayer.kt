@@ -287,7 +287,7 @@ class DynamicEnginePlayer private constructor(
             token
         }
 
-    /** Android TextureView [Surface]; JVM Swing hole attaches via [MseVideoSurface.attach]. */
+    /** Android TextureView surface, iOS layer. The JVM binds the surface's presenter when its host is set. */
     fun setVideoSurface(surface: MseVideoSurface?) {
         nativeMse?.setVideoSurface(surface)
     }

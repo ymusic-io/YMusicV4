@@ -105,8 +105,9 @@ import io.ymusic.mediascanner.MediaScanner
 import io.ymusic.mediastore.BetterMediaStore
 import io.ymusic.mediastore.mediaStoreJdbcDriver
 import io.ymusic.mediastore.model.BucketDraft
+import io.ymusic.mse.DesktopVideoSurface
 import io.ymusic.mse.FileAvNative
-import io.ymusic.mse.MseHostNative
+import io.ymusic.mse.PresentMode
 import io.ymusic.player.LocalPlayerContext
 import io.ymusic.player.LocalVideoSurface
 import io.ymusic.player.PlaybackStatus
@@ -851,7 +852,7 @@ private suspend fun buildGraph(settings: AppStoreSettings, session: CookieSessio
     ).also { loaderRef = it }
 
     val localSurface = LocalVideoSurface()
-    val mseSurface = io.ymusic.mse.MseVideoSurface()
+    val mseSurface = io.ymusic.mse.MseVideoSurface(DesktopVideoSurface())
 
     // Player cache: SABR miss is forwarded and teed to disk so re-plays/downloads reuse it.
     // The player cache; shared read-only with the download stack so a download reuses segments already
@@ -1103,18 +1104,16 @@ private fun wirePlayerSurfacesOnce(
             SwingUtilities.invokeLater { VideoOverlayNative.poke() }
         }
     }
-    sharedMsePanel.onPainted = { mseSurface.swingShown = it }
-    mseSurface.swingBlit = { sharedMsePanel.setImage(it) }
-    sharedMsePanel.onPeer = { c ->
-        mseSurface.nativePeer = c
-        sharedMsePanel.setHardware(mseSurface.attach(c))
-        if (sharedMsePanel.covered) FileAvNative.setOverlayHidden(true)
+    val mseVideo = mseSurface.video
+    sharedMsePanel.video = mseVideo
+    sharedMsePanel.onPainted = { mseVideo.painting = it }
+    mseVideo.onCpuFrame = { sharedMsePanel.setImage(it) }
+    sharedMsePanel.onPeer = { mseVideo.setCanvas(it) }
+    panelSwapScope.launch {
+        mseVideo.mode.collect { mode ->
+            SwingUtilities.invokeLater { sharedMsePanel.setHardware(mode == PresentMode.GPU) }
+        }
     }
-    sharedMsePanel.extraSnapshot = {
-        val frame = MseHostNative.copyFrame(mseSurface.host)
-        if (frame == null) null else bgraToRgb(frame.width, frame.height, frame.bgra)
-    }
-    mseSurface.onNativePresent = { sharedMsePanel.setHardware(it) }
     sharedLocalPanel.onPainted = { localSurface.swingShown = it }
     localSurface.swingBlit = { sharedLocalPanel.setImage(it) }
     sharedLocalPanel.onPeer = { localSurface.nativePeer = it }
@@ -1235,6 +1234,9 @@ private class MseVideoPanel : JPanel(BorderLayout()) {
 
     @Volatile var onPeer: ((Canvas?) -> Unit)? = null
 
+    /** The presenter surface of this Canvas: overlay layout, hiding and stills go through it when set. */
+    @Volatile var video: DesktopVideoSurface? = null
+
     @Volatile var extraSnapshot: (() -> BufferedImage?)? = null
     private val pending = java.util.concurrent.atomic.AtomicBoolean(false)
     private var overlayX = Int.MIN_VALUE
@@ -1341,13 +1343,19 @@ private class MseVideoPanel : JPanel(BorderLayout()) {
         overlayY = loc.y
         overlayW = canvas.width
         overlayH = canvas.height
-        FileAvNative.layoutVideo(loc.x, loc.y, canvas.width, canvas.height)
+        val v = video
+        if (v != null) {
+            v.layout(loc.x, loc.y, canvas.width, canvas.height)
+        } else {
+            FileAvNative.layoutVideo(loc.x, loc.y, canvas.width, canvas.height)
+        }
     }
 
     override fun contains(x: Int, y: Int): Boolean = false
 
     fun captureStill(): BufferedImage? {
         img?.let { return copyRgb(it) }
+        video?.let { return it.snapshot() }
         val wh = IntArray(2)
         val bgra = FileAvNative.snapshotOverlay(wh)
         if (bgra != null && wh[0] > 0 && wh[1] > 0) return bgraToRgb(wh[0], wh[1], bgra)
@@ -1355,17 +1363,22 @@ private class MseVideoPanel : JPanel(BorderLayout()) {
         return null
     }
 
+    private fun setOverlayHidden(hidden: Boolean) {
+        val v = video
+        if (v != null) v.setOverlayHidden(hidden) else FileAvNative.setOverlayHidden(hidden)
+    }
+
     fun setCovered(covered: Boolean) {
         if (this.covered == covered) return
         this.covered = covered
         if (covered) {
             val snap = captureStill()
-            FileAvNative.setOverlayHidden(true)
+            setOverlayHidden(true)
             hardware = false
             img = snap
             canvas.repaint()
         } else {
-            FileAvNative.setOverlayHidden(false)
+            setOverlayHidden(false)
             hardware = nativeLive
             if (nativeLive) img = null
             overlayX = Int.MIN_VALUE

@@ -2,7 +2,6 @@
 #include "mse_ffmpeg.h"
 
 #include <jni.h>
-#include <limits.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -10,12 +9,8 @@
 typedef struct {
     JavaVM *jvm;
     jobject sink;
-    jmethodID onFrame;
     jmethodID onPcm;
     jmethodID onProgress;
-    jobject direct[2];
-    const uint8_t *direct_ptr[2];
-    int direct_n[2];
 } JniSink;
 
 static JavaVM *g_jvm;
@@ -140,55 +135,6 @@ static JNIEnv *sink_env(JniSink *s)
         return env;
     (*s->jvm)->AttachCurrentThread(s->jvm, (void **)&env, NULL);
     return env;
-}
-
-static jobject direct_for(JNIEnv *env, JniSink *s, const uint8_t *bgra, int n)
-{
-    jobject local;
-    int i, empty = -1;
-    for (i = 0; i < 2; i++) {
-        if (s->direct[i] && s->direct_ptr[i] == bgra && s->direct_n[i] >= n)
-            return s->direct[i];
-        if (!s->direct[i] && empty < 0)
-            empty = i;
-    }
-    i = empty >= 0 ? empty : 0;
-    if (s->direct[i]) {
-        (*env)->DeleteGlobalRef(env, s->direct[i]);
-        s->direct[i] = NULL;
-        s->direct_ptr[i] = NULL;
-        s->direct_n[i] = 0;
-    }
-    local = (*env)->NewDirectByteBuffer(env, (void *)bgra, (jlong)n);
-    if (!local)
-        return NULL;
-    s->direct[i] = (*env)->NewGlobalRef(env, local);
-    (*env)->DeleteLocalRef(env, local);
-    if (!s->direct[i])
-        return NULL;
-    s->direct_ptr[i] = bgra;
-    s->direct_n[i] = n;
-    return s->direct[i];
-}
-
-static void on_frame(void *user, int w, int h, const uint8_t *bgra)
-{
-    JniSink *s = (JniSink *)user;
-    JNIEnv *env;
-    jobject buf;
-    int n;
-    if (!s || !bgra || w <= 0 || h <= 0)
-        return;
-    env = sink_env(s);
-    if (!env)
-        return;
-    if ((uint64_t)w * (uint64_t)h > (uint64_t)(INT_MAX / 4))
-        return;
-    n = w * h * 4;
-    buf = direct_for(env, s, bgra, n);
-    if (!buf)
-        return;
-    (*env)->CallVoidMethod(env, s->sink, s->onFrame, w, h, buf);
 }
 
 static void on_pcm(void *user, int rate, int ch, const int16_t *s16, int nbytes)
@@ -359,10 +305,9 @@ Java_io_ymusic_mse_MseHostNative_setSink(JNIEnv *env, jclass cls, jlong handle, 
     (*env)->GetJavaVM(env, &s->jvm);
     s->sink = (*env)->NewGlobalRef(env, sink);
     sc = (*env)->GetObjectClass(env, sink);
-    s->onFrame = (*env)->GetMethodID(env, sc, "onFrame", "(IILjava/nio/ByteBuffer;)V");
     s->onPcm = (*env)->GetMethodID(env, sc, "onPcm", "(II[B)V");
     s->onProgress = (*env)->GetMethodID(env, sc, "onProgress", "(DDII)V");
-    mse_host_set_sinks(h, on_frame, on_pcm, on_prog, s);
+    mse_host_set_sinks(h, on_pcm, on_prog, s);
 }
 
 JNIEXPORT jint JNICALL
@@ -407,14 +352,6 @@ Java_io_ymusic_mse_MseHostNative_copyFrameBytes(JNIEnv *env, jclass cls, jlong h
         (*env)->SetIntArrayRegion(env, meta, 0, 3, m);
     }
     return n;
-}
-
-JNIEXPORT void JNICALL
-Java_io_ymusic_mse_MseHostNative_setBlitSize(JNIEnv *env, jclass cls, jlong handle, jint w, jint ht)
-{
-    (void)env;
-    (void)cls;
-    mse_host_set_blit_size((MseHost *)(intptr_t)handle, w, ht);
 }
 
 JNIEXPORT void JNICALL
@@ -515,55 +452,14 @@ Java_io_ymusic_mse_MseHostNative_videoSize(JNIEnv *env, jclass cls, jlong handle
     return JNI_TRUE;
 }
 
-#ifdef __APPLE__
-#include "mse_vt_present.h"
-
-JNIEXPORT jboolean JNICALL
-Java_io_ymusic_mse_MseHostNative_setVideoComponent(JNIEnv *env, jclass cls, jlong handle, jobject component)
-{
-    MseHost *h = (MseHost *)(intptr_t)handle;
-    void *layer = NULL;
-    (void)cls;
-    if (!h)
-        return JNI_FALSE;
-    if (component)
-        layer = mse_vt_attach_component(env, component, h);
-    mse_host_set_video_surface(h, layer);
-    return layer ? JNI_TRUE : JNI_FALSE;
-}
-#elif defined(_WIN32)
-#include "mse_d3d11.h"
-
-JNIEXPORT jboolean JNICALL
-Java_io_ymusic_mse_MseHostNative_setVideoComponent(JNIEnv *env, jclass cls, jlong handle, jobject component)
-{
-    MseHost *h = (MseHost *)(intptr_t)handle;
-    HWND hwnd = NULL;
-    int ok = 0;
-    (void)cls;
-    if (!h)
-        return JNI_FALSE;
-    if (component) {
-        hwnd = mse_d3d11_jawt_hwnd(env, component);
-        if (hwnd)
-            ok = mse_d3d11_present_attach(hwnd, h);
-    } else {
-        mse_d3d11_present_detach(h);
-    }
-    return ok ? JNI_TRUE : JNI_FALSE;
-}
-#else
 #ifndef __ANDROID__
-JNIEXPORT jboolean JNICALL
-Java_io_ymusic_mse_MseHostNative_setVideoComponent(JNIEnv *env, jclass cls, jlong handle, jobject component)
+JNIEXPORT void JNICALL
+Java_io_ymusic_mse_MseHostNative_bindPresenter(JNIEnv *env, jclass cls, jlong handle, jlong presenter)
 {
     (void)env;
     (void)cls;
-    (void)handle;
-    (void)component;
-    return JNI_FALSE;
+    mse_host_bind_presenter((MseHost *)(intptr_t)handle, (struct VPresenter *)(intptr_t)presenter);
 }
-#endif
 #endif
 
 #ifdef __ANDROID__

@@ -2,15 +2,12 @@ package io.ymusic.mse
 
 import androidx.annotation.Keep
 import java.io.File
-import java.nio.ByteBuffer
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
 
 interface MseHostSink {
-    @Keep fun onFrame(width: Int, height: Int, bgra: ByteBuffer)
-
     @Keep fun onPcm(rate: Int, channels: Int, s16: ByteArray)
 
     @Keep fun onProgress(positionSec: Double, durationSec: Double, width: Int, height: Int)
@@ -61,9 +58,9 @@ actual object MseHostNative {
     @JvmStatic
     external fun videoSize(handle: Long, outWh: IntArray): Boolean
 
-    /** 0×0 = decode size. Downscale-only letterbox fit when both > 0. */
+    /** Video goes to [presenter] (a `VideoPresenterNative` handle, 0 = none), bound with the host as the token. */
     @JvmStatic
-    external fun setBlitSize(handle: Long, width: Int, height: Int)
+    external fun bindPresenter(handle: Long, presenter: Long)
 
     @JvmStatic
     actual external fun setVolume(handle: Long, vol: Float)
@@ -87,10 +84,6 @@ actual object MseHostNative {
 
     @JvmStatic
     actual external fun pcmLevels(handle: Long, out: FloatArray): Int
-
-    /** macOS: overlay VideoToolbox on [component] via JAWT. Other JVMs return false. */
-    @JvmStatic
-    external fun setVideoComponent(handle: Long, component: java.awt.Component?): Boolean
 
     private fun loadLibrary() {
         if (!loaded.compareAndSet(false, true)) return
