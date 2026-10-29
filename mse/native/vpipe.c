@@ -438,9 +438,10 @@ static int decode_error(VPipe *vp, int err, int at)
 {
     const char *name = vp->cur.name;
     enum AVCodecID id = vp->par->codec_id;
-    if (vp->errs++ == 0 && !(vp->cur.hw && err == AVERROR(ENOSYS)))
-        mse_critf(MSE_LOG_WARN, "vpipe %s %s decode error: %s", tag(vp), name, av_err2str(err));
+    int first = vp->errs++ == 0;
     if (vp->cur.hw) {
+        if (first && err != AVERROR(ENOSYS))
+            mse_critf(MSE_LOG_WARN, "vpipe %s %s decode error: %s", tag(vp), name, av_err2str(err));
         if (vp->hw->lost && vp->hw->lost())
             return fallback(vp, at, "device lost");
         if (err == AVERROR(ENOSYS) || vp->cur.sw_pick || ++vp->hw_errs >= VP_HW_ERRS) {
@@ -457,6 +458,8 @@ static int decode_error(VPipe *vp, int err, int at)
                   av_err2str(err));
         return reopen_resync(vp);
     }
+    if (first)
+        mse_critf(MSE_LOG_WARN, "vpipe %s %s decode error: %s", tag(vp), name, av_err2str(err));
     if (vp->errs < VP_SW_ERRS)
         return err;
     if (vp->err_reopens >= VP_SW_REOPENS)
