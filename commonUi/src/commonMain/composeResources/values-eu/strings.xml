@@ -627,5 +627,7 @@
     <string name="shortcuts_switch_tabs">Aldatu fitxaz</string>
     <string name="shortcuts_escape">Irten pantaila osotik, edo itxi Orain erreproduzitzen, menua edo leiho gainerakor bat</string>
     <string name="shortcuts_help">Erakutsi laguntza hau</string>
+    <string name="a11y_key_left_bracket">ezkerreko kortxetea</string>
+    <string name="a11y_key_right_bracket">eskuineko kortxetea</string>
     <string name="cd_always_on_top">Beti gainean</string>
 </resources>

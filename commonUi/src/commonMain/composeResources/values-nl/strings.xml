@@ -627,5 +627,7 @@
     <string name="shortcuts_switch_tabs">Tussen tabbladen wisselen</string>
     <string name="shortcuts_escape">Volledig scherm verlaten, of Speelt nu, het menu of een pop-up sluiten</string>
     <string name="shortcuts_help">Deze hulp tonen</string>
+    <string name="a11y_key_left_bracket">vierkant haakje openen</string>
+    <string name="a11y_key_right_bracket">vierkant haakje sluiten</string>
     <string name="cd_always_on_top">Altijd bovenop</string>
 </resources>

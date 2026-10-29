@@ -627,5 +627,7 @@
     <string name="shortcuts_switch_tabs">ट्याब बदल्नुहोस्</string>
     <string name="shortcuts_escape">पूर्ण स्क्रिनबाट बाहिर निस्कनुहोस्, वा प्लेयर स्क्रिन, मेनु वा पप-अप बन्द गर्नुहोस्</string>
     <string name="shortcuts_help">यो सहायता देखाउनुहोस्</string>
+    <string name="a11y_key_left_bracket">बायाँ वर्ग कोष्ठक</string>
+    <string name="a11y_key_right_bracket">दायाँ वर्ग कोष्ठक</string>
     <string name="cd_always_on_top">सधैं माथि</string>
 </resources>

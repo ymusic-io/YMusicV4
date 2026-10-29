@@ -1,32 +1,35 @@
 package io.ymusic.desktop
 
-import androidx.compose.foundation.background
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsFocusedAsState
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.text
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import io.ymusic.ui.DesignColors
+import io.ymusic.ui.DesignSpacing
+import io.ymusic.ui.ElevatedBarDialog
 import io.ymusic.ui.resources.Res
+import io.ymusic.ui.resources.a11y_key_left_bracket
+import io.ymusic.ui.resources.a11y_key_right_bracket
 import io.ymusic.ui.resources.cd_back
 import io.ymusic.ui.resources.cd_close
 import io.ymusic.ui.resources.cd_forward10
@@ -63,40 +66,48 @@ internal fun ShortcutsHelpDialog(onDismiss: () -> Unit) {
         "Esc Esc" to Res.string.cd_back,
         "F1" to Res.string.shortcuts_help,
     )
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.cd_close)) } },
-        title = { Text(stringResource(Res.string.shortcuts_title)) },
-        text = {
-            Column(Modifier.widthIn(min = 320.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                rows.forEach { (key, label) -> ShortcutRow(key, stringResource(label)) }
+    // Screen readers skip brackets at their default punctuation level.
+    val leftBracket = stringResource(Res.string.a11y_key_left_bracket)
+    val rightBracket = stringResource(Res.string.a11y_key_right_bracket)
+    val scroll = rememberScrollState()
+    ElevatedBarDialog(
+        title = stringResource(Res.string.shortcuts_title),
+        onDismiss = onDismiss,
+        canScrollBackward = scroll.canScrollBackward,
+        canScrollForward = scroll.canScrollForward,
+        buttons = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.cd_close)) } },
+        keyboardNav = true,
+    ) {
+        Column(Modifier.verticalScroll(scroll).padding(vertical = DesignSpacing.Space8)) {
+            rows.forEach { (key, label) ->
+                ShortcutRow(key, key.replace("[", leftBracket).replace("]", rightBracket), stringResource(label))
             }
-        },
-    )
+        }
+    }
 }
 
-/** One Tab stop read as "action, keys". focusable goes before clearAndSetSemantics, which drops later modifiers. */
+/** One focus stop read as "action, keys". focusable goes before clearAndSetSemantics, which drops later modifiers. */
 @Composable
-private fun ShortcutRow(key: String, label: String) {
+private fun ShortcutRow(key: String, spokenKey: String, label: String) {
     val interaction = remember { MutableInteractionSource() }
-    val focused by interaction.collectIsFocusedAsState()
     Row(
         Modifier
             .fillMaxWidth()
-            .clip(MaterialTheme.shapes.small)
-            .background(if (focused) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f) else Color.Transparent)
             .focusable(interactionSource = interaction)
-            .clearAndSetSemantics { text = AnnotatedString("$label, $key") }
-            .padding(horizontal = 6.dp, vertical = 4.dp),
+            .indication(interaction, LocalIndication.current)
+            .clearAndSetSemantics { text = AnnotatedString("$label, $spokenKey") }
+            .padding(horizontal = DesignSpacing.DialogRowHorizontal, vertical = DesignSpacing.DialogRowVertical),
     ) {
         Text(
             key,
-            style = MaterialTheme.typography.bodyMedium.copy(
+            style = TextStyle(
+                fontSize = 15.sp,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.SemiBold,
+                color = DesignColors.Ink,
             ),
             modifier = Modifier.widthIn(min = 110.dp),
         )
-        Text(label, style = MaterialTheme.typography.bodyMedium)
+        Text(label, style = TextStyle(fontSize = 15.sp, color = DesignColors.Ink))
     }
 }

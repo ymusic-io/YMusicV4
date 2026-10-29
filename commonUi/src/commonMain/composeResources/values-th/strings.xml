@@ -619,5 +619,7 @@
     <string name="shortcuts_switch_tabs">สลับแท็บ</string>
     <string name="shortcuts_escape">ออกจากโหมดเต็มหน้าจอ หรือปิดหน้ากำลังเล่น เมนู หรือป๊อปอัป</string>
     <string name="shortcuts_help">แสดงความช่วยเหลือนี้</string>
+    <string name="a11y_key_left_bracket">วงเล็บเหลี่ยมเปิด</string>
+    <string name="a11y_key_right_bracket">วงเล็บเหลี่ยมปิด</string>
     <string name="cd_always_on_top">อยู่ด้านบนเสมอ</string>
 </resources>

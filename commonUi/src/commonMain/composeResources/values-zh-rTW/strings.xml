@@ -619,5 +619,7 @@
     <string name="shortcuts_switch_tabs">切換分頁</string>
     <string name="shortcuts_escape">結束全螢幕，或關閉「現正播放」、選單或彈出式視窗</string>
     <string name="shortcuts_help">顯示此說明</string>
+    <string name="a11y_key_left_bracket">左方括號</string>
+    <string name="a11y_key_right_bracket">右方括號</string>
     <string name="cd_always_on_top">永遠在最上層</string>
 </resources>

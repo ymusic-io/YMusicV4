@@ -635,5 +635,7 @@
     <string name="shortcuts_switch_tabs">מעבר בין כרטיסיות</string>
     <string name="shortcuts_escape">יציאה ממסך מלא, או סגירת המסך המתנגן כעת, התפריט או חלון קופץ</string>
     <string name="shortcuts_help">הצגת העזרה הזו</string>
+    <string name="a11y_key_left_bracket">סוגר מרובע שמאלי</string>
+    <string name="a11y_key_right_bracket">סוגר מרובע ימני</string>
     <string name="cd_always_on_top">תמיד למעלה</string>
 </resources>

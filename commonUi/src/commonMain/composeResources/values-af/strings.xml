@@ -627,5 +627,7 @@
     <string name="shortcuts_switch_tabs">Wissel oortjies</string>
     <string name="shortcuts_escape">Verlaat volskerm, of maak Speel nou, die kieslys of 'n opspringvenster toe</string>
     <string name="shortcuts_help">Wys hierdie hulp</string>
+    <string name="a11y_key_left_bracket">linkerhakie</string>
+    <string name="a11y_key_right_bracket">regterhakie</string>
     <string name="cd_always_on_top">Altyd bo-op</string>
 </resources>

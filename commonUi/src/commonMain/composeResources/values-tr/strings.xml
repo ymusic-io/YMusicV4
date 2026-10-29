@@ -627,5 +627,7 @@
     <string name="shortcuts_switch_tabs">Sekmeler arasında geçiş yap</string>
     <string name="shortcuts_escape">Tam ekrandan çık ya da Şimdi Çalıyor'u, menüyü veya açılır pencereyi kapat</string>
     <string name="shortcuts_help">Bu yardımı göster</string>
+    <string name="a11y_key_left_bracket">sol köşeli parantez</string>
+    <string name="a11y_key_right_bracket">sağ köşeli parantez</string>
     <string name="cd_always_on_top">Her zaman üstte</string>
 </resources>

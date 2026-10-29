@@ -627,5 +627,7 @@
     <string name="shortcuts_switch_tabs">தாவல்களை மாற்று</string>
     <string name="shortcuts_escape">முழுத்திரையிலிருந்து வெளியேறு, அல்லது Now Playing, மெனு அல்லது பாப்-அப்பை மூடு</string>
     <string name="shortcuts_help">இந்த உதவியைக் காட்டு</string>
+    <string name="a11y_key_left_bracket">இடது சதுர அடைப்புக்குறி</string>
+    <string name="a11y_key_right_bracket">வலது சதுர அடைப்புக்குறி</string>
     <string name="cd_always_on_top">எப்போதும் மேலே</string>
 </resources>

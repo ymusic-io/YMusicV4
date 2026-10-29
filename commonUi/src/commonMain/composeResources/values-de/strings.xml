@@ -627,5 +627,7 @@
     <string name="shortcuts_switch_tabs">Tabs wechseln</string>
     <string name="shortcuts_escape">Vollbild beenden oder „Aktuelle Wiedergabe“, das Menü oder ein Pop-up schließen</string>
     <string name="shortcuts_help">Diese Hilfe anzeigen</string>
+    <string name="a11y_key_left_bracket">eckige Klammer auf</string>
+    <string name="a11y_key_right_bracket">eckige Klammer zu</string>
     <string name="cd_always_on_top">Immer im Vordergrund</string>
 </resources>

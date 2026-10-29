@@ -627,5 +627,7 @@
     <string name="shortcuts_switch_tabs">Badilisha vichupo</string>
     <string name="shortcuts_escape">Ondoka kwenye skrini nzima, au funga Inayocheza Sasa, menyu au dirisha ibukizi</string>
     <string name="shortcuts_help">Onyesha usaidizi huu</string>
+    <string name="a11y_key_left_bracket">mabano mraba ya kushoto</string>
+    <string name="a11y_key_right_bracket">mabano mraba ya kulia</string>
     <string name="cd_always_on_top">Juu kila wakati</string>
 </resources>

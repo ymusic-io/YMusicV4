@@ -635,5 +635,7 @@
     <string name="shortcuts_switch_tabs">Canvia de pestanya</string>
     <string name="shortcuts_escape">Surt de la pantalla completa, o tanca Ara sona, el menú o una finestra emergent</string>
     <string name="shortcuts_help">Mostra aquesta ajuda</string>
+    <string name="a11y_key_left_bracket">claudàtor esquerre</string>
+    <string name="a11y_key_right_bracket">claudàtor dret</string>
     <string name="cd_always_on_top">Sempre visible</string>
 </resources>

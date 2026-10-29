@@ -627,5 +627,7 @@
     <string name="shortcuts_switch_tabs">ট্যাব বদলান</string>
     <string name="shortcuts_escape">পূর্ণ স্ক্রিন থেকে বেরোন, অথবা Now Playing, মেনু বা পপ-আপ বন্ধ করুন</string>
     <string name="shortcuts_help">এই সাহায্য দেখান</string>
+    <string name="a11y_key_left_bracket">বাম তৃতীয় বন্ধনী</string>
+    <string name="a11y_key_right_bracket">ডান তৃতীয় বন্ধনী</string>
     <string name="cd_always_on_top">সবসময় উপরে</string>
 </resources>

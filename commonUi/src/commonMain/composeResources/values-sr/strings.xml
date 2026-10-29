@@ -635,5 +635,7 @@
     <string name="shortcuts_switch_tabs">Промени картицу</string>
     <string name="shortcuts_escape">Изађи из целог екрана или затвори „Сада се пушта“, мени или искачући прозор</string>
     <string name="shortcuts_help">Прикажи ову помоћ</string>
+    <string name="a11y_key_left_bracket">лева угласта заграда</string>
+    <string name="a11y_key_right_bracket">десна угласта заграда</string>
     <string name="cd_always_on_top">Увек на врху</string>
 </resources>
