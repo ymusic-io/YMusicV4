@@ -363,16 +363,15 @@ class MsePlayer internal constructor(
         session?.player?.setVideoSurface(surface)
     }
 
-    /** Display hole in CSS pixels. YouTube Auto ABR uses this. Never report a hole shorter than 360. */
+    /**
+     * Display hole in CSS pixels; YouTube Auto ABR uses it × devicePixelRatio. No floor here: base.js
+     * raises the viewport it sends to at least 640x360 real pixels itself.
+     */
     fun setViewport(width: Int, height: Int) {
         requireMainThread()
         if (released) return
-        var holeWidth = width.coerceAtLeast(1)
-        var holeHeight = height.coerceAtLeast(1)
-        if (holeHeight < 360) {
-            holeWidth = (holeWidth * 360.0 / holeHeight).toInt().coerceAtLeast(1)
-            holeHeight = 360
-        }
+        val holeWidth = width.coerceAtLeast(1)
+        val holeHeight = height.coerceAtLeast(1)
         if (holeWidth == viewportW && holeHeight == viewportH) return
         viewportW = holeWidth
         viewportH = holeHeight
