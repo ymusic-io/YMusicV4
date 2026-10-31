@@ -80,9 +80,17 @@ internal class SingleInstance private constructor(
         }, "single-instance").apply { isDaemon = true }.start()
     }
 
-    /** Gives the claim up, so a later launch becomes the instance instead of handing over to this one. */
+    /**
+     * Stops taking handed-over commands while the lock stays held: a launch during the quit wind-down
+     * finds nobody listening and retries until [release], instead of starting a second process on the
+     * same data dir.
+     */
+    fun stopListening() {
+        server.close()
+    }
+
+    /** Gives the claim up, so a later launch becomes the instance. Last thing before the process exits. */
     fun release() {
-        // Listener first: a launch that finds nobody listening retries and claims the freed lock.
         try {
             server.close()
         } finally {
@@ -102,7 +110,8 @@ internal class SingleInstance private constructor(
             val lockFile = File(dir, "instance.lock").toPath()
             val portFile = File(dir, "instance.port")
             var last: IOException? = null
-            // The running instance may still be starting (no port file yet) or quitting (its lock about to free up).
+            // The running instance may still be starting (no port file yet) or quitting (no listener, lock held
+            // until its wind-down ends).
             repeat(HANDOFF_ATTEMPTS) { attempt ->
                 if (attempt > 0) Thread.sleep(HANDOFF_RETRY_MS)
                 val channel = FileChannel.open(lockFile, StandardOpenOption.CREATE, StandardOpenOption.WRITE)
@@ -172,7 +181,8 @@ internal class SingleInstance private constructor(
         }
 
         private const val ASFW_ANY = -1
-        private const val HANDOFF_ATTEMPTS = 20
+        // ~9 s: outlasts a quit's wind-down (save delay + log flush timeout).
+        private const val HANDOFF_ATTEMPTS = 60
         private const val HANDOFF_RETRY_MS = 150L
         private const val HANDOFF_TIMEOUT_MS = 2_000
     }

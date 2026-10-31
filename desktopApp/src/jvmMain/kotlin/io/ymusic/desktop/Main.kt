@@ -378,11 +378,10 @@ fun main(args: Array<String>) {
             if (!frame.fullscreen) {
                 saveWindowPrefs(frame.persistSize(), frame.persistPosition())
             }
-            // A launch during the wind-down below starts a new instance instead of handing over to this one.
             try {
-                instance?.release()
+                instance?.stopListening()
             } catch (e: java.io.IOException) {
-                rootLogger.fork("instance").log(Logger.Level.WARN, "instance release failed", e)
+                rootLogger.fork("instance").log(Logger.Level.WARN, "instance stop listening failed", e)
             }
             windowVisible = false
             graph?.player?.clearQueue()
@@ -397,6 +396,11 @@ fun main(args: Array<String>) {
                 }
                 videoUnderlay.dispose()
                 withTimeoutOrNull(LOG_FLUSH_TIMEOUT) { logWorker.flush() }
+                try {
+                    instance?.release()
+                } catch (e: java.io.IOException) {
+                    rootLogger.fork("instance").log(Logger.Level.WARN, "instance release failed", e)
+                }
                 exitApplication()
             }
         }
