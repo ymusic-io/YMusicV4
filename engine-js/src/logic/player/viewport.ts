@@ -4,16 +4,25 @@
 
 const DEFAULT_W = 640;
 const DEFAULT_H = 360;
+/** Real pixels (CSS × devicePixelRatio): a smaller hole (mini player, PiP) still reports 240p. */
+const MIN_REAL_H = 240;
 
 let viewportW = DEFAULT_W;
 let viewportH = DEFAULT_H;
 
+/** CSS pixels per the floor at the current devicePixelRatio (real after the BotGuard snapshot). */
+function floorScale(): number {
+  const dpr = Number((globalThis as unknown as Record<string, unknown>)["devicePixelRatio"]) || 1;
+  const minCssH = MIN_REAL_H / dpr;
+  return viewportH < minCssH ? minCssH / viewportH : 1;
+}
+
 export function viewportWidth(): number {
-  return viewportW;
+  return Math.round(viewportW * floorScale());
 }
 
 export function viewportHeight(): number {
-  return viewportH;
+  return Math.round(viewportH * floorScale());
 }
 
 /** Missing/invalid values keep the current size (starts at 640×360). */
