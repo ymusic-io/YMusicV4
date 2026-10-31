@@ -4,6 +4,7 @@ import io.sentry.Attachment
 import io.sentry.Breadcrumb
 import io.sentry.Sentry
 import io.sentry.SentryEvent
+import io.sentry.SentryLogEvent
 import io.sentry.SentryOptions
 import kmpcommon.log.Crumb
 import projectcommon.log.FileAttachment
@@ -38,13 +39,23 @@ fun SentryOptions.applyYMusicTelemetry(logRingDir: File) {
     // NOT an event: it has its own pipeline and its own beforeSend, so the consent lock repeats.
     // Lines are held in the ring and leave only with an error event (see sendLogLinesFor).
     logs.isEnabled = true
-    logs.setBeforeSend { log -> if (crashReportingAllowed) log else null }
+    logs.setBeforeSend { log -> if (crashReportingAllowed) log.compact() else null }
     logs.loggerBatchProcessorFactory = errorLogRingFactory(logRingDir)
     // Sessions are the one outbound thing WITHOUT a consent hook, so the option itself is the
     // gate: bindCrashReporting sets the flag from the stored answer BEFORE first init, so this
     // reads the real consent. Decided per launch — a mid-session change applies from the next
     // start, which suits a launch-scoped concept.
     isEnableAutoSessionTracking = crashReportingAllowed
+}
+
+/**
+ * A log line keeps its body, level, timestamp and trace id (the link to its error event); the SDK's
+ * per-line attributes (release, sdk, device, server.address…), span id and severity number go.
+ */
+private fun SentryLogEvent.compact(): SentryLogEvent = apply {
+    attributes = null
+    spanId = null
+    severityNumber = null
 }
 
 /**
