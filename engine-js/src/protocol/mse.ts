@@ -115,10 +115,22 @@ export function decodeCaps(
   return __mseDecodingInfo(mime, width, height, framerate, bitrate);
 }
 
-/** The decoder table has nothing that takes this video codec at any size. */
+/** A numeric mime parameter (`width=1920`); 0 when absent. */
+function mimeParam(mime: string, name: string): number {
+  const found = new RegExp("[;\\s]" + name + '="?([0-9.]+)').exec(mime);
+  return found ? parseFloat(found[1] ?? "") || 0 : 0;
+}
+
+/** The decoder table takes this video codec at no size, or not at the mime's width=/height=. */
 export function decodeTableRejects(mime: string): boolean {
   if (!tableLive || !TABLE_VIDEO.test(mimeCodec(mime))) return false;
-  const bits = decodeCaps(mime, 0, 0, 0, 0);
+  const bits = decodeCaps(
+    mime,
+    mimeParam(mime, "width"),
+    mimeParam(mime, "height"),
+    mimeParam(mime, "framerate"),
+    mimeParam(mime, "bitrate"),
+  );
   return bits >= 0 && (bits & 1) === 0;
 }
 
@@ -803,7 +815,7 @@ class MediaSource {
       }
     }
     if (decodeTableRejects(m)) {
-      console.info("mse isTypeSupported reject " + mimeCodec(m) + ": no decoder");
+      console.info("mse isTypeSupported reject " + m + ": decoder table");
       return false;
     }
     const ok =
