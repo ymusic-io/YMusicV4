@@ -108,6 +108,10 @@ object MseDecoderCaps {
 }
 
 private const val ROW_INTS = 7
+
+/** Software decoding from 720p up costs too much CPU on a phone to call smooth, whatever it claims. */
+private const val SW_NEVER_SMOOTH_SHORT_SIDE = 720
+private const val NEVER_SMOOTH = -1
 private const val H264 = 1
 private const val HEVC = 2
 private const val VP8 = 3
@@ -168,9 +172,8 @@ private class Decoder(
 )
 
 /**
- * The MSE path opens `createDecoderByType`, i.e. the first decoder listed for the type, and falls
- * back to ffmpeg when that one refuses a stream: a hardware decoder listed after another one is never
- * used. Software decoders stay in as the measure of what the CPU sustains.
+ * The MSE path opens `createDecoderByType`, i.e. the first decoder listed for the type, and has no
+ * fallback when that one refuses a stream: any other decoder for the type is never used.
  */
 @WorkerThread
 private fun listDecoders(log: Logger?): List<Decoder> {
@@ -197,7 +200,7 @@ private fun listDecoders(log: Logger?): List<Decoder> {
             val picked = first.getOrPut(mime) { canonical } == canonical
             if (isAlias(info)) continue
             val hw = isHardware(info)
-            out += Decoder(info.name, mime, codec, caps, hw, used = picked || !hw)
+            out += Decoder(info.name, mime, codec, caps, hw, used = picked)
         }
     }
     return out
@@ -239,8 +242,9 @@ private fun performancePointsTrusted(decoders: List<Decoder>, log: Logger?): Boo
 
 /**
  * Adds [d]'s rows to [rows]: per bit depth / chroma pair its profiles reach, the largest size it
- * takes and each smaller one that sustains a higher pixel rate. Returns where the frame rates came
- * from: performance points, the vendor's measured rates (their lower bound), or the declared limits.
+ * takes and each smaller one that sustains a higher pixel rate; a software decoder's sizes from 720p
+ * up are one never-smooth row. Returns where the frame rates came from: performance points, the
+ * vendor's measured rates (their lower bound), or the declared limits.
  */
 private fun decoderRows(d: Decoder, trustPps: Boolean, rows: MutableList<CapRow>): String {
     val vc = d.caps.videoCapabilities ?: return "no video capabilities"
@@ -254,8 +258,13 @@ private fun decoderRows(d: Decoder, trustPps: Boolean, rows: MutableList<CapRow>
     var source = if (pps != null) "pp" else "declared"
     for ((w, h) in SIZES) {
         if (!vc.isSizeSupported(w, h)) continue
+        if (!d.hw && minOf(w, h) >= SW_NEVER_SMOOTH_SHORT_SIDE) {
+            // One supported-only row, the largest size, covers every software size from 720p up.
+            if (sized.isEmpty()) sized += intArrayOf(w, h, NEVER_SMOOTH)
+            continue
+        }
         val measured = if (pps == null) vc.getAchievableFrameRatesFor(w, h) else null
-        if (measured != null && sized.isEmpty()) source = "measured"
+        if (measured != null) source = "measured"
         val fps = RATES.firstOrNull { fps ->
             when {
                 pps != null -> pps.any { it.covers(PerformancePoint(w, h, fps)) }

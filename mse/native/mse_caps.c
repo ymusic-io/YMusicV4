@@ -83,6 +83,9 @@ static void publish(const MseCapRow *rows, int n, const char *source)
             mse_critf(MSE_LOG_INFO, "mse caps %s %s %db %s %dx%d@%.1f", r->hw ? "hw" : "sw",
                       codec_name(r->codec), r->max_bits, chroma_name(r->chroma), r->max_w, r->max_h,
                       r->max_fps);
+        else if (r->max_fps < 0)
+            mse_critf(MSE_LOG_INFO, "mse caps %s %s %db %s %dx%d never smooth", r->hw ? "hw" : "sw",
+                      codec_name(r->codec), r->max_bits, chroma_name(r->chroma), r->max_w, r->max_h);
         else
             mse_critf(MSE_LOG_INFO, "mse caps %s %s %db %s %dx%d", r->hw ? "hw" : "sw",
                       codec_name(r->codec), r->max_bits, chroma_name(r->chroma), r->max_w, r->max_h);
@@ -96,7 +99,7 @@ void mse_caps_set_rows(const int *rows, int n)
     for (i = 0; i < n; i++) {
         const int *v = rows + (size_t)i * MSE_CAP_ROW_INTS;
         if (v[0] < MSE_CAP_H264 || v[0] > MSE_CAP_AV1 || v[1] < 8 || v[2] < MSE_CAP_420 ||
-            v[3] <= 0 || v[4] <= 0 || v[5] < 0) {
+            v[3] <= 0 || v[4] <= 0 || v[5] < -1) {
             mse_critf(MSE_LOG_WARN, "mse caps: row %d rejected codec=%d bits=%d chroma=%d %dx%d@%d", i,
                       v[0], v[1], v[2], v[3], v[4], v[5]);
             continue;
@@ -428,6 +431,8 @@ static int fits_size(const MseCapRow *r, int w, int h)
 
 static int fits_rate(const MseCapRow *r, int w, int h, double fps)
 {
+    if (r->max_fps < 0)
+        return 0;
     if (r->max_fps <= 0 || fps <= 0 || w <= 0 || h <= 0)
         return 1;
     return (double)w * h * fps <= (double)r->max_w * r->max_h * r->max_fps * 1.0001;

@@ -21,7 +21,7 @@ typedef struct MseCapRow {
     int chroma;
     /* Either orientation. */
     int max_w, max_h;
-    /* At max_w x max_h; a smaller picture gets the same pixel rate. 0 = no limit. */
+    /* At max_w x max_h; a smaller picture gets the same pixel rate. 0 = no limit, -1 = never smooth. */
     double max_fps;
     int hw;
 } MseCapRow;
@@ -41,7 +41,7 @@ void mse_caps_start(void);
 int mse_caps_decoding_info(const char *content_type, int w, int h, double fps, double bitrate);
 
 /* Replaces the table with n rows of MSE_CAP_ROW_INTS ints:
-   {codec, max_bits, chroma, max_w, max_h, max_fps (0 = no limit), hw}. */
+   {codec, max_bits, chroma, max_w, max_h, max_fps (0 = no limit, -1 = never smooth), hw}. */
 #define MSE_CAP_ROW_INTS 7
 void mse_caps_set_rows(const int *rows, int n);
 
