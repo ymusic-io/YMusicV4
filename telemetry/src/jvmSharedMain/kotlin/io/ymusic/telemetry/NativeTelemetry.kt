@@ -3,8 +3,10 @@ package io.ymusic.telemetry
 import io.sentry.Attachment
 import io.sentry.Breadcrumb
 import io.sentry.Sentry
+import io.sentry.SentryAttributeType
 import io.sentry.SentryEvent
 import io.sentry.SentryLogEvent
+import io.sentry.SentryLogEventAttributeValue
 import io.sentry.SentryOptions
 import kmpcommon.log.Crumb
 import projectcommon.log.FileAttachment
@@ -18,8 +20,9 @@ import java.util.Date
  * scrubbing: sensitive values (cookie values, SAPISIDHASH) are never put into log lines at the
  * source — names only.
  */
-/** [logRingDir] holds the Sentry Logs lines between errors ([ErrorLogRing]); the app owns the dir. */
-fun SentryOptions.applyYMusicTelemetry(logRingDir: File) {
+/** [logRingDir] holds the Sentry Logs lines between errors ([ErrorLogRing]); the app owns the dir.
+ *  [appVersionCode] goes on every log line. */
+fun SentryOptions.applyYMusicTelemetry(logRingDir: File, appVersionCode: Int) {
     // The KMP options default this on; keep it now that they no longer apply.
     isAttachThreads = true
     maxBreadcrumbs = 200
@@ -39,7 +42,8 @@ fun SentryOptions.applyYMusicTelemetry(logRingDir: File) {
     // NOT an event: it has its own pipeline and its own beforeSend, so the consent lock repeats.
     // Lines are held in the ring and leave only with an error event (see sendLogLinesFor).
     logs.isEnabled = true
-    logs.setBeforeSend { log -> if (crashReportingAllowed) log.compact() else null }
+    val versionCode = SentryLogEventAttributeValue(SentryAttributeType.INTEGER, appVersionCode)
+    logs.setBeforeSend { log -> if (crashReportingAllowed) log.compact(versionCode) else null }
     logs.loggerBatchProcessorFactory = errorLogRingFactory(logRingDir)
     // Sessions are the one outbound thing WITHOUT a consent hook, so the option itself is the
     // gate: bindCrashReporting sets the flag from the stored answer BEFORE first init, so this
@@ -50,16 +54,16 @@ fun SentryOptions.applyYMusicTelemetry(logRingDir: File) {
 
 /**
  * A log line keeps its body, level, timestamp, trace id (the link to its error event) and the app
- * release; the SDK's other per-line attributes (sdk, device, server.address…), span id and severity
- * number go.
+ * version code; the SDK's per-line attributes (release, sdk, device, server.address…), span id and
+ * severity number go.
  */
-private fun SentryLogEvent.compact(): SentryLogEvent = apply {
-    attributes = attributes?.get(RELEASE_ATTRIBUTE)?.let { hashMapOf(RELEASE_ATTRIBUTE to it) }
+private fun SentryLogEvent.compact(versionCode: SentryLogEventAttributeValue): SentryLogEvent = apply {
+    attributes = hashMapOf(VERSION_CODE_ATTRIBUTE to versionCode)
     spanId = null
     severityNumber = null
 }
 
-private const val RELEASE_ATTRIBUTE = "sentry.release"
+private const val VERSION_CODE_ATTRIBUTE = "app.version_code"
 
 /**
  * The event takes the newest log lines not sent before. A crash waits for them: its process is about

@@ -290,7 +290,7 @@ class YMusicApplication : Application() {
         if (BuildConfig.SENTRY_DSN.isNotEmpty()) {
             bindCrashReporting(appScope, settings.flow(AppSettings.crashReports)) {
                 Sentry.initWithPlatformOptions {
-                    it.applyYMusicTelemetry(File(noBackupFilesDir, "sentry-log-ring"))
+                    it.applyYMusicTelemetry(File(noBackupFilesDir, "sentry-log-ring"), BuildConfig.VERSION_CODE)
                     it.dsn = BuildConfig.SENTRY_DSN
                     // The commit in the release traces an event to git history (no source upload).
                     it.release = "${BuildConfig.APPLICATION_ID}@${BuildConfig.VERSION_NAME}+${BuildConfig.GIT_COMMIT}"
