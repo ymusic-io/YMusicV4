@@ -23,6 +23,10 @@
     <string name="downloads_none_title">ഇതുവരെ ഡൗൺലോഡുകളൊന്നുമില്ല</string>
     <string name="downloads_none_message">ഡൗൺലോഡ് ചെയ്ത പാട്ടുകളും വീഡിയോകളും ഓഫ്‌ലൈനായി പ്ലേ ചെയ്യാം.</string>
     <string name="downloads_failed">ഡൗൺലോഡ് പരാജയപ്പെട്ടു</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Finder-ൽ കാണിക്കുക</string>
+    <string name="menu_reveal_explorer">ഫയൽ എക്സ്പ്ലോററിൽ കാണിക്കുക</string>
+    <string name="menu_reveal_file_manager">ഫയൽ മാനേജറിൽ കാണിക്കുക</string>
     <string name="section_settings">ക്രമീകരണങ്ങൾ</string>
     <string name="section_donate">സംഭാവന ചെയ്യുക</string>
     <string name="section_feedback">ഫീഡ്‌ബാക്ക്</string>
@@ -121,8 +125,33 @@
     <string name="yt_playlist_removed_video">പ്ലേലിസ്റ്റിൽ നിന്ന് %1$s നീക്കം ചെയ്തു</string>
     <string name="cd_add_to_playlist">പ്ലേലിസ്റ്റിലേക്ക് ചേർക്കുക</string>
     <string name="cd_share">പങ്കിടുക</string>
-    <string name="cd_music_video">സംഗീതം</string>
-    <string name="cd_album">ആൽബം</string>
+    <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
+    <string name="a11y_kind_video">വീഡിയോ</string>
+    <string name="a11y_kind_music_video">മ്യൂസിക് വീഡിയോ</string>
+    <string name="a11y_kind_live">തത്സമയ വീഡിയോ</string>
+    <string name="a11y_kind_playlist">പ്ലേലിസ്റ്റ്</string>
+    <string name="a11y_kind_album">ആൽബം</string>
+    <string name="a11y_kind_mix">മിക്സ്</string>
+    <string name="a11y_kind_channel">ചാനൽ</string>
+    <!-- A video's length as a screen reader speaks it, joined with spaces: "1 hour 5 minutes 3 seconds" -->
+    <plurals name="a11y_duration_hours">
+        <item quantity="one">%1$d മണിക്കൂർ</item>
+        <item quantity="other">%1$d മണിക്കൂർ</item>
+    </plurals>
+    <plurals name="a11y_duration_minutes">
+        <item quantity="one">%1$d മിനിറ്റ്</item>
+        <item quantity="other">%1$d മിനിറ്റ്</item>
+    </plurals>
+    <plurals name="a11y_duration_seconds">
+        <item quantity="one">%1$d സെക്കൻഡ്</item>
+        <item quantity="other">%1$d സെക്കൻഡ്</item>
+    </plurals>
+    <string name="a11y_now_playing">ഇപ്പോൾ പ്ലേ ചെയ്യുന്നു</string>
+    <string name="a11y_playback_position">പ്ലേബാക്ക് സ്ഥാനം</string>
+    <string name="a11y_x_of_y">%2$s-ൽ %1$s</string>
+    <string name="a11y_behind_live">തത്സമയത്തിൽ നിന്ന് %1$s പിന്നിൽ</string>
+    <string name="a11y_downloaded">ഡൗൺലോഡ് ചെയ്തു</string>
+    <string name="a11y_eq_preamp">പ്രീആമ്പ്</string>
 
     <!-- Library -->
     <string name="library_tab_folders">ഫോൾഡറുകൾ</string>
@@ -363,7 +392,6 @@
     <string name="account_sign_out">സൈൻ ഔട്ട്</string>
     <string name="account_switch">അക്കൗണ്ട് മാറുക</string>
     <string name="switch_account_hint">നിങ്ങൾക്ക് വേണ്ട അക്കൗണ്ട് തിരഞ്ഞെടുക്കുക, തുടർന്ന് ബാക്ക് ആരോ ഉപയോഗിച്ച് ഈ സ്ക്രീൻ അടയ്ക്കുക — ആപ്പ് പുതിയ അക്കൗണ്ടിൽ പുതുക്കും.</string>
-    <string name="cd_account_avatar">അക്കൗണ്ട് ചിത്രം</string>
     <string name="account_my_channel">എന്റെ ചാനൽ</string>
     <string name="account_watch_history">കണ്ട ചരിത്രം</string>
     <string name="account_watch_later">പിന്നീട് കാണുക</string>
@@ -551,6 +579,24 @@
     <string name="video_details_delete_title">കമന്റ് ഇല്ലാതാക്കുക</string>
     <string name="video_details_delete_message">നിങ്ങളുടെ കമന്റും അതിന്റെ എല്ലാ മറുപടികളും ശാശ്വതമായി ഇല്ലാതാക്കണോ?</string>
     <string name="video_details_deleted">കമന്റ് ഇല്ലാതാക്കി</string>
+    <string name="cookie_protect_title">നിങ്ങളുടെ സൈൻ ഇൻ പാസ്‌വേഡ് ഉപയോഗിച്ച് പരിരക്ഷിക്കണോ?</string>
+    <string name="cookie_protect_body">നിങ്ങളുടെ സൈൻ ഇൻ ഈ കമ്പ്യൂട്ടറിൽ സേവ് ചെയ്തിരിക്കുന്നു, നിങ്ങൾ പ്രവർത്തിപ്പിക്കുന്ന മറ്റ് ആപ്പുകൾക്ക് അത് വായിക്കാനാകും. അത് ലോക്ക് ചെയ്യാൻ ഒരു പാസ്‌വേഡ് സജ്ജമാക്കുക; ഓരോ തവണ തുടങ്ങുമ്പോഴും YMusic അത് ചോദിക്കും.</string>
+    <string name="cookie_password">പാസ്‌വേഡ്</string>
+    <string name="cookie_protect_confirm">പാസ്‌വേഡ് സ്ഥിരീകരിക്കുക</string>
+    <string name="cookie_protect_mismatch">പാസ്‌വേഡുകൾ പൊരുത്തപ്പെടുന്നില്ല.</string>
+    <string name="cookie_protect_submit">പരിരക്ഷിക്കുക</string>
+    <string name="cookie_protect_skip">ഇപ്പോൾ വേണ്ട</string>
+    <string name="cookie_unlock_title">നിങ്ങളുടെ സൈൻ ഇൻ അൺലോക്ക് ചെയ്യുക</string>
+    <string name="cookie_unlock_body">നിങ്ങളുടെ YouTube സൈൻ ഇൻ പാസ്‌വേഡ് ഉപയോഗിച്ച് പരിരക്ഷിച്ചിരിക്കുന്നു.</string>
+    <string name="cookie_unlock_submit">അൺലോക്ക് ചെയ്യുക</string>
+    <string name="cookie_unlock_wrong">പാസ്‌വേഡ് തെറ്റാണ്.</string>
+    <string name="cookie_unlock_cant_unlock">അൺലോക്ക് ചെയ്യാനാകുന്നില്ലേ?</string>
+    <string name="cookie_unlock_guest">അതിഥിയായി തുടരുക</string>
+    <string name="cookie_unlock_guest_hint">സൈൻ ഇൻ ചെയ്യാതെ ആരംഭിക്കുന്നു. ഒന്നും സൂക്ഷിക്കില്ല.</string>
+    <string name="cookie_unlock_sign_out">സൈൻ ഔട്ട്</string>
+    <string name="cookie_unlock_sign_out_hint">സേവ് ചെയ്ത ഈ സൈൻ ഇൻ നീക്കം ചെയ്യുന്നു.</string>
+    <string name="cookie_unlock_sign_out_title">സൈൻ ഔട്ട് ചെയ്യണോ?</string>
+    <string name="cookie_unlock_sign_out_body">ഇത് ഈ കമ്പ്യൂട്ടറിൽ നിന്ന് സേവ് ചെയ്ത സൈൻ ഇൻ നീക്കം ചെയ്യും. വീണ്ടും സൈൻ ഇൻ ചെയ്യാൻ, YMusic ആപ്പ് ഉപയോഗിച്ച് QR കോഡ് സ്കാൻ ചെയ്യുക.</string>
     <string name="menu_details_comments">വിശദാംശങ്ങളും കമന്റുകളും</string>
     <string name="menu_search_lyrics">വരികൾ തിരയുക</string>
     <string name="menu_speed_pitch">വേഗതയും പിച്ചും</string>
@@ -570,4 +616,22 @@
     <string name="download_other_format">മറ്റൊരു ഫോർമാറ്റിൽ ഡൗൺലോഡ് ചെയ്യുക</string>
     <string name="unsubscribe">അൺസബ്‌സ്‌ക്രൈബ് ചെയ്യുക</string>
     <string name="unsubscribed">അൺസബ്‌സ്‌ക്രൈബ് ചെയ്‌തു</string>
+    <string name="tray_pause">താൽക്കാലികമായി നിർത്തുക</string>
+    <string name="tray_resume">തുടരുക</string>
+    <string name="tray_stop">നിർത്തുക (ക്യൂ മായ്ക്കുക)</string>
+    <string name="tray_quit">അടയ്ക്കുക</string>
+    <string name="shortcuts_title">കീബോർഡ് കുറുക്കുവഴികൾ</string>
+    <string name="shortcuts_play_pause">പ്ലേ / താൽക്കാലികമായി നിർത്തുക</string>
+    <string name="shortcuts_now_playing">Now Playing കാണിക്കുക അല്ലെങ്കിൽ മറയ്ക്കുക</string>
+    <string name="shortcuts_nav_menu">മെനു തുറക്കുക അല്ലെങ്കിൽ അടയ്ക്കുക</string>
+    <string name="shortcuts_switch_tabs">ടാബുകൾ മാറുക</string>
+    <string name="shortcuts_escape">പൂർണ്ണ സ്ക്രീനിൽ നിന്ന് പുറത്തുകടക്കുക, അല്ലെങ്കിൽ Now Playing, മെനു, പോപ്പ്-അപ്പ് എന്നിവ അടയ്ക്കുക</string>
+    <string name="shortcuts_help">ഈ സഹായം കാണിക്കുക</string>
+    <string name="shortcuts_volume_up">ശബ്ദം കൂട്ടുക</string>
+    <string name="shortcuts_volume_down">ശബ്ദം കുറയ്ക്കുക</string>
+    <string name="a11y_key_arrow_left">ഇടത് അമ്പ്</string>
+    <string name="a11y_key_arrow_right">വലത് അമ്പ്</string>
+    <string name="a11y_key_arrow_up">മുകളിലേക്കുള്ള അമ്പ്</string>
+    <string name="a11y_key_arrow_down">താഴേക്കുള്ള അമ്പ്</string>
+    <string name="cd_always_on_top">എപ്പോഴും മുകളിൽ</string>
 </resources>

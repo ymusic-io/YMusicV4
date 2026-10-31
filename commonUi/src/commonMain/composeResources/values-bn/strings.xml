@@ -23,6 +23,10 @@
     <string name="downloads_none_title">এখনও কোনো ডাউনলোড নেই</string>
     <string name="downloads_none_message">ডাউনলোড করা গান ও ভিডিও অফলাইনে চলে।</string>
     <string name="downloads_failed">ডাউনলোড ব্যর্থ হয়েছে</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Finder-এ দেখান</string>
+    <string name="menu_reveal_explorer">ফাইল এক্সপ্লোরারে দেখান</string>
+    <string name="menu_reveal_file_manager">ফাইল ম্যানেজারে দেখান</string>
     <string name="section_settings">সেটিংস</string>
     <string name="section_donate">অনুদান দিন</string>
     <string name="section_feedback">মতামত</string>
@@ -121,8 +125,33 @@
     <string name="yt_playlist_removed_video">প্লেলিস্ট থেকে %1$s সরানো হয়েছে</string>
     <string name="cd_add_to_playlist">প্লেলিস্টে যোগ করুন</string>
     <string name="cd_share">শেয়ার করুন</string>
-    <string name="cd_music_video">মিউজিক</string>
-    <string name="cd_album">অ্যালবাম</string>
+    <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
+    <string name="a11y_kind_video">ভিডিও</string>
+    <string name="a11y_kind_music_video">মিউজিক ভিডিও</string>
+    <string name="a11y_kind_live">লাইভ ভিডিও</string>
+    <string name="a11y_kind_playlist">প্লেলিস্ট</string>
+    <string name="a11y_kind_album">অ্যালবাম</string>
+    <string name="a11y_kind_mix">মিক্স</string>
+    <string name="a11y_kind_channel">চ্যানেল</string>
+    <!-- A video's length as a screen reader speaks it, joined with spaces: "1 hour 5 minutes 3 seconds" -->
+    <plurals name="a11y_duration_hours">
+        <item quantity="one">%1$d ঘণ্টা</item>
+        <item quantity="other">%1$d ঘণ্টা</item>
+    </plurals>
+    <plurals name="a11y_duration_minutes">
+        <item quantity="one">%1$d মিনিট</item>
+        <item quantity="other">%1$d মিনিট</item>
+    </plurals>
+    <plurals name="a11y_duration_seconds">
+        <item quantity="one">%1$d সেকেন্ড</item>
+        <item quantity="other">%1$d সেকেন্ড</item>
+    </plurals>
+    <string name="a11y_now_playing">এখন চলছে</string>
+    <string name="a11y_playback_position">প্লেব্যাকের অবস্থান</string>
+    <string name="a11y_x_of_y">%2$s-এর মধ্যে %1$s</string>
+    <string name="a11y_behind_live">লাইভ থেকে %1$s পিছিয়ে</string>
+    <string name="a11y_downloaded">ডাউনলোড করা হয়েছে</string>
+    <string name="a11y_eq_preamp">প্রিঅ্যাম্প</string>
 
     <!-- Library -->
     <string name="library_tab_folders">ফোল্ডার</string>
@@ -363,7 +392,6 @@
     <string name="account_sign_out">সাইন আউট</string>
     <string name="account_switch">অ্যাকাউন্ট বদলান</string>
     <string name="switch_account_hint">যে অ্যাকাউন্ট চান সেটি বেছে নিন, তারপর পেছনের তীর দিয়ে এই স্ক্রিন বন্ধ করুন — অ্যাপটি নতুন অ্যাকাউন্টে রিফ্রেশ হবে।</string>
-    <string name="cd_account_avatar">অ্যাকাউন্টের ছবি</string>
     <string name="account_my_channel">আমার চ্যানেল</string>
     <string name="account_watch_history">দেখার ইতিহাস</string>
     <string name="account_watch_later">পরে দেখুন</string>
@@ -551,6 +579,24 @@
     <string name="video_details_delete_title">মন্তব্য মুছুন</string>
     <string name="video_details_delete_message">আপনার মন্তব্য এবং এর সব উত্তর স্থায়ীভাবে মুছবেন?</string>
     <string name="video_details_deleted">মন্তব্য মুছে ফেলা হয়েছে</string>
+    <string name="cookie_protect_title">পাসওয়ার্ড দিয়ে আপনার সাইন ইন সুরক্ষিত করবেন?</string>
+    <string name="cookie_protect_body">আপনার সাইন ইন এই কম্পিউটারে সেভ করা আছে, যেখানে আপনার চালানো অন্য অ্যাপ এটি পড়তে পারে। এটি লক করতে একটি পাসওয়ার্ড সেট করুন; YMusic প্রতিবার চালু হওয়ার সময় এটি চাইবে।</string>
+    <string name="cookie_password">পাসওয়ার্ড</string>
+    <string name="cookie_protect_confirm">পাসওয়ার্ড নিশ্চিত করুন</string>
+    <string name="cookie_protect_mismatch">পাসওয়ার্ড দুটি মিলছে না।</string>
+    <string name="cookie_protect_submit">সুরক্ষিত করুন</string>
+    <string name="cookie_protect_skip">এখন নয়</string>
+    <string name="cookie_unlock_title">আপনার সাইন ইন আনলক করুন</string>
+    <string name="cookie_unlock_body">আপনার YouTube সাইন ইন পাসওয়ার্ড দিয়ে সুরক্ষিত।</string>
+    <string name="cookie_unlock_submit">আনলক করুন</string>
+    <string name="cookie_unlock_wrong">ভুল পাসওয়ার্ড।</string>
+    <string name="cookie_unlock_cant_unlock">আনলক করতে পারছেন না?</string>
+    <string name="cookie_unlock_guest">অতিথি হিসেবে চালিয়ে যান</string>
+    <string name="cookie_unlock_guest_hint">সাইন ইন ছাড়াই শুরু হবে। কিছুই রাখা হবে না।</string>
+    <string name="cookie_unlock_sign_out">সাইন আউট</string>
+    <string name="cookie_unlock_sign_out_hint">সেভ করা এই সাইন ইন সরিয়ে দেয়।</string>
+    <string name="cookie_unlock_sign_out_title">সাইন আউট করবেন?</string>
+    <string name="cookie_unlock_sign_out_body">এটি এই কম্পিউটার থেকে সেভ করা সাইন ইন সরিয়ে দেবে। আবার সাইন ইন করতে YMusic অ্যাপ দিয়ে QR কোড স্ক্যান করুন।</string>
     <string name="menu_details_comments">বিবরণ ও মন্তব্য</string>
     <string name="menu_search_lyrics">গানের কথা খুঁজুন</string>
     <string name="menu_speed_pitch">গতি ও পিচ</string>
@@ -570,4 +616,22 @@
     <string name="download_other_format">অন্য ফরম্যাটে ডাউনলোড করুন</string>
     <string name="unsubscribe">সদস্যতা ত্যাগ করুন</string>
     <string name="unsubscribed">সদস্যতা ত্যাগ করা হয়েছে</string>
+    <string name="tray_pause">বিরতি</string>
+    <string name="tray_resume">আবার চালান</string>
+    <string name="tray_stop">থামান (সারি মুছুন)</string>
+    <string name="tray_quit">বন্ধ করুন</string>
+    <string name="shortcuts_title">কীবোর্ড শর্টকাট</string>
+    <string name="shortcuts_play_pause">চালান / বিরতি</string>
+    <string name="shortcuts_now_playing">Now Playing দেখান বা লুকান</string>
+    <string name="shortcuts_nav_menu">মেনু খুলুন বা বন্ধ করুন</string>
+    <string name="shortcuts_switch_tabs">ট্যাব বদলান</string>
+    <string name="shortcuts_escape">পূর্ণ স্ক্রিন থেকে বেরোন, অথবা Now Playing, মেনু বা পপ-আপ বন্ধ করুন</string>
+    <string name="shortcuts_help">এই সাহায্য দেখান</string>
+    <string name="shortcuts_volume_up">ভলিউম বাড়ান</string>
+    <string name="shortcuts_volume_down">ভলিউম কমান</string>
+    <string name="a11y_key_arrow_left">বাম তীর</string>
+    <string name="a11y_key_arrow_right">ডান তীর</string>
+    <string name="a11y_key_arrow_up">উপরের তীর</string>
+    <string name="a11y_key_arrow_down">নিচের তীর</string>
+    <string name="cd_always_on_top">সবসময় উপরে</string>
 </resources>

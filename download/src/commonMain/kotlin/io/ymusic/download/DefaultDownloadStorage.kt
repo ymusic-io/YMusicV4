@@ -2,6 +2,7 @@ package io.ymusic.download
 
 import io.ymusic.ytmedia.cache.usableSpaceBytes
 import kmpcommon.uri.Uri
+import kmpcommon.uri.filePath
 import kmpcommon.uri.fileUri
 import okio.BufferedSink
 import okio.FileSystem
@@ -53,7 +54,7 @@ open class DefaultDownloadStorage(
             scratch.delete()
             return uri
         }
-        val dir = folder.path.toString().toPath()
+        val dir = folder.filePath().toPath()
         val src = scratch.path.toPath()
         var dest = dir / fileName
         try {

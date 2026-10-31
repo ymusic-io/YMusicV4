@@ -4,8 +4,8 @@
 //
 //   node update-config.mjs <release dir> <owner/repo> <tag> <YMusicV4 checkout> [notes dir]
 //
-// The notes dir holds one update-dialog text per platform family: notes-android.txt, notes-macos.txt
-// (a missing file = no notes for that family).
+// The notes dir holds one update-dialog text per platform family: notes-android.txt, notes-macos.txt,
+// notes-windows.txt (a missing file = no notes for that family).
 //
 // Urls are the release's asset download links, live once the draft is published. Signatures use
 // bundle.signing.private.key (JS bundles) and update.private.key (installers) from the checkout's
@@ -95,6 +95,8 @@ const INSTALLERS = [
   { platform: 'android-x86_64', file: 'android-x86_64.apk', versionCode: androidVersionCode },
   { platform: 'macos-arm64', file: 'macos-arm64.dmg', versionCode: desktopVersionCode },
   { platform: 'macos-x64', file: 'macos-intel.dmg', versionCode: desktopVersionCode },
+  { platform: 'windows-x64', file: 'windows-x64-setup.exe', versionCode: desktopVersionCode },
+  { platform: 'windows-arm64', file: 'windows-arm64-setup.exe', versionCode: desktopVersionCode },
 ]
 
 const releases = {}

@@ -67,13 +67,12 @@ kotlin {
             implementation(Libs.SqlDelight.androidDriver)
         }
 
-        val nativeMain by getting {
-            dependencies {
-                // api (not implementation): the sqliter cinterop carries the `-lsqlite3` linker flag,
-                // which must reach any native binary that links this module (apps + :media-scanner's
-                // test binary) — a transitive `implementation` drops it and the link fails.
-                api(Libs.SqlDelight.nativeDriver)
-            }
+        // Null-safe on hosts with no native target configured (e.g. Windows).
+        findByName("nativeMain")?.dependencies {
+            // api (not implementation): the sqliter cinterop carries the `-lsqlite3` linker flag,
+            // which must reach any native binary that links this module (apps + :media-scanner's
+            // test binary) — a transitive `implementation` drops it and the link fails.
+            api(Libs.SqlDelight.nativeDriver)
         }
 
         val commonTest by getting {
@@ -87,10 +86,8 @@ kotlin {
         jvmTest.dependencies {
             implementation(Libs.SqlDelight.sqliteDriver)
         }
-        val nativeTest by getting {
-            dependencies {
-                implementation(Libs.SqlDelight.nativeDriver)
-            }
+        findByName("nativeTest")?.dependencies {
+            implementation(Libs.SqlDelight.nativeDriver)
         }
     }
 }

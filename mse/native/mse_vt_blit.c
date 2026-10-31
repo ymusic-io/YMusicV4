@@ -48,7 +48,8 @@ void mse_vt_blit_free(MseVtBlit *s)
     if (!s)
         return;
     if (s->xfer) {
-        VTPixelTransferSessionInvalidate((VTPixelTransferSessionRef)s->xfer);
+        if (__builtin_available(macOS 10.8, iOS 16.0, *))
+            VTPixelTransferSessionInvalidate((VTPixelTransferSessionRef)s->xfer);
         CFRelease(s->xfer);
         s->xfer = NULL;
     }
@@ -121,16 +122,14 @@ int mse_vt_blit_sw(MseVtBlit *s, unsigned cv_pix_fmt,
     return r;
 }
 
-int mse_vt_blit_copy(MseVtBlit *s, void *cv_pixel_buffer, uint8_t *out, int w, int h)
+API_AVAILABLE(macos(10.8), ios(16.0))
+static int xfer_copy(MseVtBlit *s, CVPixelBufferRef src, uint8_t *out, int w, int h)
 {
-    CVPixelBufferRef src, dst;
+    CVPixelBufferRef dst;
     VTPixelTransferSessionRef xfer;
     uint8_t *base;
     size_t stride;
     int y;
-    if (!s || !cv_pixel_buffer || !out || w <= 0 || h <= 0)
-        return -1;
-    src = (CVPixelBufferRef)cv_pixel_buffer;
     CVBufferSetAttachment(src, kCVImageBufferYCbCrMatrixKey,
                           kCVImageBufferYCbCrMatrix_ITU_R_709_2, kCVAttachmentMode_ShouldPropagate);
     CVBufferSetAttachment(src, kCVImageBufferColorPrimariesKey,
@@ -183,6 +182,16 @@ int mse_vt_blit_copy(MseVtBlit *s, void *cv_pixel_buffer, uint8_t *out, int w, i
             memcpy(out + (size_t)y * (size_t)w * 4, base + (size_t)y * stride, (size_t)w * 4);
     CVPixelBufferUnlockBaseAddress(dst, kCVPixelBufferLock_ReadOnly);
     return 0;
+}
+
+int mse_vt_blit_copy(MseVtBlit *s, void *cv_pixel_buffer, uint8_t *out, int w, int h)
+{
+    if (!s || !cv_pixel_buffer || !out || w <= 0 || h <= 0)
+        return -1;
+    /* No VTPixelTransferSession before iOS 16: callers take their CPU path. */
+    if (__builtin_available(macOS 10.8, iOS 16.0, *))
+        return xfer_copy(s, (CVPixelBufferRef)cv_pixel_buffer, out, w, h);
+    return -1;
 }
 
 #endif

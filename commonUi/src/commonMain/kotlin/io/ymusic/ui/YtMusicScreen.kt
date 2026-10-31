@@ -19,6 +19,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -99,6 +100,12 @@ fun YtMusicScreen(
 ) {
     var tab by rememberSaveable { mutableStateOf(YtMusicTab.Home) }
     val tabs = remember(graph) { YtMusicTab.entries.filter { !graph.guest || it != YtMusicTab.Library } }
+    DisposableEffect(tabs) {
+        val remove = GlobalShortcutActions.pushTabHandler { i ->
+            tabs.getOrNull(i - 1)?.let { tab = it; true } ?: false
+        }
+        onDispose { remove() }
+    }
     // Live swipe progress (−1..1) so the underline tracks the drag, not just the commit — same as
     // Discover / Library.
     var tabDrag by remember { mutableFloatStateOf(0f) }

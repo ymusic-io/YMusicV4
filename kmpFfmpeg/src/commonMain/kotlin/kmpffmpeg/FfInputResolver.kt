@@ -1,6 +1,7 @@
 package kmpffmpeg
 
 import kmpcommon.uri.Uri
+import kmpcommon.uri.filePath
 
 /**
  * Maps a logical [Uri] to an [FfInput] ffmpeg can actually read. The default [Passthrough] hands
@@ -34,4 +35,4 @@ fun interface FfInputResolver {
  * are consumed by code that does expect proper URI encoding.
  */
 internal fun Uri.toFfmpegSpec(): String =
-    if (scheme?.toString().equals("file", ignoreCase = true)) "file:$path" else toString()
+    if (scheme?.toString().equals("file", ignoreCase = true)) "file:${filePath()}" else toString()

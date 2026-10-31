@@ -195,9 +195,10 @@ function __consoleLog(level, msg) {}
 /**
  * @param {string} name
  * @param {Function=} impl
+ * @param {number=} length
  * @return {!Function}
  */
-function __nativeFn(name, impl) {}
+function __nativeFn(name, impl, length) {}
 function __timeZone() {}
 function __mseReady() {}
 function __mseCurrentTime() {}
@@ -229,6 +230,8 @@ function __mseReset() {}
 function __mseAv1Ok() {}
 function __mseVp9Ok() {}
 function __mseAvcMaxLevel() {}
+function __mseDecodingInfo(contentType, width, height, framerate, bitrate) {}
+function __mseVideoQuality() {}
 /** @return {?} */
 function __bgEntropyStart() {}
 function __bgEntropyBegin() {}

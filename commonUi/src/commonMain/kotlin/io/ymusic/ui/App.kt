@@ -40,7 +40,6 @@ import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarData
@@ -67,6 +66,7 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -75,6 +75,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -87,7 +89,11 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.intl.Locale
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
@@ -442,6 +448,10 @@ private fun AppRoot(
                 snackbarHostState.showSnackbar(message)
             }
         }
+        DisposableEffect(snackbarHostState) {
+            GlobalShortcutActions.showMessage = showSnackbar
+            onDispose { GlobalShortcutActions.showMessage = {} }
+        }
         LaunchedEffect(uriFailures) {
             uriFailures.collect { uri -> showSnackbar(getString(Res.string.link_open_failed, uri)) }
         }
@@ -610,6 +620,27 @@ private fun AppRoot(
                 else -> layers.add(AppLayer.Search(SearchSession.youtube(graph, scope)))
             }
         }
+        DisposableEffect(drawer, scope) {
+            GlobalShortcutActions.toggleNavDrawer = {
+                scope.launch { if (drawer.isOpen) drawer.close() else drawer.open() }
+            }
+            GlobalShortcutActions.closeNavDrawerIfOpen = {
+                if (drawer.isOpen) { scope.launch { drawer.close() }; true } else false
+            }
+            onDispose {
+                GlobalShortcutActions.toggleNavDrawer = {}
+                GlobalShortcutActions.closeNavDrawerIfOpen = { false }
+            }
+        }
+        // Only while the tab row shows: a pushed page or Now Playing covers it.
+        if (section == AppSection.Discover && layers.isEmpty() && !nowPlayingOpen) {
+            DisposableEffect(discoverTabs) {
+                val remove = GlobalShortcutActions.pushTabHandler { i ->
+                    discoverTabs.getOrNull(i - 1)?.let { discoverTab = it; true } ?: false
+                }
+                onDispose { remove() }
+            }
+        }
         // YT Music's search (its own stack): a music SearchSession over ytmusic/search, single-instance
         // the same way.
         val openMusicSearch: () -> Unit = {
@@ -704,6 +735,26 @@ private fun AppRoot(
                     else -> layers.add(AppLayer.LibrarySearch(LibrarySearchSession(store)))
                 }
             }
+        }
+        // Each section's own search flow, for the app bar's search icon and the Ctrl/Cmd+F hotkey
+        // alike: YouTube on Discover, music on YT Music, local files on Library, none elsewhere.
+        val sectionSearch: (() -> Unit)? = when {
+            section == AppSection.Discover -> openSearch
+            section == AppSection.YtMusic -> openMusicSearch
+            section == AppSection.Library && graph.mediaStore != null -> openLibrarySearch
+            else -> null
+        }
+        // The hotkey lands in the input even over submitted results (the results bar takes no typing).
+        val hotkeySearch: () -> Unit = {
+            if (sectionSearch != null) {
+                sectionSearch()
+                (layers.lastOrNull() as? AppLayer.Search)?.session?.editing = true
+            }
+        }
+        val latestHotkeySearch by rememberUpdatedState(hotkeySearch)
+        DisposableEffect(Unit) {
+            GlobalShortcutActions.openSearch = { latestHotkeySearch() }
+            onDispose { GlobalShortcutActions.openSearch = {} }
         }
         // The "Search "q" online" hand-off: jump to Discover and run q as a YouTube search there,
         // reusing Discover's single search layer (its stack, not Library's).
@@ -857,9 +908,8 @@ private fun AppRoot(
         // layer of the CURRENT section's stack pops. A lateral section with nothing left to unwind
         // steps back to Discover — which restores its own retained stack — and only from Discover's
         // root is back left to the OS to exit the app.
-        PlatformBackHandler(
-            enabled = drawer.isOpen || nowPlayingOpen || layers.isNotEmpty() || section != AppSection.Discover,
-        ) {
+        val backEnabled = drawer.isOpen || nowPlayingOpen || layers.isNotEmpty() || section != AppSection.Discover
+        val onBack: () -> Unit = {
             val top = layers.lastOrNull()
             when {
                 drawer.isOpen -> scope.launch { drawer.close() }
@@ -873,6 +923,12 @@ private fun AppRoot(
                 layers.isNotEmpty() -> popLayer()
                 else -> onSection(AppSection.Discover)
             }
+        }
+        PlatformBackHandler(enabled = backEnabled, onBack = onBack)
+        val latestBack by rememberUpdatedState(onBack.takeIf { backEnabled })
+        DisposableEffect(Unit) {
+            GlobalShortcutActions.back = { latestBack?.let { it(); true } ?: false }
+            onDispose { GlobalShortcutActions.back = { false } }
         }
 
         // Keep the shared video surface hosted while a YouTube item or a pictured local item is
@@ -902,15 +958,13 @@ private fun AppRoot(
                 Box(
                     Modifier.fillMaxSize()
                         .drawWithContent { if (drawShell) drawContent() }
-                        .then(if (nowPlayingOpen) Modifier.clearAndSetSemantics {} else Modifier),
+                        // Not with the hole open (the box is empty then): desktop's a11y point
+                        // hit-test returns the first child containing the point, so even an empty
+                        // cleared node here would shadow Now Playing.
+                        .then(if (nowPlayingOpen && !holeOpen) Modifier.clearAndSetSemantics {} else Modifier),
                 ) {
-                    if (!holeOpen) ModalNavigationDrawer(
+                    if (!holeOpen) AppNavigationDrawer(
                         drawerState = drawer,
-                        // Swipe-open is touch-only: with a mouse, the whole-screen drag would claim any
-                        // click whose press wanders a pixel (mouse slop ~0.1dp). Open stays possible while
-                        // showing so scrim/drag dismiss keeps working on desktop. On the swipe-tab screens the
-                        // tab switcher yields a start-edge strip (leadingEdgeReserve) so this still opens there.
-                        gesturesEnabled = platformUsesTouch || drawer.isOpen,
                         drawerContent = {
                             AppDrawer(
                                 section = section,
@@ -936,6 +990,7 @@ private fun AppRoot(
                                         scope.launch { drawer.close() }
                                     }
                                 },
+                                open = drawer.isOpen,
                             )
                         },
                     ) {
@@ -1006,14 +1061,7 @@ private fun AppRoot(
                                                         if (section == AppSection.Discover) discoverTab.label else section.label,
                                                     ),
                                                     onMenu = { scope.launch { drawer.open() } },
-                                                    // Each section's own search flow: YouTube on Discover,
-                                                    // local files on Library, none elsewhere.
-                                                    onSearch = when {
-                                                        section == AppSection.Discover -> openSearch
-                                                        section == AppSection.YtMusic -> openMusicSearch
-                                                        section == AppSection.Library && graph.mediaStore != null -> openLibrarySearch
-                                                        else -> null
-                                                    },
+                                                    onSearch = sectionSearch,
                                                     // Inline tabs sit right after the title, so the slot
                                                     // reserves the widest tab label — the tabs must not
                                                     // shift when switching tabs re-titles the bar.
@@ -1323,13 +1371,22 @@ internal fun DiscoverTabRow(
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     // Each tab's (centre, width) in the row's space so the indicator can slide between them.
     val bounds = remember(rtl) { mutableStateMapOf<DiscoverTab, Pair<Dp, Dp>>() }
+    // When this tab row first composes (= user entered the section), focus the current tab so
+    // keyboard users can arrow-navigate immediately. Does not re-fire on mere tab clicks within
+    // the section because the DiscoverTabRow stays composed.
+    val activeTabFocus = remember { FocusRequester() }
     BoxWithConstraints(if (inline) Modifier else Modifier.fillMaxWidth()) {
+        // In the subcomposition with the tabs, so the active tab carries the requester by now.
+        LaunchedEffect(Unit) {
+            if (selected in tabs) activeTabFocus.requestFocus()
+        }
         // Inline: equal tabs tiling the row with no dead space, shrinking from the max when the bar is short.
         val inlineTabWidth = (maxWidth / tabs.size.coerceAtLeast(1)).coerceAtMost(DiscoverInlineTabMaxWidth)
         Column(if (inline) Modifier else Modifier.fillMaxWidth()) {
-            Row(if (inline) Modifier else Modifier.fillMaxWidth()) {
+            Row((if (inline) Modifier else Modifier.fillMaxWidth()).listKeyboardNavigation(ListOrientation.Horizontal)) {
                 tabs.forEach { t ->
                     val active = t == selected
+                    val label = stringResource(t.label)
                     Box(
                         (if (inline) Modifier.width(inlineTabWidth) else Modifier.weight(1f))
                             .onGloballyPositioned { c ->
@@ -1340,13 +1397,21 @@ internal fun DiscoverTabRow(
                                 bounds[t] = with(density) { x.toDp() to c.size.width.toDp() }
                             }
                             .then(if (inline) Modifier.clip(RoundedCornerShape(10.dp)) else Modifier)
+                            .then(if (active) Modifier.focusRequester(activeTabFocus) else Modifier)
+                            .a11yActionLabel(label)
+                            .semantics {
+                                // this.selected disambiguates from the outer `selected: DiscoverTab`
+                                // function parameter that shadows the semantics setter.
+                                this.selected = active
+                                role = Role.Tab
+                            }
                             .clickable { onSelect(t) }
                             .padding(vertical = 8.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         Icon(
                             t.icon,
-                            stringResource(t.label),
+                            null,
                             Modifier.size(24.dp),
                             tint = if (active) DesignColors.Accent else DesignColors.InkFaint,
                         )

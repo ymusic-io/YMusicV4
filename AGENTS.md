@@ -114,13 +114,16 @@ On the current working branch:
 1. Bump `ymusic.versionName` (`gradle.properties`) and versionCode +1 in `androidApp/build.gradle.kts`, `desktopApp/build.gradle.kts` (`desktopVersionCode`), `iosApp/iosApp/Info.plist`.
 2. In `CHANGELOG.md`, rename `## Unreleased` to the version.
 3. In `error-codes.txt`, flip shipped `-` rows to `D`.
-4. Tag the commit: `hotfix-v<version>` for a hotfix, `release-v<version>` for a release. The tag message is the update dialog's release notes, **per platform**: each platform's lines go under its `[android]` / `[macos]` header (repeat a line under both when it applies to both); a message without headers goes to every platform, and an unknown header fails the release job. Each platform's notes: at most 7 lines of ≤40 chars (the dialog cuts off the rest), no title (the dialog shows the version); when there is more, the last line says so and points to the full changelog:
+4. Tag the commit: `hotfix-v<version>` for a hotfix, `release-v<version>` for a release. The tag message is the update dialog's release notes, **per platform**: each platform's lines go under its `[android]` / `[macos]` / `[windows]` header (repeat a line under each header it applies to); a message without headers goes to every platform, and an unknown header fails the release job. Each platform's notes: at most 7 lines of ≤40 chars (the dialog cuts off the rest), no title (the dialog shows the version); when there is more, the last line says so and points to the full changelog:
    ```
    git tag -a release-v4.0.6 -m "[android]
    Fix: crash on picture-in-picture
    Fix: downloads with long titles
    And more, see the full changelog
    [macos]
+   Fix: downloads with long titles
+   And more, see the full changelog
+   [windows]
    Fix: downloads with long titles
    And more, see the full changelog"
    ```

@@ -23,6 +23,10 @@
     <string name="downloads_none_title">Encara no hi ha baixades</string>
     <string name="downloads_none_message">Les cançons i els vídeos baixats es reprodueixen sense connexió.</string>
     <string name="downloads_failed">La baixada ha fallat</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Mostra al Finder</string>
+    <string name="menu_reveal_explorer">Mostra a l'Explorador de fitxers</string>
+    <string name="menu_reveal_file_manager">Mostra al gestor de fitxers</string>
     <string name="section_settings">Configuració</string>
     <string name="section_donate">Fes una donació</string>
     <string name="section_feedback">Comentaris</string>
@@ -121,8 +125,36 @@
     <string name="yt_playlist_removed_video">S'ha tret %1$s de la llista</string>
     <string name="cd_add_to_playlist">Afegeix a una llista</string>
     <string name="cd_share">Comparteix</string>
-    <string name="cd_music_video">Música</string>
-    <string name="cd_album">Àlbum</string>
+    <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
+    <string name="a11y_kind_video">Vídeo</string>
+    <string name="a11y_kind_music_video">Videoclip</string>
+    <string name="a11y_kind_live">Vídeo en directe</string>
+    <string name="a11y_kind_playlist">Llista de reproducció</string>
+    <string name="a11y_kind_album">Àlbum</string>
+    <string name="a11y_kind_mix">Mix</string>
+    <string name="a11y_kind_channel">Canal</string>
+    <!-- A video's length as a screen reader speaks it, joined with spaces: "1 hour 5 minutes 3 seconds" -->
+    <plurals name="a11y_duration_hours">
+        <item quantity="one">%1$d hora</item>
+        <item quantity="many">%1$d d'hores</item>
+        <item quantity="other">%1$d hores</item>
+    </plurals>
+    <plurals name="a11y_duration_minutes">
+        <item quantity="one">%1$d minut</item>
+        <item quantity="many">%1$d de minuts</item>
+        <item quantity="other">%1$d minuts</item>
+    </plurals>
+    <plurals name="a11y_duration_seconds">
+        <item quantity="one">%1$d segon</item>
+        <item quantity="many">%1$d de segons</item>
+        <item quantity="other">%1$d segons</item>
+    </plurals>
+    <string name="a11y_now_playing">S'està reproduint</string>
+    <string name="a11y_playback_position">Posició de reproducció</string>
+    <string name="a11y_x_of_y">%1$s de %2$s</string>
+    <string name="a11y_behind_live">%1$s per darrere del directe</string>
+    <string name="a11y_downloaded">Descarregat</string>
+    <string name="a11y_eq_preamp">Preamplificador</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Carpetes</string>
@@ -364,7 +396,6 @@
     <string name="account_sign_out">Tanca la sessió</string>
     <string name="account_switch">Canvia de compte</string>
     <string name="switch_account_hint">Tria el compte que vulguis i tanca aquesta pantalla amb la fletxa enrere — l'aplicació s'actualitza amb el compte nou.</string>
-    <string name="cd_account_avatar">Foto del compte</string>
     <string name="account_my_channel">El meu canal</string>
     <string name="account_watch_history">Historial de reproduccions</string>
     <string name="account_watch_later">Mira més tard</string>
@@ -556,6 +587,24 @@
     <string name="video_details_delete_title">Suprimeix el comentari</string>
     <string name="video_details_delete_message">Vols suprimir permanentment el teu comentari i totes les respostes?</string>
     <string name="video_details_deleted">Comentari suprimit</string>
+    <string name="cookie_protect_title">Vols protegir l'inici de sessió amb una contrasenya?</string>
+    <string name="cookie_protect_body">L'inici de sessió es desa en aquest ordinador, on altres aplicacions que executis el poden llegir. Defineix una contrasenya per bloquejar-lo; YMusic te la demanarà cada vegada que s'obri.</string>
+    <string name="cookie_password">Contrasenya</string>
+    <string name="cookie_protect_confirm">Confirma la contrasenya</string>
+    <string name="cookie_protect_mismatch">Les contrasenyes no coincideixen.</string>
+    <string name="cookie_protect_submit">Protegeix</string>
+    <string name="cookie_protect_skip">Ara no</string>
+    <string name="cookie_unlock_title">Desbloqueja l'inici de sessió</string>
+    <string name="cookie_unlock_body">El teu inici de sessió de YouTube està protegit amb una contrasenya.</string>
+    <string name="cookie_unlock_submit">Desbloqueja</string>
+    <string name="cookie_unlock_wrong">Contrasenya incorrecta.</string>
+    <string name="cookie_unlock_cant_unlock">No el pots desbloquejar?</string>
+    <string name="cookie_unlock_guest">Continua com a convidat</string>
+    <string name="cookie_unlock_guest_hint">S'obre sense la sessió iniciada. No es desa res.</string>
+    <string name="cookie_unlock_sign_out">Tanca la sessió</string>
+    <string name="cookie_unlock_sign_out_hint">Elimina aquest inici de sessió desat.</string>
+    <string name="cookie_unlock_sign_out_title">Vols tancar la sessió?</string>
+    <string name="cookie_unlock_sign_out_body">Això elimina l'inici de sessió desat d'aquest ordinador. Per tornar a iniciar la sessió, escaneja el codi QR amb l'aplicació YMusic.</string>
     <string name="menu_details_comments">Detalls i comentaris</string>
     <string name="menu_search_lyrics">Cerca la lletra</string>
     <string name="menu_speed_pitch">Velocitat i to</string>
@@ -575,4 +624,22 @@
     <string name="download_other_format">Baixa en un altre format</string>
     <string name="unsubscribe">Cancel·la la subscripció</string>
     <string name="unsubscribed">S'ha cancel·lat la subscripció</string>
+    <string name="tray_pause">Pausa</string>
+    <string name="tray_resume">Reprèn</string>
+    <string name="tray_stop">Atura (buida la cua)</string>
+    <string name="tray_quit">Tanca</string>
+    <string name="shortcuts_title">Dreceres de teclat</string>
+    <string name="shortcuts_play_pause">Reprodueix / posa en pausa</string>
+    <string name="shortcuts_now_playing">Mostra o amaga Ara sona</string>
+    <string name="shortcuts_nav_menu">Obre o tanca el menú</string>
+    <string name="shortcuts_switch_tabs">Canvia de pestanya</string>
+    <string name="shortcuts_escape">Surt de la pantalla completa, o tanca Ara sona, el menú o una finestra emergent</string>
+    <string name="shortcuts_help">Mostra aquesta ajuda</string>
+    <string name="shortcuts_volume_up">Apuja el volum</string>
+    <string name="shortcuts_volume_down">Abaixa el volum</string>
+    <string name="a11y_key_arrow_left">fletxa esquerra</string>
+    <string name="a11y_key_arrow_right">fletxa dreta</string>
+    <string name="a11y_key_arrow_up">fletxa amunt</string>
+    <string name="a11y_key_arrow_down">fletxa avall</string>
+    <string name="cd_always_on_top">Sempre visible</string>
 </resources>

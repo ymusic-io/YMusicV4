@@ -23,6 +23,10 @@
     <string name="downloads_none_title">Zatím žádná stahování</string>
     <string name="downloads_none_message">Stažené skladby a videa se přehrávají offline.</string>
     <string name="downloads_failed">Stahování se nezdařilo</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Zobrazit ve Finderu</string>
+    <string name="menu_reveal_explorer">Zobrazit v Průzkumníku souborů</string>
+    <string name="menu_reveal_file_manager">Zobrazit ve správci souborů</string>
     <string name="section_settings">Nastavení</string>
     <string name="section_donate">Podpořit</string>
     <string name="section_feedback">Zpětná vazba</string>
@@ -121,8 +125,39 @@
     <string name="yt_playlist_removed_video">%1$s odebráno z playlistu</string>
     <string name="cd_add_to_playlist">Přidat do playlistu</string>
     <string name="cd_share">Sdílet</string>
-    <string name="cd_music_video">Hudba</string>
-    <string name="cd_album">Album</string>
+    <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
+    <string name="a11y_kind_video">Video</string>
+    <string name="a11y_kind_music_video">Hudební video</string>
+    <string name="a11y_kind_live">Živé vysílání</string>
+    <string name="a11y_kind_playlist">Playlist</string>
+    <string name="a11y_kind_album">Album</string>
+    <string name="a11y_kind_mix">Mix</string>
+    <string name="a11y_kind_channel">Kanál</string>
+    <!-- A video's length as a screen reader speaks it, joined with spaces: "1 hour 5 minutes 3 seconds" -->
+    <plurals name="a11y_duration_hours">
+        <item quantity="one">%1$d hodina</item>
+        <item quantity="few">%1$d hodiny</item>
+        <item quantity="many">%1$d hodiny</item>
+        <item quantity="other">%1$d hodin</item>
+    </plurals>
+    <plurals name="a11y_duration_minutes">
+        <item quantity="one">%1$d minuta</item>
+        <item quantity="few">%1$d minuty</item>
+        <item quantity="many">%1$d minuty</item>
+        <item quantity="other">%1$d minut</item>
+    </plurals>
+    <plurals name="a11y_duration_seconds">
+        <item quantity="one">%1$d sekunda</item>
+        <item quantity="few">%1$d sekundy</item>
+        <item quantity="many">%1$d sekundy</item>
+        <item quantity="other">%1$d sekund</item>
+    </plurals>
+    <string name="a11y_now_playing">Právě hraje</string>
+    <string name="a11y_playback_position">Pozice přehrávání</string>
+    <string name="a11y_x_of_y">%1$s, celkem %2$s</string>
+    <string name="a11y_behind_live">%1$s za živým vysíláním</string>
+    <string name="a11y_downloaded">Staženo</string>
+    <string name="a11y_eq_preamp">Předzesilovač</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Složky</string>
@@ -365,7 +400,6 @@
     <string name="account_sign_out">Odhlásit se</string>
     <string name="account_switch">Přepnout účet</string>
     <string name="switch_account_hint">Vyberte požadovaný účet a pak tuto obrazovku zavřete šipkou zpět — aplikace se obnoví pod novým účtem.</string>
-    <string name="cd_account_avatar">Profilový obrázek účtu</string>
     <string name="account_my_channel">Můj kanál</string>
     <string name="account_watch_history">Historie sledování</string>
     <string name="account_watch_later">Na později</string>
@@ -561,6 +595,24 @@
     <string name="video_details_delete_title">Smazat komentář</string>
     <string name="video_details_delete_message">Trvale smazat váš komentář a všechny odpovědi na něj?</string>
     <string name="video_details_deleted">Komentář smazán</string>
+    <string name="cookie_protect_title">Chránit přihlášení heslem?</string>
+    <string name="cookie_protect_body">Vaše přihlášení je uložené v tomto počítači, kde ho mohou číst i jiné aplikace, které spouštíte. Nastavte heslo, které ho uzamkne; YMusic o něj požádá při každém spuštění.</string>
+    <string name="cookie_password">Heslo</string>
+    <string name="cookie_protect_confirm">Potvrzení hesla</string>
+    <string name="cookie_protect_mismatch">Hesla se neshodují.</string>
+    <string name="cookie_protect_submit">Chránit</string>
+    <string name="cookie_protect_skip">Teď ne</string>
+    <string name="cookie_unlock_title">Odemknout přihlášení</string>
+    <string name="cookie_unlock_body">Vaše přihlášení k YouTube je chráněno heslem.</string>
+    <string name="cookie_unlock_submit">Odemknout</string>
+    <string name="cookie_unlock_wrong">Nesprávné heslo.</string>
+    <string name="cookie_unlock_cant_unlock">Nedaří se odemknout?</string>
+    <string name="cookie_unlock_guest">Pokračovat jako host</string>
+    <string name="cookie_unlock_guest_hint">Spustí se bez přihlášení. Nic se neuloží.</string>
+    <string name="cookie_unlock_sign_out">Odhlásit se</string>
+    <string name="cookie_unlock_sign_out_hint">Odstraní toto uložené přihlášení.</string>
+    <string name="cookie_unlock_sign_out_title">Odhlásit se?</string>
+    <string name="cookie_unlock_sign_out_body">Tímto odstraníte uložené přihlášení z tohoto počítače. Pro opětovné přihlášení naskenujte QR kód aplikací YMusic.</string>
     <string name="menu_details_comments">Podrobnosti a komentáře</string>
     <string name="menu_search_lyrics">Vyhledat text písně</string>
     <string name="menu_speed_pitch">Rychlost a výška tónu</string>
@@ -580,4 +632,22 @@
     <string name="download_other_format">Stáhnout v jiném formátu</string>
     <string name="unsubscribe">Zrušit odběr</string>
     <string name="unsubscribed">Odběr zrušen</string>
+    <string name="tray_pause">Pozastavit</string>
+    <string name="tray_resume">Pokračovat</string>
+    <string name="tray_stop">Zastavit (vymazat frontu)</string>
+    <string name="tray_quit">Zavřít</string>
+    <string name="shortcuts_title">Klávesové zkratky</string>
+    <string name="shortcuts_play_pause">Přehrát / pozastavit</string>
+    <string name="shortcuts_now_playing">Zobrazit nebo skrýt Právě hraje</string>
+    <string name="shortcuts_nav_menu">Otevřít nebo zavřít nabídku</string>
+    <string name="shortcuts_switch_tabs">Přepínat karty</string>
+    <string name="shortcuts_escape">Ukončit celou obrazovku nebo zavřít Právě hraje, nabídku či vyskakovací okno</string>
+    <string name="shortcuts_help">Zobrazit tuto nápovědu</string>
+    <string name="shortcuts_volume_up">Zvýšit hlasitost</string>
+    <string name="shortcuts_volume_down">Snížit hlasitost</string>
+    <string name="a11y_key_arrow_left">šipka vlevo</string>
+    <string name="a11y_key_arrow_right">šipka vpravo</string>
+    <string name="a11y_key_arrow_up">šipka nahoru</string>
+    <string name="a11y_key_arrow_down">šipka dolů</string>
+    <string name="cd_always_on_top">Vždy navrchu</string>
 </resources>

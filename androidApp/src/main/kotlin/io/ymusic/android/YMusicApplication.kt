@@ -45,6 +45,7 @@ import io.ymusic.mediascanner.SafDocumentsProvider
 import io.ymusic.mediastore.BetterMediaStore
 import io.ymusic.mediastore.mediaStoreAndroidDriver
 import io.ymusic.mediastore.model.BucketDraft
+import io.ymusic.mse.MseDecoderCaps
 import io.ymusic.mse.MseVideoSurface
 import io.ymusic.player.LocalPlayerContext
 import io.ymusic.player.PlayableItem
@@ -235,6 +236,7 @@ class YMusicApplication : Application() {
         builtGraph ?: appScope.async { buildGraph() }.also { builtGraph = it }
 
     private suspend fun buildServices(): SharedServices {
+        MseDecoderCaps.start(rootLogger)
         // YouTube + API cookies live in the WebView CookieManager (the login WebView writes
         // there; this jar is a wrapper so HTTP sees the same store).
         val cookies = WebViewCookieJar()
@@ -514,6 +516,7 @@ class YMusicApplication : Application() {
                 ),
                 SqlDelightSegmentIndex(driver, now = { System.currentTimeMillis() }),
                 SqlDelightCacheStats(driver),
+                logger = rootLogger.fork("player-cache"),
             )
         }
         val mediaProxyClient = KmpHttpClient.create {

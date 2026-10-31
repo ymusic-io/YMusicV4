@@ -134,8 +134,8 @@ class MusicLibraryScreenTest {
                 onNodeWithText("Library").performClick()
 
                 // The landing grid: playlist cards with their privacy/owner line and artist cards.
-                waitUntilAtLeastOneExists(hasText("Mock Text 102"), 20_000)
-                onNodeWithText("Playlist • Mock User X • 8 tracks").assertExists()
+                waitUntilAtLeastOneExists(hasText("Mock Text 102", substring = true), 20_000)
+                onNodeWithText("Playlist • Mock User X • 8 tracks", substring = true).assertExists()
                 waitUntilAtLeastOneExists(hasText("Mock Text 104", substring = true), 20_000)
 
                 // The filter chips + the sort trigger naming the current order.

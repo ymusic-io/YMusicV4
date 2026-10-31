@@ -37,8 +37,11 @@ plugins {
 // BuildFlags.PRODUCTION: `debug(function () { return concat; })` does not call the thunk
 // when true (esbuild inlines; Closure DCE drops the dead branch).
 val production = isProductionBuild()
+// Single-quote the string literal: Java's Windows ProcessBuilder loses embedded `"` in argv,
+// which esbuild then reads as the bare identifier `engine`. 'engine' is a valid JS string literal
+// and survives every layer unchanged.
 fun esbuildDefines(bundleName: String, backendVersion: Long) = arrayOf(
-    "--define:BUNDLE_NAME=\"$bundleName\"",
+    "--define:BUNDLE_NAME='$bundleName'",
     "--define:BACKEND_VERSION=$backendVersion",
     "--define:PRODUCTION=$production",
 )
@@ -60,7 +63,29 @@ val playerBundleFile = layout.buildDirectory.file("dist/player.js")
 val playerBundleMapFile = layout.buildDirectory.file("dist/player.js.map")
 val testBundleFile = layout.buildDirectory.file("dist/engine-test.js")
 
+private val onWindows = org.gradle.internal.os.OperatingSystem.current().isWindows
+
+// On Windows npx is npx.cmd: ProcessBuilder appends only .exe when it searches PATH, and a .cmd
+// would re-parse the whole line through cmd.exe. So run npm's npx-cli.js with node.exe directly.
+// (Embedded `"` are lost on Windows either way: ProcessBuilder doesn't escape them, so the C runtime
+// strips them; hence esbuildDefines' single quotes.) Resolved when a task runs, so a machine
+// without node still configures this project.
+fun npxArgv(): List<String> {
+    if (!onWindows) return listOf("npx")
+    val nodeOnPath = (System.getenv("PATH") ?: "").split(File.pathSeparatorChar)
+        .map { File(it.trim('"'), "node.exe") }
+        .firstOrNull { it.isFile }
+        ?: throw GradleException("node.exe not found on PATH")
+    fun npxCli(node: File) = File(node.parentFile, "node_modules/npm/bin/npx-cli.js")
+    // A version manager's shim (e.g. Volta) has no npm beside it; the node it launches does.
+    val node = nodeOnPath.takeIf { npxCli(it).isFile }
+        ?: File(providers.exec { commandLine(nodeOnPath.absolutePath, "-p", "process.execPath") }.standardOutput.asText.get().trim())
+    check(npxCli(node).isFile) { "npx-cli.js not found next to ${node.absolutePath}" }
+    return listOf(node.absolutePath, npxCli(node).absolutePath)
+}
+
 fun Exec.unixPath() {
+    if (onWindows) return
     environment(
         "PATH",
         "/opt/homebrew/bin:/usr/local/bin:" + (System.getenv("PATH") ?: "/usr/bin:/bin"),
@@ -73,7 +98,7 @@ val typecheckJs by tasks.registering(Exec::class) {
     outputs.file(layout.buildDirectory.file("typecheck.ok"))
     workingDir = projectDir
     unixPath()
-    commandLine("npx", "-y", "-p", "typescript@${Versions.typescript}", "tsc", "--noEmit", "-p", ".")
+    doFirst { commandLine(npxArgv() + listOf("-y", "-p", "typescript@${Versions.typescript}", "tsc", "--noEmit", "-p", ".")) }
     doLast { outputs.files.singleFile.writeText("ok") }
 }
 
@@ -88,15 +113,19 @@ val bundleRawJs by tasks.registering(Exec::class) {
     outputs.files(rawBundleFile, rawBundleMeta)
     workingDir = projectDir
     unixPath()
-    commandLine(
-        "npx", "-y", "esbuild@${Versions.esbuild}",
-        "src/index.ts", "--bundle",
-        "--format=iife", "--target=esnext", "--charset=utf8",
-        "--loader:.raw.js=text",
-        *engineDefines,
-        "--metafile=${rawBundleMeta.get().asFile.absolutePath}",
-        "--outfile=${rawBundleFile.get().asFile.absolutePath}",
-    )
+    doFirst {
+        commandLine(
+            npxArgv() + listOf(
+                "-y", "esbuild@${Versions.esbuild}",
+                "src/index.ts", "--bundle",
+                "--format=iife", "--target=esnext", "--charset=utf8",
+                "--loader:.raw.js=text",
+                *engineDefines,
+                "--metafile=${rawBundleMeta.get().asFile.absolutePath}",
+                "--outfile=${rawBundleFile.get().asFile.absolutePath}",
+            ),
+        )
+    }
 }
 
 // One Closure invocation, shared by both artifacts. Level ADVANCED = full mangling (production);
@@ -197,15 +226,19 @@ val bundleRawPlayerJs by tasks.registering(Exec::class) {
     outputs.files(rawPlayerBundleFile, rawPlayerBundleMeta)
     workingDir = projectDir
     unixPath()
-    commandLine(
-        "npx", "-y", "esbuild@${Versions.esbuild}",
-        "src/player-index.ts", "--bundle",
-        "--format=iife", "--target=esnext", "--charset=utf8",
-        "--loader:.raw.js=text",
-        *playerDefines,
-        "--metafile=${rawPlayerBundleMeta.get().asFile.absolutePath}",
-        "--outfile=${rawPlayerBundleFile.get().asFile.absolutePath}",
-    )
+    doFirst {
+        commandLine(
+            npxArgv() + listOf(
+                "-y", "esbuild@${Versions.esbuild}",
+                "src/player-index.ts", "--bundle",
+                "--format=iife", "--target=esnext", "--charset=utf8",
+                "--loader:.raw.js=text",
+                *playerDefines,
+                "--metafile=${rawPlayerBundleMeta.get().asFile.absolutePath}",
+                "--outfile=${rawPlayerBundleFile.get().asFile.absolutePath}",
+            ),
+        )
+    }
 }
 
 val closurePlayerJs by tasks.registering {
@@ -237,15 +270,19 @@ val bundleRawTestJs by tasks.registering(Exec::class) {
     outputs.files(rawTestBundleFile, rawTestBundleMeta)
     workingDir = projectDir
     unixPath()
-    commandLine(
-        "npx", "-y", "esbuild@${Versions.esbuild}",
-        "src/test/index.ts", "--bundle",
-        "--format=iife", "--target=esnext", "--charset=utf8",
-        "--loader:.raw.js=text",
-        *engineDefines,
-        "--metafile=${rawTestBundleMeta.get().asFile.absolutePath}",
-        "--outfile=${rawTestBundleFile.get().asFile.absolutePath}",
-    )
+    doFirst {
+        commandLine(
+            npxArgv() + listOf(
+                "-y", "esbuild@${Versions.esbuild}",
+                "src/test/index.ts", "--bundle",
+                "--format=iife", "--target=esnext", "--charset=utf8",
+                "--loader:.raw.js=text",
+                *engineDefines,
+                "--metafile=${rawTestBundleMeta.get().asFile.absolutePath}",
+                "--outfile=${rawTestBundleFile.get().asFile.absolutePath}",
+            ),
+        )
+    }
 }
 
 val bundleTestJs by tasks.registering {

@@ -2,7 +2,6 @@ package io.ymusic.ui
 
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasText
-import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.test.waitUntilAtLeastOneExists
@@ -70,7 +69,7 @@ class ContentLocaleTest {
                 val graph = AppGraph(engines = engines, player = StubPlayer(), settings = settings, playerSurface = {})
                 setContent { App(graph) }
 
-                onNodeWithContentDescription("Trending music").performClick()
+                onNodeWithActionLabel("Trending music").performClick()
                 waitUntilAtLeastOneExists(hasText("Trending Music Videos"), 20_000)
                 waitUntil(timeoutMillis = 10_000) { charts.isNotEmpty() }
 
@@ -98,7 +97,7 @@ class ContentLocaleTest {
                 val graph = AppGraph(engines = engines, player = StubPlayer(), settings = settings, playerSurface = {})
                 setContent { App(graph) }
 
-                onNodeWithContentDescription("Trending music").performClick()
+                onNodeWithActionLabel("Trending music").performClick()
                 waitUntilAtLeastOneExists(hasText("Trending Music Videos"), 20_000)
                 waitUntil(timeoutMillis = 10_000) { charts.isNotEmpty() }
                 val before = charts.size

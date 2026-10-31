@@ -23,6 +23,10 @@
     <string name="downloads_none_title">Noch keine Downloads</string>
     <string name="downloads_none_message">Heruntergeladene Songs und Videos laufen offline.</string>
     <string name="downloads_failed">Download fehlgeschlagen</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Im Finder anzeigen</string>
+    <string name="menu_reveal_explorer">Im Datei-Explorer anzeigen</string>
+    <string name="menu_reveal_file_manager">Im Dateimanager anzeigen</string>
     <string name="section_settings">Einstellungen</string>
     <string name="section_donate">Spenden</string>
     <string name="section_feedback">Feedback</string>
@@ -121,8 +125,33 @@
     <string name="yt_playlist_removed_video">%1$s aus der Playlist entfernt</string>
     <string name="cd_add_to_playlist">Zu Playlist hinzufügen</string>
     <string name="cd_share">Teilen</string>
-    <string name="cd_music_video">Musik</string>
-    <string name="cd_album">Album</string>
+    <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
+    <string name="a11y_kind_video">Video</string>
+    <string name="a11y_kind_music_video">Musikvideo</string>
+    <string name="a11y_kind_live">Livestream</string>
+    <string name="a11y_kind_playlist">Playlist</string>
+    <string name="a11y_kind_album">Album</string>
+    <string name="a11y_kind_mix">Mix</string>
+    <string name="a11y_kind_channel">Kanal</string>
+    <!-- A video's length as a screen reader speaks it, joined with spaces: "1 hour 5 minutes 3 seconds" -->
+    <plurals name="a11y_duration_hours">
+        <item quantity="one">%1$d Stunde</item>
+        <item quantity="other">%1$d Stunden</item>
+    </plurals>
+    <plurals name="a11y_duration_minutes">
+        <item quantity="one">%1$d Minute</item>
+        <item quantity="other">%1$d Minuten</item>
+    </plurals>
+    <plurals name="a11y_duration_seconds">
+        <item quantity="one">%1$d Sekunde</item>
+        <item quantity="other">%1$d Sekunden</item>
+    </plurals>
+    <string name="a11y_now_playing">Wird gerade abgespielt</string>
+    <string name="a11y_playback_position">Wiedergabeposition</string>
+    <string name="a11y_x_of_y">%1$s von %2$s</string>
+    <string name="a11y_behind_live">%1$s hinter dem Livestream</string>
+    <string name="a11y_downloaded">Heruntergeladen</string>
+    <string name="a11y_eq_preamp">Vorverstärker</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Ordner</string>
@@ -363,7 +392,6 @@
     <string name="account_sign_out">Abmelden</string>
     <string name="account_switch">Konto wechseln</string>
     <string name="switch_account_hint">Wähle das gewünschte Konto und schließe diesen Bildschirm mit dem Zurück-Pfeil — die App lädt mit dem neuen Konto neu.</string>
-    <string name="cd_account_avatar">Profilbild</string>
     <string name="account_my_channel">Mein Kanal</string>
     <string name="account_watch_history">Wiedergabeverlauf</string>
     <string name="account_watch_later">Später ansehen</string>
@@ -551,6 +579,24 @@
     <string name="video_details_delete_title">Kommentar löschen</string>
     <string name="video_details_delete_message">Deinen Kommentar und alle Antworten darauf endgültig löschen?</string>
     <string name="video_details_deleted">Kommentar gelöscht</string>
+    <string name="cookie_protect_title">Anmeldung mit einem Passwort schützen?</string>
+    <string name="cookie_protect_body">Deine Anmeldung ist auf diesem Computer gespeichert, wo andere Apps, die du ausführst, sie lesen können. Lege ein Passwort fest, um sie zu sperren; YMusic fragt bei jedem Start danach.</string>
+    <string name="cookie_password">Passwort</string>
+    <string name="cookie_protect_confirm">Passwort bestätigen</string>
+    <string name="cookie_protect_mismatch">Die Passwörter stimmen nicht überein.</string>
+    <string name="cookie_protect_submit">Schützen</string>
+    <string name="cookie_protect_skip">Nicht jetzt</string>
+    <string name="cookie_unlock_title">Anmeldung entsperren</string>
+    <string name="cookie_unlock_body">Deine YouTube-Anmeldung ist mit einem Passwort geschützt.</string>
+    <string name="cookie_unlock_submit">Entsperren</string>
+    <string name="cookie_unlock_wrong">Falsches Passwort.</string>
+    <string name="cookie_unlock_cant_unlock">Entsperren nicht möglich?</string>
+    <string name="cookie_unlock_guest">Als Gast fortfahren</string>
+    <string name="cookie_unlock_guest_hint">Startet abgemeldet. Nichts wird gespeichert.</string>
+    <string name="cookie_unlock_sign_out">Abmelden</string>
+    <string name="cookie_unlock_sign_out_hint">Entfernt diese gespeicherte Anmeldung.</string>
+    <string name="cookie_unlock_sign_out_title">Abmelden?</string>
+    <string name="cookie_unlock_sign_out_body">Dadurch wird die gespeicherte Anmeldung von diesem Computer entfernt. Um dich wieder anzumelden, scanne den QR-Code mit der YMusic-App.</string>
     <string name="menu_details_comments">Details &amp; Kommentare</string>
     <string name="menu_search_lyrics">Songtext suchen</string>
     <string name="menu_speed_pitch">Tempo &amp; Tonhöhe</string>
@@ -570,4 +616,22 @@
     <string name="download_other_format">In anderem Format herunterladen</string>
     <string name="unsubscribe">Deabonnieren</string>
     <string name="unsubscribed">Deabonniert</string>
+    <string name="tray_pause">Pause</string>
+    <string name="tray_resume">Fortsetzen</string>
+    <string name="tray_stop">Stopp (Warteschlange leeren)</string>
+    <string name="tray_quit">Beenden</string>
+    <string name="shortcuts_title">Tastenkürzel</string>
+    <string name="shortcuts_play_pause">Wiedergabe / Pause</string>
+    <string name="shortcuts_now_playing">„Aktuelle Wiedergabe“ ein- oder ausblenden</string>
+    <string name="shortcuts_nav_menu">Menü öffnen oder schließen</string>
+    <string name="shortcuts_switch_tabs">Tabs wechseln</string>
+    <string name="shortcuts_escape">Vollbild beenden oder „Aktuelle Wiedergabe“, das Menü oder ein Pop-up schließen</string>
+    <string name="shortcuts_help">Diese Hilfe anzeigen</string>
+    <string name="shortcuts_volume_up">Lauter</string>
+    <string name="shortcuts_volume_down">Leiser</string>
+    <string name="a11y_key_arrow_left">Pfeil nach links</string>
+    <string name="a11y_key_arrow_right">Pfeil nach rechts</string>
+    <string name="a11y_key_arrow_up">Pfeil nach oben</string>
+    <string name="a11y_key_arrow_down">Pfeil nach unten</string>
+    <string name="cd_always_on_top">Immer im Vordergrund</string>
 </resources>

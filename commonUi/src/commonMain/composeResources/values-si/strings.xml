@@ -23,6 +23,10 @@
     <string name="downloads_none_title">තවම බාගැනීම් නැත</string>
     <string name="downloads_none_message">බාගත් ගීත සහ වීඩියෝ නොබැඳිව වාදනය වේ.</string>
     <string name="downloads_failed">බාගැනීම අසාර්ථකයි</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Finder තුළ පෙන්වන්න</string>
+    <string name="menu_reveal_explorer">ගොනු ගවේෂකය තුළ පෙන්වන්න</string>
+    <string name="menu_reveal_file_manager">ගොනු කළමනාකරු තුළ පෙන්වන්න</string>
     <string name="section_settings">සැකසීම්</string>
     <string name="section_donate">පරිත්‍යාග කරන්න</string>
     <string name="section_feedback">ප්‍රතිපෝෂණ</string>
@@ -121,8 +125,33 @@
     <string name="yt_playlist_removed_video">%1$s ධාවන ලැයිස්තුවෙන් ඉවත් කරන ලදී</string>
     <string name="cd_add_to_playlist">ධාවන ලැයිස්තුවට එක් කරන්න</string>
     <string name="cd_share">බෙදා ගන්න</string>
-    <string name="cd_music_video">සංගීතය</string>
-    <string name="cd_album">ඇල්බමය</string>
+    <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
+    <string name="a11y_kind_video">වීඩියෝ</string>
+    <string name="a11y_kind_music_video">සංගීත වීඩියෝ</string>
+    <string name="a11y_kind_live">සජීවී වීඩියෝ</string>
+    <string name="a11y_kind_playlist">ධාවන ලැයිස්තුව</string>
+    <string name="a11y_kind_album">ඇල්බමය</string>
+    <string name="a11y_kind_mix">මික්ස්</string>
+    <string name="a11y_kind_channel">නාලිකාව</string>
+    <!-- A video's length as a screen reader speaks it, joined with spaces: "1 hour 5 minutes 3 seconds" -->
+    <plurals name="a11y_duration_hours">
+        <item quantity="one">පැය %1$d</item>
+        <item quantity="other">පැය %1$d</item>
+    </plurals>
+    <plurals name="a11y_duration_minutes">
+        <item quantity="one">මිනිත්තු %1$d</item>
+        <item quantity="other">මිනිත්තු %1$d</item>
+    </plurals>
+    <plurals name="a11y_duration_seconds">
+        <item quantity="one">තත්පර %1$d</item>
+        <item quantity="other">තත්පර %1$d</item>
+    </plurals>
+    <string name="a11y_now_playing">දැන් වාදනය වේ</string>
+    <string name="a11y_playback_position">වාදන ස්ථානය</string>
+    <string name="a11y_x_of_y">%2$s න් %1$s</string>
+    <string name="a11y_behind_live">සජීවී විකාශයට වඩා %1$s පසුපසින්</string>
+    <string name="a11y_downloaded">බාගත කර ඇත</string>
+    <string name="a11y_eq_preamp">පූර්ව වර්ධකය</string>
 
     <!-- Library -->
     <string name="library_tab_folders">ෆෝල්ඩර</string>
@@ -363,7 +392,6 @@
     <string name="account_sign_out">වරන්න</string>
     <string name="account_switch">ගිණුම මාරු කරන්න</string>
     <string name="switch_account_hint">ඔබට අවශ්‍ය ගිණුම තෝරා, ආපසු ඊතලයෙන් මෙම තිරය වසන්න — යෙදුම නව ගිණුම යටතේ නැවුම් වේ.</string>
-    <string name="cd_account_avatar">ගිණුම් පින්තූරය</string>
     <string name="account_my_channel">මගේ නාලිකාව</string>
     <string name="account_watch_history">නැරඹුම් ඉතිහාසය</string>
     <string name="account_watch_later">පසුව නරඹන්න</string>
@@ -551,6 +579,24 @@
     <string name="video_details_delete_title">අදහස මකන්න</string>
     <string name="video_details_delete_message">ඔබගේ අදහස සහ එහි සියලු පිළිතුරු ස්ථිරවම මකන්නද?</string>
     <string name="video_details_deleted">අදහස මකන ලදී</string>
+    <string name="cookie_protect_title">ඔබගේ පුරනය මුරපදයකින් ආරක්ෂා කරන්නද?</string>
+    <string name="cookie_protect_body">ඔබගේ පුරනය මෙම පරිගණකයේ සුරැකී ඇති අතර, ඔබ ධාවනය කරන වෙනත් යෙදුම්වලට එය කියවිය හැක. එය අගුළු දැමීමට මුරපදයක් සකසන්න; YMusic සෑම ආරම්භයකදීම එය අසයි.</string>
+    <string name="cookie_password">මුරපදය</string>
+    <string name="cookie_protect_confirm">මුරපදය තහවුරු කරන්න</string>
+    <string name="cookie_protect_mismatch">මුරපද නොගැළපේ.</string>
+    <string name="cookie_protect_submit">ආරක්ෂා කරන්න</string>
+    <string name="cookie_protect_skip">දැන් නොවේ</string>
+    <string name="cookie_unlock_title">ඔබගේ පුරනය අගුළු හරින්න</string>
+    <string name="cookie_unlock_body">ඔබගේ YouTube පුරනය මුරපදයකින් ආරක්ෂා කර ඇත.</string>
+    <string name="cookie_unlock_submit">අගුළු හරින්න</string>
+    <string name="cookie_unlock_wrong">මුරපදය වැරදියි.</string>
+    <string name="cookie_unlock_cant_unlock">අගුළු හැරිය නොහැකිද?</string>
+    <string name="cookie_unlock_guest">අමුත්තෙකු ලෙස ඉදිරියට යන්න</string>
+    <string name="cookie_unlock_guest_hint">පුරනය නොවී ආරම්භ වේ. කිසිවක් සුරැකෙන්නේ නැත.</string>
+    <string name="cookie_unlock_sign_out">වරන්න</string>
+    <string name="cookie_unlock_sign_out_hint">සුරැකි මෙම පුරනය ඉවත් කරයි.</string>
+    <string name="cookie_unlock_sign_out_title">වරන්නද?</string>
+    <string name="cookie_unlock_sign_out_body">මෙය සුරැකි පුරනය මෙම පරිගණකයෙන් ඉවත් කරයි. නැවත පුරනය වීමට, YMusic යෙදුමෙන් QR කේතය ස්කෑන් කරන්න.</string>
     <string name="menu_details_comments">විස්තර සහ අදහස්</string>
     <string name="menu_search_lyrics">ගී පද සොයන්න</string>
     <string name="menu_speed_pitch">වේගය සහ තාරතාව</string>
@@ -570,4 +616,22 @@
     <string name="download_other_format">වෙනත් ආකෘතියකින් බාගන්න</string>
     <string name="unsubscribe">දායකත්වය ඉවත් කරන්න</string>
     <string name="unsubscribed">දායකත්වය ඉවත් කළා</string>
+    <string name="tray_pause">විරාම කරන්න</string>
+    <string name="tray_resume">නැවත අරඹන්න</string>
+    <string name="tray_stop">නවත්වන්න (පෝලිම හිස් කරන්න)</string>
+    <string name="tray_quit">වසන්න</string>
+    <string name="shortcuts_title">යතුරුපුවරු කෙටිමං</string>
+    <string name="shortcuts_play_pause">වාදනය / විරාමය</string>
+    <string name="shortcuts_now_playing">දැන් වාදනය වන තිරය පෙන්වන්න හෝ සඟවන්න</string>
+    <string name="shortcuts_nav_menu">මෙනුව විවෘත කරන්න හෝ වසන්න</string>
+    <string name="shortcuts_switch_tabs">ටැබ් මාරු කරන්න</string>
+    <string name="shortcuts_escape">සම්පූර්ණ තිරයෙන් ඉවත් වන්න, නැතහොත් දැන් වාදනය වන තිරය, මෙනුව හෝ උත්පතන කවුළුව වසන්න</string>
+    <string name="shortcuts_help">මෙම උදව්ව පෙන්වන්න</string>
+    <string name="shortcuts_volume_up">ශබ්දය වැඩි කරන්න</string>
+    <string name="shortcuts_volume_down">ශබ්දය අඩු කරන්න</string>
+    <string name="a11y_key_arrow_left">වම් ඊතලය</string>
+    <string name="a11y_key_arrow_right">දකුණු ඊතලය</string>
+    <string name="a11y_key_arrow_up">ඉහළ ඊතලය</string>
+    <string name="a11y_key_arrow_down">පහළ ඊතලය</string>
+    <string name="cd_always_on_top">සැමවිටම ඉහළින්</string>
 </resources>

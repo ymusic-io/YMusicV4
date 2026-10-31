@@ -1,12 +1,9 @@
 package io.ymusic.mse
 
 import androidx.annotation.Keep
-import java.nio.ByteBuffer
 
 /** JNI callbacks from the in-process libav file player (`file_av.c`). */
 interface FileAvSink {
-    @Keep fun onFrame(width: Int, height: Int, bgra: ByteBuffer?)
-
     @Keep fun onProgress(positionSec: Double, durationSec: Double, width: Int, height: Int)
 
     @Keep fun onEvent(ended: Boolean, error: String?)
@@ -65,20 +62,14 @@ object FileAvNative {
 
     @JvmStatic external fun setVideoEnabled(handle: Long, on: Boolean)
 
-    /** Cap presented height in pixels. 0 = native. */
-    @JvmStatic external fun setBlitMax(handle: Long, maxHeight: Int)
+    /**
+     * Pictures go to [presenter] (a `VideoPresenterNative` handle, 0 = none: video waits for one), bound with
+     * this player as the token. Windows reopens the video decoder when the presenter's D3D11 support changes.
+     */
+    @JvmStatic external fun bindPresenter(handle: Long, presenter: Long)
 
-    /** Fit the presented frame inside [w]×[h]. 0 on a side means unconstrained. */
-    @JvmStatic external fun setBlitSize(handle: Long, w: Int, h: Int)
-
-    /** macOS: overlay VideoToolbox on a heavyweight AWT Canvas. */
-    @JvmStatic external fun setVideoComponent(handle: Long, component: java.awt.Component?): Boolean
-
-    /** macOS: move the overlay to the Canvas screen rect. Safe from AWT during resize. */
-    @JvmStatic external fun layoutVideo(x: Int, y: Int, w: Int, h: Int)
-
-    /** Hide the overlay NSView without detaching the layer. */
-    @JvmStatic external fun setOverlayHidden(hidden: Boolean)
+    /** Pictures the presenter showed. */
+    @JvmStatic external fun frames(handle: Long): Int
 
     /** Place [below] immediately under [above] without making [below] key. macOS only. */
     @JvmStatic external fun orderWindowBelow(below: java.awt.Window, above: java.awt.Window)
@@ -96,9 +87,6 @@ object FileAvNative {
         onFullScreen?.invoke(on)
     }
 
-    /** Last presented overlay frame as BGRA. Writes width/height into [wh] (length ≥ 2). */
-    @JvmStatic external fun snapshotOverlay(wh: IntArray): ByteArray?
-
     /**
      * Overlay NSView mouse. [id] is `java.awt.event.MouseEvent` id; x/y are Java screen
      * (top-left). Desktop shell toggles chrome on mouse-up; do not copy events into Compose.
@@ -114,9 +102,6 @@ object FileAvNative {
     fun interface OverlayMouse {
         fun onMouse(id: Int, xOnScreen: Int, yOnScreen: Int, modifiers: Int, button: Int, clickCount: Int, wheel: Int)
     }
-
-    /** memcpy [n] BGRA pixels into a `TYPE_INT_RGB` int array. */
-    @JvmStatic external fun copyBgra(bgra: ByteBuffer, rgb: IntArray, n: Int)
 
     @JvmStatic external fun duration(handle: Long): Double
 

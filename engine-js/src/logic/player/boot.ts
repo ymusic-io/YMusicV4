@@ -5,6 +5,7 @@ import {
   activeHtmlMedia,
   dropVideoFakeOverlay,
   installMseGlobals,
+  installPlaybackQuality,
   isLiveDuration,
   mseCreateObjectURL,
   mseRevokeObjectURL,
@@ -13,6 +14,7 @@ import {
   resetDrainCounts,
 } from "../../protocol/mse";
 import { applyNavigatorLanguages, endLayoutProbes, installOrigEnv } from "./env";
+import { installMediaCapabilities } from "./media_caps";
 import { installXhr } from "../yt/xhr";
 import { installFetch } from "../yt/fetch";
 import { executeWithCookies } from "../yt/cookies";
@@ -872,6 +874,8 @@ class Player {
       return self.mintToken(id);
     });
     installMseGlobals();
+    installMediaCapabilities();
+    installPlaybackQuality();
     installSabrObserver();
     installXhr();
     installFetch();

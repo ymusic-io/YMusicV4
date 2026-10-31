@@ -2,6 +2,7 @@ package io.ymusic.ui
 
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -19,10 +20,27 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusManager
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEvent
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -42,7 +60,8 @@ import androidx.compose.ui.zIndex
  * follow it. [buttons] fills the bottom bar (right-aligned). [maxWidth] widens it past the 560dp
  * picker width for a dialog with more to lay out (the download options). [titleAction] sits at the
  * title bar's end (the equalizer's preset menu). [dismissOnClickOutside] false keeps it open on a
- * stray tap outside (a dialog holding a draft).
+ * stray tap outside (a dialog holding a draft). [keyboardNav] lets Up/Down walk the focus stops that
+ * don't use those keys themselves.
  */
 @Composable
 fun ElevatedBarDialog(
@@ -54,6 +73,7 @@ fun ElevatedBarDialog(
     maxWidth: Dp = 560.dp,
     titleAction: (@Composable () -> Unit)? = null,
     dismissOnClickOutside: Boolean = true,
+    keyboardNav: Boolean = false,
     body: @Composable () -> Unit,
 ) {
     // The title/button bars sit a step above the body. On dark, the full SurfaceElevated lift (0x12 →
@@ -72,12 +92,22 @@ fun ElevatedBarDialog(
             } else {
                 420.dp
             }
+            // Read inside the Dialog: it has its own focus owner.
+            val focusManager = LocalFocusManager.current
+            // The title takes focus on open so a screen reader announces the dialog by name. It draws no
+            // focus highlight, so once focus moves on it leaves the Tab order rather than become an
+            // invisible stop.
+            val titleFocus = remember { FocusRequester() }
+            var titleHadFocus by remember { mutableStateOf(false) }
+            var titleFocusable by remember { mutableStateOf(true) }
+            LaunchedEffect(Unit) { titleFocus.requestFocus() }
             Surface(
                 shape = RoundedCornerShape(4.dp),
                 color = DesignColors.Surface,
                 modifier = Modifier
                     .then(if (wide) Modifier.padding(horizontal = 24.dp) else Modifier)
-                    .widthIn(min = 280.dp, max = maxWidth),
+                    .widthIn(min = 280.dp, max = maxWidth)
+                    .then(if (keyboardNav) Modifier.onKeyEvent { arrowMovesFocus(it, focusManager) } else Modifier),
             ) {
                 Column {
                     val topShadow by animateDpAsState(if (canScrollBackward) 6.dp else 0.dp)
@@ -89,7 +119,15 @@ fun ElevatedBarDialog(
                             Text(
                                 title,
                                 style = TextStyle(fontSize = 17.sp, fontWeight = FontWeight.Bold, color = DesignColors.Ink),
-                                modifier = Modifier.weight(1f).padding(vertical = 16.dp),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .focusRequester(titleFocus)
+                                    .onFocusChanged {
+                                        if (it.isFocused) titleHadFocus = true else if (titleHadFocus) titleFocusable = false
+                                    }
+                                    .focusProperties { canFocus = titleFocusable }
+                                    .focusable()
+                                    .padding(vertical = 16.dp),
                             )
                             titleAction?.invoke()
                         }
@@ -109,6 +147,15 @@ fun ElevatedBarDialog(
                 }
             }
         }
+    }
+}
+
+private fun arrowMovesFocus(event: KeyEvent, focusManager: FocusManager): Boolean {
+    if (event.type != KeyEventType.KeyDown || event.hasCommandModifier) return false
+    return when (event.key) {
+        Key.DirectionDown -> focusManager.moveFocus(FocusDirection.Next)
+        Key.DirectionUp -> focusManager.moveFocus(FocusDirection.Previous)
+        else -> false
     }
 }
 

@@ -134,7 +134,7 @@ internal fun LocalPlaylistFromDownloadsDialog(store: BetterMediaStore, title: St
                     FeedChip(pluralStringResource(Res.plurals.local_playlist_downloaded, videos.size, videos.size), selected = false, onClick = null)
                     when {
                         ready?.loadingMore == true -> CircularProgressIndicator(Modifier.size(18.dp), color = DesignColors.Accent, strokeWidth = 2.dp)
-                        ready?.continuation != null -> FeedChip(stringResource(Res.string.playlist_load_more), selected = true) { pager.loadMore() }
+                        ready?.continuation != null -> FeedChip(stringResource(Res.string.playlist_load_more), selected = true, choice = false) { pager.loadMore() }
                     }
                 }
             }

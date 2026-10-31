@@ -73,7 +73,10 @@ fun registerMseNativeLib(targetName: String): TaskProvider<Exec> {
         workingDir(out)
         val arch = mseClangArch(targetName).joinToString(" ")
         val cmd = if (ffmpeg != null) {
-            val srcs = listOf("mse_host.c", "mse_ffmpeg.c", "mse_vt.c", "mse_vt_blit.c", "mse_vt_ios_stub.c", "audio_fx.c")
+            val srcs = listOf(
+                "mse_host.c", "mse_ffmpeg.c", "mse_caps.c", "mse_vt.c", "mse_vt_blit.c", "audio_fx.c",
+                "vpresent.c", "vpresent_cpu.c", "vpresent_vt.c", "vpipe.c", "vpipe_hw_vt.c",
+            )
                 .joinToString(" ") { "'${mseNativeSrc.resolve(it)}'" }
             val objc = listOf("mse_vt_layer.m", "mse_vt_dec.m")
                 .joinToString(" ") { "'${mseNativeSrc.resolve(it)}'" }
@@ -193,6 +196,7 @@ fun canBuildMseJni(log: org.gradle.api.logging.Logger): Boolean {
         javaHomeForJni.isEmpty() -> "no JDK with include/jni.h (set JAVA_HOME)"
         !mseNativeSrc.resolve("CMakeLists.txt").exists() -> "no mse/native/CMakeLists.txt"
         ffmpegDesktopPrefix == null -> "no ffmpeg dev prefix: build ../ffmpeg-build (scripts/build-desktop.sh)"
+        hostOs.isWindows && mingwToolchainHome() == null -> MINGW_MISSING
         else -> return true
     }
     log.warn("w: skipping the desktop MSE JNI build, $missing; desktop playback will not load")
@@ -206,32 +210,44 @@ val mseCmakeConfigure by tasks.registering(Exec::class) {
     inputs.property("javaHome", javaHomeForJni)
     inputs.property("ffmpegRoot", ffmpegDesktopPrefix?.absolutePath ?: "")
     inputs.property("production", productionC)
+    inputs.property("mingwHome", mingwToolchainHome()?.absolutePath ?: "")
+    inputs.property("macosMin", Versions.macosMin)
     outputs.file(File(out, "CMakeCache.txt"))
     environment("JAVA_HOME", javaHomeForJni)
-    commandLine(
+    val args = listOf(
         "cmake", "-S", mseNativeSrc.absolutePath, "-B", out.absolutePath,
         "-DCMAKE_BUILD_TYPE=Release",
+        "-DCMAKE_OSX_DEPLOYMENT_TARGET=${Versions.macosMin}",
         "-DFFMPEG_ROOT=${ffmpegDesktopPrefix?.absolutePath ?: ""}",
         "-DPRODUCTION=$productionC",
     )
+    // After onlyIf: a Windows host without MinGW skips with canBuildMseJni's warning.
+    doFirst { commandLine(args + mingwCmakeArgs()) }
 }
 val mseCmakeBuild by tasks.registering(Exec::class) {
     dependsOn(mseCmakeConfigure)
     onlyIf { canBuildMseJni(logger) }
     inputs.dir(mseNativeSrc)
     outputs.dir(mseJniDir)
+    // MinGW Makefiles (Windows) and Unix Makefiles (macOS/Linux) are single-config; the Visual
+    // Studio multi-config generator is avoided above with the forced MinGW toolchain on Windows.
     commandLine("cmake", "--build", mseJniDir.get().asFile.absolutePath, "-j", "4")
     doLast {
         // Siblings of libmseffmpegjni so @loader_path / $ORIGIN resolves in tests (mse.native.dir).
+        // Windows: ffmpeg's `make install` puts the shared libs in bin/ (next to ffmpeg.exe); the
+        // sibling MinGW runtime DLLs (zlib1, libwinpthread-1) also live there.
         val prefix = ffmpegDesktopPrefix ?: return@doLast
-        val lib = File(prefix, "lib")
-        lib.listFiles()?.forEach { f ->
-            val n = f.name
-            if (n.endsWith(".a") || n.endsWith(".pc") || n.endsWith(".la")) return@forEach
-            val sharedAv = n.startsWith("libav") || n.startsWith("libsw")
-            val winDll = (n.startsWith("av") || n.startsWith("sw")) && n.endsWith(".dll")
-            if (sharedAv || winDll) {
-                f.copyTo(File(mseJniDir.get().asFile, n), overwrite = true)
+        val sources = listOf("lib", "bin").map { File(prefix, it) }.filter { it.isDirectory }
+        for (src in sources) {
+            src.listFiles()?.forEach { f ->
+                val n = f.name
+                if (n.endsWith(".a") || n.endsWith(".pc") || n.endsWith(".la")) return@forEach
+                val sharedAv = n.startsWith("libav") || n.startsWith("libsw")
+                val winAvDll = (n.startsWith("av") || n.startsWith("sw")) && n.endsWith(".dll")
+                val winRuntimeDll = (n == "zlib1.dll" || n == "libwinpthread-1.dll")
+                if (sharedAv || winAvDll || winRuntimeDll) {
+                    f.copyTo(File(mseJniDir.get().asFile, n), overwrite = true)
+                }
             }
         }
     }
@@ -262,6 +278,9 @@ val bundleMseJniLib by tasks.registering(Copy::class) {
     from(mseJniDir) {
         include(System.mapLibraryName("mseffmpegjni"))
         include("libav*", "libsw*", "av*.dll", "sw*.dll")
+        // MinGW runtime DLLs ffmpeg-build packs on Windows (zlib1, libwinpthread-1) — avcodec and
+        // mseffmpegjni import them, so they must sit next to the JNI at load time.
+        include("zlib*.dll", "libwinpthread*.dll")
         exclude("*.a", "*.pc", "*.la")
     }
     into(mseJniResourcesDir.map { it.dir("jni/$mseHostJniFolder") })

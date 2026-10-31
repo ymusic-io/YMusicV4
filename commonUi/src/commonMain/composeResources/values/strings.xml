@@ -42,7 +42,10 @@
     <string name="downloads_action_pause">Pause</string>
     <string name="downloads_action_resume">Resume</string>
     <string name="downloads_action_reveal_library">Reveal in Library</string>
-    <string name="downloads_action_reveal_finder">Reveal in Finder</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Reveal in Finder</string>
+    <string name="menu_reveal_explorer">Reveal in File Explorer</string>
+    <string name="menu_reveal_file_manager">Reveal in File Manager</string>
     <!-- A finished download's date: %1$s = month from month_abbr, %2$d = day, %3$d = year. -->
     <string name="downloads_completed_date">%1$s %2$d, %3$d</string>
     <string-array name="month_abbr">
@@ -164,8 +167,38 @@
     <string name="yt_playlist_removed_video">Removed %1$s from the playlist</string>
     <string name="cd_add_to_playlist">Add to playlist</string>
     <string name="cd_share">Share</string>
-    <string name="cd_music_video">Music</string>
-    <string name="cd_album">Album</string>
+    <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
+    <string name="a11y_kind_video">Video</string>
+    <string name="a11y_kind_music_video">Music video</string>
+    <string name="a11y_kind_live">Live video</string>
+    <string name="a11y_kind_playlist">Playlist</string>
+    <string name="a11y_kind_album">Album</string>
+    <string name="a11y_kind_mix">Mix</string>
+    <string name="a11y_kind_channel">Channel</string>
+    <!-- A video's length as a screen reader speaks it, joined with spaces: "1 hour 5 minutes 3 seconds" -->
+    <plurals name="a11y_duration_hours">
+        <item quantity="one">%1$d hour</item>
+        <item quantity="other">%1$d hours</item>
+    </plurals>
+    <plurals name="a11y_duration_minutes">
+        <item quantity="one">%1$d minute</item>
+        <item quantity="other">%1$d minutes</item>
+    </plurals>
+    <plurals name="a11y_duration_seconds">
+        <item quantity="one">%1$d second</item>
+        <item quantity="other">%1$d seconds</item>
+    </plurals>
+    <!-- Screen-reader prefix of the queue row that is playing -->
+    <string name="a11y_now_playing">Now playing</string>
+    <string name="a11y_playback_position">Playback position</string>
+    <!-- A position against a total, spoken: "1 minute 5 seconds of 3 minutes 45 seconds", "12 MB of 40 MB" -->
+    <string name="a11y_x_of_y">%1$s of %2$s</string>
+    <!-- How far a live stream plays behind its live edge, spoken: "3 seconds behind live" -->
+    <string name="a11y_behind_live">%1$s behind live</string>
+    <!-- Screen-reader state of a video the Library already holds -->
+    <string name="a11y_downloaded">Downloaded</string>
+    <!-- Screen-reader name of the equalizer's PRE (preamp) fader -->
+    <string name="a11y_eq_preamp">Preamp</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Folders</string>
@@ -432,7 +465,6 @@
     <string name="account_sign_out">Sign out</string>
     <string name="account_switch">Switch account</string>
     <string name="switch_account_hint">Pick the account you want, then close this screen with the back arrow — the app refreshes under the new account.</string>
-    <string name="cd_account_avatar">Account picture</string>
     <string name="account_my_channel">My channel</string>
     <string name="account_watch_history">Watch history</string>
     <string name="account_watch_later">Watch later</string>
@@ -662,14 +694,16 @@
     <string name="cookie_protect_confirm">Confirm password</string>
     <string name="cookie_protect_mismatch">The passwords don’t match.</string>
     <string name="cookie_protect_submit">Protect</string>
-    <string name="cookie_protect_skip">Never mind</string>
+    <string name="cookie_protect_skip">Not now</string>
     <string name="cookie_unlock_title">Unlock your sign-in</string>
     <string name="cookie_unlock_body">Your YouTube sign-in is protected with a password.</string>
     <string name="cookie_unlock_submit">Unlock</string>
     <string name="cookie_unlock_wrong">Wrong password.</string>
-    <string name="cookie_unlock_guest">Use as guest</string>
-    <string name="cookie_unlock_guest_hint">Starts signed out. Nothing from a guest session is kept.</string>
+    <string name="cookie_unlock_cant_unlock">Can’t unlock?</string>
+    <string name="cookie_unlock_guest">Continue as guest</string>
+    <string name="cookie_unlock_guest_hint">Starts signed out. Nothing is kept.</string>
     <string name="cookie_unlock_sign_out">Sign out</string>
+    <string name="cookie_unlock_sign_out_hint">Removes this saved sign-in.</string>
     <string name="cookie_unlock_sign_out_title">Sign out?</string>
     <string name="cookie_unlock_sign_out_body">This removes the saved sign-in from this computer. To sign in again, scan the QR code with the YMusic app.</string>
     <string name="link_unsupported">YMusic can't open this link</string>
@@ -738,4 +772,22 @@
     <string name="download_other_format">Download in another format</string>
     <string name="unsubscribe">Unsubscribe</string>
     <string name="unsubscribed">Unsubscribed</string>
+    <string name="tray_pause">Pause</string>
+    <string name="tray_resume">Resume</string>
+    <string name="tray_stop">Stop (clear queue)</string>
+    <string name="tray_quit">Quit</string>
+    <string name="shortcuts_title">Keyboard shortcuts</string>
+    <string name="shortcuts_play_pause">Play / pause</string>
+    <string name="shortcuts_now_playing">Show or hide Now Playing</string>
+    <string name="shortcuts_nav_menu">Open or close the menu</string>
+    <string name="shortcuts_switch_tabs">Switch tabs</string>
+    <string name="shortcuts_escape">Exit full screen, or close Now Playing, the menu or a pop-up</string>
+    <string name="shortcuts_help">Show this help</string>
+    <string name="shortcuts_volume_up">Volume up</string>
+    <string name="shortcuts_volume_down">Volume down</string>
+    <string name="a11y_key_arrow_left">left arrow</string>
+    <string name="a11y_key_arrow_right">right arrow</string>
+    <string name="a11y_key_arrow_up">up arrow</string>
+    <string name="a11y_key_arrow_down">down arrow</string>
+    <string name="cd_always_on_top">Always on top</string>
 </resources>

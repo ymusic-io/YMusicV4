@@ -1,5 +1,7 @@
 /* Pull-based libav MSE decoder. Kotlin owns the clock and sinks. */
 #include "mse_ffmpeg.h"
+#include "vpipe.h"
+#include "vpresent.h"
 
 #include <libavcodec/avcodec.h>
 #include <libavcodec/bsf.h>
@@ -11,18 +13,14 @@
 #include <libavutil/imgutils.h>
 #include <libavutil/mem.h>
 #include <libavutil/opt.h>
+#include <libavutil/pixdesc.h>
 #include <libavutil/pixfmt.h>
 #include <libavutil/samplefmt.h>
 #include <libswresample/swresample.h>
-#include <libswscale/swscale.h>
 #ifdef __APPLE__
-#include <TargetConditionals.h>
 #include <os/log.h>
-#include <libavutil/hwcontext.h>
-#include <libavutil/pixdesc.h>
 #include <CoreVideo/CoreVideo.h>
 #include "mse_vt_present.h"
-#include "mse_vt_blit.h"
 #endif
 #if defined(__linux__) && !defined(__ANDROID__)
 #define MSE_LINUX_HW 1
@@ -32,6 +30,7 @@
 #include <math.h>
 #include <pthread.h>
 #include <stdarg.h>
+#include <stdatomic.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stddef.h>
@@ -68,6 +67,11 @@ typedef struct {
 struct MseAv {
     pthread_mutex_t mu;
     pthread_mutex_t amu;
+    /* Taken after mu, never before it: a picked picture is shown under it only while v_epoch
+       still matches. */
+    pthread_mutex_t show_mu;
+    /* Bumped (under mu and show_mu) when picked pictures must not be shown any more. */
+    unsigned v_epoch;
     uint8_t *ainit;
     size_t ainit_n;
     uint8_t *vinit;
@@ -75,7 +79,12 @@ struct MseAv {
     Cfb af;
     Cfb vf;
     AVCodecContext *adec;
-    AVCodecContext *vdec;
+    /* Libav video decoding (desktop, iOS); never opened on Android. */
+    VPipe *vpipe;
+    /* No decoder takes vpar: no reopen until new parameters. */
+    int v_dead;
+    /* Pts of the last packet vpipe took. */
+    double v_fed;
     SwrContext *swr;
     int swr_rate;
     int swr_ch;
@@ -83,18 +92,11 @@ struct MseAv {
     uint8_t *pcm;
     size_t pcm_n;
     AVFrame *afr;
-    struct SwsContext *sws;
-    uint8_t *sws_pad;
-    size_t sws_pad_n;
-    uint8_t *bgra_buf[2];
-    size_t bgra_n[2];
-    int bgra_i;
-    AVFrame *hw_sw;
-#ifdef MSE_LINUX_HW
-    int hw_errs; /* decode errors since the last good GPU frame */
+#ifdef __APPLE__
+    /* The VideoToolbox session's pictures and the layer flush bypass vpipe. */
+    VPresenter *vp;
+    const void *vp_engine;
 #endif
-    int blit_w, blit_h;
-    int blit_log_dw, blit_log_dh;
     int rate;
     int channels;
     double duration;
@@ -107,13 +109,17 @@ struct MseAv {
        continuations so PTS stay cluster-relative. */
     uint8_t cluster_tc[2][16];
     size_t cluster_tc_n[2];
+    /* Bytes dropped from pend by a resync still looking for a restart point, and the first of them. */
+    size_t junk_n[2];
+    uint8_t junk_head[2][4];
     int need_rap[2];
-    int v_reopen;
     double starve_log_pts;
     double starve_log_clock;
     AVFrame *vfr;
     AVFrame *vhold;
     AVBSFContext *vbsf;
+    /* vbsf output vpipe had no room for; sent before anything else. */
+    AVPacket *vbsf_out;
     AVCodecParameters *vpar;
     /* New quality (size/extradata) while leftover still covers currentTime.
        Chrome changeType keeps those packets; switch the decoder at the new GOP. */
@@ -131,17 +137,24 @@ struct MseAv {
     /* H.264: AV_PKT_FLAG_KEY can be a recovery point, not IDR. Don't show
        until an IDR NAL has been sent (open-GOP seek = broken picture). */
     int v_seen_idr;
+    /* The last decode-error resync: the keyframe it restarted at (-1 once a picture is shown),
+       where the decoder failed, and the decoder that retries. */
+    double v_err_key;
+    double v_err_pos;
+    char v_err_dec[64];
+    /* getVideoPlaybackQuality: pictures shown, and those dropped for missing their time (decoded
+       too late, or a stale GOP skipped undecoded). Read without a->mu. */
+    atomic_int q_shown;
+    atomic_int q_dropped;
 #ifdef __APPLE__
-    void *vt_layer;
     void *vt_dec;
-    MseVtBlit vt_blit;
     /* Decoded pictures waiting in PTS (display) order. H.264 B-frames are
        sent in DTS order; showing them as they decode is the broken picture. */
     void *vt_q_pb[8];
     double vt_q_pts[8];
     int vt_q_w[8], vt_q_h[8];
     int vt_q_n;
-    /* Codec that failed VideoToolbox. Skip VT for that id (simulator AV1). */
+    /* Codec whose VideoToolbox session did not open: it decodes through vpipe. */
     enum AVCodecID vt_fail_id;
 #endif
 #ifdef __ANDROID__
@@ -177,9 +190,30 @@ struct MseAv {
 #endif
 };
 
+/* A picture pull_video picked to show once a->mu is released. */
+typedef struct {
+    AVFrame *f;
+#ifdef __APPLE__
+    /* Retained VideoToolbox session picture, shown on vp under engine. */
+    void *cvpb;
+    VPresenter *vp;
+    const void *engine;
+    VpColor color;
+#endif
+    unsigned epoch;
+} VShow;
+
 #if !PRODUCTION
 static int vdbg_n;
 #endif
+
+/* Under show_late the pictures before the playhead are a seek's or a resume's run-up, not drops. */
+static void v_count_dropped(MseAv *a, int n)
+{
+    if (!a->show_late && n > 0)
+        atomic_fetch_add_explicit(&a->q_dropped, n, memory_order_relaxed);
+}
+
 static void vf_resync_key(MseAv *a, double t);
 static void close_video_decoder(MseAv *a);
 #ifdef __ANDROID__
@@ -346,12 +380,6 @@ static void mse_av_log(void *ptr, int level, const char *fmt, va_list vl)
             buf[--n] = 0;
 #ifdef __APPLE__
         os_log_with_type(mse_oslog(), OS_LOG_TYPE_ERROR, "ffmpeg %{public}s", buf);
-        if (fmt && strstr(fmt, "hwaccel initialisation returned error")) {
-            AVCodecContext *ctx = ptr;
-            MseAv *a = ctx && ctx->opaque ? (MseAv *)ctx->opaque : NULL;
-            if (a && ctx->codec_id)
-                a->vt_fail_id = ctx->codec_id;
-        }
 #endif
 #ifdef MSE_LINUX_HW
         if (fmt && strstr(fmt, "hwaccel initialisation returned error")) {
@@ -448,9 +476,9 @@ static void vlog_state(MseAv *a, double clock, const char *why, double extra)
     }
     if (a->vhold && a->vhold->pts != AV_NOPTS_VALUE)
         hp = a->vhold->pts / 1000.0;
-    vlog("%s clock=%.3f extra=%.3f v_sent=%.3f hold=%.3f vf rd=%zu/%zu next=%.3f q=%.3f..%.3f nkey=%d next_key=%.3f rap=%d delay=%d bframes=%d",
+    vlog("%s clock=%.3f extra=%.3f v_sent=%.3f hold=%.3f vf rd=%zu/%zu next=%.3f q=%.3f..%.3f nkey=%d next_key=%.3f rap=%d dec=%s",
          why, clock, extra, a->v_sent, hp, a->vf.rd, a->vf.n, np, p0, p1, nkey, nk, a->need_rap[0],
-         a->vdec ? a->vdec->delay : -1, a->vdec ? a->vdec->has_b_frames : -1);
+         vpipe_describe(a->vpipe));
 }
 #else
 #define vdbg_ok() 0
@@ -751,9 +779,20 @@ static int has_marker(const uint8_t *p, size_t n, const uint8_t *m, size_t mn)
 #define MSE_ID_BLOCK        0xA1u
 #define MSE_ID_TIMECODE     0xE7u
 #define MSE_ID_PREVSIZE     0xABu
+#define MSE_ID_SEEKHEAD     0x114D9B74u
+#define MSE_ID_INFO         0x1549A966u
+#define MSE_ID_TRACKS       0x1654AE6Bu
+#define MSE_ID_CUES         0x1C53BB6Bu
+#define MSE_ID_TAGS         0x1254C367u
+#define MSE_ID_CHAPTERS     0x1043A770u
+#define MSE_ID_ATTACHMENTS  0x1941A469u
+#define MSE_ID_VOID         0xECu
+#define MSE_ID_CRC32        0xBFu
 /* log28: 1440p60 itag 308 Cluster clen=9425394. 8MB treated that GOP as
    incomplete, leftover stayed empty, SABR would not refetch. 4K GOPs are larger. */
 #define MSE_CLUSTER_MAX (128ull * 1024ull * 1024ull)
+/* Cues/Tags/Void between Clusters are KBs; a larger one is junk that only looks like one. */
+#define MSE_WEBM_META_MAX (16ull * 1024ull * 1024ull)
 
 static int ebml_head(const uint8_t *p, size_t n, uint32_t *id, uint64_t *sz, int *unk, int *hdr)
 {
@@ -792,6 +831,20 @@ static int ebml_head(const uint8_t *p, size_t n, uint32_t *id, uint64_t *sz, int
     *sz = v;
     *hdr = idw + szw;
     return 1;
+}
+
+/* ebml_head that tells junk from a short buffer: -1 = no element header can start here. */
+static int ebml_peek(const uint8_t *p, size_t n, uint32_t *id, uint64_t *sz, int *unk, int *hdr)
+{
+    int idw;
+    if (n < 1)
+        return 0;
+    if (p[0] < 0x10)
+        return -1;
+    idw = p[0] >= 0x80 ? 1 : p[0] >= 0x40 ? 2 : p[0] >= 0x20 ? 3 : 4;
+    if (n > (size_t)idw && p[idw] == 0)
+        return -1;
+    return ebml_head(p, n, id, sz, unk, hdr);
 }
 
 /* 1 = walked; *off_out = first Cluster offset, or n if the buffer is init-only. 0 = need more. */
@@ -1068,26 +1121,6 @@ fail:
     free(blob);
     return -1;
 }
-
-#ifdef __APPLE__
-static enum AVPixelFormat get_hw_format(AVCodecContext *ctx, const enum AVPixelFormat *pix_fmts)
-{
-    const enum AVPixelFormat *p;
-    MseAv *a = ctx && ctx->opaque ? (MseAv *)ctx->opaque : NULL;
-    int allow_vt = !a || a->vt_fail_id != ctx->codec_id;
-    if (allow_vt) {
-        for (p = pix_fmts; *p != AV_PIX_FMT_NONE; p++) {
-            if (*p == AV_PIX_FMT_VIDEOTOOLBOX)
-                return *p;
-        }
-    }
-    for (p = pix_fmts; *p != AV_PIX_FMT_NONE; p++) {
-        if (*p != AV_PIX_FMT_VIDEOTOOLBOX)
-            return *p;
-    }
-    return pix_fmts[0];
-}
-#endif
 
 #ifdef __ANDROID__
 static const char *mc_mime(enum AVCodecID id)
@@ -1608,6 +1641,7 @@ static int pull_mc(MseAv *a, double clock, int *w, int *h, double *pts)
             mc_cost_note_out(a, p);
             mc_hold_drop(a, 0);
             a->mc_n_dropped++;
+            v_count_dropped(a, 1);
         } else {
             mc_hold_drop(a, 1);
             a->mc_n_shown++;
@@ -1656,6 +1690,7 @@ static int pull_mc(MseAv *a, double clock, int *w, int *h, double *pts)
                 mc_cost_note_out(a, p);
                 AMediaCodec_releaseOutputBuffer(a->mc, (size_t)ox, 0);
                 a->mc_n_dropped++;
+                v_count_dropped(a, 1);
                 continue;
             }
             AMediaCodec_releaseOutputBuffer(a->mc, (size_t)ox, 1);
@@ -1746,67 +1781,88 @@ static int mc_try_open(MseAv *a)
         return -1;
     }
     a->mc_open_tries = 0;
-    if (a->vdec) {
+    if (vpipe_is_open(a->vpipe)) {
         av_frame_free(&a->vhold);
-        avcodec_free_context(&a->vdec);
-        if (a->sws) {
-            sws_freeContext(a->sws);
-            a->sws = NULL;
-        }
+        vpipe_close(a->vpipe);
     }
     return 0;
 }
 #endif
 
-/* sw_only: skip VideoToolbox-hosted `av1` (simulator / vt_fail).
-   Prefer libvpx-vp9. Native `vp9` is software-only fallback when the pack
-   omitted libvpx (do not attach VT hwaccel: that path SIGILL). */
-static const AVCodec *find_video_codec(enum AVCodecID id, int sw_only)
+typedef struct {
+    const uint8_t *p;
+    size_t n, pos;
+} Vp9Bits;
+
+static int vp9_bits(Vp9Bits *b, int k)
 {
-    const AVCodec *c;
-#ifdef MSE_LINUX_HW
-    if (!sw_only && (id == AV_CODEC_ID_VP9 || id == AV_CODEC_ID_AV1) && mse_hwdev_usable(id)) {
-        c = avcodec_find_decoder_by_name(id == AV_CODEC_ID_VP9 ? "vp9" : "av1");
-        if (c)
-            return c;
+    int v = 0;
+    for (; k > 0; k--) {
+        if (b->pos >= b->n * 8)
+            return -1;
+        v = (v << 1) | ((b->p[b->pos >> 3] >> (7 - (b->pos & 7))) & 1);
+        b->pos++;
     }
-#endif
-    if (id == AV_CODEC_ID_VP9) {
-        c = avcodec_find_decoder_by_name("libvpx-vp9");
-        if (c)
-            return c;
-        return avcodec_find_decoder_by_name("vp9");
+    return v;
+}
+
+int mse_vp9_header(const uint8_t *p, size_t n, MseVp9Header *h)
+{
+    Vp9Bits b = { p, n, 0 };
+    int v, lo, hi;
+    memset(h, 0, sizeof(*h));
+    if (!p || vp9_bits(&b, 2) != 2)
+        return -1;
+    lo = vp9_bits(&b, 1);
+    hi = vp9_bits(&b, 1);
+    if (lo < 0 || hi < 0)
+        return -1;
+    h->profile = lo | (hi << 1);
+    if (h->profile == 3 && vp9_bits(&b, 1) != 0)
+        return -1;
+    /* show_existing_frame, then frame_type: both 0 on a keyframe. */
+    v = vp9_bits(&b, 2);
+    if (v != 0)
+        return v < 0 ? -1 : 0;
+    if (vp9_bits(&b, 2) < 0 || vp9_bits(&b, 24) != 0x498342)
+        return -1;
+    h->key = 1;
+    h->bit_depth = 8;
+    if (h->profile >= 2) {
+        if ((v = vp9_bits(&b, 1)) < 0)
+            return -1;
+        h->bit_depth = v ? 12 : 10;
     }
-    if (id == AV_CODEC_ID_VP8) {
-        c = avcodec_find_decoder_by_name("libvpx");
-        if (c)
-            return c;
-        return NULL;
+    if ((v = vp9_bits(&b, 3)) < 0)
+        return -1;
+    if (v == 7) {
+        /* RGB: full range 4:4:4. */
+        h->full_range = 1;
+        return 0;
     }
-    if (id == AV_CODEC_ID_AV1) {
-        if (sw_only) {
-            c = avcodec_find_decoder_by_name("libdav1d");
-            return c;
-        }
-#if defined(__APPLE__) && TARGET_OS_SIMULATOR
-        c = avcodec_find_decoder_by_name("libdav1d");
-        if (c)
-            return c;
-        return NULL;
-#endif
-#ifdef __APPLE__
-        /* find_decoder(AV1) returns libdav1d once it is linked. Native `av1`
-           is the VideoToolbox wrapper — 4K stays on the GPU. */
-        c = avcodec_find_decoder_by_name("av1");
-        if (c)
-            return c;
-#endif
-        c = avcodec_find_decoder_by_name("libdav1d");
-        if (c)
-            return c;
-        return avcodec_find_decoder(id);
+    if ((h->full_range = vp9_bits(&b, 1)) < 0)
+        return -1;
+    if (h->profile == 1 || h->profile == 3) {
+        h->ss_x = vp9_bits(&b, 1);
+        h->ss_y = vp9_bits(&b, 1);
+        return h->ss_x < 0 || h->ss_y < 0 ? -1 : 0;
     }
-    return avcodec_find_decoder(id);
+    h->ss_x = h->ss_y = 1;
+    return 0;
+}
+
+int mse_vp9_high_depth(const AVCodecParameters *par)
+{
+    const AVPixFmtDescriptor *d = av_pix_fmt_desc_get((enum AVPixelFormat)par->format);
+    return par->profile >= AV_PROFILE_VP9_2 || (d && d->comp[0].depth > 8);
+}
+
+/* The keyframe c tells the stream's profile, which the container seldom states. */
+static void vp9_learn_profile(AVCodecParameters *par, const Cf *c)
+{
+    MseVp9Header h;
+    if (par && par->codec_id == AV_CODEC_ID_VP9 && c->key && mse_vp9_header(c->data, c->n, &h) == 0)
+        par->profile = h.profile;
 }
 
 /* Same itag/config: reuse the decoder. A new quality (size or sequence
@@ -1850,26 +1906,6 @@ static int apple_vt_codec(const AVCodecParameters *par)
     return 0;
 }
 
-static void vp9_vpcc_from_par(uint8_t out[12], const AVCodecParameters *par,
-                              const uint8_t *frame, int n)
-{
-    int profile = 0, bpp = 8;
-    memset(out, 0, 12);
-    if (par->profile >= 0 && par->profile <= 3)
-        profile = par->profile;
-    if (frame && n >= 1 && (frame[0] >> 6) == 2) {
-        profile = (frame[0] >> 4) & 3;
-        if (profile >= 2)
-            bpp = 10;
-    }
-    out[0] = 1;
-    out[4] = (uint8_t)profile;
-    out[6] = (uint8_t)((bpp << 4) | (1 << 1));
-    out[7] = 1;
-    out[8] = 1;
-    out[9] = 1;
-}
-
 static void *open_apple_vt(MseAv *a)
 {
     if (!a->vpar)
@@ -1878,198 +1914,102 @@ static void *open_apple_vt(MseAv *a)
         return mse_vt_dec_open(a->vpar->extradata, a->vpar->extradata_size,
                                a->vpar->width, a->vpar->height);
     if (a->vpar->codec_id == AV_CODEC_ID_VP9) {
-        uint8_t vpcc[12];
-        if (vp9_vt_unavailable)
-            return NULL;
-        const uint8_t *extra = a->vpar->extradata;
-        int extra_n = a->vpar->extradata_size;
         const uint8_t *frame = NULL;
         int fn = 0;
+        if (vp9_vt_unavailable)
+            return NULL;
         if (a->vf.rd < a->vf.n) {
             frame = a->vf.f[a->vf.rd].data;
             fn = (int)a->vf.f[a->vf.rd].n;
+            vp9_learn_profile(a->vpar, &a->vf.f[a->vf.rd]);
         }
-        if (!extra || extra_n < 12 || extra[0] != 1) {
-            vp9_vpcc_from_par(vpcc, a->vpar, frame, fn);
-            extra = vpcc;
-            extra_n = 12;
-        }
-        return mse_vt_dec_open_vp9(extra, extra_n, a->vpar->width, a->vpar->height);
+        return mse_vt_dec_open_vp9(a->vpar->extradata, a->vpar->extradata_size, a->vpar->profile,
+                                   frame, fn, a->vpar->width, a->vpar->height);
     }
     return NULL;
 }
 #endif
 
-static int open_decoder(MseAv *a, int video, AVCodecParameters *par)
+static void log_no_decoder(enum AVCodecID id)
+{
+    static int logged_id;
+    if (logged_id != (int)id) {
+        logged_id = (int)id;
+        mse_critf(MSE_LOG_WARN, "mse-v no decoder id=%d", (int)id);
+    }
+}
+
+static int open_audio_decoder(MseAv *a, AVCodecParameters *par)
 {
     const AVCodec *codec;
-    AVCodecContext **ctxp = video ? &a->vdec : &a->adec;
-    if (video && (a->v_rest
+    if (a->adec) {
+        if (a->adec->codec_id == par->codec_id)
+            return 0;
+        vlog("reopen codec %d -> %d", (int)a->adec->codec_id, (int)par->codec_id);
+        avcodec_free_context(&a->adec);
+    }
+    codec = avcodec_find_decoder(par->codec_id);
+    if (!codec) {
+        log_no_decoder(par->codec_id);
+        return -1;
+    }
+    a->adec = avcodec_alloc_context3(codec);
+    if (!a->adec)
+        return -1;
+    if (avcodec_parameters_to_context(a->adec, par) < 0) {
+        avcodec_free_context(&a->adec);
+        return -1;
+    }
+    if (avcodec_open2(a->adec, codec, NULL) < 0) {
+        mse_critf(MSE_LOG_WARN, "mse-a open decoder fail id=%d %s", (int)par->codec_id,
+                  codec->name);
+        avcodec_free_context(&a->adec);
+        return -1;
+    }
+    a->adec->pkt_timebase = (AVRational){ 1, 1000 };
+    a->adec->time_base = (AVRational){ 1, 1000 };
+    a->rate = a->adec->sample_rate > 0 ? a->adec->sample_rate : 48000;
+    a->channels = a->adec->ch_layout.nb_channels > 0 ? a->adec->ch_layout.nb_channels : 2;
+    return 0;
+}
+
+static void vbsf_flush(MseAv *a)
+{
+    if (a->vbsf)
+        av_bsf_flush(a->vbsf);
+    if (a->vbsf_out)
+        av_packet_unref(a->vbsf_out);
+}
+
+static void vbsf_free(MseAv *a)
+{
+    av_bsf_free(&a->vbsf);
+    if (a->vbsf_out)
+        av_packet_unref(a->vbsf_out);
+}
+
+/* The video thread, a->mu held, vpipe closed. */
+static int open_video_decoder(MseAv *a, AVCodecParameters *par)
+{
+    if (a->v_rest
 #ifdef __APPLE__
         || a->v_bg_park
 #endif
-    ))
+    )
         return 0;
 #ifdef __ANDROID__
     /* Video decodes in MediaCodec only: a CPU blit would hold the window from it for good. */
-    if (video)
+    return -1;
+#endif
+    if (a->v_dead)
         return -1;
-#endif
-    int vp9 = video && (par->codec_id == AV_CODEC_ID_VP9 || par->codec_id == AV_CODEC_ID_VP8);
-    if (*ctxp) {
-        int same = (*ctxp)->codec_id == par->codec_id;
-        int cw = (*ctxp)->width > 0 ? (*ctxp)->width : (*ctxp)->coded_width;
-        int ch = (*ctxp)->height > 0 ? (*ctxp)->height : (*ctxp)->coded_height;
-        if (same && par->width > 0 && cw > 0 &&
-            (par->width != cw || par->height != ch)) {
-            vlog("reopen size %dx%d -> %dx%d", cw, ch, par->width, par->height);
-            same = 0;
-        } else if (!same)
-            vlog("reopen codec %d -> %d", (int)(*ctxp)->codec_id, (int)par->codec_id);
-        if (same)
-            return 0;
-        avcodec_free_context(ctxp);
-        if (video) {
-            av_bsf_free(&a->vbsf);
-#ifdef __ANDROID__
-            if (a->mc_bsf_out)
-                av_packet_unref(a->mc_bsf_out);
-#endif
-            if (a->sws) {
-                sws_freeContext(a->sws);
-                a->sws = NULL;
-            }
-            a->need_rap[0] = 1;
-            a->v_reopen = 1;
-        }
-    }
-    codec = video ? find_video_codec(par->codec_id,
-#ifdef __APPLE__
-        par->codec_id == a->vt_fail_id
-#else
-        0
-#endif
-        ) : avcodec_find_decoder(par->codec_id);
-    if (!codec) {
-        static int logged_id;
-        if (logged_id != (int)par->codec_id) {
-            logged_id = (int)par->codec_id;
-            mse_critf(MSE_LOG_WARN, "mse-v no decoder id=%d", (int)par->codec_id);
-        }
+    if (a->vf.rd < a->vf.n)
+        vp9_learn_profile(par, &a->vf.f[a->vf.rd]);
+    if (vpipe_open(a->vpipe, par, (AVRational){ 1, 1000 }) < 0) {
+        a->v_dead = 1;
         return -1;
     }
-#ifdef __APPLE__
-    /* VT-failed AV1 with no dav1d: do not reopen the hwaccel-only `av1`. */
-    if (video && par->codec_id == AV_CODEC_ID_AV1 && par->codec_id == a->vt_fail_id &&
-        !avcodec_find_decoder_by_name("libdav1d"))
-        return -1;
-#endif
-    *ctxp = avcodec_alloc_context3(codec);
-    if (!*ctxp)
-        return -1;
-    if (avcodec_parameters_to_context(*ctxp, par) < 0) {
-        avcodec_free_context(ctxp);
-        return -1;
-    }
-    /* libvpx VP9: Chrome uses ~4 decoder threads (VpxVideoDecoder).
-       libdav1d: one thread cannot keep 1080p; Alder Lake AVX-512 SIGILL
-       was workers=1. Use cores (capped) for AV1 software. */
-    if (video) {
-        if (vp9) {
-            (*ctxp)->thread_count = 4;
-            (*ctxp)->thread_type = FF_THREAD_FRAME;
-        } else if (par->codec_id == AV_CODEC_ID_AV1) {
-            int n = av_cpu_count();
-            if (n < 2)
-                n = 2;
-            if (n > 8)
-                n = 8;
-            (*ctxp)->thread_count = n;
-            (*ctxp)->thread_type = FF_THREAD_FRAME;
-        } else {
-            (*ctxp)->thread_count = 1;
-            (*ctxp)->thread_type = 0;
-        }
-    }
-#ifdef __APPLE__
-    /* H.264/AV1 VideoToolbox. ffmpeg used to Require HW; simulator has none
-       so session create failed. After the allow-sw patch, VT still runs
-       (Apple software decoder on sim, HW on device). */
-    (*ctxp)->opaque = a;
-    {
-        int use_vt = video && !vp9 && par->codec_id != a->vt_fail_id;
-        if (use_vt) {
-            AVBufferRef *hw = NULL;
-            if (av_hwdevice_ctx_create(&hw, AV_HWDEVICE_TYPE_VIDEOTOOLBOX, NULL, NULL, 0) >= 0) {
-                (*ctxp)->hw_device_ctx = av_buffer_ref(hw);
-                (*ctxp)->get_format = get_hw_format;
-                av_buffer_unref(&hw);
-            }
-        } else if (video && !vp9) {
-            vlog("vt skip id=%d fail=%d", (int)par->codec_id, (int)a->vt_fail_id);
-        }
-    }
-#endif
-#ifdef MSE_LINUX_HW
-    if (video && mse_hwdev_usable(par->codec_id) &&
-        (par->codec_id == AV_CODEC_ID_H264 || par->codec_id == AV_CODEC_ID_HEVC ||
-         par->codec_id == AV_CODEC_ID_VP9 || par->codec_id == AV_CODEC_ID_AV1)) {
-        (*ctxp)->hw_device_ctx = av_buffer_ref(mse_hwdev_get());
-        (*ctxp)->get_format = mse_hwdev_get_format;
-        /* vhold + the receive frame sit outside the decoder's fixed CUDA surface pool. */
-        (*ctxp)->extra_hw_frames = 4;
-        (*ctxp)->thread_count = 1;
-        (*ctxp)->thread_type = 0;
-    }
-#endif
-    if (avcodec_open2(*ctxp, codec, NULL) < 0) {
-#ifdef __APPLE__
-        if (video && (*ctxp)->hw_device_ctx) {
-            av_buffer_unref(&(*ctxp)->hw_device_ctx);
-            (*ctxp)->hw_device_ctx = NULL;
-            (*ctxp)->get_format = NULL;
-            a->vt_fail_id = par->codec_id;
-            if (avcodec_open2(*ctxp, codec, NULL) >= 0)
-                goto opened;
-        }
-#endif
-#ifdef MSE_LINUX_HW
-        if (video && (*ctxp)->hw_device_ctx) {
-            mse_hwdev_mark_failed(par->codec_id);
-            avcodec_free_context(ctxp);
-            return open_decoder(a, video, par);
-        }
-#endif
-        mse_critf(MSE_LOG_WARN, "mse-v open decoder fail id=%d %s", (int)par->codec_id,
-                  codec->name);
-        avcodec_free_context(ctxp);
-        return -1;
-    }
-#ifdef __APPLE__
-    if (video && a->vt_fail_id == par->codec_id && (*ctxp)->hw_device_ctx) {
-        avcodec_free_context(ctxp);
-        return open_decoder(a, video, par);
-    }
-#endif
-#ifdef MSE_LINUX_HW
-    if (video && (*ctxp)->hw_device_ctx && !mse_hwdev_usable(par->codec_id)) {
-        avcodec_free_context(ctxp);
-        return open_decoder(a, video, par);
-    }
-#endif
-opened:
-    (*ctxp)->pkt_timebase = (AVRational){ 1, 1000 };
-    (*ctxp)->time_base = (AVRational){ 1, 1000 };
-    if (video)
-        vlog("open %s %dx%d threads=%d vt=%d", codec->name, (*ctxp)->width, (*ctxp)->height,
-             (*ctxp)->thread_count,
-#if defined(__APPLE__) || defined(MSE_LINUX_HW)
-             (*ctxp)->hw_device_ctx ? 1 : 0
-#else
-             0
-#endif
-        );
-    if (video && par->codec_id == AV_CODEC_ID_VP9 && !a->vbsf) {
+    if (par->codec_id == AV_CODEC_ID_VP9 && !a->vbsf) {
         const AVBitStreamFilter *f = av_bsf_get_by_name("vp9_superframe");
         if (f && av_bsf_alloc(f, &a->vbsf) == 0) {
             avcodec_parameters_copy(a->vbsf->par_in, par);
@@ -2079,10 +2019,6 @@ opened:
             else
                 vlog("vp9_superframe bsf on");
         }
-    }
-    if (!video) {
-        a->rate = (*ctxp)->sample_rate > 0 ? (*ctxp)->sample_rate : 48000;
-        a->channels = (*ctxp)->ch_layout.nb_channels > 0 ? (*ctxp)->ch_layout.nb_channels : 2;
     }
     return 0;
 }
@@ -2130,6 +2066,7 @@ static void apply_pending_video_rep(MseAv *a)
     a->vpar = a->vpar_next;
     a->vpar_next = NULL;
     a->v_switch_pts = -1;
+    a->v_dead = 0;
 #ifdef __ANDROID__
     a->mc_fail = 0;
     a->mc_open_tries = 0;
@@ -2146,14 +2083,6 @@ static void apply_pending_video_rep(MseAv *a)
         return;
     }
 #endif
-#ifdef __APPLE__
-    if (apple_vt_codec(a->vpar)) {
-        a->v_reopen = 0;
-        return;
-    }
-#endif
-    open_decoder(a, 1, a->vpar);
-    a->v_reopen = 0;
 }
 
 static void maybe_apply_video_rep(MseAv *a)
@@ -2165,20 +2094,14 @@ static void maybe_apply_video_rep(MseAv *a)
     apply_pending_video_rep(a);
 }
 
-static int send_coded(Cfb *b, AVCodecContext *dec, AVBSFContext *bsf)
+static AVPacket *coded_packet(const Cf *cf)
 {
-    AVPacket *pkt;
-    Cf *cf;
-    int r;
-    if (!dec || b->rd >= b->n)
-        return 0;
-    cf = &b->f[b->rd];
-    pkt = av_packet_alloc();
+    AVPacket *pkt = av_packet_alloc();
     if (!pkt)
-        return -1;
+        return NULL;
     if (av_new_packet(pkt, (int)cf->n) < 0) {
         av_packet_free(&pkt);
-        return -1;
+        return NULL;
     }
     memcpy(pkt->data, cf->data, cf->n);
     pkt->pts = (int64_t)(cf->pts * 1000.0);
@@ -2186,59 +2109,104 @@ static int send_coded(Cfb *b, AVCodecContext *dec, AVBSFContext *bsf)
     pkt->time_base = (AVRational){ 1, 1000 };
     if (cf->key)
         pkt->flags |= AV_PKT_FLAG_KEY;
-    if (bsf) {
-        r = av_bsf_send_packet(bsf, pkt);
-        av_packet_free(&pkt);
-        if (r == AVERROR(EAGAIN))
-            return 0;
-        if (r < 0)
-            return r;
-        cf->sent = 1;
-        b->rd++;
-        pkt = av_packet_alloc();
-        if (!pkt)
-            return -1;
-        for (;;) {
-            r = av_bsf_receive_packet(bsf, pkt);
-            if (r == AVERROR(EAGAIN) || r == AVERROR_EOF)
-                break;
-            if (r < 0) {
-                av_packet_free(&pkt);
-                return r;
-            }
-            r = avcodec_send_packet(dec, pkt);
-            av_packet_unref(pkt);
-            if (r == AVERROR(EAGAIN))
-                continue;
-            if (r < 0 && r != AVERROR_EOF) {
-                av_packet_free(&pkt);
-                return r;
-            }
-        }
-        av_packet_free(&pkt);
+    return pkt;
+}
+
+static int send_coded(Cfb *b, AVCodecContext *dec)
+{
+    AVPacket *pkt;
+    int r;
+    if (!dec || b->rd >= b->n)
         return 0;
-    }
+    pkt = coded_packet(&b->f[b->rd]);
+    if (!pkt)
+        return -1;
     r = avcodec_send_packet(dec, pkt);
     av_packet_free(&pkt);
     if (r == AVERROR(EAGAIN))
         return 0;
     if (r < 0 && r != AVERROR_EOF)
         return r;
-    cf->sent = 1;
+    b->f[b->rd].sent = 1;
     b->rd++;
     return 0;
+}
+
+/* vbsf's output into vpipe, the held packet first. AVERROR(EAGAIN) while vpipe is full. */
+static int vbsf_drain(MseAv *a)
+{
+    int r;
+    if (!a->vbsf_out && !(a->vbsf_out = av_packet_alloc()))
+        return AVERROR(ENOMEM);
+    for (;;) {
+        if (!a->vbsf_out->data) {
+            r = av_bsf_receive_packet(a->vbsf, a->vbsf_out);
+            if (r == AVERROR(EAGAIN) || r == AVERROR_EOF)
+                return 0;
+            if (r < 0) {
+                mse_critf(MSE_LOG_WARN, "mse-v vp9_superframe out: %s", av_err2str(r));
+                return r;
+            }
+        }
+        r = vpipe_send(a->vpipe, a->vbsf_out, (a->vbsf_out->flags & AV_PKT_FLAG_KEY) != 0);
+        if (r == AVERROR(EAGAIN))
+            return r;
+        av_packet_unref(a->vbsf_out);
+        if (r < 0)
+            return r;
+    }
+}
+
+/* vf's next frame into vpipe. AVERROR(EAGAIN): not taken. Else the frame is consumed and the
+   result is vpipe's: 0, VP_RESYNC, VP_DEAD, or the error of a packet the decoder rejected. */
+static int send_video(MseAv *a)
+{
+    Cf *cf = &a->vf.f[a->vf.rd];
+    AVPacket *pkt;
+    int r;
+    if (a->vbsf && (r = vbsf_drain(a)) != 0)
+        return r;
+    pkt = coded_packet(cf);
+    if (!pkt) {
+        mse_critf(MSE_LOG_WARN, "mse-v no memory for a %zu-byte packet", cf->n);
+        return AVERROR(ENOMEM);
+    }
+    if (a->vbsf) {
+        r = av_bsf_send_packet(a->vbsf, pkt);
+        if (r < 0 && r != AVERROR(EAGAIN))
+            mse_critf(MSE_LOG_WARN, "mse-v vp9_superframe pts=%.3f: %s", cf->pts, av_err2str(r));
+    } else {
+        r = vpipe_send(a->vpipe, pkt, coded_is_rap(a, cf));
+    }
+    av_packet_free(&pkt);
+    if (r == AVERROR(EAGAIN))
+        return r;
+    cf->sent = 1;
+    a->vf.rd++;
+    if (r < 0 || !a->vbsf)
+        return r;
+    r = vbsf_drain(a);
+    return r == AVERROR(EAGAIN) ? 0 : r;
 }
 
 MseAv *mse_av_create(void)
 {
     MseAv *a = calloc(1, sizeof(*a));
+    VpParams prm = { .tag = "mse-v", .held_frames = 2, .low_delay = 1, .sw_error_reopen = 1 };
     if (!a)
         return NULL;
+    a->vpipe = vpipe_create(&prm);
+    if (!a->vpipe) {
+        free(a);
+        return NULL;
+    }
     pthread_mutex_init(&a->mu, NULL);
     pthread_mutex_init(&a->amu, NULL);
+    pthread_mutex_init(&a->show_mu, NULL);
     a->a_sent = -1;
     a->v_sent = -1;
     a->v_switch_pts = -1;
+    a->v_err_key = -1;
     a->need_rap[0] = 1;
     a->need_rap[1] = 1;
     av_log_set_level(AV_LOG_ERROR);
@@ -2281,12 +2249,15 @@ static void av_unlock_all(MseAv *a)
 
 void mse_av_destroy(MseAv *a)
 {
+#ifdef __APPLE__
+    VPresenter *vp;
+#endif
     if (!a)
         return;
     av_lock_all(a);
     avcodec_free_context(&a->adec);
-    avcodec_free_context(&a->vdec);
     av_bsf_free(&a->vbsf);
+    av_packet_free(&a->vbsf_out);
     avcodec_parameters_free(&a->vpar);
     avcodec_parameters_free(&a->vpar_next);
 #ifdef __ANDROID__
@@ -2295,18 +2266,13 @@ void mse_av_destroy(MseAv *a)
 #endif
     if (a->swr)
         swr_free(&a->swr);
-    if (a->sws)
-        sws_freeContext(a->sws);
-    free(a->sws_pad);
     free(a->pcm);
     av_frame_free(&a->afr);
     av_frame_free(&a->vfr);
-    av_frame_free(&a->hw_sw);
 #ifdef __APPLE__
-    mse_vt_blit_free(&a->vt_blit);
+    vp = a->vp;
+    a->vp = NULL;
 #endif
-    free(a->bgra_buf[0]);
-    free(a->bgra_buf[1]);
     free(a->ainit);
     free(a->vinit);
     free(a->pend[0]);
@@ -2315,6 +2281,11 @@ void mse_av_destroy(MseAv *a)
     cfb_free(&a->vf);
     av_frame_free(&a->vhold);
     av_unlock_all(a);
+    vpipe_destroy(a->vpipe);
+#ifdef __APPLE__
+    vpresent_release(vp);
+#endif
+    pthread_mutex_destroy(&a->show_mu);
     pthread_mutex_destroy(&a->amu);
     pthread_mutex_destroy(&a->mu);
     free(a);
@@ -2484,6 +2455,265 @@ static int cluster_prefix(const uint8_t *p, size_t n, size_t *hdr_out, size_t *b
     *body_out = last - (size_t)hdr;
     *nblocks = blocks;
     return 1;
+}
+
+#define MSE_FRONT_JUNK (-1)
+#define MSE_FRONT_WAIT 0
+#define MSE_FRONT_SKIP 1
+
+/* Front of a WebM pend no recognizer took: WAIT while it can still complete, SKIP *skip bytes of a
+   whole non-media element, JUNK for what cluster_total / continuation_total / cluster_prefix would
+   wait on forever. */
+static int webm_front(const uint8_t *p, size_t n, size_t *skip)
+{
+    uint32_t id;
+    uint64_t sz;
+    int unk, hdr, r;
+    size_t off;
+    r = ebml_peek(p, n, &id, &sz, &unk, &hdr);
+    if (r <= 0)
+        return r < 0 ? MSE_FRONT_JUNK : MSE_FRONT_WAIT;
+    switch (id) {
+    case MSE_ID_CLUSTER:
+        if (!unk)
+            return sz > MSE_CLUSTER_MAX ? MSE_FRONT_JUNK : MSE_FRONT_WAIT;
+        off = (size_t)hdr;
+        break;
+    case MSE_ID_TIMECODE:
+    case MSE_ID_PREVSIZE:
+        if (unk || sz > 8)
+            return MSE_FRONT_JUNK;
+        off = 0;
+        break;
+    case MSE_ID_SIMPLEBLOCK:
+    case MSE_ID_BLOCKGROUP:
+    case MSE_ID_BLOCK:
+        off = 0;
+        break;
+    case MSE_ID_SEGMENT:
+        *skip = (size_t)hdr;
+        return MSE_FRONT_SKIP;
+    case MSE_ID_CRC32:
+        if (unk || sz != 4)
+            return MSE_FRONT_JUNK;
+        *skip = (size_t)hdr + 4;
+        return (size_t)hdr + 4 > n ? MSE_FRONT_WAIT : MSE_FRONT_SKIP;
+    case MSE_ID_SEEKHEAD:
+    case MSE_ID_INFO:
+    case MSE_ID_TRACKS:
+    case MSE_ID_CUES:
+    case MSE_ID_TAGS:
+    case MSE_ID_CHAPTERS:
+    case MSE_ID_ATTACHMENTS:
+    case MSE_ID_VOID:
+        if (unk || sz > MSE_WEBM_META_MAX)
+            return MSE_FRONT_JUNK;
+        *skip = (size_t)hdr + (size_t)sz;
+        return *skip > n ? MSE_FRONT_WAIT : MSE_FRONT_SKIP;
+    default:
+        return MSE_FRONT_JUNK;
+    }
+    while (off < n) {
+        r = ebml_peek(p + off, n - off, &id, &sz, &unk, &hdr);
+        if (r <= 0)
+            return r < 0 ? MSE_FRONT_JUNK : MSE_FRONT_WAIT;
+        /* Only an empty unknown-size Cluster gets here: cluster_total never completes it. */
+        if (id == MSE_ID_CLUSTER || id == MSE_ID_EBML) {
+            *skip = off;
+            return off ? MSE_FRONT_SKIP : MSE_FRONT_JUNK;
+        }
+        if (unk || sz > MSE_CLUSTER_MAX)
+            return MSE_FRONT_JUNK;
+        if (off + (size_t)hdr + (size_t)sz > n)
+            return MSE_FRONT_WAIT;
+        off += (size_t)hdr + (size_t)sz;
+    }
+    return MSE_FRONT_WAIT;
+}
+
+static int fmp4_top_box(uint32_t type)
+{
+    return type == BOX_MOOF || type == BOX_MDAT || type == BOX_STYP || type == BOX_SIDX ||
+           type == BOX_FTYP || type == BOX_MOOV || type == BOX_FREE || type == BOX_SKIP ||
+           type == 0x656d7367u /* emsg */ || type == 0x70726674u /* prft */ ||
+           type == 0x73736978u /* ssix */ || type == 0x6d667261u /* mfra */ ||
+           type == 0x75756964u /* uuid */;
+}
+
+/* Front of an fMP4 pend fmp4_frag_len could not complete: WAIT while its boxes are legal and
+   still arriving, else JUNK. */
+static int fmp4_front(const uint8_t *p, size_t n)
+{
+    size_t off = 0;
+    while (n - off >= 8) {
+        uint64_t sz = be32(p + off);
+        if (!fmp4_top_box(be32(p + off + 4)))
+            return MSE_FRONT_JUNK;
+        if (sz == 1) {
+            if (n - off < 16)
+                return MSE_FRONT_WAIT;
+            sz = ((uint64_t)be32(p + off + 8) << 32) | be32(p + off + 12);
+            if (sz < 16)
+                return MSE_FRONT_JUNK;
+        } else if (sz < 8) {
+            return MSE_FRONT_JUNK;
+        }
+        if (sz > MSE_CLUSTER_MAX)
+            return MSE_FRONT_JUNK;
+        if (sz > n - off)
+            return MSE_FRONT_WAIT;
+        off += (size_t)sz;
+    }
+    return MSE_FRONT_WAIT;
+}
+
+static int fourcc_char(uint8_t c)
+{
+    return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == ' ';
+}
+
+/* 1 = a stream can restart at p, 0 = it cannot, -1 = too few bytes to tell. A bare Cluster ID
+   also occurs inside VP9/AV1 payloads, so a Cluster counts only when it opens with its Timecode. */
+static int restart_at(const uint8_t *p, size_t n)
+{
+    static const uint8_t cl[4] = { 0x1F, 0x43, 0xB6, 0x75 };
+    static const uint8_t eb[4] = { 0x1A, 0x45, 0xDF, 0xA3 };
+    static const char boxes[4][5] = { "moof", "styp", "sidx", "ftyp" };
+    size_t m = n < 4 ? n : 4;
+    uint32_t id, type;
+    uint64_t sz;
+    int unk, hdr, r, i;
+    if (memcmp(p, cl, m) == 0 || memcmp(p, eb, m) == 0) {
+        if (n < 4)
+            return -1;
+        r = ebml_peek(p, n, &id, &sz, &unk, &hdr);
+        if (r == 0)
+            return -1;
+        if (r > 0 && id == MSE_ID_CLUSTER && (unk || sz <= MSE_CLUSTER_MAX)) {
+            if (n < (size_t)hdr + 2)
+                return -1;
+            if (p[hdr] == MSE_ID_TIMECODE && p[hdr + 1] >= 0x81 && p[hdr + 1] <= 0x88 &&
+                (unk || sz >= (uint64_t)(p[hdr + 1] & 0x7F) + 2))
+                return 1;
+        } else if (r > 0 && id == MSE_ID_EBML && !unk && sz >= 4 && sz <= 4096) {
+            if (n <= (size_t)hdr)
+                return -1;
+            if (p[hdr] == 0x42)
+                return 1;
+        }
+        return 0;
+    }
+    if (n < 8) {
+        for (i = 0; i < 4; i++) {
+            if (n <= 4 || memcmp(p + 4, boxes[i], n - 4) == 0)
+                return -1;
+        }
+        return 0;
+    }
+    sz = be32(p);
+    type = be32(p + 4);
+    if (type == BOX_MOOF) {
+        if (sz < 24 || sz > MSE_CLUSTER_MAX)
+            return 0;
+        if (n < 16)
+            return -1;
+        return be32(p + 12) == 0x6d666864u /* mfhd */;
+    }
+    if (type == BOX_STYP || type == BOX_FTYP) {
+        if (sz < 16 || sz > 1024)
+            return 0;
+        if (n < 12)
+            return -1;
+        return fourcc_char(p[8]) && fourcc_char(p[9]) && fourcc_char(p[10]) && fourcc_char(p[11]);
+    }
+    if (type == BOX_SIDX) {
+        if (sz < 32 || sz > MSE_CLUSTER_MAX)
+            return 0;
+        if (n < 12)
+            return -1;
+        return p[8] <= 1 && p[9] == 0 && p[10] == 0 && p[11] == 0;
+    }
+    return 0;
+}
+
+/* Offset of the first restart point at or after `from` (*found = 1), or of the first byte that
+   could still begin one once more bytes arrive (*found = 0). */
+static size_t restart_scan(const uint8_t *p, size_t n, size_t from, int *found)
+{
+    size_t k;
+    for (k = from; k < n; k++) {
+        int r;
+        if (n - k >= 8 && p[k] != 0x1F && p[k] != 0x1A && p[k + 4] != 'm' && p[k + 4] != 's' &&
+            p[k + 4] != 'f')
+            continue;
+        r = restart_at(p + k, n - k);
+        if (r != 0) {
+            *found = r > 0;
+            return k;
+        }
+    }
+    *found = 0;
+    return n;
+}
+
+static void pend_drop(MseAv *a, int idx, size_t k)
+{
+    if (k >= a->pend_n[idx]) {
+        a->pend_n[idx] = 0;
+        return;
+    }
+    memmove(a->pend[idx], a->pend[idx] + k, a->pend_n[idx] - k);
+    a->pend_n[idx] -= k;
+}
+
+static void junk_end(MseAv *a, int idx)
+{
+    const uint8_t *h = a->junk_head[idx];
+    const uint8_t *init = idx ? a->ainit : a->vinit;
+    size_t init_n = idx ? a->ainit_n : a->vinit_n;
+    if (!a->junk_n[idx])
+        return;
+    mse_critf(MSE_LOG_WARN, "mse-%c %s resync dropped=%zu head=%02x%02x%02x%02x", idx ? 'a' : 'v',
+              init && looks_fmp4(init, init_n) ? "fmp4" : "webm", a->junk_n[idx], h[0], h[1], h[2],
+              h[3]);
+    a->junk_n[idx] = 0;
+}
+
+/* Drops pend up to the next restart point. 1 = the front is one, parse on; 0 = wait for more bytes
+   (the resync carries over to the next append). */
+static int pend_resync(MseAv *a, int idx, size_t from)
+{
+    size_t k;
+    int found;
+    if (!a->junk_n[idx]) {
+        memset(a->junk_head[idx], 0, sizeof(a->junk_head[idx]));
+        memcpy(a->junk_head[idx], a->pend[idx], a->pend_n[idx] < 4 ? a->pend_n[idx] : 4);
+    }
+    k = restart_scan(a->pend[idx], a->pend_n[idx], from, &found);
+    pend_drop(a, idx, k);
+    a->junk_n[idx] += k;
+    a->need_rap[idx] = 1;
+    a->cluster_tc_n[idx] = 0;
+    if (!found)
+        return 0;
+    junk_end(a, idx);
+    return 1;
+}
+
+/* Where mse_av_append would wait for more bytes. 1 = the front was dropped, parse on; 0 = wait.
+   A pend longer than any legal element can never parse. */
+static int pend_unstick(MseAv *a, int idx, int front, size_t skip)
+{
+    if (front == MSE_FRONT_WAIT && a->pend_n[idx] > MSE_CLUSTER_MAX)
+        front = MSE_FRONT_JUNK;
+    if (front == MSE_FRONT_SKIP) {
+        vlog("pend skip a=%d n=%zu b0=%02x", idx, skip, a->pend[idx][0]);
+        pend_drop(a, idx, skip);
+        return 1;
+    }
+    if (front == MSE_FRONT_JUNK)
+        return pend_resync(a, idx, 1);
+    return 0;
 }
 
 static void save_cluster_tc(MseAv *a, int idx, const uint8_t *p, size_t n)
@@ -2685,7 +2915,10 @@ MseAvIngest mse_av_append(MseAv *a, int audio, const uint8_t *p, int n, double t
         double dur;
         int nadd;
         int prefix = 0;
+        int front;
         wrap = 0;
+        if (a->junk_n[idx] && !pend_resync(a, idx, 0))
+            break;
         if (looks_ebml(a->pend[idx], a->pend_n[idx])) {
             if (*initn && looks_fmp4(*initp, *initn)) {
                 free(*initp);
@@ -2695,6 +2928,8 @@ MseAvIngest mse_av_append(MseAv *a, int audio, const uint8_t *p, int n, double t
             if (!find_cluster(a->pend[idx], a->pend_n[idx], &coff)) {
                 if (!audio && a->pend_n[idx] > 0 && (a->pend_n[idx] < 64 || a->pend_n[idx] % 4096 == 0))
                     vlog("webm wait-ebml n=%zu b0=%02x", a->pend_n[idx], a->pend[idx][0]);
+                if (pend_unstick(a, idx, MSE_FRONT_WAIT, 0))
+                    continue;
                 break;
             }
             if (coff > 0) {
@@ -2742,6 +2977,9 @@ MseAvIngest mse_av_append(MseAv *a, int audio, const uint8_t *p, int n, double t
             } else {
                 if (!audio && !*initn)
                     vlog("fmp4 wait-init n=%zu b0=%02x", a->pend_n[idx], a->pend[idx][0]);
+                front = *initn ? fmp4_front(a->pend[idx], a->pend_n[idx]) : MSE_FRONT_WAIT;
+                if (pend_unstick(a, idx, front, 0))
+                    continue;
                 break;
             }
         } else if (!cluster_total(a->pend[idx], a->pend_n[idx], &total) || total == 0 ||
@@ -2757,9 +2995,17 @@ MseAvIngest mse_av_append(MseAv *a, int audio, const uint8_t *p, int n, double t
                     wrap = 1;
                     prefix = 1;
                 } else {
+                    size_t skip = 0;
                     if (!audio && a->pend_n[idx] > 0 &&
                         (a->pend_n[idx] < 96 || a->pend_n[idx] % (1024u * 1024u) == 0))
                         vlog("webm wait-cluster n=%zu b0=%02x", a->pend_n[idx], a->pend[idx][0]);
+                    /* An fMP4 track whose front is not a box has lost its framing. */
+                    if (*initn && looks_fmp4(*initp, *initn))
+                        front = MSE_FRONT_JUNK;
+                    else
+                        front = webm_front(a->pend[idx], a->pend_n[idx], &skip);
+                    if (pend_unstick(a, idx, front, skip))
+                        continue;
                     break;
                 }
             } else {
@@ -2811,6 +3057,8 @@ MseAvIngest mse_av_append(MseAv *a, int audio, const uint8_t *p, int n, double t
             if (par)
                 avcodec_parameters_free(&par);
             cfb_free(&tmp);
+            if (pend_unstick(a, idx, MSE_FRONT_WAIT, 0))
+                continue;
             break;
         }
         if (!audio && nadd > 0 && !wrap && *initn >= 4 && be32(*initp) == MSE_ID_EBML)
@@ -2824,7 +3072,7 @@ MseAvIngest mse_av_append(MseAv *a, int audio, const uint8_t *p, int n, double t
                     if (a->swr)
                         swr_free(&a->swr);
                 }
-                open_decoder(a, 0, par);
+                open_audio_decoder(a, par);
                 avcodec_parameters_free(&par);
                 par = NULL;
             } else {
@@ -2840,15 +3088,6 @@ MseAvIngest mse_av_append(MseAv *a, int audio, const uint8_t *p, int n, double t
                         vlog("video-rep %dx%d -> %dx%d keep vf=%zu",
                              a->vpar->width, a->vpar->height, par->width, par->height,
                              a->vf.n);
-                        if (!a->vdec
-#ifdef __APPLE__
-                            && !apple_vt_codec(a->vpar)
-#endif
-#ifdef __ANDROID__
-                            && !a->mc
-#endif
-                        )
-                            open_decoder(a, 1, a->vpar);
                     }
                     avcodec_parameters_free(&par);
                     par = NULL;
@@ -2870,27 +3109,11 @@ MseAvIngest mse_av_append(MseAv *a, int audio, const uint8_t *p, int n, double t
                         a->mc_fail = 0;
                         a->mc_open_tries = 0;
                     }
-                    /* MediaCodec opens on the video thread (pull_video): a configure here holds the
+#endif
+                    /* Video decoders open on the video thread (pull_video): an open here holds the
                        JS thread, and the audio appends queued behind it, for tens of ms. */
                     avcodec_parameters_free(&par);
                     par = NULL;
-#endif
-#ifdef __APPLE__
-                    /* Native VTDecompressionSession in pull_video. A second
-                       ffmpeg h264_videotoolbox session on the simulator
-                       enqueued black frames (61 fps, empty picture). VP9
-                       uses the same Apple session — ffmpeg's VT hwaccel
-                       wraps native `vp9` (log15 SIGILL). */
-                    if (par && apple_vt_codec(par)) {
-                        avcodec_parameters_free(&par);
-                        par = NULL;
-                    }
-#endif
-                    if (par) {
-                        open_decoder(a, 1, par);
-                        avcodec_parameters_free(&par);
-                        par = NULL;
-                    }
                 }
             }
         }
@@ -2908,10 +3131,6 @@ MseAvIngest mse_av_append(MseAv *a, int audio, const uint8_t *p, int n, double t
         }
         if (!audio)
             maybe_apply_video_rep(a);
-        if (!audio && a->v_reopen) {
-            vf_resync_key(a, a->v_sent >= 0 ? a->v_sent : r.first);
-            a->v_reopen = 0;
-        }
         cfb_free(&tmp);
         if (a->pend_n[idx] > total)
             memmove(a->pend[idx], a->pend[idx] + total, a->pend_n[idx] - total);
@@ -2932,38 +3151,42 @@ MseAvIngest mse_av_append(MseAv *a, int audio, const uint8_t *p, int n, double t
     return r;
 }
 
+#ifdef __APPLE__
+/* Caller holds a->mu. Drops what the VT layer queued; a CPU picture stays. */
+static void flush_layer(MseAv *a)
+{
+    if (vpresent_mode(a->vp) == VP_MODE_GPU)
+        vpresent_flush(a->vp, a->vp_engine);
+}
+#endif
+
 /* Caller holds a->mu. */
 static void close_video_decoder(MseAv *a)
 {
-    if (a->vdec
+    pthread_mutex_lock(&a->show_mu);
+    a->v_epoch++;
+    pthread_mutex_unlock(&a->show_mu);
+    if (vpipe_is_open(a->vpipe)
 #ifdef __APPLE__
         || a->vt_dec
 #endif
     )
         vlog("close-video");
     av_frame_free(&a->vhold);
-    avcodec_free_context(&a->vdec);
-    av_bsf_free(&a->vbsf);
+    vpipe_close(a->vpipe);
+    vbsf_free(a);
 #ifdef __ANDROID__
     if (a->mc_bsf_out)
         av_packet_unref(a->mc_bsf_out);
-#endif
-    if (a->sws) {
-        sws_freeContext(a->sws);
-        a->sws = NULL;
-    }
-#ifdef __ANDROID__
     mc_close(a);
 #endif
 #ifdef __APPLE__
-    if (a->vt_layer)
-        mse_vt_flush(a->vt_layer);
+    flush_layer(a);
     mse_vt_dec_close(a->vt_dec);
     a->vt_dec = NULL;
 #endif
     a->need_rap[0] = 1;
     a->v_seen_idr = 0;
-    a->v_reopen = 0;
 #ifdef __APPLE__
     while (a->vt_q_n > 0) {
         a->vt_q_n--;
@@ -2988,13 +3211,14 @@ void mse_av_abort(MseAv *a, int audio)
     idx = audio ? 1 : 0;
     a->pend_n[idx] = 0;
     a->cluster_tc_n[idx] = 0;
+    junk_end(a, idx);
     a->need_rap[idx] = 1;
     if (audio && a->adec)
         avcodec_flush_buffers(a->adec);
-    if (!audio && a->vdec)
-        avcodec_flush_buffers(a->vdec);
-    if (!audio && a->vbsf)
-        av_bsf_flush(a->vbsf);
+    if (!audio) {
+        vpipe_flush(a->vpipe);
+        vbsf_flush(a);
+    }
 #ifdef __ANDROID__
     if (!audio)
         mc_flush(a);
@@ -3010,6 +3234,7 @@ void mse_av_change_type(MseAv *a, int audio)
     if (audio) {
         a->pend_n[1] = 0;
         a->cluster_tc_n[1] = 0;
+        junk_end(a, 1);
         a->need_rap[1] = 1;
         free(a->ainit);
         a->ainit = NULL;
@@ -3020,10 +3245,14 @@ void mse_av_change_type(MseAv *a, int audio)
     } else {
         a->pend_n[0] = 0;
         a->cluster_tc_n[0] = 0;
+        junk_end(a, 0);
         free(a->vinit);
         a->vinit = NULL;
         a->vinit_n = 0;
         close_video_decoder(a);
+        a->v_err_key = -1;
+        vpipe_new_stream(a->vpipe);
+        a->v_dead = 0;
     }
     vlog("changeType a=%d", audio);
     av_unlock(a, audio);
@@ -3172,6 +3401,7 @@ void mse_av_remove(MseAv *a, int audio, double start, double end)
     if (!audio && a->vf.n == 0) {
         a->pend_n[0] = 0;
         a->cluster_tc_n[0] = 0;
+        junk_end(a, 0);
         close_video_decoder(a);
     }
     if (!audio)
@@ -3186,10 +3416,10 @@ void mse_av_flush(MseAv *a, int audio, int video)
     av_lock_all(a);
     if (audio && a->adec)
         avcodec_flush_buffers(a->adec);
-    if (video && a->vdec)
-        avcodec_flush_buffers(a->vdec);
-    if (video && a->vbsf)
-        av_bsf_flush(a->vbsf);
+    if (video) {
+        vpipe_flush(a->vpipe);
+        vbsf_flush(a);
+    }
 #ifdef __ANDROID__
     if (video)
         mc_flush(a);
@@ -3197,11 +3427,13 @@ void mse_av_flush(MseAv *a, int audio, int video)
     if (audio) {
         a->pend_n[1] = 0;
         a->cluster_tc_n[1] = 0;
+        junk_end(a, 1);
         a->need_rap[1] = 1;
     }
     if (video) {
         a->pend_n[0] = 0;
         a->cluster_tc_n[0] = 0;
+        junk_end(a, 0);
         a->need_rap[0] = 1;
         av_frame_free(&a->vhold);
     }
@@ -3416,6 +3648,24 @@ static void vf_resync_key(MseAv *a, double t)
     vlog("resync key=%.3f rd=%zu n=%zu t=%.3f", a->vf.f[key].pts, key, a->vf.n, t);
 }
 
+/* Feeding restarts at the first keyframe after `key`: its GOP failed twice in the same decoder. */
+static void vf_skip_gop(MseAv *a, double key)
+{
+    size_t i, next = a->vf.n;
+    for (i = 0; i < a->vf.n; i++) {
+        if (a->vf.f[i].key && a->vf.f[i].pts > key + 0.001) {
+            next = i;
+            break;
+        }
+    }
+    for (i = 0; i < a->vf.n; i++)
+        a->vf.f[i].sent = i < next;
+    a->vf.rd = next;
+    a->need_rap[0] = 1;
+    mse_critf(MSE_LOG_INFO, "mse-v decode errors at the GOP %.3f again: next keyframe %.3f", key,
+              next < a->vf.n ? a->vf.f[next].pts : -1.0);
+}
+
 /* Drop a RAP that is already behind the DAC only when there is nothing
    left to play in this GOP: no later key, or the next key is already due.
    A key 0.7s late with the next key 5s ahead must be decoded — skipping
@@ -3448,6 +3698,7 @@ static int vf_skip_stale(MseAv *a, double clock)
         return 0;
     for (i = a->vf.rd; i < next; i++)
         a->vf.f[i].sent = 1;
+    v_count_dropped(a, (int)(next - a->vf.rd));
     a->vf.rd = next;
     a->need_rap[0] = 1;
 #ifdef __ANDROID__
@@ -3486,6 +3737,7 @@ void mse_av_seek(MseAv *a, double seconds)
          a->af.rd, a->vf.rd, a->vf.rd < a->vf.n ? a->vf.f[a->vf.rd].pts : -1);
     a->a_sent = seconds - 0.05;
     a->v_sent = seconds - 0.05;
+    a->v_err_key = -1;
     a->need_rap[0] = 1;
     a->need_rap[1] = 1;
     if (a->adec)
@@ -3493,10 +3745,10 @@ void mse_av_seek(MseAv *a, double seconds)
     /* Chrome currentTime keeps leftover; only remove() drops ranges.
        If t is not on a RAP, park rd (already) and close the decoder so
        we do not present the old GOP at the new clock. SABR appends the
-       new island onto vf; buffered still shows the old range. */
+       new island onto vf; buffered still shows the old range.
+       Keep pend/cluster_tc: like Chrome, a seek never resets the append
+       parser, and the next append continues the fragment mid-mdat. */
     if (a->vf.rd >= a->vf.n || !coded_is_rap(a, &a->vf.f[a->vf.rd])) {
-        a->pend_n[0] = 0;
-        a->cluster_tc_n[0] = 0;
 #ifdef __ANDROID__
         /* MediaCodec drops the old GOP in the flush below and need_rap feeds a key next: a reopen
            would hold this (JS) thread ~20 ms, and another on the video thread. */
@@ -3504,8 +3756,7 @@ void mse_av_seek(MseAv *a, double seconds)
 #endif
             close_video_decoder(a);
     } else {
-        if (a->vdec)
-            avcodec_flush_buffers(a->vdec);
+        vpipe_flush(a->vpipe);
 #ifdef __APPLE__
         if (a->vt_dec)
             mse_vt_dec_flush(a->vt_dec);
@@ -3520,14 +3771,12 @@ void mse_av_seek(MseAv *a, double seconds)
         a->vt_q_pb[a->vt_q_n] = NULL;
     }
 #endif
-    if (a->vbsf)
-        av_bsf_flush(a->vbsf);
+    vbsf_flush(a);
 #ifdef __ANDROID__
     mc_flush(a);
 #endif
 #ifdef __APPLE__
-    if (a->vt_layer)
-        mse_vt_flush(a->vt_layer);
+    flush_layer(a);
 #endif
     av_frame_free(&a->vhold);
 #if !PRODUCTION
@@ -3537,76 +3786,17 @@ void mse_av_seek(MseAv *a, double seconds)
     av_unlock_all(a);
 }
 
-static int scale_bgra(MseAv *a, AVFrame *frame, uint8_t **bgra, int *w, int *h);
-#ifdef __APPLE__
-static unsigned sw_cv_fmt(enum AVPixelFormat f);
-#endif
-
-static int present_frame(MseAv *a, AVFrame *frame, uint8_t **bgra, int *w, int *h)
+/* Caller holds a->mu. *w, *h: the decoded size. */
+static void pick_frame(MseAv *a, AVFrame *frame, int *w, int *h, VShow *s)
 {
-    int r;
-#ifdef __APPLE__
-    if (a->vt_layer && frame->format == AV_PIX_FMT_VIDEOTOOLBOX && frame->data[3] &&
-        a->vt_fail_id != (a->vdec ? a->vdec->codec_id : (enum AVCodecID)0)) {
-        if (mse_vt_show(a->vt_layer, frame->data[3], frame->width, frame->height) == 0) {
-            *bgra = NULL;
-            *w = frame->width;
-            *h = frame->height;
-            return 0;
-        }
+    *w = frame->width;
+    *h = frame->height;
+    if (frame != a->vfr) {
+        av_frame_unref(a->vfr);
+        av_frame_move_ref(a->vfr, frame);
     }
-    /* Layer ResizeAspect-scales. Never vImage/sws to the hole (fullscreen ~500%). */
-    if (a->vt_layer) {
-        unsigned fmt = sw_cv_fmt((enum AVPixelFormat)frame->format);
-        if (fmt &&
-            mse_vt_show_sw(a->vt_layer, fmt, (const uint8_t *const *)frame->data, frame->linesize,
-                           frame->width, frame->height) == 0) {
-            *bgra = NULL;
-            *w = frame->width;
-            *h = frame->height;
-            return 0;
-        }
-        {
-            int bw = a->blit_w, bh = a->blit_h;
-            a->blit_w = a->blit_h = 0;
-            r = scale_bgra(a, frame, bgra, w, h);
-            a->blit_w = bw;
-            a->blit_h = bh;
-        }
-        if (r != 0)
-            return r;
-        if (*bgra && mse_vt_show_bgra(a->vt_layer, *bgra, *w, *h) == 0) {
-            *bgra = NULL;
-            return 0;
-        }
-        return 0;
-    }
-#endif
-#ifdef __ANDROID__
-    /* TextureView/SurfaceView scale; don't sws to the view size. */
-    if (a->mc_win) {
-        int bw = a->blit_w, bh = a->blit_h;
-        a->blit_w = a->blit_h = 0;
-        r = scale_bgra(a, frame, bgra, w, h);
-        a->blit_w = bw;
-        a->blit_h = bh;
-        return r;
-    }
-#endif
-    return scale_bgra(a, frame, bgra, w, h);
-}
-
-static uint8_t *sws_scratch(MseAv *a, size_t n)
-{
-    uint8_t *p;
-    if (a->sws_pad && a->sws_pad_n >= n)
-        return a->sws_pad;
-    p = realloc(a->sws_pad, n);
-    if (!p)
-        return NULL;
-    a->sws_pad = p;
-    a->sws_pad_n = n;
-    return p;
+    s->f = a->vfr;
+    s->epoch = a->v_epoch;
 }
 
 static uint8_t *pcm_scratch(MseAv *a, size_t n)
@@ -3622,266 +3812,45 @@ static uint8_t *pcm_scratch(MseAv *a, size_t n)
     return p;
 }
 
-static uint8_t *bgra_pool(MseAv *a, int w, int h)
-{
-    int i = a->bgra_i ^ 1;
-    size_t n;
-    uint8_t *p;
-    if (w <= 0 || h <= 0)
-        return NULL;
-    if ((size_t)h != 0 && (size_t)w > (SIZE_MAX / 4) / (size_t)h)
-        return NULL;
-    n = (size_t)w * (size_t)h * 4;
-    if (a->bgra_buf[i] && a->bgra_n[i] >= n) {
-        a->bgra_i = i;
-        return a->bgra_buf[i];
-    }
-    p = realloc(a->bgra_buf[i], n);
-    if (!p)
-        return NULL;
-    a->bgra_buf[i] = p;
-    a->bgra_n[i] = n;
-    a->bgra_i = i;
-    return p;
-}
-
-/* Min-fit into the hole. Never upscale. 0×0 hole → decode size. Dest is the
-   fitted picture (Swing letterboxes the panel). */
-static int blit_fit(int src_w, int src_h, int hole_w, int hole_h, int *dw, int *dh)
-{
-    if (src_w <= 0 || src_h <= 0) {
-        *dw = 0;
-        *dh = 0;
-        return -1;
-    }
-    if (hole_w <= 0 || hole_h <= 0 || (src_w <= hole_w && src_h <= hole_h)) {
-        *dw = src_w;
-        *dh = src_h;
-        return 0;
-    }
-    if ((int64_t)src_w * hole_h <= (int64_t)src_h * hole_w) {
-        *dh = hole_h;
-        *dw = (int)((int64_t)src_w * hole_h / src_h);
-    } else {
-        *dw = hole_w;
-        *dh = (int)((int64_t)src_h * hole_w / src_w);
-    }
-    if (*dw < 1)
-        *dw = 1;
-    if (*dh < 1)
-        *dh = 1;
-    return 0;
-}
-
-#ifdef __APPLE__
-static unsigned sw_cv_fmt(enum AVPixelFormat f)
-{
-    if (f == AV_PIX_FMT_YUV420P || f == AV_PIX_FMT_YUVJ420P)
-        return MSE_VT_BLIT_YUV420;
-    if (f == AV_PIX_FMT_NV12)
-        return MSE_VT_BLIT_NV12;
-    return 0;
-}
-
-static int scale_bgra_vt_sw(MseAv *a, AVFrame *sw, uint8_t **bgra, int *w, int *h)
-{
-    unsigned fmt = sw_cv_fmt((enum AVPixelFormat)sw->format);
-    int tw, th;
-    uint8_t *tdst;
-    if (!fmt)
-        return -1;
-    if (mse_vt_blit_fit(sw->width, sw->height, a->blit_w, a->blit_h, &tw, &th) != 0)
-        return -1;
-    tdst = bgra_pool(a, tw, th);
-    if (!tdst)
-        return -1;
-    if (mse_vt_blit_sw(&a->vt_blit, fmt, (const uint8_t *const *)sw->data, sw->linesize,
-                       sw->width, sw->height, tdst, tw, th) != 0)
-        return -1;
-    if (tw != a->blit_log_dw || th != a->blit_log_dh) {
-        a->blit_log_dw = tw;
-        a->blit_log_dh = th;
-        vlog("blit vt-sw %dx%d -> %dx%d hole=%dx%d", sw->width, sw->height, tw, th,
-             a->blit_w, a->blit_h);
-    }
-    *w = tw;
-    *h = th;
-    *bgra = tdst;
-    return 0;
-}
-#endif
-
-static int scale_bgra(MseAv *a, AVFrame *frame, uint8_t **bgra, int *w, int *h)
-{
-    AVFrame *sw = frame;
-    uint8_t *dst;
-    uint8_t *conv;
-    int vis_w, vis_h, dw, dh, src_w, flags, y;
-    int linesize[4] = { 0 };
-    uint8_t *dsts[4] = { 0 };
-#if !PRODUCTION
-    double t0, xfer_ms = 0, scale_ms;
-#endif
-#ifdef MSE_LINUX_HW
-    if (frame->hw_frames_ctx) {
-        if (!a->hw_sw)
-            a->hw_sw = av_frame_alloc();
-        if (!a->hw_sw)
-            return -1;
-        av_frame_unref(a->hw_sw);
-#if !PRODUCTION
-        t0 = now_ms();
-#endif
-        if (av_hwframe_transfer_data(a->hw_sw, frame, 0) < 0)
-            return -1;
-#if !PRODUCTION
-        xfer_ms = now_ms() - t0;
-#endif
-        a->hw_sw->colorspace = frame->colorspace;
-        a->hw_sw->color_range = frame->color_range;
-        a->hw_errs = 0;
-        sw = a->hw_sw;
-    }
-#endif
-#ifdef __APPLE__
-    if (frame->format == AV_PIX_FMT_VIDEOTOOLBOX && frame->data[3]) {
-        int tw, th;
-        uint8_t *tdst;
-        if (mse_vt_blit_size(frame->data[3], a->blit_w, a->blit_h, &tw, &th) == 0 &&
-            (tdst = bgra_pool(a, tw, th)) &&
-            mse_vt_blit_copy(&a->vt_blit, frame->data[3], tdst, tw, th) == 0) {
-            if (tw != a->blit_log_dw || th != a->blit_log_dh) {
-                a->blit_log_dw = tw;
-                a->blit_log_dh = th;
-                vlog("blit vt %dx%d hole=%dx%d", tw, th, a->blit_w, a->blit_h);
-            }
-            *w = tw;
-            *h = th;
-            *bgra = tdst;
-            return 0;
-        }
-        if (!a->hw_sw)
-            a->hw_sw = av_frame_alloc();
-        if (!a->hw_sw)
-            return -1;
-        av_frame_unref(a->hw_sw);
-#if !PRODUCTION
-        t0 = now_ms();
-#endif
-        if (av_hwframe_transfer_data(a->hw_sw, frame, 0) < 0)
-            return -1;
-#if !PRODUCTION
-        xfer_ms = now_ms() - t0;
-#endif
-        sw = a->hw_sw;
-    }
-    if (scale_bgra_vt_sw(a, sw, bgra, w, h) == 0)
-        return 0;
-#endif
-    vis_w = sw->width;
-    vis_h = sw->height;
-    if (blit_fit(vis_w, vis_h, a->blit_w, a->blit_h, &dw, &dh) != 0)
-        return -1;
-    dst = bgra_pool(a, dw, dh);
-    if (!dst)
-        return -1;
-    /* libswscale bilinear SIMD drops the last (width % 8) columns. YouTube
-       854×480 (itag 397) is remainder 6; 426×240 remainder 2 is fine. Convert
-       an 8-aligned width when the plane is padded (dav1d stride 896) and copy
-       the visible columns. Packed 854 falls back to SWS_ACCURATE_RND.
-       Downscale uses plain bilinear: ACCURATE_RND is too slow for 1440p. */
-    src_w = vis_w;
-    flags = SWS_BILINEAR;
-    if (dw == vis_w && dh == vis_h && (vis_w & 7)) {
-        int aligned = (vis_w + 7) & ~7;
-        if (sw->linesize[0] >= aligned)
-            src_w = aligned;
-        else
-            flags |= SWS_ACCURATE_RND;
-    }
-    {
-        int dst_w = (dw == vis_w && dh == vis_h) ? src_w : dw;
-        struct SwsContext *prev = a->sws;
-        a->sws = sws_getCachedContext(a->sws, src_w, vis_h, (enum AVPixelFormat)sw->format,
-                                      dst_w, dh, AV_PIX_FMT_BGRA, flags, NULL, NULL, NULL);
-        if (a->sws && a->sws != prev && src_w != vis_w)
-            vlog("sws pad %dx%d ls=%d convert=%d", vis_w, vis_h, sw->linesize[0], src_w);
-    }
-    if (!a->sws)
-        return -1;
-    if (dw == vis_w && dh == vis_h && src_w != vis_w) {
-        conv = sws_scratch(a, (size_t)src_w * (size_t)vis_h * 4);
-        if (!conv)
-            return -1;
-        dsts[0] = conv;
-        linesize[0] = src_w * 4;
-    } else {
-        dsts[0] = dst;
-        linesize[0] = dw * 4;
-    }
-#if !PRODUCTION
-    t0 = now_ms();
-#endif
-    sws_scale(a->sws, (const uint8_t *const *)sw->data, sw->linesize, 0, vis_h, dsts, linesize);
-#if !PRODUCTION
-    scale_ms = now_ms() - t0;
-#endif
-    if (dw == vis_w && dh == vis_h && src_w != vis_w) {
-        size_t row = (size_t)vis_w * 4;
-        for (y = 0; y < vis_h; y++)
-            memcpy(dst + (size_t)y * row, dsts[0] + (size_t)y * (size_t)src_w * 4, row);
-    }
-    if (dw != a->blit_log_dw || dh != a->blit_log_dh) {
-        a->blit_log_dw = dw;
-        a->blit_log_dh = dh;
-        vlog("blit %dx%d -> %dx%d hole=%dx%d sws", vis_w, vis_h, dw, dh, a->blit_w, a->blit_h);
-    }
-#if !PRODUCTION
-    if (vdbg_ok())
-        vlog("sws %dx%d -> %dx%d fmt=%d xfer=%.2f scale=%.2f", vis_w, vis_h, dw, dh, sw->format,
-             xfer_ms, scale_ms);
-#endif
-    *w = dw;
-    *h = dh;
-    *bgra = dst;
-    return 0;
-}
-
+#ifdef __ANDROID__
 void mse_av_set_window(MseAv *a, void *window)
 {
+    ANativeWindow *win = (ANativeWindow *)window;
     if (!a)
         return;
-#ifdef __ANDROID__
-    {
-        ANativeWindow *win = (ANativeWindow *)window;
-        pthread_mutex_lock(&a->mu);
-        if (a->mc_win == win) {
-            pthread_mutex_unlock(&a->mu);
-            return;
-        }
-        mc_close(a);
-        a->mc_win = win;
-        a->mc_fail = 0;
-        a->mc_open_tries = 0;
-        vlog("window %p vpar=%d %dx%d", (void *)win, a->vpar ? 1 : 0,
-             a->vpar ? a->vpar->width : 0, a->vpar ? a->vpar->height : 0);
-        if (win)
-            mc_try_open(a);
-        pthread_mutex_unlock(&a->mu);
-    }
-#elif defined(__APPLE__)
     pthread_mutex_lock(&a->mu);
-    if (a->vt_layer == window) {
+    if (a->mc_win == win) {
         pthread_mutex_unlock(&a->mu);
         return;
     }
-    if (a->vt_layer)
-        mse_vt_flush(a->vt_layer);
-    a->vt_layer = window;
-    vlog("vt-layer %p", window);
+    mc_close(a);
+    a->mc_win = win;
+    a->mc_fail = 0;
+    a->mc_open_tries = 0;
+    vlog("window %p vpar=%d %dx%d", (void *)win, a->vpar ? 1 : 0,
+         a->vpar ? a->vpar->width : 0, a->vpar ? a->vpar->height : 0);
+    if (win)
+        mc_try_open(a);
     pthread_mutex_unlock(&a->mu);
-#else
-    (void)window;
+}
+#endif
+
+void mse_av_set_presenter(MseAv *a, VPresenter *p, const void *engine)
+{
+#ifdef __APPLE__
+    VPresenter *old;
+#endif
+    if (!a)
+        return;
+    vpipe_set_presenter(a->vpipe, p, engine);
+#ifdef __APPLE__
+    vpresent_retain(p);
+    pthread_mutex_lock(&a->mu);
+    old = a->vp;
+    a->vp = p;
+    a->vp_engine = engine;
+    pthread_mutex_unlock(&a->mu);
+    vpresent_release(old);
 #endif
 }
 
@@ -3897,12 +3866,12 @@ void mse_av_recover_display(MseAv *a, double clock)
     a->vt_q_n = 0;
     if (a->v_rest) {
         /* JS audio-only rest: do not turn video back on. */
-        mse_vt_resume_presents(a->vt_layer);
+        vpresent_vt_resume(a->vp);
         pthread_mutex_unlock(&a->mu);
         return;
     }
     if (!a->v_bg_park) {
-        mse_vt_resume_presents(a->vt_layer);
+        vpresent_vt_resume(a->vp);
         pthread_mutex_unlock(&a->mu);
         return;
     }
@@ -3915,7 +3884,7 @@ void mse_av_recover_display(MseAv *a, double clock)
         mse_vt_dec_close(a->vt_dec);
         a->vt_dec = NULL;
     }
-    mse_vt_resume_presents(a->vt_layer);
+    vpresent_vt_resume(a->vp);
     if (a->vf.rd < a->vf.n)
         a->v_sent = a->vf.f[a->vf.rd].pts;
     os_log(os_log_create("com.ymusic.mse", "v"),
@@ -3924,117 +3893,46 @@ void mse_av_recover_display(MseAv *a, double clock)
 }
 #endif
 
-void mse_av_set_blit_size(MseAv *a, int w, int h)
+/* r from vpipe at the packet `pos`: VP_DEAD = no decoder takes the stream (vpipe logged why),
+   VP_RESYNC = vpipe replaced the decoder, else the decoder kept its state and is flushed. */
+static void video_decode_error(MseAv *a, double pos, int r)
 {
-    if (!a)
-        return;
-    if (w < 0)
-        w = 0;
-    if (h < 0)
-        h = 0;
-    pthread_mutex_lock(&a->mu);
-    if (a->blit_w == w && a->blit_h == h) {
-        pthread_mutex_unlock(&a->mu);
-        return;
-    }
-    a->blit_w = w;
-    a->blit_h = h;
-    vlog("blit-size %dx%d", w, h);
-    pthread_mutex_unlock(&a->mu);
-}
-
-/* After INVALIDDATA dav1d stays poisoned: flush is not enough — later
-   keys also fail (log21 12.045/18.018 key=1) and the clock starve-aheads
-   with a frozen picture. Close and reopen, then resync from the previous
-   key near the playhead. Split VP9 superframes without a BSF are
-   INVALIDDATA on their own — those must not tear the decoder down. */
-static void video_decode_error(MseAv *a, double pts, int err)
-{
-    if (a->vpar && a->vpar->codec_id == AV_CODEC_ID_VP9 && !a->vbsf)
-        return;
-#ifdef __APPLE__
-    if (a->vdec && a->vdec->hw_device_ctx) {
-        a->vt_fail_id = a->vdec->codec_id;
-        mse_critf(MSE_LOG_WARN, "mse-v vt-fail software id=%d", (int)a->vt_fail_id);
-    } else if (a->vdec && err == AVERROR(ENOSYS)) {
-        /* Software `av1` send() is ENOSYS without libdav1d. Do not reopen.
-           dav1d Invalid OBU after rest is a missing key, not ENOSYS. */
-        a->vt_fail_id = a->vdec->codec_id;
-        mse_critf(MSE_LOG_WARN, "mse-v decode-dead id=%d t=%.3f", (int)a->vt_fail_id, pts);
+    const char *dec;
+    if (r == VP_DEAD) {
+        a->v_dead = 1;
         close_video_decoder(a);
         return;
     }
-#endif
-#ifdef MSE_LINUX_HW
-    /* Stream switches and seeks error in software too; only a run of them condemns the GPU. */
-    if (a->vdec && a->vdec->hw_device_ctx && ++a->hw_errs >= 3) {
-        a->hw_errs = 0;
-        mse_hwdev_mark_failed(a->vdec->codec_id);
-    }
-#endif
-    mse_critf(MSE_LOG_WARN, "mse-v decode-err close-reopen t=%.3f", pts);
-    close_video_decoder(a);
-    if (a->vpar)
-        open_decoder(a, 1, a->vpar);
-    vf_resync_key(a, a->v_sent >= 0 ? a->v_sent : pts);
+    if (r != VP_RESYNC)
+        vpipe_flush(a->vpipe);
+    av_frame_free(&a->vhold);
+    vbsf_flush(a);
+    a->v_seen_idr = 0;
+    dec = vpipe_describe(a->vpipe);
+    vlog("decode-err r=%d at %.3f, %s resyncs", r, pos, dec);
+    /* The same decoder failing again at or past the same point: the GOP's data is bad. */
+    if (a->v_err_key >= 0 && pos >= a->v_err_pos - 0.001 && !strcmp(dec, a->v_err_dec))
+        vf_skip_gop(a, a->v_err_key);
+    else
+        vf_resync_key(a, a->v_sent >= 0 ? a->v_sent : pos);
+    a->v_err_key = a->vf.rd < a->vf.n ? a->vf.f[a->vf.rd].pts : -1;
+    a->v_err_pos = pos;
+    snprintf(a->v_err_dec, sizeof(a->v_err_dec), "%s", dec);
 }
 
 #ifdef __APPLE__
-/* JVM has no AVSampleBufferDisplayLayer (JAWT SIGSEGV). Lock the NV12
-   pixel buffer and reuse scale_bgra. iOS still shows on the layer. */
-static int present_cvpb(MseAv *a, void *pb, uint8_t **bgra, int *w, int *h)
+/* As pick_frame, for a picture of the own VT session; takes over the reference to pb. */
+static void pick_cvpb(MseAv *a, void *pb, int *w, int *h, VShow *s)
 {
     CVPixelBufferRef cv = (CVPixelBufferRef)pb;
-    OSType fmt;
-    AVFrame tmp;
-    int src_w, src_h, r = -1;
-
-    src_w = (int)CVPixelBufferGetWidth(cv);
-    src_h = (int)CVPixelBufferGetHeight(cv);
-    if (a->vt_layer && mse_vt_show(a->vt_layer, pb, src_w, src_h) == 0) {
-        *bgra = NULL;
-        *w = src_w;
-        *h = src_h;
-        return 0;
-    }
-    if (a->vt_layer)
-        return -1;
-    {
-        int tw, th;
-        uint8_t *tdst;
-        if (mse_vt_blit_size(pb, a->blit_w, a->blit_h, &tw, &th) == 0 &&
-            (tdst = bgra_pool(a, tw, th)) &&
-            mse_vt_blit_copy(&a->vt_blit, pb, tdst, tw, th) == 0) {
-            *bgra = tdst;
-            *w = tw;
-            *h = th;
-            return 0;
-        }
-    }
-    fmt = CVPixelBufferGetPixelFormatType(cv);
-    if (CVPixelBufferLockBaseAddress(cv, kCVPixelBufferLock_ReadOnly) != kCVReturnSuccess)
-        return -1;
-    memset(&tmp, 0, sizeof(tmp));
-    tmp.width = src_w;
-    tmp.height = src_h;
-    if (fmt == kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange ||
-        fmt == kCVPixelFormatType_420YpCbCr8BiPlanarFullRange) {
-        tmp.format = AV_PIX_FMT_NV12;
-        tmp.data[0] = CVPixelBufferGetBaseAddressOfPlane(cv, 0);
-        tmp.data[1] = CVPixelBufferGetBaseAddressOfPlane(cv, 1);
-        tmp.linesize[0] = (int)CVPixelBufferGetBytesPerRowOfPlane(cv, 0);
-        tmp.linesize[1] = (int)CVPixelBufferGetBytesPerRowOfPlane(cv, 1);
-    } else if (fmt == kCVPixelFormatType_32BGRA) {
-        tmp.format = AV_PIX_FMT_BGRA;
-        tmp.data[0] = CVPixelBufferGetBaseAddress(cv);
-        tmp.linesize[0] = (int)CVPixelBufferGetBytesPerRow(cv);
-    } else {
-        CVPixelBufferUnlockBaseAddress(cv, kCVPixelBufferLock_ReadOnly);
-        return -1;
-    }
-    r = scale_bgra(a, &tmp, bgra, w, h);
-    CVPixelBufferUnlockBaseAddress(cv, kCVPixelBufferLock_ReadOnly);
-    return r;
+    *w = (int)CVPixelBufferGetWidth(cv);
+    *h = (int)CVPixelBufferGetHeight(cv);
+    s->cvpb = pb;
+    s->vp = a->vp;
+    vpresent_retain(s->vp);
+    s->engine = a->vp_engine;
+    s->color = vp_color_of(NULL, a->vpar);
+    s->epoch = a->v_epoch;
 }
 
 static void vt_q_put(MseAv *a, void *pb, int w, int h, double pts)
@@ -4064,37 +3962,16 @@ static void vt_q_put(MseAv *a, void *pb, int w, int h, double pts)
     a->vt_q_n++;
 }
 
-static int vt_q_take(MseAv *a, double clock, uint8_t **bgra, int *w, int *h, double *pts)
+static int vt_q_take(MseAv *a, double clock, int *w, int *h, double *pts, VShow *s)
 {
     const double early = 0.04;
     const double late = 0.08;
     while (a->vt_q_n > 0) {
         double p = a->vt_q_pts[0];
-        void *pb;
+        void *pb = a->vt_q_pb[0];
         int i;
         if (p > clock + early)
             return 0;
-        pb = a->vt_q_pb[0];
-        if (p < clock - late) {
-            mse_vt_pb_release(pb);
-        } else if (present_cvpb(a, pb, bgra, w, h) == 0) {
-            mse_vt_pb_release(pb);
-            *pts = p;
-            a->v_sent = p;
-            a->show_late = 0;
-            a->vt_q_n--;
-            for (i = 0; i < a->vt_q_n; i++) {
-                a->vt_q_pb[i] = a->vt_q_pb[i + 1];
-                a->vt_q_pts[i] = a->vt_q_pts[i + 1];
-                a->vt_q_w[i] = a->vt_q_w[i + 1];
-                a->vt_q_h[i] = a->vt_q_h[i + 1];
-            }
-            if (vdbg_ok())
-                vlog("vt-show pts=%.3f clock=%.3f q=%d", p, clock, a->vt_q_n);
-            return 1;
-        } else {
-            mse_vt_pb_release(pb);
-        }
         a->vt_q_n--;
         for (i = 0; i < a->vt_q_n; i++) {
             a->vt_q_pb[i] = a->vt_q_pb[i + 1];
@@ -4102,17 +3979,29 @@ static int vt_q_take(MseAv *a, double clock, uint8_t **bgra, int *w, int *h, dou
             a->vt_q_w[i] = a->vt_q_w[i + 1];
             a->vt_q_h[i] = a->vt_q_h[i + 1];
         }
+        if (p < clock - late) {
+            mse_vt_pb_release(pb);
+            v_count_dropped(a, 1);
+            continue;
+        }
+        pick_cvpb(a, pb, w, h, s);
+        *pts = p;
+        a->v_sent = p;
+        a->show_late = 0;
+        if (vdbg_ok())
+            vlog("vt-show pts=%.3f clock=%.3f q=%d", p, clock, a->vt_q_n);
+        return 1;
     }
     return 0;
 }
 
-static int pull_vt(MseAv *a, double clock, uint8_t **bgra, int *w, int *h, double *pts)
+static int pull_vt(MseAv *a, double clock, int *w, int *h, double *pts, VShow *s)
 {
     const double late = 0.08;
     int i;
     if (!a->vt_dec)
         return 0;
-    if (vt_q_take(a, clock, bgra, w, h, pts))
+    if (vt_q_take(a, clock, w, h, pts, s))
         return 1;
     if (a->vt_q_n >= 4)
         return 0;
@@ -4126,11 +4015,11 @@ static int pull_vt(MseAv *a, double clock, uint8_t **bgra, int *w, int *h, doubl
             a->vf.rd++;
         }
         if (a->vf.rd >= a->vf.n)
-            return vt_q_take(a, clock, bgra, w, h, pts);
+            return vt_q_take(a, clock, w, h, pts, s);
         c = &a->vf.f[a->vf.rd];
         /* Send in DTS order. A P 50ms ahead is a ref for the B due now. */
         if (c->dts > clock + MSE_SEND_AHEAD && c->pts > clock + MSE_SEND_AHEAD)
-            return vt_q_take(a, clock, bgra, w, h, pts);
+            return vt_q_take(a, clock, w, h, pts, s);
         output = (a->v_seen_idr || coded_is_rap(a, c)) && c->pts >= clock - late;
         if (mse_vt_dec_send(a->vt_dec, c->data, (int)c->n, output) < 0) {
             c->sent = 1;
@@ -4145,7 +4034,7 @@ static int pull_vt(MseAv *a, double clock, uint8_t **bgra, int *w, int *h, doubl
         a->vf.rd++;
         if (output && mse_vt_dec_recv(a->vt_dec, &pb, &rw, &rh) && pb)
             vt_q_put(a, pb, rw, rh, c->pts);
-        if (vt_q_take(a, clock, bgra, w, h, pts))
+        if (vt_q_take(a, clock, w, h, pts, s))
             return 1;
         if (a->vt_q_n >= 4)
             return 0;
@@ -4154,16 +4043,17 @@ static int pull_vt(MseAv *a, double clock, uint8_t **bgra, int *w, int *h, doubl
 }
 #endif
 
-int mse_av_pull_video(MseAv *a, double clock, uint8_t **bgra, int *w, int *h, double *pts)
+/* Under a->mu: 1 = picked a picture to show (*s), 0 = none, -1 = error. Android's MediaCodec
+   renders here. */
+static int pull_video(MseAv *a, double clock, int *w, int *h, double *pts, VShow *s)
 {
     AVFrame *frame;
     int i, got;
     const double early = 0.04;
     const double late = 0.08;
 
-    if (!a || !bgra || !w || !h || !pts)
+    if (!a || !w || !h || !pts)
         return -1;
-    *bgra = NULL;
     pthread_mutex_lock(&a->mu);
     if (a->v_rest
 #ifdef __APPLE__
@@ -4196,14 +4086,15 @@ int mse_av_pull_video(MseAv *a, double clock, uint8_t **bgra, int *w, int *h, do
                      a->vpar->codec_id == AV_CODEC_ID_VP9 ? "vp9" : "h264",
                      a->vpar->width, a->vpar->height);
             else {
-                vlog("vt-dec open fail id=%d", (int)a->vpar->codec_id);
+                vlog("vt-dec open fail id=%d profile=%d", (int)a->vpar->codec_id, a->vpar->profile);
                 a->vt_fail_id = a->vpar->codec_id;
-                if (a->vpar->codec_id == AV_CODEC_ID_VP9)
+                /* VT turns down VP9 4:4:4, 4:2:2 and 12-bit; a profile 0 failure means no VP9 decoder. */
+                if (a->vpar->codec_id == AV_CODEC_ID_VP9 && a->vpar->profile <= 0)
                     vp9_vt_unavailable = 1;
             }
         }
         if (a->vt_dec) {
-            int r = pull_vt(a, clock, bgra, w, h, pts);
+            int r = pull_vt(a, clock, w, h, pts, s);
             pthread_mutex_unlock(&a->mu);
             return r;
         }
@@ -4224,16 +4115,19 @@ int mse_av_pull_video(MseAv *a, double clock, uint8_t **bgra, int *w, int *h, do
         return r;
     }
 #endif
-    if (!a->vdec && a->vpar && a->vf.rd < a->vf.n &&
+    if (!vpipe_is_open(a->vpipe) && a->vpar && a->vf.rd < a->vf.n &&
         (!a->need_rap[0] || coded_is_rap(a, &a->vf.f[a->vf.rd])))
-        open_decoder(a, 1, a->vpar);
-#ifdef __APPLE__
-    if (a->vdec && a->vdec->hw_device_ctx && a->vt_fail_id == a->vdec->codec_id)
-        video_decode_error(a, clock, 0);
-#endif
-    if (!a->vdec || a->vf.n == 0) {
+        open_video_decoder(a, a->vpar);
+    if (!vpipe_is_open(a->vpipe) || a->vf.n == 0) {
         pthread_mutex_unlock(&a->mu);
         return 0;
+    }
+    if (!a->vfr) {
+        a->vfr = av_frame_alloc();
+        if (!a->vfr) {
+            pthread_mutex_unlock(&a->mu);
+            return -1;
+        }
     }
     if (a->vhold) {
         double p = a->vhold->pts != AV_NOPTS_VALUE ? a->vhold->pts / 1000.0 : clock;
@@ -4249,35 +4143,29 @@ int mse_av_pull_video(MseAv *a, double clock, uint8_t **bgra, int *w, int *h, do
         if (p < clock - late && !(a->show_late && p >= clock - 0.35)) {
             vlog_state(a, clock, "hold-late", d);
             av_frame_free(&a->vhold);
+            v_count_dropped(a, 1);
         } else if (!a->v_seen_idr) {
             av_frame_free(&a->vhold);
-        } else if (present_frame(a, a->vhold, bgra, w, h) == 0) {
+        } else {
+            pick_frame(a, a->vhold, w, h, s);
             *pts = p;
             a->v_sent = p;
             a->show_late = 0;
+            a->v_err_key = -1;
             if (vdbg_ok())
                 vlog_state(a, clock, "show-hold", d);
             av_frame_free(&a->vhold);
             pthread_mutex_unlock(&a->mu);
             return 1;
-        } else {
-            av_frame_free(&a->vhold);
-        }
-    }
-    if (!a->vfr) {
-        a->vfr = av_frame_alloc();
-        if (!a->vfr) {
-            pthread_mutex_unlock(&a->mu);
-            return -1;
         }
     }
     frame = a->vfr;
     {
     int late_skips = 0;
     for (i = 0; i < 96; i++) {
-        if (!a->vdec)
+        if (!vpipe_is_open(a->vpipe))
             break;
-        got = avcodec_receive_frame(a->vdec, frame);
+        got = vpipe_receive(a->vpipe, frame);
         if (got == 0) {
             double p = frame->pts != AV_NOPTS_VALUE ? frame->pts / 1000.0 : clock;
             double d = p - clock;
@@ -4307,6 +4195,7 @@ int mse_av_pull_video(MseAv *a, double clock, uint8_t **bgra, int *w, int *h, do
                 if (vdbg_ok() || d < -0.25)
                     vlog_state(a, clock, "recv-late", d);
                 av_frame_unref(frame);
+                v_count_dropped(a, 1);
                 /* 4K libvpx sits ~0.5s behind. Breaking here never reached
                    the 1s catch-up present → 0fps at clock 18s/25s (log28 20:47). */
                 if (late_skips++ < 8)
@@ -4317,22 +4206,25 @@ int mse_av_pull_video(MseAv *a, double clock, uint8_t **bgra, int *w, int *h, do
                 av_frame_unref(frame);
                 continue;
             }
-            if (present_frame(a, frame, bgra, w, h) < 0)
-                break;
+            pick_frame(a, frame, w, h, s);
             *pts = p;
             a->v_sent = p;
             a->show_late = 0;
+            a->v_err_key = -1;
             if (vdbg_ok())
                 vlog_state(a, clock, "show", d);
-            av_frame_unref(frame);
             pthread_mutex_unlock(&a->mu);
             return 1;
         }
+        if (got != AVERROR(EAGAIN) && got != AVERROR_EOF) {
+            video_decode_error(a, a->v_fed, got);
+            continue;
+        }
         maybe_apply_video_rep(a);
-        if (!a->vdec && a->vpar && a->vf.rd < a->vf.n &&
+        if (!vpipe_is_open(a->vpipe) && a->vpar && a->vf.rd < a->vf.n &&
             (!a->need_rap[0] || coded_is_rap(a, &a->vf.f[a->vf.rd])))
-            open_decoder(a, 1, a->vpar);
-        if (!a->vdec)
+            open_video_decoder(a, a->vpar);
+        if (!vpipe_is_open(a->vpipe))
             break;
         {
             size_t rd0 = a->vf.rd;
@@ -4356,23 +4248,14 @@ int mse_av_pull_video(MseAv *a, double clock, uint8_t **bgra, int *w, int *h, do
         }
         {
             double sp = a->vf.f[a->vf.rd].pts;
-            int key = a->vf.f[a->vf.rd].key;
             int rap = coded_is_rap(a, &a->vf.f[a->vf.rd]);
-            int sr = send_coded(&a->vf, a->vdec, a->vbsf);
+            int sr = send_video(a);
+            if (sr == AVERROR(EAGAIN))
+                continue;
+            a->v_fed = sp;
             if (sr < 0) {
-                char err[64];
-                av_strerror(sr, err, sizeof(err));
-                mse_critf(MSE_LOG_WARN, "mse-v send-err pts=%.3f key=%d r=%d %s", sp, key, sr,
-                          err);
                 vlog_state(a, clock, "send-fail", sp);
-                /* Split VP9 superframes without a BSF are INVALIDDATA on
-                   their own — drop this packet, keep the GOP. */
-                if (a->vpar && a->vpar->codec_id == AV_CODEC_ID_VP9 && !a->vbsf) {
-                    a->vf.f[a->vf.rd].sent = 1;
-                    a->vf.rd++;
-                } else {
-                    video_decode_error(a, sp, sr);
-                }
+                video_decode_error(a, sp, sr);
                 continue;
             }
             if (rap) {
@@ -4380,13 +4263,61 @@ int mse_av_pull_video(MseAv *a, double clock, uint8_t **bgra, int *w, int *h, do
                 a->v_seen_idr = 1;
             }
             if (vdbg_ok())
-                vlog("send pts=%.3f key=%d clock=%.3f", sp, key, clock);
+                vlog("send pts=%.3f rap=%d clock=%.3f", sp, rap, clock);
         }
     }
     }
     av_frame_unref(frame);
     pthread_mutex_unlock(&a->mu);
     return 0;
+}
+
+/* Outside a->mu: shows the picture pull_video picked, unless it went stale meanwhile. */
+static int show_picked(MseAv *a, VShow *s)
+{
+    int r = VP_DROPPED;
+    pthread_mutex_lock(&a->show_mu);
+    if (s->epoch != a->v_epoch)
+        r = VP_FAIL;
+    else if (s->f)
+        r = vpipe_present(a->vpipe, s->f);
+#ifdef __APPLE__
+    else if (s->cvpb && s->vp)
+        r = vpresent_show_cvpb(s->vp, s->engine, s->cvpb, s->color);
+#endif
+    pthread_mutex_unlock(&a->show_mu);
+    if (s->f)
+        av_frame_unref(s->f);
+#ifdef __APPLE__
+    mse_vt_pb_release(s->cvpb);
+    vpresent_release(s->vp);
+#endif
+    return r == VP_FAIL ? 0 : 1;
+}
+
+int mse_av_pull_video(MseAv *a, double clock, int *w, int *h, double *pts)
+{
+    VShow s;
+    int r;
+    memset(&s, 0, sizeof(s));
+    r = pull_video(a, clock, w, h, pts, &s);
+    if (r <= 0)
+        return r;
+#ifdef __APPLE__
+    if (s.cvpb)
+        r = show_picked(a, &s);
+#endif
+    if (s.f)
+        r = show_picked(a, &s);
+    if (r > 0)
+        atomic_fetch_add_explicit(&a->q_shown, 1, memory_order_relaxed);
+    return r;
+}
+
+void mse_av_video_quality(MseAv *a, int *shown, int *dropped)
+{
+    *shown = a ? atomic_load_explicit(&a->q_shown, memory_order_relaxed) : 0;
+    *dropped = a ? atomic_load_explicit(&a->q_dropped, memory_order_relaxed) : 0;
 }
 
 int mse_av_pull_audio(MseAv *a, double clock, double until, int16_t **s16, int *frames, int *rate, int *ch,
@@ -4436,7 +4367,7 @@ int mse_av_pull_audio(MseAv *a, double clock, double until, int16_t **s16, int *
             }
             if (a->af.rd >= a->af.n || a->af.f[a->af.rd].pts > until + 0.08)
                 break;
-            if (send_coded(&a->af, a->adec, NULL) < 0)
+            if (send_coded(&a->af, a->adec) < 0)
                 break;
         }
     }

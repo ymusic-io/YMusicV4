@@ -38,7 +38,10 @@
     <string name="downloads_action_pause">Призупинити</string>
     <string name="downloads_action_resume">Відновити</string>
     <string name="downloads_action_reveal_library">Показати в бібліотеці</string>
-    <string name="downloads_action_reveal_finder">Показати у файловому менеджері</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Показати у Finder</string>
+    <string name="menu_reveal_explorer">Показати в Провіднику</string>
+    <string name="menu_reveal_file_manager">Показати у файловому менеджері</string>
     <!-- A finished download's date: %1$s = month from month_abbr, %2$d = day, %3$d = year. -->
     <string name="downloads_completed_date">%2$d %1$s %3$d</string>
     <string-array name="month_abbr">
@@ -160,8 +163,39 @@
     <string name="yt_playlist_removed_video">«%1$s» видалено з плейлиста</string>
     <string name="cd_add_to_playlist">Додати в плейлист</string>
     <string name="cd_share">Поділитися</string>
-    <string name="cd_music_video">Музика</string>
-    <string name="cd_album">Альбом</string>
+    <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
+    <string name="a11y_kind_video">Відео</string>
+    <string name="a11y_kind_music_video">Кліп</string>
+    <string name="a11y_kind_live">Пряма трансляція</string>
+    <string name="a11y_kind_playlist">Плейлист</string>
+    <string name="a11y_kind_album">Альбом</string>
+    <string name="a11y_kind_mix">Мікс</string>
+    <string name="a11y_kind_channel">Канал</string>
+    <!-- A video's length as a screen reader speaks it, joined with spaces: "1 hour 5 minutes 3 seconds" -->
+    <plurals name="a11y_duration_hours">
+        <item quantity="one">%1$d година</item>
+        <item quantity="few">%1$d години</item>
+        <item quantity="many">%1$d годин</item>
+        <item quantity="other">%1$d години</item>
+    </plurals>
+    <plurals name="a11y_duration_minutes">
+        <item quantity="one">%1$d хвилина</item>
+        <item quantity="few">%1$d хвилини</item>
+        <item quantity="many">%1$d хвилин</item>
+        <item quantity="other">%1$d хвилини</item>
+    </plurals>
+    <plurals name="a11y_duration_seconds">
+        <item quantity="one">%1$d секунда</item>
+        <item quantity="few">%1$d секунди</item>
+        <item quantity="many">%1$d секунд</item>
+        <item quantity="other">%1$d секунди</item>
+    </plurals>
+    <string name="a11y_now_playing">Зараз грає</string>
+    <string name="a11y_playback_position">Позиція відтворення</string>
+    <string name="a11y_x_of_y">%1$s, усього %2$s</string>
+    <string name="a11y_behind_live">Відставання від ефіру: %1$s</string>
+    <string name="a11y_downloaded">Завантажено</string>
+    <string name="a11y_eq_preamp">Попередній підсилювач</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Папки</string>
@@ -427,7 +461,6 @@
     <string name="account_sign_out">Вийти</string>
     <string name="account_switch">Змінити акаунт</string>
     <string name="switch_account_hint">Виберіть потрібний акаунт, потім закрийте цей екран стрілкою «Назад» — застосунок оновиться під новим акаунтом.</string>
-    <string name="cd_account_avatar">Фото акаунта</string>
     <string name="account_my_channel">Мій канал</string>
     <string name="account_watch_history">Історія переглядів</string>
     <string name="account_watch_later">Переглянути пізніше</string>
@@ -667,14 +700,16 @@
     <string name="cookie_protect_confirm">Підтвердьте пароль</string>
     <string name="cookie_protect_mismatch">Паролі не збігаються.</string>
     <string name="cookie_protect_submit">Захистити</string>
-    <string name="cookie_protect_skip">Неважливо</string>
+    <string name="cookie_protect_skip">Не зараз</string>
     <string name="cookie_unlock_title">Розблокувати вхід</string>
     <string name="cookie_unlock_body">Ваш вхід у YouTube захищено паролем.</string>
     <string name="cookie_unlock_submit">Розблокувати</string>
     <string name="cookie_unlock_wrong">Неправильний пароль.</string>
-    <string name="cookie_unlock_guest">Увійти як гість</string>
-    <string name="cookie_unlock_guest_hint">Запуск без входу. Дані гостьового сеансу не зберігаються.</string>
+    <string name="cookie_unlock_cant_unlock">Не вдається розблокувати?</string>
+    <string name="cookie_unlock_guest">Продовжити як гість</string>
+    <string name="cookie_unlock_guest_hint">Запуск без входу. Нічого не зберігається.</string>
     <string name="cookie_unlock_sign_out">Вийти</string>
+    <string name="cookie_unlock_sign_out_hint">Видаляє цей збережений вхід.</string>
     <string name="cookie_unlock_sign_out_title">Вийти?</string>
     <string name="cookie_unlock_sign_out_body">Це видалить збережені дані для входу з цього комп’ютера. Щоб увійти знову, відскануйте QR-код за допомогою застосунку YMusic.</string>
     <string name="link_unsupported">YMusic не може відкрити це посилання</string>
@@ -754,4 +789,22 @@
     <string name="unsubscribe">Відписатися</string>
     <string name="unsubscribed">Ви відписалися</string>
 
+    <string name="tray_pause">Пауза</string>
+    <string name="tray_resume">Продовжити</string>
+    <string name="tray_stop">Стоп (очистити чергу)</string>
+    <string name="tray_quit">Закрити</string>
+    <string name="shortcuts_title">Комбінації клавіш</string>
+    <string name="shortcuts_play_pause">Відтворення / пауза</string>
+    <string name="shortcuts_now_playing">Показати або сховати екран відтворення</string>
+    <string name="shortcuts_nav_menu">Відкрити або закрити меню</string>
+    <string name="shortcuts_switch_tabs">Перемкнути вкладку</string>
+    <string name="shortcuts_escape">Вийти з повноекранного режиму, закрити екран відтворення, меню або спливне вікно</string>
+    <string name="shortcuts_help">Показати цю довідку</string>
+    <string name="shortcuts_volume_up">Гучніше</string>
+    <string name="shortcuts_volume_down">Тихіше</string>
+    <string name="a11y_key_arrow_left">стрілка вліво</string>
+    <string name="a11y_key_arrow_right">стрілка вправо</string>
+    <string name="a11y_key_arrow_up">стрілка вгору</string>
+    <string name="a11y_key_arrow_down">стрілка вниз</string>
+    <string name="cd_always_on_top">Поверх усіх вікон</string>
 </resources>

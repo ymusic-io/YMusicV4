@@ -44,3 +44,23 @@ internal expect fun Modifier.keepBelowStatusBar(): Modifier
  *  OS-maximum 200dp) so a swipe there opens the nav drawer instead of going back. No-op elsewhere. */
 @Composable
 internal expect fun Modifier.drawerEdgeGestureExclusion(enabled: Boolean): Modifier
+
+/** Attach [label] as the screen-reader-announced label on an icon-only button, worked around for
+ *  Compose Desktop's a11y bridge: it maps `contentDescription` to BOTH JAB `name` and
+ *  `description`, so NVDA/JAWS read it twice ("Download Download"). On JVM we set the `text`
+ *  semantic instead — `name` falls back to it, `description` stays null, reads once. On
+ *  Android/iOS the native assistive techs don't have this double-read, so contentDescription
+ *  is still the right channel. [label] may be null for a decorative glyph. Never on a node whose
+ *  merged children already show the label as Text: desktop joins the texts and reads it twice. */
+expect fun Modifier.a11yActionLabel(label: String?): Modifier
+
+/** A slider as screen readers see it: [label] names it, [value] says in words where it stands, and the
+ *  reader's adjust gesture sets a new [fraction] (0..1) through [onSet]. Compose Desktop's bridge speaks
+ *  no stateDescription and reads a range only as a bare number, so on JVM both go into the name. */
+internal expect fun Modifier.a11ySlider(
+    label: String?,
+    value: String,
+    fraction: Float,
+    enabled: Boolean,
+    onSet: (Float) -> Unit,
+): Modifier

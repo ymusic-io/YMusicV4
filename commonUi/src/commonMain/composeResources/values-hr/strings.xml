@@ -23,6 +23,10 @@
     <string name="downloads_none_title">Još nema preuzimanja</string>
     <string name="downloads_none_message">Preuzete pjesme i videozapisi reproduciraju se izvanmrežno.</string>
     <string name="downloads_failed">Preuzimanje nije uspjelo</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Prikaži u Finderu</string>
+    <string name="menu_reveal_explorer">Prikaži u Eksploreru za datoteke</string>
+    <string name="menu_reveal_file_manager">Prikaži u upravitelju datoteka</string>
     <string name="section_settings">Postavke</string>
     <string name="section_donate">Doniraj</string>
     <string name="section_feedback">Povratne informacije</string>
@@ -121,8 +125,36 @@
     <string name="yt_playlist_removed_video">%1$s uklonjeno s popisa za reprodukciju</string>
     <string name="cd_add_to_playlist">Dodaj na popis za reprodukciju</string>
     <string name="cd_share">Dijeli</string>
-    <string name="cd_music_video">Glazba</string>
-    <string name="cd_album">Album</string>
+    <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
+    <string name="a11y_kind_video">Videozapis</string>
+    <string name="a11y_kind_music_video">Glazbeni videozapis</string>
+    <string name="a11y_kind_live">Prijenos uživo</string>
+    <string name="a11y_kind_playlist">Popis za reprodukciju</string>
+    <string name="a11y_kind_album">Album</string>
+    <string name="a11y_kind_mix">Mix</string>
+    <string name="a11y_kind_channel">Kanal</string>
+    <!-- A video's length as a screen reader speaks it, joined with spaces: "1 hour 5 minutes 3 seconds" -->
+    <plurals name="a11y_duration_hours">
+        <item quantity="one">%1$d sat</item>
+        <item quantity="few">%1$d sata</item>
+        <item quantity="other">%1$d sati</item>
+    </plurals>
+    <plurals name="a11y_duration_minutes">
+        <item quantity="one">%1$d minuta</item>
+        <item quantity="few">%1$d minute</item>
+        <item quantity="other">%1$d minuta</item>
+    </plurals>
+    <plurals name="a11y_duration_seconds">
+        <item quantity="one">%1$d sekunda</item>
+        <item quantity="few">%1$d sekunde</item>
+        <item quantity="other">%1$d sekundi</item>
+    </plurals>
+    <string name="a11y_now_playing">Upravo svira</string>
+    <string name="a11y_playback_position">Položaj reprodukcije</string>
+    <string name="a11y_x_of_y">%1$s, ukupno %2$s</string>
+    <string name="a11y_behind_live">%1$s iza prijenosa uživo</string>
+    <string name="a11y_downloaded">Preuzeto</string>
+    <string name="a11y_eq_preamp">Pretpojačalo</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Mape</string>
@@ -364,7 +396,6 @@
     <string name="account_sign_out">Odjava</string>
     <string name="account_switch">Promijeni račun</string>
     <string name="switch_account_hint">Odaberite željeni račun, a zatim zatvorite ovaj zaslon strelicom natrag — aplikacija će se osvježiti s novim računom.</string>
-    <string name="cd_account_avatar">Slika računa</string>
     <string name="account_my_channel">Moj kanal</string>
     <string name="account_watch_history">Povijest gledanja</string>
     <string name="account_watch_later">Gledaj kasnije</string>
@@ -556,6 +587,24 @@
     <string name="video_details_delete_title">Izbriši komentar</string>
     <string name="video_details_delete_message">Trajno izbrisati vaš komentar i sve odgovore na njega?</string>
     <string name="video_details_deleted">Komentar izbrisan</string>
+    <string name="cookie_protect_title">Zaštititi prijavu zaporkom?</string>
+    <string name="cookie_protect_body">Vaša prijava spremljena je na ovom računalu, gdje je mogu čitati druge aplikacije koje pokrećete. Postavite zaporku da biste je zaključali; YMusic će je tražiti pri svakom pokretanju.</string>
+    <string name="cookie_password">Zaporka</string>
+    <string name="cookie_protect_confirm">Potvrdite zaporku</string>
+    <string name="cookie_protect_mismatch">Zaporke se ne podudaraju.</string>
+    <string name="cookie_protect_submit">Zaštiti</string>
+    <string name="cookie_protect_skip">Ne sada</string>
+    <string name="cookie_unlock_title">Otključajte prijavu</string>
+    <string name="cookie_unlock_body">Vaša prijava na YouTube zaštićena je zaporkom.</string>
+    <string name="cookie_unlock_submit">Otključaj</string>
+    <string name="cookie_unlock_wrong">Pogrešna zaporka.</string>
+    <string name="cookie_unlock_cant_unlock">Ne možete otključati?</string>
+    <string name="cookie_unlock_guest">Nastavi kao gost</string>
+    <string name="cookie_unlock_guest_hint">Pokreće se bez prijave. Ništa se ne sprema.</string>
+    <string name="cookie_unlock_sign_out">Odjava</string>
+    <string name="cookie_unlock_sign_out_hint">Uklanja ovu spremljenu prijavu.</string>
+    <string name="cookie_unlock_sign_out_title">Odjaviti se?</string>
+    <string name="cookie_unlock_sign_out_body">Time ćete ukloniti spremljenu prijavu s ovog računala. Da biste se ponovno prijavili, skenirajte QR kod aplikacijom YMusic.</string>
     <string name="menu_details_comments">Detalji i komentari</string>
     <string name="menu_search_lyrics">Traži tekst pjesme</string>
     <string name="menu_speed_pitch">Brzina i visina tona</string>
@@ -575,4 +624,22 @@
     <string name="download_other_format">Preuzmi u drugom formatu</string>
     <string name="unsubscribe">Otkaži pretplatu</string>
     <string name="unsubscribed">Pretplata otkazana</string>
+    <string name="tray_pause">Pauziraj</string>
+    <string name="tray_resume">Nastavi</string>
+    <string name="tray_stop">Zaustavi (očisti red)</string>
+    <string name="tray_quit">Zatvori</string>
+    <string name="shortcuts_title">Tipkovnički prečaci</string>
+    <string name="shortcuts_play_pause">Reproduciraj / pauziraj</string>
+    <string name="shortcuts_now_playing">Prikaži ili sakrij Sada svira</string>
+    <string name="shortcuts_nav_menu">Otvori ili zatvori izbornik</string>
+    <string name="shortcuts_switch_tabs">Promijeni karticu</string>
+    <string name="shortcuts_escape">Izađi iz cijelog zaslona ili zatvori Sada svira, izbornik ili skočni prozor</string>
+    <string name="shortcuts_help">Prikaži ovu pomoć</string>
+    <string name="shortcuts_volume_up">Pojačaj glasnoću</string>
+    <string name="shortcuts_volume_down">Smanji glasnoću</string>
+    <string name="a11y_key_arrow_left">strelica lijevo</string>
+    <string name="a11y_key_arrow_right">strelica desno</string>
+    <string name="a11y_key_arrow_up">strelica gore</string>
+    <string name="a11y_key_arrow_down">strelica dolje</string>
+    <string name="cd_always_on_top">Uvijek na vrhu</string>
 </resources>

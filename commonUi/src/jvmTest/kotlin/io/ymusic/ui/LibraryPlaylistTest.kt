@@ -6,7 +6,6 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
-import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
@@ -71,7 +70,7 @@ class LibraryPlaylistTest {
                 // Add MySong to a new playlist from the Songs tab's row menu.
                 onNodeWithText("Songs").performClick()
                 waitUntilAtLeastOneExists(hasText("MySong"), 5_000)
-                onNodeWithContentDescription("More").performClick()
+                onNodeWithActionLabel("More").performClick()
                 onNodeWithText("Add to playlist").performClick()
                 waitUntilAtLeastOneExists(hasText("New playlist…"), 5_000)
                 onNodeWithText("New playlist…").performClick()
@@ -87,7 +86,7 @@ class LibraryPlaylistTest {
                 waitUntilAtLeastOneExists(hasText("MySong"), 5_000)
                 // A user playlist carries a sort control, on its manual order by default; a system playlist doesn't.
                 onNodeWithText("Manual").assertIsDisplayed()
-                onNodeWithContentDescription("Back").performClick()
+                onNodeWithActionLabel("Back").performClick()
                 waitUntilAtLeastOneExists(hasText("Top tracks"), 5_000)
                 onNodeWithText("Top tracks").performClick()
                 waitUntilDoesNotExist(hasText("Manual"), 5_000)

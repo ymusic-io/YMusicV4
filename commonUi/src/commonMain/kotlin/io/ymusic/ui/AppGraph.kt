@@ -127,9 +127,11 @@ class AppGraph(
      * the confirm dialog). Null hides the menu action entirely.
      */
     val deleteFromDisk: (suspend (io.ymusic.mediastore.model.MediaStoreItem) -> Unit)? = null,
-    /** Reveal a file (by its uri) in the OS file manager — desktop only (mac Finder / file explorer);
-     *  null on mobile, which hides the "Reveal in Finder" download action. */
+    /** Reveal a file or folder (by its uri) in the OS file manager — desktop only; null on mobile,
+     *  which hides every "Reveal in …" action. */
     val revealInFolder: (suspend (uri: String) -> Unit)? = null,
+    /** That action's label in the host OS's own words ("Reveal in Finder" / "… in File Explorer"). */
+    val revealInFolderLabel: org.jetbrains.compose.resources.StringResource? = null,
     /** Opens the system share sheet with a text (a link). Null = the UI copies it to the clipboard instead. */
     val shareText: ((text: String) -> Unit)? = null,
     /** Renames downloaded files in place (Downloads' "Rename"); null hides the action. */

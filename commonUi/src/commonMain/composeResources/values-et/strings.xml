@@ -23,6 +23,10 @@
     <string name="downloads_none_title">Allalaadimisi veel pole</string>
     <string name="downloads_none_message">Allalaaditud lood ja videod mängivad võrguühenduseta.</string>
     <string name="downloads_failed">Allalaadimine ebaõnnestus</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Näita Finderis</string>
+    <string name="menu_reveal_explorer">Näita failihalduris</string>
+    <string name="menu_reveal_file_manager">Näita failihalduris</string>
     <string name="section_settings">Sätted</string>
     <string name="section_donate">Anneta</string>
     <string name="section_feedback">Tagasiside</string>
@@ -121,8 +125,33 @@
     <string name="yt_playlist_removed_video">Esitusloendist eemaldatud: %1$s</string>
     <string name="cd_add_to_playlist">Lisa esitusloendisse</string>
     <string name="cd_share">Jaga</string>
-    <string name="cd_music_video">Muusika</string>
-    <string name="cd_album">Album</string>
+    <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
+    <string name="a11y_kind_video">Video</string>
+    <string name="a11y_kind_music_video">Muusikavideo</string>
+    <string name="a11y_kind_live">Otseülekanne</string>
+    <string name="a11y_kind_playlist">Esitusloend</string>
+    <string name="a11y_kind_album">Album</string>
+    <string name="a11y_kind_mix">Mix</string>
+    <string name="a11y_kind_channel">Kanal</string>
+    <!-- A video's length as a screen reader speaks it, joined with spaces: "1 hour 5 minutes 3 seconds" -->
+    <plurals name="a11y_duration_hours">
+        <item quantity="one">%1$d tund</item>
+        <item quantity="other">%1$d tundi</item>
+    </plurals>
+    <plurals name="a11y_duration_minutes">
+        <item quantity="one">%1$d minut</item>
+        <item quantity="other">%1$d minutit</item>
+    </plurals>
+    <plurals name="a11y_duration_seconds">
+        <item quantity="one">%1$d sekund</item>
+        <item quantity="other">%1$d sekundit</item>
+    </plurals>
+    <string name="a11y_now_playing">Praegu mängib</string>
+    <string name="a11y_playback_position">Esituse asukoht</string>
+    <string name="a11y_x_of_y">%1$s, kokku %2$s</string>
+    <string name="a11y_behind_live">%1$s otse-eetrist maas</string>
+    <string name="a11y_downloaded">Alla laaditud</string>
+    <string name="a11y_eq_preamp">Eelvõimendi</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Kaustad</string>
@@ -363,7 +392,6 @@
     <string name="account_sign_out">Logi välja</string>
     <string name="account_switch">Vaheta kontot</string>
     <string name="switch_account_hint">Vali soovitud konto ja sulge see ekraan tagasinoolega — rakendus värskendub uue kontoga.</string>
-    <string name="cd_account_avatar">Konto pilt</string>
     <string name="account_my_channel">Minu kanal</string>
     <string name="account_watch_history">Vaatamisajalugu</string>
     <string name="account_watch_later">Vaata hiljem</string>
@@ -551,6 +579,24 @@
     <string name="video_details_delete_title">Kustuta kommentaar</string>
     <string name="video_details_delete_message">Kas kustutada sinu kommentaar ja kõik selle vastused jäädavalt?</string>
     <string name="video_details_deleted">Kommentaar kustutatud</string>
+    <string name="cookie_protect_title">Kas kaitsta sisselogimist parooliga?</string>
+    <string name="cookie_protect_body">Sinu sisselogimine on salvestatud selles arvutis, kus teised sinu käivitatud rakendused saavad seda lugeda. Määra lukustamiseks parool; YMusic küsib seda igal käivitamisel.</string>
+    <string name="cookie_password">Parool</string>
+    <string name="cookie_protect_confirm">Kinnita parool</string>
+    <string name="cookie_protect_mismatch">Paroolid ei ühti.</string>
+    <string name="cookie_protect_submit">Kaitse</string>
+    <string name="cookie_protect_skip">Mitte praegu</string>
+    <string name="cookie_unlock_title">Ava sisselogimise lukk</string>
+    <string name="cookie_unlock_body">Sinu YouTube'i sisselogimine on kaitstud parooliga.</string>
+    <string name="cookie_unlock_submit">Ava lukk</string>
+    <string name="cookie_unlock_wrong">Vale parool.</string>
+    <string name="cookie_unlock_cant_unlock">Ei saa lukku avada?</string>
+    <string name="cookie_unlock_guest">Jätka külalisena</string>
+    <string name="cookie_unlock_guest_hint">Käivitub sisselogimata. Midagi ei säilitata.</string>
+    <string name="cookie_unlock_sign_out">Logi välja</string>
+    <string name="cookie_unlock_sign_out_hint">Eemaldab selle salvestatud sisselogimise.</string>
+    <string name="cookie_unlock_sign_out_title">Kas logida välja?</string>
+    <string name="cookie_unlock_sign_out_body">See eemaldab salvestatud sisselogimise sellest arvutist. Uuesti sisselogimiseks skanni QR-kood rakendusega YMusic.</string>
     <string name="menu_details_comments">Üksikasjad ja kommentaarid</string>
     <string name="menu_search_lyrics">Otsi laulusõnu</string>
     <string name="menu_speed_pitch">Kiirus ja helikõrgus</string>
@@ -570,4 +616,22 @@
     <string name="download_other_format">Laadi alla teises vormingus</string>
     <string name="unsubscribe">Loobu tellimusest</string>
     <string name="unsubscribed">Tellimusest loobutud</string>
+    <string name="tray_pause">Paus</string>
+    <string name="tray_resume">Jätka</string>
+    <string name="tray_stop">Peata (tühjenda järjekord)</string>
+    <string name="tray_quit">Sulge</string>
+    <string name="shortcuts_title">Klaviatuuri otseteed</string>
+    <string name="shortcuts_play_pause">Esita / peata</string>
+    <string name="shortcuts_now_playing">Kuva või peida Praegu mängib</string>
+    <string name="shortcuts_nav_menu">Ava või sulge menüü</string>
+    <string name="shortcuts_switch_tabs">Vaheta vahekaarte</string>
+    <string name="shortcuts_escape">Välju täisekraanist või sulge Praegu mängib, menüü või hüpikaken</string>
+    <string name="shortcuts_help">Kuva see abi</string>
+    <string name="shortcuts_volume_up">Helitugevus üles</string>
+    <string name="shortcuts_volume_down">Helitugevus alla</string>
+    <string name="a11y_key_arrow_left">vasaknool</string>
+    <string name="a11y_key_arrow_right">paremnool</string>
+    <string name="a11y_key_arrow_up">ülesnool</string>
+    <string name="a11y_key_arrow_down">allanool</string>
+    <string name="cd_always_on_top">Alati peal</string>
 </resources>

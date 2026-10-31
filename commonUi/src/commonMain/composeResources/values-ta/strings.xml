@@ -23,6 +23,10 @@
     <string name="downloads_none_title">இதுவரை பதிவிறக்கங்கள் இல்லை</string>
     <string name="downloads_none_message">பதிவிறக்கிய பாடல்களும் வீடியோக்களும் ஆஃப்லைனில் இயங்கும்.</string>
     <string name="downloads_failed">பதிவிறக்கம் தோல்வியடைந்தது</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Finder-இல் காட்டு</string>
+    <string name="menu_reveal_explorer">கோப்பு எக்ஸ்ப்ளோரரில் காட்டு</string>
+    <string name="menu_reveal_file_manager">கோப்பு மேலாளரில் காட்டு</string>
     <string name="section_settings">அமைப்புகள்</string>
     <string name="section_donate">நன்கொடை அளி</string>
     <string name="section_feedback">கருத்து</string>
@@ -121,8 +125,33 @@
     <string name="yt_playlist_removed_video">பிளேலிஸ்ட்டிலிருந்து %1$s அகற்றப்பட்டது</string>
     <string name="cd_add_to_playlist">பிளேலிஸ்ட்டில் சேர்</string>
     <string name="cd_share">பகிர்</string>
-    <string name="cd_music_video">இசை</string>
-    <string name="cd_album">ஆல்பம்</string>
+    <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
+    <string name="a11y_kind_video">வீடியோ</string>
+    <string name="a11y_kind_music_video">இசை வீடியோ</string>
+    <string name="a11y_kind_live">நேரலை வீடியோ</string>
+    <string name="a11y_kind_playlist">பிளேலிஸ்ட்</string>
+    <string name="a11y_kind_album">ஆல்பம்</string>
+    <string name="a11y_kind_mix">கலவை</string>
+    <string name="a11y_kind_channel">சேனல்</string>
+    <!-- A video's length as a screen reader speaks it, joined with spaces: "1 hour 5 minutes 3 seconds" -->
+    <plurals name="a11y_duration_hours">
+        <item quantity="one">%1$d மணிநேரம்</item>
+        <item quantity="other">%1$d மணிநேரம்</item>
+    </plurals>
+    <plurals name="a11y_duration_minutes">
+        <item quantity="one">%1$d நிமிடம்</item>
+        <item quantity="other">%1$d நிமிடங்கள்</item>
+    </plurals>
+    <plurals name="a11y_duration_seconds">
+        <item quantity="one">%1$d வினாடி</item>
+        <item quantity="other">%1$d வினாடிகள்</item>
+    </plurals>
+    <string name="a11y_now_playing">இப்போது இயங்குகிறது</string>
+    <string name="a11y_playback_position">இயக்க நிலை</string>
+    <string name="a11y_x_of_y">%2$s இல் %1$s</string>
+    <string name="a11y_behind_live">நேரலையை விட %1$s பின்னால்</string>
+    <string name="a11y_downloaded">பதிவிறக்கப்பட்டது</string>
+    <string name="a11y_eq_preamp">முன்பெருக்கி</string>
 
     <!-- Library -->
     <string name="library_tab_folders">கோப்புறைகள்</string>
@@ -363,7 +392,6 @@
     <string name="account_sign_out">வெளியேறு</string>
     <string name="account_switch">கணக்கை மாற்று</string>
     <string name="switch_account_hint">உங்களுக்கு வேண்டிய கணக்கைத் தேர்ந்தெடுத்து, பின் அம்புக்குறியால் இந்தத் திரையை மூடவும் — ஆப்ஸ் புதிய கணக்கில் புதுப்பிக்கப்படும்.</string>
-    <string name="cd_account_avatar">கணக்குப் படம்</string>
     <string name="account_my_channel">எனது சேனல்</string>
     <string name="account_watch_history">பார்த்த வரலாறு</string>
     <string name="account_watch_later">பின்னர் பார்</string>
@@ -551,6 +579,24 @@
     <string name="video_details_delete_title">கருத்தை நீக்கு</string>
     <string name="video_details_delete_message">உங்கள் கருத்தையும் அதன் எல்லாப் பதில்களையும் நிரந்தரமாக நீக்கவா?</string>
     <string name="video_details_deleted">கருத்து நீக்கப்பட்டது</string>
+    <string name="cookie_protect_title">உங்கள் உள்நுழைவைக் கடவுச்சொல்லால் பாதுகாக்கவா?</string>
+    <string name="cookie_protect_body">உங்கள் உள்நுழைவு இந்தக் கணினியில் சேமிக்கப்பட்டுள்ளது, நீங்கள் இயக்கும் பிற ஆப்ஸ் அதைப் படிக்க முடியும். அதைப் பூட்ட ஒரு கடவுச்சொல்லை அமைக்கவும்; ஒவ்வொரு முறை தொடங்கும்போதும் YMusic அதைக் கேட்கும்.</string>
+    <string name="cookie_password">கடவுச்சொல்</string>
+    <string name="cookie_protect_confirm">கடவுச்சொல்லை உறுதிசெய்</string>
+    <string name="cookie_protect_mismatch">கடவுச்சொற்கள் பொருந்தவில்லை.</string>
+    <string name="cookie_protect_submit">பாதுகா</string>
+    <string name="cookie_protect_skip">இப்போது வேண்டாம்</string>
+    <string name="cookie_unlock_title">உங்கள் உள்நுழைவைத் திறக்கவும்</string>
+    <string name="cookie_unlock_body">உங்கள் YouTube உள்நுழைவு கடவுச்சொல்லால் பாதுகாக்கப்பட்டுள்ளது.</string>
+    <string name="cookie_unlock_submit">திற</string>
+    <string name="cookie_unlock_wrong">தவறான கடவுச்சொல்.</string>
+    <string name="cookie_unlock_cant_unlock">திறக்க முடியவில்லையா?</string>
+    <string name="cookie_unlock_guest">விருந்தினராகத் தொடர்</string>
+    <string name="cookie_unlock_guest_hint">உள்நுழையாமல் தொடங்கும். எதுவும் சேமிக்கப்படாது.</string>
+    <string name="cookie_unlock_sign_out">வெளியேறு</string>
+    <string name="cookie_unlock_sign_out_hint">சேமித்த இந்த உள்நுழைவை அகற்றும்.</string>
+    <string name="cookie_unlock_sign_out_title">வெளியேறவா?</string>
+    <string name="cookie_unlock_sign_out_body">இது சேமித்த உள்நுழைவை இந்தக் கணினியிலிருந்து அகற்றும். மீண்டும் உள்நுழைய, YMusic ஆப்ஸ் மூலம் QR குறியீட்டை ஸ்கேன் செய்யவும்.</string>
     <string name="menu_details_comments">விவரங்களும் கருத்துகளும்</string>
     <string name="menu_search_lyrics">பாடல் வரிகளைத் தேடு</string>
     <string name="menu_speed_pitch">வேகமும் சுருதியும்</string>
@@ -570,4 +616,22 @@
     <string name="download_other_format">வேறு வடிவத்தில் பதிவிறக்கு</string>
     <string name="unsubscribe">குழுவிலகு</string>
     <string name="unsubscribed">குழுவிலகப்பட்டது</string>
+    <string name="tray_pause">இடைநிறுத்து</string>
+    <string name="tray_resume">தொடர்</string>
+    <string name="tray_stop">நிறுத்து (வரிசையை அழி)</string>
+    <string name="tray_quit">மூடு</string>
+    <string name="shortcuts_title">விசைப்பலகைக் குறுக்குவழிகள்</string>
+    <string name="shortcuts_play_pause">இயக்கு / இடைநிறுத்து</string>
+    <string name="shortcuts_now_playing">Now Playing-ஐக் காட்டு அல்லது மறை</string>
+    <string name="shortcuts_nav_menu">மெனுவைத் திற அல்லது மூடு</string>
+    <string name="shortcuts_switch_tabs">தாவல்களை மாற்று</string>
+    <string name="shortcuts_escape">முழுத்திரையிலிருந்து வெளியேறு, அல்லது Now Playing, மெனு அல்லது பாப்-அப்பை மூடு</string>
+    <string name="shortcuts_help">இந்த உதவியைக் காட்டு</string>
+    <string name="shortcuts_volume_up">ஒலியை அதிகரி</string>
+    <string name="shortcuts_volume_down">ஒலியைக் குறை</string>
+    <string name="a11y_key_arrow_left">இடது அம்பு</string>
+    <string name="a11y_key_arrow_right">வலது அம்பு</string>
+    <string name="a11y_key_arrow_up">மேல் அம்பு</string>
+    <string name="a11y_key_arrow_down">கீழ் அம்பு</string>
+    <string name="cd_always_on_top">எப்போதும் மேலே</string>
 </resources>
