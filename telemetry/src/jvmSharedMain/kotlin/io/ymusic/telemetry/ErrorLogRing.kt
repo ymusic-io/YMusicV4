@@ -3,10 +3,8 @@ package io.ymusic.telemetry
 import io.sentry.ISentryClient
 import io.sentry.JsonObjectReader
 import io.sentry.JsonObjectWriter
-import io.sentry.SentryAttributeType
 import io.sentry.SentryLevel
 import io.sentry.SentryLogEvent
-import io.sentry.SentryLogEventAttributeValue
 import io.sentry.SentryLogEvents
 import io.sentry.SentryOptions
 import io.sentry.logger.ILoggerBatchProcessor
@@ -46,9 +44,10 @@ internal fun errorLogRingFactory(dir: File) = ILoggerBatchProcessorFactory { opt
 /**
  * Sentry Logs held on disk and sent only with an error. Every line, fully built (attributes, trace,
  * timestamp, after `logs.beforeSend`), is appended to a two-file ring as `<seq>\t<json>`; [sendFor]
- * sends the newest lines above the persisted sent mark, up to [errorLogLines], tagged with the
- * event's id, then moves the mark past everything it considered, so no line goes twice. All file
- * work runs on one thread, in order, so a send sees every line added before it.
+ * sends the newest lines above the persisted sent mark, up to [errorLogLines] (they keep their trace
+ * id, which is how Sentry shows them on the event), then moves the mark past everything it
+ * considered, so no line goes twice. All file work runs on one thread, in order, so a send sees every
+ * line added before it.
  */
 internal class ErrorLogRing(
     private val dir: File,
@@ -95,7 +94,7 @@ internal class ErrorLogRing(
         val task = try {
             worker.submit {
                 try {
-                    send(eventId, limit)
+                    send(limit)
                 } catch (e: Exception) {
                     options.logger.log(SentryLevel.WARNING, "log lines for $eventId not sent", e)
                 }
@@ -131,7 +130,7 @@ internal class ErrorLogRing(
         }
     }
 
-    private fun send(eventId: String, limit: Int) {
+    private fun send(limit: Int) {
         if (nextSeq < 0) restore()
         val sentUpTo = readMark()
         val newest = ArrayDeque<String>(limit)
@@ -152,8 +151,6 @@ internal class ErrorLogRing(
         // Marked first: a send that fails halfway still never repeats a line.
         writeMark(newestSeq)
         val events = newest.mapNotNull { json -> parse(json) }
-        val tag = SentryLogEventAttributeValue(SentryAttributeType.STRING, eventId)
-        events.forEach { it.setAttribute(EVENT_ID_ATTRIBUTE, tag) }
         events.chunked(BATCH_SIZE).forEach { client.captureBatchedLogEvents(SentryLogEvents(it)) }
     }
 
@@ -210,7 +207,6 @@ internal class ErrorLogRing(
         const val BATCH_SIZE = 100
         const val SYNC_WAIT_MS = 2_000L
         const val CLOSE_WAIT_MS = 1_000L
-        const val EVENT_ID_ATTRIBUTE = "event_id"
     }
 }
 
