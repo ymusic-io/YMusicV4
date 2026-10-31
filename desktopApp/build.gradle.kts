@@ -264,6 +264,7 @@ kotlin {
                 implementation(project(":telemetry")) // api: sentry-kotlin-multiplatform + SentryLogger
                 implementation(project(":kmpHttp:core"))
                 implementation(project(":projectCommon"))
+                implementation(project(":quickjs")) // QuickJsRuntime.hostVersions
                 implementation(project(":remote-config"))
                 implementation(project(":yt-media"))
                 implementation(Libs.Kotlinx.coroutinesCore)

@@ -119,6 +119,7 @@ import io.ymusic.player.PlaybackStatus
 import io.ymusic.player.PlayerEngines
 import io.ymusic.player.createLocalPlayer
 import io.ymusic.player.createPlayer
+import io.ymusic.quickjs.QuickJsRuntime
 import io.ymusic.remoteconfig.HttpApiService
 import io.ymusic.remoteconfig.RemoteConfig
 import io.ymusic.remoteconfig.RunningBundles
@@ -216,6 +217,7 @@ import java.awt.FileDialog
 import java.awt.Frame
 import java.awt.Graphics
 import java.awt.Graphics2D
+import java.awt.GraphicsEnvironment
 import java.awt.RenderingHints
 import java.awt.desktop.AppReopenedListener
 import java.awt.event.ComponentAdapter
@@ -290,6 +292,7 @@ fun main(args: Array<String>) {
         null
     }
     useBundledMseNatives()
+    QuickJsRuntime.hostVersions = hostVersions()
     // macOS delivers ymusic:// opens (Info.plist CFBundleURLTypes) as Apple Events to the running
     // instance — set before the toolkit starts so a cold-launch link is not lost.
     if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.APP_OPEN_URI)) {
@@ -1614,6 +1617,22 @@ internal fun resolveFfmpeg(): String? {
 }
 
 /** A packaged build ships the MSE JNI beside the libav it links, in app resources, not in its jar. */
+/** Device facts every engine sees in `versions`; the default display in physical pixels for YouTube's quality cap. */
+private fun hostVersions(): Map<String, Any> = buildMap {
+    put("os", desktopOsKey())
+    put("osVersion", System.getProperty("os.version").orEmpty())
+    if (!GraphicsEnvironment.isHeadless()) {
+        val config = GraphicsEnvironment.getLocalGraphicsEnvironment().defaultScreenDevice.defaultConfiguration
+        val scale = config.defaultTransform.scaleX
+        val bounds = config.bounds
+        if (bounds.width > 0 && bounds.height > 0 && scale > 0) {
+            put("screenWidth", (bounds.width * scale).roundToInt())
+            put("screenHeight", (bounds.height * scale).roundToInt())
+            put("screenDensity", scale)
+        }
+    }
+}
+
 private fun useBundledMseNatives() {
     val dir = System.getProperty("compose.application.resources.dir") ?: return
     if (File(dir, System.mapLibraryName("mseffmpegjni")).isFile) System.setProperty("mse.native.dir", dir)
