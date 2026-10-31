@@ -9,15 +9,22 @@ import io.sentry.SentryLogEvents
 import io.sentry.SentryOptions
 import io.sentry.logger.ILoggerBatchProcessor
 import io.sentry.logger.ILoggerBatchProcessorFactory
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.selects.select
+import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 import java.io.IOException
 import java.io.StringReader
 import java.io.StringWriter
-import java.util.concurrent.ArrayBlockingQueue
-import java.util.concurrent.ExecutionException
-import java.util.concurrent.ThreadPoolExecutor
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.concurrent.Volatile
 
@@ -42,37 +49,58 @@ internal fun errorLogRingFactory(dir: File) = ILoggerBatchProcessorFactory { opt
 }
 
 /**
- * Sentry Logs held on disk and sent only with an error. Every line, fully built (attributes, trace,
- * timestamp, after `logs.beforeSend`), is appended to a two-file ring as `<seq>\t<json>`; [sendFor]
- * sends the newest lines above the persisted sent mark, up to [errorLogLines] (they keep their trace
- * id, which is how Sentry shows them on the event), then moves the mark past everything it
- * considered, so no line goes twice. All file work runs on one thread, in order, so a send sees every
- * line added before it.
+ * Sentry Logs held on disk and sent only with an error. Every line (after `logs.beforeSend`) is
+ * appended to a two-file ring as `<seq>\t<json>`; [sendFor] sends the newest lines above the
+ * persisted sent mark, up to [errorLogLines] (they keep their trace id, which is how Sentry shows them
+ * on the event), then moves the mark past everything it considered, so no line goes twice. One
+ * coroutine does all file work in order; a send first takes every queued line, so it sees each line
+ * added before it. Lines can be dropped under a burst, sends never.
  */
 internal class ErrorLogRing(
     private val dir: File,
     private val options: SentryOptions,
     private val client: ISentryClient,
 ) : ILoggerBatchProcessor {
-    private val worker = ThreadPoolExecutor(
-        1,
-        1,
-        0L,
-        TimeUnit.MILLISECONDS,
-        ArrayBlockingQueue(QUEUE_CAPACITY),
-        { runnable -> Thread(runnable, "sentry-log-ring").apply { isDaemon = true } },
-        ThreadPoolExecutor.DiscardOldestPolicy(),
-    )
+    private val dropped = AtomicLong()
+    private val lines = Channel<SentryLogEvent>(QUEUE_CAPACITY, BufferOverflow.DROP_OLDEST) { dropped.incrementAndGet() }
+    private val sends = Channel<SendRequest>(Channel.UNLIMITED)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO.limitedParallelism(1))
     private val current = File(dir, "ring-0.log")
     private val previous = File(dir, "ring-1.log")
     private val markFile = File(dir, "sent.seq")
-    private val dropped = AtomicLong()
     private var nextSeq = -1L
     private var currentLines = 0
 
+    private class SendRequest(val eventId: String, val limit: Int, val done: CompletableDeferred<Unit>?)
+
+    private val loop = scope.launch {
+        var linesOpen = true
+        var sendsOpen = true
+        while (linesOpen || sendsOpen) {
+            select {
+                if (sendsOpen) {
+                    sends.onReceiveCatching { result ->
+                        val request = result.getOrNull()
+                        if (request == null) {
+                            sendsOpen = false
+                        } else {
+                            drainQueuedLines()
+                            runSend(request)
+                        }
+                    }
+                }
+                if (linesOpen) {
+                    lines.onReceiveCatching { result ->
+                        val event = result.getOrNull()
+                        if (event == null) linesOpen = false else append(event)
+                    }
+                }
+            }
+        }
+    }
+
     override fun add(event: SentryLogEvent) {
-        if (worker.queue.remainingCapacity() == 0) dropped.incrementAndGet()
-        worker.execute { append(event) }
+        lines.trySend(event)
     }
 
     /** Lines leave only with an error. */
@@ -80,8 +108,10 @@ internal class ErrorLogRing(
 
     override fun close(isRestarting: Boolean) {
         if (errorLogRing === this) errorLogRing = null
-        worker.shutdown()
-        worker.awaitTermination(CLOSE_WAIT_MS, TimeUnit.MILLISECONDS)
+        lines.close()
+        sends.close()
+        runBlocking { withTimeoutOrNull(CLOSE_WAIT_MS) { loop.join() } }
+        scope.cancel()
     }
 
     /**
@@ -91,27 +121,29 @@ internal class ErrorLogRing(
     fun sendFor(eventId: String, sync: Boolean) {
         val limit = errorLogLines
         if (limit <= 0) return
-        val task = try {
-            worker.submit {
-                try {
-                    send(limit)
-                } catch (e: Exception) {
-                    options.logger.log(SentryLevel.WARNING, "log lines for $eventId not sent", e)
-                }
-            }
-        } catch (e: java.util.concurrent.RejectedExecutionException) {
-            options.logger.log(SentryLevel.WARNING, "log ring closed, no log lines for $eventId", e)
+        val done = if (sync) CompletableDeferred<Unit>() else null
+        if (sends.trySend(SendRequest(eventId, limit, done)).isFailure) {
+            options.logger.log(SentryLevel.WARNING, "log ring closed, no log lines for $eventId")
             return
         }
-        if (!sync) return
+        if (done == null) return
+        val finished = runBlocking { withTimeoutOrNull(SYNC_WAIT_MS) { done.await() } }
+        if (finished == null) {
+            options.logger.log(SentryLevel.WARNING, "log lines for $eventId still pending after ${SYNC_WAIT_MS}ms")
+        }
+    }
+
+    private fun drainQueuedLines() {
+        while (true) append(lines.tryReceive().getOrNull() ?: return)
+    }
+
+    private fun runSend(request: SendRequest) {
         try {
-            task.get(SYNC_WAIT_MS, TimeUnit.MILLISECONDS)
-        } catch (e: TimeoutException) {
-            options.logger.log(SentryLevel.WARNING, "log lines for $eventId still pending after ${SYNC_WAIT_MS}ms", e)
-        } catch (e: ExecutionException) {
-            options.logger.log(SentryLevel.WARNING, "log lines for $eventId not sent", e.cause ?: e)
-        } catch (e: InterruptedException) {
-            Thread.currentThread().interrupt()
+            send(request.limit)
+        } catch (e: Exception) {
+            options.logger.log(SentryLevel.WARNING, "log lines for ${request.eventId} not sent", e)
+        } finally {
+            request.done?.complete(Unit)
         }
     }
 
