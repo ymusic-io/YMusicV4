@@ -381,20 +381,42 @@ class DiskMediaBlobCache(
             val start = block.start
             val len = block.len
             val spanPath = dir / spanName(start, len)
-            if (fileSystem.exists(spanPath)) {
+            val spanKey = spanId(key, start, len)
+            // An invalidated span a reader still holds: its file has the corrupt bytes. Un-doomed here so its
+            // last unpin cannot delete what replaces it.
+            val replacesCorrupt = synchronized(lock) { doomed.remove(spanKey) }
+            if (replacesCorrupt) {
+                try {
+                    // The reader keeps reading the old bytes through its open handle.
+                    fileSystem.atomicMove(block.tmp, spanPath)
+                } catch (e: IOException) {
+                    // Windows will not replace a file that is open: stay uncached, the old file goes on the last unpin.
+                    fileSystem.delete(block.tmp, mustExist = false)
+                    val orphan = synchronized(lock) {
+                        if ((pins[spanKey] ?: 0) > 0) {
+                            doomed += spanKey
+                            null
+                        } else {
+                            spanPath
+                        }
+                    }
+                    orphan?.let { fileSystem.delete(it, mustExist = false) }
+                    logger?.log(Logger.Level.INFO, "refill of an invalidated span not stored, a reader holds it", e)
+                    return@storage
+                }
+            } else if (fileSystem.exists(spanPath)) {
                 // Identical range already committed (resume, or a concurrent equal writer beat us). Bytes are
                 // identical by the contiguity invariant — drop our temp; don't atomicMove over a file a
                 // reader may hold open. Make sure it's indexed (INSERT OR IGNORE).
                 fileSystem.delete(block.tmp, mustExist = false)
                 synchronized(lock) {
-                    // An invalidated span a reader still holds: its bytes are the corrupt ones, leave it unindexed.
-                    if (spanId(key, start, len) in doomed) return@storage
                     index.insert(key, start, len)
                     addSpanToCache(key, start, len)
                 }
                 return@storage
+            } else {
+                fileSystem.atomicMove(block.tmp, spanPath)
             }
-            fileSystem.atomicMove(block.tmp, spanPath)
             val victims = synchronized(lock) {
                 index.insert(key, start, len)
                 addSpanToCache(key, start, len)
