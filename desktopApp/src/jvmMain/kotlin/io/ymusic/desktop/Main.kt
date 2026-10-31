@@ -332,7 +332,7 @@ fun main(args: Array<String>) {
             consent = settings.flow(AppSettings.crashReports),
         ) {
             Sentry.initWithPlatformOptions {
-                it.applyYMusicTelemetry(File(ymusicDataDir(), "sentry-log-ring"))
+                it.applyYMusicTelemetry(File(ymusicDataDir(), "sentry-log-ring"), APP_VERSION_CODE)
                 it.dsn = SENTRY_DSN
                 // The commit in the release traces an event to git history (no source upload).
                 it.release = SENTRY_RELEASE
