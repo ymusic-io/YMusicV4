@@ -15,6 +15,7 @@ import {
 } from "../../protocol/mse";
 import { applyNavigatorLanguages, endLayoutProbes, installOrigEnv } from "./env";
 import { installMediaCapabilities } from "./media_caps";
+import { applyHostScreen } from "./device";
 import { installXhr } from "../yt/xhr";
 import { installFetch } from "../yt/fetch";
 import { executeWithCookies } from "../yt/cookies";
@@ -875,6 +876,7 @@ class Player {
     });
     installMseGlobals();
     installMediaCapabilities();
+    applyHostScreen();
     installPlaybackQuality();
     installSabrObserver();
     installXhr();

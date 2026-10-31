@@ -599,5 +599,7 @@ var origin;
 
 /* ---- backward-compat versions, installed frozen from C before the bundle runs ---- */
 
-/** @type {{app: number}} */
+/** @type {{app: number, os: (string|undefined), osVersion: (string|undefined), brand: (string|undefined),
+ *    model: (string|undefined), screenWidth: (number|undefined), screenHeight: (number|undefined),
+ *    screenDensity: (number|undefined)}} */
 var versions;
