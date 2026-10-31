@@ -298,6 +298,10 @@ class YMusicApplication : Application() {
                     // process take dist from the text after '+' in the release (the commit).
                     it.dist = BuildConfig.VERSION_CODE.toString()
                     it.environment = if (BuildConfig.DEBUG) "debug" else "production"
+                    // One trace per app open: no new trace per Activity, and no gesture listener on
+                    // every window (it cannot resolve Compose elements, so it only costs hooks).
+                    it.isEnableAutoTraceIdGeneration = false
+                    it.isEnableUserInteractionBreadcrumbs = false
                 }
                 installSentryDeviceId(deviceId)
             }
