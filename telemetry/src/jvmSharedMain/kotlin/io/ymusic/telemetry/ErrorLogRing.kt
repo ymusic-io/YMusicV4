@@ -242,5 +242,5 @@ internal class ErrorLogRing(
     }
 }
 
-private const val DEFAULT_ERROR_LOG_LINES = 1_000
+private const val DEFAULT_ERROR_LOG_LINES = 500
 private const val MAX_ERROR_LOG_LINES = 10_000
