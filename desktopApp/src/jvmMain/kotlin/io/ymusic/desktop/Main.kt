@@ -263,6 +263,11 @@ private val jumpListExe: String? = System.getProperty("jpackage.app-path")?.take
 /** Ticks when the OS hands over a link or the app icon is clicked, so a window hidden to the tray comes back. */
 private val showWindowRequests = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 
+/** The video hole in CSS pixels (last size seen), and the player it goes to; player.js reports it after the
+ *  BotGuard snapshot. Main thread only. */
+private var mseViewport: Pair<Int, Int>? = null
+private var mseViewportPlayer: io.ymusic.player.mse.MsePlayer? = null
+
 /** The main window, owner of the file dialogs: an ownerless FileDialog opens at the screen's top-left on Windows. */
 @Volatile
 private var mainWindow: Frame? = null
@@ -944,7 +949,11 @@ private suspend fun buildGraph(settings: AppStoreSettings, session: CookieSessio
                             runningBundles.player = version
                             backgroundScope.launch { settings.put(AppSettings.lastLoadedPlayerJsVer, version) }
                         },
-                    ).also { ytEngine = it }
+                    ).also {
+                        ytEngine = it
+                        mseViewportPlayer = it
+                        mseViewport?.let { (w, h) -> it.setViewport(w, h) }
+                    }
                 },
             ),
         )
@@ -1159,7 +1168,12 @@ private fun DesktopPlayerSurface(
     Box(
         modifier
             .onSizeChanged {
-                if (it.width > 0 && it.height > 0) videoSurface.setSize(it.width, it.height)
+                if (it.width > 0 && it.height > 0) {
+                    videoSurface.setSize(it.width, it.height)
+                    val css = (it.width / density.density).roundToInt() to (it.height / density.density).roundToInt()
+                    mseViewport = css
+                    mseViewportPlayer?.setViewport(css.first, css.second)
+                }
             }
             .onGloballyPositioned { coords ->
                 val win = hostWindow ?: return@onGloballyPositioned
