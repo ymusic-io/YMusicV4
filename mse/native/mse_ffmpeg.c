@@ -367,10 +367,10 @@ static os_log_t mse_oslog(void)
 
 static void mse_av_log(void *ptr, int level, const char *fmt, va_list vl)
 {
-    /* matroskadec says this on every SourceBuffer append (live-shaped Clusters); harmless. */
-    if (fmt && strstr(fmt, "Unknown-sized element"))
-        return;
     if (level <= AV_LOG_ERROR) {
+        /* matroskadec says this on every SourceBuffer append (live-shaped Clusters); harmless. */
+        if (fmt && strncmp(fmt, "Unknown-sized element", 21) == 0)
+            return;
         char buf[512];
         char line[528];
         va_list copy;
