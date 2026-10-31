@@ -135,6 +135,7 @@ import projectcommon.log.FileLogger
 import projectcommon.log.LoggingWorker
 import java.io.File
 import java.lang.ref.WeakReference
+import kotlin.math.roundToInt
 
 /**
  * The PROCESS-scoped half of the app graph: everything that must exist exactly once no matter how
@@ -953,6 +954,7 @@ private class MseSurfaceBridge(private val textureView: TextureView, private val
         player = p
         pending?.let { p.setVideoSurface(MseVideoSurface(it)) }
         textureView.post {
+            reportViewport(textureView.width, textureView.height)
             textureView.removeCallbacks(watchdog)
             textureView.postDelayed(watchdog, WATCH_MS)
         }
@@ -962,6 +964,13 @@ private class MseSurfaceBridge(private val textureView: TextureView, private val
         val st = texture ?: return
         if (tv.surfaceTexture === st) return
         runCatching { tv.setSurfaceTexture(st) }
+    }
+
+    /** The video hole in CSS pixels at the device density, which player.js reports after the BotGuard snapshot. */
+    private fun reportViewport(width: Int, height: Int) {
+        val density = textureView.resources.displayMetrics.density
+        if (width <= 0 || height <= 0 || density <= 0f) return
+        player?.setViewport((width / density).roundToInt(), (height / density).roundToInt())
     }
 
     private fun checkFrames() {
@@ -992,6 +1001,7 @@ private class MseSurfaceBridge(private val textureView: TextureView, private val
 
     val listener = object : TextureView.SurfaceTextureListener {
         override fun onSurfaceTextureAvailable(st: SurfaceTexture, w: Int, h: Int) {
+            reportViewport(w, h)
             if (texture == null) {
                 texture = st
                 pending = Surface(st)
@@ -1004,7 +1014,7 @@ private class MseSurfaceBridge(private val textureView: TextureView, private val
             }
         }
 
-        override fun onSurfaceTextureSizeChanged(st: SurfaceTexture, w: Int, h: Int) = Unit
+        override fun onSurfaceTextureSizeChanged(st: SurfaceTexture, w: Int, h: Int) = reportViewport(w, h)
 
         override fun onSurfaceTextureDestroyed(st: SurfaceTexture): Boolean {
             /* false = we own the SurfaceTexture; MediaCodec stays bound across reparent. */
