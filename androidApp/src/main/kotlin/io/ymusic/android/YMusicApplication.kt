@@ -78,6 +78,7 @@ import io.ymusic.telemetry.installSentryDeviceId
 import io.ymusic.telemetry.installSentryEngineVersion
 import io.ymusic.telemetry.installSentryPlayerVersion
 import io.ymusic.telemetry.sendFeedbackMessage
+import io.ymusic.telemetry.setErrorLogLines
 import io.ymusic.ui.APP_HTTP_TIMEOUT
 import io.ymusic.ui.AppGraph
 import io.ymusic.ui.AppHttpClients
@@ -289,7 +290,7 @@ class YMusicApplication : Application() {
         if (BuildConfig.SENTRY_DSN.isNotEmpty()) {
             bindCrashReporting(appScope, settings.flow(AppSettings.crashReports)) {
                 Sentry.initWithPlatformOptions {
-                    it.applyYMusicTelemetry()
+                    it.applyYMusicTelemetry(File(noBackupFilesDir, "sentry-log-ring"))
                     it.dsn = BuildConfig.SENTRY_DSN
                     // The commit in the release traces an event to git history (no source upload).
                     it.release = "${BuildConfig.APPLICATION_ID}@${BuildConfig.VERSION_NAME}+${BuildConfig.GIT_COMMIT}"
@@ -336,6 +337,7 @@ class YMusicApplication : Application() {
             now = { System.currentTimeMillis() },
             log = rootLogger.fork("remote-config"),
         ).also { it.checkUpdate() } // app open is itself a hotpoint
+        appScope.launch { remoteConfig.config.collect { setErrorLogLines(it.errorLogLines) } }
         // Anonymous usage stats — held by SharedServices so the graph (and any screen) can
         // record events. The "Send anonymous stats" answer is read per event, so the Settings
         // switch applies live, and a disabled gate costs nothing.

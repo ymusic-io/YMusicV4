@@ -7,6 +7,7 @@ import io.sentry.SentryEvent
 import io.sentry.SentryOptions
 import kmpcommon.log.Crumb
 import projectcommon.log.FileAttachment
+import java.io.File
 import java.util.Date
 
 /**
@@ -16,7 +17,8 @@ import java.util.Date
  * scrubbing: sensitive values (cookie values, SAPISIDHASH) are never put into log lines at the
  * source — names only.
  */
-fun SentryOptions.applyYMusicTelemetry() {
+/** [logRingDir] holds the Sentry Logs lines between errors ([ErrorLogRing]); the app owns the dir. */
+fun SentryOptions.applyYMusicTelemetry(logRingDir: File) {
     // The KMP options default this on; keep it now that they no longer apply.
     isAttachThreads = true
     maxBreadcrumbs = 200
@@ -26,17 +28,32 @@ fun SentryOptions.applyYMusicTelemetry() {
     // passes even before the gate's collector has seen that flip.
     setBeforeSend { event, _ ->
         val feedback = event.getTag(REPORT_TYPE_TAG) == REPORT_TYPE_FEEDBACK
-        if (crashReportingAllowed || feedback) fingerprintPolicy(event).also(::sortBreadcrumbs) else null
+        when {
+            feedback -> fingerprintPolicy(event).also(::sortBreadcrumbs)
+            !crashReportingAllowed -> null
+            else -> fingerprintPolicy(event).also(::sortBreadcrumbs).also { sendLogLinesFor(it) }
+        }
     }
     // Sentry Logs are OFF by default — without this every Sentry.logger call is dropped. A log is
     // NOT an event: it has its own pipeline and its own beforeSend, so the consent lock repeats.
+    // Lines are held in the ring and leave only with an error event (see sendLogLinesFor).
     logs.isEnabled = true
     logs.setBeforeSend { log -> if (crashReportingAllowed) log else null }
+    logs.loggerBatchProcessorFactory = errorLogRingFactory(logRingDir)
     // Sessions are the one outbound thing WITHOUT a consent hook, so the option itself is the
     // gate: bindCrashReporting sets the flag from the stored answer BEFORE first init, so this
     // reads the real consent. Decided per launch — a mid-session change applies from the next
     // start, which suits a launch-scoped concept.
     isEnableAutoSessionTracking = crashReportingAllowed
+}
+
+/**
+ * The event takes the newest log lines not sent before. A crash waits for them: its process is about
+ * to end. A report the next process makes (ANR, native crash) finds the previous run's lines on disk.
+ */
+private fun sendLogLinesFor(event: SentryEvent) {
+    val ring = errorLogRing ?: return
+    ring.sendFor(event.eventId.toString(), sync = event.isCrashed)
 }
 
 /** The trail rides in last but happened first: order the event's crumbs by time. */
