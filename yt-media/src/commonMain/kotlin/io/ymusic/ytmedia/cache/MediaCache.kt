@@ -40,7 +40,9 @@ class MediaCache(
      */
     fun openSegmentFill(header: MediaHeader): SegmentFill {
         index.save(header)
-        return openGapFill(header.cacheKey, header.startRange, header.contentLength, header.isInitSegment)
+        return openGapFill(header.cacheKey, header.startRange, header.contentLength, header.isInitSegment) {
+            index.delete(header.itag, header.lmt, header.segmentIndex)
+        }
     }
 
     /**
@@ -80,7 +82,13 @@ class MediaCache(
      * routed to the blackhole); a fully-uncached one yields a single gap over the whole region — the common
      * fresh-download case, with the same exact-region dedupe token as a plain writer.
      */
-    private fun openGapFill(key: String, start: Long, length: Long, isInit: Boolean): SegmentFill {
+    private fun openGapFill(
+        key: String,
+        start: Long,
+        length: Long,
+        isInit: Boolean,
+        dropIndexRow: () -> Unit,
+    ): SegmentFill {
         val gaps = ArrayList<GapWriter>()
         var pos = start
         val end = start + length
@@ -92,7 +100,7 @@ class MediaCache(
             gaps += GapWriter(pos, pos + hole, blobs.writer(key, pos, hole, publishOnCommit = true))
             pos += hole
         }
-        return SegmentFill(start, length, isInit, gaps)
+        return SegmentFill(start, length, isInit, gaps, dropIndexRow)
     }
 
     private companion object {
@@ -113,15 +121,24 @@ class SegmentFill internal constructor(
     length: Long,
     isInit: Boolean,
     private val gaps: List<GapWriter>,
+    private val dropIndexRow: () -> Unit,
 ) {
     private val check = StreamingSegmentCheck(length, isInit)
     val sink: BufferedSink = GapRoutingSink(segStart, gaps, check).buffer()
 
-    /** Publish the mirrored gaps, or — when the segment's bytes failed the check — drop them and return why. */
+    /**
+     * Publish the mirrored gaps, or — when the segment's bytes failed the check — drop them, and the index
+     * row saved for them, and return why. With no gaps the stored copy came from another writer and stays.
+     */
     fun commit(): SegmentCheckFailure? {
         sink.flush()
         val failure = check.result()
-        if (failure != null) abort() else gaps.forEach { it.writer.commit() }
+        if (failure == null) {
+            gaps.forEach { it.writer.commit() }
+        } else {
+            abort()
+            if (gaps.isNotEmpty()) dropIndexRow()
+        }
         return failure
     }
 
