@@ -1457,68 +1457,6 @@ const URLImpl = {
   "revokeObjectURL": mseRevokeObjectURL,
 };
 
-function videoCodecOf(m: string): string {
-  if (m.indexOf("av01") >= 0 || m.indexOf("av1.") >= 0) return "av1";
-  if (m.indexOf("vp9") >= 0 || m.indexOf("vp09") >= 0) return "vp9";
-  if (m.indexOf("avc1") >= 0 || m.indexOf("avc3") >= 0) return "avc";
-  return "";
-}
-
-function mimeParam(m: string, name: string): number {
-  const found = new RegExp("[;\\s]" + name + '="?([0-9.]+)').exec(m);
-  return found ? parseFloat(found[1] ?? "") || 0 : 0;
-}
-
-function decoderTakes(codec: string, width: number, height: number, fps: number): boolean {
-  if (!codec || !(width > 0) || !(height > 0) || typeof __mseVideoSizeOk !== "function")
-    return true;
-  return !!__mseVideoSizeOk(codec, width, height, fps);
-}
-
-/** A mime's width=/height= (and framerate= when [atRate]) against the device decoder. */
-function videoSizeOk(m: string, atRate: boolean): boolean {
-  return decoderTakes(
-    videoCodecOf(m),
-    mimeParam(m, "width"),
-    mimeParam(m, "height"),
-    atRate ? mimeParam(m, "framerate") : 0,
-  );
-}
-
-/** navigator.mediaCapabilities.decodingInfo: supported = the type and size decode at all; smooth and
- *  powerEfficient = they also keep up at the configured frame rate (decoding here is hardware). */
-function decodingInfo(config: unknown): Promise<Record<string, unknown>> {
-  if (!config || typeof config !== "object") {
-    return Promise.reject(new TypeError("Failed to execute 'decodingInfo': 1 argument required."));
-  }
-  const conf = config as Record<string, unknown>;
-  const video = conf["video"] as Record<string, unknown> | undefined;
-  const audio = conf["audio"] as Record<string, unknown> | undefined;
-  let supported = !!(video || audio) && conf["keySystemConfiguration"] === undefined;
-  let smooth = supported;
-  if (supported && audio) {
-    supported = MediaSource["isTypeSupported"](String(audio["contentType"] || ""));
-    smooth = supported;
-  }
-  if (supported && video) {
-    const type = String(video["contentType"] || "").toLowerCase();
-    const codec = videoCodecOf(type);
-    const width = Number(video["width"]) || 0;
-    const height = Number(video["height"]) || 0;
-    supported = MediaSource["isTypeSupported"](type) && decoderTakes(codec, width, height, 0);
-    smooth = supported && decoderTakes(codec, width, height, Number(video["framerate"]) || 0);
-  }
-  return Promise.resolve({
-    "supported": supported,
-    "smooth": smooth,
-    "powerEfficient": smooth,
-    "keySystemAccess": null,
-    "configuration": config,
-  });
-}
-
-const mediaCapabilities = { "decodingInfo": decodingInfo };
-
 /** Keep MediaSource + blob URLs on the global. IDL may replace URL; put createObjectURL back. */
 export function installMseGlobals(): void {
   const glob = globalThis as unknown as Record<string, unknown>;
@@ -1527,12 +1465,6 @@ export function installMseGlobals(): void {
   glob["HTMLMediaElement"] = HTMLMediaElement;
   glob["HTMLVideoElement"] = HTMLMediaElement;
   glob["HTMLAudioElement"] = HTMLMediaElement;
-  const nav = glob["navigator"];
-  if (nav && typeof nav === "object") {
-    const proto = (glob["MediaCapabilities"] as { prototype?: object } | undefined)?.prototype;
-    if (proto) Object.setPrototypeOf(mediaCapabilities, proto);
-    (nav as Record<string, unknown>)["mediaCapabilities"] = mediaCapabilities;
-  }
   (HTMLMediaElement as unknown as Record<string, unknown>)["attach"] = attachHtmlMedia;
   (HTMLMediaElement as unknown as Record<string, unknown>)["main"] = null;
   const Url = glob["URL"];

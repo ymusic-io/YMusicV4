@@ -124,13 +124,6 @@ declare function __mseAv1Ok(): number;
 declare function __mseVp9Ok(): number;
 /** Max AVC level_idc (0x1f = 3.1). 255 = no cap. */
 declare function __mseAvcMaxLevel(): number;
-/** 0 when this host's decoder for codec ("vp9" | "av1" | "avc") rejects width x height (at fps when > 0). */
-declare function __mseVideoSizeOk(
-  codec: string,
-  width: number,
-  height: number,
-  fps: number,
-): number;
 /** The host's decoder table for one MediaCapabilities part; width/height/framerate 0 = any size.
  *  Bits 1 supported, 2 smooth, 4 powerEfficient; -1 no table (Android before its MediaCodec rows,
  *  no MSE host), -2 still probing — ask again. Newer hosts only: guard with typeof. */
