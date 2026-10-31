@@ -40,9 +40,9 @@ typedef struct QjsEngine QjsEngine;
 typedef int (*QjsInboundCb)(void *user, int op, uint32_t id, const uint8_t *data, size_t len);
 
 /* Create a bare engine: install the pipe/JSON natives and the frozen `versions` global
- * ({app: app_version}) — no script. The host can serve commands before any JS exists; the
- * engine script loads via qjs_eval_engine. */
-QjsEngine *qjs_create(int app_version, QjsInboundCb cb, void *user);
+ * ({app: app_version} plus the flat JSON object [versions_json], or NULL) — no script. The host
+ * can serve commands before any JS exists; the engine script loads via qjs_eval_engine. */
+QjsEngine *qjs_create(int app_version, const char *versions_json, QjsInboundCb cb, void *user);
 
 /* Evaluate the engine script (the :engine-js bundle) and capture the transport globals
  * (__jsOpen/__jsClose/__jsCloseRead/__jsDrain) right after — call exactly once, before any

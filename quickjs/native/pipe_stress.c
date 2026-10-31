@@ -243,7 +243,7 @@ static void scenario_gc_parked(QjsEngine *e) {
  * buffer, and a live registry (finalizer + gc_mark paths). */
 static void scenario_teardown(const char *script, Host *h) {
     char *err = NULL;
-    QjsEngine *e = qjs_create(1, host_cb, h);
+    QjsEngine *e = qjs_create(1, NULL, host_cb, h);
     CHECK(e != NULL, "second engine");
     CHECK(qjs_eval_engine(e, script, &err) == 0, "second engine eval: %s", err ? err : "?");
     CHECK(qjs_open(e, 1, "park") == 0, "open park"); /* handlers = the bundle's stress fixtures */
@@ -263,7 +263,7 @@ int main(int argc, char **argv) {
     Host host;
     memset(&host, 0, sizeof(host));
     char *err = NULL;
-    QjsEngine *e = qjs_create(1, host_cb, &host);
+    QjsEngine *e = qjs_create(1, NULL, host_cb, &host);
     CHECK(e != NULL, "create");
     CHECK(qjs_eval_engine(e, script, &err) == 0, "eval engine: %s", err ? err : "?");
 

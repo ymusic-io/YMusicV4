@@ -43,10 +43,11 @@
 
 /* Define the frozen `versions` global ({app: app_version}) the bundle branches on for backward
  * compatibility — the transport, host protocols, and app ship together in one app build, so the
- * app version alone identifies the whole host surface. Installed before the engine
- * script/bytecode runs; the global is non-writable, so no (remotely updated) bundle can
- * reassign it. */
-void qjs_install_versions(JSContext *ctx, int app_version);
+ * app version alone identifies the whole host surface. [extra_json] (NULL or a flat JSON object)
+ * adds the host's own entries (device facts) next to `app`; `app` always wins. Installed before
+ * the engine script/bytecode runs; the global is non-writable, so no (remotely updated) bundle
+ * can reassign it. */
+void qjs_install_versions(JSContext *ctx, int app_version, const char *extra_json);
 
 typedef struct QjsPipeCtx QjsPipeCtx;
 

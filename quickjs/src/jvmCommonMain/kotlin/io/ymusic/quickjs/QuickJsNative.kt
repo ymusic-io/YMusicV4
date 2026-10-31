@@ -55,7 +55,7 @@ internal object QuickJsNative {
         sinks[handle]?.onLog(level, message)
     }
 
-    external fun create(appVersion: Int): Long
+    external fun create(appVersion: Int, versionsJson: String?): Long
     external fun evalEngine(handle: Long, script: String)
     external fun evalEngineBytecode(handle: Long, bytecode: ByteArray)
     external fun compile(script: String, filename: String): ByteArray
