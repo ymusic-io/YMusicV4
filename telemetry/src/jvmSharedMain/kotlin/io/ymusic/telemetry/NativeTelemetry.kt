@@ -49,14 +49,17 @@ fun SentryOptions.applyYMusicTelemetry(logRingDir: File) {
 }
 
 /**
- * A log line keeps its body, level, timestamp and trace id (the link to its error event); the SDK's
- * per-line attributes (release, sdk, device, server.address…), span id and severity number go.
+ * A log line keeps its body, level, timestamp, trace id (the link to its error event) and the app
+ * release; the SDK's other per-line attributes (sdk, device, server.address…), span id and severity
+ * number go.
  */
 private fun SentryLogEvent.compact(): SentryLogEvent = apply {
-    attributes = null
+    attributes = attributes?.get(RELEASE_ATTRIBUTE)?.let { hashMapOf(RELEASE_ATTRIBUTE to it) }
     spanId = null
     severityNumber = null
 }
+
+private const val RELEASE_ATTRIBUTE = "sentry.release"
 
 /**
  * The event takes the newest log lines not sent before. A crash waits for them: its process is about
