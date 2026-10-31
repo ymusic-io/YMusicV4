@@ -7,8 +7,11 @@ import android.content.ComponentCallbacks2
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.SurfaceTexture
+import android.hardware.display.DisplayManager
 import android.os.Build
 import android.os.SystemClock
+import android.util.DisplayMetrics
+import android.view.Display
 import android.view.Surface
 import android.view.TextureView
 import android.view.View
@@ -57,6 +60,7 @@ import io.ymusic.player.createPlayer
 import io.ymusic.player.isPlaying
 import io.ymusic.player.mse.MsePlayer
 import io.ymusic.player.showsVideo
+import io.ymusic.quickjs.QuickJsRuntime
 import io.ymusic.remoteconfig.ApiService
 import io.ymusic.remoteconfig.HttpApiService
 import io.ymusic.remoteconfig.RemoteConfig
@@ -235,8 +239,28 @@ class YMusicApplication : Application() {
     fun graphAsync(): Deferred<AppGraph> =
         builtGraph ?: appScope.async { buildGraph() }.also { builtGraph = it }
 
+    /** Device facts every engine sees in `versions`: the real display for YouTube's quality cap, the
+     *  rest for device-specific fixes in a remote bundle. */
+    private fun hostVersions(): Map<String, Any> {
+        val metrics = DisplayMetrics()
+        @Suppress("DEPRECATION") // getRealMetrics: the whole display, which is what a browser's screen reports
+        getSystemService(DisplayManager::class.java).getDisplay(Display.DEFAULT_DISPLAY)?.getRealMetrics(metrics)
+        return buildMap {
+            put("os", "android")
+            put("osVersion", Build.VERSION.RELEASE.orEmpty())
+            put("brand", Build.BRAND.orEmpty())
+            put("model", Build.MODEL.orEmpty())
+            if (metrics.widthPixels > 0 && metrics.heightPixels > 0 && metrics.density > 0f) {
+                put("screenWidth", metrics.widthPixels)
+                put("screenHeight", metrics.heightPixels)
+                put("screenDensity", metrics.density.toDouble())
+            }
+        }
+    }
+
     private suspend fun buildServices(): SharedServices {
         MseDecoderCaps.start(rootLogger)
+        QuickJsRuntime.hostVersions = hostVersions()
         // YouTube + API cookies live in the WebView CookieManager (the login WebView writes
         // there; this jar is a wrapper so HTTP sees the same store).
         val cookies = WebViewCookieJar()
