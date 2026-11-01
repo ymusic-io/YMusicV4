@@ -19,8 +19,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.concurrent.Volatile
 
 /**
@@ -72,17 +70,13 @@ internal class ErrorLogShipper(
         wake.trySend(Unit)
     }
 
-    /** Called from beforeSend for an event that leaves. A crash waits (bounded) for the claim: its process is ending. */
+    /** Called from beforeSend for an event that leaves; returns at once, the claim runs on [scope]. */
     fun attach(event: SentryEvent) {
         val launch = event.contexts.trace?.traceId?.toString() ?: return
         val eventId = event.eventId.toString()
-        if (event.isCrashed) {
-            // The config already in memory: waiting for it to load can wait on the crashing thread itself.
-            val limit = remoteConfig.config.value.errorLogLines
-            if (wait { claim(launch, eventId, limit) } == null) log("log lines for $eventId not claimed after ${WAIT_MS}ms", null)
-        } else {
-            scope.launch { claim(launch, eventId, remoteConfig.awaitLoaded().errorLogLines) }
-        }
+        // A crashing process may not live until the config loads: it takes the config in memory.
+        val crashLimit = if (event.isCrashed) remoteConfig.config.value.errorLogLines else null
+        scope.launch { claim(launch, eventId, crashLimit ?: remoteConfig.awaitLoaded().errorLogLines) }
     }
 
     private suspend fun claim(launch: String, eventId: String, limit: Int) {
@@ -113,8 +107,6 @@ internal class ErrorLogShipper(
         }
     }
 
-    private fun <T> wait(block: suspend () -> T): T? = runBlocking { withTimeoutOrNull(WAIT_MS) { block() } }
-
     private fun log(message: String, error: Throwable?) {
         Sentry.getCurrentScopes().options.logger.log(SentryLevel.WARNING, message, error)
     }
@@ -129,7 +121,6 @@ internal class ErrorLogShipper(
     private companion object {
         const val MAX_LINES = 10_000
         const val BATCH = 100
-        const val WAIT_MS = 2_000L
         const val VERSION_CODE = "app.version_code"
     }
 }
