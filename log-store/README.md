@@ -5,15 +5,14 @@ The app log: every line from every layer in one SQLite table (`logs.db`), writte
 
 - **Writing** — `enqueue` timestamps on the caller and never blocks (QuickJS-engine-thread safe); a bounded
   queue drops the oldest line under a burst. One coroutine on `Dispatchers.IO.limitedParallelism(1)` does all
-  database work: queued lines go in one transaction per batch, and every query runs after the lines queued
-  before it.
+  database work: queued lines are inserted one by one, and every query runs after the lines queued before it.
 - **Rows** — `seq` (order across launches), `ts` (epoch ms), `level`, `launch` (32-hex id of the app open,
   `LogStore.launch`, also used as the Sentry trace id), `trail` (the logger's crumb path), `message`
   (stack trace appended for an error). `setMaxLines(n)` caps it: once the table is 10% over `n`, the oldest
   go down to `n`. The shells set it from remote config `telemetry.logLines` (default 5 000)
   after the config has loaded; until then nothing is trimmed.
 - **Error events** — `claimUnsent(launch, limit, minLevel)` marks that launch's newest unsent lines pending
-  and skips its older unsent ones, in one transaction, so a line is never sent twice; `pending(limit)` lists
+  and skips its older unsent ones, so a line is never sent twice; `pending(limit)` lists
   claimed lines of every launch until `markSent` settles them. `:telemetry`'s `installErrorLogs` claims, for
   each Sentry error event, the lines of the launch whose trace id the event carries, and a worker sends
   whatever is pending.
