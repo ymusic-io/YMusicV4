@@ -187,13 +187,15 @@ class YMusicApplication : Application() {
         if (activity != null) activity.startActivity(chooser) else startActivity(chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 
-    /** Rotating file sink (`filesDir/logs/ymusic.log`, 5 MiB × 3). Lazy: needs [filesDir]. */
+    /** The app log (`logs.db`): feedback export and the lines an error event sends. Lazy: needs a Context. */
     val logStore: LogStore by lazy { LogStore(androidLogDatabaseDriver(this)) }
 
-    /** The app's root logger: file + Sentry (no-op until Sentry.init) teed with logcat. */
+    /** The app's root logger: the app log + Sentry events (no-op until Sentry.init), and logcat in debug builds only. */
     val rootLogger: Logger by lazy {
-        TeeLogger(DbLogger(logStore), TeeLogger(SentryLogger(), LogcatLogger()))
-            .also { it.bindMseNativeLogs() }
+        TeeLogger(
+            DbLogger(logStore),
+            if (BuildConfig.DEBUG) TeeLogger(SentryLogger(), LogcatLogger()) else SentryLogger(),
+        ).also { it.bindMseNativeLogs() }
     }
 
     /** Escaped coroutine failures are still one job dying — capture, don't crash the process. */
