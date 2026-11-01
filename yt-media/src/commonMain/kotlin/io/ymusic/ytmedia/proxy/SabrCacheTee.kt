@@ -57,7 +57,7 @@ internal class SabrCacheTee(
     }
 
     /** A segment in this response: its writer (null when not mirrored), the media bytes this response
-     *  carries ([length]), and how many of them are still owed. */
+     *  carries ([length], [UNKNOWN_LENGTH] when the header has none), and how many of them are still owed. */
     private class OpenSeg(val header: MediaHeader, val fill: SegmentFill?, val length: Long) {
         var remaining = length
     }
@@ -206,7 +206,7 @@ internal class SabrCacheTee(
                     markIllegal("MEDIA_END for unopened id $id")
                     return false
                 }
-                if (seg.remaining > 0L) {
+                if (seg.length != UNKNOWN_LENGTH && seg.remaining > 0L) {
                     // Short of the declared contentLength: a wrong-length span would desync the index, so drop
                     // it and stop caching rather than commit a truncated segment.
                     seg.fill?.abort()
@@ -255,6 +255,10 @@ internal class SabrCacheTee(
                 if (open.containsKey(header.headerId)) {
                     // A second live segment on the same id before the first's MEDIA_END — lost framing.
                     markIllegal("duplicate MEDIA_HEADER id ${header.headerId}, still open")
+                } else if (header.contentLength <= 0L) {
+                    // Nothing to check its bytes or its span against: this segment goes uncached, the rest still cache.
+                    logger?.log(Logger.Level.WARN, "segment without a length, not cached (${header.describe()})")
+                    open[header.headerId] = OpenSeg(header, fill = null, length = UNKNOWN_LENGTH)
                 } else if (header.dataOffset != 0L && header.dataOffset !in 0 until header.contentLength) {
                     markIllegal("MEDIA_HEADER data offset outside its segment (${header.describe()})")
                 } else {
@@ -390,3 +394,6 @@ internal class SabrCacheTee(
         else -> "UNKNOWN"
     }
 }
+
+/** [SabrCacheTee.OpenSeg] length of a segment whose MEDIA_HEADER has no content length: never owed short. */
+private const val UNKNOWN_LENGTH = Long.MAX_VALUE
