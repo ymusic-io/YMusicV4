@@ -132,6 +132,7 @@ import io.ymusic.settings.anonymousDeviceId
 import io.ymusic.settings.flow
 import io.ymusic.settings.put
 import io.ymusic.telemetry.SentryLogger
+import io.ymusic.telemetry.adoptSentryTraceForLogs
 import io.ymusic.telemetry.applyYMusicTelemetry
 import io.ymusic.telemetry.bindCrashReporting
 import io.ymusic.telemetry.captureFeedbackReport
@@ -345,6 +346,7 @@ fun main(args: Array<String>) {
                 it.environment = if (DEBUG_BUILD) "debug" else "production"
             }
             installSentryDeviceId(telemetryDeviceId)
+            adoptSentryTraceForLogs()
         }
     }
 
