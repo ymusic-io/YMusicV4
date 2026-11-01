@@ -44,8 +44,8 @@ data class LogRecord(
  * The app's log: every line from every layer in one SQLite table, the source of the feedback report
  * ([exportGzip]) and of the lines an error event takes to Sentry ([claimUnsent]). [enqueue] never
  * blocks (engine-thread safe) and drops the oldest queued line under a burst. All database work runs
- * one task at a time: queued lines go in one transaction per batch, and every query runs after the lines
- * queued before it, so it sees them. Nothing is trimmed until [setMaxLines] gives the cap.
+ * one task at a time: queued lines are inserted one by one, and every query runs after the lines queued
+ * before it, so it sees them. Nothing is trimmed until [setMaxLines] gives the cap.
  */
 class LogStore(
     driver: SqlDriver,
@@ -64,13 +64,13 @@ class LogStore(
     private var maxLines = 0L
     private var rowCount = -1L
 
-    /** Batches lost to a failed write since the last one that succeeded, and the newest cause. */
-    private var lostBatches = 0
+    /** Lines lost to a failed write since the last one that succeeded, and the newest cause. */
+    private var lostLines = 0
     private var lostCause = ""
 
     init {
         scope.launch {
-            for (line in lines) writeOrDrop { writeBatch(line) }
+            for (line in lines) writeOrDrop { write(line) }
         }
     }
 
@@ -94,16 +94,14 @@ class LogStore(
 
     /**
      * [launch]'s newest unsent lines at [minLevel] or above, at most [limit], oldest first, now pending:
-     * they stay [pending] until [markSent]. The launch's other unsent lines are skipped in the same transaction, so
-     * a later claim never reaches back past them.
+     * they stay [pending] until [markSent]. The launch's other unsent lines are skipped, so a later claim
+     * never reaches back past them.
      */
     suspend fun claimUnsent(launch: String, limit: Int, minLevel: Logger.Level): List<LogRecord> = onDb {
-        queries.transactionWithResult {
-            val rows = queries.newestUnsent(launch, minLevel.ordinal.toLong(), limit.toLong()).executeAsList()
-            if (rows.isNotEmpty()) queries.markPending(rows.map { it.seq })
-            queries.skipUnsentOf(launch)
-            rows.asReversed().map { it.toRecord() }
-        }
+        val rows = queries.newestUnsent(launch, minLevel.ordinal.toLong(), limit.toLong()).executeAsList()
+        if (rows.isNotEmpty()) queries.markPending(rows.map { it.seq })
+        queries.skipUnsentOf(launch)
+        rows.asReversed().map { it.toRecord() }
     }
 
     /** Claimed lines ([claimUnsent]) of any launch that haven't reached [markSent], oldest first. */
@@ -158,46 +156,40 @@ class LogStore(
 
     /**
      * The log can't log its own failure, and a throw here would end the worker for good (every later
-     * query then waits forever) or kill the process: a batch that fails to write (full disk, a database
-     * that won't open) is dropped, and the next batch that does write records how many were lost.
+     * query then waits forever) or kill the process: a line that fails to write (full disk, a database
+     * that won't open) is dropped, and the next line that does write records how many were lost.
      */
     private fun writeOrDrop(write: () -> Unit) {
         try {
             write()
         } catch (e: Throwable) {
-            lostBatches++
+            lostLines++
             lostCause = e.toString().take(STACK_CAP)
             rowCount = -1
         }
     }
 
     private fun drainLines() {
-        while (true) writeBatch(lines.tryReceive().getOrNull() ?: return)
+        while (true) {
+            val line = lines.tryReceive().getOrNull() ?: return
+            writeOrDrop { write(line) }
+        }
     }
 
-    /** [first] and every line queued behind it (up to a batch), in one transaction. */
-    private fun writeBatch(first: Line) {
-        queries.transaction {
-            if (lostBatches > 0) {
-                val note = "log store lost $lostBatches batch(es) of lines: $lostCause"
-                queries.insertLine(first.epochMs, Logger.Level.WARN.ordinal.toLong(), launch, "log-store", note)
-            }
-            var line: Line? = first
-            var count = 0
-            while (line != null) {
-                queries.insertLine(line.epochMs, line.level.ordinal.toLong(), launch, line.trail, line.message)
-                count++
-                line = if (count < BATCH_MAX) lines.tryReceive().getOrNull() else null
-            }
-            if (rowCount < 0) rowCount = queries.countLines().executeAsOne() else rowCount += count
-            val cap = maxLines
-            if (cap > 0 && rowCount >= cap + cap / 10) {
-                val newest = queries.maxSeq().executeAsOne().seq ?: 0L
-                queries.trimTo(newest - cap)
-                rowCount = queries.countLines().executeAsOne()
-            }
+    private fun write(line: Line) {
+        if (lostLines > 0) {
+            val note = "log store lost $lostLines line(s): $lostCause"
+            queries.insertLine(line.epochMs, Logger.Level.WARN.ordinal.toLong(), launch, "log-store", note)
+            lostLines = 0
         }
-        lostBatches = 0
+        queries.insertLine(line.epochMs, line.level.ordinal.toLong(), launch, line.trail, line.message)
+        if (rowCount < 0) rowCount = queries.countLines().executeAsOne() else rowCount++
+        val cap = maxLines
+        if (cap > 0 && rowCount >= cap + cap / 10) {
+            val newest = queries.maxSeq().executeAsOne().seq ?: 0L
+            queries.trimTo(newest - cap)
+            rowCount = queries.countLines().executeAsOne()
+        }
     }
 
     private class Line(val epochMs: Long, val level: Logger.Level, val trail: String, val message: String)
@@ -205,7 +197,6 @@ class LogStore(
     private companion object {
         const val MIN_LINES = 100
         const val DEFAULT_QUEUE_CAPACITY = 1_000
-        const val BATCH_MAX = 500
         const val EXPORT_PAGE = 2_000L
         const val STACK_CAP = 2_000
 
