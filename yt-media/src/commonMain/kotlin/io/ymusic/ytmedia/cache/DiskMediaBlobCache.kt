@@ -344,6 +344,7 @@ class DiskMediaBlobCache(
         private val id: Long, // unique per writer → collision-free temp names + [activeWriters] membership
         private val publishOnCommit: Boolean,
     ) : BlobWriter {
+        override val storesBytes = true
         private val dir = root / key
         private var blockStart = position
         private var blockBytes = 0L
@@ -584,6 +585,7 @@ class DiskMediaBlobCache(
 /** Discards its bytes — returned when the region is already committed or being written elsewhere. */
 private class NoOpBlobWriter : BlobWriter {
     override val sink: BufferedSink = okio.blackholeSink().buffer()
+    override val storesBytes = false
     override fun commit() { /* nothing written */ }
     override fun abort() { /* nothing written */ }
 }

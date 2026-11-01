@@ -128,7 +128,8 @@ class SegmentFill internal constructor(
 
     /**
      * Publish the mirrored gaps, or — when the segment's bytes failed the check — drop them, and the index
-     * row saved for them, and return why. With no gaps the stored copy came from another writer and stays.
+     * row saved for them, and return why. When no gap stored bytes here, the row belongs to another writer's
+     * copy and stays.
      */
     fun commit(): SegmentCheckFailure? {
         sink.flush()
@@ -137,7 +138,7 @@ class SegmentFill internal constructor(
             gaps.forEach { it.writer.commit() }
         } else {
             abort()
-            if (gaps.isNotEmpty()) dropIndexRow()
+            if (gaps.any { it.writer.storesBytes }) dropIndexRow()
         }
         return failure
     }

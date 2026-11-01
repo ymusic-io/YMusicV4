@@ -121,6 +121,9 @@ interface PinnedSource : Source {
 interface BlobWriter {
     val sink: BufferedSink
 
+    /** False for the no-op writer of a region already committed or being written elsewhere. */
+    val storesBytes: Boolean
+
     /** Commit the trailing partial block (and, for a `publishOnCommit` writer, every held block) and release
      *  the region. Blocks already committed mid-stream stay. */
     fun commit()
