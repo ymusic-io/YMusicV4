@@ -14,10 +14,13 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -68,6 +71,10 @@ class RemoteConfig(
 ) {
     private val _config = MutableStateFlow(RemoteConfigData.DEFAULTS)
     val config: StateFlow<RemoteConfigData> = _config.asStateFlow()
+    val features: Flow<Features> = _config.map { it.features }.distinctUntilChanged()
+    val appUpdate: Flow<AppUpdate?> = _config.map { it.appUpdate }.distinctUntilChanged()
+    val engineJs: Flow<BundleVersion?> = _config.map { it.engineJs }.distinctUntilChanged()
+    val playerJs: Flow<BundleVersion?> = _config.map { it.playerJs }.distinctUntilChanged()
 
     private val mutex = Mutex()
     private var initialized = false

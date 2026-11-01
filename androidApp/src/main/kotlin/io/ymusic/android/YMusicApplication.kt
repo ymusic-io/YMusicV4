@@ -356,7 +356,7 @@ class YMusicApplication : Application() {
         appScope.launch {
             // The cap waits for the loaded config: the store trims nothing until it has one.
             remoteConfig.awaitLoaded()
-            remoteConfig.config.collect { logStore.setMaxLines(it.features.logLines) }
+            remoteConfig.features.collect { logStore.setMaxLines(it.logLines) }
         }
         // Anonymous usage stats — held by SharedServices so the graph (and any screen) can
         // record events. The "Send anonymous stats" answer is read per event, so the Settings
@@ -377,7 +377,7 @@ class YMusicApplication : Application() {
         // config service publishes, which the manager follows from start.
         val engineSource = DefaultJsSourceProvider(
             client = http.engine,
-            config = remoteConfig.bundleConfig { it.engineJs },
+            config = remoteConfig.bundleConfig(remoteConfig.engineJs),
             name = ENGINE_BUNDLE,
             publicKey = BuildConfig.BUNDLE_PUBLIC_KEY,
             embedVersion = BuildConfig.ENGINE_JS_VERSION,
@@ -446,7 +446,7 @@ class YMusicApplication : Application() {
 
         val playerJs = playerJsSource(
             client = http.engine,
-            config = remoteConfig.bundleConfig { it.playerJs },
+            config = remoteConfig.bundleConfig(remoteConfig.playerJs),
             publicKey = BuildConfig.BUNDLE_PUBLIC_KEY,
             fileSystem = FileSystem.SYSTEM,
             directory = File(filesDir, "player-js").toOkioPath(),
@@ -466,7 +466,7 @@ class YMusicApplication : Application() {
             rememberAutoDownloadFailed = { settings.put(AppSettings.updateAutoDownloadFailed, it) },
             freshConfig = { remoteConfig.awaitFresh(timeoutMs = 3_000L) },
             downloadSite = { remoteConfig.config.value.features.downloadPageUrl },
-            configUpdates = remoteConfig.config.map { it.appUpdate },
+            configUpdates = remoteConfig.appUpdate,
         )
         updates.pruneDownloads()
         return SharedServices(http, cookies, settings, engines, cacheStore, mediaStore, playerJs, imageLoader, stats, updates, api, remoteConfig, runningBundles)

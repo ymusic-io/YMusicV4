@@ -810,7 +810,7 @@ private suspend fun buildGraph(settings: AppStoreSettings, session: CookieSessio
     backgroundScope.launch {
         // The cap waits for the loaded config: the store trims nothing until it has one.
         remoteConfig.awaitLoaded()
-        remoteConfig.config.collect { logStore.setMaxLines(it.features.logLines) }
+        remoteConfig.features.collect { logStore.setMaxLines(it.logLines) }
     }
     // Anonymous usage stats — held by the graph so any screen can record events. The "Send
     // anonymous stats" answer is read per event, so the Settings switch applies live, and a
@@ -829,7 +829,7 @@ private suspend fun buildGraph(settings: AppStoreSettings, session: CookieSessio
     // the config service publishes, which the manager follows from start.
     val engineSource = DefaultJsSourceProvider(
         client = http.engine,
-        config = remoteConfig.bundleConfig { it.engineJs },
+        config = remoteConfig.bundleConfig(remoteConfig.engineJs),
         name = ENGINE_BUNDLE,
         publicKey = BUNDLE_PUBLIC_KEY,
         embedVersion = ENGINE_JS_VERSION,
@@ -951,7 +951,7 @@ private suspend fun buildGraph(settings: AppStoreSettings, session: CookieSessio
                         mediaProxy = mediaProxy,
                         playerJs = playerJsSource(
                             client = http.engine,
-                            config = remoteConfig.bundleConfig { it.playerJs },
+                            config = remoteConfig.bundleConfig(remoteConfig.playerJs),
                             publicKey = BUNDLE_PUBLIC_KEY,
                             fileSystem = FileSystem.SYSTEM,
                             directory = File(dataDir, "player-js").absolutePath.toPath(),
@@ -1046,7 +1046,7 @@ private suspend fun buildGraph(settings: AppStoreSettings, session: CookieSessio
         downloadDir = File(dataDir, "update"),
         installer = installerFor(desktopOsKey()),
         scope = updateScope,
-        configUpdates = remoteConfig.config.map { it.appUpdate },
+        configUpdates = remoteConfig.appUpdate,
         logger = rootLogger,
         autoDownload = { settings.flow(AppSettings.autoDownloadUpdates).value },
         autoDownloadFailed = { settings.flow(AppSettings.updateAutoDownloadFailed).value },

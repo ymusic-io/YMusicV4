@@ -230,7 +230,7 @@ private suspend fun buildIosGraph(container: UIView): AppGraph {
     backgroundScope.launch {
         // The cap waits for the loaded config: the store trims nothing until it has one.
         remoteConfig.awaitLoaded()
-        remoteConfig.config.collect { logStore.setMaxLines(it.features.logLines) }
+        remoteConfig.features.collect { logStore.setMaxLines(it.logLines) }
     }
     // Anonymous usage stats, gated per event by the "Send anonymous stats" setting.
     val stats = StatUsage(
