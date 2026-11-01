@@ -1,0 +1,39 @@
+-- One row per log line. seq orders lines across launches and is the "sent up to" mark's unit.
+CREATE TABLE log_line (
+    seq INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts INTEGER NOT NULL,
+    level INTEGER NOT NULL,
+    launch TEXT NOT NULL,
+    trail TEXT NOT NULL,
+    message TEXT NOT NULL
+);
+
+-- The highest seq already sent with an error; one row (id = 0) at most.
+CREATE TABLE sent_mark (
+    id INTEGER PRIMARY KEY CHECK (id = 0),
+    seq INTEGER NOT NULL
+);
+
+insertLine:
+INSERT INTO log_line (ts, level, launch, trail, message) VALUES (?, ?, ?, ?, ?);
+
+maxSeq:
+SELECT MAX(seq) AS seq FROM log_line;
+
+trimTo:
+DELETE FROM log_line WHERE seq <= :before;
+
+sentMark:
+SELECT seq FROM sent_mark WHERE id = 0;
+
+setSentMark:
+INSERT OR REPLACE INTO sent_mark (id, seq) VALUES (0, ?);
+
+newestUnsent:
+SELECT * FROM log_line WHERE seq > :after AND level >= :minLevel ORDER BY seq DESC LIMIT :limit;
+
+previousLaunch:
+SELECT launch FROM log_line WHERE launch != :current ORDER BY seq DESC LIMIT 1;
+
+linesAfter:
+SELECT * FROM log_line WHERE seq > :after ORDER BY seq LIMIT :limit;
