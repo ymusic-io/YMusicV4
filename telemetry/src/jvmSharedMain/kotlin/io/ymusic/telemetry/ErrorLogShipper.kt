@@ -89,18 +89,23 @@ internal class ErrorLogShipper(
         }
     }
 
-    /** Hands pending lines to Sentry a batch at a time, each batch marked sent once Sentry has it. */
+    /**
+     * Hands pending lines to Sentry a batch at a time, each batch marked sent once Sentry has it. The cursor
+     * lives for one pass: a claim behind it (an earlier run's lines) wakes the next pass, which starts over.
+     */
     private suspend fun sendPending() {
         try {
             val client = Sentry.getCurrentScopes().globalScope.client
+            var afterSeq = 0L
             while (true) {
-                val batch = store.pending(BATCH).ifEmpty { return }
+                val batch = store.pending(BATCH, afterSeq).ifEmpty { return }
                 val lines = batch.map { record ->
                     SentryLogEvent(SentryId(record.launch), record.epochMs / 1000.0, record.message, record.level.toSentry())
                         .apply { attributes = hashMapOf(VERSION_CODE to versionCode) }
                 }
                 client.captureBatchedLogEvents(SentryLogEvents(lines))
                 store.markSent(batch.map { it.seq })
+                afterSeq = batch.last().seq
             }
         } catch (e: Exception) {
             log("pending log lines not sent", e)

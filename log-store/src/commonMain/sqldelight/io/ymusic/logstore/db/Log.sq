@@ -34,7 +34,7 @@ markSent:
 UPDATE log_line SET state = 2 WHERE seq IN :seqs;
 
 pendingLines:
-SELECT * FROM log_line WHERE state = 1 ORDER BY seq LIMIT :limit;
+SELECT * FROM log_line WHERE state = 1 AND seq > :after ORDER BY seq LIMIT :limit;
 
 linesAfter:
 SELECT * FROM log_line WHERE seq > :after ORDER BY seq LIMIT :limit;
