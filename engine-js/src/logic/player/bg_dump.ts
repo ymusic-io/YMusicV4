@@ -13,6 +13,7 @@ let dump: Pipe | null = null;
 let writeChain: Promise<void> = Promise.resolve();
 let sessionKey = "";
 let loggedSps = 0;
+let withheldRounds = 0;
 let dumpFinished = false;
 let lastSabrUrl = "";
 let lastSabrBody: Uint8Array | null = null;
@@ -201,6 +202,7 @@ export function finishBotguardDump(): void {
 export function recordBotguardInit(p: Record<string, unknown>): void {
   finishDump();
   loggedSps = 0;
+  withheldRounds = 0;
   dumpFinished = false;
   writeChain = Promise.resolve();
   lastSabrUrl = "";
@@ -266,18 +268,28 @@ export function recordSabrForDump(url: string, body: Uint8Array | null): void {
 
 let poRejectedHook: (() => void) | null = null;
 
-/** Called on StreamProtectionStatus 3: googlevideo rejected this session's PO token. */
+/** Same limit as the download's SabrSession.maxConsecutiveEmptyRounds. */
+const MAX_WITHHELD_ROUNDS = 3;
+
+/** Called on StreamProtectionStatus 3 (googlevideo rejected this session's PO token), or when
+ *  googlevideo keeps withholding media while attestation stays pending (2). */
 export function setPoRejectedHook(hook: (() => void) | null): void {
   poRejectedHook = hook;
 }
 
-export function noteSps(sps: number): void {
+export function noteSps(sps: number, media: number): void {
+  if (media > 0 || sps === 1) withheldRounds = 0;
+  else if (sps === 2) withheldRounds++;
   if (!(sps > 0)) return;
   if (loggedSps !== sps) {
     loggedSps = sps;
     console.info("bg sps=" + sps);
   }
-  if (sps === 3 && poRejectedHook) poRejectedHook();
+  if (sps === 3 || withheldRounds > MAX_WITHHELD_ROUNDS) {
+    if (sps === 2) console.warn("bg sps=2 withheld media for " + withheldRounds + " rounds");
+    withheldRounds = 0;
+    if (poRejectedHook) poRejectedHook();
+  }
   if (dumpFinished) return;
   if (typeof __bgEntropyStop === "function") __bgEntropyStop();
   // 2 = attestation pending, not a verdict: googlevideo follows up with 1 (ok) or 3 (rejected).
