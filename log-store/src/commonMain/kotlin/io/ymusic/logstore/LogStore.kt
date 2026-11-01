@@ -8,7 +8,6 @@ import io.ymusic.logstore.db.Log_line
 import kmpcommon.log.Crumb
 import kmpcommon.log.CrumbLogger
 import kmpcommon.log.Logger
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -17,7 +16,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.selects.select
+import kotlinx.coroutines.withContext
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import okio.FileSystem
@@ -44,8 +43,8 @@ data class LogRecord(
 /**
  * The app's log: every line from every layer in one SQLite table, the source of the feedback report
  * ([exportGzip]) and of the lines an error event takes to Sentry ([claimUnsent]). [enqueue] never
- * blocks (engine-thread safe) and drops the oldest queued line under a burst. One coroutine does all
- * database work: queued lines go in one transaction per batch, and every query runs after the lines
+ * blocks (engine-thread safe) and drops the oldest queued line under a burst. All database work runs
+ * one task at a time: queued lines go in one transaction per batch, and every query runs after the lines
  * queued before it, so it sees them. Nothing is trimmed until [setMaxLines] gives the cap.
  */
 class LogStore(
@@ -57,8 +56,9 @@ class LogStore(
 
     private val queries = LogDatabase(driver).logQueries
     private val lines = Channel<Line>(queueCapacity, BufferOverflow.DROP_OLDEST)
-    private val commands = Channel<() -> Unit>(Channel.UNLIMITED)
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO.limitedParallelism(1))
+    /** Runs one task at a time: the writer loop and every query take turns on the database. */
+    private val db = Dispatchers.IO.limitedParallelism(1)
+    private val scope = CoroutineScope(SupervisorJob() + db)
 
     @Volatile
     private var maxLines = 0L
@@ -70,15 +70,7 @@ class LogStore(
 
     init {
         scope.launch {
-            while (true) {
-                select {
-                    commands.onReceive { command ->
-                        writeOrDrop { drainLines() }
-                        command()
-                    }
-                    lines.onReceive { line -> writeOrDrop { writeBatch(line) } }
-                }
-            }
+            for (line in lines) writeOrDrop { writeBatch(line) }
         }
     }
 
@@ -105,7 +97,7 @@ class LogStore(
      * stay pending until [markSent], so a send that never completes is retried from [pending]. Every
      * older unsent line is skipped in the same transaction, so a later claim never reaches back past it.
      */
-    suspend fun claimUnsent(limit: Int, minLevel: Logger.Level): List<LogRecord> = onWorker {
+    suspend fun claimUnsent(limit: Int, minLevel: Logger.Level): List<LogRecord> = onDb {
         queries.transactionWithResult {
             val rows = queries.newestUnsent(minLevel.ordinal.toLong(), limit.toLong()).executeAsList()
             if (rows.isNotEmpty()) queries.markPending(rows.map { it.seq })
@@ -115,23 +107,23 @@ class LogStore(
     }
 
     /** Lines an earlier app open claimed ([claimUnsent]) that never reached [markSent], oldest first. */
-    suspend fun pendingFromEarlierRuns(limit: Int): List<LogRecord> = onWorker {
+    suspend fun pendingFromEarlierRuns(limit: Int): List<LogRecord> = onDb {
         queries.pendingBefore(launch, limit.toLong()).executeAsList().map { it.toRecord() }
     }
 
     /** These lines reached Sentry; they are never returned again. */
-    suspend fun markSent(seqs: List<Long>): Unit = onWorker {
+    suspend fun markSent(seqs: List<Long>): Unit = onDb {
         if (seqs.isNotEmpty()) queries.markSent(seqs)
     }
 
     /** Returns once every line queued before the call is written. */
-    suspend fun flush(): Unit = onWorker { }
+    suspend fun flush(): Unit = onDb { }
 
     /** The app open before this one, by its newest line; null when every stored line is this launch's. */
-    suspend fun previousLaunch(): String? = onWorker { queries.previousLaunch(launch).executeAsOneOrNull() }
+    suspend fun previousLaunch(): String? = onDb { queries.previousLaunch(launch).executeAsOneOrNull() }
 
     /** Every stored line as text, gzip-compressed, into [path] (replaced). */
-    suspend fun exportGzip(fileSystem: FileSystem, path: Path): Unit = onWorker {
+    suspend fun exportGzip(fileSystem: FileSystem, path: Path): Unit = onDb {
         fileSystem.sink(path).gzip().buffer().use { out ->
             var after = -1L
             var lastLaunch = ""
@@ -155,20 +147,16 @@ class LogStore(
 
     fun close() {
         lines.close()
-        commands.close()
         scope.cancel()
     }
 
-    private suspend fun <T> onWorker(block: () -> T): T {
-        val result = CompletableDeferred<T>()
-        commands.send {
-            try {
-                result.complete(block())
-            } catch (e: Throwable) {
-                result.completeExceptionally(e)
-            }
-        }
-        return result.await()
+    /**
+     * Runs [block] on [db] after the lines queued before the call are written, so it
+     * sees them. [block] never suspends, so the writer loop cannot interleave with it.
+     */
+    private suspend fun <T> onDb(block: () -> T): T = withContext(db) {
+        writeOrDrop { drainLines() }
+        block()
     }
 
     /**
