@@ -114,6 +114,7 @@ import kmpffmpeg.metadata.FfmpegMetadataGetter
 import kmphttp.KmpHttpClient
 import kmphttp.RedirectOptions
 import kmphttp.create
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
@@ -130,6 +131,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import okio.FileSystem
 import okio.Path.Companion.toOkioPath
 import okio.Path.Companion.toPath
@@ -139,7 +141,6 @@ import projectcommon.error.DISK_FULL_CODE
 import projectcommon.error.TechnicalException
 import projectcommon.error.errorCode
 import java.io.File
-import java.io.IOException
 import java.lang.ref.WeakReference
 import kotlin.math.roundToInt
 
@@ -796,10 +797,16 @@ class YMusicApplication : Application() {
     private val captureFeedbackReportAction: suspend () -> String? = {
         withContext(Dispatchers.IO) {
             val export = File(cacheDir, FEEDBACK_LOG_NAME)
+            // The report still goes without the log when the export fails or the log store is stuck.
             val attachments = try {
-                logStore.exportGzip(FileSystem.SYSTEM, export.toOkioPath())
-                listOf(io.sentry.kotlin.multiplatform.Attachment(export.path, FEEDBACK_LOG_NAME, "application/gzip"))
-            } catch (e: IOException) {
+                withTimeoutOrNull(FEEDBACK_EXPORT_TIMEOUT_MS) { logStore.exportGzip(FileSystem.SYSTEM, export.toOkioPath()) }
+                    ?.let { listOf(io.sentry.kotlin.multiplatform.Attachment(export.path, FEEDBACK_LOG_NAME, "application/gzip")) }
+                    ?: emptyList<io.sentry.kotlin.multiplatform.Attachment>().also {
+                        rootLogger.fork("feedback").log(Logger.Level.WARN, "log export for feedback timed out")
+                    }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
                 rootLogger.fork("feedback").log(Logger.Level.WARN, "log export for feedback failed", e)
                 emptyList()
             }
@@ -1056,3 +1063,4 @@ private class MseSurfaceBridge(private val textureView: TextureView, private val
 }
 
 private const val FEEDBACK_LOG_NAME = "ymusic-log.txt.gz"
+private const val FEEDBACK_EXPORT_TIMEOUT_MS = 15_000L
