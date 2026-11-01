@@ -30,8 +30,7 @@ fun SentryOptions.applyYMusicTelemetry() {
             feedback -> fingerprintPolicy(event).also(::sortBreadcrumbs)
             !crashReportingAllowed -> null
             else -> {
-                val previousRun = event.exceptions.orEmpty().any { it.type in NEXT_PROCESS_REPORTS }
-                errorLogShipper?.attach(event, previousRun)
+                errorLogShipper?.attach(event)
                 fingerprintPolicy(event).also(::sortBreadcrumbs)
             }
         }
