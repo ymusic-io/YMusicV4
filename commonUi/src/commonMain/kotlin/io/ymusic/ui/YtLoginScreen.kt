@@ -310,7 +310,7 @@ internal fun YtLoginScreen(
         }
     }
 
-    Column(Modifier.fillMaxSize().background(DesignColors.Surface)) {
+    Column(Modifier.fillMaxSize().background(DesignColors.Surface).padding(bottom = LocalMiniPlayerInset.current)) {
         LoginChrome(state, onBack = onBack)
         var hintDismissed by remember { mutableStateOf(false) }
         if (switchAccount && !hintDismissed) {
@@ -345,7 +345,7 @@ internal fun YtVerifyScreen(graph: AppGraph, state: LoginWebViewState, onDone: (
                 failedCode = it.errorCode() ?: "E20147"
             }
     }
-    Column(Modifier.fillMaxSize().background(DesignColors.Surface)) {
+    Column(Modifier.fillMaxSize().background(DesignColors.Surface).padding(bottom = LocalMiniPlayerInset.current)) {
         // A double tap must not pop the layer underneath too.
         var finished by remember { mutableStateOf(false) }
         val finish = {
@@ -458,7 +458,7 @@ internal fun LoginPreface(onSignIn: () -> Unit) {
         val centerVertically = maxWidth >= 840.dp && maxHeight >= 600.dp
         val viewportHeight = maxHeight
         Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = LocalMiniPlayerInset.current),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Column(
