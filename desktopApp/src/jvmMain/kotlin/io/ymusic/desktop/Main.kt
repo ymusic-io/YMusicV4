@@ -192,6 +192,7 @@ import kmpffmpeg.metadata.FfmpegMetadataGetter
 import kmphttp.KmpHttpClient
 import kmphttp.RedirectOptions
 import kmphttp.create
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -1550,10 +1551,16 @@ private fun saveWindowPrefs(size: DpSize, position: WindowPosition) {
 private val captureFeedbackReportAction: suspend () -> String? = {
     withContext(Dispatchers.IO) {
         val export = File(System.getProperty("java.io.tmpdir"), FEEDBACK_LOG_NAME)
+        // The report still goes without the log when the export fails or the log store is stuck.
         val attachments = try {
-            logStore.exportGzip(FileSystem.SYSTEM, export.absolutePath.toPath())
-            listOf(io.sentry.kotlin.multiplatform.Attachment(export.absolutePath, FEEDBACK_LOG_NAME, "application/gzip"))
-        } catch (e: java.io.IOException) {
+            withTimeoutOrNull(FEEDBACK_EXPORT_TIMEOUT_MS) { logStore.exportGzip(FileSystem.SYSTEM, export.absolutePath.toPath()) }
+                ?.let { listOf(io.sentry.kotlin.multiplatform.Attachment(export.absolutePath, FEEDBACK_LOG_NAME, "application/gzip")) }
+                ?: emptyList<io.sentry.kotlin.multiplatform.Attachment>().also {
+                    rootLogger.fork("feedback").log(Logger.Level.WARN, "log export for feedback timed out")
+                }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
             rootLogger.fork("feedback").log(Logger.Level.WARN, "log export for feedback failed", e)
             emptyList()
         }
@@ -1799,3 +1806,4 @@ private fun Booting(content: @Composable () -> Unit) {
 }
 
 private const val FEEDBACK_LOG_NAME = "ymusic-log.txt.gz"
+private const val FEEDBACK_EXPORT_TIMEOUT_MS = 15_000L
