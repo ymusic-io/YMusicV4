@@ -20,6 +20,9 @@ INSERT INTO log_line (ts, level, launch, trail, message) VALUES (?, ?, ?, ?, ?);
 maxSeq:
 SELECT MAX(seq) AS seq FROM log_line;
 
+countLines:
+SELECT COUNT(*) FROM log_line;
+
 trimTo:
 DELETE FROM log_line WHERE seq <= :before;
 

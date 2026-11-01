@@ -25,10 +25,14 @@ import okio.Path
 import okio.buffer
 import okio.gzip
 import okio.use
+import kotlin.concurrent.Volatile
 import kotlin.random.Random
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
+
+/** The app log's line cap when the remote config does not set one. */
+const val DEFAULT_LOG_LINES = 5_000
 
 /** One stored log line; [launch] identifies the app open that wrote it. */
 data class LogRecord(
@@ -45,11 +49,10 @@ data class LogRecord(
  * ([exportGzip]) and of the lines an error event takes to Sentry ([claimUnsent]). [enqueue] never
  * blocks (engine-thread safe) and drops the oldest queued line under a burst. One coroutine does all
  * database work: queued lines go in one transaction per batch, and every query runs after the lines
- * queued before it, so it sees them. The newest [maxLines] are kept.
+ * queued before it, so it sees them. Nothing is trimmed until [setMaxLines] gives the cap.
  */
 class LogStore(
     driver: SqlDriver,
-    private val maxLines: Long = DEFAULT_MAX_LINES,
     queueCapacity: Int = DEFAULT_QUEUE_CAPACITY,
 ) {
     /** This app open: 32 hex chars, so it can serve as the Sentry trace id of its lines and events. */
@@ -59,7 +62,10 @@ class LogStore(
     private val lines = Channel<Line>(queueCapacity, BufferOverflow.DROP_OLDEST)
     private val commands = Channel<() -> Unit>(Channel.UNLIMITED)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO.limitedParallelism(1))
-    private var insertsSinceTrim = 0
+
+    @Volatile
+    private var maxLines = 0L
+    private var rowCount = -1L
 
     init {
         scope.launch {
@@ -73,6 +79,14 @@ class LogStore(
                 }
             }
         }
+    }
+
+    /**
+     * Keep the newest [lines]: once the table holds 10% more, the oldest go down to [lines]. Until
+     * the first call nothing is trimmed (the cap comes from the loaded remote config).
+     */
+    fun setMaxLines(lines: Int) {
+        maxLines = lines.coerceAtLeast(MIN_LINES).toLong()
     }
 
     /** Timestamps and queues one line. Safe on any thread; never blocks or throws. */
@@ -161,11 +175,12 @@ class LogStore(
                 count++
                 line = if (count < BATCH_MAX) lines.tryReceive().getOrNull() else null
             }
-            insertsSinceTrim += count
-            if (insertsSinceTrim >= TRIM_EVERY) {
-                insertsSinceTrim = 0
-                val newest = queries.maxSeq().executeAsOne().seq
-                if (newest != null && newest > maxLines) queries.trimTo(newest - maxLines)
+            if (rowCount < 0) rowCount = queries.countLines().executeAsOne() else rowCount += count
+            val cap = maxLines
+            if (cap > 0 && rowCount >= cap + cap / 10) {
+                val newest = queries.maxSeq().executeAsOne().seq ?: 0L
+                queries.trimTo(newest - cap)
+                rowCount = queries.countLines().executeAsOne()
             }
         }
     }
@@ -173,10 +188,9 @@ class LogStore(
     private class Line(val epochMs: Long, val level: Logger.Level, val trail: String, val message: String)
 
     private companion object {
-        const val DEFAULT_MAX_LINES = 50_000L
+        const val MIN_LINES = 100
         const val DEFAULT_QUEUE_CAPACITY = 1_000
         const val BATCH_MAX = 500
-        const val TRIM_EVERY = 1_000
         const val EXPORT_PAGE = 2_000L
         const val STACK_CAP = 2_000
 
