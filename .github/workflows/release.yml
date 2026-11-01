@@ -670,7 +670,7 @@ jobs:
   # A DRAFT GitHub Release for the tag with every artifact attached: nothing is public until it is
   # reviewed and published by hand.
   release:
-    needs: [android, macos, windows, test, compat]
+    needs: [android, macos, windows, linux, test, compat]
     runs-on: ubuntu-24.04
     env:
       # Only whether secrets.enc can be opened: the passphrase itself goes to the Restore secrets step alone.
@@ -700,6 +700,8 @@ jobs:
           cp "$(one 'artifacts/macos-x86_64-dmg/*.dmg')" release/macos-intel.dmg
           cp "$(one 'artifacts/windows-x86_64-setup/*.exe')" release/windows-x64-setup.exe
           cp "$(one 'artifacts/windows-arm64-setup/*.exe')" release/windows-arm64-setup.exe
+          cp "$(one 'artifacts/linux-x86_64-deb/*.deb')" release/linux-x86_64.deb
+          cp "$(one 'artifacts/linux-arm64-deb/*.deb')" release/linux-arm64.deb
           cp "$(one 'artifacts/js-bundles/engine.*.js')" "$(one 'artifacts/js-bundles/player.*.js')" release/
           (cd release && sha256sum * > SHA256SUMS)
           ls -l release
