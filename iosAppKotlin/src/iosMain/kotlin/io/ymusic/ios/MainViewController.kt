@@ -24,7 +24,6 @@ import io.ymusic.imageloader.DiskScaledImageCache
 import io.ymusic.imageloader.ImageLoader
 import io.ymusic.imageloader.fileFetcher
 import io.ymusic.imageloader.networkFetcher
-import io.ymusic.logstore.DEFAULT_LOG_LINES
 import io.ymusic.logstore.DbLogger
 import io.ymusic.logstore.LogStore
 import io.ymusic.logstore.nativeLogDatabaseDriver
@@ -231,7 +230,7 @@ private suspend fun buildIosGraph(container: UIView): AppGraph {
     backgroundScope.launch {
         // The cap waits for the loaded config: the store trims nothing until it has one.
         remoteConfig.awaitLoaded()
-        remoteConfig.config.collect { logStore.setMaxLines(it.logLines ?: DEFAULT_LOG_LINES) }
+        remoteConfig.config.collect { logStore.setMaxLines(it.logLines) }
     }
     // Anonymous usage stats, gated per event by the "Send anonymous stats" setting.
     val stats = StatUsage(

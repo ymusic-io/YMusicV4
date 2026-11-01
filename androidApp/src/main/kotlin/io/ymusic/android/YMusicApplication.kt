@@ -41,7 +41,6 @@ import io.ymusic.imageloader.ImageSourceCache
 import io.ymusic.imageloader.defaultMemoryCacheBudget
 import io.ymusic.imageloader.fileFetcher
 import io.ymusic.imageloader.networkFetcher
-import io.ymusic.logstore.DEFAULT_LOG_LINES
 import io.ymusic.logstore.DbLogger
 import io.ymusic.logstore.LogStore
 import io.ymusic.logstore.androidLogDatabaseDriver
@@ -350,7 +349,7 @@ class YMusicApplication : Application() {
         appScope.launch {
             // The cap waits for the loaded config: the store trims nothing until it has one.
             remoteConfig.awaitLoaded()
-            remoteConfig.config.collect { logStore.setMaxLines(it.logLines ?: DEFAULT_LOG_LINES) }
+            remoteConfig.config.collect { logStore.setMaxLines(it.logLines) }
         }
         // Anonymous usage stats — held by SharedServices so the graph (and any screen) can
         // record events. The "Send anonymous stats" answer is read per event, so the Settings

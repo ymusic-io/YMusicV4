@@ -63,7 +63,7 @@ internal class ErrorLogShipper(
 
     private suspend fun send(eventId: String) {
         try {
-            val limit = (remoteConfig.awaitLoaded().errorLogLines ?: DEFAULT_LINES).coerceIn(0, MAX_LINES)
+            val limit = remoteConfig.awaitLoaded().errorLogLines.coerceIn(0, MAX_LINES)
             if (limit == 0) return
             val client = Sentry.getCurrentScopes().globalScope.client
             val lines = store.claimUnsent(limit, Logger.Level.INFO).map { record ->
@@ -90,7 +90,6 @@ internal class ErrorLogShipper(
     }
 
     private companion object {
-        const val DEFAULT_LINES = 500
         const val MAX_LINES = 10_000
         const val BATCH = 100
         const val WAIT_MS = 2_000L
