@@ -105,6 +105,7 @@ import io.ymusic.imageloader.ImageSourceCache
 import io.ymusic.imageloader.defaultMemoryCacheBudget
 import io.ymusic.imageloader.fileFetcher
 import io.ymusic.imageloader.networkFetcher
+import io.ymusic.logstore.DEFAULT_LOG_LINES
 import io.ymusic.logstore.DbLogger
 import io.ymusic.logstore.LogStore
 import io.ymusic.logstore.jvmLogDatabaseDriver
@@ -804,6 +805,11 @@ private suspend fun buildGraph(settings: AppStoreSettings, session: CookieSessio
         log = rootLogger.fork("remote-config"),
     ).also { it.checkUpdate() } // app open is itself a hotpoint
     installErrorLogs(logStore, remoteConfig, APP_VERSION_CODE)
+    backgroundScope.launch {
+        // The cap waits for the loaded config: the store trims nothing until it has one.
+        remoteConfig.awaitLoaded()
+        remoteConfig.config.collect { logStore.setMaxLines(it.logLines ?: DEFAULT_LOG_LINES) }
+    }
     // Anonymous usage stats — held by the graph so any screen can record events. The "Send
     // anonymous stats" answer is read per event, so the Settings switch applies live, and a
     // disabled gate costs nothing.
