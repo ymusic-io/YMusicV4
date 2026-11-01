@@ -37,7 +37,7 @@ jobs:
           - { slug: android-arm64-v8a, runner: ubuntu-24.04 }
           - { slug: android-x86, runner: ubuntu-24.04 }
           - { slug: android-x86_64, runner: ubuntu-24.04 }
-          - { slug: macos-arm64, runner: macos-14 }
+          - { slug: macos-arm64, runner: macos-15 }
           - { slug: macos-x86_64, runner: macos-15-intel }
           - { slug: linux-x86_64, runner: ubuntu-24.04 }
           - { slug: linux-arm64, runner: ubuntu-24.04-arm }
@@ -246,7 +246,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { slug: macos-arm64, runner: macos-14 }
+          - { slug: macos-arm64, runner: macos-15 }
           - { slug: macos-x86_64, runner: macos-15-intel }
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -554,7 +554,7 @@ jobs:
   # Every module's JVM tests; JUnit aborts any test past 30 s (root build.gradle.kts).
   test:
     needs: ffmpeg
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
