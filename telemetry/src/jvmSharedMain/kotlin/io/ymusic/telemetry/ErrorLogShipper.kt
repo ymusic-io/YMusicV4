@@ -1,5 +1,6 @@
 package io.ymusic.telemetry
 
+import io.sentry.PropagationContext
 import io.sentry.Sentry
 import io.sentry.SentryAttributeType
 import io.sentry.SentryEvent
@@ -28,21 +29,21 @@ import kotlin.concurrent.Volatile
  * Call once, before Sentry.init's first event.
  */
 fun installErrorLogs(store: LogStore, remoteConfig: RemoteConfig, appVersionCode: Int) {
-    errorLogShipper = ErrorLogShipper(store, remoteConfig, appVersionCode).also { it.adoptSentryTrace() }
+    errorLogShipper = ErrorLogShipper(store, remoteConfig, appVersionCode).also { it.shareTraceWithSentry() }
 }
 
-/** Call right after Sentry.init: the app log's lines take Sentry's trace id for this app open. */
-fun adoptSentryTraceForLogs() {
-    errorLogShipper?.adoptSentryTrace()
+/** Call right after Sentry.init: Sentry's trace for this app open becomes the app log's [LogStore.launch]. */
+fun shareLogTraceWithSentry() {
+    errorLogShipper?.shareTraceWithSentry()
 }
 
 @Volatile
 internal var errorLogShipper: ErrorLogShipper? = null
 
 /**
- * The app log's lines carry Sentry's trace id of the app open that wrote them ([adoptSentryTrace]),
- * so an event and its run's lines share one trace; a report the next process makes about the previous
- * run (ANR, native crash) takes that run's trace instead. An event's lines are the store's newest
+ * Sentry's trace for this app open is the app log's id for it ([shareTraceWithSentry]), so an event
+ * and its run's lines share one trace; a report the next process makes about the previous run (ANR,
+ * native crash) takes that run's trace instead. An event's lines are the store's newest
  * unsent INFO+ lines, each sent as a Sentry Log with only body, level, timestamp, its trace id and
  * `app.version_code`.
  */
@@ -54,19 +55,10 @@ internal class ErrorLogShipper(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val versionCode = SentryLogEventAttributeValue(SentryAttributeType.INTEGER, appVersionCode)
 
-    /** Hands Sentry's trace id to the log once Sentry has started; a no-op before. */
-    fun adoptSentryTrace() {
+    /** Sets the log's id for this app open as Sentry's trace id; a no-op before Sentry has started. */
+    fun shareTraceWithSentry() {
         if (!Sentry.isEnabled()) return
-        var trace: SentryId? = null
-        Sentry.configureScope { trace = it.propagationContext.traceId }
-        val id = trace?.takeIf { it != SentryId.EMPTY_ID }?.toString() ?: return
-        scope.launch {
-            try {
-                store.adoptLaunch(id)
-            } catch (e: Exception) {
-                log("log lines kept their placeholder trace id", e)
-            }
-        }
+        Sentry.configureScope { it.propagationContext = PropagationContext(SentryId(store.launch), SpanId(), null, null, null) }
     }
 
     /** Called from beforeSend for an event that leaves. A crash waits (bounded): its process is ending. */

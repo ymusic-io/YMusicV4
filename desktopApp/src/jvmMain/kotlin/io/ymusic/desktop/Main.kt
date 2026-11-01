@@ -132,7 +132,6 @@ import io.ymusic.settings.anonymousDeviceId
 import io.ymusic.settings.flow
 import io.ymusic.settings.put
 import io.ymusic.telemetry.SentryLogger
-import io.ymusic.telemetry.adoptSentryTraceForLogs
 import io.ymusic.telemetry.applyYMusicTelemetry
 import io.ymusic.telemetry.bindCrashReporting
 import io.ymusic.telemetry.captureFeedbackReport
@@ -141,6 +140,7 @@ import io.ymusic.telemetry.installSentryDeviceId
 import io.ymusic.telemetry.installSentryEngineVersion
 import io.ymusic.telemetry.installSentryPlayerVersion
 import io.ymusic.telemetry.sendFeedbackMessage
+import io.ymusic.telemetry.shareLogTraceWithSentry
 import io.ymusic.ui.APP_HTTP_TIMEOUT
 import io.ymusic.ui.ActionIcon
 import io.ymusic.ui.App
@@ -346,7 +346,7 @@ fun main(args: Array<String>) {
                 it.environment = if (DEBUG_BUILD) "debug" else "production"
             }
             installSentryDeviceId(telemetryDeviceId)
-            adoptSentryTraceForLogs()
+            shareLogTraceWithSentry()
         }
     }
 
