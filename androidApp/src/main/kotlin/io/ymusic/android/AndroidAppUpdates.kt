@@ -44,6 +44,8 @@ import okio.buffer
 import okio.sink
 import okio.source
 import org.jetbrains.compose.resources.StringResource
+import projectcommon.error.DISK_FULL_CODE
+import projectcommon.error.errorCode
 import java.io.File
 
 /**
@@ -213,6 +215,9 @@ class AndroidAppUpdates(
                 } else if (error is DownloadMismatchException) {
                     log?.captureError(error, "update ${update.versionCode} failed verification")
                     set(release, UpdateDownload.Failed("E91011"))
+                } else if (error.errorCode() == DISK_FULL_CODE) {
+                    log?.log(Logger.Level.WARN, "downloading update ${update.versionCode} failed: storage is full", error)
+                    set(release, UpdateDownload.Failed(DISK_FULL_CODE))
                 } else if (error is javax.net.ssl.SSLHandshakeException) {
                     // The device doesn't trust the host (stale root store, wrong clock, intercepting network).
                     log?.log(Logger.Level.WARN, "downloading update ${update.versionCode} failed: untrusted TLS", error)
