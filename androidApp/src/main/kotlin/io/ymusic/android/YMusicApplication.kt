@@ -25,6 +25,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import io.sentry.kotlin.multiplatform.Sentry
 import io.ymusic.download.DownloadChange
+import io.ymusic.download.DownloadFolderAccessException
 import io.ymusic.dynamicengine.CacheStore
 import io.ymusic.dynamicengine.DefaultJsSourceProvider
 import io.ymusic.dynamicengine.DynamicEngineManager
@@ -654,9 +655,12 @@ class YMusicApplication : Application() {
                     androidSegmentDatabaseDriver(applicationContext, name = "download_segments.db"),
                     now = { System.currentTimeMillis() },
                 ),
-                // The user's chosen download location (SAF content:// or file://) — always set: the download
-                // flow requires picking one before enqueue.
-                downloadFolder = { shared.settings.downloadLocationFolder()!! },
+                // The user's chosen download location (SAF content:// or file://). The flow picks one before
+                // enqueue, yet queued tasks have run with none set (YMUSIC-KMP-7R).
+                downloadFolder = {
+                    shared.settings.downloadLocationFolder()
+                        ?: throw DownloadFolderAccessException("(none)", IllegalStateException("no download folder is set"))
+                },
                 onCompleted = { task, result ->
                     registerCompletedDownload(shared.mediaStore, shared.settings, downloadScanner, task, result)
                 },
