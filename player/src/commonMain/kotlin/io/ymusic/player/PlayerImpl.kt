@@ -251,7 +251,15 @@ internal class PlayerImpl(
     }
 
     override fun togglePlay() {
-        if (status.value.playWhenReady) pause() else play()
+        val status = status.value
+        when {
+            status.state.isEnded() -> {
+                seekTo(0L)
+                play()
+            }
+            status.playWhenReady -> pause()
+            else -> play()
+        }
     }
 
     override fun stop() {
