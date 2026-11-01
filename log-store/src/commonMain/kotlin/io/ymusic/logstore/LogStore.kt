@@ -52,8 +52,13 @@ class LogStore(
     driver: SqlDriver,
     queueCapacity: Int = DEFAULT_QUEUE_CAPACITY,
 ) {
-    /** This app open: 32 hex chars, so it can serve as the Sentry trace id of its lines and events. */
-    val launch: String = Random.nextBytes(16).joinToString("") { (it.toInt() and 0xff).toString(16).padStart(2, '0') }
+    /**
+     * This app open's id, stored on each of its lines. A placeholder until [adoptLaunch] hands over
+     * Sentry's trace id, which only exists once Sentry starts, after the first lines are written.
+     */
+    @Volatile
+    var launch: String = Random.nextBytes(16).joinToString("") { (it.toInt() and 0xff).toString(16).padStart(2, '0') }
+        private set
 
     private val queries = LogDatabase(driver).logQueries
     private val lines = Channel<Line>(queueCapacity, BufferOverflow.DROP_OLDEST)
@@ -112,6 +117,14 @@ class LogStore(
             val newest = queries.maxSeq().executeAsOne().seq ?: -1L
             if (newest > mark) queries.setSentMark(newest)
             rows.asReversed().map { it.toRecord() }
+        }
+    }
+
+    /** Makes [id] this app open's id, for the lines already stored and every later one. */
+    suspend fun adoptLaunch(id: String): Unit = onWorker {
+        if (id != launch) {
+            queries.renameLaunch(new = id, old = launch)
+            launch = id
         }
     }
 
