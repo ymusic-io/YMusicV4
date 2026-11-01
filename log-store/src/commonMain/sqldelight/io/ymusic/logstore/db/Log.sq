@@ -24,7 +24,7 @@ DELETE FROM log_line WHERE seq <= :before;
 
 unsentOfNewest:
 SELECT * FROM log_line WHERE state = 0 AND seq IN (
-    SELECT seq FROM log_line WHERE launch = :launch AND level >= :minLevel ORDER BY seq DESC LIMIT :limit
+    SELECT seq FROM log_line WHERE launch = :launch ORDER BY seq DESC LIMIT :limit
 ) ORDER BY seq;
 
 markPending:
