@@ -14,6 +14,7 @@ import io.sentry.SentryLogEvents
 import io.sentry.SentryLogLevel
 import io.sentry.SpanId
 import io.sentry.hints.Cached
+import io.sentry.hints.Retryable
 import io.sentry.hints.SubmissionResult
 import io.sentry.protocol.SentryId
 import io.sentry.util.HintUtils
@@ -103,9 +104,10 @@ internal class ErrorLogShipper(
     }
 
     /**
-     * Hands pending lines to Sentry a batch at a time, each batch marked sent once the transport delivered it.
-     * A batch that isn't delivered (a 429, a rate limit, no network) stays pending, ends the pass and schedules
-     * a retry with backoff. The cursor lives for one pass: a claim behind it (an earlier run's lines) wakes the
+     * Hands pending lines to Sentry a batch at a time, each batch marked sent once the transport delivered it or
+     * Sentry refused it (a 429 or a rate limit drops data on purpose, and a retry only adds load). A batch that
+     * didn't get through (no network) or got no answer stays pending, ends the pass and schedules a retry with
+     * backoff. The cursor lives for one pass: a claim behind it (an earlier run's lines) wakes the
      * next pass, which starts over.
      */
     private suspend fun sendPending() {
@@ -126,9 +128,13 @@ internal class ErrorLogShipper(
                 )
                 val delivery = Delivery()
                 client.captureEnvelope(envelope, HintUtils.createWithTypeCheckHint(delivery))
-                if (withTimeoutOrNull(DELIVERY_TIMEOUT_MS) { delivery.result.await() } != true) {
-                    scheduleRetry()
-                    return
+                when (withTimeoutOrNull(DELIVERY_TIMEOUT_MS) { delivery.outcome.await() }) {
+                    Outcome.DELIVERED -> Unit
+                    Outcome.REFUSED -> log("log batch of ${batch.size} lines refused by Sentry, dropped", null)
+                    Outcome.UNSENT, null -> {
+                        scheduleRetry()
+                        return
+                    }
                 }
                 store.markSent(batch.map { it.seq })
                 afterSeq = batch.last().seq
@@ -148,18 +154,37 @@ internal class ErrorLogShipper(
         }
     }
 
-    /**
-     * The transport's verdict on one envelope. [Cached] keeps the SDK from storing it on disk and resending
-     * it on its own: an undelivered batch is retried from the log, and a second copy would duplicate it.
-     */
-    private class Delivery : SubmissionResult, Cached {
-        val result = CompletableDeferred<Boolean>()
+    private enum class Outcome { DELIVERED, REFUSED, UNSENT }
 
-        override fun setResult(success: Boolean) {
-            result.complete(success)
+    /**
+     * The transport's verdict on one envelope: it flags a failure retryable (network, offline) before
+     * reporting the result, and a refusal (HTTP error, rate limit) never. [Cached] keeps the SDK from storing
+     * the envelope on disk and resending it on its own: an unsent batch is retried from the log, and a second
+     * copy would duplicate it.
+     */
+    private class Delivery : SubmissionResult, Retryable, Cached {
+        val outcome = CompletableDeferred<Outcome>()
+
+        @Volatile
+        private var retry = false
+
+        override fun setRetry(retry: Boolean) {
+            this.retry = retry
         }
 
-        override fun isSuccess(): Boolean = result.isCompleted && result.getCompleted()
+        override fun isRetry(): Boolean = retry
+
+        override fun setResult(success: Boolean) {
+            outcome.complete(
+                when {
+                    success -> Outcome.DELIVERED
+                    retry -> Outcome.UNSENT
+                    else -> Outcome.REFUSED
+                },
+            )
+        }
+
+        override fun isSuccess(): Boolean = outcome.isCompleted && outcome.getCompleted() == Outcome.DELIVERED
     }
 
     private fun log(message: String, error: Throwable?) {
