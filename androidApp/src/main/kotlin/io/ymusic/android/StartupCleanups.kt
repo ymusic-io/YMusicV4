@@ -27,6 +27,8 @@ internal class StartupCleanups(
     private val cleanups = listOf(
         // Builds up to 4.0.10 downloaded the update APK into cacheDir/update; it moved to filesDir/update.
         Cleanup(BoolSetting("clean_up_old_update_dir", false)) { File(context.cacheDir, "update").deleteRecursively() },
+        // Builds up to 4.0.12 kept a rotating text log in filesDir/logs; the log moved to logs.db.
+        Cleanup(BoolSetting("clean_up_text_log_dir", false)) { File(context.filesDir, "logs").deleteRecursively() },
     )
 
     suspend fun run() {

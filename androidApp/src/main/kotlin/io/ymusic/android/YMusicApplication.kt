@@ -266,8 +266,6 @@ class YMusicApplication : Application() {
 
     private suspend fun buildServices(): SharedServices {
         MseDecoderCaps.start(rootLogger)
-        // The log moved to logs.db: the text log files of older builds go.
-        File(filesDir, "logs").listFiles { file -> file.name.startsWith("ymusic.log") }?.forEach { it.delete() }
         QuickJsRuntime.hostVersions = hostVersions()
         // YouTube + API cookies live in the WebView CookieManager (the login WebView writes
         // there; this jar is a wrapper so HTTP sees the same store).
