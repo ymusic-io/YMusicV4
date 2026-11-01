@@ -5,7 +5,8 @@
 //   picture  — onVideoDataChange: videoWidth, videoHeight
 //   details  — onVideoDataChange: videoId, channelTitle, channelUrl
 //   watchNext — a music video's related items: videoId, contents (JSON text; see watch_next.ts)
-//   poRejected — true: googlevideo rejected the session's PO token (StreamProtectionStatus 3)
+//   poRejected — true: googlevideo rejected the session's PO token (StreamProtectionStatus 3), or kept
+//                withholding media while attestation stayed pending (2)
 
 import { JsEngineErrorImpl } from "../../protocol/command";
 import {
