@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 4.0.13
 
 ### NEW
 - Windows: YMusic for Windows, x64 and Arm64, with a setup installer, updates from inside the app and hardware video decoding ([e4ca5ebb0](https://github.com/ymusic-io/YMusicV4/commit/e4ca5ebb0ffedb82cb71813cfc2347849f925c7b), [6f99cf173](https://github.com/ymusic-io/YMusicV4/commit/6f99cf1733899aacbbce794be4cd4aa99b8aa127), [32abdcef5](https://github.com/ymusic-io/YMusicV4/commit/32abdcef55f2c25609c9d64d52d6d01477632600))
