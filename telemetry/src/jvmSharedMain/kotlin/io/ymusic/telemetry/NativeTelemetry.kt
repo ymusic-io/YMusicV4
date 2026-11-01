@@ -19,6 +19,9 @@ import java.util.Date
 fun SentryOptions.applyYMusicTelemetry() {
     // The KMP options default this on; keep it now that they no longer apply.
     isAttachThreads = true
+    // One scope for every thread, as SentryAndroid.init already sets: off, each thread forks its own and
+    // the log's trace (ErrorLogShipper.onSentryStarted) reaches only the thread that set it.
+    isGlobalHubMode = true
     maxBreadcrumbs = 200
     // Consent is enforced HERE, not by deinitializing (see bindCrashReporting): everything that
     // would leave the process passes one of these hooks and is dropped while consent says no.

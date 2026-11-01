@@ -44,8 +44,8 @@ internal var errorLogShipper: ErrorLogShipper? = null
 
 /**
  * Sentry's trace for this app open is the app log's id for it ([onSentryStarted]), so an event
- * and its run's lines share one trace. An event claims the newest unsent INFO+ lines of the launch
- * its trace id names (Sentry restores the dead run's trace on an ANR or native crash the next
+ * and its run's lines share one trace. An event claims the unsent lines among the newest lines of
+ * the launch its trace id names (Sentry restores the dead run's trace on an ANR or native crash the next
  * process reports); one worker sends every pending line, each as a Sentry Log with only body, level,
  * timestamp, its trace id and `app.version_code`. Lines a dying process claimed go out on the next start.
  */
@@ -85,25 +85,30 @@ internal class ErrorLogShipper(
     private suspend fun claim(launch: String, eventId: String, limit: Int) {
         try {
             if (limit <= 0) return
-            store.claimUnsent(launch, limit.coerceAtMost(MAX_LINES), Logger.Level.INFO)
+            store.claimUnsent(launch, limit.coerceAtMost(MAX_LINES))
             wake.trySend(Unit)
         } catch (e: Exception) {
             log("log lines for $eventId not claimed", e)
         }
     }
 
-    /** Hands pending lines to Sentry a batch at a time, each batch marked sent once Sentry has it. */
+    /**
+     * Hands pending lines to Sentry a batch at a time, each batch marked sent once Sentry has it. The cursor
+     * lives for one pass: a claim behind it (an earlier run's lines) wakes the next pass, which starts over.
+     */
     private suspend fun sendPending() {
         try {
             val client = Sentry.getCurrentScopes().globalScope.client
+            var afterSeq = 0L
             while (true) {
-                val batch = store.pending(BATCH).ifEmpty { return }
+                val batch = store.pending(BATCH, afterSeq).ifEmpty { return }
                 val lines = batch.map { record ->
                     SentryLogEvent(SentryId(record.launch), record.epochMs / 1000.0, record.message, record.level.toSentry())
                         .apply { attributes = hashMapOf(VERSION_CODE to versionCode) }
                 }
                 client.captureBatchedLogEvents(SentryLogEvents(lines))
                 store.markSent(batch.map { it.seq })
+                afterSeq = batch.last().seq
             }
         } catch (e: Exception) {
             log("pending log lines not sent", e)
