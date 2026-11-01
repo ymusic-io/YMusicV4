@@ -12,7 +12,7 @@ The app log: every line from every layer in one SQLite table (`logs.db`), writte
   go down to `n`. The shells set it from remote config `telemetry.logLines` (default 5 000)
   after the config has loaded; until then nothing is trimmed.
 - **Error events** — `claimUnsent(launch, limit, minLevel)` marks that launch's newest unsent lines pending
-  and skips its older unsent ones, so a line is never sent twice; `pending(limit)` lists
+  and skips its older unsent ones, in one transaction, so a line is never sent twice; `pending(limit)` lists
   claimed lines of every launch until `markSent` settles them. `:telemetry`'s `installErrorLogs` claims, for
   each Sentry error event, the lines of the launch whose trace id the event carries, and a worker sends
   whatever is pending.
