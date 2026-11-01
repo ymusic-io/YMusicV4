@@ -105,9 +105,9 @@ class LogStore(
         }
     }
 
-    /** Claimed lines ([claimUnsent]) of any launch that haven't reached [markSent], oldest first. */
-    suspend fun pending(limit: Int): List<LogRecord> = onDb {
-        queries.pendingLines(limit.toLong()).executeAsList().map { it.toRecord() }
+    /** Claimed lines ([claimUnsent]) of any launch after [afterSeq] that haven't reached [markSent], oldest first. */
+    suspend fun pending(limit: Int, afterSeq: Long = 0): List<LogRecord> = onDb {
+        queries.pendingLines(afterSeq, limit.toLong()).executeAsList().map { it.toRecord() }
     }
 
     /** These lines reached Sentry; they are never returned again. */

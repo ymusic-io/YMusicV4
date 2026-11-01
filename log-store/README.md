@@ -13,8 +13,8 @@ The app log: every line from every layer in one SQLite table (`logs.db`), writte
   after the config has loaded; until then nothing is trimmed.
 - **Error events** — `claimUnsent(launch, limit)` marks the unsent lines among that launch's
   newest `limit` pending, in one transaction, so a line is never sent twice and a claim never reaches back
-  past lines an earlier one took; `pending(limit)` lists
-  claimed lines of every launch until `markSent` settles them. `:telemetry`'s `installErrorLogs` claims, for
+  past lines an earlier one took; `pending(limit, afterSeq)` pages
+  through claimed lines of every launch until `markSent` settles them. `:telemetry`'s `installErrorLogs` claims, for
   each Sentry error event, the lines of the launch whose trace id the event carries, and a worker sends
   whatever is pending.
 - **Feedback** — `exportGzip(fs, path)` dumps every line as text (local time, level, trail, message; a
