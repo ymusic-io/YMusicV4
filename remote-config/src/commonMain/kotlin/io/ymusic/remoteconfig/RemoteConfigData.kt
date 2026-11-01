@@ -138,7 +138,6 @@ data class Features(
     val logLines: Int = 5_000,
 ) {
     companion object {
-        private val DEFAULTS = Features()
         private const val KEY_VARIABLE_A = "variableA"
         private const val KEY_FEATURE_X = "featureX"
         private const val KEY_TELEGRAM_URL = "telegramUrl"
@@ -153,21 +152,24 @@ data class Features(
         private const val KEY_ERROR_LOG_LINES = "errorLogLines"
         private const val KEY_LOG_LINES = "logLines"
 
-        fun from(json: JsonObject): Features = Features(
-            variableA = json.intOrNull(KEY_VARIABLE_A) ?: DEFAULTS.variableA,
-            featureX = json.boolOrNull(KEY_FEATURE_X) ?: DEFAULTS.featureX,
-            telegramUrl = json.stringOrNull(KEY_TELEGRAM_URL),
-            changelogUrl = json.stringOrNull(KEY_CHANGELOG_URL),
-            websiteUrl = json.stringOrNull(KEY_WEBSITE_URL),
-            feedbackEmail = json.stringOrNull(KEY_FEEDBACK_EMAIL),
-            feedbackIssueUrl = json.stringOrNull(KEY_FEEDBACK_ISSUE_URL),
-            sourceCodeUrl = json.stringOrNull(KEY_SOURCE_CODE_URL),
-            termsUrl = json.stringOrNull(KEY_TERMS_URL),
-            donationUrl = json.stringOrNull(KEY_DONATION_URL),
-            downloadPageUrl = json.stringOrNull(KEY_DOWNLOAD_PAGE_URL),
-            errorLogLines = json.intOrNull(KEY_ERROR_LOG_LINES) ?: DEFAULTS.errorLogLines,
-            logLines = json.intOrNull(KEY_LOG_LINES) ?: DEFAULTS.logLines,
-        )
+        fun from(json: JsonObject): Features {
+            val default = Features()
+            return Features(
+                variableA = json.intOrNull(KEY_VARIABLE_A) ?: default.variableA,
+                featureX = json.boolOrNull(KEY_FEATURE_X) ?: default.featureX,
+                telegramUrl = json.stringOrNull(KEY_TELEGRAM_URL),
+                changelogUrl = json.stringOrNull(KEY_CHANGELOG_URL),
+                websiteUrl = json.stringOrNull(KEY_WEBSITE_URL),
+                feedbackEmail = json.stringOrNull(KEY_FEEDBACK_EMAIL),
+                feedbackIssueUrl = json.stringOrNull(KEY_FEEDBACK_ISSUE_URL),
+                sourceCodeUrl = json.stringOrNull(KEY_SOURCE_CODE_URL),
+                termsUrl = json.stringOrNull(KEY_TERMS_URL),
+                donationUrl = json.stringOrNull(KEY_DONATION_URL),
+                downloadPageUrl = json.stringOrNull(KEY_DOWNLOAD_PAGE_URL),
+                errorLogLines = json.intOrNull(KEY_ERROR_LOG_LINES) ?: default.errorLogLines,
+                logLines = json.intOrNull(KEY_LOG_LINES) ?: default.logLines,
+            )
+        }
 
         fun JsonWriter.value(data: Features): JsonWriter {
             beginObject()
@@ -204,11 +206,9 @@ data class RemoteConfigData(
     val engineJs: BundleVersion? = null,
     val playerJs: BundleVersion? = null,
     // client populated timestamp at time data parsed from server
-    val updatedAt: Long,
+    val updatedAt: Long = 0L,
 ) {
     companion object {
-        /** What the app runs on before the first successful fetch, and with no cache to fall back on. */
-        val DEFAULTS = RemoteConfigData(updatedAt = 0L)
         private const val KEY_FEATURES = "features"
         private const val KEY_APP_UPDATE = "appUpdate"
         private const val KEY_ENGINE_JS = "engineJs"
@@ -224,7 +224,7 @@ data class RemoteConfigData(
          * that hands it the ability to pin clients to a document it declares perpetually fresh.
          */
         fun from(root: JsonObject, now: () -> Long): RemoteConfigData = RemoteConfigData(
-            features = root.objectOrNull(KEY_FEATURES)?.let(Features::from) ?: DEFAULTS.features,
+            features = root.objectOrNull(KEY_FEATURES)?.let(Features::from) ?: Features(),
             appUpdate = root.objectOrNull(KEY_APP_UPDATE)?.let(AppUpdate::from),
             engineJs = root.objectOrNull(KEY_ENGINE_JS)?.let(BundleVersion::from),
             playerJs = root.objectOrNull(KEY_PLAYER_JS)?.let(BundleVersion::from),

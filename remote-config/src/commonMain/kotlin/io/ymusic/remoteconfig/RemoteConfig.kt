@@ -45,7 +45,7 @@ const val REMOTE_CONFIG_MIN_INTERVAL_MS: Long = 5 * 60 * 1000L
  * newer build exists. How the service is reached is [ApiService]'s business; this class owns only
  * the policy — the throttle, the on-disk cache, and what counts as fresh.
  *
- * [config] is the one way to read it: DEFAULTS until the cache of the previous run loads, then every
+ * [config] is the one way to read it: the defaults until the cache of the previous run loads, then every
  * config fetched since. A fetch that fails publishes nothing, so the previous value stays: a service
  * outage must not change how the app behaves.
  *
@@ -58,7 +58,7 @@ const val REMOTE_CONFIG_MIN_INTERVAL_MS: Long = 5 * 60 * 1000L
  * first refresh.
  */
 class RemoteConfig(
-    /** Null when this build has no config service: it runs on the cache, or on DEFAULTS. */
+    /** Null when this build has no config service: it runs on the cache, or on the defaults. */
     private val api: ApiService?,
     /** Where the last answer is kept for the next cold start. Written and read as a stream. */
     private val cacheFile: Path,
@@ -69,7 +69,7 @@ class RemoteConfig(
     /** The cache file's reads and writes; [scope] may be the main thread. */
     private val io: CoroutineDispatcher = Dispatchers.IO,
 ) {
-    private val _config = MutableStateFlow(RemoteConfigData.DEFAULTS)
+    private val _config = MutableStateFlow(RemoteConfigData())
     val config: StateFlow<RemoteConfigData> = _config.asStateFlow()
     val features: Flow<Features> = _config.map { it.features }.distinctUntilChanged()
     val appUpdate: Flow<AppUpdate?> = _config.map { it.appUpdate }.distinctUntilChanged()
@@ -90,7 +90,7 @@ class RemoteConfig(
             if (initialized) return
             // The whole read is guarded, not just the parse: exists() and source() touch the file
             // system too, and this runs from init on a scope whose cancellation would take the app
-            // with it. Starting on DEFAULTS is always better than not starting.
+            // with it. Starting on the defaults is always better than not starting.
             val latestValue = try {
                 withContext(io) {
                     if (fileSystem.exists(cacheFile)) {
@@ -101,7 +101,7 @@ class RemoteConfig(
                             now,
                         )
                     } else {
-                        RemoteConfigData.DEFAULTS
+                        RemoteConfigData()
                     }
                 }
             } catch (cancel: CancellationException) {
@@ -111,7 +111,7 @@ class RemoteConfig(
                 // remove it must not become a second failure on top of the first.
                 runCatching { fileSystem.delete(cacheFile) }.exceptionOrNull()?.let(error::addSuppressed)
                 log?.captureError(error, "read config cache failure")
-                RemoteConfigData.DEFAULTS
+                RemoteConfigData()
             }
             initialized = true
             _config.value = latestValue
@@ -140,7 +140,7 @@ class RemoteConfig(
 
     private fun isFresh(data: RemoteConfigData, maxAgeMs: Long): Boolean = now() - data.updatedAt < maxAgeMs
 
-    /** The config once the previous run's cache has loaded (or none existed), never the boot-time DEFAULTS stand-in. */
+    /** The config once the previous run's cache has loaded (or none existed), never the boot-time default stand-in. */
     suspend fun awaitLoaded(): RemoteConfigData {
         initIfNotYet()
         return _config.value

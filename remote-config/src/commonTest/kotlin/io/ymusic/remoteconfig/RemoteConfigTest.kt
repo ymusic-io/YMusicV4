@@ -152,7 +152,7 @@ class RemoteConfigTest {
     fun a_failed_fetch_with_no_cache_falls_back_to_the_defaults() = runTest {
         val api = api().apply { failWith = IOException("offline") }
 
-        assertEquals(RemoteConfigData.DEFAULTS, settle(config(api, this)))
+        assertEquals(RemoteConfigData(), settle(config(api, this)))
     }
 
     @Test
@@ -189,12 +189,12 @@ class RemoteConfigTest {
         // not fall over if an implementation leaks something else.
         val api = api().apply { failWith = IllegalStateException("bug in the impl") }
 
-        assertEquals(RemoteConfigData.DEFAULTS, settle(config(api, this)))
+        assertEquals(RemoteConfigData(), settle(config(api, this)))
     }
 
     @Test
     fun no_service_means_defaults_and_no_request() = runTest {
-        assertEquals(RemoteConfigData.DEFAULTS, settle(config(api = null, scope = this)))
+        assertEquals(RemoteConfigData(), settle(config(api = null, scope = this)))
     }
 
     @Test
