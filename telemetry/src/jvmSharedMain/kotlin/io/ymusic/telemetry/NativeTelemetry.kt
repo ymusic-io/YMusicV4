@@ -115,13 +115,16 @@ internal actual fun captureTrailedError(
             )
         }
         message?.let { scope.setExtra("capture.message", it) }
+        val context = mutableMapOf<String, Any>()
         prop?.forEach { (key, value) ->
             when (value) {
                 is FileAttachment -> scope.addAttachment(Attachment(value.path, value.filename, value.contentType))
                 is ByteArray -> scope.addAttachment(Attachment(value, key))
-                else -> scope.setContexts("capture.$key", value)
+                else -> context[key] = value
             }
         }
+        // Sentry drops a context that is not an object, so the props travel as one map.
+        if (context.isNotEmpty()) scope.setContexts("capture", context)
     }
 }
 
