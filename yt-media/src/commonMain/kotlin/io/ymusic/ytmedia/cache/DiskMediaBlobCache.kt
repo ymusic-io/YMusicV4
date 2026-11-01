@@ -67,6 +67,7 @@ class DiskMediaBlobCache(
     private var budget = budgetBytes
     private val pins = mutableMapOf<String, Int>() // spanId → read-pin count (in-memory, per-process)
     private val doomed = mutableSetOf<String>() // invalidated spanIds still pinned; their files go on the last unpin
+    private val retired = mutableSetOf<Path>() // unindexed span files not yet deleted (deletes run outside [lock])
     private val inFlight = mutableSetOf<String>() // region tokens "key pos len" — known-length write dedupe
     private val activeWriters = mutableSetOf<Long>() // live writer ids; temp files carry the id in their name
     private var writerId = 0L // monotonic per-writer id counter
@@ -132,7 +133,7 @@ class DiskMediaBlobCache(
                     }
                     chunks.mapNotNull { unpin(it.key, it.start, it.len) }
                 }
-                released.forEach { fileSystem.delete(it, mustExist = false) }
+                deleteRetired(released)
                 if (!missing) throw if (e is IOException) MediaCacheStorageException("span open: ${e.message}", e) else e
                 logger?.log(Logger.Level.WARN, "span file missing, cache miss", e)
                 return null
@@ -169,11 +170,11 @@ class DiskMediaBlobCache(
                     doomed += id
                     null
                 } else {
-                    pathOf(key, span.start, span.len)
+                    retire(pathOf(key, span.start, span.len))
                 }
             }
         }
-        files.forEach { fileSystem.delete(it, mustExist = false) }
+        deleteRetired(files)
     }
 
     /** A process-unique id per writer, recorded in [activeWriters] so the maintenance worker can tell a
@@ -197,7 +198,22 @@ class DiskMediaBlobCache(
             budget = capped.coerceAtLeast(0)
             planEviction(0)
         }
-        victims.forEach { fileSystem.delete(it, mustExist = false) }
+        deleteRetired(victims)
+    }
+
+    /** Under [lock]: [path]'s span is unindexed and its file is about to be deleted outside the lock. */
+    private fun retire(path: Path): Path {
+        retired += path
+        return path
+    }
+
+    private fun deleteRetired(paths: List<Path>) {
+        if (paths.isEmpty()) return
+        try {
+            paths.forEach { fileSystem.delete(it, mustExist = false) }
+        } finally {
+            synchronized(lock) { retired -= paths.toSet() }
+        }
     }
 
     private fun pin(id: String) { pins[id] = (pins[id] ?: 0) + 1 }
@@ -212,7 +228,7 @@ class DiskMediaBlobCache(
             return null
         }
         pins.remove(id)
-        return if (doomed.remove(id)) pathOf(key, start, len) else null
+        return if (doomed.remove(id)) retire(pathOf(key, start, len)) else null
     }
 
     // --- hot span-list cache -------------------------------------------------------------------------
@@ -305,7 +321,7 @@ class DiskMediaBlobCache(
             index.delete(row.key, row.start, row.len)
             removeSpanFromCache(row.key, row.start, row.len)
             total -= row.len
-            victims += pathOf(row.key, row.start, row.len)
+            victims += retire(pathOf(row.key, row.start, row.len))
         }
         return victims
     }
@@ -315,6 +331,8 @@ class DiskMediaBlobCache(
     // whose {writerId} is still in [activeWriters] (a live writer's temp) — not on the write path anymore.
 
     // --- writer --------------------------------------------------------------------------------------
+
+    private enum class Existing { COMMITTED, BEING_DELETED, NONE }
 
     /** A full temp block of `[start, start+len)`, not yet a span. */
     private class SealedBlock(val tmp: Path, val start: Long, val len: Long)
@@ -397,25 +415,37 @@ class DiskMediaBlobCache(
                             doomed += spanKey
                             null
                         } else {
-                            spanPath
+                            retire(spanPath)
                         }
                     }
-                    orphan?.let { fileSystem.delete(it, mustExist = false) }
+                    deleteRetired(listOfNotNull(orphan))
                     logger?.log(Logger.Level.INFO, "refill of an invalidated span not stored, a reader holds it", e)
                     return@storage
                 }
-            } else if (fileSystem.exists(spanPath)) {
-                // Identical range already committed (resume, or a concurrent equal writer beat us). Bytes are
-                // identical by the contiguity invariant — drop our temp; don't atomicMove over a file a
-                // reader may hold open. Make sure it's indexed (INSERT OR IGNORE).
-                fileSystem.delete(block.tmp, mustExist = false)
-                synchronized(lock) {
-                    index.insert(key, start, len)
-                    addSpanToCache(key, start, len)
-                }
-                return@storage
             } else {
-                fileSystem.atomicMove(block.tmp, spanPath)
+                // Decided under the lock, not by the file's presence: a purged span's file stays on disk until
+                // its deferred delete, and re-indexing it would serve the corrupt bytes, then a missing file.
+                val existing = synchronized(lock) {
+                    when {
+                        cachedSpans(key).any { it.start == start && it.len == len } -> Existing.COMMITTED
+                        spanPath in retired -> Existing.BEING_DELETED
+                        else -> Existing.NONE
+                    }
+                }
+                when (existing) {
+                    // Identical bytes by the contiguity invariant; a reader may hold that file open.
+                    Existing.COMMITTED -> {
+                        fileSystem.delete(block.tmp, mustExist = false)
+                        return@storage
+                    }
+                    Existing.BEING_DELETED -> {
+                        fileSystem.delete(block.tmp, mustExist = false)
+                        logger?.log(Logger.Level.INFO, "refill of a span being deleted not stored ($key ${start}_$len)")
+                        return@storage
+                    }
+                    // No reader can hold an unindexed, unretired file: replacing it is safe.
+                    Existing.NONE -> fileSystem.atomicMove(block.tmp, spanPath)
+                }
             }
             val victims = synchronized(lock) {
                 index.insert(key, start, len)
@@ -423,7 +453,7 @@ class DiskMediaBlobCache(
                 planEviction(0)
             }
             logger?.debug { "commit span $key ${start}_$len writer=$id" }
-            victims.forEach { fileSystem.delete(it, mustExist = false) }
+            deleteRetired(victims)
         }
 
         override fun commit() = finish(commitTail = true)
@@ -454,7 +484,7 @@ class DiskMediaBlobCache(
                         activeWriters -= id
                         planEviction(0)
                     }
-                    victims.forEach { fileSystem.delete(it, mustExist = false) }
+                    deleteRetired(victims)
                 }
             }
         }
@@ -514,7 +544,7 @@ class DiskMediaBlobCache(
             closeCurrent()
             handles.forEach { it.close() }
             val released = synchronized(lock) { chunks.mapNotNull { unpin(it.key, it.start, it.len) } }
-            released.forEach { fileSystem.delete(it, mustExist = false) }
+            deleteRetired(released)
         }
 
         /** Close the current span's source then its handle (okio handle close is idempotent, so [close]
