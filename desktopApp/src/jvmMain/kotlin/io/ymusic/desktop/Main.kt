@@ -244,10 +244,12 @@ import java.awt.Color as AwtColor
  */
 private val logStore = LogStore(jvmLogDatabaseDriver(File(ymusicDataDir().apply { mkdirs() }, "logs.db").path))
 
-// File + Sentry (no-op when Sentry wasn't initialized) teed with stdout.
+// The app log + Sentry events (no-op when Sentry wasn't initialized), and stdout in debug builds only.
 private val rootLogger: Logger =
-    TeeLogger(DbLogger(logStore), TeeLogger(SentryLogger(), StdoutLogger()))
-        .also { it.bindMseNativeLogs() }
+    TeeLogger(
+        DbLogger(logStore),
+        if (DEBUG_BUILD) TeeLogger(SentryLogger(), StdoutLogger()) else SentryLogger(),
+    ).also { it.bindMseNativeLogs() }
 
 private val LOG_FLUSH_TIMEOUT = 3.seconds
 
