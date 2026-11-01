@@ -18,6 +18,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.launch
 import kotlin.concurrent.Volatile
 
@@ -59,7 +60,9 @@ internal class ErrorLogShipper(
 
     init {
         scope.launch {
-            for (signal in wake) sendPending()
+            wake.consumeEach {
+                sendPending()
+            }
         }
     }
 
