@@ -3,6 +3,9 @@ package io.ymusic.telemetry
 import io.sentry.PropagationContext
 import io.sentry.Sentry
 import io.sentry.SentryAttributeType
+import io.sentry.SentryEnvelope
+import io.sentry.SentryEnvelopeHeader
+import io.sentry.SentryEnvelopeItem
 import io.sentry.SentryEvent
 import io.sentry.SentryLevel
 import io.sentry.SentryLogEvent
@@ -10,16 +13,22 @@ import io.sentry.SentryLogEventAttributeValue
 import io.sentry.SentryLogEvents
 import io.sentry.SentryLogLevel
 import io.sentry.SpanId
+import io.sentry.hints.Cached
+import io.sentry.hints.SubmissionResult
 import io.sentry.protocol.SentryId
+import io.sentry.util.HintUtils
 import io.ymusic.logstore.LogStore
 import io.ymusic.remoteconfig.RemoteConfig
 import kmpcommon.log.Logger
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.consumeEach
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.concurrent.Volatile
 
 /**
@@ -57,6 +66,7 @@ internal class ErrorLogShipper(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val versionCode = SentryLogEventAttributeValue(SentryAttributeType.INTEGER, appVersionCode)
     private val wake = Channel<Unit>(Channel.CONFLATED)
+    private var retryDelayMs = RETRY_MIN_MS
 
     init {
         scope.launch {
@@ -93,26 +103,63 @@ internal class ErrorLogShipper(
     }
 
     /**
-     * Hands pending lines to Sentry a batch at a time, each batch marked sent once Sentry has it. The cursor
-     * lives for one pass: a claim behind it (an earlier run's lines) wakes the next pass, which starts over.
+     * Hands pending lines to Sentry a batch at a time, each batch marked sent once the transport delivered it.
+     * A batch that isn't delivered (a 429, a rate limit, no network) stays pending, ends the pass and schedules
+     * a retry with backoff. The cursor lives for one pass: a claim behind it (an earlier run's lines) wakes the
+     * next pass, which starts over.
      */
     private suspend fun sendPending() {
         try {
             val client = Sentry.getCurrentScopes().globalScope.client
+            val serializer = Sentry.getCurrentScopes().options.serializer
+            val sdkVersion = Sentry.getCurrentScopes().options.sdkVersion
             var afterSeq = 0L
             while (true) {
-                val batch = store.pending(BATCH, afterSeq).ifEmpty { return }
+                val batch = store.pending(BATCH, afterSeq).ifEmpty { break }
                 val lines = batch.map { record ->
                     SentryLogEvent(SentryId(record.launch), record.epochMs / 1000.0, record.message, record.level.toSentry())
                         .apply { attributes = hashMapOf(VERSION_CODE to versionCode) }
                 }
-                client.captureBatchedLogEvents(SentryLogEvents(lines))
+                val envelope = SentryEnvelope(
+                    SentryEnvelopeHeader(null, sdkVersion, null),
+                    listOf(SentryEnvelopeItem.fromLogs(serializer, SentryLogEvents(lines))),
+                )
+                val delivery = Delivery()
+                client.captureEnvelope(envelope, HintUtils.createWithTypeCheckHint(delivery))
+                if (withTimeoutOrNull(DELIVERY_TIMEOUT_MS) { delivery.result.await() } != true) {
+                    scheduleRetry()
+                    return
+                }
                 store.markSent(batch.map { it.seq })
                 afterSeq = batch.last().seq
             }
+            retryDelayMs = RETRY_MIN_MS
         } catch (e: Exception) {
             log("pending log lines not sent", e)
         }
+    }
+
+    private fun scheduleRetry() {
+        val delayMs = retryDelayMs
+        retryDelayMs = (delayMs * 2).coerceAtMost(RETRY_MAX_MS)
+        scope.launch {
+            delay(delayMs)
+            wake.trySend(Unit)
+        }
+    }
+
+    /**
+     * The transport's verdict on one envelope. [Cached] keeps the SDK from storing it on disk and resending
+     * it on its own: an undelivered batch is retried from the log, and a second copy would duplicate it.
+     */
+    private class Delivery : SubmissionResult, Cached {
+        val result = CompletableDeferred<Boolean>()
+
+        override fun setResult(success: Boolean) {
+            result.complete(success)
+        }
+
+        override fun isSuccess(): Boolean = result.isCompleted && result.getCompleted()
     }
 
     private fun log(message: String, error: Throwable?) {
@@ -129,6 +176,9 @@ internal class ErrorLogShipper(
     private companion object {
         const val MAX_LINES = 10_000
         const val BATCH = 100
+        const val DELIVERY_TIMEOUT_MS = 60_000L
+        const val RETRY_MIN_MS = 60_000L
+        const val RETRY_MAX_MS = 30 * 60_000L
         const val VERSION_CODE = "app.version_code"
     }
 }
