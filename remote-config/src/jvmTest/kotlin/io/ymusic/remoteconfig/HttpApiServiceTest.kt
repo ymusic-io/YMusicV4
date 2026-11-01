@@ -104,8 +104,8 @@ class HttpApiServiceTest {
     fun a_success_is_parsed_and_stamped_with_the_clock() = runTest {
         val data = service(FakeHttp()).getConfig()
 
-        assertEquals(7, data.variableA)
-        assertTrue(data.featureX)
+        assertEquals(7, data.features.variableA)
+        assertTrue(data.features.featureX)
         assertEquals(123L, data.playerJs?.version)
         assertEquals(11L, data.engineJs?.version)
         assertEquals("https://x/y.msi", data.appUpdate?.url)
@@ -216,8 +216,8 @@ class HttpApiServiceTest {
     fun missing_fields_fall_back_to_defaults() = runTest {
         val data = service(FakeHttp(body = "{}")).getConfig()
 
-        assertEquals(0, data.variableA)
-        assertFalse(data.featureX)
+        assertEquals(0, data.features.variableA)
+        assertFalse(data.features.featureX)
         assertNull(data.appUpdate)
         assertNull(data.playerJs)
     }
@@ -226,7 +226,7 @@ class HttpApiServiceTest {
     fun unknown_fields_are_ignored_so_the_service_can_add_one() = runTest {
         val body = """{"features":{"variableA":1,"featureZ":true},"somethingNew":{"a":[1,2]}}"""
 
-        assertEquals(1, service(FakeHttp(body = body)).getConfig().variableA)
+        assertEquals(1, service(FakeHttp(body = body)).getConfig().features.variableA)
     }
 
     @Test

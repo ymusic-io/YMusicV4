@@ -16,8 +16,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 private val SERVER = RemoteConfigData(
-    variableA = 7,
-    featureX = true,
+    features = Features(variableA = 7, featureX = true),
     appUpdate = AppUpdate(1300, "4.1.0", "notes", "https://x/y.msi", 12, "ab", "sig-app"),
     playerJs = BundleVersion(version = 123, url = "https://x/player.js", signature = "sig-player"),
     engineJs = BundleVersion(version = 11, url = "https://x/engine.js", signature = "sig-engine"),
@@ -86,8 +85,8 @@ class RemoteConfigTest {
 
         val data = settle(rc)
 
-        assertEquals(7, data.variableA)
-        assertEquals(true, data.featureX)
+        assertEquals(7, data.features.variableA)
+        assertEquals(true, data.features.featureX)
         assertEquals(123L, data.playerJs?.version)
         assertEquals(11L, data.engineJs?.version)
         assertEquals("https://x/y.msi", data.appUpdate?.url)
@@ -128,7 +127,7 @@ class RemoteConfigTest {
         val nextApi = api()
         val data = settle(config(nextApi, this, fs, cachePath))
 
-        assertEquals(7, data.variableA)
+        assertEquals(7, data.features.variableA)
         assertEquals(123L, data.playerJs?.version)
         assertEquals("https://x/y.msi", data.appUpdate?.url)
         assertEquals(clock, data.updatedAt, "the age survives the restart, so a launch need not refetch")
@@ -145,7 +144,7 @@ class RemoteConfigTest {
         val api = api()
         val data = settle(config(api, this, fs, cachePath))
 
-        assertEquals(7, data.variableA)
+        assertEquals(7, data.features.variableA)
         assertEquals(1, api.calls)
     }
 
@@ -167,7 +166,7 @@ class RemoteConfigTest {
 
         assertEquals(
             7,
-            settle(rc).variableA,
+            settle(rc).features.variableA,
             "an outage must not change how the app behaves",
         )
     }
@@ -181,7 +180,7 @@ class RemoteConfigTest {
         api.failWith = HttpStatusException(500)
         clock += REMOTE_CONFIG_MIN_INTERVAL_MS + 1
 
-        assertEquals(7, settle(rc).variableA)
+        assertEquals(7, settle(rc).features.variableA)
     }
 
     @Test

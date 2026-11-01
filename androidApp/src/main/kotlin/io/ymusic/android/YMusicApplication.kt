@@ -356,7 +356,7 @@ class YMusicApplication : Application() {
         appScope.launch {
             // The cap waits for the loaded config: the store trims nothing until it has one.
             remoteConfig.awaitLoaded()
-            remoteConfig.config.collect { logStore.setMaxLines(it.logLines) }
+            remoteConfig.config.collect { logStore.setMaxLines(it.features.logLines) }
         }
         // Anonymous usage stats — held by SharedServices so the graph (and any screen) can
         // record events. The "Send anonymous stats" answer is read per event, so the Settings
@@ -465,7 +465,7 @@ class YMusicApplication : Application() {
             autoDownloadFailed = { settings.flow(AppSettings.updateAutoDownloadFailed).value },
             rememberAutoDownloadFailed = { settings.put(AppSettings.updateAutoDownloadFailed, it) },
             freshConfig = { remoteConfig.awaitFresh(timeoutMs = 3_000L) },
-            downloadSite = { remoteConfig.config.value.downloadPageUrl },
+            downloadSite = { remoteConfig.config.value.features.downloadPageUrl },
             configUpdates = remoteConfig.config.map { it.appUpdate },
         )
         updates.pruneDownloads()
@@ -688,7 +688,7 @@ class YMusicApplication : Application() {
             premium = premium,
             openDonation = {
                 resumedActivity?.get()?.let { activity ->
-                    SupportApp.openDonation(activity, shared.remoteConfig.config.value.donationUrl, rootLogger)
+                    SupportApp.openDonation(activity, shared.remoteConfig.config.value.features.donationUrl, rootLogger)
                 }
             },
             shareText = { text ->

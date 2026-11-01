@@ -78,8 +78,8 @@ internal class ErrorLogShipper(
         val launch = event.contexts.trace?.traceId?.toString() ?: return
         val eventId = event.eventId.toString()
         // A crashing process may not live until the config loads: it takes the config in memory.
-        val crashLimit = if (event.isCrashed) remoteConfig.config.value.errorLogLines else null
-        scope.launch { claim(launch, eventId, crashLimit ?: remoteConfig.awaitLoaded().errorLogLines) }
+        val crashLimit = if (event.isCrashed) remoteConfig.config.value.features.errorLogLines else null
+        scope.launch { claim(launch, eventId, crashLimit ?: remoteConfig.awaitLoaded().features.errorLogLines) }
     }
 
     private suspend fun claim(launch: String, eventId: String, limit: Int) {
