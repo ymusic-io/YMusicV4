@@ -312,6 +312,9 @@ compose.desktop {
             "-Xmx256m",
             "-XX:ReservedCodeCacheSize=64m",
             "-Dskiko.gpu.resourceCacheLimit=64M",
+            // POSIX_SPAWN execs the runtime's jspawnhelper, which an update replaces under the running
+            // JVM; it then refuses every launch, the relaunch included. Windows ignores the property.
+            "-Djdk.lang.Process.launchMechanism=FORK",
         )
         // Release packaging (packageReleaseDmg etc.) runs ProGuard SHRINK-ONLY: no obfuscation, no
         // optimization — dead-code removal is the point (material-icons-extended alone is 37MB of
