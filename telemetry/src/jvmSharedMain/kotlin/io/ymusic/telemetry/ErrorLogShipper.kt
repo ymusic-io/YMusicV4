@@ -43,8 +43,8 @@ internal var errorLogShipper: ErrorLogShipper? = null
 
 /**
  * Sentry's trace for this app open is the app log's id for it ([onSentryStarted]), so an event
- * and its run's lines share one trace. An event claims the newest unsent INFO+ lines of the launch
- * its trace id names (Sentry restores the dead run's trace on an ANR or native crash the next
+ * and its run's lines share one trace. An event claims the unsent lines among the newest INFO+ lines of
+ * the launch its trace id names (Sentry restores the dead run's trace on an ANR or native crash the next
  * process reports); one worker sends every pending line, each as a Sentry Log with only body, level,
  * timestamp, its trace id and `app.version_code`. Lines a dying process claimed go out on the next start.
  */

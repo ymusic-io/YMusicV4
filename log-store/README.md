@@ -11,8 +11,9 @@ The app log: every line from every layer in one SQLite table (`logs.db`), writte
   (stack trace appended for an error). `setMaxLines(n)` caps it: once the table is 10% over `n`, the oldest
   go down to `n`. The shells set it from remote config `telemetry.logLines` (default 5 000)
   after the config has loaded; until then nothing is trimmed.
-- **Error events** — `claimUnsent(launch, limit, minLevel)` marks that launch's newest unsent lines pending
-  and skips its older unsent ones, in one transaction, so a line is never sent twice; `pending(limit)` lists
+- **Error events** — `claimUnsent(launch, limit, minLevel)` marks the unsent lines among that launch's
+  newest `limit` pending, in one transaction, so a line is never sent twice and a claim never reaches back
+  past lines an earlier one took; `pending(limit)` lists
   claimed lines of every launch until `markSent` settles them. `:telemetry`'s `installErrorLogs` claims, for
   each Sentry error event, the lines of the launch whose trace id the event carries, and a worker sends
   whatever is pending.
