@@ -31,9 +31,6 @@ import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
-/** The app log's line cap when the remote config does not set one. */
-const val DEFAULT_LOG_LINES = 5_000
-
 /** One stored log line; [launch] identifies the app open that wrote it. */
 data class LogRecord(
     val seq: Long,

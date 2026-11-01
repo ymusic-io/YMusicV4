@@ -141,10 +141,10 @@ data class RemoteConfigData(
     val appUpdate: AppUpdate? = null,
     val engineJs: BundleVersion? = null,
     val playerJs: BundleVersion? = null,
-    /** How many of the newest log lines an error event sends along; null = the app's default, 0 = none. */
-    val errorLogLines: Int? = null,
-    /** How many lines the app log keeps (trimmed once 10% over); null = the app's default. */
-    val logLines: Int? = null,
+    /** How many of the newest log lines an error event sends along; 0 = none. */
+    val errorLogLines: Int = 500,
+    /** How many lines the app log keeps (trimmed once 10% over). */
+    val logLines: Int = 5_000,
     // client populated timestamp at time data parsed from server
     val updatedAt: Long,
 ) {
@@ -196,8 +196,8 @@ data class RemoteConfigData(
                 appUpdate = root.objectOrNull(KEY_APP_UPDATE)?.let(AppUpdate::from),
                 engineJs = root.objectOrNull(KEY_ENGINE_JS)?.let(BundleVersion::from),
                 playerJs = root.objectOrNull(KEY_PLAYER_JS)?.let(BundleVersion::from),
-                errorLogLines = root.objectOrNull(KEY_TELEMETRY)?.intOrNull(KEY_ERROR_LOG_LINES),
-                logLines = root.objectOrNull(KEY_TELEMETRY)?.intOrNull(KEY_LOG_LINES),
+                errorLogLines = root.objectOrNull(KEY_TELEMETRY)?.intOrNull(KEY_ERROR_LOG_LINES) ?: DEFAULTS.errorLogLines,
+                logLines = root.objectOrNull(KEY_TELEMETRY)?.intOrNull(KEY_LOG_LINES) ?: DEFAULTS.logLines,
                 updatedAt = root.longOrNull(KEY_UPDATED_AT) ?: now(),
             )
         }
@@ -220,12 +220,10 @@ data class RemoteConfigData(
             data.appUpdate?.let { name(KEY_APP_UPDATE).value(it) }
             data.engineJs?.let { name(KEY_ENGINE_JS).value(it) }
             data.playerJs?.let { name(KEY_PLAYER_JS).value(it) }
-            if (data.errorLogLines != null || data.logLines != null) {
-                name(KEY_TELEMETRY).beginObject()
-                data.errorLogLines?.let { name(KEY_ERROR_LOG_LINES).value(it) }
-                data.logLines?.let { name(KEY_LOG_LINES).value(it) }
-                endObject()
-            }
+            name(KEY_TELEMETRY).beginObject()
+            name(KEY_ERROR_LOG_LINES).value(data.errorLogLines)
+            name(KEY_LOG_LINES).value(data.logLines)
+            endObject()
             // Persisted so a restart knows how old this is, rather than refetching on every launch.
             name(KEY_UPDATED_AT).value(data.updatedAt)
             endObject()
