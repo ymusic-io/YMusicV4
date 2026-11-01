@@ -105,6 +105,9 @@ import io.ymusic.imageloader.ImageSourceCache
 import io.ymusic.imageloader.defaultMemoryCacheBudget
 import io.ymusic.imageloader.fileFetcher
 import io.ymusic.imageloader.networkFetcher
+import io.ymusic.logstore.DbLogger
+import io.ymusic.logstore.LogStore
+import io.ymusic.logstore.jvmLogDatabaseDriver
 import io.ymusic.mediascanner.FfmpegMetadataExtractor
 import io.ymusic.mediascanner.FileSystemDocumentsProvider
 import io.ymusic.mediascanner.MediaScanner
@@ -132,11 +135,11 @@ import io.ymusic.telemetry.SentryLogger
 import io.ymusic.telemetry.applyYMusicTelemetry
 import io.ymusic.telemetry.bindCrashReporting
 import io.ymusic.telemetry.captureFeedbackReport
+import io.ymusic.telemetry.installErrorLogs
 import io.ymusic.telemetry.installSentryDeviceId
 import io.ymusic.telemetry.installSentryEngineVersion
 import io.ymusic.telemetry.installSentryPlayerVersion
 import io.ymusic.telemetry.sendFeedbackMessage
-import io.ymusic.telemetry.setErrorLogLines
 import io.ymusic.ui.APP_HTTP_TIMEOUT
 import io.ymusic.ui.ActionIcon
 import io.ymusic.ui.App
@@ -209,8 +212,6 @@ import okio.Path.Companion.toPath
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
-import projectcommon.log.FileLogger
-import projectcommon.log.LoggingWorker
 import java.awt.BorderLayout
 import java.awt.Canvas
 import java.awt.Desktop
@@ -241,18 +242,18 @@ import java.awt.Color as AwtColor
  * The desktop shell: boots the scraping engine, assembles the [AppGraph] (player facade over ffmpeg
  * local + MSE YouTube playback), and runs the shared [App].
  */
-private val logWorker = LoggingWorker(File(ymusicDataDir(), "logs").absolutePath.toPath())
+private val logStore = LogStore(jvmLogDatabaseDriver(File(ymusicDataDir().apply { mkdirs() }, "logs.db").path))
 
 // File + Sentry (no-op when Sentry wasn't initialized) teed with stdout.
 private val rootLogger: Logger =
-    TeeLogger(FileLogger(logWorker), TeeLogger(SentryLogger(), StdoutLogger()))
+    TeeLogger(DbLogger(logStore), TeeLogger(SentryLogger(), StdoutLogger()))
         .also { it.bindMseNativeLogs() }
 
 private val LOG_FLUSH_TIMEOUT = 3.seconds
 
 /** An exit that skips the application's quit still writes the log: the worker's threads are daemons. */
 private fun flushLogBeforeExit() {
-    kotlinx.coroutines.runBlocking { withTimeoutOrNull(LOG_FLUSH_TIMEOUT) { logWorker.flush() } }
+    kotlinx.coroutines.runBlocking { withTimeoutOrNull(LOG_FLUSH_TIMEOUT) { logStore.flush() } }
 }
 
 // Long enough for the recorders to write what clearing the queue triggers (watch time, the Play again play-head).
@@ -275,6 +276,8 @@ private var mainWindow: Frame? = null
 
 fun main(args: Array<String>) {
     defaultLinuxSoftwareRendering()
+    // The log moved to logs.db: the text log files of older builds go.
+    File(ymusicDataDir(), "logs").listFiles { file -> file.name.startsWith("ymusic.log") }?.forEach { it.delete() }
     val instance = if (isWindows) {
         val command = InstanceCommand.of(args.toList())
         val log = rootLogger.fork("instance")
@@ -332,7 +335,7 @@ fun main(args: Array<String>) {
             consent = settings.flow(AppSettings.crashReports),
         ) {
             Sentry.initWithPlatformOptions {
-                it.applyYMusicTelemetry(File(ymusicDataDir(), "sentry-log-ring"), APP_VERSION_CODE)
+                it.applyYMusicTelemetry()
                 it.dsn = SENTRY_DSN
                 // The commit in the release traces an event to git history (no source upload).
                 it.release = SENTRY_RELEASE
@@ -404,7 +407,7 @@ fun main(args: Array<String>) {
                     }
                 }
                 videoUnderlay.dispose()
-                withTimeoutOrNull(LOG_FLUSH_TIMEOUT) { logWorker.flush() }
+                withTimeoutOrNull(LOG_FLUSH_TIMEOUT) { logStore.flush() }
                 try {
                     instance?.release()
                 } catch (e: java.io.IOException) {
@@ -798,7 +801,7 @@ private suspend fun buildGraph(settings: AppStoreSettings, session: CookieSessio
         now = { System.currentTimeMillis() },
         log = rootLogger.fork("remote-config"),
     ).also { it.checkUpdate() } // app open is itself a hotpoint
-    backgroundScope.launch { remoteConfig.config.collect { setErrorLogLines(it.errorLogLines) } }
+    installErrorLogs(logStore, remoteConfig, APP_VERSION_CODE)
     // Anonymous usage stats — held by the graph so any screen can record events. The "Send
     // anonymous stats" answer is read per event, so the Settings switch applies live, and a
     // disabled gate costs nothing.
@@ -1539,13 +1542,15 @@ private fun saveWindowPrefs(size: DpSize, position: WindowPosition) {
 /** Sends the app logs as one anonymous Sentry report for the Feedback screen; returns its event id. */
 private val captureFeedbackReportAction: suspend () -> String? = {
     withContext(Dispatchers.IO) {
-        runCatching { logWorker.flush() }
-            .onFailure { rootLogger.fork("feedback").log(Logger.Level.WARN, "log flush before feedback failed", it) }
-        captureFeedbackReport(
-            logWorker.filePaths().map { path ->
-                io.sentry.kotlin.multiplatform.Attachment(path, path.substringAfterLast('/').substringAfterLast('\\'), "text/plain")
-            },
-        )
+        val export = File(System.getProperty("java.io.tmpdir"), FEEDBACK_LOG_NAME)
+        val attachments = try {
+            logStore.exportGzip(FileSystem.SYSTEM, export.absolutePath.toPath())
+            listOf(io.sentry.kotlin.multiplatform.Attachment(export.absolutePath, FEEDBACK_LOG_NAME, "application/gzip"))
+        } catch (e: java.io.IOException) {
+            rootLogger.fork("feedback").log(Logger.Level.WARN, "log export for feedback failed", e)
+            emptyList()
+        }
+        captureFeedbackReport(attachments)
     }
 }
 
@@ -1785,3 +1790,5 @@ private fun Booting(content: @Composable () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
     ) { content() }
 }
+
+private const val FEEDBACK_LOG_NAME = "ymusic-log.txt.gz"

@@ -262,6 +262,7 @@ kotlin {
                 implementation(Libs.NavigationEvent.compose) // Esc as a back event, after popups'
                 implementation(Libs.SqlDelight.sqliteDriver) // AppStore
                 implementation(project(":telemetry")) // api: sentry-kotlin-multiplatform + SentryLogger
+                implementation(project(":log-store")) // the app log (logs.db)
                 implementation(project(":kmpHttp:core"))
                 implementation(project(":projectCommon"))
                 implementation(project(":quickjs")) // QuickJsRuntime.hostVersions

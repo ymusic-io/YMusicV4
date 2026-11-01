@@ -1,7 +1,5 @@
 package io.ymusic.telemetry
 
-import io.sentry.kotlin.multiplatform.Sentry
-import io.sentry.kotlin.multiplatform.log.SentryLogLevel
 import kmpcommon.log.Crumb
 import kmpcommon.log.CrumbLogger
 import kmpcommon.log.Logger
@@ -12,10 +10,10 @@ import projectcommon.error.codedError
 import projectcommon.log.trailMark
 
 /**
- * The app's root [Logger] over Sentry: an INFO+ [log] is a Sentry Log (the message only; the trail
- * and its props ride on the error event, not on every line), every [captureError] a Sentry event
- * (the ignored categories excepted: an INFO log) whose grouping comes from the coded error — else
- * exception type + tag path — applied by [applyYMusicTelemetry]'s `beforeSend` off the tags set here.
+ * The app's root [Logger] over Sentry: every [captureError] a Sentry event (the ignored categories
+ * excepted) whose grouping comes from the coded error — else exception type + tag path — applied by
+ * [applyYMusicTelemetry]'s `beforeSend` off the tags set here. Lines are not sent from here: the app
+ * log (`:log-store`) keeps them, and an error event takes the newest along ([installErrorLogs]).
  */
 class SentryLogger private constructor(crumbs: List<Crumb>) : CrumbLogger(crumbs) {
 
@@ -23,41 +21,15 @@ class SentryLogger private constructor(crumbs: List<Crumb>) : CrumbLogger(crumbs
 
     override fun fork(crumbs: List<Crumb>): CrumbLogger = SentryLogger(crumbs)
 
-    override fun log(level: Logger.Level, message: String, error: Throwable?) {
-        // DEBUG stays in the local log file, which ships only with a user's feedback report.
-        if (level == Logger.Level.DEBUG) return
-        sendLog(level, message, error)
-    }
-
-    private fun sendLog(level: Logger.Level, message: String, error: Throwable?) {
-        val body = buildString {
-            append(message)
-            if (error != null) {
-                append("\nError: ")
-                append(error.stackTraceToString().take(STACK_CAP))
-            }
-        }
-        Sentry.logger.log(level.toSentryLogLevel()) { message(body) }
-    }
+    override fun log(level: Logger.Level, message: String, error: Throwable?) = Unit
 
     override fun captureError(error: Throwable, message: String?, prop: Map<String, Any>?) {
         // The deepest trail stamped in flight (Throwable.markTrail), else this catch site's.
         val trail = error.trailMark() ?: crumbs
         val trailPath = trail.joinToString("/") { it.tag }
         val coded = error.codedError()
-        if (isIgnored(error, coded)) {
-            val text = message ?: error.message ?: error.toString()
-            sendLog(Logger.Level.INFO, text, error)
-            return
-        }
+        if (isIgnored(error, coded)) return
         captureTrailedError(error, trail, trailPath, coded?.code, message, prop)
-    }
-
-    private fun Logger.Level.toSentryLogLevel(): SentryLogLevel = when (this) {
-        Logger.Level.DEBUG -> SentryLogLevel.DEBUG
-        Logger.Level.INFO -> SentryLogLevel.INFO
-        Logger.Level.WARN -> SentryLogLevel.WARN
-        Logger.Level.ERROR -> SentryLogLevel.ERROR
     }
 
     internal companion object {
@@ -78,8 +50,6 @@ class SentryLogger private constructor(crumbs: List<Crumb>) : CrumbLogger(crumbs
             }
             return false
         }
-
-        private const val STACK_CAP = 2000
     }
 }
 

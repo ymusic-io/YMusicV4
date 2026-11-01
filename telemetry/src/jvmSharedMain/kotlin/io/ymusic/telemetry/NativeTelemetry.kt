@@ -3,14 +3,10 @@ package io.ymusic.telemetry
 import io.sentry.Attachment
 import io.sentry.Breadcrumb
 import io.sentry.Sentry
-import io.sentry.SentryAttributeType
 import io.sentry.SentryEvent
-import io.sentry.SentryLogEvent
-import io.sentry.SentryLogEventAttributeValue
 import io.sentry.SentryOptions
 import kmpcommon.log.Crumb
 import projectcommon.log.FileAttachment
-import java.io.File
 import java.util.Date
 
 /**
@@ -18,11 +14,9 @@ import java.util.Date
  * block. Native options, not the KMP ones: a KMP `beforeSend` round-trips each event through KMP
  * types and rebuilds every breadcrumb, which re-stamps them all with the send time. No PII
  * scrubbing: sensitive values (cookie values, SAPISIDHASH) are never put into log lines at the
- * source — names only.
+ * source — names only. Log lines reach Sentry only with an error event ([installErrorLogs]).
  */
-/** [logRingDir] holds the Sentry Logs lines between errors ([ErrorLogRing]); the app owns the dir.
- *  [appVersionCode] goes on every log line. */
-fun SentryOptions.applyYMusicTelemetry(logRingDir: File, appVersionCode: Int) {
+fun SentryOptions.applyYMusicTelemetry() {
     // The KMP options default this on; keep it now that they no longer apply.
     isAttachThreads = true
     maxBreadcrumbs = 200
@@ -35,43 +29,21 @@ fun SentryOptions.applyYMusicTelemetry(logRingDir: File, appVersionCode: Int) {
         when {
             feedback -> fingerprintPolicy(event).also(::sortBreadcrumbs)
             !crashReportingAllowed -> null
-            else -> fingerprintPolicy(event).also(::sortBreadcrumbs).also { sendLogLinesFor(it) }
+            else -> {
+                val previousRun = event.exceptions.orEmpty().any { it.type in NEXT_PROCESS_REPORTS }
+                errorLogShipper?.attach(event, previousRun)
+                fingerprintPolicy(event).also(::sortBreadcrumbs)
+            }
         }
     }
-    // Sentry Logs are OFF by default — without this every Sentry.logger call is dropped. A log is
-    // NOT an event: it has its own pipeline and its own beforeSend, so the consent lock repeats.
-    // Lines are held in the ring and leave only with an error event (see sendLogLinesFor).
+    // The log lines an error event takes go to the client directly; a Sentry Log only needs the
+    // pipeline enabled.
     logs.isEnabled = true
-    val versionCode = SentryLogEventAttributeValue(SentryAttributeType.INTEGER, appVersionCode)
-    logs.setBeforeSend { log -> if (crashReportingAllowed) log.compact(versionCode) else null }
-    logs.loggerBatchProcessorFactory = errorLogRingFactory(logRingDir)
     // Sessions are the one outbound thing WITHOUT a consent hook, so the option itself is the
     // gate: bindCrashReporting sets the flag from the stored answer BEFORE first init, so this
     // reads the real consent. Decided per launch — a mid-session change applies from the next
     // start, which suits a launch-scoped concept.
     isEnableAutoSessionTracking = crashReportingAllowed
-}
-
-/**
- * A log line keeps its body, level, timestamp, trace id (the link to its error event) and the app
- * version code; the SDK's per-line attributes (release, sdk, device, server.address…), span id and
- * severity number go.
- */
-private fun SentryLogEvent.compact(versionCode: SentryLogEventAttributeValue): SentryLogEvent = apply {
-    attributes = hashMapOf(VERSION_CODE_ATTRIBUTE to versionCode)
-    spanId = null
-    severityNumber = null
-}
-
-private const val VERSION_CODE_ATTRIBUTE = "app.version_code"
-
-/**
- * The event takes the newest log lines not sent before. A crash waits for them: its process is about
- * to end. A report the next process makes (ANR, native crash) finds the previous run's lines on disk.
- */
-private fun sendLogLinesFor(event: SentryEvent) {
-    val ring = errorLogRing ?: return
-    ring.sendFor(event.eventId.toString(), sync = event.isCrashed)
 }
 
 /** The trail rides in last but happened first: order the event's crumbs by time. */
