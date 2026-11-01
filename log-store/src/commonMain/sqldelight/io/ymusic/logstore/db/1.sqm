@@ -1,0 +1,4 @@
+-- Per-line send state replaces the single "sent up to" mark: lines at or below the mark were sent.
+ALTER TABLE log_line ADD COLUMN state INTEGER NOT NULL DEFAULT 0;
+UPDATE log_line SET state = 2 WHERE seq <= (SELECT seq FROM sent_mark WHERE id = 0);
+DROP TABLE sent_mark;

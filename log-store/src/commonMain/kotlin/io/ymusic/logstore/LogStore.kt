@@ -101,18 +101,27 @@ class LogStore(
     }
 
     /**
-     * The newest lines at [minLevel] or above that no earlier claim returned, at most [limit], oldest
-     * first. The sent mark moves past every line stored so far in the same transaction — lines older
-     * than the [limit] newest are skipped for good — so no line is returned twice.
+     * The newest unsent lines at [minLevel] or above, at most [limit], oldest first, now pending: they
+     * stay pending until [markSent], so a send that never completes is retried from [pending]. Every
+     * older unsent line is skipped in the same transaction, so a later claim never reaches back past it.
      */
     suspend fun claimUnsent(limit: Int, minLevel: Logger.Level): List<LogRecord> = onWorker {
         queries.transactionWithResult {
-            val mark = queries.sentMark().executeAsOneOrNull() ?: -1L
-            val rows = queries.newestUnsent(mark, minLevel.ordinal.toLong(), limit.toLong()).executeAsList()
-            val newest = queries.maxSeq().executeAsOne().seq ?: -1L
-            if (newest > mark) queries.setSentMark(newest)
+            val rows = queries.newestUnsent(minLevel.ordinal.toLong(), limit.toLong()).executeAsList()
+            if (rows.isNotEmpty()) queries.markPending(rows.map { it.seq })
+            queries.maxSeq().executeAsOne().seq?.let { queries.skipUnsentThrough(it) }
             rows.asReversed().map { it.toRecord() }
         }
+    }
+
+    /** Lines an earlier app open claimed ([claimUnsent]) that never reached [markSent], oldest first. */
+    suspend fun pendingFromEarlierRuns(limit: Int): List<LogRecord> = onWorker {
+        queries.pendingBefore(launch, limit.toLong()).executeAsList().map { it.toRecord() }
+    }
+
+    /** These lines reached Sentry; they are never returned again. */
+    suspend fun markSent(seqs: List<Long>): Unit = onWorker {
+        if (seqs.isNotEmpty()) queries.markSent(seqs)
     }
 
     /** Returns once every line queued before the call is written. */
