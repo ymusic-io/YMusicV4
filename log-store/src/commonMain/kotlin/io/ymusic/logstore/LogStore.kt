@@ -93,16 +93,15 @@ class LogStore(
     }
 
     /**
-     * [launch]'s newest unsent lines at [minLevel] or above, at most [limit], oldest first, now pending:
-     * they stay [pending] until [markSent]. The launch's other unsent lines are skipped in the same
-     * transaction, so a later claim never reaches back past them.
+     * The unsent lines among [launch]'s newest [limit] at [minLevel] or above, oldest first, now pending:
+     * they stay [pending] until [markSent]. Lines an earlier claim took fill part of that window, so a
+     * claim never reaches back past them.
      */
     suspend fun claimUnsent(launch: String, limit: Int, minLevel: Logger.Level): List<LogRecord> = onDb {
         queries.transactionWithResult {
-            val rows = queries.newestUnsent(launch, minLevel.ordinal.toLong(), limit.toLong()).executeAsList()
+            val rows = queries.unsentOfNewest(launch, minLevel.ordinal.toLong(), limit.toLong()).executeAsList()
             if (rows.isNotEmpty()) queries.markPending(rows.map { it.seq })
-            queries.skipUnsentOf(launch)
-            rows.asReversed().map { it.toRecord() }
+            rows.map { it.toRecord() }
         }
     }
 
