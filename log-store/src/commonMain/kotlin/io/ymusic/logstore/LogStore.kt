@@ -64,15 +64,19 @@ class LogStore(
     private var maxLines = 0L
     private var rowCount = -1L
 
+    /** Batches lost to a failed write since the last one that succeeded, and the newest cause. */
+    private var lostBatches = 0
+    private var lostCause = ""
+
     init {
         scope.launch {
             while (true) {
                 select {
                     commands.onReceive { command ->
-                        drainLines()
+                        writeOrDrop { drainLines() }
                         command()
                     }
-                    lines.onReceive { line -> writeBatch(line) }
+                    lines.onReceive { line -> writeOrDrop { writeBatch(line) } }
                 }
             }
         }
@@ -158,6 +162,21 @@ class LogStore(
         return result.await()
     }
 
+    /**
+     * The log can't log its own failure, and a throw here would end the worker for good (every later
+     * query then waits forever) or kill the process: a batch that fails to write (full disk, a database
+     * that won't open) is dropped, and the next batch that does write records how many were lost.
+     */
+    private fun writeOrDrop(write: () -> Unit) {
+        try {
+            write()
+        } catch (e: Throwable) {
+            lostBatches++
+            lostCause = e.toString().take(STACK_CAP)
+            rowCount = -1
+        }
+    }
+
     private fun drainLines() {
         while (true) writeBatch(lines.tryReceive().getOrNull() ?: return)
     }
@@ -165,6 +184,10 @@ class LogStore(
     /** [first] and every line queued behind it (up to a batch), in one transaction. */
     private fun writeBatch(first: Line) {
         queries.transaction {
+            if (lostBatches > 0) {
+                val note = "log store lost $lostBatches batch(es) of lines: $lostCause"
+                queries.insertLine(first.epochMs, Logger.Level.WARN.ordinal.toLong(), launch, "log-store", note)
+            }
             var line: Line? = first
             var count = 0
             while (line != null) {
@@ -180,6 +203,7 @@ class LogStore(
                 rowCount = queries.countLines().executeAsOne()
             }
         }
+        lostBatches = 0
     }
 
     private class Line(val epochMs: Long, val level: Logger.Level, val trail: String, val message: String)
