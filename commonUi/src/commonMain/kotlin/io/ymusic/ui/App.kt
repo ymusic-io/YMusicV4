@@ -151,6 +151,7 @@ import io.ymusic.ui.resources.tab_recommended
 import io.ymusic.ui.resources.tab_top_tracks
 import io.ymusic.ui.resources.yt_playlist_sign_in
 import io.ymusic.ui.sponsorblock.SponsorBlockCoordinator
+import kmpcommon.log.Logger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
@@ -165,6 +166,7 @@ import kotlinx.coroutines.withContext
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
+import projectcommon.error.DISK_FULL_CODE
 import projectcommon.error.errorCode
 import projectcommon.error.runSuspendCatching
 import kotlin.math.abs
@@ -252,7 +254,15 @@ fun App(
     LaunchedEffect(graph.playerCache, graph.settings) {
         val cache = graph.playerCache ?: return@LaunchedEffect
         graph.settings.flow(AppSettings.playerCacheMaxMb).collect { mb ->
-            withContext(Dispatchers.IO) { cache.blobs.setMaxSize(mb * 1024L * 1024L) }
+            runSuspendCatching { withContext(Dispatchers.IO) { cache.blobs.setMaxSize(mb * 1024L * 1024L) } }
+                .onFailure { error ->
+                    val log = graph.logger?.fork("player-cache")
+                    if (error.errorCode() == DISK_FULL_CODE) {
+                        log?.log(Logger.Level.WARN, "player cache cap: storage is full", error)
+                    } else {
+                        log?.captureError(error, "player cache cap failed")
+                    }
+                }
         }
     }
     LaunchedEffect(graph.player, graph.settings) {
