@@ -144,7 +144,9 @@ private suspend fun buildIosGraph(container: UIView): AppGraph {
     // The log moved to logs.db: the text log files of older builds go.
     FileSystem.SYSTEM.listOrNull(logDir)?.filter { it.name.startsWith("ymusic.log") }?.forEach { FileSystem.SYSTEM.delete(it) }
     val logStore = LogStore(nativeLogDatabaseDriver())
-    val rootLogger = TeeLogger(DbLogger(logStore), IosLogger()).also { it.bindMseNativeLogs() }
+    // The app log, and the console in debug builds only.
+    val rootLogger = (if (DEBUG_BUILD) TeeLogger(DbLogger(logStore), IosLogger()) else DbLogger(logStore))
+        .also { it.bindMseNativeLogs() }
     val cookies = IosWebViewCookieJar()
     val http = AppHttpClients(
         (NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, true).first() as String)
