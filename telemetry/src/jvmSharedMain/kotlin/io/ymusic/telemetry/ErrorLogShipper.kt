@@ -43,7 +43,7 @@ internal var errorLogShipper: ErrorLogShipper? = null
 
 /**
  * Sentry's trace for this app open is the app log's id for it ([onSentryStarted]), so an event
- * and its run's lines share one trace. An event claims the unsent lines among the newest INFO+ lines of
+ * and its run's lines share one trace. An event claims the unsent lines among the newest lines of
  * the launch its trace id names (Sentry restores the dead run's trace on an ANR or native crash the next
  * process reports); one worker sends every pending line, each as a Sentry Log with only body, level,
  * timestamp, its trace id and `app.version_code`. Lines a dying process claimed go out on the next start.
@@ -82,7 +82,7 @@ internal class ErrorLogShipper(
     private suspend fun claim(launch: String, eventId: String, limit: Int) {
         try {
             if (limit <= 0) return
-            store.claimUnsent(launch, limit.coerceAtMost(MAX_LINES), Logger.Level.INFO)
+            store.claimUnsent(launch, limit.coerceAtMost(MAX_LINES))
             wake.trySend(Unit)
         } catch (e: Exception) {
             log("log lines for $eventId not claimed", e)
