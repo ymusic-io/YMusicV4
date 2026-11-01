@@ -9,7 +9,10 @@ import kmphttp.HttpStatusException
 import kmphttp.json.JsonReader
 import kmphttp.json.JsonWriter
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -18,6 +21,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import okio.FileSystem
 import okio.IOException
@@ -59,6 +63,8 @@ class RemoteConfig(
     private val scope: CoroutineScope,
     private val now: () -> Long,
     private val log: Logger? = null,
+    /** The cache file's reads and writes; [scope] may be the main thread. */
+    private val io: CoroutineDispatcher = Dispatchers.IO,
 ) {
     private val _config = MutableStateFlow(RemoteConfigData.DEFAULTS)
     val config: StateFlow<RemoteConfigData> = _config.asStateFlow()
@@ -79,15 +85,17 @@ class RemoteConfig(
             // system too, and this runs from init on a scope whose cancellation would take the app
             // with it. Starting on DEFAULTS is always better than not starting.
             val latestValue = try {
-                if (fileSystem.exists(cacheFile)) {
-                    RemoteConfigData.from(
-                        fileSystem.source(cacheFile).use { source ->
-                            JsonReader(source.asAsyncSource().buffer()).readObject()
-                        },
-                        now,
-                    )
-                } else {
-                    RemoteConfigData.DEFAULTS
+                withContext(io) {
+                    if (fileSystem.exists(cacheFile)) {
+                        RemoteConfigData.from(
+                            fileSystem.source(cacheFile).use { source ->
+                                JsonReader(source.asAsyncSource().buffer()).readObject()
+                            },
+                            now,
+                        )
+                    } else {
+                        RemoteConfigData.DEFAULTS
+                    }
                 }
             } catch (cancel: CancellationException) {
                 throw cancel
@@ -154,10 +162,13 @@ class RemoteConfig(
                 try {
                     val data = api.getConfig()
                     try {
-                        cache(data)
+                        withContext(io) { cache(data) }
+                    } catch (cancel: CancellationException) {
+                        throw cancel
                     } catch (error: Throwable) {
-                        if (error.errorCode() == DISK_FULL_CODE) {
-                            log?.log(Logger.Level.WARN, "Write config cache: storage is full", error)
+                        // A full or failing disk is the device's state; the fetched config is still published.
+                        if (error.errorCode() == DISK_FULL_CODE || error is IOException) {
+                            log?.log(Logger.Level.WARN, "Write config cache failed", error)
                         } else {
                             log?.captureError(error, "Write config cache failure")
                         }

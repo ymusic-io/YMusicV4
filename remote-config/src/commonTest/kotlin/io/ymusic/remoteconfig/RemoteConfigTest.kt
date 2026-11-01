@@ -1,6 +1,7 @@
 package io.ymusic.remoteconfig
 
 import kmphttp.HttpStatusException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -10,6 +11,7 @@ import okio.IOException
 import okio.Path
 import okio.Path.Companion.toPath
 import okio.fakefilesystem.FakeFileSystem
+import kotlin.coroutines.ContinuationInterceptor
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -68,6 +70,7 @@ class RemoteConfigTest {
         fileSystem = fs,
         scope = scope,
         now = { clock },
+        io = scope.coroutineContext[ContinuationInterceptor] as CoroutineDispatcher,
     )
 
     /** What [RemoteConfig.config] holds once a [RemoteConfig.checkUpdate] has run its course. */
