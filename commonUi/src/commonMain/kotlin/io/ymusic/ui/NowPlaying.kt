@@ -2054,10 +2054,7 @@ private fun queueItemActions(coordinator: PlaybackCoordinator, index: Int, item:
             if (video != null) add(startRadio to { coordinator.playNow(video) })
             if (!current) {
                 add(
-                    playNext to {
-                        val currentIndex = player.queue.value.currentIndex
-                        if (currentIndex >= 0) player.move(index, if (index > currentIndex) currentIndex + 1 else currentIndex)
-                    },
+                    playNext to { player.moveToPlayNext(index) },
                 )
             }
             when (item) {

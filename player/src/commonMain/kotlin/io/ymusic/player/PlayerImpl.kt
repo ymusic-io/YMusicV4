@@ -164,6 +164,12 @@ internal class PlayerImpl(
         publishQueue()
     }
 
+    override fun moveToPlayNext(index: Int) {
+        if (released) return
+        controller.moveNext(index)
+        publishQueue()
+    }
+
     override fun move(from: Int, to: Int) {
         if (released) return
         controller.move(from, to)
