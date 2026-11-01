@@ -12,9 +12,11 @@ The app log: every line from every layer in one SQLite table (`logs.db`), writte
   (stack trace appended for an error). `setMaxLines(n)` caps it: once the table is 10% over `n`, the oldest
   go down to `n`. The shells set it from remote config `telemetry.logLines` (default 5 000)
   after the config has loaded; until then nothing is trimmed.
-- **Error events** — `claimUnsent(limit, minLevel)` returns the newest lines no earlier claim returned and moves
-  the sent mark past everything stored, in one transaction, so a line is never sent twice. `:telemetry`'s
-  `installErrorLogs` sends them with each Sentry error event.
+- **Error events** — `claimUnsent(launch, limit, minLevel)` marks that launch's newest unsent lines pending
+  and skips its older unsent ones, in one transaction, so a line is never sent twice; `pending(limit)` lists
+  claimed lines of every launch until `markSent` settles them. `:telemetry`'s `installErrorLogs` claims, for
+  each Sentry error event, the lines of the launch whose trace id the event carries, and a worker sends
+  whatever is pending.
 - **Feedback** — `exportGzip(fs, path)` dumps every line as text (local time, level, trail, message; a
   `--- launch <id> ---` header per app open) into a gzip file the Feedback report attaches.
 - **Drivers** — `androidLogDatabaseDriver(context)`, `jvmLogDatabaseDriver(path)`, `nativeLogDatabaseDriver()`.

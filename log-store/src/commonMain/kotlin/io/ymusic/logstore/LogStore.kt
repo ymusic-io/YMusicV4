@@ -93,22 +93,22 @@ class LogStore(
     }
 
     /**
-     * The newest unsent lines at [minLevel] or above, at most [limit], oldest first, now pending: they
-     * stay pending until [markSent], so a send that never completes is retried from [pending]. Every
-     * older unsent line is skipped in the same transaction, so a later claim never reaches back past it.
+     * [launch]'s newest unsent lines at [minLevel] or above, at most [limit], oldest first, now pending:
+     * they stay [pending] until [markSent]. The launch's other unsent lines are skipped in the same transaction, so
+     * a later claim never reaches back past them.
      */
-    suspend fun claimUnsent(limit: Int, minLevel: Logger.Level): List<LogRecord> = onDb {
+    suspend fun claimUnsent(launch: String, limit: Int, minLevel: Logger.Level): List<LogRecord> = onDb {
         queries.transactionWithResult {
-            val rows = queries.newestUnsent(minLevel.ordinal.toLong(), limit.toLong()).executeAsList()
+            val rows = queries.newestUnsent(launch, minLevel.ordinal.toLong(), limit.toLong()).executeAsList()
             if (rows.isNotEmpty()) queries.markPending(rows.map { it.seq })
-            queries.maxSeq().executeAsOne().seq?.let { queries.skipUnsentThrough(it) }
+            queries.skipUnsentOf(launch)
             rows.asReversed().map { it.toRecord() }
         }
     }
 
-    /** Lines an earlier app open claimed ([claimUnsent]) that never reached [markSent], oldest first. */
-    suspend fun pendingFromEarlierRuns(limit: Int): List<LogRecord> = onDb {
-        queries.pendingBefore(launch, limit.toLong()).executeAsList().map { it.toRecord() }
+    /** Claimed lines ([claimUnsent]) of any launch that haven't reached [markSent], oldest first. */
+    suspend fun pending(limit: Int): List<LogRecord> = onDb {
+        queries.pendingLines(limit.toLong()).executeAsList().map { it.toRecord() }
     }
 
     /** These lines reached Sentry; they are never returned again. */
@@ -118,9 +118,6 @@ class LogStore(
 
     /** Returns once every line queued before the call is written. */
     suspend fun flush(): Unit = onDb { }
-
-    /** The app open before this one, by its newest line; null when every stored line is this launch's. */
-    suspend fun previousLaunch(): String? = onDb { queries.previousLaunch(launch).executeAsOneOrNull() }
 
     /** Every stored line as text, gzip-compressed, into [path] (replaced). */
     suspend fun exportGzip(fileSystem: FileSystem, path: Path): Unit = onDb {
