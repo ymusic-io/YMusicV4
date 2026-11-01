@@ -24,6 +24,9 @@ import io.ymusic.imageloader.DiskScaledImageCache
 import io.ymusic.imageloader.ImageLoader
 import io.ymusic.imageloader.fileFetcher
 import io.ymusic.imageloader.networkFetcher
+import io.ymusic.logstore.DbLogger
+import io.ymusic.logstore.LogStore
+import io.ymusic.logstore.nativeLogDatabaseDriver
 import io.ymusic.mse.MseVideoSurface
 import io.ymusic.player.LocalPlayerContext
 import io.ymusic.player.PlayerEngines
@@ -77,8 +80,6 @@ import platform.Foundation.timeIntervalSince1970
 import platform.UIKit.UIDevice
 import platform.UIKit.UIView
 import platform.UIKit.UIViewController
-import projectcommon.log.FileLogger
-import projectcommon.log.LoggingWorker
 
 /**
  * The iOS entry point — the Swift app hosts `MainViewControllerKt.MainViewController()`. Builds the
@@ -140,8 +141,10 @@ private suspend fun buildIosGraph(container: UIView): AppGraph {
     val logDir = (NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, true).first() as String)
         .toPath()
         .resolve("ymusic-logs")
-    val logWorker = LoggingWorker(logDir)
-    val rootLogger = TeeLogger(FileLogger(logWorker), IosLogger()).also { it.bindMseNativeLogs() }
+    // The log moved to logs.db: the text log files of older builds go.
+    FileSystem.SYSTEM.listOrNull(logDir)?.filter { it.name.startsWith("ymusic.log") }?.forEach { FileSystem.SYSTEM.delete(it) }
+    val logStore = LogStore(nativeLogDatabaseDriver())
+    val rootLogger = TeeLogger(DbLogger(logStore), IosLogger()).also { it.bindMseNativeLogs() }
     val cookies = IosWebViewCookieJar()
     val http = AppHttpClients(
         (NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, true).first() as String)

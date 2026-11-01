@@ -89,7 +89,8 @@ kotlin {
             implementation(project(":yt-media")) // the player-cache router (LocalMediaProxy) for the WebView
             implementation(project(":kmpHttp:core"))
             implementation(project(":kmpCommon"))
-            implementation(project(":projectCommon")) // LoggingWorker/FileLogger
+            implementation(project(":projectCommon"))
+            implementation(project(":log-store")) // the app log (logs.db)
             implementation(compose.runtime)
             implementation(compose.foundation)
             implementation(compose.material3)

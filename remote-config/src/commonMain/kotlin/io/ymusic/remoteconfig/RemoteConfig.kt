@@ -125,6 +125,12 @@ class RemoteConfig(
 
     private fun isFresh(data: RemoteConfigData, maxAgeMs: Long): Boolean = now() - data.updatedAt < maxAgeMs
 
+    /** The config once the previous run's cache has loaded (or none existed), never the boot-time DEFAULTS stand-in. */
+    suspend fun awaitLoaded(): RemoteConfigData {
+        initIfNotYet()
+        return _config.value
+    }
+
     /**
      * For a person waiting on an answer ("Check for update"): fetch now and wait up to [timeoutMs]
      * for the result. Null when none arrives in time — failed, or no service.

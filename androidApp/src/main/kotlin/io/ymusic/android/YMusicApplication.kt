@@ -41,6 +41,9 @@ import io.ymusic.imageloader.ImageSourceCache
 import io.ymusic.imageloader.defaultMemoryCacheBudget
 import io.ymusic.imageloader.fileFetcher
 import io.ymusic.imageloader.networkFetcher
+import io.ymusic.logstore.DbLogger
+import io.ymusic.logstore.LogStore
+import io.ymusic.logstore.androidLogDatabaseDriver
 import io.ymusic.mediascanner.DocumentInfo
 import io.ymusic.mediascanner.FfmpegMetadataExtractor
 import io.ymusic.mediascanner.MediaScanner
@@ -74,11 +77,11 @@ import io.ymusic.telemetry.SentryLogger
 import io.ymusic.telemetry.applyYMusicTelemetry
 import io.ymusic.telemetry.bindCrashReporting
 import io.ymusic.telemetry.captureFeedbackReport
+import io.ymusic.telemetry.installErrorLogs
 import io.ymusic.telemetry.installSentryDeviceId
 import io.ymusic.telemetry.installSentryEngineVersion
 import io.ymusic.telemetry.installSentryPlayerVersion
 import io.ymusic.telemetry.sendFeedbackMessage
-import io.ymusic.telemetry.setErrorLogLines
 import io.ymusic.ui.APP_HTTP_TIMEOUT
 import io.ymusic.ui.AppGraph
 import io.ymusic.ui.AppHttpClients
@@ -132,9 +135,8 @@ import okio.Path.Companion.toPath
 import okio.sink
 import okio.source
 import projectcommon.error.TechnicalException
-import projectcommon.log.FileLogger
-import projectcommon.log.LoggingWorker
 import java.io.File
+import java.io.IOException
 import java.lang.ref.WeakReference
 import kotlin.math.roundToInt
 
@@ -186,11 +188,11 @@ class YMusicApplication : Application() {
     }
 
     /** Rotating file sink (`filesDir/logs/ymusic.log`, 5 MiB × 3). Lazy: needs [filesDir]. */
-    val logWorker: LoggingWorker by lazy { LoggingWorker(File(filesDir, "logs").toOkioPath()) }
+    val logStore: LogStore by lazy { LogStore(androidLogDatabaseDriver(this)) }
 
     /** The app's root logger: file + Sentry (no-op until Sentry.init) teed with logcat. */
     val rootLogger: Logger by lazy {
-        TeeLogger(FileLogger(logWorker), TeeLogger(SentryLogger(), LogcatLogger()))
+        TeeLogger(DbLogger(logStore), TeeLogger(SentryLogger(), LogcatLogger()))
             .also { it.bindMseNativeLogs() }
     }
 
@@ -262,6 +264,8 @@ class YMusicApplication : Application() {
 
     private suspend fun buildServices(): SharedServices {
         MseDecoderCaps.start(rootLogger)
+        // The log moved to logs.db: the text log files of older builds go.
+        File(filesDir, "logs").listFiles { file -> file.name.startsWith("ymusic.log") }?.forEach { it.delete() }
         QuickJsRuntime.hostVersions = hostVersions()
         // YouTube + API cookies live in the WebView CookieManager (the login WebView writes
         // there; this jar is a wrapper so HTTP sees the same store).
@@ -290,7 +294,7 @@ class YMusicApplication : Application() {
         if (BuildConfig.SENTRY_DSN.isNotEmpty()) {
             bindCrashReporting(appScope, settings.flow(AppSettings.crashReports)) {
                 Sentry.initWithPlatformOptions {
-                    it.applyYMusicTelemetry(File(noBackupFilesDir, "sentry-log-ring"), BuildConfig.VERSION_CODE)
+                    it.applyYMusicTelemetry()
                     it.dsn = BuildConfig.SENTRY_DSN
                     // The commit in the release traces an event to git history (no source upload).
                     it.release = "${BuildConfig.APPLICATION_ID}@${BuildConfig.VERSION_NAME}+${BuildConfig.GIT_COMMIT}"
@@ -341,7 +345,7 @@ class YMusicApplication : Application() {
             now = { System.currentTimeMillis() },
             log = rootLogger.fork("remote-config"),
         ).also { it.checkUpdate() } // app open is itself a hotpoint
-        appScope.launch { remoteConfig.config.collect { setErrorLogLines(it.errorLogLines) } }
+        installErrorLogs(logStore, remoteConfig, BuildConfig.VERSION_CODE)
         // Anonymous usage stats — held by SharedServices so the graph (and any screen) can
         // record events. The "Send anonymous stats" answer is read per event, so the Settings
         // switch applies live, and a disabled gate costs nothing.
@@ -779,13 +783,15 @@ class YMusicApplication : Application() {
     /** Sends the app logs as one anonymous Sentry report for the Feedback screen; returns its event id. */
     private val captureFeedbackReportAction: suspend () -> String? = {
         withContext(Dispatchers.IO) {
-            runCatching { logWorker.flush() }
-                .onFailure { rootLogger.fork("feedback").log(Logger.Level.WARN, "log flush before feedback failed", it) }
-            captureFeedbackReport(
-                logWorker.filePaths().map { path ->
-                    io.sentry.kotlin.multiplatform.Attachment(path, path.substringAfterLast('/'), "text/plain")
-                },
-            )
+            val export = File(cacheDir, FEEDBACK_LOG_NAME)
+            val attachments = try {
+                logStore.exportGzip(FileSystem.SYSTEM, export.toOkioPath())
+                listOf(io.sentry.kotlin.multiplatform.Attachment(export.path, FEEDBACK_LOG_NAME, "application/gzip"))
+            } catch (e: IOException) {
+                rootLogger.fork("feedback").log(Logger.Level.WARN, "log export for feedback failed", e)
+                emptyList()
+            }
+            captureFeedbackReport(attachments)
         }
     }
 
@@ -1036,3 +1042,5 @@ private class MseSurfaceBridge(private val textureView: TextureView, private val
         const val WATCH_MS = 2000L
     }
 }
+
+private const val FEEDBACK_LOG_NAME = "ymusic-log.txt.gz"
