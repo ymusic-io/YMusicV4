@@ -357,11 +357,11 @@ fun MiniPlayer(
                     IconButton(
                         onClick = { coordinator.player.togglePlay() },
                         modifier = Modifier.a11yActionLabel(
-                            stringResource(if (status.playWhenReady) Res.string.cd_pause else Res.string.cd_play),
+                            stringResource(if (status.showsPause()) Res.string.cd_pause else Res.string.cd_play),
                         ),
                     ) {
                         Icon(
-                            if (status.playWhenReady) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            if (status.showsPause()) Icons.Default.Pause else Icons.Default.PlayArrow,
                             null,
                             tint = DesignColors.InkMuted,
                         )
@@ -644,7 +644,7 @@ private fun PortraitNowPlaying(
                         )
                     }
                     SeekBar(player, progress)
-                    TransportRow(coordinator, status.playWhenReady)
+                    TransportRow(coordinator, status.showsPause())
                 }
             }
             stickyHeader {
@@ -913,7 +913,7 @@ private fun BoxScope.VideoOverlayControls(
     Box(Modifier.align(Alignment.Center)) {
         TransportRow(
             coordinator,
-            status.playWhenReady,
+            status.showsPause(),
             iconTint = Color.White,
             playBackground = Color.Black.copy(alpha = 0.42f),
             playForeground = Color.White,
@@ -2075,3 +2075,6 @@ private fun queueItemActions(coordinator: PlaybackCoordinator, index: Int, item:
         },
     )
 }
+
+/** The play button shows Pause while playback is wanted, but not once the track has ended. */
+private fun PlaybackStatus.showsPause(): Boolean = playWhenReady && !state.isEnded()
