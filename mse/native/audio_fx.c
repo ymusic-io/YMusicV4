@@ -873,8 +873,8 @@ int audio_fx_stretch(AudioFx *fx, const int16_t *in, int in_frames, int16_t *out
         pitch = 2.f;
     /* SoundTouch: _rate = pitch, _tempo = speed/pitch. */
     tempo = speed / pitch;
-    do_rate = fabsf(pitch - 1.f) >= 0.02f;
-    do_tempo = fabsf(tempo - 1.f) >= 0.02f;
+    do_rate = fabsf(pitch - 1.f) >= 0.005f;
+    do_tempo = fabsf(tempo - 1.f) >= 0.005f;
     if (!do_rate && !do_tempo) {
         int n = in_frames < out_cap ? in_frames : out_cap;
         if (in && n > 0)

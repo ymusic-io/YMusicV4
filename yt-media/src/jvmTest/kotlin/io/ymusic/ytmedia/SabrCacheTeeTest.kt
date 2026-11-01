@@ -84,10 +84,10 @@ class SabrCacheTeeTest {
         val blobs = DiskMediaBlobCache(dir.toPath(), FileSystem.SYSTEM, SqlDelightBlobIndex(driver, now = { 0 }))
         val cache = MediaCache(blobs, SqlDelightSegmentIndex(driver, now = { 0 }))
 
-        val seg0 = ByteArray(10) { it.toByte() }
-        val seg1 = ByteArray(8) { (it + 100).toByte() }
+        val seg0 = webmSegment(10, 1)
+        val seg1 = webmSegment(8, 2)
         // A third segment whose MEDIA_DATA is cut short (no MEDIA_END) — must NOT be cached.
-        val seg2Partial = ByteArray(3) { (it + 200).toByte() }
+        val seg2Partial = webmSegment(6, 3).copyOf(3)
 
         val body = Buffer().apply {
             segment(header(0, 0, 10, 1), seg0)
@@ -130,13 +130,13 @@ class SabrCacheTeeTest {
     @Test
     fun a_short_media_end_drops_the_segment_and_disables_further_caching() {
         val cache = newCache()
-        val seg0 = ByteArray(10) { it.toByte() }
-        val seg2 = ByteArray(7) { (it + 50).toByte() } // well-formed, but arrives after the fault
+        val seg0 = webmSegment(10, 1)
+        val seg2 = webmSegment(7, 3) // well-formed, but arrives after the fault
         val body = Buffer().apply {
             segment(header(0, 0, 10, 1), seg0) // complete → cached
             // seg1: header promises 8 bytes, only 5 arrive, then a MEDIA_END → short by 3 → abort + illegal.
             mediaHeader(header(1, 10, 8, 2))
-            val short = ByteArray(5) { (it + 100).toByte() }
+            val short = webmSegment(8, 2).copyOf(5)
             writeUmpPartHeader(UmpPart.MEDIA_DATA, short.size + 1L).writeByte(1).write(short)
             writeUmpPartHeader(UmpPart.MEDIA_END, 1).writeByte(1)
             segment(header(2, 18, 7, 3), seg2) // after illegalState → must NOT be cached
@@ -156,13 +156,13 @@ class SabrCacheTeeTest {
     fun media_data_overrunning_the_declared_length_disables_caching() {
         val cache = newCache()
         val body = Buffer().apply {
-            segment(header(0, 0, 10, 1), ByteArray(10) { it.toByte() }) // complete → cached
+            segment(header(0, 0, 10, 1), webmSegment(10, 1)) // complete → cached
             // seg1: header promises 6 bytes but the MEDIA_DATA carries 9 → over-length.
             mediaHeader(header(1, 10, 6, 2))
             val over = ByteArray(9) { (it + 100).toByte() }
             writeUmpPartHeader(UmpPart.MEDIA_DATA, over.size + 1L).writeByte(1).write(over)
             writeUmpPartHeader(UmpPart.MEDIA_END, 1).writeByte(1)
-            segment(header(2, 16, 8, 3), ByteArray(8) { it.toByte() }) // after the fault → not cached
+            segment(header(2, 16, 8, 3), webmSegment(8, 2)) // after the fault → not cached
         }
         val original = body.snapshot().toByteArray()
 
@@ -179,11 +179,11 @@ class SabrCacheTeeTest {
     fun media_data_for_an_unopened_id_disables_caching() {
         val cache = newCache()
         val body = Buffer().apply {
-            segment(header(0, 0, 10, 1), ByteArray(10) { it.toByte() }) // complete → cached
+            segment(header(0, 0, 10, 1), webmSegment(10, 1)) // complete → cached
             // MEDIA_DATA for id 7 that no MEDIA_HEADER ever opened → lost framing.
             val orphan = ByteArray(5) { it.toByte() }
             writeUmpPartHeader(UmpPart.MEDIA_DATA, orphan.size + 1L).writeByte(7).write(orphan)
-            segment(header(1, 10, 8, 2), ByteArray(8) { it.toByte() }) // after the fault → not cached
+            segment(header(1, 10, 8, 2), webmSegment(8, 2)) // after the fault → not cached
         }
         val original = body.snapshot().toByteArray()
 
@@ -199,9 +199,9 @@ class SabrCacheTeeTest {
     fun a_media_end_for_an_unopened_id_disables_caching() {
         val cache = newCache()
         val body = Buffer().apply {
-            segment(header(0, 0, 10, 1), ByteArray(10) { it.toByte() }) // complete → cached
+            segment(header(0, 0, 10, 1), webmSegment(10, 1)) // complete → cached
             writeUmpPartHeader(UmpPart.MEDIA_END, 1).writeByte(5) // MEDIA_END for id 5 — never opened
-            segment(header(1, 10, 8, 2), ByteArray(8) { it.toByte() }) // after the fault → not cached
+            segment(header(1, 10, 8, 2), webmSegment(8, 2)) // after the fault → not cached
         }
         val original = body.snapshot().toByteArray()
 
@@ -219,10 +219,10 @@ class SabrCacheTeeTest {
         val body = Buffer().apply {
             // seg0's header + a full MEDIA_DATA, then a 3-byte MEDIA_END (must be 1) → malformed framing.
             mediaHeader(header(0, 0, 10, 1))
-            val media = ByteArray(10) { it.toByte() }
+            val media = webmSegment(10, 1)
             writeUmpPartHeader(UmpPart.MEDIA_DATA, media.size + 1L).writeByte(0).write(media)
             writeUmpPartHeader(UmpPart.MEDIA_END, 3).writeByte(0).write(ByteArray(2)) // size 3, not 1
-            segment(header(1, 10, 8, 2), ByteArray(8) { it.toByte() }) // after the fault → not cached
+            segment(header(1, 10, 8, 2), webmSegment(8, 2)) // after the fault → not cached
         }
         val original = body.snapshot().toByteArray()
 
@@ -241,7 +241,7 @@ class SabrCacheTeeTest {
             // Two MEDIA_HEADERs for id 0 with no MEDIA_END between → a second live segment on a live id.
             mediaHeader(header(0, 0, 9, 1))
             mediaHeader(header(0, 0, 9, 1))
-            segment(header(1, 9, 9, 2), ByteArray(9) { it.toByte() }) // after the fault → not cached
+            segment(header(1, 9, 9, 2), webmSegment(9, 2)) // after the fault → not cached
         }
         val original = body.snapshot().toByteArray()
 

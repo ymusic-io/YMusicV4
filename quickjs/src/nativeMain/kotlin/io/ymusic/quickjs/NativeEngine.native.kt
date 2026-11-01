@@ -118,9 +118,9 @@ internal actual class NativeEngine private constructor(
     }
 
     actual companion object {
-        actual fun create(appVersion: Int, callbacks: EngineCallbacks): NativeEngine {
+        actual fun create(appVersion: Int, versionsJson: String?, callbacks: EngineCallbacks): NativeEngine {
             val ref = StableRef.create(callbacks)
-            val eng = qjs_create(appVersion, staticCFunction(::inboundTrampoline), ref.asCPointer())
+            val eng = qjs_create(appVersion, versionsJson, staticCFunction(::inboundTrampoline), ref.asCPointer())
             if (eng == null) {
                 ref.dispose()
                 throw QuickJsException("quickjs create failed")

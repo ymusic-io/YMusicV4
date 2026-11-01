@@ -23,6 +23,10 @@
     <string name="downloads_none_title">Wala pang mga download</string>
     <string name="downloads_none_message">Nagpe-play offline ang mga na-download na kanta at video.</string>
     <string name="downloads_failed">Nabigo ang download</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Ipakita sa Finder</string>
+    <string name="menu_reveal_explorer">Ipakita sa File Explorer</string>
+    <string name="menu_reveal_file_manager">Ipakita sa file manager</string>
     <string name="section_settings">Mga setting</string>
     <string name="section_donate">Mag-donate</string>
     <string name="section_feedback">Feedback</string>
@@ -121,8 +125,33 @@
     <string name="yt_playlist_removed_video">Inalis ang %1$s sa playlist</string>
     <string name="cd_add_to_playlist">Idagdag sa playlist</string>
     <string name="cd_share">Ibahagi</string>
-    <string name="cd_music_video">Musika</string>
-    <string name="cd_album">Album</string>
+    <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
+    <string name="a11y_kind_video">Video</string>
+    <string name="a11y_kind_music_video">Music video</string>
+    <string name="a11y_kind_live">Live video</string>
+    <string name="a11y_kind_playlist">Playlist</string>
+    <string name="a11y_kind_album">Album</string>
+    <string name="a11y_kind_mix">Mix</string>
+    <string name="a11y_kind_channel">Channel</string>
+    <!-- A video's length as a screen reader speaks it, joined with spaces: "1 hour 5 minutes 3 seconds" -->
+    <plurals name="a11y_duration_hours">
+        <item quantity="one">%1$d oras</item>
+        <item quantity="other">%1$d na oras</item>
+    </plurals>
+    <plurals name="a11y_duration_minutes">
+        <item quantity="one">%1$d minuto</item>
+        <item quantity="other">%1$d na minuto</item>
+    </plurals>
+    <plurals name="a11y_duration_seconds">
+        <item quantity="one">%1$d segundo</item>
+        <item quantity="other">%1$d na segundo</item>
+    </plurals>
+    <string name="a11y_now_playing">Tumutugtog ngayon</string>
+    <string name="a11y_playback_position">Posisyon ng pag-playback</string>
+    <string name="a11y_x_of_y">%1$s ng %2$s</string>
+    <string name="a11y_behind_live">%1$s sa likod ng live</string>
+    <string name="a11y_downloaded">Na-download</string>
+    <string name="a11y_eq_preamp">Preamp</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Mga folder</string>
@@ -363,7 +392,6 @@
     <string name="account_sign_out">Mag-sign out</string>
     <string name="account_switch">Lumipat ng account</string>
     <string name="switch_account_hint">Piliin ang account na gusto mo, pagkatapos ay isara ang screen na ito gamit ang back arrow — magre-refresh ang app sa ilalim ng bagong account.</string>
-    <string name="cd_account_avatar">Larawan ng account</string>
     <string name="account_my_channel">Aking channel</string>
     <string name="account_watch_history">History ng panonood</string>
     <string name="account_watch_later">Panoorin mamaya</string>
@@ -551,6 +579,24 @@
     <string name="video_details_delete_title">I-delete ang komento</string>
     <string name="video_details_delete_message">Permanenteng i-delete ang iyong komento at lahat ng sagot dito?</string>
     <string name="video_details_deleted">Na-delete ang komento</string>
+    <string name="cookie_protect_title">Protektahan ang iyong sign-in gamit ang password?</string>
+    <string name="cookie_protect_body">Naka-save ang iyong sign-in sa computer na ito, kung saan mababasa ito ng ibang app na pinapatakbo mo. Magtakda ng password para i-lock ito; hihingin ito ng YMusic sa bawat pagbukas.</string>
+    <string name="cookie_password">Password</string>
+    <string name="cookie_protect_confirm">Kumpirmahin ang password</string>
+    <string name="cookie_protect_mismatch">Hindi magkatugma ang mga password.</string>
+    <string name="cookie_protect_submit">Protektahan</string>
+    <string name="cookie_protect_skip">Hindi ngayon</string>
+    <string name="cookie_unlock_title">I-unlock ang iyong sign-in</string>
+    <string name="cookie_unlock_body">Protektado ng password ang iyong YouTube sign-in.</string>
+    <string name="cookie_unlock_submit">I-unlock</string>
+    <string name="cookie_unlock_wrong">Maling password.</string>
+    <string name="cookie_unlock_cant_unlock">Hindi ma-unlock?</string>
+    <string name="cookie_unlock_guest">Magpatuloy bilang bisita</string>
+    <string name="cookie_unlock_guest_hint">Magsisimulang naka-sign out. Walang mase-save.</string>
+    <string name="cookie_unlock_sign_out">Mag-sign out</string>
+    <string name="cookie_unlock_sign_out_hint">Inaalis ang naka-save na sign-in na ito.</string>
+    <string name="cookie_unlock_sign_out_title">Mag-sign out?</string>
+    <string name="cookie_unlock_sign_out_body">Aalisin nito ang naka-save na sign-in sa computer na ito. Para mag-sign in ulit, i-scan ang QR code gamit ang YMusic app.</string>
     <string name="menu_details_comments">Mga detalye at komento</string>
     <string name="menu_search_lyrics">Hanapin ang lyrics</string>
     <string name="menu_speed_pitch">Bilis at pitch</string>
@@ -570,4 +616,22 @@
     <string name="download_other_format">I-download sa ibang format</string>
     <string name="unsubscribe">Mag-unsubscribe</string>
     <string name="unsubscribed">Na-unsubscribe</string>
+    <string name="tray_pause">I-pause</string>
+    <string name="tray_resume">Ituloy</string>
+    <string name="tray_stop">Ihinto (i-clear ang queue)</string>
+    <string name="tray_quit">Isara</string>
+    <string name="shortcuts_title">Mga keyboard shortcut</string>
+    <string name="shortcuts_play_pause">I-play / i-pause</string>
+    <string name="shortcuts_now_playing">Ipakita o itago ang Now Playing</string>
+    <string name="shortcuts_nav_menu">Buksan o isara ang menu</string>
+    <string name="shortcuts_switch_tabs">Lumipat ng tab</string>
+    <string name="shortcuts_escape">Lumabas sa full screen, o isara ang Now Playing, ang menu o isang pop-up</string>
+    <string name="shortcuts_help">Ipakita ang tulong na ito</string>
+    <string name="shortcuts_volume_up">Lakasan ang volume</string>
+    <string name="shortcuts_volume_down">Hinaan ang volume</string>
+    <string name="a11y_key_arrow_left">kaliwang arrow</string>
+    <string name="a11y_key_arrow_right">kanang arrow</string>
+    <string name="a11y_key_arrow_up">pataas na arrow</string>
+    <string name="a11y_key_arrow_down">pababang arrow</string>
+    <string name="cd_always_on_top">Laging nasa ibabaw</string>
 </resources>

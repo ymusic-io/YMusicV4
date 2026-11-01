@@ -32,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -82,6 +83,7 @@ internal fun PlaybackFxSheet(player: Player, onDismiss: () -> Unit) {
                 fraction = config.volume,
                 onChange = { player.volume = it },
                 onScrub = { f -> if (f != null) player.volume = f },
+                a11y = SliderA11y(null, stringResource(Res.string.sound_volume, (config.volume * 100).toInt()), VOLUME_KEY_STEP),
             )
             Spacer(Modifier.height(16.dp))
             RateBlock(
@@ -111,7 +113,8 @@ private fun RateBlock(
 ) {
     var scrubbing by remember { mutableStateOf<Float?>(null) }
     fun snapped(f: Float) = snapStep(range.start + f * (range.endInclusive - range.start))
-    LabelValue("$title ×${trimFloat(scrubbing ?: value)}", "")
+    val label = "$title ×${trimFloat(scrubbing ?: value)}"
+    LabelValue(label, "")
     FlowRow(
         DialogPad.fillMaxWidth().padding(top = 8.dp, bottom = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -135,6 +138,7 @@ private fun RateBlock(
             onChange = { f -> onChange(snapped(f)) },
             onScrub = { f -> scrubbing = f?.let(::snapped) },
             modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
+            a11y = SliderA11y(null, label, RATE_KEY_STEP / (range.endInclusive - range.start)),
         )
         Stepper("+") { onChange(snapStep(value + RATE_STEP).coerceIn(range.start, range.endInclusive)) }
     }
@@ -146,6 +150,7 @@ private fun FxBar(
     onChange: (Float) -> Unit,
     modifier: Modifier = DialogPad.fillMaxWidth(),
     onScrub: ((Float?) -> Unit)? = null,
+    a11y: SliderA11y? = null,
 ) {
     SlimSeekBar(
         fraction = fraction.coerceIn(0f, 1f),
@@ -154,13 +159,14 @@ private fun FxBar(
         onScrub = onScrub,
         trackColor = DesignColors.OutlineSoft,
         modifier = modifier,
+        a11y = a11y,
     )
 }
 
 @Composable
 private fun LabelValue(label: String, value: String) {
     Row(
-        DialogPad.fillMaxWidth().padding(bottom = 2.dp),
+        DialogPad.fillMaxWidth().padding(bottom = 2.dp).a11ySilent(),
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Text(label, style = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = DesignColors.Ink))
@@ -173,7 +179,7 @@ private fun LabelValue(label: String, value: String) {
 @Composable
 private fun RateChip(label: String, selected: Boolean, onClick: () -> Unit) {
     val shape = RoundedCornerShape(999.dp)
-    ChipTapArea(onClick) { indication ->
+    ChipTapArea(onClick, selected = selected) { indication ->
         Text(
             label,
             style = TextStyle(
@@ -215,7 +221,7 @@ private fun Stepper(label: String, onClick: () -> Unit) {
         style = TextStyle(fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = DesignColors.Accent),
         modifier = Modifier
             .clip(RoundedCornerShape(999.dp))
-            .clickable(interactionSource = interaction, indication = LocalIndication.current) {
+            .clickable(interactionSource = interaction, indication = LocalIndication.current, role = Role.Button) {
                 if (!repeated) step()
             }
             .padding(horizontal = 10.dp, vertical = 4.dp),
@@ -226,6 +232,8 @@ private const val RATE_STEPS_PER_UNIT = 100f
 private const val RATE_STEP = 1f / RATE_STEPS_PER_UNIT
 private const val STEPPER_HOLD_DELAY_MS = 400L
 private const val STEPPER_REPEAT_MS = 60L
+private const val VOLUME_KEY_STEP = 0.05f
+private const val RATE_KEY_STEP = 0.05f
 
 private fun snapStep(v: Float): Float = round(v * RATE_STEPS_PER_UNIT) / RATE_STEPS_PER_UNIT
 

@@ -23,6 +23,10 @@
     <string name="downloads_none_title">ยังไม่มีการดาวน์โหลด</string>
     <string name="downloads_none_message">เพลงและวิดีโอที่ดาวน์โหลดเล่นแบบออฟไลน์ได้</string>
     <string name="downloads_failed">ดาวน์โหลดไม่สำเร็จ</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">แสดงใน Finder</string>
+    <string name="menu_reveal_explorer">แสดงในตัวสำรวจไฟล์</string>
+    <string name="menu_reveal_file_manager">แสดงในตัวจัดการไฟล์</string>
     <string name="section_settings">การตั้งค่า</string>
     <string name="section_donate">บริจาค</string>
     <string name="section_feedback">ส่งความคิดเห็น</string>
@@ -121,8 +125,30 @@
     <string name="yt_playlist_removed_video">นำ %1$s ออกจากเพลย์ลิสต์แล้ว</string>
     <string name="cd_add_to_playlist">เพิ่มลงในเพลย์ลิสต์</string>
     <string name="cd_share">แชร์</string>
-    <string name="cd_music_video">เพลง</string>
-    <string name="cd_album">อัลบั้ม</string>
+    <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
+    <string name="a11y_kind_video">วิดีโอ</string>
+    <string name="a11y_kind_music_video">มิวสิกวิดีโอ</string>
+    <string name="a11y_kind_live">ไลฟ์สด</string>
+    <string name="a11y_kind_playlist">เพลย์ลิสต์</string>
+    <string name="a11y_kind_album">อัลบั้ม</string>
+    <string name="a11y_kind_mix">มิกซ์</string>
+    <string name="a11y_kind_channel">ช่อง</string>
+    <!-- A video's length as a screen reader speaks it, joined with spaces: "1 hour 5 minutes 3 seconds" -->
+    <plurals name="a11y_duration_hours">
+        <item quantity="other">%1$d ชั่วโมง</item>
+    </plurals>
+    <plurals name="a11y_duration_minutes">
+        <item quantity="other">%1$d นาที</item>
+    </plurals>
+    <plurals name="a11y_duration_seconds">
+        <item quantity="other">%1$d วินาที</item>
+    </plurals>
+    <string name="a11y_now_playing">กำลังเล่น</string>
+    <string name="a11y_playback_position">ตำแหน่งการเล่น</string>
+    <string name="a11y_x_of_y">%1$s จาก %2$s</string>
+    <string name="a11y_behind_live">ช้ากว่าสด %1$s</string>
+    <string name="a11y_downloaded">ดาวน์โหลดแล้ว</string>
+    <string name="a11y_eq_preamp">พรีแอมป์</string>
 
     <!-- Library -->
     <string name="library_tab_folders">โฟลเดอร์</string>
@@ -362,7 +388,6 @@
     <string name="account_sign_out">ออกจากระบบ</string>
     <string name="account_switch">สลับบัญชี</string>
     <string name="switch_account_hint">เลือกบัญชีที่ต้องการ แล้วปิดหน้าจอนี้ด้วยลูกศรย้อนกลับ — แอปจะรีเฟรชด้วยบัญชีใหม่</string>
-    <string name="cd_account_avatar">รูปบัญชี</string>
     <string name="account_my_channel">ช่องของฉัน</string>
     <string name="account_watch_history">ประวัติการดู</string>
     <string name="account_watch_later">ดูภายหลัง</string>
@@ -546,6 +571,24 @@
     <string name="video_details_delete_title">ลบความคิดเห็น</string>
     <string name="video_details_delete_message">ลบความคิดเห็นของคุณและการตอบกลับทั้งหมดอย่างถาวรไหม</string>
     <string name="video_details_deleted">ลบความคิดเห็นแล้ว</string>
+    <string name="cookie_protect_title">ป้องกันข้อมูลลงชื่อเข้าใช้ด้วยรหัสผ่านไหม</string>
+    <string name="cookie_protect_body">ข้อมูลลงชื่อเข้าใช้ของคุณบันทึกไว้ในคอมพิวเตอร์เครื่องนี้ ซึ่งแอปอื่นที่คุณเรียกใช้สามารถอ่านได้ ตั้งรหัสผ่านเพื่อล็อกไว้ แล้ว YMusic จะขอรหัสผ่านทุกครั้งที่เริ่มทำงาน</string>
+    <string name="cookie_password">รหัสผ่าน</string>
+    <string name="cookie_protect_confirm">ยืนยันรหัสผ่าน</string>
+    <string name="cookie_protect_mismatch">รหัสผ่านไม่ตรงกัน</string>
+    <string name="cookie_protect_submit">ป้องกัน</string>
+    <string name="cookie_protect_skip">ไว้ทีหลัง</string>
+    <string name="cookie_unlock_title">ปลดล็อกข้อมูลลงชื่อเข้าใช้</string>
+    <string name="cookie_unlock_body">ข้อมูลลงชื่อเข้าใช้ YouTube ของคุณได้รับการป้องกันด้วยรหัสผ่าน</string>
+    <string name="cookie_unlock_submit">ปลดล็อก</string>
+    <string name="cookie_unlock_wrong">รหัสผ่านไม่ถูกต้อง</string>
+    <string name="cookie_unlock_cant_unlock">ปลดล็อกไม่ได้ใช่ไหม</string>
+    <string name="cookie_unlock_guest">ดำเนินการต่อในฐานะผู้เยี่ยมชม</string>
+    <string name="cookie_unlock_guest_hint">เริ่มโดยไม่ลงชื่อเข้าใช้ และจะไม่มีการเก็บข้อมูลใดๆ ไว้</string>
+    <string name="cookie_unlock_sign_out">ออกจากระบบ</string>
+    <string name="cookie_unlock_sign_out_hint">ลบข้อมูลลงชื่อเข้าใช้ที่บันทึกไว้นี้</string>
+    <string name="cookie_unlock_sign_out_title">ออกจากระบบไหม</string>
+    <string name="cookie_unlock_sign_out_body">การดำเนินการนี้จะลบข้อมูลลงชื่อเข้าใช้ที่บันทึกไว้ออกจากคอมพิวเตอร์เครื่องนี้ หากต้องการลงชื่อเข้าใช้อีกครั้ง ให้สแกนคิวอาร์โค้ดด้วยแอป YMusic</string>
     <string name="menu_details_comments">รายละเอียดและความคิดเห็น</string>
     <string name="menu_search_lyrics">ค้นหาเนื้อเพลง</string>
     <string name="menu_speed_pitch">ความเร็วและระดับเสียง</string>
@@ -565,4 +608,22 @@
     <string name="download_other_format">ดาวน์โหลดในรูปแบบอื่น</string>
     <string name="unsubscribe">ยกเลิกการติดตาม</string>
     <string name="unsubscribed">ยกเลิกการติดตามแล้ว</string>
+    <string name="tray_pause">หยุดชั่วคราว</string>
+    <string name="tray_resume">เล่นต่อ</string>
+    <string name="tray_stop">หยุด (ล้างคิว)</string>
+    <string name="tray_quit">ปิด</string>
+    <string name="shortcuts_title">แป้นพิมพ์ลัด</string>
+    <string name="shortcuts_play_pause">เล่น / หยุดชั่วคราว</string>
+    <string name="shortcuts_now_playing">แสดงหรือซ่อนหน้ากำลังเล่น</string>
+    <string name="shortcuts_nav_menu">เปิดหรือปิดเมนู</string>
+    <string name="shortcuts_switch_tabs">สลับแท็บ</string>
+    <string name="shortcuts_escape">ออกจากโหมดเต็มหน้าจอ หรือปิดหน้ากำลังเล่น เมนู หรือป๊อปอัป</string>
+    <string name="shortcuts_help">แสดงความช่วยเหลือนี้</string>
+    <string name="shortcuts_volume_up">เพิ่มเสียง</string>
+    <string name="shortcuts_volume_down">ลดเสียง</string>
+    <string name="a11y_key_arrow_left">ลูกศรซ้าย</string>
+    <string name="a11y_key_arrow_right">ลูกศรขวา</string>
+    <string name="a11y_key_arrow_up">ลูกศรขึ้น</string>
+    <string name="a11y_key_arrow_down">ลูกศรลง</string>
+    <string name="cd_always_on_top">อยู่ด้านบนเสมอ</string>
 </resources>

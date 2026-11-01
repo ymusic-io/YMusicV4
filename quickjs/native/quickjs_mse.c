@@ -512,6 +512,50 @@ static JSValue js_vp9_ok(JSContext *ctx, JSValueConst this_val, int argc, JSValu
 #endif
 }
 
+static JSValue js_decoding_info(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+{
+    const char *ct;
+    int32_t w = 0, h = 0;
+    double fps = 0, bitrate = 0;
+    int r;
+    (void)this_val;
+    if (!g_vt || !g_vt->decoding_info)
+        return JS_NewInt32(ctx, -1);
+    if (argc < 1)
+        return JS_ThrowTypeError(ctx, "__mseDecodingInfo(contentType, width, height, framerate, bitrate)");
+    if ((argc > 1 && JS_ToInt32(ctx, &w, argv[1])) || (argc > 2 && JS_ToInt32(ctx, &h, argv[2])) ||
+        (argc > 3 && JS_ToFloat64(ctx, &fps, argv[3])) || (argc > 4 && JS_ToFloat64(ctx, &bitrate, argv[4])))
+        return JS_EXCEPTION;
+    if (!(fps > 0))
+        fps = 0;
+    if (!(bitrate > 0))
+        bitrate = 0;
+    ct = JS_ToCString(ctx, argv[0]);
+    if (!ct)
+        return JS_EXCEPTION;
+    r = g_vt->decoding_info(ct, w, h, fps, bitrate);
+    JS_FreeCString(ctx, ct);
+    return JS_NewInt32(ctx, r);
+}
+
+static JSValue js_video_quality(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+{
+    void *h = host_of(ctx);
+    int total = 0, dropped = 0;
+    JSValue arr;
+    (void)this_val;
+    (void)argc;
+    (void)argv;
+    if (g_vt && h && g_vt->video_quality)
+        g_vt->video_quality(h, &total, &dropped);
+    arr = JS_NewArray(ctx);
+    if (JS_IsException(arr))
+        return arr;
+    JS_SetPropertyUint32(ctx, arr, 0, JS_NewInt32(ctx, total));
+    JS_SetPropertyUint32(ctx, arr, 1, JS_NewInt32(ctx, dropped));
+    return arr;
+}
+
 void qjs_mse_install(JSContext *ctx)
 {
     JSValue g = JS_GetGlobalObject(ctx);
@@ -540,5 +584,7 @@ void qjs_mse_install(JSContext *ctx)
     JS_SetPropertyStr(ctx, g, "__mseAv1Ok", JS_NewCFunction(ctx, js_av1_ok, "__mseAv1Ok", 0));
     JS_SetPropertyStr(ctx, g, "__mseVp9Ok", JS_NewCFunction(ctx, js_vp9_ok, "__mseVp9Ok", 0));
     JS_SetPropertyStr(ctx, g, "__mseAvcMaxLevel", JS_NewCFunction(ctx, js_avc_max_level, "__mseAvcMaxLevel", 0));
+    JS_SetPropertyStr(ctx, g, "__mseDecodingInfo", JS_NewCFunction(ctx, js_decoding_info, "__mseDecodingInfo", 5));
+    JS_SetPropertyStr(ctx, g, "__mseVideoQuality", JS_NewCFunction(ctx, js_video_quality, "__mseVideoQuality", 0));
     JS_FreeValue(ctx, g);
 }

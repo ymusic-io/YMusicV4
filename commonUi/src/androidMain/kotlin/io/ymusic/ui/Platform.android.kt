@@ -19,6 +19,8 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
@@ -28,6 +30,18 @@ import androidx.core.view.WindowInsetsControllerCompat
 internal actual val platformUsesTouch: Boolean = true
 
 internal actual val desktopLayoutHole: Boolean = false
+
+actual fun Modifier.a11yActionLabel(label: String?): Modifier =
+    if (label.isNullOrEmpty()) this
+    else this.semantics { contentDescription = label }
+
+internal actual fun Modifier.a11ySlider(
+    label: String?,
+    value: String,
+    fraction: Float,
+    enabled: Boolean,
+    onSet: (Float) -> Unit,
+): Modifier = rangeSliderSemantics(label, value, fraction, enabled, onSet)
 
 @Composable
 internal actual fun PlatformBackHandler(enabled: Boolean, onBack: () -> Unit) {

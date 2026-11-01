@@ -23,6 +23,10 @@
     <string name="downloads_none_title">Belum ada download</string>
     <string name="downloads_none_message">Lagu dan video yang didownload dapat diputar offline.</string>
     <string name="downloads_failed">Download gagal</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Tampilkan di Finder</string>
+    <string name="menu_reveal_explorer">Tampilkan di File Explorer</string>
+    <string name="menu_reveal_file_manager">Tampilkan di pengelola file</string>
     <string name="section_settings">Setelan</string>
     <string name="section_donate">Donasi</string>
     <string name="section_feedback">Masukan</string>
@@ -121,8 +125,30 @@
     <string name="yt_playlist_removed_video">%1$s dihapus dari daftar putar</string>
     <string name="cd_add_to_playlist">Tambahkan ke daftar putar</string>
     <string name="cd_share">Bagikan</string>
-    <string name="cd_music_video">Musik</string>
-    <string name="cd_album">Album</string>
+    <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
+    <string name="a11y_kind_video">Video</string>
+    <string name="a11y_kind_music_video">Video musik</string>
+    <string name="a11y_kind_live">Siaran langsung</string>
+    <string name="a11y_kind_playlist">Daftar putar</string>
+    <string name="a11y_kind_album">Album</string>
+    <string name="a11y_kind_mix">Mix</string>
+    <string name="a11y_kind_channel">Saluran</string>
+    <!-- A video's length as a screen reader speaks it, joined with spaces: "1 hour 5 minutes 3 seconds" -->
+    <plurals name="a11y_duration_hours">
+        <item quantity="other">%1$d jam</item>
+    </plurals>
+    <plurals name="a11y_duration_minutes">
+        <item quantity="other">%1$d menit</item>
+    </plurals>
+    <plurals name="a11y_duration_seconds">
+        <item quantity="other">%1$d detik</item>
+    </plurals>
+    <string name="a11y_now_playing">Sedang diputar</string>
+    <string name="a11y_playback_position">Posisi pemutaran</string>
+    <string name="a11y_x_of_y">%1$s dari %2$s</string>
+    <string name="a11y_behind_live">%1$s di belakang siaran langsung</string>
+    <string name="a11y_downloaded">Sudah diunduh</string>
+    <string name="a11y_eq_preamp">Penguat awal</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Folder</string>
@@ -362,7 +388,6 @@
     <string name="account_sign_out">Keluar</string>
     <string name="account_switch">Ganti akun</string>
     <string name="switch_account_hint">Pilih akun yang Anda inginkan, lalu tutup layar ini dengan panah kembali — aplikasi akan dimuat ulang dengan akun baru.</string>
-    <string name="cd_account_avatar">Foto akun</string>
     <string name="account_my_channel">Channel saya</string>
     <string name="account_watch_history">Riwayat tontonan</string>
     <string name="account_watch_later">Tonton nanti</string>
@@ -546,6 +571,24 @@
     <string name="video_details_delete_title">Hapus komentar</string>
     <string name="video_details_delete_message">Hapus komentar Anda beserta semua balasannya secara permanen?</string>
     <string name="video_details_deleted">Komentar dihapus</string>
+    <string name="cookie_protect_title">Lindungi info masuk Anda dengan sandi?</string>
+    <string name="cookie_protect_body">Info masuk Anda disimpan di komputer ini, tempat aplikasi lain yang Anda jalankan dapat membacanya. Setel sandi untuk menguncinya; YMusic akan memintanya setiap kali dimulai.</string>
+    <string name="cookie_password">Sandi</string>
+    <string name="cookie_protect_confirm">Konfirmasi sandi</string>
+    <string name="cookie_protect_mismatch">Sandi tidak cocok.</string>
+    <string name="cookie_protect_submit">Lindungi</string>
+    <string name="cookie_protect_skip">Lain kali</string>
+    <string name="cookie_unlock_title">Buka kunci info masuk Anda</string>
+    <string name="cookie_unlock_body">Info masuk YouTube Anda dilindungi dengan sandi.</string>
+    <string name="cookie_unlock_submit">Buka kunci</string>
+    <string name="cookie_unlock_wrong">Sandi salah.</string>
+    <string name="cookie_unlock_cant_unlock">Tidak bisa membuka kunci?</string>
+    <string name="cookie_unlock_guest">Lanjutkan sebagai tamu</string>
+    <string name="cookie_unlock_guest_hint">Dimulai tanpa masuk. Tidak ada yang disimpan.</string>
+    <string name="cookie_unlock_sign_out">Keluar</string>
+    <string name="cookie_unlock_sign_out_hint">Menghapus info masuk tersimpan ini.</string>
+    <string name="cookie_unlock_sign_out_title">Keluar?</string>
+    <string name="cookie_unlock_sign_out_body">Tindakan ini menghapus info masuk tersimpan dari komputer ini. Untuk masuk lagi, pindai kode QR dengan aplikasi YMusic.</string>
     <string name="menu_details_comments">Detail dan komentar</string>
     <string name="menu_search_lyrics">Cari lirik</string>
     <string name="menu_speed_pitch">Kecepatan dan nada</string>
@@ -565,4 +608,22 @@
     <string name="download_other_format">Download dalam format lain</string>
     <string name="unsubscribe">Berhenti berlangganan</string>
     <string name="unsubscribed">Berhenti berlangganan</string>
+    <string name="tray_pause">Jeda</string>
+    <string name="tray_resume">Lanjutkan</string>
+    <string name="tray_stop">Hentikan (kosongkan antrean)</string>
+    <string name="tray_quit">Tutup</string>
+    <string name="shortcuts_title">Pintasan keyboard</string>
+    <string name="shortcuts_play_pause">Putar / jeda</string>
+    <string name="shortcuts_now_playing">Tampilkan atau sembunyikan Sedang diputar</string>
+    <string name="shortcuts_nav_menu">Buka atau tutup menu</string>
+    <string name="shortcuts_switch_tabs">Beralih tab</string>
+    <string name="shortcuts_escape">Keluar dari layar penuh, atau tutup Sedang diputar, menu, atau pop-up</string>
+    <string name="shortcuts_help">Tampilkan bantuan ini</string>
+    <string name="shortcuts_volume_up">Naikkan volume</string>
+    <string name="shortcuts_volume_down">Turunkan volume</string>
+    <string name="a11y_key_arrow_left">panah kiri</string>
+    <string name="a11y_key_arrow_right">panah kanan</string>
+    <string name="a11y_key_arrow_up">panah atas</string>
+    <string name="a11y_key_arrow_down">panah bawah</string>
+    <string name="cd_always_on_top">Selalu di atas</string>
 </resources>

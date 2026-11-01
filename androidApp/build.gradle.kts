@@ -156,11 +156,13 @@ dependencies {
     implementation(Libs.AndroidX.activityCompose)
     implementation(Libs.Kotlinx.coroutinesAndroid)
     implementation(project(":kmpHttp:core"))
-    implementation(project(":projectCommon")) // LoggingWorker/FileLogger
+    implementation(project(":projectCommon"))
+    implementation(project(":quickjs")) // QuickJsRuntime.hostVersions
     implementation(project(":remote-config"))
     implementation(project(":yt-media")) // the player-cache router (LocalMediaProxy) for the WebView
     implementation(Libs.Media3.session)
     implementation(project(":telemetry")) // api: sentry-kotlin-multiplatform + SentryLogger
+    implementation(project(":log-store")) // the app log (logs.db)
     // androidx.media.app.NotificationCompat.MediaStyle for the playback notification.
     implementation("androidx.media:media:1.7.0")
     implementation(compose.material3)

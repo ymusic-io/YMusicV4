@@ -23,6 +23,10 @@
     <string name="downloads_none_title">Încă nu există descărcări</string>
     <string name="downloads_none_message">Melodiile și videoclipurile descărcate rulează offline.</string>
     <string name="downloads_failed">Descărcarea nu a reușit</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Afișează în Finder</string>
+    <string name="menu_reveal_explorer">Afișează în Explorer fișiere</string>
+    <string name="menu_reveal_file_manager">Afișează în managerul de fișiere</string>
     <string name="section_settings">Setări</string>
     <string name="section_donate">Donează</string>
     <string name="section_feedback">Feedback</string>
@@ -121,8 +125,36 @@
     <string name="yt_playlist_removed_video">%1$s a fost eliminat din playlist</string>
     <string name="cd_add_to_playlist">Adaugă în playlist</string>
     <string name="cd_share">Distribuie</string>
-    <string name="cd_music_video">Muzică</string>
-    <string name="cd_album">Album</string>
+    <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
+    <string name="a11y_kind_video">Videoclip</string>
+    <string name="a11y_kind_music_video">Videoclip muzical</string>
+    <string name="a11y_kind_live">Transmisiune live</string>
+    <string name="a11y_kind_playlist">Playlist</string>
+    <string name="a11y_kind_album">Album</string>
+    <string name="a11y_kind_mix">Mix</string>
+    <string name="a11y_kind_channel">Canal</string>
+    <!-- A video's length as a screen reader speaks it, joined with spaces: "1 hour 5 minutes 3 seconds" -->
+    <plurals name="a11y_duration_hours">
+        <item quantity="one">%1$d oră</item>
+        <item quantity="few">%1$d ore</item>
+        <item quantity="other">%1$d de ore</item>
+    </plurals>
+    <plurals name="a11y_duration_minutes">
+        <item quantity="one">%1$d minut</item>
+        <item quantity="few">%1$d minute</item>
+        <item quantity="other">%1$d de minute</item>
+    </plurals>
+    <plurals name="a11y_duration_seconds">
+        <item quantity="one">%1$d secundă</item>
+        <item quantity="few">%1$d secunde</item>
+        <item quantity="other">%1$d de secunde</item>
+    </plurals>
+    <string name="a11y_now_playing">Se redă acum</string>
+    <string name="a11y_playback_position">Poziția redării</string>
+    <string name="a11y_x_of_y">%1$s din %2$s</string>
+    <string name="a11y_behind_live">%1$s în urma transmisiunii live</string>
+    <string name="a11y_downloaded">Descărcat</string>
+    <string name="a11y_eq_preamp">Preamplificator</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Dosare</string>
@@ -364,7 +396,6 @@
     <string name="account_sign_out">Deconectează-te</string>
     <string name="account_switch">Schimbă contul</string>
     <string name="switch_account_hint">Alege contul dorit, apoi închide acest ecran cu săgeata înapoi — aplicația se reîmprospătează cu noul cont.</string>
-    <string name="cd_account_avatar">Fotografia contului</string>
     <string name="account_my_channel">Canalul meu</string>
     <string name="account_watch_history">Istoricul vizionărilor</string>
     <string name="account_watch_later">Vizionează mai târziu</string>
@@ -556,6 +587,24 @@
     <string name="video_details_delete_title">Șterge comentariul</string>
     <string name="video_details_delete_message">Ștergi definitiv comentariul și toate răspunsurile la acesta?</string>
     <string name="video_details_deleted">Comentariu șters</string>
+    <string name="cookie_protect_title">Protejezi conectarea cu o parolă?</string>
+    <string name="cookie_protect_body">Conectarea ta este salvată pe acest computer, unde alte aplicații pe care le rulezi o pot citi. Setează o parolă pentru a o bloca; YMusic ți-o va cere la fiecare pornire.</string>
+    <string name="cookie_password">Parolă</string>
+    <string name="cookie_protect_confirm">Confirmă parola</string>
+    <string name="cookie_protect_mismatch">Parolele nu se potrivesc.</string>
+    <string name="cookie_protect_submit">Protejează</string>
+    <string name="cookie_protect_skip">Nu acum</string>
+    <string name="cookie_unlock_title">Deblochează conectarea</string>
+    <string name="cookie_unlock_body">Conectarea ta YouTube este protejată cu o parolă.</string>
+    <string name="cookie_unlock_submit">Deblochează</string>
+    <string name="cookie_unlock_wrong">Parolă greșită.</string>
+    <string name="cookie_unlock_cant_unlock">Nu poți debloca?</string>
+    <string name="cookie_unlock_guest">Continuă ca invitat</string>
+    <string name="cookie_unlock_guest_hint">Pornește deconectat. Nu se păstrează nimic.</string>
+    <string name="cookie_unlock_sign_out">Deconectează-te</string>
+    <string name="cookie_unlock_sign_out_hint">Elimină această conectare salvată.</string>
+    <string name="cookie_unlock_sign_out_title">Te deconectezi?</string>
+    <string name="cookie_unlock_sign_out_body">Conectarea salvată va fi eliminată de pe acest computer. Pentru a te conecta din nou, scanează codul QR cu aplicația YMusic.</string>
     <string name="menu_details_comments">Detalii și comentarii</string>
     <string name="menu_search_lyrics">Caută versurile</string>
     <string name="menu_speed_pitch">Viteză și tonalitate</string>
@@ -575,4 +624,22 @@
     <string name="download_other_format">Descarcă în alt format</string>
     <string name="unsubscribe">Dezabonează-te</string>
     <string name="unsubscribed">Dezabonat</string>
+    <string name="tray_pause">Pauză</string>
+    <string name="tray_resume">Reia</string>
+    <string name="tray_stop">Oprește (golește coada)</string>
+    <string name="tray_quit">Închide</string>
+    <string name="shortcuts_title">Comenzi rapide de la tastatură</string>
+    <string name="shortcuts_play_pause">Redare / pauză</string>
+    <string name="shortcuts_now_playing">Afișează sau ascunde Se redă acum</string>
+    <string name="shortcuts_nav_menu">Deschide sau închide meniul</string>
+    <string name="shortcuts_switch_tabs">Comută între file</string>
+    <string name="shortcuts_escape">Ieși din ecranul complet sau închide Se redă acum, meniul ori o fereastră pop-up</string>
+    <string name="shortcuts_help">Afișează acest ajutor</string>
+    <string name="shortcuts_volume_up">Mărește volumul</string>
+    <string name="shortcuts_volume_down">Micșorează volumul</string>
+    <string name="a11y_key_arrow_left">săgeată stânga</string>
+    <string name="a11y_key_arrow_right">săgeată dreapta</string>
+    <string name="a11y_key_arrow_up">săgeată sus</string>
+    <string name="a11y_key_arrow_down">săgeată jos</string>
+    <string name="cd_always_on_top">Mereu deasupra</string>
 </resources>

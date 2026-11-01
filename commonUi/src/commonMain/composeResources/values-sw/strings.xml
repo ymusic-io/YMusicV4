@@ -23,6 +23,10 @@
     <string name="downloads_none_title">Bado hakuna vipakuliwa</string>
     <string name="downloads_none_message">Nyimbo na video zilizopakuliwa hucheza nje ya mtandao.</string>
     <string name="downloads_failed">Imeshindwa kupakua</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Onyesha kwenye Finder</string>
+    <string name="menu_reveal_explorer">Onyesha kwenye Kichunguzi cha Faili</string>
+    <string name="menu_reveal_file_manager">Onyesha kwenye kidhibiti faili</string>
     <string name="section_settings">Mipangilio</string>
     <string name="section_donate">Changia</string>
     <string name="section_feedback">Maoni</string>
@@ -121,8 +125,33 @@
     <string name="yt_playlist_removed_video">%1$s imeondolewa kwenye orodha ya kucheza</string>
     <string name="cd_add_to_playlist">Ongeza kwenye orodha ya kucheza</string>
     <string name="cd_share">Shiriki</string>
-    <string name="cd_music_video">Muziki</string>
-    <string name="cd_album">Albamu</string>
+    <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
+    <string name="a11y_kind_video">Video</string>
+    <string name="a11y_kind_music_video">Video ya muziki</string>
+    <string name="a11y_kind_live">Video mubashara</string>
+    <string name="a11y_kind_playlist">Orodha ya kucheza</string>
+    <string name="a11y_kind_album">Albamu</string>
+    <string name="a11y_kind_mix">Mchanganyiko</string>
+    <string name="a11y_kind_channel">Kituo</string>
+    <!-- A video's length as a screen reader speaks it, joined with spaces: "1 hour 5 minutes 3 seconds" -->
+    <plurals name="a11y_duration_hours">
+        <item quantity="one">saa %1$d</item>
+        <item quantity="other">saa %1$d</item>
+    </plurals>
+    <plurals name="a11y_duration_minutes">
+        <item quantity="one">dakika %1$d</item>
+        <item quantity="other">dakika %1$d</item>
+    </plurals>
+    <plurals name="a11y_duration_seconds">
+        <item quantity="one">sekunde %1$d</item>
+        <item quantity="other">sekunde %1$d</item>
+    </plurals>
+    <string name="a11y_now_playing">Inacheza sasa</string>
+    <string name="a11y_playback_position">Mahali pa uchezaji</string>
+    <string name="a11y_x_of_y">%1$s kati ya %2$s</string>
+    <string name="a11y_behind_live">%1$s nyuma ya mubashara</string>
+    <string name="a11y_downloaded">Imepakuliwa</string>
+    <string name="a11y_eq_preamp">Kikuza sauti cha awali</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Folda</string>
@@ -363,7 +392,6 @@
     <string name="account_sign_out">Ondoka</string>
     <string name="account_switch">Badilisha akaunti</string>
     <string name="switch_account_hint">Chagua akaunti unayotaka, kisha funga skrini hii kwa mshale wa kurudi nyuma — programu itaonyesha upya ikitumia akaunti mpya.</string>
-    <string name="cd_account_avatar">Picha ya akaunti</string>
     <string name="account_my_channel">Kituo changu</string>
     <string name="account_watch_history">Historia ya kutazama</string>
     <string name="account_watch_later">Tazama baadaye</string>
@@ -551,6 +579,24 @@
     <string name="video_details_delete_title">Futa maoni</string>
     <string name="video_details_delete_message">Ungependa kufuta kabisa maoni yako na majibu yake yote?</string>
     <string name="video_details_deleted">Maoni yamefutwa</string>
+    <string name="cookie_protect_title">Ungependa kulinda maelezo yako ya kuingia kwa nenosiri?</string>
+    <string name="cookie_protect_body">Maelezo yako ya kuingia yamehifadhiwa kwenye kompyuta hii, ambapo programu nyingine unazotumia zinaweza kuyasoma. Weka nenosiri ili kuyafunga; YMusic italiuliza kila inapoanza.</string>
+    <string name="cookie_password">Nenosiri</string>
+    <string name="cookie_protect_confirm">Thibitisha nenosiri</string>
+    <string name="cookie_protect_mismatch">Manenosiri hayalingani.</string>
+    <string name="cookie_protect_submit">Linda</string>
+    <string name="cookie_protect_skip">Si sasa</string>
+    <string name="cookie_unlock_title">Fungua maelezo yako ya kuingia</string>
+    <string name="cookie_unlock_body">Maelezo yako ya kuingia kwenye YouTube yamelindwa kwa nenosiri.</string>
+    <string name="cookie_unlock_submit">Fungua</string>
+    <string name="cookie_unlock_wrong">Nenosiri si sahihi.</string>
+    <string name="cookie_unlock_cant_unlock">Huwezi kufungua?</string>
+    <string name="cookie_unlock_guest">Endelea kama mgeni</string>
+    <string name="cookie_unlock_guest_hint">Inaanza bila kuingia katika akaunti. Hakuna kinachohifadhiwa.</string>
+    <string name="cookie_unlock_sign_out">Ondoka</string>
+    <string name="cookie_unlock_sign_out_hint">Huondoa maelezo haya ya kuingia yaliyohifadhiwa.</string>
+    <string name="cookie_unlock_sign_out_title">Ungependa kuondoka?</string>
+    <string name="cookie_unlock_sign_out_body">Hii huondoa maelezo ya kuingia yaliyohifadhiwa kwenye kompyuta hii. Ili uingie tena, changanua msimbo wa QR ukitumia programu ya YMusic.</string>
     <string name="menu_details_comments">Maelezo na maoni</string>
     <string name="menu_search_lyrics">Tafuta maneno ya wimbo</string>
     <string name="menu_speed_pitch">Kasi na kiimbo</string>
@@ -570,4 +616,22 @@
     <string name="download_other_format">Pakua kwa umbizo jingine</string>
     <string name="unsubscribe">Jiondoe</string>
     <string name="unsubscribed">Umejiondoa</string>
+    <string name="tray_pause">Sitisha</string>
+    <string name="tray_resume">Endelea</string>
+    <string name="tray_stop">Simamisha (futa foleni)</string>
+    <string name="tray_quit">Funga</string>
+    <string name="shortcuts_title">Mikato ya kibodi</string>
+    <string name="shortcuts_play_pause">Cheza / sitisha</string>
+    <string name="shortcuts_now_playing">Onyesha au ficha Inayocheza Sasa</string>
+    <string name="shortcuts_nav_menu">Fungua au funga menyu</string>
+    <string name="shortcuts_switch_tabs">Badilisha vichupo</string>
+    <string name="shortcuts_escape">Ondoka kwenye skrini nzima, au funga Inayocheza Sasa, menyu au dirisha ibukizi</string>
+    <string name="shortcuts_help">Onyesha usaidizi huu</string>
+    <string name="shortcuts_volume_up">Ongeza sauti</string>
+    <string name="shortcuts_volume_down">Punguza sauti</string>
+    <string name="a11y_key_arrow_left">mshale wa kushoto</string>
+    <string name="a11y_key_arrow_right">mshale wa kulia</string>
+    <string name="a11y_key_arrow_up">mshale wa juu</string>
+    <string name="a11y_key_arrow_down">mshale wa chini</string>
+    <string name="cd_always_on_top">Juu kila wakati</string>
 </resources>

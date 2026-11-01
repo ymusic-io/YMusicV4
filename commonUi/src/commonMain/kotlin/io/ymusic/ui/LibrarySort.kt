@@ -125,7 +125,12 @@ internal fun SortControl(
                     horizontalArrangement = Arrangement.spacedBy(5.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(Icons.AutoMirrored.Filled.Sort, stringResource(Res.string.cd_sort), Modifier.size(16.dp), tint = DesignColors.InkSoft)
+                    Icon(
+                        Icons.AutoMirrored.Filled.Sort,
+                        null,
+                        Modifier.size(16.dp).spokenAs(stringResource(Res.string.cd_sort)),
+                        tint = DesignColors.InkSoft,
+                    )
                     Text(
                         stringResource(labels.getOrElse(state.index) { labels.first() }),
                         style = TextStyle(fontSize = ChipTextSize, fontWeight = FontWeight.Medium, color = DesignColors.Ink),

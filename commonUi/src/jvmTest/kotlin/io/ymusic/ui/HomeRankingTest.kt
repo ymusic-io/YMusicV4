@@ -2,8 +2,6 @@ package io.ymusic.ui
 
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasText
-import androidx.compose.ui.test.onAllNodesWithContentDescription
-import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runComposeUiTest
@@ -43,7 +41,7 @@ class HomeRankingTest {
             runComposeUiTest {
                 val graph = AppGraph(engines = engines, player = StubPlayer(), playerSurface = {})
                 setContent { App(graph) }
-                onNodeWithContentDescription("Home").performClick()
+                onNodeWithActionLabel("Home").performClick()
 
                 waitUntilAtLeastOneExists(hasText("Mock Text 010", substring = true), 20_000)
                 val mix = onNodeWithText("Mock Text 036", substring = true).fetchSemanticsNode()
@@ -56,8 +54,8 @@ class HomeRankingTest {
                 assertTrue(order(mix) < order(musicVid), "the Mix outranks even music videos")
                 assertTrue(order(musicVid) < order(vlog), "music video must render above the travel vlog")
                 assertTrue(order(artistTrack) < order(vlog), "artist-channel music must render above the travel vlog")
-                // The 3 music videos carry the note glyph in their duration badge.
-                assertTrue(onAllNodesWithContentDescription("Music").fetchSemanticsNodes().size >= 3)
+                // The 3 music videos are announced as such.
+                assertTrue(onAllNodes(hasText("Music video,", substring = true)).fetchSemanticsNodes().size >= 3)
             }
         } finally {
             runBlocking { engines.close() }

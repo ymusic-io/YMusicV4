@@ -23,6 +23,10 @@
     <string name="downloads_none_title">هنوز دانلودی نیست</string>
     <string name="downloads_none_message">آهنگ‌ها و ویدیوهای دانلودشده آفلاین پخش می‌شوند.</string>
     <string name="downloads_failed">دانلود ناموفق بود</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">نمایش در Finder</string>
+    <string name="menu_reveal_explorer">نمایش در کاوشگر فایل</string>
+    <string name="menu_reveal_file_manager">نمایش در مدیر فایل</string>
     <string name="section_settings">تنظیمات</string>
     <string name="section_donate">حمایت مالی</string>
     <string name="section_feedback">بازخورد</string>
@@ -121,8 +125,33 @@
     <string name="yt_playlist_removed_video">%1$s از لیست پخش حذف شد</string>
     <string name="cd_add_to_playlist">افزودن به لیست پخش</string>
     <string name="cd_share">اشتراک‌گذاری</string>
-    <string name="cd_music_video">موسیقی</string>
-    <string name="cd_album">آلبوم</string>
+    <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
+    <string name="a11y_kind_video">ویدیو</string>
+    <string name="a11y_kind_music_video">موزیک ویدیو</string>
+    <string name="a11y_kind_live">پخش زنده</string>
+    <string name="a11y_kind_playlist">لیست پخش</string>
+    <string name="a11y_kind_album">آلبوم</string>
+    <string name="a11y_kind_mix">میکس</string>
+    <string name="a11y_kind_channel">کانال</string>
+    <!-- A video's length as a screen reader speaks it, joined with spaces: "1 hour 5 minutes 3 seconds" -->
+    <plurals name="a11y_duration_hours">
+        <item quantity="one">%1$d ساعت</item>
+        <item quantity="other">%1$d ساعت</item>
+    </plurals>
+    <plurals name="a11y_duration_minutes">
+        <item quantity="one">%1$d دقیقه</item>
+        <item quantity="other">%1$d دقیقه</item>
+    </plurals>
+    <plurals name="a11y_duration_seconds">
+        <item quantity="one">%1$d ثانیه</item>
+        <item quantity="other">%1$d ثانیه</item>
+    </plurals>
+    <string name="a11y_now_playing">در حال پخش</string>
+    <string name="a11y_playback_position">موقعیت پخش</string>
+    <string name="a11y_x_of_y">%1$s از %2$s</string>
+    <string name="a11y_behind_live">%1$s عقب‌تر از پخش زنده</string>
+    <string name="a11y_downloaded">دانلود شده</string>
+    <string name="a11y_eq_preamp">پیش‌تقویت‌کننده</string>
 
     <!-- Library -->
     <string name="library_tab_folders">پوشه‌ها</string>
@@ -363,7 +392,6 @@
     <string name="account_sign_out">خروج از حساب</string>
     <string name="account_switch">تغییر حساب</string>
     <string name="switch_account_hint">حساب مورد نظر را انتخاب کنید، سپس این صفحه را با پیکان بازگشت ببندید — برنامه با حساب جدید تازه‌سازی می‌شود.</string>
-    <string name="cd_account_avatar">تصویر حساب</string>
     <string name="account_my_channel">کانال من</string>
     <string name="account_watch_history">تاریخچه تماشا</string>
     <string name="account_watch_later">تماشا در آینده</string>
@@ -551,6 +579,24 @@
     <string name="video_details_delete_title">حذف نظر</string>
     <string name="video_details_delete_message">نظر شما و همه پاسخ‌های آن برای همیشه حذف شود؟</string>
     <string name="video_details_deleted">نظر حذف شد</string>
+    <string name="cookie_protect_title">از ورود با رمز عبور محافظت شود؟</string>
+    <string name="cookie_protect_body">ورود شما روی این رایانه ذخیره شده است و برنامه‌های دیگری که اجرا می‌کنید می‌توانند آن را بخوانند. برای قفل کردن آن یک رمز عبور تنظیم کنید؛ YMusic در هر بار اجرا آن را می‌پرسد.</string>
+    <string name="cookie_password">رمز عبور</string>
+    <string name="cookie_protect_confirm">تأیید رمز عبور</string>
+    <string name="cookie_protect_mismatch">رمزهای عبور یکسان نیستند.</string>
+    <string name="cookie_protect_submit">محافظت</string>
+    <string name="cookie_protect_skip">اکنون نه</string>
+    <string name="cookie_unlock_title">باز کردن قفل ورود</string>
+    <string name="cookie_unlock_body">ورود YouTube شما با رمز عبور محافظت شده است.</string>
+    <string name="cookie_unlock_submit">باز کردن قفل</string>
+    <string name="cookie_unlock_wrong">رمز عبور اشتباه است.</string>
+    <string name="cookie_unlock_cant_unlock">نمی‌توانید قفل را باز کنید؟</string>
+    <string name="cookie_unlock_guest">ادامه به‌عنوان مهمان</string>
+    <string name="cookie_unlock_guest_hint">بدون ورود به حساب شروع می‌شود. چیزی نگه داشته نمی‌شود.</string>
+    <string name="cookie_unlock_sign_out">خروج از حساب</string>
+    <string name="cookie_unlock_sign_out_hint">این ورود ذخیره‌شده را حذف می‌کند.</string>
+    <string name="cookie_unlock_sign_out_title">از حساب خارج می‌شوید؟</string>
+    <string name="cookie_unlock_sign_out_body">با این کار ورود ذخیره‌شده از این رایانه حذف می‌شود. برای ورود دوباره، کد QR را با برنامه YMusic اسکن کنید.</string>
     <string name="menu_details_comments">جزئیات و نظرات</string>
     <string name="menu_search_lyrics">جستجوی متن آهنگ</string>
     <string name="menu_speed_pitch">سرعت و زیر و بمی</string>
@@ -570,4 +616,22 @@
     <string name="download_other_format">دانلود با قالبی دیگر</string>
     <string name="unsubscribe">لغو اشتراک</string>
     <string name="unsubscribed">اشتراک لغو شد</string>
+    <string name="tray_pause">توقف موقت</string>
+    <string name="tray_resume">ادامه</string>
+    <string name="tray_stop">توقف (پاک کردن صف)</string>
+    <string name="tray_quit">بستن</string>
+    <string name="shortcuts_title">میان‌برهای صفحه‌کلید</string>
+    <string name="shortcuts_play_pause">پخش / توقف موقت</string>
+    <string name="shortcuts_now_playing">نمایش یا پنهان کردن صفحه پخش</string>
+    <string name="shortcuts_nav_menu">باز یا بسته کردن منو</string>
+    <string name="shortcuts_switch_tabs">جابه‌جایی بین زبانه‌ها</string>
+    <string name="shortcuts_escape">خروج از تمام‌صفحه، یا بستن صفحه پخش، منو یا پنجره بازشو</string>
+    <string name="shortcuts_help">نمایش این راهنما</string>
+    <string name="shortcuts_volume_up">افزایش صدا</string>
+    <string name="shortcuts_volume_down">کاهش صدا</string>
+    <string name="a11y_key_arrow_left">پیکان چپ</string>
+    <string name="a11y_key_arrow_right">پیکان راست</string>
+    <string name="a11y_key_arrow_up">پیکان بالا</string>
+    <string name="a11y_key_arrow_down">پیکان پایین</string>
+    <string name="cd_always_on_top">همیشه در بالا</string>
 </resources>

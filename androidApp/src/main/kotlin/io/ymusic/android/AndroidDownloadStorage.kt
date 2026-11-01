@@ -43,9 +43,7 @@ class AndroidDownloadStorage(
         }
         // SAF would rename a clash itself ("name (1).ext"); pick the app-wide "name_1.ext" instead.
         val child = try {
-            val existing = childNames(parent)
-            val name = DownloadFileNames.freeName(fileName) { it in existing }
-            DocumentsContract.createDocument(resolver, parent, mimeFor(name), name)
+            createFreeDocument(parent, fileName)
         } catch (e: SecurityException) {
             // The tree's persisted grant is gone or read-only: only re-picking the folder restores it.
             throw DownloadFolderAccessException(destinationFolder.toString(), e)
@@ -58,7 +56,11 @@ class AndroidDownloadStorage(
             throw e
         } catch (e: IllegalArgumentException) {
             // "Unknown authority …": the storage provider isn't reachable for this tree.
-            if (e.message?.startsWith("Unknown authority") == true) throw DownloadFolderAccessException(destinationFolder.toString(), e)
+            // "Parent document isn't a directory": the picked folder was replaced or removed.
+            val message = e.message.orEmpty()
+            if (message.startsWith("Unknown authority") || message.startsWith("Parent document isn't a directory")) {
+                throw DownloadFolderAccessException(destinationFolder.toString(), e)
+            }
             throw e
         } catch (e: NullPointerException) {
             // Thrown provider-side (a null ContentProviderClient inside ExternalStorageProvider).
@@ -86,6 +88,24 @@ class AndroidDownloadStorage(
         child.toString()
     }
 
+    /**
+     * Android 10's Downloads provider answers "Invalid file path" for a name that is taken on disk but
+     * missing from its listing (a file it never indexed): such names are skipped, a few at most.
+     */
+    private fun createFreeDocument(parent: Uri, fileName: String): Uri? {
+        val taken = childNames(parent).toMutableSet()
+        var attempt = 0
+        while (true) {
+            val name = DownloadFileNames.freeName(fileName) { it in taken }
+            try {
+                return DocumentsContract.createDocument(context.contentResolver, parent, mimeFor(name), name)
+            } catch (e: IllegalArgumentException) {
+                if (e.message?.startsWith("Invalid file path") != true || ++attempt >= MAX_UNLISTED_CLASHES) throw e
+                taken += name
+            }
+        }
+    }
+
     /** Empty when the provider can't list the folder (Android 10's Downloads provider overflows SQLite's
      *  variable limit past ~1000 files): createDocument then resolves a clash itself as "name (1).ext". */
     private fun childNames(parent: Uri): Set<String> {
@@ -110,5 +130,9 @@ class AndroidDownloadStorage(
         "webm" -> "video/webm"
         "vtt" -> "text/vtt"
         else -> "application/octet-stream"
+    }
+
+    private companion object {
+        const val MAX_UNLISTED_CLASHES = 5
     }
 }

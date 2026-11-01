@@ -3,7 +3,6 @@ package io.ymusic.ui
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasText
-import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runComposeUiTest
@@ -109,7 +108,7 @@ class DownloadRevealInLibraryTest {
 
                 // The completed card shows on the Downloads screen.
                 waitUntilAtLeastOneExists(hasText("MySong"), 20_000)
-                onNodeWithContentDescription("More").performClick()
+                onNodeWithActionLabel("More").performClick()
                 onNodeWithText("Reveal in Library").performClick()
 
                 // We land inside Music > Downloads. "Music" is a Library breadcrumb ancestor — it never

@@ -259,10 +259,13 @@ kotlin {
                 implementation(compose.materialIconsExtended)
                 implementation(compose.components.resources)
                 implementation(Libs.Jna.core)
+                implementation(Libs.NavigationEvent.compose) // Esc as a back event, after popups'
                 implementation(Libs.SqlDelight.sqliteDriver) // AppStore
                 implementation(project(":telemetry")) // api: sentry-kotlin-multiplatform + SentryLogger
+                implementation(project(":log-store")) // the app log (logs.db)
                 implementation(project(":kmpHttp:core"))
                 implementation(project(":projectCommon"))
+                implementation(project(":quickjs")) // QuickJsRuntime.hostVersions
                 implementation(project(":remote-config"))
                 implementation(project(":yt-media"))
                 implementation(Libs.Kotlinx.coroutinesCore)
@@ -276,7 +279,7 @@ kotlin {
     }
 }
 
-// Publishing a release: package on each platform's machine (packageReleaseDmg / Msi / Deb), then
+// Publishing a release: package on each platform's machine (packageReleaseDmg / InnoSetup / Deb), then
 // sign each installer with the config service's scripts/sign-app-update.mjs.
 
 // Standalone UI-component catalogue (see CatalogueMain.kt): ./gradlew :desktopApp:catalogue
@@ -323,9 +326,12 @@ compose.desktop {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "YMusic"
             packageVersion = desktopVersion
+            description = "Music player"
+            vendor = "YMusic"
             macOS {
                 // Stable across releases: the updater and Gatekeeper both identify the app by it.
                 bundleID = "io.ymusic.desktop"
+                minimumSystemVersion = Versions.macosMin
                 // The rounded-square dock tile; the runtime Taskbar icon (dev runs) is the same
                 // artwork from src/jvmMain/resources/ymusic_dock.png. macOS 26+ draws the
                 // CFBundleIconName icon from macos/Assets.car instead (installMacIconAssets).
@@ -373,12 +379,23 @@ compose.desktop {
                 perUserInstall = false
                 menu = true
                 shortcut = true
+                // Multi-res ICO (16–256 px): a one-off Skia render of ymusic_logo.xml's ring artwork
+                // clipped to a circle; without this jpackage falls back to its default Java/Compose
+                // icon on the installer dialog, Start-menu entry, and running window.
+                iconFile.set(project.file("ymusic.ico"))
+            }
+            linux {
+                // :commonUi's ymusic_logo.xml rendered at 512 px, inset to 7/8 (Main.kt's runtime entry matches).
+                iconFile.set(project.file("ymusic.png"))
+                appCategory = "sound"
+                menuGroup = "AudioVideo;Audio;Player;"
             }
             // jlink modules the default set misses but the runtime graph uses: java.sql
             // (sqlite-jdbc), jdk.unsupported (Unsafe — JNA/coroutines/okio),
             // java.management + java.logging (Sentry integrations, JNA), jdk.crypto.ec
-            // (TLS for update checks).
-            modules("java.sql", "java.management", "java.logging", "jdk.unsupported", "jdk.crypto.ec")
+            // (TLS for update checks), jdk.accessibility (bundles AccessBridge so AWT
+            // doesn't abort at startup when a screen reader / Magnifier is active).
+            modules("java.sql", "java.management", "java.logging", "jdk.unsupported", "jdk.crypto.ec", "jdk.accessibility")
             // Host ffmpeg next to compose resources (`compose.application.resources.dir` at runtime).
             appResourcesRootDir.set(ffmpegAppResources)
         }
@@ -434,6 +451,31 @@ if (hostOs == "macos") {
     }
 }
 
+// jpackage's .deb templates have no Homepage (App Center's "Developer website") and no StartupWMClass
+// (GNOME matches our windows to the menu entry by it), so the package is unpacked, both added, and rebuilt.
+if (hostOs == "linux") {
+    tasks.withType<AbstractJPackageTask>().matching { it.name == "packageDeb" || it.name == "packageReleaseDeb" }.configureEach {
+        val debName = "_${desktopVersion}_${if (hostArm64) "arm64" else "amd64"}.deb"
+        doLast("addDebMetadata") {
+            fun run(vararg command: String) {
+                val process = ProcessBuilder(*command).redirectErrorStream(true).start()
+                val output = process.inputStream.readBytes().decodeToString()
+                check(process.waitFor() == 0) { "${command.joinToString(" ")} failed: $output" }
+            }
+            val deb = destinationDir.get().asFile.listFiles().orEmpty().single { it.name.endsWith(debName) }
+            val root = File(temporaryDir, "deb").apply { deleteRecursively() }
+            run("dpkg-deb", "-R", deb.path, root.path)
+            val control = File(root, "DEBIAN/control")
+            control.writeText(control.readText().trimEnd() + "\nHomepage: https://ymusic.io\n")
+            root.walk().filter { it.isFile && it.name.endsWith(".desktop") }.forEach {
+                it.writeText(it.readText().trimEnd() + "\nStartupWMClass=io-ymusic-desktop-MainKt\n")
+            }
+            run("dpkg-deb", "--root-owner-group", "--build", root.path, deb.path)
+            root.deleteRecursively()
+        }
+    }
+}
+
 tasks.matching { it.name == "proguardReleaseJars" }.configureEach {
     val proguardOut = layout.buildDirectory.dir("compose/tmp/main-release/proguard")
     // The plugin never clears this dir, so a jar whose name changes (a dependency version bump)
@@ -485,16 +527,66 @@ tasks.matching { it.name == "proguardReleaseJars" }.configureEach {
 }
 
 // The host's installer under a name that says what it is for, ready for sign-app-update.mjs:
-//   ./gradlew :desktopApp:releaseInstaller   →   build/release/YMusic-<version>-<platform>.<dmg|msi|deb>
+//   ./gradlew :desktopApp:releaseInstaller   →   build/release/YMusic-<version>-<platform>.<dmg|exe|deb>
 tasks.register<Copy>("releaseInstaller") {
     group = "distribution"
     description = "Package the release installer for this OS/arch and name it YMusic-<version>-<platform>."
-    val format = mapOf("macos" to "Dmg", "windows" to "Msi", "linux" to "Deb").getValue(hostOs)
-    dependsOn("packageRelease$format")
-    from(layout.buildDirectory.dir("compose/binaries/main-release/${format.lowercase()}"))
-    include("*.${format.lowercase()}")
-    rename { "YMusic-$desktopVersion-$hostPlatform.${format.lowercase()}" }
+    val (task, dir, ext) = when (hostOs) {
+        "macos" -> Triple("packageReleaseDmg", "dmg", "dmg")
+        "windows" -> Triple("packageReleaseInnoSetup", "innosetup", "exe")
+        else -> Triple("packageReleaseDeb", "deb", "deb")
+    }
+    dependsOn(task)
+    from(layout.buildDirectory.dir("compose/binaries/main-release/$dir"))
+    include("*.$ext")
+    rename { "YMusic-$desktopVersion-$hostPlatform.$ext" }
     into(layout.buildDirectory.dir("release"))
 }
 
 kotlin.sourceSets.getByName("jvmMain").resources.srcDir(files(layout.buildDirectory.dir("engineJsResources")).builtBy(stageEngineJs))
+
+// ---------------------------------------------------------------------------------------------
+// Windows: Inno Setup installer. Wraps the jlinked app directory produced by
+// createReleaseDistributable in an LZMA2-compressed single-exe installer with a nicer upgrade
+// flow than jpackage's canned MSI. Compiler lookup: see buildSrc InnoSetup.kt.
+// ---------------------------------------------------------------------------------------------
+val isccPath: Provider<File> = providers.provider {
+    innoSetupCompiler() ?: error(INNO_SETUP_MISSING)
+}
+
+val innoSetupOutDir = layout.buildDirectory.dir("compose/binaries/main-release/innosetup")
+
+val packageReleaseInnoSetup by tasks.registering(Exec::class) {
+    group = "compose desktop"
+    description = "Wrap the release distributable in an Inno Setup installer (Windows only)."
+    onlyIf { hostOs == "windows" }
+    dependsOn("createReleaseDistributable")
+
+    val script = project.file("installer/windows/ymusic.iss")
+    val iconFile = project.file("ymusic.ico")
+    val appDir = layout.buildDirectory.dir("compose/binaries/main-release/app/YMusic")
+
+    inputs.file(script)
+    inputs.file(iconFile)
+    inputs.dir(appDir)
+    inputs.property("version", desktopVersion)
+    inputs.property("platform", hostPlatform)
+    outputs.dir(innoSetupOutDir)
+
+    doFirst {
+        val out = innoSetupOutDir.get().asFile.apply { mkdirs() }
+        commandLine(
+            isccPath.get().absolutePath,
+            "/Qp",
+            "/DAppVersion=$desktopVersion",
+            "/DAppPublisher=YMusic",
+            "/DAppURL=https://ymusic.io",
+            "/DAppSourceDir=${appDir.get().asFile.absolutePath}",
+            "/DIconFile=${iconFile.absolutePath}",
+            "/DOutputDir=${out.absolutePath}",
+            "/DArch=${if (hostArm64) "arm64" else "x64compatible"}",
+            "/DOutputBaseName=YMusic-Setup-$desktopVersion-$hostPlatform",
+            script.absolutePath,
+        )
+    }
+}

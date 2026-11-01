@@ -1,10 +1,12 @@
 package io.ymusic.ui
 
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onAllNodesWithText
-import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runComposeUiTest
@@ -98,7 +100,7 @@ class DetailScreensTest {
                 assertTrue(queue.all { it is PlayableItem.YtMedia }, "$queue")
 
                 // The FAB shuffles the whole playlist, starting anywhere in it.
-                onNodeWithContentDescription("Shuffle").performClick()
+                onNodeWithText("Shuffle").performClick()
                 assertEquals(true, player.lastShuffle)
                 assertTrue(player.lastPlayIndex in 0..3, "${player.lastPlayIndex}")
             }
@@ -195,7 +197,7 @@ class DetailScreensTest {
                 onNodeWithText("Subscribe").assertExists()
                 waitUntilAtLeastOneExists(hasText("Home"), 5_000)
                 onNodeWithText("Releases").assertExists()
-                onNodeWithText("Search").assertDoesNotExist()
+                onNode(hasText("Search") and SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab)).assertDoesNotExist()
 
                 // Switching to Playlists re-browses with the tab params and lists playlists.
                 onNodeWithText("Playlists").performClick()

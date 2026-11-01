@@ -55,7 +55,9 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -67,12 +69,18 @@ import androidx.compose.ui.unit.sp
 import io.ymusic.dynamicengine.yt.YtFeedItem
 import io.ymusic.dynamicengine.yt.YtSectionHeader
 import io.ymusic.ui.resources.Res
+import io.ymusic.ui.resources.a11y_downloaded
+import io.ymusic.ui.resources.a11y_kind_album
+import io.ymusic.ui.resources.a11y_kind_channel
+import io.ymusic.ui.resources.a11y_kind_live
+import io.ymusic.ui.resources.a11y_kind_mix
+import io.ymusic.ui.resources.a11y_kind_music_video
+import io.ymusic.ui.resources.a11y_kind_playlist
+import io.ymusic.ui.resources.a11y_kind_video
 import io.ymusic.ui.resources.badge_live
-import io.ymusic.ui.resources.cd_album
 import io.ymusic.ui.resources.cd_collapse
 import io.ymusic.ui.resources.cd_expand
 import io.ymusic.ui.resources.cd_more
-import io.ymusic.ui.resources.cd_music_video
 import io.ymusic.ui.resources.cd_view_all
 import io.ymusic.ui.resources.chart_top_music_videos
 import io.ymusic.ui.resources.chart_top_music_videos_daily
@@ -184,7 +192,7 @@ fun SectionHeader(
             style = TextStyle(fontSize = 16.5.sp, fontWeight = FontWeight.ExtraBold, color = DesignColors.Ink),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f, fill = true),
+            modifier = Modifier.weight(1f, fill = true).semantics { heading() },
         )
         header?.count?.let {
             Text(it, style = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Medium, color = DesignColors.InkFaint))
@@ -210,8 +218,7 @@ fun SectionHeader(
                         if (cta != null) {
                             Modifier
                                 .clip(RoundedCornerShape(999.dp))
-                                .clickable(onClick = cta)
-                                .semantics { contentDescription = label }
+                                .clickable(role = Role.Button, onClick = cta)
                                 .padding(horizontal = SectionCtaPaddingH, vertical = SectionCtaPaddingV)
                         } else {
                             Modifier
@@ -253,6 +260,7 @@ fun FeedListItem(
         modifier
             .fillMaxWidth()
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .a11yActionLabel(feedItemLabel(item))
             // The trailing inset is the ⋮ button's own touch padding, so the row stops 4dp short of
             // the edge — same as the Library song row, so the two lists' dots align.
             .padding(
@@ -264,15 +272,15 @@ fun FeedListItem(
         verticalAlignment = Alignment.Top,
     ) {
         when {
-            item.kind == YtFeedItem.KIND_CHANNEL -> CircleThumb(item, 74.dp)
-            wide -> RectThumb(item, width = 160.dp, height = 90.dp)
-            else -> RectThumb(item, width = 92.dp, height = 92.dp)
+            item.kind == YtFeedItem.KIND_CHANNEL -> CircleThumb(item, 74.dp, Modifier.clearAndSetSemantics {})
+            wide -> RectThumb(item, width = 160.dp, height = 90.dp, Modifier.clearAndSetSemantics {})
+            else -> RectThumb(item, width = 92.dp, height = 92.dp, Modifier.clearAndSetSemantics {})
         }
         Spacer(Modifier.width(DesignSpacing.Space16))
         // A row with no trailing control (playlist/channel rows: no ⋮, no pill) has nothing to
         // absorb that inset, so the text restores the full 16dp itself.
         val bare = item.ctaText == null && actions.entries.isEmpty()
-        Column(Modifier.weight(1f).padding(end = if (bare) 12.dp else 0.dp)) {
+        Column(Modifier.weight(1f).padding(end = if (bare) 12.dp else 0.dp).clearAndSetSemantics {}) {
             Text(
                 item.title,
                 style = if (compactTitle) ListTitleCompactStyle else ListTitleStyle,
@@ -312,12 +320,13 @@ fun FeedGridCard(
         modifier
             .clip(RoundedCornerShape(12.dp))
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .a11yActionLabel(feedItemLabel(item))
             .padding(inset),
     ) {
         // Content is inset on all four sides (top==bottom, left==right). The
         // playlist stack tab draws OVERLAPPING into the top inset (the mockup's `top:-5px` overlay)
         // — no reserved strip, so every card's thumb sits at the same offset.
-        Box(Modifier.fillMaxWidth()) {
+        Box(Modifier.fillMaxWidth().clearAndSetSemantics {}) {
             if (item.kind == YtFeedItem.KIND_PLAYLIST) {
                 Box(
                     Modifier
@@ -348,7 +357,7 @@ fun FeedGridCard(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.Top,
         ) {
-            Column(Modifier.weight(1f)) {
+            Column(Modifier.weight(1f).clearAndSetSemantics {}) {
                 Text(item.title, style = GridTitleStyle, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 val sub = listOfNotNull(item.subtitleLine1, item.subtitleLine2).joinToString(" · ")
                 if (sub.isNotEmpty()) {
@@ -372,19 +381,26 @@ private fun ChannelGridCard(
         modifier
             .clip(RoundedCornerShape(12.dp))
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .a11yActionLabel(feedItemLabel(item))
             .padding(inset),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        CircleThumb(item, 76.dp)
+        CircleThumb(item, 76.dp, Modifier.clearAndSetSemantics {})
         Text(
             item.title,
             style = GridTitleStyle,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(top = 8.dp),
+            modifier = Modifier.padding(top = 8.dp).clearAndSetSemantics {},
         )
         item.subtitleLine1?.let {
-            Text(it, style = GridSubStyle, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 4.dp))
+            Text(
+                it,
+                style = GridSubStyle,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = 4.dp).clearAndSetSemantics {},
+            )
         }
         item.ctaText?.let { Box(Modifier.padding(top = 8.dp)) { CtaPill(it) } }
     }
@@ -533,10 +549,38 @@ internal fun MoreMenu(actions: ItemActions, modifier: Modifier = Modifier) {
     }
 }
 
+/**
+ * What a screen reader says for a feed card, in place of its children: the kind (the thumbnail
+ * is the only visual cue), the title, the length in words (a clock badge reads "five oh three"),
+ * the subtitle, then the thumbnail's downloaded mark.
+ */
 @Composable
-private fun CircleThumb(item: YtFeedItem, size: androidx.compose.ui.unit.Dp) {
+private fun feedItemLabel(item: YtFeedItem): String {
+    val kind = when {
+        item.kind == YtFeedItem.KIND_CHANNEL -> Res.string.a11y_kind_channel
+        item.id.startsWith("RD") && item.kind == YtFeedItem.KIND_PLAYLIST -> Res.string.a11y_kind_mix
+        item.album -> Res.string.a11y_kind_album
+        item.kind == YtFeedItem.KIND_PLAYLIST -> Res.string.a11y_kind_playlist
+        item.kind != YtFeedItem.KIND_VIDEO -> null
+        item.live -> Res.string.a11y_kind_live
+        item.musicVideo -> Res.string.a11y_kind_music_video
+        else -> Res.string.a11y_kind_video
+    }
+    val sub = listOfNotNull(item.subtitleLine1, item.subtitleLine2).joinToString(" · ")
+    return listOfNotNull(
+        kind?.let { stringResource(it) },
+        item.title,
+        item.durationMs?.let { spokenDuration(it) },
+        item.itemCount?.takeIf { it !in sub },
+        sub,
+        if (isAvailableOffline(item)) stringResource(Res.string.a11y_downloaded) else null,
+    ).filter { it.isNotEmpty() }.joinToString(", ")
+}
+
+@Composable
+private fun CircleThumb(item: YtFeedItem, size: androidx.compose.ui.unit.Dp, modifier: Modifier = Modifier) {
     Box(
-        Modifier.size(size).clip(CircleShape),
+        modifier.size(size).clip(CircleShape),
         contentAlignment = Alignment.Center,
     ) {
         ThumbImage(item.thumbs, CircleShape) {
@@ -547,12 +591,17 @@ private fun CircleThumb(item: YtFeedItem, size: androidx.compose.ui.unit.Dp) {
 
 /** Square/16:9 list thumbnail; playlists get the stacked-cards shadow behind it. */
 @Composable
-private fun RectThumb(item: YtFeedItem, width: androidx.compose.ui.unit.Dp, height: androidx.compose.ui.unit.Dp) {
+private fun RectThumb(
+    item: YtFeedItem,
+    width: androidx.compose.ui.unit.Dp,
+    height: androidx.compose.ui.unit.Dp,
+    modifier: Modifier = Modifier,
+) {
     val stacked = item.kind == YtFeedItem.KIND_PLAYLIST
     val stackFar = DesignColors.StackFar
     val stackNear = DesignColors.StackNear
     Box(
-        Modifier
+        modifier
             .size(width = width, height = height)
             .then(if (stacked) Modifier.drawBehind { drawPlaylistStack(stackFar, stackNear) } else Modifier)
             .clip(RoundedCornerShape(6.dp)),
@@ -616,37 +665,40 @@ internal fun Badges(item: YtFeedItem, modifier: Modifier, textSize: Int, iconSiz
             item.itemCount?.let { Text(it, style = badgeText) }
         }
         item.duration != null -> Row(
-            modifier.background(DesignColors.BadgeInk, RoundedCornerShape(3.dp)).padding(horizontal = 5.dp, vertical = 2.dp),
+            modifier.background(DesignColors.BadgeInk, RoundedCornerShape(3.dp)).padding(horizontal = 5.dp, vertical = 2.dp)
+                .spokenAs(
+                    listOfNotNull(
+                        if (item.musicVideo) stringResource(Res.string.a11y_kind_music_video) else null,
+                        spokenLength(item.durationMs, item.duration) ?: item.duration,
+                    ).joinToString(", "),
+                ),
             horizontalArrangement = Arrangement.spacedBy(2.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             // YouTube's music-video mark: the note glyph ahead of the duration.
             if (item.musicVideo) {
-                Icon(
-                    Icons.Outlined.MusicNote,
-                    stringResource(Res.string.cd_music_video),
-                    Modifier.size(iconSize),
-                    tint = Color.White,
-                )
+                Icon(Icons.Outlined.MusicNote, null, Modifier.size(iconSize), tint = Color.White)
             }
             Text(item.duration!!, style = badgeText)
         }
         item.musicVideo -> Icon(
             Icons.Outlined.MusicNote,
-            stringResource(Res.string.cd_music_video),
+            null,
             modifier
                 .background(DesignColors.BadgeInk, RoundedCornerShape(3.dp))
                 .padding(horizontal = 4.dp, vertical = 2.dp)
-                .size(iconSize),
+                .size(iconSize)
+                .spokenAs(stringResource(Res.string.a11y_kind_music_video)),
             tint = Color.White,
         )
         item.album -> Icon(
             Icons.Outlined.Album,
-            stringResource(Res.string.cd_album),
+            null,
             modifier
                 .background(DesignColors.BadgeScrim, RoundedCornerShape(3.dp))
                 .padding(horizontal = 4.dp, vertical = 2.dp)
-                .size(iconSize),
+                .size(iconSize)
+                .spokenAs(stringResource(Res.string.a11y_kind_album)),
             tint = Color.White,
         )
     }

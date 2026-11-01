@@ -57,24 +57,24 @@ The cross-platform playback layer.
 
 - **Video surface** — video *rendering* follows the legacy `UniPlayer` model.
   - The shell hands **one shared video container** to the engines (via each engine's context —
-    Android/JVM `LocalPlayerContext.videoContainer`; MSE owns `MseVideoSurface`).
-  - **Each engine owns its own surface inside it** — attaches it, and shows/hides it from its own lifecycle
-    (visible while that engine is the active one, hidden when idle/stopped or another engine takes over) so only
-    the playing engine's picture shows.
-  - Android local = a `SurfaceView` in a `FrameLayout` (holder wires `ExoPlayer.setVideoSurface`); JVM local =
-    off-screen ffmpeg frames as a Compose `Image`; YouTube = MSE blit (Android TextureView / desktop SwingPanel /
-    iOS `copyFrame`).
+    Android `LocalPlayerContext.videoContainer`, JVM `LocalPlayerContext.videoSurface`; MSE owns `MseVideoSurface`).
+  - Android / iOS: **each engine owns its own surface inside it** — attaches it, and shows/hides it from its own
+    lifecycle (visible while that engine is the active one, hidden when idle/stopped or another engine takes
+    over) so only the playing engine's picture shows. Android local = a `SurfaceView` in a `FrameLayout` (holder
+    wires `ExoPlayer.setVideoSurface`); YouTube = MSE into a TextureView (Android) / `copyFrame` (iOS).
+  - JVM desktop: **one video Canvas for both engines** — the shell's `DesktopVideoSurface` (`:mse`) owns its
+    presenter and binds it to the active engine: the local player claims it from load to stop, YouTube
+    (`MseVideoSurface(videoSurface)`) has it otherwise. See [`mse/README.md`](../mse/README.md).
 
 - **Surface hosting** — the UI never observes which engine is active — the facade exposes **no** `currentEngine`.
   - `AppGraph.playerSurface(modifier)` hosts the one container, and the shell keeps it hosted **persistently while
     a source needs it** (docked above the mini-player when Now Playing is closed, handed to the big video box when
     open — the same container re-parents, which the engines tolerate), never only inside the on-demand Now Playing.
-  - (The JVM `LocalPlayer.localVideoSurface()` accessor exposes the off-screen `LocalVideoSurface` for the
-    playground, which renders one engine directly; Apple `player0: AVPlayer` for the SwiftUI spike's `AVPlayerLayer`.)
+  - (Apple `player0: AVPlayer` for the SwiftUI spike's `AVPlayerLayer`.)
 
 - **Pure-common surface** — `LocalPlayer` interface + `Progress`/`PlaybackStatus`/`PlaybackState`/`PlayerError`/
   `VideoSize` model + `expect LocalPlayerContext` (Android carries a `Context` + optional video `ViewGroup`; JVM an
-  optional off-screen `LocalVideoSurface`; empty on Apple) + `createLocalPlayer(context)` factory.
+  optional `DesktopVideoSurface`; empty on Apple) + `createLocalPlayer(context)` factory.
 
 - **State flows** — state is **split by cadence into two flows**: `progress: StateFlow<Progress>`
   (position/duration/buffered — the ~5 Hz ticker writes ONLY this) and `status: StateFlow<PlaybackStatus>`
@@ -89,9 +89,11 @@ The cross-platform playback layer.
     main run loop; audio-only disables the video `AVPlayerItemTrack`s).
   - **Android** `androidMain` = Media3 ExoPlayer, bound to the main looper (caller must drive from main; no
     internal marshaling), `Player.Listener`-driven state (audio-only via `setTrackTypeDisabled(TRACK_TYPE_VIDEO)`).
-  - **JVM desktop** `jvmMain` = ffmpeg CLI decode + Java Sound PCM; video frames published on
-    `LocalVideoSurface` as a Compose `Image` (`setSpeed` shifts pitch via `asetrate`; audio-only skips the
-    video process). Needs the packed ffmpeg binary.
+  - **JVM desktop** `jvmMain` = `JvmLocalPlayer` over the in-process libav player `file_av.c` (`:mse`, JNI
+    `FileAvNative`): demux, audio decode + `audio_fx` DSP into the platform audio queue (AudioQueue / waveOut /
+    PulseAudio) whose played samples are the clock, and video decoded through `vpipe` (hardware where the
+    platform backend takes it) onto the shared `DesktopVideoSurface`. One `player` thread makes every native
+    call; audio-only stops video decode.
 
 - **Targets** — jvm/android/ios/macos (`withIosTargets()`+`withMacosTargets()`).
 

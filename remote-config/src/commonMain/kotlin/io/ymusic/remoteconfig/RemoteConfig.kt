@@ -9,7 +9,10 @@ import kmphttp.HttpStatusException
 import kmphttp.json.JsonReader
 import kmphttp.json.JsonWriter
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -18,12 +21,15 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import okio.FileSystem
 import okio.IOException
 import okio.Path
 import okio.buffer
 import okio.use
+import projectcommon.error.DISK_FULL_CODE
+import projectcommon.error.errorCode
 
 /**
  * Five minutes. Long enough that hammering [RemoteConfig.checkUpdate] from every screen costs one
@@ -57,6 +63,8 @@ class RemoteConfig(
     private val scope: CoroutineScope,
     private val now: () -> Long,
     private val log: Logger? = null,
+    /** The cache file's reads and writes; [scope] may be the main thread. */
+    private val io: CoroutineDispatcher = Dispatchers.IO,
 ) {
     private val _config = MutableStateFlow(RemoteConfigData.DEFAULTS)
     val config: StateFlow<RemoteConfigData> = _config.asStateFlow()
@@ -77,15 +85,17 @@ class RemoteConfig(
             // system too, and this runs from init on a scope whose cancellation would take the app
             // with it. Starting on DEFAULTS is always better than not starting.
             val latestValue = try {
-                if (fileSystem.exists(cacheFile)) {
-                    RemoteConfigData.from(
-                        fileSystem.source(cacheFile).use { source ->
-                            JsonReader(source.asAsyncSource().buffer()).readObject()
-                        },
-                        now,
-                    )
-                } else {
-                    RemoteConfigData.DEFAULTS
+                withContext(io) {
+                    if (fileSystem.exists(cacheFile)) {
+                        RemoteConfigData.from(
+                            fileSystem.source(cacheFile).use { source ->
+                                JsonReader(source.asAsyncSource().buffer()).readObject()
+                            },
+                            now,
+                        )
+                    } else {
+                        RemoteConfigData.DEFAULTS
+                    }
                 }
             } catch (cancel: CancellationException) {
                 throw cancel
@@ -123,6 +133,12 @@ class RemoteConfig(
 
     private fun isFresh(data: RemoteConfigData, maxAgeMs: Long): Boolean = now() - data.updatedAt < maxAgeMs
 
+    /** The config once the previous run's cache has loaded (or none existed), never the boot-time DEFAULTS stand-in. */
+    suspend fun awaitLoaded(): RemoteConfigData {
+        initIfNotYet()
+        return _config.value
+    }
+
     /**
      * For a person waiting on an answer ("Check for update"): fetch now and wait up to [timeoutMs]
      * for the result. Null when none arrives in time — failed, or no service.
@@ -146,9 +162,16 @@ class RemoteConfig(
                 try {
                     val data = api.getConfig()
                     try {
-                        cache(data)
+                        withContext(io) { cache(data) }
+                    } catch (cancel: CancellationException) {
+                        throw cancel
                     } catch (error: Throwable) {
-                        log?.captureError(error, "Write config cache failure")
+                        // A full or failing disk is the device's state; the fetched config is still published.
+                        if (error.errorCode() == DISK_FULL_CODE || error is IOException) {
+                            log?.log(Logger.Level.WARN, "Write config cache failed", error)
+                        } else {
+                            log?.captureError(error, "Write config cache failure")
+                        }
                     }
                     _config.value = data
                 } catch (cancel: CancellationException) {

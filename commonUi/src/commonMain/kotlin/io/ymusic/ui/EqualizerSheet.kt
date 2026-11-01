@@ -7,11 +7,14 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.drag
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -26,6 +29,8 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -49,18 +54,23 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.ymusic.settings.AppSettings
 import io.ymusic.ui.resources.Res
+import io.ymusic.ui.resources.a11y_eq_preamp
 import io.ymusic.ui.resources.settings_system_audio_fx
 import io.ymusic.ui.resources.settings_system_audio_fx_hint
 import io.ymusic.ui.resources.sound_bass
 import io.ymusic.ui.resources.sound_db
 import io.ymusic.ui.resources.sound_eq
+import io.ymusic.ui.resources.sound_eq_band
 import io.ymusic.ui.resources.sound_eq_hint
 import io.ymusic.ui.resources.sound_ok
 import io.ymusic.ui.resources.sound_preset_bass
@@ -197,6 +207,7 @@ internal fun EqualizerFxSheet(graph: AppGraph, onDismiss: () -> Unit) {
                     title = stringResource(Res.string.sound_bass),
                     fraction = (config.bassBoostDb + BASS_MAX_DB) / (2 * BASS_MAX_DB),
                     valueText = stringResource(Res.string.sound_db, dbLabel(config.bassBoostDb)),
+                    keyStep = 1f / (2 * BASS_MAX_DB),
                     onChange = { player.setBassBoost((it * 2 * BASS_MAX_DB - BASS_MAX_DB).roundToInt().toFloat()) },
                 )
                 RotaryKnob(
@@ -204,6 +215,7 @@ internal fun EqualizerFxSheet(graph: AppGraph, onDismiss: () -> Unit) {
                     title = stringResource(Res.string.sound_virtualizer_title),
                     fraction = config.virtualizer / VIRTUALIZER_MAX,
                     valueText = "${trimFloat(config.virtualizer)}×",
+                    keyStep = 0.1f / VIRTUALIZER_MAX,
                     onChange = { player.setVirtualizer((it * VIRTUALIZER_MAX * 10).roundToInt() / 10f) },
                 )
             }
@@ -223,7 +235,7 @@ private fun PresetMenu(bands: List<Float>, onSelect: (List<Float>) -> Unit) {
                 .clip(shape)
                 .background(DesignColors.SettingsCard)
                 .border(1.dp, DesignColors.OutlineSoft, shape)
-                .clickable { open = true }
+                .clickable(role = Role.DropdownList) { open = true }
                 .padding(horizontal = DesignSpacing.Space8 + DesignSpacing.Space2, vertical = DesignSpacing.Space4 + DesignSpacing.Space2),
             horizontalArrangement = Arrangement.spacedBy(DesignSpacing.Space4 + DesignSpacing.Space2),
             verticalAlignment = Alignment.CenterVertically,
@@ -302,6 +314,8 @@ private fun FaderBank(
     val isEnabled by rememberUpdatedState(enabled)
     // The held fader: PRE_INDEX for the master, else a band index.
     var active by remember { mutableStateOf<Int?>(null) }
+    var focusedFader by remember { mutableStateOf<Int?>(null) }
+    val lit = active ?: focusedFader
     val density = LocalDensity.current
     val inset = with(density) { MasterCapHeight.toPx() / 2 + 2.dp.toPx() }
     val masterWidth = with(density) { MasterColumnWidth.toPx() }
@@ -315,9 +329,10 @@ private fun FaderBank(
     ) {
         FaderLabels(
             master = dbLabel(preamp),
-            masterColor = if (preamp == 0f && active != PRE_INDEX) DesignColors.InkSecondary else master,
-            bands = bands.mapIndexed { i, db -> dbLabel(db) to (if (db == 0f && i != active) DesignColors.InkSecondary else accent) },
+            masterColor = if (preamp == 0f && lit != PRE_INDEX) DesignColors.InkSecondary else master,
+            bands = bands.mapIndexed { i, db -> dbLabel(db) to (if (db == 0f && i != lit) DesignColors.InkSecondary else accent) },
             bold = true,
+            modifier = Modifier.a11ySilent(),
         )
         BoxWithConstraints(Modifier.fillMaxWidth().height(FaderHeight).padding(top = DesignSpacing.Space8)) {
             val height = constraints.maxHeight.toFloat()
@@ -365,7 +380,7 @@ private fun FaderBank(
                     capBrush = { top, bottom -> Brush.verticalGradient(listOf(Color(0xFF3A3A3A), Color(0xFF1F1F1F)), startY = top, endY = bottom) },
                     capBorder = masterCapBorder,
                     mark = master,
-                    glow = if (active == PRE_INDEX) master.copy(alpha = 0.2f) else null,
+                    glow = if (lit == PRE_INDEX) master.copy(alpha = 0.2f) else null,
                 )
                 bands.forEachIndexed { i, db ->
                     drawFader(
@@ -378,21 +393,78 @@ private fun FaderBank(
                         capSize = Size(FaderCapWidth.toPx(), FaderCapHeight.toPx()),
                         capBrush = { top, bottom -> Brush.verticalGradient(listOf(Color(0xFFEDEDED), Color(0xFFA9A9A9)), startY = top, endY = bottom) },
                         capBorder = null,
-                        mark = if (db == 0f && i != active) idleMark else accent,
-                        glow = if (i == active) accent.copy(alpha = 0.25f) else null,
+                        mark = if (db == 0f && i != lit) idleMark else accent,
+                        glow = if (i == lit) accent.copy(alpha = 0.25f) else null,
                     )
+                }
+            }
+            // Left to right like the canvas it overlays, in every locale.
+            CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                Row(Modifier.fillMaxSize()) {
+                    val focusChanged = { index: Int, focused: Boolean ->
+                        if (focused) focusedFader = index else if (focusedFader == index) focusedFader = null
+                    }
+                    FaderTarget(
+                        Modifier.width(MasterColumnWidth),
+                        stringResource(Res.string.a11y_eq_preamp),
+                        stringResource(Res.string.sound_db, dbLabel(preamp)),
+                        preamp,
+                        enabled,
+                        onFocus = { focusChanged(PRE_INDEX, it) },
+                        onSet = onPreampChange,
+                    )
+                    bands.forEachIndexed { i, db ->
+                        FaderTarget(
+                            Modifier.weight(1f),
+                            null,
+                            stringResource(Res.string.sound_eq_band, EQ_HZ[i], db.roundToInt()),
+                            db,
+                            enabled,
+                            onFocus = { focusChanged(i, it) },
+                            onSet = { onBandChange(i, it) },
+                        )
+                    }
                 }
             }
         }
         FaderLabels(
             master = "PRE",
-            masterColor = if (active == PRE_INDEX) master else DesignColors.InkMuted,
-            bands = EQ_HZ.mapIndexed { i, hz -> hz to (if (i == active) accent else DesignColors.InkSecondary) },
+            masterColor = if (lit == PRE_INDEX) master else DesignColors.InkMuted,
+            bands = EQ_HZ.mapIndexed { i, hz -> hz to (if (i == lit) accent else DesignColors.InkSecondary) },
             bold = false,
-            boldIndex = active,
-            modifier = Modifier.padding(top = DesignSpacing.Space8),
+            boldIndex = lit,
+            modifier = Modifier.padding(top = DesignSpacing.Space8).a11ySilent(),
         )
     }
+}
+
+/** A fader's column as screen readers and the keyboard reach it; drags stay with the bank's canvas
+ *  underneath, which this node lets through. Up/Down step a whole dB. */
+@Composable
+private fun FaderTarget(
+    modifier: Modifier,
+    label: String?,
+    value: String,
+    db: Float,
+    enabled: Boolean,
+    onFocus: (Boolean) -> Unit,
+    onSet: (db: Float) -> Unit,
+) {
+    val interaction = remember { MutableInteractionSource() }
+    val focused by interaction.collectIsFocusedAsState()
+    val focusChanged by rememberUpdatedState(onFocus)
+    LaunchedEffect(focused) { focusChanged(focused) }
+    Box(
+        modifier.fillMaxHeight().adjustable(
+            label,
+            value,
+            (db + EQ_MAX_DB) / (2 * EQ_MAX_DB),
+            1f / (2 * EQ_MAX_DB),
+            enabled,
+            interaction,
+            vertical = true,
+        ) { f -> onSet((f * 2 * EQ_MAX_DB - EQ_MAX_DB).roundToInt().toFloat()) },
+    )
 }
 
 /** One label row aligned with the fader columns: [master] over the PRE column, then one per band. */
@@ -475,7 +547,14 @@ private fun dbLabel(db: Float): String {
  * up/right drag raises instead. The value arc fills from the lower-left stop; the dot points at the value.
  */
 @Composable
-private fun RotaryKnob(enabled: Boolean, title: String, fraction: Float, valueText: String, onChange: (Float) -> Unit) {
+private fun RotaryKnob(
+    enabled: Boolean,
+    title: String,
+    fraction: Float,
+    valueText: String,
+    keyStep: Float,
+    onChange: (Float) -> Unit,
+) {
     val accent = DesignColors.Accent
     val track = DesignColors.OutlineSoft
     val faceLight = DesignColors.SurfaceElevated
@@ -484,9 +563,13 @@ private fun RotaryKnob(enabled: Boolean, title: String, fraction: Float, valueTe
     val change by rememberUpdatedState(onChange)
     val isEnabled by rememberUpdatedState(enabled)
     var dragging by remember { mutableStateOf(false) }
+    val interaction = remember { MutableInteractionSource() }
+    val focused by interaction.collectIsFocusedAsState()
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
-            Modifier.size(KnobSize).pointerInput(Unit) {
+            Modifier.size(KnobSize).adjustable(title, valueText, current, keyStep, enabled, interaction, vertical = true) {
+                change(it)
+            }.pointerInput(Unit) {
                 awaitEachGesture {
                     val down = awaitFirstDown()
                     if (!isEnabled) return@awaitEachGesture
@@ -523,7 +606,7 @@ private fun RotaryKnob(enabled: Boolean, title: String, fraction: Float, valueTe
                 val sweep = KNOB_SWEEP_DEGREES * current
                 if (sweep > 0f) {
                     drawArc(
-                        accent.copy(alpha = if (dragging) 0.35f else 0.2f),
+                        accent.copy(alpha = if (dragging || focused) 0.35f else 0.2f),
                         135f,
                         sweep,
                         useCenter = false,
@@ -540,12 +623,16 @@ private fun RotaryKnob(enabled: Boolean, title: String, fraction: Float, valueTe
                 val dotDistance = faceRadius - 9.dp.toPx()
                 drawCircle(accent, 3.5.dp.toPx(), center + Offset(cos(angle) * dotDistance, sin(angle) * dotDistance))
             }
-            Text(valueText, style = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Bold, color = DesignColors.Ink))
+            Text(
+                valueText,
+                style = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Bold, color = DesignColors.Ink),
+                modifier = Modifier.a11ySilent(),
+            )
         }
         Text(
             title,
             style = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = DesignColors.InkSecondary),
-            modifier = Modifier.padding(top = DesignSpacing.Space4),
+            modifier = Modifier.padding(top = DesignSpacing.Space4).a11ySilent(),
         )
     }
 }

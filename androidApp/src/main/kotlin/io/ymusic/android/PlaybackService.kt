@@ -115,6 +115,10 @@ class PlaybackService : MediaLibraryService() {
 
     /** media3 asks for a promotion on every player event while playing: a refusal streak logs once. */
     private var foregroundRefused = false
+
+    /** Closed from the notification: stop() keeps the item, so nothing is posted until playback starts again. */
+    private var dismissed = false
+
     // Set in onCreate — getApplication() is null until the service is attached.
     private var log: Logger? = null
 
@@ -189,8 +193,10 @@ class PlaybackService : MediaLibraryService() {
             }
         }
         serviceScope.launch {
-            player.queue.map { it.shuffle to it.loopMode }.distinctUntilChanged().collect { (shuffle, loop) ->
-                session?.setMediaButtonPreferences(shuffleRepeatButtons(shuffle, loop))
+            combine(player.status, player.queue) { status, queue ->
+                Triple(queue.shuffle, queue.loopMode, isPlaying(status, queue))
+            }.distinctUntilChanged().collect { (shuffle, loop, playing) ->
+                session?.setMediaButtonPreferences(customButtons(shuffle, loop, playing))
             }
         }
         serviceScope.launch {
@@ -209,13 +215,23 @@ class PlaybackService : MediaLibraryService() {
     private var errorText: Pair<PlayerError, String>? = null
     private val errorTextChanged = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 
-    /** Auto shows custom actions only (a legacy controller sees no shuffle/repeat otherwise). */
-    private suspend fun shuffleRepeatButtons(shuffle: Boolean, loop: LoopMode): ImmutableList<CommandButton> =
-        ImmutableList.of(
-            CommandButton.Builder(if (shuffle) CommandButton.ICON_SHUFFLE_ON else CommandButton.ICON_SHUFFLE_OFF)
-                .setDisplayName(getString(Res.string.cd_shuffle))
-                .setSessionCommand(COMMAND_SHUFFLE)
-                .build(),
+    /** Auto shows custom actions only (a legacy controller sees no shuffle/repeat otherwise). Android 13+
+     *  media controls show two custom actions, so a paused session trades repeat for close. */
+    private suspend fun customButtons(shuffle: Boolean, loop: LoopMode, playing: Boolean): ImmutableList<CommandButton> {
+        val shuffleButton = CommandButton.Builder(if (shuffle) CommandButton.ICON_SHUFFLE_ON else CommandButton.ICON_SHUFFLE_OFF)
+            .setDisplayName(getString(Res.string.cd_shuffle))
+            .setSessionCommand(COMMAND_SHUFFLE)
+            .build()
+        if (!playing) {
+            val closeButton = CommandButton.Builder(CommandButton.ICON_UNDEFINED)
+                .setCustomIconResId(R.drawable.ic_notification_close)
+                .setDisplayName(getString(R.string.notification_close))
+                .setSessionCommand(COMMAND_CLOSE)
+                .build()
+            return ImmutableList.of(shuffleButton, closeButton)
+        }
+        return ImmutableList.of(
+            shuffleButton,
             CommandButton.Builder(
                 when (loop) {
                     LoopMode.None -> CommandButton.ICON_REPEAT_OFF
@@ -235,6 +251,7 @@ class PlaybackService : MediaLibraryService() {
                 .setSessionCommand(COMMAND_REPEAT)
                 .build(),
         )
+    }
 
     /** [playOrResume] once the graph exists. Single-flight: one play press reaches both
      *  onPlaybackResumption and the player's play, and two concurrent resumes would load the
@@ -385,6 +402,7 @@ class PlaybackService : MediaLibraryService() {
                     MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS.buildUpon()
                         .add(COMMAND_SHUFFLE)
                         .add(COMMAND_REPEAT)
+                        .add(COMMAND_CLOSE)
                         .build(),
                 )
                 .build(),
@@ -408,6 +426,7 @@ class PlaybackService : MediaLibraryService() {
                         LoopMode.One -> LoopMode.None
                     },
                 )
+                COMMAND_CLOSE.customAction -> dismiss()
                 else -> return super.onCustomCommand(session, controller, customCommand, args)
             }
             return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
@@ -575,11 +594,7 @@ class PlaybackService : MediaLibraryService() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_DISMISS) {
             super.onStartCommand(intent, flags, startId) // LifecycleService dispatches on super
-            player?.stop()
-            stopForegroundSafely(ServiceCompat.STOP_FOREGROUND_REMOVE, log)
-            NotificationManagerCompat.from(this).cancel(NOTIFICATION_ID)
-            foreground = false
-            stopSelf()
+            dismiss()
             return START_NOT_STICKY
         }
         if (intent?.action == ACTION_PLAY_FROM_SEARCH) {
@@ -597,12 +612,23 @@ class PlaybackService : MediaLibraryService() {
         return result
     }
 
+    private fun dismiss() {
+        dismissed = true
+        player?.stop()
+        stopForegroundSafely(ServiceCompat.STOP_FOREGROUND_REMOVE, log)
+        NotificationManagerCompat.from(this).cancel(NOTIFICATION_ID)
+        foreground = false
+        stopSelf()
+    }
+
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? = session
 
-    // media3 stops a non-playing service when a task goes away; VoiceSearchActivity's own task ends
-    // the moment it forwards, before the request it handed over has played anything.
+    // media3's own check reads its notification manager's foreground flag, which this service's own
+    // notification never sets, so it would stop playback on every swipe-away. VoiceSearchActivity's
+    // task ends the moment it forwards, before the request it handed over has played anything.
     override fun onTaskRemoved(rootIntent: Intent?) {
         if (rootIntent?.component?.className == VoiceSearchActivity::class.java.name) return
+        if (player?.let { isPlaying(it.status.value, it.queue.value) } == true) return
         super.onTaskRemoved(rootIntent)
     }
 
@@ -629,7 +655,9 @@ class PlaybackService : MediaLibraryService() {
         pendingPlayer = null
     }
 
-    /** Playing → foreground (undismissable). Paused → demoted, notification stays and is swipeable. */
+    /** Foreground while there is an item, paused included: Android 12+ refuses a promotion from the
+     *  background, so a service demoted on pause could never come back when playback resumes there
+     *  (focus regained, Bluetooth) and gets frozen. The notification's close action ends it. */
     private fun updateNotification() {
         val player = this.player ?: return
         if (player.queue.value.currentItem == null) {
@@ -638,16 +666,16 @@ class PlaybackService : MediaLibraryService() {
             foreground = false
             return
         }
-        val playing = isPlaying(player.status.value, player.queue.value)
+        if (isPlaying(player.status.value, player.queue.value)) {
+            dismissed = false
+        } else if (dismissed) {
+            return
+        }
         val notification = buildNotification()
-        if (playing) {
-            // Repeat startForeground while already foreground is the content refresh, not a
-            // state change; the flag only records that the promotion happened.
-            foreground = promote(notification)
-        } else {
+        if (foreground) {
             NotificationManagerCompat.from(this).notify(NOTIFICATION_ID, notification)
-            stopForegroundSafely(ServiceCompat.STOP_FOREGROUND_DETACH, log)
-            foreground = false
+        } else {
+            foreground = promote(notification)
         }
     }
 
@@ -716,6 +744,7 @@ class PlaybackService : MediaLibraryService() {
                 getString(if (rtl) R.string.notification_previous else R.string.notification_next),
                 mediaButtonIntent(if (rtl) KeyEvent.KEYCODE_MEDIA_PREVIOUS else KeyEvent.KEYCODE_MEDIA_NEXT),
             )
+            .addAction(R.drawable.ic_notification_close, getString(R.string.notification_close), dismissIntent)
         session?.let { s ->
             builder.setStyle(
                 androidx.media.app.NotificationCompat.MediaStyle()
@@ -845,6 +874,7 @@ class PlaybackService : MediaLibraryService() {
         const val ACTION_DISMISS = "io.ymusic.android.playback.DISMISS"
         val COMMAND_SHUFFLE = SessionCommand("io.ymusic.android.playback.SHUFFLE", Bundle.EMPTY)
         val COMMAND_REPEAT = SessionCommand("io.ymusic.android.playback.REPEAT", Bundle.EMPTY)
+        val COMMAND_CLOSE = SessionCommand("io.ymusic.android.playback.CLOSE", Bundle.EMPTY)
         const val DISMISS_REQUEST_CODE = 100
         const val LOCK_RELEASE_GRACE_MS = 60_000L
         const val HEADSET_CLICK_WINDOW_MS = 300L

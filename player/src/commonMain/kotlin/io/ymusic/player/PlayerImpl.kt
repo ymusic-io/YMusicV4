@@ -164,6 +164,12 @@ internal class PlayerImpl(
         publishQueue()
     }
 
+    override fun moveToPlayNext(index: Int) {
+        if (released) return
+        controller.moveNext(index)
+        publishQueue()
+    }
+
     override fun move(from: Int, to: Int) {
         if (released) return
         controller.move(from, to)
@@ -245,7 +251,15 @@ internal class PlayerImpl(
     }
 
     override fun togglePlay() {
-        if (status.value.playWhenReady) pause() else play()
+        val status = status.value
+        when {
+            status.state.isEnded() -> {
+                seekTo(0L)
+                play()
+            }
+            status.playWhenReady -> pause()
+            else -> play()
+        }
     }
 
     override fun stop() {

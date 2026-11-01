@@ -22,13 +22,19 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -63,6 +69,8 @@ fun AppDrawer(
     /** Lists Donate (only where a donation screen exists). */
     showDonate: Boolean = false,
     websiteUrl: String = AppLinks(null).website,
+    /** Whether the drawer is open: each opening lands keyboard focus on the current section's item. */
+    open: Boolean = false,
 ) {
     ModalDrawerSheet(
         modifier = Modifier.width(300.dp),
@@ -74,11 +82,17 @@ fun AppDrawer(
             val updateWaiting = updateStatus is AppUpdateStatus.Offered
             DrawerHeader(appVersion, premium, onCheckUpdate, updateWaiting, websiteUrl)
             HorizontalDivider(color = DesignColors.Divider)
-            Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(vertical = 8.dp)) {
-                AppSection.entries
-                    .filter { it != AppSection.Catalogue || showCatalogue }
-                    .filter { it != AppSection.PlayAgain || !guest }
-                    .filter { it != AppSection.Donate || showDonate }
+            val listed = AppSection.entries
+                .filter { it != AppSection.Catalogue || showCatalogue }
+                .filter { it != AppSection.PlayAgain || !guest }
+                .filter { it != AppSection.Donate || showDonate }
+            // Keyed on open: Material3's drawer keeps its content composed while closed.
+            val activeItemFocus = remember { FocusRequester() }
+            LaunchedEffect(open) {
+                if (open && section in listed) activeItemFocus.requestFocus()
+            }
+            Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).listKeyboardNavigation().padding(vertical = 8.dp)) {
+                listed
                     .groupBy { it.group }
                     .entries
                     .forEachIndexed { index, (_, sections) ->
@@ -86,7 +100,8 @@ fun AppDrawer(
                             HorizontalDivider(color = DesignColors.Divider, modifier = Modifier.padding(vertical = 4.dp))
                         }
                         sections.forEach { s ->
-                            DrawerItem(s, active = s == section) { onSelect(s) }
+                            val active = s == section
+                            DrawerItem(s, active = active, focusRequester = if (active) activeItemFocus else null) { onSelect(s) }
                         }
                     }
             }
@@ -100,7 +115,7 @@ private fun DrawerHeader(appVersion: String?, premium: Boolean, onCheckUpdate: (
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Image(
                 painterResource(Res.drawable.ymusic_logo),
-                contentDescription = stringResource(Res.string.app_name),
+                contentDescription = null,
                 modifier = Modifier.size(46.dp).clip(RoundedCornerShape(13.dp)),
             )
             Column {
@@ -167,13 +182,19 @@ private fun HeaderLink(text: String, highlighted: Boolean = false, onClick: () -
 }
 
 @Composable
-private fun DrawerItem(section: AppSection, active: Boolean, onClick: () -> Unit) =
-    DrawerRow(section.icon, stringResource(section.label), active, onClick)
+private fun DrawerItem(section: AppSection, active: Boolean, focusRequester: FocusRequester? = null, onClick: () -> Unit) =
+    DrawerRow(section.icon, stringResource(section.label), active, focusRequester, onClick)
 
 @Composable
-private fun DrawerRow(icon: ImageVector, label: String, active: Boolean, onClick: () -> Unit) {
+private fun DrawerRow(icon: ImageVector, label: String, active: Boolean, focusRequester: FocusRequester? = null, onClick: () -> Unit) {
     val scheme = androidx.compose.material3.MaterialTheme.colorScheme
-    Box(Modifier.fillMaxWidth().clickable(onClick = onClick).background(if (active) scheme.primaryContainer else Color.Transparent)) {
+    val focusMod = if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier
+    Box(
+        Modifier.fillMaxWidth().then(focusMod)
+            .clickable(onClick = onClick)
+            .semantics { selected = active }
+            .background(if (active) scheme.primaryContainer else Color.Transparent),
+    ) {
         if (active) {
             Box(
                 Modifier

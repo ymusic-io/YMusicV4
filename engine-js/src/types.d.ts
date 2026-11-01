@@ -79,6 +79,16 @@ declare var console: {
  *  `versions.app` directly, see protocol/host.ts. */
 declare var versions: {
   readonly app: number;
+  /** Device facts from QuickJsRuntime.hostVersions; absent on hosts that predate them. */
+  readonly os?: string;
+  readonly osVersion?: string;
+  readonly brand?: string;
+  readonly model?: string;
+  /** The display in physical pixels, at its orientation when the engine was created. */
+  readonly screenWidth?: number;
+  readonly screenHeight?: number;
+  /** Physical pixels per CSS pixel (Android density, desktop scale). */
+  readonly screenDensity?: number;
 };
 
 // ---- compile-time define, inlined by esbuild --define (value in build.gradle.kts) ----

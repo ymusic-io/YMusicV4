@@ -203,9 +203,26 @@ internal class QueueController(private val random: Random = Random.Default) {
 
     fun move(from: Int, to: Int) {
         if (from !in state.items.indices || to !in state.items.indices || from == to) return
+        upNext.clear()
+        moveItem(from, to)
+    }
+
+    /** Moves [from] behind the songs already queued by [addNext] and queues it with them. */
+    fun moveNext(from: Int) {
+        val current = state.currentIndex
+        if (from !in state.items.indices || current < 0 || from == current) return
+        val queued = upNext.filter { it != from }
+        val tail = queued.lastOrNull() ?: current
+        val to = if (from > tail) tail + 1 else tail
+        upNext.clear()
+        val shift = if (from == to) { i: Int -> i } else moveItem(from, to)
+        upNext += queued.map(shift)
+        upNext += to
+    }
+
+    private fun moveItem(from: Int, to: Int): (Int) -> Int {
         val items = state.items.toMutableList()
         items.add(to, items.removeAt(from))
-        upNext.clear()
         val shift = { i: Int ->
             when {
                 i == from -> to
@@ -216,6 +233,7 @@ internal class QueueController(private val random: Random = Random.Default) {
         }
         remap(shift)
         state = state.copy(items = items, currentIndex = shift(state.currentIndex))
+        return shift
     }
 
     /**

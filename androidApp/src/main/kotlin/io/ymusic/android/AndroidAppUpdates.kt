@@ -1,6 +1,7 @@
 package io.ymusic.android
 
 import android.app.PendingIntent
+import android.content.ActivityNotFoundException
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -43,6 +44,8 @@ import okio.buffer
 import okio.sink
 import okio.source
 import org.jetbrains.compose.resources.StringResource
+import projectcommon.error.DISK_FULL_CODE
+import projectcommon.error.errorCode
 import java.io.File
 
 /**
@@ -212,6 +215,9 @@ class AndroidAppUpdates(
                 } else if (error is DownloadMismatchException) {
                     log?.captureError(error, "update ${update.versionCode} failed verification")
                     set(release, UpdateDownload.Failed("E91011"))
+                } else if (error.errorCode() == DISK_FULL_CODE) {
+                    log?.log(Logger.Level.WARN, "downloading update ${update.versionCode} failed: storage is full", error)
+                    set(release, UpdateDownload.Failed(DISK_FULL_CODE))
                 } else if (error is javax.net.ssl.SSLHandshakeException) {
                     // The device doesn't trust the host (stale root store, wrong clock, intercepting network).
                     log?.log(Logger.Level.WARN, "downloading update ${update.versionCode} failed: untrusted TLS", error)
@@ -278,7 +284,17 @@ class AndroidAppUpdates(
         } else {
             Intent(Settings.ACTION_SECURITY_SETTINGS)
         }
-        context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        val opened = context.startFirstActivity(
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+        )
+        if (!opened) {
+            log?.log(Logger.Level.WARN, "no settings screen grants the install permission; offering the browser")
+            val (update, download) = current() ?: return
+            if (download is UpdateDownload.NeedsInstallPermission) {
+                set(update.release, UpdateDownload.NeedsInstallPermission(offerBrowser = true))
+            }
+        }
     }
 
     /** Back in the app: a request held for the install permission continues once it is granted. */
@@ -362,7 +378,13 @@ class UpdateInstallReceiver : BroadcastReceiver() {
             PackageInstaller.STATUS_PENDING_USER_ACTION -> {
                 @Suppress("DEPRECATION")
                 val confirm = intent.getParcelableExtra<Intent>(Intent.EXTRA_INTENT) ?: return
-                context.startActivity(confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                try {
+                    context.startActivity(confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                } catch (error: ActivityNotFoundException) {
+                    val app = context.applicationContext as? YMusicApplication ?: return
+                    app.rootLogger.fork("update").log(Logger.Level.WARN, "no screen confirms the package install", error)
+                    app.services.takeIf { it.isCompleted && !it.isCancelled }?.getCompleted()?.updates?.onInstallEnded()
+                }
             }
             PackageInstaller.STATUS_SUCCESS -> Unit
             else -> {

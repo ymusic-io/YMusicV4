@@ -65,12 +65,14 @@ import io.ymusic.settings.SettingsStore
 import io.ymusic.settings.flow
 import io.ymusic.ui.resources.Res
 import io.ymusic.ui.resources.overlay_fps
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.jetbrains.compose.resources.stringResource
 import kotlin.time.TimeSource
 
@@ -143,7 +145,8 @@ internal fun AudioOnlyArtWave(
             return@produceState
         }
         while (isActive) {
-            val n = player.pcmLevels(buf)
+            // Native: waits on the audio threads' locks.
+            val n = withContext(Dispatchers.Default) { player.pcmLevels(buf) }
             if (n > 0) {
                 if (n < buf.size) buf.fill(0f, n, buf.size)
                 value = buf.copyOf()

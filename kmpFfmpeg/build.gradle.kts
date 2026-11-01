@@ -195,8 +195,6 @@ kotlin {
                 implementation(Libs.Okio.core)
             }
         }
-        val nativeMain by getting
-
         // Shared by desktop JVM + Android: the ProcessBuilder-based runner (works on both).
         val jvmCommonMain by creating {
             dependsOn(commonMain)
@@ -204,20 +202,24 @@ kotlin {
         jvmMain.get().dependsOn(jvmCommonMain)
         androidMain.get().dependsOn(jvmCommonMain)
 
-        // Desktop-native (macOS + Linux): one fork/execve-based implementation.
-        val posixMain by creating { dependsOn(nativeMain) }
-        listOf("macosX64Main", "macosArm64Main", "linuxX64Main", "linuxArm64Main").forEach { name ->
-            findByName(name)?.dependsOn(posixMain)
-        }
+        // Null-safe on hosts with no native target configured (e.g. Windows): nativeMain is only
+        // created by applyDefaultHierarchyTemplate when at least one native target exists.
+        findByName("nativeMain")?.let { nativeMain ->
+            // Desktop-native (macOS + Linux): one fork/execve-based implementation.
+            val posixMain = create("posixMain") { dependsOn(nativeMain) }
+            listOf("macosX64Main", "macosArm64Main", "linuxX64Main", "linuxArm64Main").forEach { name ->
+                findByName(name)?.dependsOn(posixMain)
+            }
 
-        // Every non-macOS Apple target: child processes are not permitted, so startProcess() throws.
-        // (macOS is Apple too but gets the real posixMain impl above, so this can't live in appleMain.)
-        val appleNoProcessMain by creating { dependsOn(nativeMain) }
-        listOf(
-            "iosArm64Main", "iosSimulatorArm64Main", "iosX64Main",
-            "tvosArm64Main", "tvosSimulatorArm64Main", "tvosX64Main",
-            "watchosArm64Main", "watchosDeviceArm64Main", "watchosSimulatorArm64Main", "watchosX64Main",
-        ).forEach { name -> findByName(name)?.dependsOn(appleNoProcessMain) }
+            // Every non-macOS Apple target: child processes are not permitted, so startProcess() throws.
+            // (macOS is Apple too but gets the real posixMain impl above, so this can't live in appleMain.)
+            val appleNoProcessMain = create("appleNoProcessMain") { dependsOn(nativeMain) }
+            listOf(
+                "iosArm64Main", "iosSimulatorArm64Main", "iosX64Main",
+                "tvosArm64Main", "tvosSimulatorArm64Main", "tvosX64Main",
+                "watchosArm64Main", "watchosDeviceArm64Main", "watchosSimulatorArm64Main", "watchosX64Main",
+            ).forEach { name -> findByName(name)?.dependsOn(appleNoProcessMain) }
+        }
 
         val commonTest by getting {
             dependencies {

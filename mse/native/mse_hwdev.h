@@ -21,4 +21,9 @@ void mse_hwdev_mark_failed(enum AVCodecID id);
 /* Picks the device's pixel format unless the codec failed; otherwise the first software one. */
 enum AVPixelFormat mse_hwdev_get_format(AVCodecContext *ctx, const enum AVPixelFormat *fmts);
 
+/* mse_caps rows for the device: CUDA asks NVDEC per codec and bit depth; Vulkan has no size query
+   here, so its decode extensions count as 8-bit 4:2:0 up to 4096x2304. Returns the count. */
+struct MseCapRow;
+int mse_hwdev_caps(struct MseCapRow *rows, int cap);
+
 #endif

@@ -23,6 +23,10 @@
     <string name="downloads_none_title">Δεν υπάρχουν λήψεις ακόμα</string>
     <string name="downloads_none_message">Τα τραγούδια και τα βίντεο που κατεβάσατε παίζουν εκτός σύνδεσης.</string>
     <string name="downloads_failed">Η λήψη απέτυχε</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Εμφάνιση στο Finder</string>
+    <string name="menu_reveal_explorer">Εμφάνιση στην Εξερεύνηση αρχείων</string>
+    <string name="menu_reveal_file_manager">Εμφάνιση στη διαχείριση αρχείων</string>
     <string name="section_settings">Ρυθμίσεις</string>
     <string name="section_donate">Δωρεά</string>
     <string name="section_feedback">Σχόλια</string>
@@ -121,8 +125,33 @@
     <string name="yt_playlist_removed_video">Το %1$s αφαιρέθηκε από τη λίστα αναπαραγωγής</string>
     <string name="cd_add_to_playlist">Προσθήκη σε λίστα αναπαραγωγής</string>
     <string name="cd_share">Κοινοποίηση</string>
-    <string name="cd_music_video">Μουσική</string>
-    <string name="cd_album">Άλμπουμ</string>
+    <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
+    <string name="a11y_kind_video">Βίντεο</string>
+    <string name="a11y_kind_music_video">Μουσικό βίντεο</string>
+    <string name="a11y_kind_live">Ζωντανή μετάδοση</string>
+    <string name="a11y_kind_playlist">Λίστα αναπαραγωγής</string>
+    <string name="a11y_kind_album">Άλμπουμ</string>
+    <string name="a11y_kind_mix">Μίξη</string>
+    <string name="a11y_kind_channel">Κανάλι</string>
+    <!-- A video's length as a screen reader speaks it, joined with spaces: "1 hour 5 minutes 3 seconds" -->
+    <plurals name="a11y_duration_hours">
+        <item quantity="one">%1$d ώρα</item>
+        <item quantity="other">%1$d ώρες</item>
+    </plurals>
+    <plurals name="a11y_duration_minutes">
+        <item quantity="one">%1$d λεπτό</item>
+        <item quantity="other">%1$d λεπτά</item>
+    </plurals>
+    <plurals name="a11y_duration_seconds">
+        <item quantity="one">%1$d δευτερόλεπτο</item>
+        <item quantity="other">%1$d δευτερόλεπτα</item>
+    </plurals>
+    <string name="a11y_now_playing">Παίζει τώρα</string>
+    <string name="a11y_playback_position">Θέση αναπαραγωγής</string>
+    <string name="a11y_x_of_y">%1$s από %2$s</string>
+    <string name="a11y_behind_live">%1$s πίσω από τη ζωντανή μετάδοση</string>
+    <string name="a11y_downloaded">Έχει ληφθεί</string>
+    <string name="a11y_eq_preamp">Προενισχυτής</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Φάκελοι</string>
@@ -363,7 +392,6 @@
     <string name="account_sign_out">Αποσύνδεση</string>
     <string name="account_switch">Εναλλαγή λογαριασμού</string>
     <string name="switch_account_hint">Επιλέξτε τον λογαριασμό που θέλετε και κλείστε αυτήν την οθόνη με το βέλος επιστροφής — η εφαρμογή ανανεώνεται με τον νέο λογαριασμό.</string>
-    <string name="cd_account_avatar">Εικόνα λογαριασμού</string>
     <string name="account_my_channel">Το κανάλι μου</string>
     <string name="account_watch_history">Ιστορικό παρακολούθησης</string>
     <string name="account_watch_later">Παρακολούθηση αργότερα</string>
@@ -551,6 +579,24 @@
     <string name="video_details_delete_title">Διαγραφή σχολίου</string>
     <string name="video_details_delete_message">Να διαγραφεί οριστικά το σχόλιό σας και όλες οι απαντήσεις του;</string>
     <string name="video_details_deleted">Το σχόλιο διαγράφηκε</string>
+    <string name="cookie_protect_title">Να προστατευτεί η σύνδεσή σας με κωδικό πρόσβασης;</string>
+    <string name="cookie_protect_body">Η σύνδεσή σας είναι αποθηκευμένη σε αυτόν τον υπολογιστή, όπου μπορούν να τη διαβάσουν άλλες εφαρμογές που εκτελείτε. Ορίστε κωδικό πρόσβασης για να την κλειδώσετε. Το YMusic θα τον ζητά σε κάθε εκκίνηση.</string>
+    <string name="cookie_password">Κωδικός πρόσβασης</string>
+    <string name="cookie_protect_confirm">Επιβεβαίωση κωδικού πρόσβασης</string>
+    <string name="cookie_protect_mismatch">Οι κωδικοί πρόσβασης δεν ταιριάζουν.</string>
+    <string name="cookie_protect_submit">Προστασία</string>
+    <string name="cookie_protect_skip">Όχι τώρα</string>
+    <string name="cookie_unlock_title">Ξεκλείδωμα σύνδεσης</string>
+    <string name="cookie_unlock_body">Η σύνδεσή σας στο YouTube προστατεύεται με κωδικό πρόσβασης.</string>
+    <string name="cookie_unlock_submit">Ξεκλείδωμα</string>
+    <string name="cookie_unlock_wrong">Λάθος κωδικός πρόσβασης.</string>
+    <string name="cookie_unlock_cant_unlock">Δεν μπορείτε να ξεκλειδώσετε;</string>
+    <string name="cookie_unlock_guest">Συνέχεια ως επισκέπτης</string>
+    <string name="cookie_unlock_guest_hint">Ξεκινά χωρίς σύνδεση. Τίποτα δεν διατηρείται.</string>
+    <string name="cookie_unlock_sign_out">Αποσύνδεση</string>
+    <string name="cookie_unlock_sign_out_hint">Αφαιρεί αυτή την αποθηκευμένη σύνδεση.</string>
+    <string name="cookie_unlock_sign_out_title">Αποσύνδεση;</string>
+    <string name="cookie_unlock_sign_out_body">Η αποθηκευμένη σύνδεση θα αφαιρεθεί από αυτόν τον υπολογιστή. Για να συνδεθείτε ξανά, σαρώστε τον κωδικό QR με την εφαρμογή YMusic.</string>
     <string name="menu_details_comments">Λεπτομέρειες και σχόλια</string>
     <string name="menu_search_lyrics">Αναζήτηση στίχων</string>
     <string name="menu_speed_pitch">Ταχύτητα και τονικότητα</string>
@@ -570,4 +616,22 @@
     <string name="download_other_format">Λήψη σε άλλη μορφή</string>
     <string name="unsubscribe">Κατάργηση εγγραφής</string>
     <string name="unsubscribed">Η εγγραφή καταργήθηκε</string>
+    <string name="tray_pause">Παύση</string>
+    <string name="tray_resume">Συνέχεια</string>
+    <string name="tray_stop">Διακοπή (εκκαθάριση ουράς)</string>
+    <string name="tray_quit">Κλείσιμο</string>
+    <string name="shortcuts_title">Συντομεύσεις πληκτρολογίου</string>
+    <string name="shortcuts_play_pause">Αναπαραγωγή / παύση</string>
+    <string name="shortcuts_now_playing">Εμφάνιση ή απόκρυψη της Αναπαραγωγής τώρα</string>
+    <string name="shortcuts_nav_menu">Άνοιγμα ή κλείσιμο του μενού</string>
+    <string name="shortcuts_switch_tabs">Εναλλαγή καρτελών</string>
+    <string name="shortcuts_escape">Έξοδος από πλήρη οθόνη ή κλείσιμο της Αναπαραγωγής τώρα, του μενού ή ενός αναδυόμενου παραθύρου</string>
+    <string name="shortcuts_help">Εμφάνιση αυτής της βοήθειας</string>
+    <string name="shortcuts_volume_up">Αύξηση έντασης</string>
+    <string name="shortcuts_volume_down">Μείωση έντασης</string>
+    <string name="a11y_key_arrow_left">αριστερό βέλος</string>
+    <string name="a11y_key_arrow_right">δεξί βέλος</string>
+    <string name="a11y_key_arrow_up">πάνω βέλος</string>
+    <string name="a11y_key_arrow_down">κάτω βέλος</string>
+    <string name="cd_always_on_top">Πάντα σε πρώτο πλάνο</string>
 </resources>

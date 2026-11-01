@@ -397,7 +397,7 @@ static int drain_hook(void *user, uint32_t id) {
 
 /* ---- JNI entry points (all on the single engine thread) ---- */
 
-static Engine *engine_new(JNIEnv *env, jint appVersion) {
+static Engine *engine_new(JNIEnv *env, jint appVersion, const char *versionsJson) {
     Engine *e = (Engine *)calloc(1, sizeof(Engine));
     e->rt = JS_NewRuntime();
     e->ctx = JS_NewContext(e->rt);
@@ -426,7 +426,7 @@ static Engine *engine_new(JNIEnv *env, jint appVersion) {
     qjs_register_json(e->ctx);
     qjs_mse_install(e->ctx);
     e->pipe = qjs_register_pipe(e->ctx, drain_hook, e);
-    qjs_install_versions(e->ctx, appVersion);
+    qjs_install_versions(e->ctx, appVersion, versionsJson);
     JS_SetHostPromiseRejectionTracker(e->rt, promise_rejection_tracker, e);
     return e;
 }
@@ -451,8 +451,12 @@ static void engine_capture(Engine *e) {
 }
 
 JNIEXPORT jlong JNICALL
-Java_io_ymusic_quickjs_QuickJsNative_create(JNIEnv *env, jobject thiz, jint appVersion) {
-    return (jlong)(intptr_t)engine_new(env, appVersion);
+Java_io_ymusic_quickjs_QuickJsNative_create(JNIEnv *env, jobject thiz, jint appVersion, jstring versionsJson) {
+    const char *json = versionsJson ? (*env)->GetStringUTFChars(env, versionsJson, NULL) : NULL;
+    Engine *e = engine_new(env, appVersion, json);
+    if (json)
+        (*env)->ReleaseStringUTFChars(env, versionsJson, json);
+    return (jlong)(intptr_t)e;
 }
 
 JNIEXPORT void JNICALL

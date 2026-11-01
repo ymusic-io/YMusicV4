@@ -23,6 +23,10 @@
     <string name="downloads_none_title">Nog geen downloads</string>
     <string name="downloads_none_message">Gedownloade nummers en video’s spelen offline af.</string>
     <string name="downloads_failed">Download mislukt</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Toon in Finder</string>
+    <string name="menu_reveal_explorer">Toon in Verkenner</string>
+    <string name="menu_reveal_file_manager">Toon in bestandsbeheerder</string>
     <string name="section_settings">Instellingen</string>
     <string name="section_donate">Doneren</string>
     <string name="section_feedback">Feedback</string>
@@ -121,8 +125,33 @@
     <string name="yt_playlist_removed_video">%1$s verwijderd uit de afspeellijst</string>
     <string name="cd_add_to_playlist">Toevoegen aan afspeellijst</string>
     <string name="cd_share">Delen</string>
-    <string name="cd_music_video">Muziek</string>
-    <string name="cd_album">Album</string>
+    <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
+    <string name="a11y_kind_video">Video</string>
+    <string name="a11y_kind_music_video">Muziekvideo</string>
+    <string name="a11y_kind_live">Livestream</string>
+    <string name="a11y_kind_playlist">Afspeellijst</string>
+    <string name="a11y_kind_album">Album</string>
+    <string name="a11y_kind_mix">Mix</string>
+    <string name="a11y_kind_channel">Kanaal</string>
+    <!-- A video's length as a screen reader speaks it, joined with spaces: "1 hour 5 minutes 3 seconds" -->
+    <plurals name="a11y_duration_hours">
+        <item quantity="one">%1$d uur</item>
+        <item quantity="other">%1$d uur</item>
+    </plurals>
+    <plurals name="a11y_duration_minutes">
+        <item quantity="one">%1$d minuut</item>
+        <item quantity="other">%1$d minuten</item>
+    </plurals>
+    <plurals name="a11y_duration_seconds">
+        <item quantity="one">%1$d seconde</item>
+        <item quantity="other">%1$d seconden</item>
+    </plurals>
+    <string name="a11y_now_playing">Speelt nu</string>
+    <string name="a11y_playback_position">Afspeelpositie</string>
+    <string name="a11y_x_of_y">%1$s van %2$s</string>
+    <string name="a11y_behind_live">%1$s achter op live</string>
+    <string name="a11y_downloaded">Gedownload</string>
+    <string name="a11y_eq_preamp">Voorversterker</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Mappen</string>
@@ -363,7 +392,6 @@
     <string name="account_sign_out">Uitloggen</string>
     <string name="account_switch">Account wisselen</string>
     <string name="switch_account_hint">Kies het gewenste account en sluit dit scherm met de terugpijl — de app vernieuwt met het nieuwe account.</string>
-    <string name="cd_account_avatar">Accountfoto</string>
     <string name="account_my_channel">Mijn kanaal</string>
     <string name="account_watch_history">Kijkgeschiedenis</string>
     <string name="account_watch_later">Later bekijken</string>
@@ -551,6 +579,24 @@
     <string name="video_details_delete_title">Reactie verwijderen</string>
     <string name="video_details_delete_message">Je reactie en alle antwoorden erop definitief verwijderen?</string>
     <string name="video_details_deleted">Reactie verwijderd</string>
+    <string name="cookie_protect_title">Inloggegevens beveiligen met een wachtwoord?</string>
+    <string name="cookie_protect_body">Je inloggegevens zijn op deze computer opgeslagen, waar andere apps die je gebruikt ze kunnen lezen. Stel een wachtwoord in om ze te vergrendelen; YMusic vraagt er bij elke start om.</string>
+    <string name="cookie_password">Wachtwoord</string>
+    <string name="cookie_protect_confirm">Wachtwoord bevestigen</string>
+    <string name="cookie_protect_mismatch">De wachtwoorden komen niet overeen.</string>
+    <string name="cookie_protect_submit">Beveiligen</string>
+    <string name="cookie_protect_skip">Niet nu</string>
+    <string name="cookie_unlock_title">Je inloggegevens ontgrendelen</string>
+    <string name="cookie_unlock_body">Je YouTube-inloggegevens zijn beveiligd met een wachtwoord.</string>
+    <string name="cookie_unlock_submit">Ontgrendelen</string>
+    <string name="cookie_unlock_wrong">Onjuist wachtwoord.</string>
+    <string name="cookie_unlock_cant_unlock">Lukt ontgrendelen niet?</string>
+    <string name="cookie_unlock_guest">Doorgaan als gast</string>
+    <string name="cookie_unlock_guest_hint">Start uitgelogd. Er wordt niets bewaard.</string>
+    <string name="cookie_unlock_sign_out">Uitloggen</string>
+    <string name="cookie_unlock_sign_out_hint">Verwijdert deze opgeslagen inloggegevens.</string>
+    <string name="cookie_unlock_sign_out_title">Uitloggen?</string>
+    <string name="cookie_unlock_sign_out_body">Hiermee worden de opgeslagen inloggegevens van deze computer verwijderd. Scan de QR-code met de YMusic-app om opnieuw in te loggen.</string>
     <string name="menu_details_comments">Details en reacties</string>
     <string name="menu_search_lyrics">Songtekst zoeken</string>
     <string name="menu_speed_pitch">Snelheid en toonhoogte</string>
@@ -570,4 +616,22 @@
     <string name="download_other_format">Downloaden in een ander formaat</string>
     <string name="unsubscribe">Abonnement opzeggen</string>
     <string name="unsubscribed">Abonnement opgezegd</string>
+    <string name="tray_pause">Pauzeren</string>
+    <string name="tray_resume">Hervatten</string>
+    <string name="tray_stop">Stoppen (wachtrij wissen)</string>
+    <string name="tray_quit">Afsluiten</string>
+    <string name="shortcuts_title">Sneltoetsen</string>
+    <string name="shortcuts_play_pause">Afspelen / pauzeren</string>
+    <string name="shortcuts_now_playing">Speelt nu tonen of verbergen</string>
+    <string name="shortcuts_nav_menu">Menu openen of sluiten</string>
+    <string name="shortcuts_switch_tabs">Tussen tabbladen wisselen</string>
+    <string name="shortcuts_escape">Volledig scherm verlaten, of Speelt nu, het menu of een pop-up sluiten</string>
+    <string name="shortcuts_help">Deze hulp tonen</string>
+    <string name="shortcuts_volume_up">Volume omhoog</string>
+    <string name="shortcuts_volume_down">Volume omlaag</string>
+    <string name="a11y_key_arrow_left">pijl-links</string>
+    <string name="a11y_key_arrow_right">pijl-rechts</string>
+    <string name="a11y_key_arrow_up">pijl-omhoog</string>
+    <string name="a11y_key_arrow_down">pijl-omlaag</string>
+    <string name="cd_always_on_top">Altijd bovenop</string>
 </resources>

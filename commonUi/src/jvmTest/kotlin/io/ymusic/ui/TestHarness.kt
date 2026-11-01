@@ -1,5 +1,10 @@
 package io.ymusic.ui
 
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.SemanticsNodeInteractionsProvider
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasText
 import io.ymusic.player.AudioTrackState
 import io.ymusic.player.CaptionState
 import io.ymusic.player.LoopMode
@@ -32,6 +37,14 @@ import kotlinx.coroutines.withContext
 import okhttp3.ResponseBody.Companion.asResponseBody
 import okio.Buffer
 import kotlin.time.Duration
+
+/** A clickable element by the screen-reader label [a11yActionLabel] gives it: `text` on desktop, `contentDescription` elsewhere. */
+internal fun hasActionLabel(label: String): SemanticsMatcher =
+    (hasContentDescription(label) or hasText(label)) and hasClickAction()
+
+internal fun SemanticsNodeInteractionsProvider.onNodeWithActionLabel(label: String) = onNode(hasActionLabel(label))
+
+internal fun SemanticsNodeInteractionsProvider.onAllNodesWithActionLabel(label: String) = onAllNodes(hasActionLabel(label))
 
 /** A canned [KmpHttpClient]: [handler] gets each request plus its decoded body text. */
 internal class CannedHttp(
@@ -131,6 +144,8 @@ internal class StubPlayer : Player {
     override fun add(items: List<PlayableItem>, at: Int?) {}
 
     override fun addToPlayNext(items: List<PlayableItem>) {}
+
+    override fun moveToPlayNext(index: Int) {}
 
     override fun move(from: Int, to: Int) {
         moves += from to to

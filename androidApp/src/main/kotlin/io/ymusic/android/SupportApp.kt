@@ -35,8 +35,12 @@ internal object SupportApp {
         // start finds it: query without that requirement and start it by class name.
         val donation = activity.packageManager.queryIntentActivities(Intent(ACTION_DONATE).setPackage(PACKAGE), 0).firstOrNull()
         if (donation != null) {
-            activity.startActivity(Intent(ACTION_DONATE).setClassName(donation.activityInfo.packageName, donation.activityInfo.name))
-            return
+            try {
+                activity.startActivity(Intent(ACTION_DONATE).setClassName(donation.activityInfo.packageName, donation.activityInfo.name))
+                return
+            } catch (error: ActivityNotFoundException) {
+                logger?.fork("donation")?.log(Logger.Level.WARN, "the donation screen failed to start", error)
+            }
         }
         if (fallbackUrl != null) {
             try {
@@ -47,11 +51,10 @@ internal object SupportApp {
                     ?.log(Logger.Level.WARN, "nothing opens the donation url; falling back to the store page", error)
             }
         }
-        try {
-            activity.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=$PACKAGE")))
-        } catch (_: ActivityNotFoundException) {
-            // No Play Store app on this device: its web page instead.
-            activity.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=$PACKAGE")))
-        }
+        val opened = activity.startFirstActivity(
+            Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=$PACKAGE")),
+            Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=$PACKAGE")),
+        )
+        if (!opened) logger?.fork("donation")?.log(Logger.Level.WARN, "neither a store app nor a browser opens the store page")
     }
 }
