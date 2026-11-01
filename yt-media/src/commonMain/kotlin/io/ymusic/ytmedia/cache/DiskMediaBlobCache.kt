@@ -67,6 +67,8 @@ class DiskMediaBlobCache(
     private var budget = budgetBytes
     private val pins = mutableMapOf<String, Int>() // spanId → read-pin count (in-memory, per-process)
     private val doomed = mutableSetOf<String>() // invalidated spanIds still pinned; their files go on the last unpin
+    private val spanGens = mutableMapOf<String, Long>() // spanId → generation, new on every commit of that span
+    private var lastGen = 0L
     private val retired = mutableSetOf<Path>() // unindexed span files not yet deleted (deletes run outside [lock])
     private val inFlight = mutableSetOf<String>() // region tokens "key pos len" — known-length write dedupe
     private val activeWriters = mutableSetOf<Long>() // live writer ids; temp files carry the id in their name
@@ -130,6 +132,7 @@ class DiskMediaBlobCache(
                         index.delete(chunk.key, chunk.start, chunk.len)
                         // Drop the key's resident list so its next load re-validates every row against disk.
                         spanCache.remove(chunk.key)
+                        spanGens.remove(spanId(chunk.key, chunk.start, chunk.len))
                     }
                     chunks.mapNotNull { unpin(it.key, it.start, it.len) }
                 }
@@ -140,6 +143,12 @@ class DiskMediaBlobCache(
             }
         }
         return StitchedSource(chunks, handles)
+    }
+
+    override fun coverageId(key: String, position: Long, length: Long): String? = synchronized(lock) {
+        cover(key, cachedSpans(key), position, length)?.joinToString(",") { chunk ->
+            spanGens.getOrPut(spanId(chunk.key, chunk.start, chunk.len)) { ++lastGen }.toString()
+        }
     }
 
     override fun writer(key: String, position: Long, length: Long, publishOnCommit: Boolean): BlobWriter {
@@ -248,6 +257,7 @@ class DiskMediaBlobCache(
                 loaded += span
             } else {
                 index.delete(span.key, span.start, span.len)
+                spanGens.remove(spanId(span.key, span.start, span.len))
                 if (size != null) {
                     logger?.log(Logger.Level.WARN, "span ${span.start}_${span.len} holds $size bytes, dropped")
                     fileSystem.delete(path, mustExist = false)
@@ -270,6 +280,7 @@ class DiskMediaBlobCache(
     /** Reflect an evicted / dropped span in the resident list (if any). */
     private fun removeSpanFromCache(key: String, start: Long, len: Long) {
         spanCache[key]?.removeAll { it.start == start && it.len == len }
+        spanGens.remove(spanId(key, start, len))
     }
 
     // --- covering (greedy max-reach; tolerates overlapping spans) ------------------------------------
@@ -451,6 +462,7 @@ class DiskMediaBlobCache(
             val victims = synchronized(lock) {
                 index.insert(key, start, len)
                 addSpanToCache(key, start, len)
+                spanGens[spanKey] = ++lastGen
                 planEviction(0)
             }
             logger?.debug { "commit span $key ${start}_$len writer=$id" }

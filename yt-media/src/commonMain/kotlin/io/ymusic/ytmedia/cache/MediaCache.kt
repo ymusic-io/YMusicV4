@@ -28,7 +28,7 @@ class MediaCache(
     private val logger: Logger? = null,
 ) {
     private val intactLock = SynchronizedObject()
-    private val intact = LinkedHashSet<String>() // segments whose stored bytes passed checkStored, oldest first
+    private val intact = LinkedHashMap<String, String>() // segment → coverageId of the bytes that passed checkStored
 
     /**
      * Begin mirroring one segment into the cache. The metadata row is saved **now** (on the MEDIA_HEADER,
@@ -46,21 +46,23 @@ class MediaCache(
     }
 
     /**
-     * Whether [segment]'s stored bytes pass the structural [SegmentCheck]; walked once per process, since
-     * stored spans are immutable. A failing segment is purged — its spans and its index row — so planning
+     * Whether [segment]'s stored bytes pass the structural [SegmentCheck]; walked again only once the spans
+     * holding them change. A failing segment is purged — its spans and its index row — so planning
      * treats it as a miss and the next network fetch refills it. False too when the segment is not fully
      * cached right now. Throws [MediaCacheStorageException] when a span cannot be read.
      */
     @WorkerThread
     fun checkStored(segment: MediaHeader): Boolean {
         val id = "${segment.cacheKey} ${segment.startRange} ${segment.contentLength}"
-        if (synchronized(intactLock) { id in intact }) return true
+        val coverage = blobs.coverageId(segment.cacheKey, segment.startRange, segment.contentLength) ?: return false
+        if (synchronized(intactLock) { intact[id] == coverage }) return true
         val stored = blobs.read(segment.cacheKey, segment.startRange, segment.contentLength) ?: return false
         val failure = stored.use { checkStoredSegment(segment.contentLength, segment.isInitSegment, it::readAt) }
         if (failure == null) {
             synchronized(intactLock) {
-                intact += id
-                if (intact.size > INTACT_MAX) intact.remove(intact.first())
+                intact.remove(id)
+                intact[id] = coverage
+                if (intact.size > INTACT_MAX) intact.remove(intact.keys.first())
             }
             return true
         }

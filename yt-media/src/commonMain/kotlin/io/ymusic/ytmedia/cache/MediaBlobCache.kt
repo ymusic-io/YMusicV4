@@ -54,6 +54,13 @@ interface MediaBlobCache {
     fun read(key: String, position: Long, length: Long): PinnedSource?
 
     /**
+     * An id of the spans covering `[position, position+length)` right now, or null when the range isn't fully
+     * covered. It changes whenever one of those spans is dropped or committed again, so whatever was learned
+     * from the bytes holds exactly while the id stays the same.
+     */
+    fun coverageId(key: String, position: Long, length: Long): String?
+
+    /**
      * A writer for a region starting at [position]. Bytes stream to [BlobWriter.sink]; the caller ends
      * with [BlobWriter.commit] (persist the trailing partial block) or [BlobWriter.abort] (drop it). The
      * cache seals immutable span blocks as they fill, so [length] is only ever used for dedupe, never for
