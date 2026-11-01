@@ -28,17 +28,23 @@ import kotlin.concurrent.Volatile
  * Call once, before Sentry.init's first event.
  */
 fun installErrorLogs(store: LogStore, remoteConfig: RemoteConfig, appVersionCode: Int) {
-    errorLogShipper = ErrorLogShipper(store, remoteConfig, appVersionCode)
+    errorLogShipper = ErrorLogShipper(store, remoteConfig, appVersionCode).also { it.adoptSentryTrace() }
+}
+
+/** Call right after Sentry.init: the app log's lines take Sentry's trace id for this app open. */
+fun adoptSentryTraceForLogs() {
+    errorLogShipper?.adoptSentryTrace()
 }
 
 @Volatile
 internal var errorLogShipper: ErrorLogShipper? = null
 
 /**
- * An error event's trace is its app open ([LogStore.launch]); a report the next process makes about
- * the previous run (ANR, native crash) takes that run's. Its log lines are the store's newest unsent
- * INFO+ lines, each sent as a Sentry Log with its own app open as trace id — so Sentry shows a run's
- * lines on that run's events — and only body, level, timestamp and `app.version_code`.
+ * The app log's lines carry Sentry's trace id of the app open that wrote them ([adoptSentryTrace]),
+ * so an event and its run's lines share one trace; a report the next process makes about the previous
+ * run (ANR, native crash) takes that run's trace instead. An event's lines are the store's newest
+ * unsent INFO+ lines, each sent as a Sentry Log with only body, level, timestamp, its trace id and
+ * `app.version_code`.
  */
 internal class ErrorLogShipper(
     private val store: LogStore,
@@ -48,11 +54,29 @@ internal class ErrorLogShipper(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val versionCode = SentryLogEventAttributeValue(SentryAttributeType.INTEGER, appVersionCode)
 
+    /** Hands Sentry's trace id to the log once Sentry has started; a no-op before. */
+    fun adoptSentryTrace() {
+        if (!Sentry.isEnabled()) return
+        var trace: SentryId? = null
+        Sentry.configureScope { trace = it.propagationContext.traceId }
+        val id = trace?.takeIf { it != SentryId.EMPTY_ID }?.toString() ?: return
+        scope.launch {
+            try {
+                store.adoptLaunch(id)
+            } catch (e: Exception) {
+                log("log lines kept their placeholder trace id", e)
+            }
+        }
+    }
+
     /** Called from beforeSend for an event that leaves. A crash waits (bounded): its process is ending. */
     fun attach(event: SentryEvent, previousRun: Boolean) {
-        val trace = if (previousRun) wait { store.previousLaunch() } ?: store.launch else store.launch
-        val span = event.contexts.trace
-        event.contexts.setTrace(SpanContext(SentryId(trace), span?.spanId ?: SpanId(), span?.operation ?: "default", span?.parentSpanId, null))
+        if (previousRun) {
+            wait { store.previousLaunch() }?.let { trace ->
+                val span = event.contexts.trace
+                event.contexts.setTrace(SpanContext(SentryId(trace), span?.spanId ?: SpanId(), span?.operation ?: "default", span?.parentSpanId, null))
+            }
+        }
         val eventId = event.eventId.toString()
         if (event.isCrashed) {
             if (wait { send(eventId) } == null) log("log lines for $eventId still pending after ${WAIT_MS}ms", null)
