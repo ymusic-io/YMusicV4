@@ -35,9 +35,6 @@ INSERT OR REPLACE INTO sent_mark (id, seq) VALUES (0, ?);
 newestUnsent:
 SELECT * FROM log_line WHERE seq > :after AND level >= :minLevel ORDER BY seq DESC LIMIT :limit;
 
-renameLaunch:
-UPDATE log_line SET launch = :new WHERE launch = :old;
-
 previousLaunch:
 SELECT launch FROM log_line WHERE launch != :current ORDER BY seq DESC LIMIT 1;
 
