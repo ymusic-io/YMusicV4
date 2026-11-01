@@ -145,6 +145,8 @@ internal class StubPlayer : Player {
 
     override fun addToPlayNext(items: List<PlayableItem>) {}
 
+    override fun moveToPlayNext(index: Int) {}
+
     override fun move(from: Int, to: Int) {
         moves += from to to
         queueState.value = queueState.value.copy(
