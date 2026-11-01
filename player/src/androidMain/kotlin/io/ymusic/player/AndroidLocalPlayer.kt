@@ -143,7 +143,7 @@ internal class AndroidLocalPlayer(
                 } else if (error.isAccessDenied()) {
                     PlayerError(PlayerError.FOLDER_ACCESS_LOST, detail, canRetry = false, cause = error)
                 } else {
-                    PlayerError("E60010", detail, cause = error)
+                    PlayerError(error.localErrorCode(), detail, cause = error)
                 }
                 _status.update { it.copy(state = PlaybackState.Error(playerError)) }
             }
@@ -542,3 +542,12 @@ private fun PlaybackException.isFileMissing(): Boolean =
         generateSequence<Throwable>(this) { it.cause }.any {
             it is FileNotFoundException || (it is IllegalArgumentException && it.message?.contains("FileNotFoundException") == true)
         }
+
+/** ExoPlayer's error code ranges: 3xxx parsing, 4xxx decoding, 5xxx audio output. */
+private fun PlaybackException.localErrorCode(): String = when (errorCode) {
+    in 4000..4999 -> "E60011"
+    in 3000..3999 -> "E60012"
+    in 5000..5999 -> "E60013"
+    PlaybackException.ERROR_CODE_TIMEOUT -> "E60014"
+    else -> "E60010"
+}
