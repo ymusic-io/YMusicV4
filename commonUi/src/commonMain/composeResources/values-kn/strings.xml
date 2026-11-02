@@ -256,6 +256,7 @@
     <string name="settings_show_fps">FPS ತೋರಿಸಿ</string>
     <string name="settings_show_fps_hint">Now Playing ವೀಡಿಯೊದ ಮೇಲೆ ಪ್ರತಿ ಸೆಕೆಂಡಿನ ಚಿತ್ರಗಳನ್ನು ತೋರಿಸಿ. ವಿರಾಮಗೊಳಿಸಿದಾಗ ಅಥವಾ ಆ ಪರದೆಯಿಂದ ಹೊರಹೋದಾಗ ಮಾಪನ ನಿಲ್ಲುತ್ತದೆ.</string>
     <string name="overlay_fps">%1$d fps</string>
+    <string name="overlay_fps_dropped">%1$d fps · %2$d ಕೈಬಿಡಲಾಗಿದೆ</string>
     <string name="settings_licenses">ಓಪನ್ ಸೋರ್ಸ್ ಪರವಾನಗಿಗಳು</string>
     <string name="settings_terms">ನಿಯಮಗಳು ಮತ್ತು ಗೌಪ್ಯತೆ</string>
     <string name="settings_licenses_intro">YMusic GNU GPL v3.0 ಅಡಿಯಲ್ಲಿ ಓಪನ್ ಸೋರ್ಸ್ ಆಗಿದೆ. ಇದು ಈ ಘಟಕಗಳನ್ನು ಒಳಗೊಂಡಿದೆ:</string>

@@ -252,6 +252,7 @@
     <string name="settings_show_fps">Tampilkan FPS</string>
     <string name="settings_show_fps_hint">Tampilkan jumlah gambar per detik di atas video yang sedang diputar. Pengukuran berhenti saat dijeda atau saat Anda meninggalkan layar tersebut.</string>
     <string name="overlay_fps">%1$d fps</string>
+    <string name="overlay_fps_dropped">%1$d fps · %2$d terlewat</string>
     <string name="settings_licenses">Lisensi open source</string>
     <string name="settings_terms">Ketentuan &amp; privasi</string>
     <string name="settings_licenses_intro">YMusic adalah open source di bawah GNU GPL v3.0. Aplikasi ini menyertakan komponen berikut:</string>

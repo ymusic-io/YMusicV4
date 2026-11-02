@@ -290,6 +290,7 @@
     <string name="settings_show_fps">Hiện FPS</string>
     <string name="settings_show_fps_hint">Hiện số khung hình mỗi giây trên video Đang phát. Ngừng đo khi tạm dừng hoặc khi rời màn hình đó.</string>
     <string name="overlay_fps">%1$d fps</string>
+    <string name="overlay_fps_dropped">%1$d fps · %2$d bị bỏ</string>
     <string name="settings_changelog">Nhật ký thay đổi</string>
     <string name="settings_source_code">Mã nguồn</string>
     <string name="settings_licenses">Giấy phép mã nguồn mở</string>

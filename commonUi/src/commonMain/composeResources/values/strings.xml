@@ -315,6 +315,7 @@
     <string name="settings_show_fps">Show FPS</string>
     <string name="settings_show_fps_hint">Overlay pictures per second on the Now Playing video. Sampling stops when paused or you leave that screen.</string>
     <string name="overlay_fps">%1$d fps</string>
+    <string name="overlay_fps_dropped">%1$d fps · %2$d dropped</string>
     <string name="settings_changelog">Changelog</string>
     <string name="settings_source_code">Source code</string>
     <string name="settings_licenses">Open source licenses</string>
