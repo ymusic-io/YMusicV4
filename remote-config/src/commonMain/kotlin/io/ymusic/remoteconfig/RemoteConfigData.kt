@@ -5,7 +5,10 @@ import io.ymusic.remoteconfig.BundleVersion.Companion.value
 import io.ymusic.remoteconfig.Features.Companion.value
 import kmphttp.json.JsonWriter
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import projectcommon.json.arrayOrNull
 import projectcommon.json.boolOrNull
+import projectcommon.json.doubleOrNull
 import projectcommon.json.int
 import projectcommon.json.intOrNull
 import projectcommon.json.long
@@ -136,6 +139,10 @@ data class Features(
     val errorLogLines: Int = 500,
     /** How many lines the app log keeps (trimmed once 10% over). */
     val logLines: Int = 5_000,
+    /** The share of non-fatal errors (`captureError`) sent to Sentry, 0–1; crashes always go. */
+    val errorSampleRate: Double = 1.0,
+    /** Regexes over an error's "Type: message"; a match keeps a non-fatal error in the local log only. */
+    val errorFilters: List<String> = emptyList(),
 ) {
     companion object {
         private const val KEY_VARIABLE_A = "variableA"
@@ -151,6 +158,8 @@ data class Features(
         private const val KEY_DOWNLOAD_PAGE_URL = "downloadPageUrl"
         private const val KEY_ERROR_LOG_LINES = "errorLogLines"
         private const val KEY_LOG_LINES = "logLines"
+        private const val KEY_ERROR_SAMPLE_RATE = "errorSampleRate"
+        private const val KEY_ERROR_FILTERS = "errorFilters"
 
         fun from(json: JsonObject): Features {
             val default = Features()
@@ -168,6 +177,9 @@ data class Features(
                 downloadPageUrl = json.stringOrNull(KEY_DOWNLOAD_PAGE_URL),
                 errorLogLines = json.intOrNull(KEY_ERROR_LOG_LINES) ?: default.errorLogLines,
                 logLines = json.intOrNull(KEY_LOG_LINES) ?: default.logLines,
+                errorSampleRate = json.doubleOrNull(KEY_ERROR_SAMPLE_RATE) ?: default.errorSampleRate,
+                errorFilters = json.arrayOrNull(KEY_ERROR_FILTERS).orEmpty()
+                    .mapNotNull { (it as? JsonPrimitive)?.takeIf { primitive -> primitive.isString }?.content },
             )
         }
 
@@ -186,6 +198,10 @@ data class Features(
             data.downloadPageUrl?.let { name(KEY_DOWNLOAD_PAGE_URL).value(it) }
             name(KEY_ERROR_LOG_LINES).value(data.errorLogLines)
             name(KEY_LOG_LINES).value(data.logLines)
+            name(KEY_ERROR_SAMPLE_RATE).value(data.errorSampleRate)
+            name(KEY_ERROR_FILTERS).beginArray()
+            data.errorFilters.forEach { value(it) }
+            endArray()
             endObject()
             return this
         }

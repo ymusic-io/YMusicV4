@@ -11,7 +11,7 @@ import projectcommon.log.trailMark
 
 /**
  * The app's root [Logger] over Sentry: every [captureError] a Sentry event (the ignored categories
- * excepted) whose grouping comes from the coded error — else exception type + tag path — applied by
+ * excepted, and those [bindErrorPolicy]'s remote rules filter or sample out) whose grouping comes from the coded error — else exception type + tag path — applied by
  * [applyYMusicTelemetry]'s `beforeSend` off the tags set here. Lines are not sent from here: the app
  * log (`:log-store`) keeps them, and an error event takes the newest along ([installErrorLogs]).
  */
@@ -28,7 +28,7 @@ class SentryLogger private constructor(crumbs: List<Crumb>) : CrumbLogger(crumbs
         val trail = error.trailMark() ?: crumbs
         val trailPath = trail.joinToString("/") { it.tag }
         val coded = error.codedError()
-        if (isIgnored(error, coded)) return
+        if (isIgnored(error, coded) || !errorPolicy.allows(error)) return
         captureTrailedError(error, trail, trailPath, coded?.code, message, prop)
     }
 
