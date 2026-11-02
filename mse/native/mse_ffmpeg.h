@@ -102,8 +102,8 @@ int mse_av_pull_audio(MseAv *a, double clock, double until, int16_t **s16, int *
 
 double mse_av_duration(MseAv *a);
 
-/* First..last PTS across leftover. 1 if any packets. */
-int mse_av_span(MseAv *a, double *first, double *last);
+/* First..last PTS of the leftover range (audio or video) around `at`. 0 if none reaches it. */
+int mse_av_span(MseAv *a, double at, double *first, double *last);
 
 /* Where the buffered video range the decoder reads from ends. 0 without video leftover, or while the
    decoder rests or is parked. */
