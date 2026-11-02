@@ -1237,6 +1237,15 @@ static void win_offset_zone(char *out, int cap)
 }
 #endif
 
+/* Wall-clock ms for the host's own bookkeeping: never on the entropy tape, never replayed. */
+static JSValue js_host_now(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+{
+    (void)this_val;
+    (void)argc;
+    (void)argv;
+    return JS_NewInt64(ctx, date_now_ms());
+}
+
 /** IANA id of the host zone (TZ, Android persist.sys.timezone, /etc/localtime, Windows ICU). */
 static JSValue js_time_zone(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
@@ -1286,6 +1295,7 @@ void qjs_register_web(JSContext *ctx)
     JS_SetPropertyStr(ctx, g, "btoa", JS_NewCFunction(ctx, js_btoa, "btoa", 0));
     JS_SetPropertyStr(ctx, g, "atob", JS_NewCFunction(ctx, js_atob, "atob", 0));
     JS_SetPropertyStr(ctx, g, "__timeZone", JS_NewCFunction(ctx, js_time_zone, "__timeZone", 0));
+    JS_SetPropertyStr(ctx, g, "__hostNow", JS_NewCFunction(ctx, js_host_now, "__hostNow", 0));
     install_ctor(ctx, g, "TextEncoder", js_textencoder_ctor, 0,
                  textencoder_proto, countof(textencoder_proto));
     install_ctor(ctx, g, "TextDecoder", js_textdecoder_ctor, 0,
