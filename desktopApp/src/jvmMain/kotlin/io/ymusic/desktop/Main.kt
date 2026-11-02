@@ -1594,10 +1594,10 @@ private suspend fun pickOpenFile(): File? {
 }
 
 // Windows gets the native Explorer folder picker. macOS's AWT FileDialog only picks directories
-// while this property is set; on Linux the dialog picks a single file, which the scanner indexes on
-// its own (a supported single-file scan).
+// while this property is set.
 private suspend fun pickFolder(): File? {
     val title = getString(Res.string.folder_picker_title)
+    if (desktopOsKey() == "linux") return LinuxFolderPicker.pick(mainWindow, title)
     if (desktopOsKey() == "windows") {
         val owner = withContext(Dispatchers.Main) { mainWindow?.let { Native.getComponentPointer(it) } }
         try {
