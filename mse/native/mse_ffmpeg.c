@@ -236,6 +236,8 @@ static void maybe_apply_video_rep(MseAv *a);
 
 /* Coded frames further apart than this are separate buffered ranges (an old island left behind a seek). */
 #define MSE_VIDEO_GAP_S 0.5
+#define MSE_SPAN_GAP_S 1.0
+#define MSE_SPAN_EDGE_S 0.25
 
 static double mc_send_ahead(const MseAv *a)
 {
@@ -3457,26 +3459,43 @@ void mse_av_flush(MseAv *a, int audio, int video)
     av_unlock_all(a);
 }
 
-static int cfb_span(const Cfb *b, double *first, double *last)
+/* The buffered range around `at`: frames apart by up to MSE_SPAN_GAP_S count as one range. 0 when
+   no range reaches within MSE_SPAN_EDGE_S of `at`. */
+static int cfb_span(const Cfb *b, double at, double *first, double *last)
 {
-    if (!b->n)
+    size_t lo = 0, hi, i, j;
+    if (!b->n || b->f[0].pts > at + MSE_SPAN_EDGE_S)
         return 0;
-    *first = b->f[0].pts;
-    *last = b->f[b->n - 1].pts + b->f[b->n - 1].dur;
+    hi = b->n;
+    while (hi - lo > 1) {
+        size_t mid = lo + (hi - lo) / 2;
+        if (b->f[mid].pts <= at + MSE_SPAN_EDGE_S)
+            lo = mid;
+        else
+            hi = mid;
+    }
+    for (j = lo; j + 1 < b->n && b->f[j + 1].pts <= b->f[j].pts + b->f[j].dur + MSE_SPAN_GAP_S; j++)
+        ;
+    if (b->f[j].pts + b->f[j].dur + MSE_SPAN_EDGE_S < at)
+        return 0;
+    for (i = lo; i > 0 && b->f[i].pts <= b->f[i - 1].pts + b->f[i - 1].dur + MSE_SPAN_GAP_S; i--)
+        ;
+    *first = b->f[i].pts;
+    *last = b->f[j].pts + b->f[j].dur;
     return 1;
 }
 
-int mse_av_span(MseAv *a, double *first, double *last)
+int mse_av_span(MseAv *a, double at, double *first, double *last)
 {
     double af = 0, al = 0, vf = 0, vl = 0;
     int ha, hv;
     if (!a || !first || !last)
         return 0;
     av_lock_all(a);
-    ha = cfb_span(&a->af, &af, &al);
+    ha = cfb_span(&a->af, at, &af, &al);
     /* Resting decoder: leftover stays in vf but the clock must follow
        audio or currentTime snaps when video last is behind playhead. */
-    hv = a->v_rest ? 0 : cfb_span(&a->vf, &vf, &vl);
+    hv = a->v_rest ? 0 : cfb_span(&a->vf, at, &vf, &vl);
     av_unlock_all(a);
     if (!ha && !hv)
         return 0;

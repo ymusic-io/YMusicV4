@@ -471,11 +471,20 @@ static double clock_with_span(MseHost *h, int have, double first, double last, i
     return t;
 }
 
+static double hold_of(MseHost *h)
+{
+    double hold;
+    pthread_mutex_lock(&h->mu);
+    hold = h->hold;
+    pthread_mutex_unlock(&h->mu);
+    return hold < 0 ? 0 : hold;
+}
+
 static double host_clock(MseHost *h)
 {
     double first = 0, last = 0, t;
     int have, has_v;
-    have = mse_av_span(h->av, &first, &last);
+    have = mse_av_span(h->av, hold_of(h), &first, &last);
     has_v = mse_av_has_video(h->av);
     pthread_mutex_lock(&h->mu);
     t = clock_with_span(h, have, first, last, has_v);
@@ -1454,7 +1463,7 @@ void mse_host_play(MseHost *h)
     dur = mse_av_duration(h->av);
     {
         double first = 0, last = 0;
-        int have = mse_av_span(h->av, &first, &last);
+        int have = mse_av_span(h->av, hold_of(h), &first, &last);
         int has_v = mse_av_has_video(h->av);
         pthread_mutex_lock(&h->mu);
         clock = clock_with_span(h, have, first, last, has_v);
