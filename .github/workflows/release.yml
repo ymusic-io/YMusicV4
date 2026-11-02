@@ -22,6 +22,10 @@ env:
   # The NDK (r28c) for the Android ffmpeg packs and the app's own native code, installed with the
   # runner's sdkmanager: the image's ANDROID_NDK_LATEST_HOME moves (r30 fails android-x86_64).
   NDK_VERSION: 28.2.13676358
+  # Bundled runtime: each desktop job's matrix `jdk` is the exact JDK its app ships, and changes only
+  # on purpose. A self-update swaps the app under the running JVM; a desktop build before 18 (no
+  # FORK launch) then spawns through the new jspawnhelper, which refuses any other JDK version.
+  # 4.0.13 shipped 21.0.13+9 on macos-arm64/linux and 21.0.12+101 on macos-x86_64/windows.
 
 jobs:
   # The checkouts sit side by side (YMusicV4/ + ffmpeg-build/): the Gradle build reads
@@ -246,8 +250,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { slug: macos-arm64, runner: macos-15 }
-          - { slug: macos-x86_64, runner: macos-15-intel }
+          - { slug: macos-arm64, runner: macos-15, jdk: 21.0.13+9 }
+          - { slug: macos-x86_64, runner: macos-15-intel, jdk: 21.0.12+101 }
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -263,7 +267,7 @@ jobs:
       - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
         with:
           distribution: temurin
-          java-version: 21
+          java-version: ${{ matrix.jdk }}
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
@@ -388,9 +392,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { slug: windows-x86_64, runner: windows-2022, msystem: MINGW64, prefix: mingw64,
+          - { slug: windows-x86_64, runner: windows-2022, msystem: MINGW64, prefix: mingw64, jdk: 21.0.12+101,
               packages: 'mingw-w64-x86_64-toolchain mingw-w64-x86_64-make' }
-          - { slug: windows-arm64, runner: windows-11-arm, msystem: CLANGARM64, prefix: clangarm64,
+          - { slug: windows-arm64, runner: windows-11-arm, msystem: CLANGARM64, prefix: clangarm64, jdk: 21.0.12+101,
               packages: 'mingw-w64-clang-aarch64-toolchain mingw-w64-clang-aarch64-make' }
     steps:
       - run: git config --global core.autocrlf false
@@ -437,7 +441,7 @@ jobs:
       - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
         with:
           distribution: temurin
-          java-version: 21
+          java-version: ${{ matrix.jdk }}
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
@@ -494,8 +498,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { slug: linux-x86_64, runner: ubuntu-24.04 }
-          - { slug: linux-arm64, runner: ubuntu-24.04-arm }
+          - { slug: linux-x86_64, runner: ubuntu-24.04, jdk: 21.0.13+9 }
+          - { slug: linux-arm64, runner: ubuntu-24.04-arm, jdk: 21.0.13+9 }
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -513,7 +517,7 @@ jobs:
       - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
         with:
           distribution: temurin
-          java-version: 21
+          java-version: ${{ matrix.jdk }}
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
