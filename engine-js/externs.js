@@ -200,6 +200,7 @@ function __consoleLog(level, msg) {}
  */
 function __nativeFn(name, impl, length) {}
 function __timeZone() {}
+function __hostNow() {}
 function __mseReady() {}
 function __mseCurrentTime() {}
 function __mseSetCurrentTime(seconds) {}

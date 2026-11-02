@@ -86,6 +86,9 @@ declare function __nativeFn(name: string, impl?: Function, length?: number): Fun
 /** Host IANA time zone (TZ / Android persist.sys.timezone / /etc/localtime). */
 declare function __timeZone(): string;
 
+/** Wall-clock ms like Date.now, but off the BotGuard entropy tape. Newer hosts only: guard with typeof. */
+declare function __hostNow(): number;
+
 /** Native MSE session attached to this engine (sync C, not pipes). */
 declare function __mseReady(): boolean;
 declare function __mseCurrentTime(): number;
