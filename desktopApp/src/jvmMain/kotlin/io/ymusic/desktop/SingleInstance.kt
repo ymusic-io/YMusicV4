@@ -122,7 +122,7 @@ internal class SingleInstance private constructor(
                 }
                 if (lock != null) return InstanceClaim.Owner(listen(lock, portFile, logger))
                 channel.close()
-                if (attempt == 0 && command == InstanceCommand.Show) shareForeground(logger)
+                if (attempt == 0 && command == InstanceCommand.Show && isWindows) shareForeground(logger)
                 try {
                     handOff(portFile, command)
                     return InstanceClaim.HandedOver
