@@ -41,6 +41,9 @@ private const val MIN_AUDIO_READAHEAD_MS = TARGET_AUDIO_READAHEAD_MS + 45_000L
 private const val TARGET_VIDEO_READAHEAD_MS = 60_000
 private const val MIN_VIDEO_READAHEAD_MS = TARGET_VIDEO_READAHEAD_MS + 45_000L
 
+// A playhead on the buffered end, give or take rounding, is still inside that range.
+private const val BUFFERED_EDGE_MS = 100L
+
 /**
  * Plan a local UMP response for a SABR request from the cached segments (port of
  * `SabrCacheHandler.handleSabrRequest`). Walks [SegmentIndex] forward from the request's `playerTimeMs`
@@ -221,7 +224,7 @@ private fun MediaCache.findCachedSegments(
     var bufferedPosMs = -1L
     var nextSeg: Int
     var newBufferedPos: Long
-    val insideBuffered = sorted.firstOrNull { it.startMs <= playerTimeMs && playerTimeMs < it.endMs }
+    val insideBuffered = sorted.firstOrNull { it.startMs <= playerTimeMs && playerTimeMs <= it.endMs + BUFFERED_EDGE_MS }
     if (insideBuffered != null) {
         nextSeg = insideBuffered.startSegmentIndex
         sorted.forEach {
@@ -232,7 +235,11 @@ private fun MediaCache.findCachedSegments(
         }
         newBufferedPos = bufferedPosMs
     } else {
-        val seg = addNext { index.findByStartTime(it.itag, it.lmt, playerTimeMs) } ?: return CheckResult.Miss
+        val seg = addNext { format ->
+            index.findByStartTime(format.itag, format.lmt, playerTimeMs)?.takeUnless { segment ->
+                sorted.any { it.formatId == format && segment.segmentIndex in it.startSegmentIndex..it.endSegmentIndex }
+            }
+        } ?: return CheckResult.Miss
         nextSeg = seg.segmentIndex + 1
         newBufferedPos = checkNotNull(seg.startMs) + checkNotNull(seg.durationMs) - 1
     }
