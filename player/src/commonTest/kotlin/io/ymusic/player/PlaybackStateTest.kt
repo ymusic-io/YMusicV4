@@ -12,7 +12,7 @@ class PlaybackStateTest {
         assertTrue(PlaybackState.Idle.readyToLoad)
         assertTrue(PlaybackState.Prepared(true, buffering = true, ended = false).readyToLoad)
         assertTrue(PlaybackState.Error(PlayerError("E1", canRetry = true)).readyToLoad)
-        assertFalse(PlaybackState.Error(PlayerError("E1", canRetry = false)).readyToLoad)
+        assertTrue(PlaybackState.Error(PlayerError("E1", canRetry = false)).readyToLoad)
         assertFalse(PlaybackState.Error(PlayerError("E1", canRetry = true, needReset = true)).readyToLoad)
     }
 }

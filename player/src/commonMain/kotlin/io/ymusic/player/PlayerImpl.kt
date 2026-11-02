@@ -729,10 +729,7 @@ internal class PlayerImpl(
             is PlaybackState.Uninitialized -> {
                 if (!first.isInitializing) engine.init()
             }
-            is PlaybackState.Error -> {
-                if (!first.error.canRetry) return first.error
-                if (first.error.needReset) engine.reset("error ${first.error.code} needs reset") else return null
-            }
+            is PlaybackState.Error -> engine.reset("error ${first.error.code} needs reset")
             else -> return null
         }
         val settled = suspend {
