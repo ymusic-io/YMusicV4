@@ -139,7 +139,6 @@ import io.ymusic.telemetry.installErrorLogs
 import io.ymusic.telemetry.installSentryDeviceId
 import io.ymusic.telemetry.installSentryEngineVersion
 import io.ymusic.telemetry.installSentryPlayerVersion
-import io.ymusic.telemetry.sendFeedbackMessage
 import io.ymusic.telemetry.shareLogTraceWithSentry
 import io.ymusic.ui.APP_HTTP_TIMEOUT
 import io.ymusic.ui.ActionIcon
@@ -1124,7 +1123,6 @@ private suspend fun buildGraph(settings: AppStoreSettings, session: CookieSessio
         api = api,
         remoteConfig = remoteConfig.config,
         captureFeedbackReport = captureFeedbackReportAction.takeIf { SENTRY_DSN.isNotEmpty() },
-        sendFeedbackMessage = ::sendFeedbackMessage.takeIf { SENTRY_DSN.isNotEmpty() },
         platformInfo = "${System.getProperty("os.name")} ${System.getProperty("os.version")} · ${desktopArch()}",
         createDocument = { name, _ -> pickSaveFile(name)?.let { file -> withContext(Dispatchers.IO) { FileSystem.SYSTEM.sink(file.toOkioPath()) } } },
         openDocument = { _ -> pickOpenFile()?.let { file -> withContext(Dispatchers.IO) { FileSystem.SYSTEM.source(file.toOkioPath()) } } },
@@ -1550,8 +1548,8 @@ private fun saveWindowPrefs(size: DpSize, position: WindowPosition) {
     }
 }
 
-/** Sends the app logs as one anonymous Sentry report for the Feedback screen; returns its event id. */
-private val captureFeedbackReportAction: suspend () -> String? = {
+/** Sends a Feedback-screen message with the app logs as one anonymous Sentry report. */
+private val captureFeedbackReportAction: suspend (String) -> Unit = { message ->
     withContext(Dispatchers.IO) {
         val export = File(System.getProperty("java.io.tmpdir"), FEEDBACK_LOG_NAME)
         // The report still goes without the log when the export fails or the log store is stuck.
@@ -1567,7 +1565,7 @@ private val captureFeedbackReportAction: suspend () -> String? = {
             rootLogger.fork("feedback").log(Logger.Level.WARN, "log export for feedback failed", e)
             emptyList()
         }
-        captureFeedbackReport(attachments)
+        captureFeedbackReport(message, attachments)
     }
 }
 

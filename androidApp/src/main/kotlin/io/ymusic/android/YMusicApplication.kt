@@ -83,7 +83,6 @@ import io.ymusic.telemetry.installSentryDeviceId
 import io.ymusic.telemetry.installSentryEngineVersion
 import io.ymusic.telemetry.installSentryPlayerVersion
 import io.ymusic.telemetry.installSentryWebViewVersion
-import io.ymusic.telemetry.sendFeedbackMessage
 import io.ymusic.telemetry.shareLogTraceWithSentry
 import io.ymusic.ui.APP_HTTP_TIMEOUT
 import io.ymusic.ui.AppGraph
@@ -757,7 +756,6 @@ class YMusicApplication : Application() {
             },
             downloads = downloadService,
             captureFeedbackReport = captureFeedbackReportAction.takeIf { BuildConfig.SENTRY_DSN.isNotEmpty() },
-            sendFeedbackMessage = ::sendFeedbackMessage.takeIf { BuildConfig.SENTRY_DSN.isNotEmpty() },
             platformInfo = listOfNotNull("Android ${android.os.Build.VERSION.RELEASE}", android.os.Build.SUPPORTED_ABIS.firstOrNull()).joinToString(" · "),
             createDocument = { name, mimeType ->
                 documentCreator?.invoke(name, mimeType)?.let { uri ->
@@ -801,8 +799,8 @@ class YMusicApplication : Application() {
         }
     }
 
-    /** Sends the app logs as one anonymous Sentry report for the Feedback screen; returns its event id. */
-    private val captureFeedbackReportAction: suspend () -> String? = {
+    /** Sends a Feedback-screen message with the app logs as one anonymous Sentry report. */
+    private val captureFeedbackReportAction: suspend (String) -> Unit = { message ->
         withContext(Dispatchers.IO) {
             val export = File(cacheDir, FEEDBACK_LOG_NAME)
             // The report still goes without the log when the export fails or the log store is stuck.
@@ -818,7 +816,7 @@ class YMusicApplication : Application() {
                 rootLogger.fork("feedback").log(Logger.Level.WARN, "log export for feedback failed", e)
                 emptyList()
             }
-            captureFeedbackReport(attachments)
+            captureFeedbackReport(message, attachments)
         }
     }
 

@@ -9,9 +9,11 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.NativeClipboard
 import androidx.compose.ui.platform.UriHandler
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.test.waitUntilAtLeastOneExists
 import io.ymusic.dynamicengine.DynamicEngineManager
@@ -52,17 +54,14 @@ class FeedbackScreenTest {
     }
 
     @Test
-    fun copy_or_a_contact_row_sends_the_logs_once() {
+    fun only_a_sent_message_sends_the_logs() {
         Locale.setDefault(Locale.ENGLISH)
-        var captures = 0
+        val captures = mutableListOf<String>()
         val graph = AppGraph(
             engines = engines(),
             player = StubPlayer(),
             playerSurface = {},
-            captureFeedbackReport = {
-                captures++
-                "5ec086b24c2d4982b85a056ee39ef5ae"
-            },
+            captureFeedbackReport = { message -> synchronized(captures) { captures += message } },
         )
         runBlocking { graph.settings.put(AppSettings.crashReports, false) }
         val clipboard = RecordingClipboard()
@@ -74,24 +73,30 @@ class FeedbackScreenTest {
                 }
             }
             waitUntilAtLeastOneExists(hasText("Anonymous reports are off"), 5_000)
-            assertEquals(0, captures, "nothing is sent before the user agrees")
+            assertEquals(emptyList(), captures, "nothing is sent before the user agrees")
             onNodeWithText("Continue").performClick()
 
             waitUntilAtLeastOneExists(hasText("Copy"), 5_000)
             waitForIdle()
             assertTrue(graph.settings.flow(AppSettings.crashReports).value)
             assertEquals(null, clipboard.text, "arriving copies nothing")
-            assertEquals(0, captures, "arriving sends nothing")
+            assertEquals(emptyList(), captures, "arriving sends nothing")
 
             onNodeWithText("Copy").performClick()
-            waitUntil(timeoutMillis = 5_000) { clipboard.text != null && captures > 0 }
+            waitUntil(timeoutMillis = 5_000) { clipboard.text != null }
             assertTrue("Device ID: " in clipboard.text!!, "copied: ${clipboard.text}")
 
             onNodeWithText("Open an issue on GitHub").performClick()
             onNodeWithText("Email feedback@ymusic.io").performClick()
             waitUntil(timeoutMillis = 5_000) { uriHandler.opened.size == 2 }
             waitForIdle()
-            assertEquals(1, captures, "one report per visit")
+            assertEquals(emptyList(), captures, "copy and the contact rows send nothing")
+
+            onNodeWithText("or via Sentry").performClick()
+            onNode(hasSetTextAction()).performTextInput("  playback stops  ")
+            onNodeWithText("Send").performClick()
+            waitUntil(timeoutMillis = 5_000) { synchronized(captures) { captures.isNotEmpty() } }
+            assertEquals(listOf("playback stops"), captures)
         }
     }
 
@@ -104,10 +109,7 @@ class FeedbackScreenTest {
             engines = engines(),
             player = StubPlayer(),
             playerSurface = {},
-            captureFeedbackReport = {
-                captures++
-                null
-            },
+            captureFeedbackReport = { captures++ },
         )
         runBlocking { graph.settings.put(AppSettings.crashReports, false) }
         runComposeUiTest {
