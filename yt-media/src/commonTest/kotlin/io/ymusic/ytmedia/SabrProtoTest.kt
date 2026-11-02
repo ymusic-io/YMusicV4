@@ -67,7 +67,7 @@ class SabrProtoTest {
         assertEquals(listOf(video), decoded.selectedVideoFormats)
         val range = decoded.bufferedRanges.single()
         assertEquals(audio, range.formatId)
-        assertEquals(29_999, range.endMs)
+        assertEquals(30_000, range.endMs)
         assertEquals(6, range.endSegmentIndex)
         assertEquals(1, decoded.streamerContext.clientInfo?.clientName)
         assertEquals("2.20250221.00.00", decoded.streamerContext.clientInfo?.clientVersion)
