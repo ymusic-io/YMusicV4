@@ -101,9 +101,9 @@ const INSTALLERS = [
 
 // The oldest build per platform that can install a new one in place; older builds get the release
 // page instead. A self-update swaps the app under the running JVM, which then spawns through the new
-// bundle's jspawnhelper; that refuses a different JDK. macos-arm64 builds before 17 run 21.0.12, the
-// pinned runtime (release.yml "Bundled runtime") is 21.0.13.
-const MIN_VERSION = { 'macos-arm64': 17 }
+// bundle's jspawnhelper; that refuses a different JDK. macOS builds before 18 launch that way (18 is
+// the first with the FORK launch), so none of them survives a runtime change.
+const MIN_VERSION = { 'macos-arm64': 18, 'macos-x64': 18 }
 const releasePage = `https://github.com/${repo}/releases/tag/${tag}`
 
 const releases = {}
