@@ -111,13 +111,14 @@ const releasePage = `https://github.com/${repo}/releases/tag/${tag}`
 
 const releases = {}
 for (const { platform, file, versionCode } of INSTALLERS) {
-  const path = join(dir, file)
+  const assetName = `YMusic-${versionName}-${file}`
+  const path = join(dir, assetName)
   const sha256 = await sha256Of(path)
   releases[platform] = {
     versionCode,
     versionName,
     notes: notesFor(platform),
-    url: assetUrl(file),
+    url: assetUrl(assetName),
     size: statSync(path).size,
     sha256,
     signature: signUpdate(`app-${platform}:${versionCode}:${sha256}`),

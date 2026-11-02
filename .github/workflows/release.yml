@@ -690,18 +690,20 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p release
-          # Fixed, version-free asset names. Each glob must match exactly one build output.
+          # Asset names carry the version (update-config.mjs builds the same names). Each glob must match exactly one build output.
+          version="$(sed -n 's/^ymusic\.versionName=//p' YMusicV4/gradle.properties | tr -d '[:space:]')"
+          [ -n "$version" ] || { echo "ymusic.versionName not found" >&2; exit 1; }
           one() { set -- $1; [ $# -eq 1 ] && [ -f "$1" ] || { echo "expected one file for: $*" >&2; exit 1; }; echo "$1"; }
-          cp "$(one 'artifacts/android-apks/*-armeabi-v7a-release.apk')" release/android-armv7.apk
-          cp "$(one 'artifacts/android-apks/*-arm64-v8a-release.apk')" release/android-arm64.apk
-          cp "$(one 'artifacts/android-apks/*-x86-release.apk')" release/android-x86.apk
-          cp "$(one 'artifacts/android-apks/*-x86_64-release.apk')" release/android-x86_64.apk
-          cp "$(one 'artifacts/macos-arm64-dmg/*.dmg')" release/macos-arm64.dmg
-          cp "$(one 'artifacts/macos-x86_64-dmg/*.dmg')" release/macos-intel.dmg
-          cp "$(one 'artifacts/windows-x86_64-setup/*.exe')" release/windows-x64-setup.exe
-          cp "$(one 'artifacts/windows-arm64-setup/*.exe')" release/windows-arm64-setup.exe
-          cp "$(one 'artifacts/linux-x86_64-deb/*.deb')" release/linux-x86_64.deb
-          cp "$(one 'artifacts/linux-arm64-deb/*.deb')" release/linux-arm64.deb
+          cp "$(one 'artifacts/android-apks/*-armeabi-v7a-release.apk')" "release/YMusic-$version-android-armv7.apk"
+          cp "$(one 'artifacts/android-apks/*-arm64-v8a-release.apk')" "release/YMusic-$version-android-arm64.apk"
+          cp "$(one 'artifacts/android-apks/*-x86-release.apk')" "release/YMusic-$version-android-x86.apk"
+          cp "$(one 'artifacts/android-apks/*-x86_64-release.apk')" "release/YMusic-$version-android-x86_64.apk"
+          cp "$(one 'artifacts/macos-arm64-dmg/*.dmg')" "release/YMusic-$version-macos-arm64.dmg"
+          cp "$(one 'artifacts/macos-x86_64-dmg/*.dmg')" "release/YMusic-$version-macos-intel.dmg"
+          cp "$(one 'artifacts/windows-x86_64-setup/*.exe')" "release/YMusic-$version-windows-x64-setup.exe"
+          cp "$(one 'artifacts/windows-arm64-setup/*.exe')" "release/YMusic-$version-windows-arm64-setup.exe"
+          cp "$(one 'artifacts/linux-x86_64-deb/*.deb')" "release/YMusic-$version-linux-x86_64.deb"
+          cp "$(one 'artifacts/linux-arm64-deb/*.deb')" "release/YMusic-$version-linux-arm64.deb"
           cp "$(one 'artifacts/js-bundles/engine.*.js')" "$(one 'artifacts/js-bundles/player.*.js')" release/
           (cd release && sha256sum * > SHA256SUMS)
           ls -l release
