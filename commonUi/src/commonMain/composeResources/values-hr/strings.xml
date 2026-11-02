@@ -260,6 +260,7 @@
     <string name="settings_show_fps">Prikaži FPS</string>
     <string name="settings_show_fps_hint">Prikazuje broj sličica u sekundi preko videozapisa na zaslonu Sada svira. Mjerenje se zaustavlja pri pauzi ili kad napustite zaslon.</string>
     <string name="overlay_fps">%1$d fps</string>
+    <string name="overlay_fps_dropped">%1$d fps · %2$d ispušteno</string>
     <string name="settings_licenses">Licence otvorenog koda</string>
     <string name="settings_terms">Uvjeti i privatnost</string>
     <string name="settings_licenses_intro">YMusic je otvorenog koda pod licencom GNU GPL v3.0. Uključuje ove komponente:</string>

@@ -37,6 +37,9 @@ actual object MseHostNative {
     actual external fun frames(handle: Long): Int
 
     @JvmStatic
+    actual external fun droppedFrames(handle: Long): Int
+
+    @JvmStatic
     actual external fun samplesPlayed(handle: Long): Long
 
     actual fun copyFrame(handle: Long, afterGen: Int): NativeMseFrame? {

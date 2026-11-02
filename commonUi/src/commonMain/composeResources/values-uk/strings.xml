@@ -311,6 +311,7 @@
     <string name="settings_show_fps">Показувати FPS</string>
     <string name="settings_show_fps_hint">Показувати кількість кадрів за секунду поверх відео на екрані відтворення. Підрахунок зупиняється на паузі або коли ви залишаєте екран.</string>
     <string name="overlay_fps">%1$d кадр/с</string>
+    <string name="overlay_fps_dropped">%1$d кадр/с · %2$d пропущено</string>
     <string name="settings_changelog">Журнал змін</string>
     <string name="settings_source_code">Вихідний код</string>
     <string name="settings_licenses">Ліцензії відкритого ПЗ</string>

@@ -256,6 +256,7 @@
     <string name="settings_show_fps">FPS'yi göster</string>
     <string name="settings_show_fps_hint">Şimdi Çalıyor videosunun üzerinde saniyedeki kare sayısını gösterir. Duraklatıldığında veya ekrandan çıktığınızda ölçüm durur.</string>
     <string name="overlay_fps">%1$d fps</string>
+    <string name="overlay_fps_dropped">%1$d fps · %2$d atlandı</string>
     <string name="settings_licenses">Açık kaynak lisansları</string>
     <string name="settings_terms">Koşullar ve gizlilik</string>
     <string name="settings_licenses_intro">YMusic, GNU GPL v3.0 kapsamında açık kaynaklıdır. Şu bileşenleri içerir:</string>

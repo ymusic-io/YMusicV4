@@ -3,6 +3,7 @@ package io.ymusic.mse
 import io.ymusic.mse.cinterop.mse_host_copy_frame
 import io.ymusic.mse.cinterop.mse_host_create
 import io.ymusic.mse.cinterop.mse_host_destroy
+import io.ymusic.mse.cinterop.mse_host_dropped_frames
 import io.ymusic.mse.cinterop.mse_host_frames
 import io.ymusic.mse.cinterop.mse_host_pcm_levels
 import io.ymusic.mse.cinterop.mse_host_samples_played
@@ -88,6 +89,11 @@ actual object MseHostNative {
     actual fun frames(handle: Long): Int {
         if (handle == 0L) return 0
         return mse_host_frames(handle.toCPointer<COpaque>())
+    }
+
+    actual fun droppedFrames(handle: Long): Int {
+        if (handle == 0L) return 0
+        return mse_host_dropped_frames(handle.toCPointer<COpaque>())
     }
 
     actual fun samplesPlayed(handle: Long): Long {

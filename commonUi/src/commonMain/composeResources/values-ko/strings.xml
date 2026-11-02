@@ -252,6 +252,7 @@
     <string name="settings_show_fps">FPS 표시</string>
     <string name="settings_show_fps_hint">재생 중인 동영상 위에 초당 프레임 수를 표시합니다. 일시정지하거나 화면을 벗어나면 측정이 중지됩니다.</string>
     <string name="overlay_fps">%1$d fps</string>
+    <string name="overlay_fps_dropped">%1$d fps · %2$d 드롭</string>
     <string name="settings_licenses">오픈소스 라이선스</string>
     <string name="settings_terms">약관 및 개인정보</string>
     <string name="settings_licenses_intro">YMusic은 GNU GPL v3.0에 따른 오픈소스입니다. 다음 구성요소가 포함되어 있습니다.</string>

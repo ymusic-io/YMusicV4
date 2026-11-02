@@ -203,6 +203,9 @@ interface Player {
     /** Pictures presented by the active engine since attach. 0 when the backend has no counter. */
     fun presentedFrames(): Int = 0
 
+    /** Pictures the active engine dropped for missing their time since its current load. 0 when it has no counter. */
+    fun droppedFrames(): Int = 0
+
     /** Releases both engines and stops all internal work. The instance is unusable afterwards. */
     fun release()
 }

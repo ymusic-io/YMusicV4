@@ -385,6 +385,9 @@ class MsePlayer internal constructor(
     override fun presentedFrames(): Int =
         if (!hostLive()) 0 else videoSurface.presentedFrames()
 
+    override fun droppedFrames(): Int =
+        if (!hostLive()) 0 else videoSurface.droppedFrames()
+
     /** A closing session frees its native host off main, only after main has cleared its player. */
     private fun hostLive(): Boolean = !released && session?.player != null
 

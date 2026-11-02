@@ -260,6 +260,7 @@
     <string name="settings_show_fps">Mostra FPS</string>
     <string name="settings_show_fps_hint">Mostra i fotogrammi al secondo sul video in riproduzione. La misurazione si interrompe in pausa o quando esci da quella schermata.</string>
     <string name="overlay_fps">%1$d fps</string>
+    <string name="overlay_fps_dropped">%1$d fps · %2$d persi</string>
     <string name="settings_licenses">Licenze open source</string>
     <string name="settings_terms">Termini e privacy</string>
     <string name="settings_licenses_intro">YMusic è open source con licenza GNU GPL v3.0. Include questi componenti:</string>

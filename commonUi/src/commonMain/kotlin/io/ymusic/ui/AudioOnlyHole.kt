@@ -65,6 +65,7 @@ import io.ymusic.settings.SettingsStore
 import io.ymusic.settings.flow
 import io.ymusic.ui.resources.Res
 import io.ymusic.ui.resources.overlay_fps
+import io.ymusic.ui.resources.overlay_fps_dropped
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -375,26 +376,36 @@ private fun FpsBadge(player: Player, settings: SettingsStore, modifier: Modifier
     FpsBadgeActive(player, modifier)
 }
 
+/** Pictures shown and dropped over the last second. */
+private data class FrameRate(val shown: Int, val dropped: Int)
+
 @Composable
 private fun FpsBadgeActive(player: Player, modifier: Modifier = Modifier) {
     val status by player.status.collectAsState()
     val sampling = status.playWhenReady && windowVisible()
-    val fps by produceState(0, player, sampling) {
+    val rate by produceState(FrameRate(0, 0), player, sampling) {
         if (!sampling) {
-            value = 0
+            value = FrameRate(0, 0)
             return@produceState
         }
-        var prev = player.presentedFrames()
+        var prevShown = player.presentedFrames()
+        var prevDropped = player.droppedFrames()
         while (isActive) {
             delay(1_000)
-            val n = player.presentedFrames()
-            value = (n - prev).coerceAtLeast(0)
-            prev = n
+            val shown = player.presentedFrames()
+            val dropped = player.droppedFrames()
+            value = FrameRate((shown - prevShown).coerceAtLeast(0), (dropped - prevDropped).coerceAtLeast(0))
+            prevShown = shown
+            prevDropped = dropped
         }
     }
-    if (fps <= 0) return
+    if (rate.shown <= 0 && rate.dropped <= 0) return
     Text(
-        stringResource(Res.string.overlay_fps, fps),
+        if (rate.dropped > 0) {
+            stringResource(Res.string.overlay_fps_dropped, rate.shown, rate.dropped)
+        } else {
+            stringResource(Res.string.overlay_fps, rate.shown)
+        },
         style = TextStyle(fontSize = 13.sp, color = Color.White),
         modifier = modifier
             .background(Color.Black.copy(alpha = 0.55f))
