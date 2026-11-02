@@ -81,9 +81,9 @@ import androidx.media3.session.R as Media3R
  * The foreground playback host over the shared app-graph player: a media3 [MediaLibraryService]
  * provides the MediaSession surface (media buttons, lock screen, Bluetooth/Auto transport) via
  * [Media3PlayerAdapter] plus the Android Auto browse tree ([MediaBrowseTree]), while the
- * notification is built here directly from the `Player` flows — playing keeps the service
- * foreground; pausing demotes it but keeps a dismissible notification (the legacy PlayerService
- * behavior). Started by [YMusicApplication] whenever playback begins; holds wake/wifi locks while
+ * notification is built here directly from the `Player` flows — the service stays foreground while
+ * there is an item, paused included, until the notification's close action ends it. Started by
+ * [YMusicApplication] whenever playback begins; holds wake/wifi locks while
  * playing so YouTube/MSE keeps streaming with the screen off.
  *
  * A browse tap arrives as the controller's setMediaItems: [LibraryCallback.onAddMediaItems]
