@@ -460,6 +460,9 @@ internal class PlayerImpl(
     override fun presentedFrames(): Int =
         if (released) 0 else _currentEngine.value?.presentedFrames() ?: 0
 
+    override fun droppedFrames(): Int =
+        if (released) 0 else _currentEngine.value?.droppedFrames() ?: 0
+
     override fun release() {
         if (released) return
         released = true

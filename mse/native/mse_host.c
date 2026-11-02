@@ -1826,6 +1826,13 @@ void mse_host_video_quality(MseHost *h, int *total, int *dropped)
     *dropped = late;
 }
 
+int mse_host_dropped_frames(MseHost *h)
+{
+    int total, dropped;
+    mse_host_video_quality(h, &total, &dropped);
+    return dropped;
+}
+
 #ifdef __ANDROID__
 int mse_host_audio_session(MseHost *h)
 {

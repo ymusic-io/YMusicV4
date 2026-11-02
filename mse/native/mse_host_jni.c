@@ -339,6 +339,14 @@ Java_io_ymusic_mse_MseHostNative_frames(JNIEnv *env, jclass cls, jlong handle)
     return mse_host_frames((MseHost *)(intptr_t)handle);
 }
 
+JNIEXPORT jint JNICALL
+Java_io_ymusic_mse_MseHostNative_droppedFrames(JNIEnv *env, jclass cls, jlong handle)
+{
+    (void)env;
+    (void)cls;
+    return mse_host_dropped_frames((MseHost *)(intptr_t)handle);
+}
+
 JNIEXPORT jlong JNICALL
 Java_io_ymusic_mse_MseHostNative_samplesPlayed(JNIEnv *env, jclass cls, jlong handle)
 {

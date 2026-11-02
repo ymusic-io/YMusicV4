@@ -49,6 +49,8 @@ int64_t mse_host_samples_played(MseHost *h);
 /* HTMLVideoElement.getVideoPlaybackQuality since the last load: pictures shown + dropped, and those
    dropped for missing their time. */
 void mse_host_video_quality(MseHost *h, int *total, int *dropped);
+/* The dropped half of mse_host_video_quality. */
+int mse_host_dropped_frames(MseHost *h);
 #ifdef __ANDROID__
 /* Android plays the PCM ring through a Kotlin AudioSink thread (MseAudioOutput) driving these. */
 enum { MSE_DAC_GEN, MSE_DAC_RATE, MSE_DAC_CH, MSE_DAC_RUN, MSE_DAC_DRAIN, MSE_DAC_STATE_N };

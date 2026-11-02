@@ -7,6 +7,9 @@ expect class MseVideoSurface {
     /** Native presents since attach (`mse_host_frames`). */
     fun presentedFrames(): Int
 
+    /** Pictures dropped for missing their time since the last load (`mse_host_video_quality`). */
+    fun droppedFrames(): Int
+
     fun setVolume(volume: Float)
 
     fun setAudioEffect(
