@@ -1,7 +1,6 @@
 package io.ymusic.android
 
 import android.webkit.CookieManager
-import android.webkit.WebSettings
 import io.ymusic.ui.SessionCookie
 import okhttp3.Cookie
 import okhttp3.CookieJar
@@ -17,31 +16,16 @@ import okhttp3.HttpUrl
  * On Android `kmphttp.CookieJar` *is* `okhttp3.CookieJar` and `kmphttp.Cookie` *is* `okhttp3.Cookie`,
  * so this plugs straight into `KmpHttpClient.create { cookieJar = … }` and the engine's shared jar.
  */
-class WebViewCookieJar(private val webViewMajorVersion: Int?) : CookieJar {
+class WebViewCookieJar : CookieJar {
 
     private val manager: CookieManager = CookieManager.getInstance().apply { setAcceptCookie(true) }
 
     override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
         val u = url.toString()
-        for (cookie in cookies) manager.setCookie(u, setCookieString(cookie))
+        // Each cookie's Set-Cookie string (name=value; expires=…; domain=…; path=…; secure; httponly)
+        // is what CookieManager.setCookie expects — the same shape the browser stores.
+        for (cookie in cookies) manager.setCookie(u, cookie.toString())
         manager.flush()
-    }
-
-    /**
-     * Chromium 51-66 silently drops any cookie marked `SameSite=None` (every YouTube identity and
-     * sign-in cookie), and un-updated Android 9 head units still run WebView 66, so on those the
-     * attribute is left out. Newer WebViews keep it: without it a cookie defaults to Lax, which the
-     * login WebView's cross-site requests need it not to be.
-     */
-    private fun setCookieString(cookie: Cookie): String = buildString {
-        append(cookie.name).append('=').append(cookie.value)
-        if (cookie.persistent) append("; max-age=").append(((cookie.expiresAt - System.currentTimeMillis()) / 1000).coerceAtLeast(0))
-        if (!cookie.hostOnly) append("; domain=").append(cookie.domain)
-        append("; path=").append(cookie.path)
-        if (cookie.secure) append("; secure")
-        if (cookie.httpOnly) append("; httponly")
-        val sameSite = cookie.sameSite
-        if (sameSite != null && (webViewMajorVersion ?: Int.MAX_VALUE) >= 67) append("; samesite=").append(sameSite)
     }
 
     override fun loadForRequest(url: HttpUrl): List<Cookie> {
@@ -86,7 +70,3 @@ class WebViewCookieJar(private val webViewMajorVersion: Int?) : CookieJar {
         return seen.values.toList()
     }
 }
-
-/** The system WebView's Chromium version ("66.0.3359.158") from its default user agent; null when unreadable. */
-fun webViewChromiumVersion(context: android.content.Context): String? =
-    Regex("""Chrome/([\d.]+)""").find(WebSettings.getDefaultUserAgent(context))?.groupValues?.get(1)

@@ -271,13 +271,16 @@ class YMusicApplication : Application() {
         }
     }
 
+    /** The system WebView's Chromium version ("66.0.3359.158") from its default user agent. */
+    private fun webViewChromiumVersion(): String? =
+        Regex("""Chrome/([\d.]+)""").find(WebSettings.getDefaultUserAgent(this))?.groupValues?.get(1)
+
     private suspend fun buildServices(): SharedServices {
         MseDecoderCaps.start(rootLogger)
         QuickJsRuntime.hostVersions = hostVersions()
         // YouTube + API cookies live in the WebView CookieManager (the login WebView writes
         // there; this jar is a wrapper so HTTP sees the same store).
-        val webViewVersion = webViewChromiumVersion(this)
-        val cookies = WebViewCookieJar(webViewVersion?.substringBefore('.')?.toIntOrNull())
+        val cookies = WebViewCookieJar()
         // One client stack, one disk cache, shared by the engine and the player's embed fetch.
         val http = AppHttpClients(cacheDir.resolve("http-cache").toOkioPath(), logger = rootLogger)
         val settings = PrefsSettingsStore.open(this)
@@ -316,7 +319,7 @@ class YMusicApplication : Application() {
                     it.isEnableUserInteractionBreadcrumbs = false
                 }
                 installSentryDeviceId(deviceId)
-                webViewVersion?.let(::installSentryWebViewVersion)
+                webViewChromiumVersion()?.let(::installSentryWebViewVersion)
                 shareLogTraceWithSentry()
             }
         }
