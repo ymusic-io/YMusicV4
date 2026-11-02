@@ -254,6 +254,37 @@ function prefWithout(pref: string | undefined, drop: string[]): string[] {
   return out;
 }
 
+// ---- SameSite=None on old WebViews ------------------------------------------------------------
+// Chromium 51-66 silently drops every cookie marked `SameSite=None` — YouTube's identity and
+// sign-in cookies all are — and the Android host's store is the system WebView, which un-updated
+// devices (Android 9 head units) leave at 66. The host can't say which WebView it has, so one probe
+// cookie per bundle load asks the store itself, on a host no request ever goes to. Only a store that
+// drops it gets the attribute stripped: elsewhere a cookie without it defaults to Lax.
+const SAMESITE_PROBE_URL = "https://cookie-probe.ymusic.io/";
+let sameSiteNoneKept: Promise<boolean> | undefined;
+
+function storeKeepsSameSiteNone(): Promise<boolean> {
+  if (sameSiteNoneKept === undefined) sameSiteNoneKept = probeSameSiteNone();
+  return sameSiteNoneKept;
+}
+
+async function probeSameSiteNone(): Promise<boolean> {
+  try {
+    await Cookies.set(SAMESITE_PROBE_URL, ["ymsp=1; Max-Age=60; Path=/; Secure; SameSite=None"]);
+    const kept = (await Cookies.get(SAMESITE_PROBE_URL))["ymsp"] === "1";
+    await Cookies.set(SAMESITE_PROBE_URL, ["ymsp=; Max-Age=0; Path=/; Secure"]);
+    if (!kept) console.warn("cookie store drops SameSite=None cookies; storing them without it");
+    return kept;
+  } catch (e) {
+    console.warn("SameSite=None cookie probe failed; storing cookies as received:", e);
+    return true;
+  }
+}
+
+function withoutSameSiteNone(setCookie: string): string {
+  return setCookie.replace(/;\s*samesite\s*=\s*none\s*(?=;|$)/gi, "");
+}
+
 // ---- Remote logout ------------------------------------------------------------------------------
 // A response EXPLICITLY wiping LOGIN_INFO (`Set-Cookie: LOGIN_INFO=;…`) is YouTube revoking the
 // session server-side — the ONE trustworthy logout signal. (A missing account header is NOT: that
@@ -287,7 +318,10 @@ export async function storeSetCookies(url: string, res: HttpResponse): Promise<v
 async function applySetCookieValues(url: string, values: string[]): Promise<void> {
   if (values.length === 0) return;
   try {
-    await Cookies.set(url, values);
+    await Cookies.set(
+      url,
+      (await storeKeepsSameSiteNone()) ? values : values.map(withoutSameSiteNone),
+    );
   } catch (e) {
     console.warn("cookie store write failed:", e);
   }
