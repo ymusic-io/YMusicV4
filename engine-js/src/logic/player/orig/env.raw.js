@@ -698,14 +698,462 @@
     forward: native("forward", function () {}),
   };
 
+  /* Observers construct as in Chrome, before the PO snapshot probes them. State lives in a WeakMap,
+   * never on the instance. IntersectionObserver reports each target once, measured against the
+   * viewport; the player's SABR visibility check runs on it. */
+  (function () {
+    var state = new WeakMap();
+    var entryData = new WeakMap();
+    function hostFn(name, impl, length) {
+      return __nativeFn(name, impl, length);
+    }
+    function ctorError(name, msg) {
+      return new TypeError("Failed to construct '" + name + "': " + msg);
+    }
+    function callError(iface, op, msg) {
+      return new TypeError("Failed to execute '" + op + "' on '" + iface + "': " + msg);
+    }
+    function missing(n, got) {
+      return n + " argument" + (n > 1 ? "s" : "") + " required, but only " + got + " present.";
+    }
+    function stateOf(self) {
+      var s = state.get(self);
+      if (!s) throw new TypeError("Illegal invocation");
+      return s;
+    }
+    function isNode(v) {
+      return v != null && typeof v === "object" && typeof v.nodeType === "number";
+    }
+    function isElement(v) {
+      return isNode(v) && v.nodeType === 1;
+    }
+    function now() {
+      var p = globalThis.performance;
+      return p && typeof p.now === "function" ? p.now() : 0;
+    }
+    function defineProto(C, name, members) {
+      var proto = {};
+      var key;
+      Object.defineProperty(proto, "constructor", { value: C, writable: true, configurable: true });
+      Object.defineProperty(proto, Symbol.toStringTag, { value: name, configurable: true });
+      for (key in members) {
+        Object.defineProperty(proto, key, {
+          value: hostFn(key, members[key][0], members[key][1]),
+          writable: true,
+          enumerable: true,
+          configurable: true,
+        });
+      }
+      Object.defineProperty(C, "prototype", { value: proto });
+      return proto;
+    }
+    function defineGetters(proto, map, names) {
+      names.forEach(function (key) {
+        Object.defineProperty(proto, key, {
+          get: hostFn(
+            "get " + key,
+            function () {
+              var d = map.get(this);
+              if (!d) throw new TypeError("Illegal invocation");
+              return d[key];
+            },
+            0,
+          ),
+          enumerable: true,
+          configurable: true,
+        });
+      });
+    }
+    function observerCtor(name, init) {
+      var C = hostFn(
+        name,
+        function (callback, options) {
+          if (typeof this !== "function")
+            throw ctorError(
+              name,
+              "Please use the 'new' operator, this DOM object constructor cannot be called as a function.",
+            );
+          if (arguments.length < 1) throw ctorError(name, missing(1, 0));
+          if (typeof callback !== "function")
+            throw ctorError(name, "parameter 1 is not of type 'Function'.");
+          var self = Object.create(this.prototype || C.prototype);
+          var s = { callback: callback, targets: [], records: [], timer: null };
+          if (init) init(s, options);
+          state.set(self, s);
+          return self;
+        },
+        1,
+      );
+      globalThis[name] = C;
+      return C;
+    }
+    function entryCtor(name) {
+      var C = hostFn(
+        name,
+        function () {
+          throw new TypeError("Illegal constructor");
+        },
+        0,
+      );
+      globalThis[name] = C;
+      return C;
+    }
+    function deliver(self, s) {
+      s.timer = null;
+      if (!s.records.length) return;
+      var records = s.records;
+      s.records = [];
+      s.callback.call(self, records, self);
+    }
+    function schedule(self, s) {
+      if (s.timer == null)
+        s.timer = setTimeout(function () {
+          deliver(self, s);
+        }, 0);
+    }
+    function cancel(s) {
+      if (s.timer != null) clearTimeout(s.timer);
+      s.timer = null;
+    }
+    function removeTarget(s, target) {
+      var i = s.targets.indexOf(target);
+      if (i >= 0) s.targets.splice(i, 1);
+      s.records = s.records.filter(function (r) {
+        return r.target !== target;
+      });
+    }
+    function rectOf(target) {
+      var r = target.getBoundingClientRect ? target.getBoundingClientRect() : null;
+      var x = (r && +r.left) || 0;
+      var y = (r && +r.top) || 0;
+      var w = (r && +r.width) || 0;
+      var h = (r && +r.height) || 0;
+      return rect(x, y, w, h);
+    }
+    function rect(x, y, w, h) {
+      return { x: x, y: y, width: w, height: h, top: y, left: x, bottom: y + h, right: x + w };
+    }
+
+    var ioEntry = entryCtor("IntersectionObserverEntry");
+    var ioEntryProto = defineProto(ioEntry, "IntersectionObserverEntry", {});
+    defineGetters(ioEntryProto, entryData, [
+      "time",
+      "rootBounds",
+      "boundingClientRect",
+      "intersectionRect",
+      "isIntersecting",
+      "isVisible",
+      "intersectionRatio",
+      "target",
+    ]);
+    function ioRecord(s, target) {
+      var box = rectOf(target);
+      var vw = +globalThis.innerWidth || 0;
+      var vh = +globalThis.innerHeight || 0;
+      var left = Math.max(box.left, 0);
+      var top = Math.max(box.top, 0);
+      var right = Math.min(box.right, vw);
+      var bottom = Math.min(box.bottom, vh);
+      var hit = right >= left && bottom >= top;
+      var area = box.width * box.height;
+      var inter = hit ? rect(left, top, right - left, bottom - top) : rect(0, 0, 0, 0);
+      var entry = Object.create(ioEntryProto);
+      entryData.set(entry, {
+        time: now(),
+        rootBounds: s.root == null ? rect(0, 0, vw, vh) : rectOf(s.root),
+        boundingClientRect: box,
+        intersectionRect: inter,
+        isIntersecting: hit,
+        isVisible: false,
+        intersectionRatio: !hit ? 0 : area > 0 ? (inter.width * inter.height) / area : 1,
+        target: target,
+      });
+      return entry;
+    }
+    var io = observerCtor("IntersectionObserver", function (s, options) {
+      var o = options == null ? {} : options;
+      var t = o.threshold === undefined ? [0] : [].concat(o.threshold);
+      t = t.map(Number);
+      t.forEach(function (v) {
+        if (!(v >= 0 && v <= 1))
+          throw new RangeError(
+            "Failed to construct 'IntersectionObserver': Threshold values must be numbers between 0 and 1",
+          );
+      });
+      s.root = o.root == null ? null : o.root;
+      s.thresholds = t.sort(function (a, b) {
+        return a - b;
+      });
+      s.delay = +o.delay || 0;
+      s.trackVisibility = !!o.trackVisibility;
+    });
+    var ioProto = defineProto(io, "IntersectionObserver", {
+      observe: [
+        function (target) {
+          var s = stateOf(this);
+          if (arguments.length < 1)
+            throw callError("IntersectionObserver", "observe", missing(1, 0));
+          if (!isElement(target))
+            throw callError(
+              "IntersectionObserver",
+              "observe",
+              "parameter 1 is not of type 'Element'.",
+            );
+          if (s.targets.indexOf(target) >= 0) return;
+          s.targets.push(target);
+          s.records.push(ioRecord(s, target));
+          schedule(this, s);
+        },
+        1,
+      ],
+      unobserve: [
+        function (target) {
+          var s = stateOf(this);
+          if (arguments.length < 1)
+            throw callError("IntersectionObserver", "unobserve", missing(1, 0));
+          if (!isElement(target))
+            throw callError(
+              "IntersectionObserver",
+              "unobserve",
+              "parameter 1 is not of type 'Element'.",
+            );
+          removeTarget(s, target);
+        },
+        1,
+      ],
+      disconnect: [
+        function () {
+          var s = stateOf(this);
+          s.targets = [];
+          s.records = [];
+          cancel(s);
+        },
+        0,
+      ],
+      takeRecords: [
+        function () {
+          var s = stateOf(this);
+          var r = s.records;
+          s.records = [];
+          return r;
+        },
+        0,
+      ],
+    });
+    defineGetters(ioProto, state, ["root", "thresholds", "delay", "trackVisibility"]);
+    ["rootMargin", "scrollMargin"].forEach(function (key) {
+      Object.defineProperty(ioProto, key, {
+        get: hostFn(
+          "get " + key,
+          function () {
+            stateOf(this);
+            return "0px 0px 0px 0px";
+          },
+          0,
+        ),
+        enumerable: true,
+        configurable: true,
+      });
+    });
+
+    var roEntry = entryCtor("ResizeObserverEntry");
+    var roEntryProto = defineProto(roEntry, "ResizeObserverEntry", {});
+    defineGetters(roEntryProto, entryData, [
+      "target",
+      "contentRect",
+      "borderBoxSize",
+      "contentBoxSize",
+      "devicePixelContentBoxSize",
+    ]);
+    function roRecord(target) {
+      var box = rectOf(target);
+      var dpr = +globalThis.devicePixelRatio || 1;
+      var size = [Object.freeze({ inlineSize: box.width, blockSize: box.height })];
+      var entry = Object.create(roEntryProto);
+      entryData.set(entry, {
+        target: target,
+        contentRect: rect(0, 0, box.width, box.height),
+        borderBoxSize: Object.freeze(size),
+        contentBoxSize: Object.freeze(size.slice()),
+        devicePixelContentBoxSize: Object.freeze([
+          Object.freeze({ inlineSize: box.width * dpr, blockSize: box.height * dpr }),
+        ]),
+      });
+      return entry;
+    }
+    var ro = observerCtor("ResizeObserver");
+    defineProto(ro, "ResizeObserver", {
+      observe: [
+        function (target) {
+          var s = stateOf(this);
+          if (arguments.length < 1) throw callError("ResizeObserver", "observe", missing(1, 0));
+          if (!isElement(target))
+            throw callError("ResizeObserver", "observe", "parameter 1 is not of type 'Element'.");
+          if (s.targets.indexOf(target) >= 0) return;
+          s.targets.push(target);
+          s.records.push(roRecord(target));
+          schedule(this, s);
+        },
+        1,
+      ],
+      unobserve: [
+        function (target) {
+          var s = stateOf(this);
+          if (arguments.length < 1) throw callError("ResizeObserver", "unobserve", missing(1, 0));
+          if (!isElement(target))
+            throw callError("ResizeObserver", "unobserve", "parameter 1 is not of type 'Element'.");
+          removeTarget(s, target);
+        },
+        1,
+      ],
+      disconnect: [
+        function () {
+          var s = stateOf(this);
+          s.targets = [];
+          s.records = [];
+          cancel(s);
+        },
+        0,
+      ],
+    });
+
+    /* No DOM mutation feed exists to report from: observe validates like Chrome, records stay empty. */
+    var mo = observerCtor("MutationObserver");
+    globalThis.WebKitMutationObserver = mo;
+    defineProto(mo, "MutationObserver", {
+      observe: [
+        function (target, options) {
+          var s = stateOf(this);
+          var o = options == null ? {} : options;
+          if (arguments.length < 1) throw callError("MutationObserver", "observe", missing(1, 0));
+          if (!isNode(target))
+            throw callError("MutationObserver", "observe", "parameter 1 is not of type 'Node'.");
+          if (
+            !o.childList &&
+            !o.attributes &&
+            !o.characterData &&
+            o.attributeOldValue === undefined &&
+            o.attributeFilter === undefined &&
+            o.characterDataOldValue === undefined
+          )
+            throw callError(
+              "MutationObserver",
+              "observe",
+              "The options object must set at least one of 'attributes', 'characterData', or 'childList' to true.",
+            );
+          if (s.targets.indexOf(target) < 0) s.targets.push(target);
+        },
+        1,
+      ],
+      disconnect: [
+        function () {
+          var s = stateOf(this);
+          s.targets = [];
+          s.records = [];
+        },
+        0,
+      ],
+      takeRecords: [
+        function () {
+          var s = stateOf(this);
+          var r = s.records;
+          s.records = [];
+          return r;
+        },
+        0,
+      ],
+    });
+
+    var po = observerCtor("PerformanceObserver");
+    defineProto(po, "PerformanceObserver", {
+      observe: [
+        function (options) {
+          var s = stateOf(this);
+          var o = options == null ? {} : options;
+          if (o.entryTypes === undefined && o.type === undefined)
+            throw callError(
+              "PerformanceObserver",
+              "observe",
+              "An observe() call must include either entryTypes or type arguments.",
+            );
+          s.observing = true;
+        },
+        0,
+      ],
+      disconnect: [
+        function () {
+          var s = stateOf(this);
+          s.observing = false;
+          s.records = [];
+        },
+        0,
+      ],
+      takeRecords: [
+        function () {
+          var s = stateOf(this);
+          var r = s.records;
+          s.records = [];
+          return r;
+        },
+        0,
+      ],
+    });
+    var supportedEntryTypes = Object.freeze([
+      "element",
+      "event",
+      "first-input",
+      "largest-contentful-paint",
+      "layout-shift",
+      "long-animation-frame",
+      "longtask",
+      "mark",
+      "measure",
+      "navigation",
+      "paint",
+      "resource",
+      "visibility-state",
+    ]);
+    Object.defineProperty(po, "supportedEntryTypes", {
+      get: hostFn(
+        "get supportedEntryTypes",
+        function () {
+          return supportedEntryTypes;
+        },
+        0,
+      ),
+      enumerable: true,
+      configurable: true,
+    });
+
+    var rpo = observerCtor("ReportingObserver");
+    defineProto(rpo, "ReportingObserver", {
+      observe: [
+        function () {
+          stateOf(this).observing = true;
+        },
+        0,
+      ],
+      disconnect: [
+        function () {
+          stateOf(this).observing = false;
+        },
+        0,
+      ],
+      takeRecords: [
+        function () {
+          var s = stateOf(this);
+          var r = s.records;
+          s.records = [];
+          return r;
+        },
+        0,
+      ],
+    });
+  })();
+
   /* Illegal constructors. Omit TextEncoder (C native). MSE ctors are
    * hidden before this runs, so the PO snapshot sees throwers instead of engine-js classes. */
   var WINDOW_CTORS = [
-    "MutationObserver",
-    "IntersectionObserver",
-    "ResizeObserver",
-    "PerformanceObserver",
-    "ReportingObserver",
     "PressureObserver",
     "Worker",
     "SharedWorker",
@@ -793,8 +1241,6 @@
     "AbortSignal",
     "CSSMediaRule",
     "Selection",
-    "ResizeObserverEntry",
-    "IntersectionObserverEntry",
     "PerformanceEntry",
     "PerformanceNavigation",
     "PerformanceTiming",

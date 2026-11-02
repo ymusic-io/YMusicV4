@@ -5,7 +5,7 @@
  */
 (function () {
   var CHROME =
-    "WebKitMutationObserver::1,WebKitCSSMatrix:DOMMatrixReadOnly,FeaturePolicy," +
+    "WebKitCSSMatrix:DOMMatrixReadOnly,FeaturePolicy," +
     "XMLHttpRequestEventTarget:EventTarget,XMLHttpRequestUpload:XMLHttpRequestEventTarget," +
     "WritableStreamDefaultWriter::1,WritableStreamDefaultController,WritableStream," +
     "WindowControlsOverlayGeometryChangeEvent:Event:2,WindowControlsOverlay:EventTarget,WebGLObject," +
