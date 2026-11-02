@@ -512,12 +512,17 @@ function playheadBuffered(el: HTMLMediaElement): boolean {
   return false;
 }
 
+/* 2 = the host holds audio until enough video is buffered; older hosts never report it. */
+function playable(el: HTMLMediaElement): boolean {
+  return playheadBuffered(el) && __mseReadyState() !== 2;
+}
+
 /* Chrome: playhead not in buffered → readyState drops, one waiting event.
    We used to leave HAVE_FUTURE_DATA and never fire waiting, so the player
    treated an empty live switch as still playable. */
 function syncReadyState(el: HTMLMediaElement | null): void {
   if (!el) return;
-  if (playheadBuffered(el)) {
+  if (playable(el)) {
     el._stalled = false;
     if (el["readyState"] < 3) {
       el["readyState"] = 3;
@@ -1154,7 +1159,7 @@ class HTMLMediaElement {
     return Promise.resolve().then(function () {
       mseStateLog(self, "play");
       fire(self, "play");
-      if (playheadBuffered(self)) {
+      if (playable(self)) {
         self["readyState"] = 3;
         self._stalled = false;
         mseStateLog(self, "playing");
