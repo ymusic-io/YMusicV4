@@ -11,9 +11,10 @@ sealed class PlaybackState(val readyToLoad: Boolean) {
     /** The engine does not yet have a usable native/page session. */
     data class Uninitialized(val isInitializing: Boolean) : PlaybackState(readyToLoad = false)
 
-    /** A failed load/session. A broken session must be reset before another load. */
+    /** A failed load/session. A broken session must be reset before another load; otherwise the
+     *  error belongs to the failed item ([PlayerError.canRetry] is about retrying that item). */
     data class Error(val error: PlayerError) :
-        PlaybackState(readyToLoad = error.canRetry && !error.needReset)
+        PlaybackState(readyToLoad = !error.needReset)
 
     /** The initialized engine has no media loaded. */
     data object Idle : PlaybackState(readyToLoad = true)

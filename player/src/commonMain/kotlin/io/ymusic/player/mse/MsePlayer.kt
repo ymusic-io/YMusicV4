@@ -572,9 +572,7 @@ class MsePlayer internal constructor(
             state = awaitSettled()
         }
         val enginePlayer = session?.player
-        // An error the last playback left behind (no reset needed) doesn't stop a request for another video.
-        val usable = state.readyToLoad || (state is PlaybackState.Error && !state.error.needReset)
-        if (!usable || enginePlayer == null) {
+        if (!state.readyToLoad || enginePlayer == null) {
             throw TechnicalException(
                 "E60034",
                 "mse engine not ready: $state",
