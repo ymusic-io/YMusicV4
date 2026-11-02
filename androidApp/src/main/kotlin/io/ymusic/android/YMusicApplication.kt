@@ -82,6 +82,7 @@ import io.ymusic.telemetry.installErrorLogs
 import io.ymusic.telemetry.installSentryDeviceId
 import io.ymusic.telemetry.installSentryEngineVersion
 import io.ymusic.telemetry.installSentryPlayerVersion
+import io.ymusic.telemetry.installSentryWebViewVersion
 import io.ymusic.telemetry.sendFeedbackMessage
 import io.ymusic.telemetry.shareLogTraceWithSentry
 import io.ymusic.ui.APP_HTTP_TIMEOUT
@@ -275,7 +276,8 @@ class YMusicApplication : Application() {
         QuickJsRuntime.hostVersions = hostVersions()
         // YouTube + API cookies live in the WebView CookieManager (the login WebView writes
         // there; this jar is a wrapper so HTTP sees the same store).
-        val cookies = WebViewCookieJar()
+        val webViewVersion = webViewChromiumVersion(this)
+        val cookies = WebViewCookieJar(webViewVersion?.substringBefore('.')?.toIntOrNull())
         // One client stack, one disk cache, shared by the engine and the player's embed fetch.
         val http = AppHttpClients(cacheDir.resolve("http-cache").toOkioPath(), logger = rootLogger)
         val settings = PrefsSettingsStore.open(this)
@@ -314,6 +316,7 @@ class YMusicApplication : Application() {
                     it.isEnableUserInteractionBreadcrumbs = false
                 }
                 installSentryDeviceId(deviceId)
+                webViewVersion?.let(::installSentryWebViewVersion)
                 shareLogTraceWithSentry()
             }
         }
