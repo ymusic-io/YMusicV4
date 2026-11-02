@@ -376,30 +376,42 @@ private fun FpsBadge(player: Player, settings: SettingsStore, modifier: Modifier
     FpsBadgeActive(player, modifier)
 }
 
-/** Pictures shown and dropped over the last second. */
+/** Pictures shown over the last second, and dropped since the current item started. */
 private data class FrameRate(val shown: Int, val dropped: Int)
+
+/** Dropped pictures summed over an item: the host's counter restarts with every load (a quality switch too). */
+private class DroppedTotal(var last: Int) {
+    var total = 0
+
+    fun add(counter: Int) {
+        total += if (counter >= last) counter - last else counter
+        last = counter
+    }
+}
 
 @Composable
 private fun FpsBadgeActive(player: Player, modifier: Modifier = Modifier) {
     val status by player.status.collectAsState()
+    val queue by player.queue.collectAsState()
+    val item = queue.currentItem
+    val dropped = remember(item) { DroppedTotal(player.droppedFrames()) }
     val sampling = status.playWhenReady && windowVisible()
-    val rate by produceState(FrameRate(0, 0), player, sampling) {
+    val rate by produceState(FrameRate(0, dropped.total), player, sampling, dropped) {
         if (!sampling) {
-            value = FrameRate(0, 0)
+            value = FrameRate(0, dropped.total)
             return@produceState
         }
         var prevShown = player.presentedFrames()
-        var prevDropped = player.droppedFrames()
+        dropped.add(player.droppedFrames())
         while (isActive) {
             delay(1_000)
             val shown = player.presentedFrames()
-            val dropped = player.droppedFrames()
-            value = FrameRate((shown - prevShown).coerceAtLeast(0), (dropped - prevDropped).coerceAtLeast(0))
+            dropped.add(player.droppedFrames())
+            value = FrameRate((shown - prevShown).coerceAtLeast(0), dropped.total)
             prevShown = shown
-            prevDropped = dropped
         }
     }
-    if (rate.shown <= 0 && rate.dropped <= 0) return
+    if (!sampling || (rate.shown <= 0 && rate.dropped <= 0)) return
     Text(
         if (rate.dropped > 0) {
             stringResource(Res.string.overlay_fps_dropped, rate.shown, rate.dropped)
