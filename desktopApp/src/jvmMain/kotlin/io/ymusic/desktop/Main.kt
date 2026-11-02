@@ -134,6 +134,7 @@ import io.ymusic.settings.put
 import io.ymusic.telemetry.SentryLogger
 import io.ymusic.telemetry.applyYMusicTelemetry
 import io.ymusic.telemetry.bindCrashReporting
+import io.ymusic.telemetry.bindErrorPolicy
 import io.ymusic.telemetry.captureFeedbackReport
 import io.ymusic.telemetry.installErrorLogs
 import io.ymusic.telemetry.installSentryDeviceId
@@ -807,6 +808,7 @@ private suspend fun buildGraph(settings: AppStoreSettings, session: CookieSessio
         log = rootLogger.fork("remote-config"),
     ).also { it.checkUpdate() } // app open is itself a hotpoint
     installErrorLogs(logStore, remoteConfig, APP_VERSION_CODE)
+    bindErrorPolicy(backgroundScope, remoteConfig, rootLogger.fork("error-policy"))
     backgroundScope.launch {
         // The cap waits for the loaded config: the store trims nothing until it has one.
         remoteConfig.awaitLoaded()

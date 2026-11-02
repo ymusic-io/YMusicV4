@@ -77,6 +77,7 @@ import io.ymusic.settings.put
 import io.ymusic.telemetry.SentryLogger
 import io.ymusic.telemetry.applyYMusicTelemetry
 import io.ymusic.telemetry.bindCrashReporting
+import io.ymusic.telemetry.bindErrorPolicy
 import io.ymusic.telemetry.captureFeedbackReport
 import io.ymusic.telemetry.installErrorLogs
 import io.ymusic.telemetry.installSentryDeviceId
@@ -358,6 +359,7 @@ class YMusicApplication : Application() {
             log = rootLogger.fork("remote-config"),
         ).also { it.checkUpdate() } // app open is itself a hotpoint
         installErrorLogs(logStore, remoteConfig, BuildConfig.VERSION_CODE)
+        bindErrorPolicy(appScope, remoteConfig, rootLogger.fork("error-policy"))
         appScope.launch {
             // The cap waits for the loaded config: the store trims nothing until it has one.
             remoteConfig.awaitLoaded()
