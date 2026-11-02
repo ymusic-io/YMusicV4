@@ -100,21 +100,11 @@ const INSTALLERS = [
 ]
 
 // The oldest build per platform that can install a new one in place; older builds get the release
-// page instead. macOS before 18 swaps the bundle and then cannot spawn the relaunch (or hdiutil on a
-// retry): its JVM still uses POSIX_SPAWN through the replaced jspawnhelper.
-const MIN_VERSION = { 'macos-arm64': 18 }
+// page instead. A self-update swaps the app under the running JVM, which then spawns through the new
+// bundle's jspawnhelper; that refuses a different JDK. macos-arm64 builds before 17 run 21.0.12, the
+// pinned runtime (release.yml "Bundled runtime") is 21.0.13.
+const MIN_VERSION = { 'macos-arm64': 17 }
 const releasePage = `https://github.com/${repo}/releases/tag/${tag}`
-
-// While every build this release is offered to sits below the minimum, installInApp: false says the
-// same thing in a form every server and every shipped app already follows; minVersion needs a server
-// that knows it (an older one ignores the field and offers the in-place install).
-const inPlaceRule = (platform, versionCode) => {
-  const minVersion = MIN_VERSION[platform]
-  if (!minVersion) return {}
-  return versionCode <= minVersion
-    ? { installInApp: false, downloadPage: releasePage }
-    : { minVersion, downloadPage: releasePage }
-}
 
 const releases = {}
 for (const { platform, file, versionCode } of INSTALLERS) {
@@ -129,7 +119,7 @@ for (const { platform, file, versionCode } of INSTALLERS) {
     sha256,
     signature: signUpdate(`app-${platform}:${versionCode}:${sha256}`),
     changelogUrl,
-    ...inPlaceRule(platform, versionCode),
+    ...(MIN_VERSION[platform] ? { minVersion: MIN_VERSION[platform], downloadPage: releasePage } : {}),
   }
 }
 
