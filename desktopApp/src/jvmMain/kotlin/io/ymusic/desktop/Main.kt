@@ -282,7 +282,8 @@ fun main(args: Array<String>) {
     defaultLinuxSoftwareRendering()
     // The log moved to logs.db: the text log files of older builds go.
     File(ymusicDataDir(), "logs").listFiles { file -> file.name.startsWith("ymusic.log") }?.forEach { it.delete() }
-    val instance = if (isWindows) {
+    // macOS LaunchServices already keeps one app process; Windows and Linux start one per launch.
+    val instance = if (isWindows || isLinux) {
         val command = InstanceCommand.of(args.toList())
         val log = rootLogger.fork("instance")
         val claim = try {
