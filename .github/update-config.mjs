@@ -105,6 +105,17 @@ const INSTALLERS = [
 const MIN_VERSION = { 'macos-arm64': 18 }
 const releasePage = `https://github.com/${repo}/releases/tag/${tag}`
 
+// While every build this release is offered to sits below the minimum, installInApp: false says the
+// same thing in a form every server and every shipped app already follows; minVersion needs a server
+// that knows it (an older one ignores the field and offers the in-place install).
+const inPlaceRule = (platform, versionCode) => {
+  const minVersion = MIN_VERSION[platform]
+  if (!minVersion) return {}
+  return versionCode <= minVersion
+    ? { installInApp: false, downloadPage: releasePage }
+    : { minVersion, downloadPage: releasePage }
+}
+
 const releases = {}
 for (const { platform, file, versionCode } of INSTALLERS) {
   const path = join(dir, file)
@@ -118,7 +129,7 @@ for (const { platform, file, versionCode } of INSTALLERS) {
     sha256,
     signature: signUpdate(`app-${platform}:${versionCode}:${sha256}`),
     changelogUrl,
-    ...(MIN_VERSION[platform] ? { minVersion: MIN_VERSION[platform], downloadPage: releasePage } : {}),
+    ...inPlaceRule(platform, versionCode),
   }
 }
 
