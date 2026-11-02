@@ -92,8 +92,9 @@ import org.jetbrains.compose.resources.stringResource
 /**
  * The drawer's Feedback section: the anonymous info a user quotes on GitHub or by email, copied by
  * its Copy button and prefilled into both, or sent with a message through Sentry. The app logs go
- * out through [AppGraph.captureFeedbackReport] only with a sent message; with anonymous reports off,
- * a dialog first asks to turn them back on, and declining leaves the section.
+ * out through [AppGraph.captureFeedbackReport], found in Sentry by the Device ID: once per visit on
+ * Copy, GitHub or email, and with every sent message; with anonymous reports off, a dialog first asks
+ * to turn them back on, and declining leaves the section.
  */
 @Composable
 internal fun FeedbackScreen(graph: AppGraph, onDismiss: () -> Unit) {
@@ -122,6 +123,26 @@ internal fun FeedbackScreen(graph: AppGraph, onDismiss: () -> Unit) {
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
     val copy = { scope.launch { clipboard.setClipEntry(plainTextClipEntry(currentInfo.text)) } }
+    val sendReport: (String, String?) -> Unit = { subject, message ->
+        if (capture != null) {
+            FeedbackSendScope.launch {
+                try {
+                    capture(subject, message)
+                } catch (c: kotlinx.coroutines.CancellationException) {
+                    throw c
+                } catch (e: Exception) {
+                    log?.captureError(e, "feedback report capture failed")
+                }
+            }
+        }
+    }
+    var contactReportSent by remember { mutableStateOf(false) }
+    val sendContactReport: (String) -> Unit = { channel ->
+        if (!contactReportSent) {
+            contactReportSent = true
+            sendReport(channel, null)
+        }
+    }
 
     if (!consented) {
         ReportsOffDialog(
@@ -170,6 +191,7 @@ internal fun FeedbackScreen(graph: AppGraph, onDismiss: () -> Unit) {
                     }
                 }
                 InfoCard(info, copied = copiedByTap, onCopy = {
+                    sendContactReport("Copy")
                     copy()
                     copiedByTap = true
                 })
@@ -179,6 +201,7 @@ internal fun FeedbackScreen(graph: AppGraph, onDismiss: () -> Unit) {
                     title = stringResource(Res.string.feedback_github_title),
                     hint = stringResource(Res.string.feedback_github_hint),
                     onClick = {
+                        sendContactReport("Github")
                         uriHandler.openUri(currentInfo.githubIssueUrl())
                     },
                 )
@@ -188,6 +211,7 @@ internal fun FeedbackScreen(graph: AppGraph, onDismiss: () -> Unit) {
                     title = stringResource(Res.string.feedback_email_title, links.feedbackEmail),
                     hint = stringResource(Res.string.feedback_email_hint),
                     onClick = {
+                        sendContactReport("Email")
                         uriHandler.openUri(currentInfo.mailtoUrl(subject))
                     },
                 )
@@ -198,15 +222,7 @@ internal fun FeedbackScreen(graph: AppGraph, onDismiss: () -> Unit) {
                     if (writing) {
                         SentryMessageDialog(
                             onSend = { message ->
-                                FeedbackSendScope.launch {
-                                    try {
-                                        capture(message)
-                                    } catch (c: kotlinx.coroutines.CancellationException) {
-                                        throw c
-                                    } catch (e: Exception) {
-                                        log?.captureError(e, "feedback report capture failed")
-                                    }
-                                }
+                                sendReport(message, message)
                                 sent = true
                                 writing = false
                             },

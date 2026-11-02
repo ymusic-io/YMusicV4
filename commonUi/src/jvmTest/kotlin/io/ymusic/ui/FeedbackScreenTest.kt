@@ -54,14 +54,14 @@ class FeedbackScreenTest {
     }
 
     @Test
-    fun only_a_sent_message_sends_the_logs() {
+    fun contact_rows_send_the_logs_once_and_a_message_sends_its_own_report() {
         Locale.setDefault(Locale.ENGLISH)
-        val captures = mutableListOf<String>()
+        val captures = mutableListOf<Pair<String, String?>>()
         val graph = AppGraph(
             engines = engines(),
             player = StubPlayer(),
             playerSurface = {},
-            captureFeedbackReport = { message -> synchronized(captures) { captures += message } },
+            captureFeedbackReport = { subject, message -> synchronized(captures) { captures += subject to message } },
         )
         runBlocking { graph.settings.put(AppSettings.crashReports, false) }
         val clipboard = RecordingClipboard()
@@ -83,20 +83,20 @@ class FeedbackScreenTest {
             assertEquals(emptyList(), captures, "arriving sends nothing")
 
             onNodeWithText("Copy").performClick()
-            waitUntil(timeoutMillis = 5_000) { clipboard.text != null }
+            waitUntil(timeoutMillis = 5_000) { clipboard.text != null && synchronized(captures) { captures.isNotEmpty() } }
             assertTrue("Device ID: " in clipboard.text!!, "copied: ${clipboard.text}")
 
             onNodeWithText("Open an issue on GitHub").performClick()
             onNodeWithText("Email feedback@ymusic.io").performClick()
             waitUntil(timeoutMillis = 5_000) { uriHandler.opened.size == 2 }
             waitForIdle()
-            assertEquals(emptyList(), captures, "copy and the contact rows send nothing")
+            assertEquals(listOf<Pair<String, String?>>("Copy" to null), captures, "one logs report per visit")
 
             onNodeWithText("or via Sentry").performClick()
             onNode(hasSetTextAction()).performTextInput("  playback stops  ")
             onNodeWithText("Send").performClick()
-            waitUntil(timeoutMillis = 5_000) { synchronized(captures) { captures.isNotEmpty() } }
-            assertEquals(listOf("playback stops"), captures)
+            waitUntil(timeoutMillis = 5_000) { synchronized(captures) { captures.size == 2 } }
+            assertEquals(listOf("Copy" to null, "playback stops" to "playback stops"), captures)
         }
     }
 
@@ -109,7 +109,7 @@ class FeedbackScreenTest {
             engines = engines(),
             player = StubPlayer(),
             playerSurface = {},
-            captureFeedbackReport = { captures++ },
+            captureFeedbackReport = { _, _ -> captures++ },
         )
         runBlocking { graph.settings.put(AppSettings.crashReports, false) }
         runComposeUiTest {

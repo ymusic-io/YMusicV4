@@ -191,10 +191,11 @@ class AppGraph(
      */
     val downloads: io.ymusic.download.DownloadService? = null,
     /**
-     * Sends a message typed in the Feedback section with the app logs as one anonymous report (Sentry
-     * in the shells). Null drops the reports-off dialog and the message option from the Feedback section.
+     * Sends the app logs as one anonymous report (Sentry in the shells) titled by [subject] — the
+     * channel ("Github", "Email", "Copy") or the typed message — with the message typed in the Feedback
+     * section, if any. Null drops the reports-off dialog and the message option from the Feedback section.
      */
-    val captureFeedbackReport: (suspend (message: String) -> Unit)? = null,
+    val captureFeedbackReport: (suspend (subject: String, message: String?) -> Unit)? = null,
     /** The OS and CPU for the Feedback section's info (e.g. "Android 16 · arm64-v8a"); null omits them. */
     val platformInfo: String? = null,
     /** The OS "save as" picker: a sink into the chosen file (the caller closes it), null when canceled.

@@ -799,8 +799,8 @@ class YMusicApplication : Application() {
         }
     }
 
-    /** Sends a Feedback-screen message with the app logs as one anonymous Sentry report. */
-    private val captureFeedbackReportAction: suspend (String) -> Unit = { message ->
+    /** Sends the app logs as one anonymous Sentry report for the Feedback screen. */
+    private val captureFeedbackReportAction: suspend (String, String?) -> Unit = { subject, message ->
         withContext(Dispatchers.IO) {
             val export = File(cacheDir, FEEDBACK_LOG_NAME)
             // The report still goes without the log when the export fails or the log store is stuck.
@@ -816,7 +816,7 @@ class YMusicApplication : Application() {
                 rootLogger.fork("feedback").log(Logger.Level.WARN, "log export for feedback failed", e)
                 emptyList()
             }
-            captureFeedbackReport(message, attachments)
+            captureFeedbackReport(subject, message, attachments)
         }
     }
 
