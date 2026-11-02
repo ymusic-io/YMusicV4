@@ -11,8 +11,19 @@
 // to Kotlin as JSON (LogContext.kt).
 export type LogCrumb = [string, Record<string, unknown> | null, number];
 
+// A crumb minted during a BotGuard mill must not draw on the recorded Date.now; the global goes
+// before BotGuard can enumerate it.
+const hostNow: () => number = takeHostNow();
+
+function takeHostNow(): () => number {
+  if (typeof __hostNow !== "function") return Date.now;
+  const fn = __hostNow;
+  delete (globalThis as unknown as Record<string, unknown>)["__hostNow"];
+  return fn;
+}
+
 function crumb(tag: string, prop?: Record<string, unknown>): LogCrumb {
-  return [tag, prop === undefined ? null : prop, Date.now()];
+  return [tag, prop === undefined ? null : prop, hostNow()];
 }
 
 // Every JS-side tag is "js:"-prefixed (JS hops stay distinguishable from Kotlin ones in a trail)

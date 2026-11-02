@@ -129,8 +129,6 @@ class PlayerFacadeTest {
         override val watchNextSeen: kotlinx.coroutines.flow.SharedFlow<WatchNextSeen> =
             reports
 
-        override fun refreshOnNext() = Unit
-
         override suspend fun requestPlayerResponse(videoId: String): String = error("not used in this test")
 
         override suspend fun requestPoToken(videoId: String): String = error("not used in this test")

@@ -195,10 +195,12 @@ function __consoleLog(level, msg) {}
 /**
  * @param {string} name
  * @param {Function=} impl
+ * @param {number=} length
  * @return {!Function}
  */
-function __nativeFn(name, impl) {}
+function __nativeFn(name, impl, length) {}
 function __timeZone() {}
+function __hostNow() {}
 function __mseReady() {}
 function __mseCurrentTime() {}
 function __mseSetCurrentTime(seconds) {}
@@ -229,6 +231,8 @@ function __mseReset() {}
 function __mseAv1Ok() {}
 function __mseVp9Ok() {}
 function __mseAvcMaxLevel() {}
+function __mseDecodingInfo(contentType, width, height, framerate, bitrate) {}
+function __mseVideoQuality() {}
 /** @return {?} */
 function __bgEntropyStart() {}
 function __bgEntropyBegin() {}
@@ -596,5 +600,7 @@ var origin;
 
 /* ---- backward-compat versions, installed frozen from C before the bundle runs ---- */
 
-/** @type {{app: number}} */
+/** @type {{app: number, os: (string|undefined), osVersion: (string|undefined), brand: (string|undefined),
+ *    model: (string|undefined), screenWidth: (number|undefined), screenHeight: (number|undefined),
+ *    screenDensity: (number|undefined)}} */
 var versions;

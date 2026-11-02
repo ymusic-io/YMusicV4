@@ -14,6 +14,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import okio.FileSystem
+import okio.IOException
 import okio.Path
 import okio.buffer
 import okio.use
@@ -73,7 +74,12 @@ class StatUsage(
         scope.launch {
             mutex.withLock {
                 loadIfNeeded()
-                append(event)
+                try {
+                    append(event)
+                } catch (error: IOException) {
+                    // Still queued in memory; only a restart before the next flush loses it.
+                    log?.log(Logger.Level.WARN, "stat queue append failed", error)
+                }
                 pending.add(event)
                 if (!flushedOnce || now() - lastFlushAt >= STAT_FLUSH_INTERVAL_MS) {
                     flushTimer?.cancel()

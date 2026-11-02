@@ -23,6 +23,10 @@
     <string name="downloads_none_title">Weli wax la soo dejiyay ma jiraan</string>
     <string name="downloads_none_message">Heesaha iyo fiidiyowyada la soo dejiyay waxay ku shaqeeyaan khadka la’aan.</string>
     <string name="downloads_failed">Soo dejintu way guuldareysatay</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Ku tus Finder</string>
+    <string name="menu_reveal_explorer">Ku tus File Explorer</string>
+    <string name="menu_reveal_file_manager">Ku tus maareeyaha faylasha</string>
     <string name="section_settings">Fadhiga</string>
     <string name="section_donate">Ugu deeq</string>
     <string name="section_feedback">Warcelin</string>
@@ -121,8 +125,33 @@
     <string name="yt_playlist_removed_video">%1$s waa laga saaray xulka</string>
     <string name="cd_add_to_playlist">Ku dar xul</string>
     <string name="cd_share">La wadaag</string>
-    <string name="cd_music_video">Heeso</string>
-    <string name="cd_album">Albam</string>
+    <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
+    <string name="a11y_kind_video">Muuqaal</string>
+    <string name="a11y_kind_music_video">Muuqaal hees</string>
+    <string name="a11y_kind_live">Muuqaal toos ah</string>
+    <string name="a11y_kind_playlist">Xul</string>
+    <string name="a11y_kind_album">Albam</string>
+    <string name="a11y_kind_mix">Isku-dhaf</string>
+    <string name="a11y_kind_channel">Kanaal</string>
+    <!-- A video's length as a screen reader speaks it, joined with spaces: "1 hour 5 minutes 3 seconds" -->
+    <plurals name="a11y_duration_hours">
+        <item quantity="one">%1$d saac</item>
+        <item quantity="other">%1$d saac</item>
+    </plurals>
+    <plurals name="a11y_duration_minutes">
+        <item quantity="one">%1$d daqiiqo</item>
+        <item quantity="other">%1$d daqiiqo</item>
+    </plurals>
+    <plurals name="a11y_duration_seconds">
+        <item quantity="one">%1$d ilbiriqsi</item>
+        <item quantity="other">%1$d ilbiriqsi</item>
+    </plurals>
+    <string name="a11y_now_playing">Hadda socda</string>
+    <string name="a11y_playback_position">Meesha ciyaarista</string>
+    <string name="a11y_x_of_y">%1$s ee %2$s</string>
+    <string name="a11y_behind_live">%1$s ka dambeeya tooska</string>
+    <string name="a11y_downloaded">La dajiyay</string>
+    <string name="a11y_eq_preamp">Kordhiye hore</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Khaanadaha</string>
@@ -363,7 +392,6 @@
     <string name="account_sign_out">Ka bax</string>
     <string name="account_switch">Baddal akoonka</string>
     <string name="switch_account_hint">Dooro akoonka aad rabto, kadibna shaashaddan ku xidh fallaadha dib-u-noqoshada — app-ku wuxuu isku cusboonaysiinayaa akoonka cusub.</string>
-    <string name="cd_account_avatar">Sawirka akoonka</string>
     <string name="account_my_channel">Kanaalkayga</string>
     <string name="account_watch_history">Waxaad daawatay</string>
     <string name="account_watch_later">Hadhow daawo</string>
@@ -551,6 +579,24 @@
     <string name="video_details_delete_title">Tirtir faallada</string>
     <string name="video_details_delete_message">Ma rabtaa inaad si joogto ah u tirtirto faalladaada iyo dhammaan jawaabaheeda?</string>
     <string name="video_details_deleted">Faallada waa la tirtiray</string>
+    <string name="cookie_protect_title">Ku ilaali galitaankaaga erey sir ah?</string>
+    <string name="cookie_protect_body">Galitaankaagu wuxuu ku kaydsan yahay kombiyuutarkan, halkaas oo apps kale oo aad furto ay akhrin karaan. Deji erey sir ah si aad u xidho; YMusic wuxuu ku weydiinayaa mar kasta oo uu furmo.</string>
+    <string name="cookie_password">Erey sir ah</string>
+    <string name="cookie_protect_confirm">Xaqiiji ereyga sirta ah</string>
+    <string name="cookie_protect_mismatch">Ereyada sirta ahi isma waafaqsana.</string>
+    <string name="cookie_protect_submit">Ilaali</string>
+    <string name="cookie_protect_skip">Hadda maya</string>
+    <string name="cookie_unlock_title">Fur galitaankaaga</string>
+    <string name="cookie_unlock_body">Galitaankaaga YouTube waxaa lagu ilaaliyay erey sir ah.</string>
+    <string name="cookie_unlock_submit">Fur</string>
+    <string name="cookie_unlock_wrong">Ereyga sirta ah waa khalad.</string>
+    <string name="cookie_unlock_cant_unlock">Ma furi kartid?</string>
+    <string name="cookie_unlock_guest">Ku sii wad marti ahaan</string>
+    <string name="cookie_unlock_guest_hint">Wuxuu ku bilaabmaa adigoo aan galin. Waxba lama kaydiyo.</string>
+    <string name="cookie_unlock_sign_out">Ka bax</string>
+    <string name="cookie_unlock_sign_out_hint">Wuxuu tirtiraa galitaankan la kaydiyay.</string>
+    <string name="cookie_unlock_sign_out_title">Ka bax?</string>
+    <string name="cookie_unlock_sign_out_body">Tani waxay kombiyuutarkan ka tirtiraysaa galitaanka la kaydiyay. Si aad mar kale u gasho, ku baadh koodhka QR app-ka YMusic.</string>
     <string name="menu_details_comments">Faahfaahin iyo faallooyin</string>
     <string name="menu_search_lyrics">Raadi erayada heesta</string>
     <string name="menu_speed_pitch">Xawaaraha iyo teembada</string>
@@ -570,4 +616,22 @@
     <string name="download_other_format">Ku soo deji qaab kale</string>
     <string name="unsubscribe">Ka bax rukummada</string>
     <string name="unsubscribed">Waa laga baxay rukummada</string>
+    <string name="tray_pause">Hakad</string>
+    <string name="tray_resume">Sii wad</string>
+    <string name="tray_stop">Jooji (nadiifi safka)</string>
+    <string name="tray_quit">Xir</string>
+    <string name="shortcuts_title">Furayaasha gaaban ee kiiboodhka</string>
+    <string name="shortcuts_play_pause">Daar / haki</string>
+    <string name="shortcuts_now_playing">Tus ama qari La daarayo</string>
+    <string name="shortcuts_nav_menu">Fur ama xidh shaxda</string>
+    <string name="shortcuts_switch_tabs">Kala beddel tab-yada</string>
+    <string name="shortcuts_escape">Ka bax shaashadda buuxda, ama xidh La daarayo, shaxda ama daaqadda soo booda</string>
+    <string name="shortcuts_help">Tus caawimaaddan</string>
+    <string name="shortcuts_volume_up">Kor u qaad codka</string>
+    <string name="shortcuts_volume_down">Hoos u dhig codka</string>
+    <string name="a11y_key_arrow_left">fallaar bidix</string>
+    <string name="a11y_key_arrow_right">fallaar midig</string>
+    <string name="a11y_key_arrow_up">fallaar kor</string>
+    <string name="a11y_key_arrow_down">fallaar hoos</string>
+    <string name="cd_always_on_top">Had iyo jeer xagga sare</string>
 </resources>

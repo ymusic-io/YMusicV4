@@ -100,4 +100,14 @@ actual object MseHostNative {
 
     @JvmStatic
     external fun dacSession(handle: Long, session: Int)
+
+    /**
+     * Replaces the process-wide decoder table the player's `navigator.mediaCapabilities` answers from
+     * (`mse_caps.h`); until it is set, the player keeps its pre-table behaviour. [rows] is n x 7 ints:
+     * codec (1 H.264, 2 HEVC, 3 VP8, 4 VP9, 5 AV1), max bit depth, widest chroma (1 4:2:0, 2 4:2:2,
+     * 3 4:4:4), max width, max height (either orientation), max fps at that size (0 = no limit), hw (0/1).
+     * Must run before the player engine boots.
+     */
+    @JvmStatic
+    external fun setDecoderCaps(rows: IntArray)
 }

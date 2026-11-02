@@ -26,6 +26,9 @@ interface SegmentIndex {
     /** Downloader/seek resume: the furthest segment ending at or before [byteIndex], or null. */
     fun findByByteOffset(itag: Int, lmt: Long, byteIndex: Long): MediaHeader?
 
+    /** Forget one segment, e.g. when its cached bytes are purged. */
+    fun delete(itag: Int, lmt: Long, seg: Int)
+
     /** Bump the `download_time` of every segment of a stream (used to protect a just-downloaded track). */
     fun markDownloadTime(itag: Int, lmt: Long)
 

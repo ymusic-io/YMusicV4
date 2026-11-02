@@ -1062,9 +1062,31 @@ void qjs_pipe_ctx_free(QjsPipeCtx *pc) {
     free(pc);
 }
 
-void qjs_install_versions(JSContext *ctx, int app_version) {
+void qjs_install_versions(JSContext *ctx, int app_version, const char *extra_json) {
     JSValue v = JS_NewObject(ctx);
+    /* First and non-configurable: an `app` key in extra_json fails to redefine it. */
     JS_DefinePropertyValueStr(ctx, v, "app", JS_NewInt32(ctx, app_version), JS_PROP_ENUMERABLE);
+    if (extra_json && extra_json[0]) {
+        JSValue extra = JS_ParseJSON(ctx, extra_json, strlen(extra_json), "<versions>");
+        if (JS_IsObject(extra)) {
+            JSPropertyEnum *props = NULL;
+            uint32_t n = 0, i;
+            if (JS_GetOwnPropertyNames(ctx, &props, &n, extra, JS_GPN_STRING_MASK | JS_GPN_ENUM_ONLY) == 0) {
+                for (i = 0; i < n; i++) {
+                    JSValue val = JS_GetProperty(ctx, extra, props[i].atom);
+                    if (JS_IsObject(val))
+                        JS_FreeValue(ctx, val); /* flat only: a nested object would stay mutable */
+                    else
+                        JS_DefinePropertyValue(ctx, v, props[i].atom, val, JS_PROP_ENUMERABLE);
+                }
+                JS_FreePropertyEnum(ctx, props, n);
+            }
+        } else if (JS_IsException(extra)) {
+            /* The host builds this JSON; a bad one still boots the engine, with `app` only. */
+            JS_FreeValue(ctx, JS_GetException(ctx));
+        }
+        JS_FreeValue(ctx, extra);
+    }
     JS_PreventExtensions(ctx, v); /* non-writable props + non-extensible = Object.isFrozen */
     JSValue g = JS_GetGlobalObject(ctx);
     JS_DefinePropertyValueStr(ctx, g, "versions", v, JS_PROP_ENUMERABLE);

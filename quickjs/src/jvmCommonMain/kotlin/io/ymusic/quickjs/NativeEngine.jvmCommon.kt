@@ -44,8 +44,8 @@ internal actual class NativeEngine private constructor(private val handle: Long)
     }
 
     actual companion object {
-        actual fun create(appVersion: Int, callbacks: EngineCallbacks): NativeEngine {
-            val handle = QuickJsNative.create(appVersion)
+        actual fun create(appVersion: Int, versionsJson: String?, callbacks: EngineCallbacks): NativeEngine {
+            val handle = QuickJsNative.create(appVersion, versionsJson)
             // Registered before any script runs, so opens from the engine script's own top-level
             // code already route.
             QuickJsNative.register(handle, callbacks)

@@ -72,6 +72,13 @@ internal class SongActions(
 
     val canDelete: Boolean get() = graph.deleteFromDisk != null && graph.mediaStore != null
 
+    // One instance: a fresh value per provided() call would recompose every reader.
+    private val revealInFileManager: RevealInFileManager? = run {
+        val hook = graph.revealInFolder ?: return@run null
+        val label = graph.revealInFolderLabel ?: return@run null
+        RevealInFileManager(label) { uri -> scope.launch { hook(uri) } }
+    }
+
     fun addToPlaylist(song: MediaStoreItem) {
         addingToPlaylist = song
     }
@@ -102,6 +109,7 @@ internal class SongActions(
             LocalAddToPlaylist provides if (store != null) ::addToPlaylist else null,
             LocalLibraryDelete provides if (canDelete) ({ song -> requestDelete(song) }) else null,
             LocalLibraryReveal provides if (store != null) reveal else null,
+            LocalRevealInFileManager provides revealInFileManager,
             LocalGoToLibraryGroup provides if (store != null) goToGroup else null,
             LocalShareYoutube provides ::shareYoutube,
         )

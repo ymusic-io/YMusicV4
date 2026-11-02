@@ -1,4 +1,5 @@
 #include "mse_host.h"
+#include "mse_caps.h"
 #include "qjs_mse_vt.h"
 
 static void vt_set_speed(void *h, double speed, double tempo)
@@ -39,6 +40,8 @@ static const QjsMseVt kVt = {
     .end_of_stream = (void (*)(void *))mse_host_end_of_stream,
     .prepare_append = (int (*)(void *, int, int))mse_host_prepare_append,
     .set_pitch = vt_set_pitch,
+    .decoding_info = mse_caps_decoding_info,
+    .video_quality = (void (*)(void *, int *, int *))mse_host_video_quality,
 };
 
 const void *mse_host_vtable(void)

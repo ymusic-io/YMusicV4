@@ -610,7 +610,7 @@ export function createSabrTee(): SabrTee {
       if (err) line += " SABR_ERROR";
       return line;
     });
-    noteSps(sps);
+    noteSps(sps, media);
     if (isAudioOnly()) {
       dumpDrain(media > 0 ? "sabr-media" : "sabr-res");
       if (media > 0) {

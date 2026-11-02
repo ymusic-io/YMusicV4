@@ -95,6 +95,9 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -232,6 +235,11 @@ internal fun <T : Any> UnderlineTabRow(
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     // Each tab's (offset, width) in the row's own space — the sliding indicator reads the selected one.
     val bounds = remember(rtl) { mutableStateMapOf<T, Pair<Dp, Dp>>() }
+    // Focus the current tab on first composition so keyboard users land on it on screen entry.
+    val activeTabFocus = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        if (selected != null && selected in entries) activeTabFocus.requestFocus()
+    }
     HorizontalOverflowBox(scrollState) {
         Column(
             Modifier
@@ -240,7 +248,10 @@ internal fun <T : Any> UnderlineTabRow(
                 .horizontalScroll(scrollState)
                 .padding(horizontal = 12.dp),
         ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                Modifier.listKeyboardNavigation(ListOrientation.Horizontal),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 entries.forEach { t ->
                     val active = t == selected
                     Box(
@@ -251,6 +262,11 @@ internal fun <T : Any> UnderlineTabRow(
                                 // Start-relative, as Modifier.offset mirrors in RTL.
                                 val x = if (rtl && parent != null) parent.size.width - left - c.size.width else left
                                 bounds[t] = with(density) { x.toDp() to c.size.width.toDp() }
+                            }
+                            .then(if (active) Modifier.focusRequester(activeTabFocus) else Modifier)
+                            .semantics {
+                                this.selected = active
+                                role = Role.Tab
                             }
                             .clickable { onSelect(t) },
                     ) { label(t, active) }
@@ -863,12 +879,13 @@ private fun TabOverflowHint(towardStart: Boolean, modifier: Modifier, onClick: (
             .fillMaxHeight()
             .background(Brush.horizontalGradient(if (towardStart) colors else colors.reversed()))
             .clickable(role = Role.Button, onClick = onClick)
+            .a11yActionLabel(stringResource(Res.string.cd_more_tabs))
             .padding(horizontal = 2.dp),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
             if (towardStart) Icons.Default.ChevronLeft else Icons.Default.ChevronRight,
-            stringResource(Res.string.cd_more_tabs),
+            null,
             Modifier.size(20.dp),
             tint = DesignColors.InkSoft,
         )

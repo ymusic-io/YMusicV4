@@ -38,12 +38,13 @@ internal actual fun MseNativeVideo(
 ) {
     val panel = remember(sink) { MseVideoPanel(sink) }
     DisposableEffect(surface, panel) {
-        panel.onPainted = { surface.swingShown = it }
-        val blit: (java.awt.image.BufferedImage?) -> Unit = { panel.setImage(it) }
-        surface.swingBlit = blit
+        val video = surface.video
+        panel.onPainted = { video.painting = it }
+        val blit: (BufferedImage?) -> Unit = { panel.setImage(it) }
+        video.onCpuFrame = blit
         onDispose {
             panel.onPainted = null
-            if (surface.swingBlit === blit) surface.swingBlit = null
+            if (video.onCpuFrame === blit) video.onCpuFrame = null
         }
     }
     SwingPanel(

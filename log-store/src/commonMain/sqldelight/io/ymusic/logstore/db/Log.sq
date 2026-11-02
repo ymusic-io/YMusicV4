@@ -1,0 +1,40 @@
+-- One row per log line. seq orders lines across launches. state: 0 unsent, 1 pending (claimed for an
+-- error event, not yet handed to Sentry), 2 sent.
+CREATE TABLE log_line (
+    seq INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts INTEGER NOT NULL,
+    level INTEGER NOT NULL,
+    launch TEXT NOT NULL,
+    trail TEXT NOT NULL,
+    message TEXT NOT NULL,
+    state INTEGER NOT NULL DEFAULT 0
+);
+
+insertLine:
+INSERT INTO log_line (ts, level, launch, trail, message) VALUES (?, ?, ?, ?, ?);
+
+maxSeq:
+SELECT MAX(seq) AS seq FROM log_line;
+
+countLines:
+SELECT COUNT(*) FROM log_line;
+
+trimTo:
+DELETE FROM log_line WHERE seq <= :before;
+
+unsentOfNewest:
+SELECT * FROM log_line WHERE state = 0 AND seq IN (
+    SELECT seq FROM log_line WHERE launch = :launch ORDER BY seq DESC LIMIT :limit
+) ORDER BY seq;
+
+markPending:
+UPDATE log_line SET state = 1 WHERE seq IN :seqs;
+
+markSent:
+UPDATE log_line SET state = 2 WHERE seq IN :seqs;
+
+pendingLines:
+SELECT * FROM log_line WHERE state = 1 AND seq > :after ORDER BY seq LIMIT :limit;
+
+linesAfter:
+SELECT * FROM log_line WHERE seq > :after ORDER BY seq LIMIT :limit;

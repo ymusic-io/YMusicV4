@@ -24,8 +24,10 @@ fi
 
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
-openssl enc -d -aes-256-cbc -pbkdf2 -iter "$ITER" -md sha512 -pass fd:3 \
-  -in "$IN" -out "$work/plain" 3< <(printf '%s\n' "$passphrase") 2>/dev/null ||
+# stdin, not fd:N: Git for Windows' native openssl.exe cannot read an inherited descriptor.
+printf '%s\n' "$passphrase" |
+  openssl enc -d -aes-256-cbc -pbkdf2 -iter "$ITER" -md sha512 -pass stdin \
+    -in "$IN" -out "$work/plain" 2>/dev/null ||
   { echo "wrong passphrase or damaged $IN" >&2; exit 1; }
 
 expected=$(head -n 1 "$work/plain")

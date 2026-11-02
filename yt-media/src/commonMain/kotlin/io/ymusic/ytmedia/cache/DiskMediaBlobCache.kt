@@ -2,6 +2,7 @@ package io.ymusic.ytmedia.cache
 
 import kmpcommon.WorkerThread
 import kmpcommon.log.Logger
+import kmpcommon.log.debug
 import kotlinx.atomicfu.locks.SynchronizedObject
 import kotlinx.atomicfu.locks.synchronized
 import okio.Buffer
@@ -34,9 +35,12 @@ import okio.buffer
  *    write is never visible.
  * 2. **Per-block commit** — a region is cut into blocks of ≤[maxSpanBytes]; each commits independently, so
  *    an interrupted write keeps the blocks it finished (valid bytes for their ranges) and a retry resumes.
+ *    A `publishOnCommit` writer (a segment fill) instead keeps its sealed blocks as temps until
+ *    [BlobWriter.commit] publishes them all; an abort drops them all.
  * 3. **Single-writer-per-region dedupe** — an in-flight set keyed `(key, start, len)`; [writer] hands back
  *    a no-op sink when the exact region is already committed (a row exists) or in flight.
- * 4. **Read pinning** — [read] ref-count-pins its covering spans; eviction never touches a pinned span.
+ * 4. **Read pinning** — [read] ref-count-pins its covering spans; eviction never touches a pinned span, and
+ *    [invalidate] unindexes one at once but deletes its file only after the last unpin.
  * 5. **Plan-then-reacquire** — [isCached] is a hint; [read] re-plans coverage under the lock (over the
  *    in-memory span cache, which is kept in sync with eviction), returning null (→ network) on any gap and
  *    holding no lock across plan→serve. Each span's file is validated when its key loads into the
@@ -62,6 +66,10 @@ class DiskMediaBlobCache(
     private val lock = SynchronizedObject()
     private var budget = budgetBytes
     private val pins = mutableMapOf<String, Int>() // spanId → read-pin count (in-memory, per-process)
+    private val doomed = mutableSetOf<String>() // invalidated spanIds still pinned; their files go on the last unpin
+    private val spanGens = mutableMapOf<String, Long>() // spanId → generation, new on every commit of that span
+    private var lastGen = 0L
+    private val retired = mutableSetOf<Path>() // unindexed span files not yet deleted (deletes run outside [lock])
     private val inFlight = mutableSetOf<String>() // region tokens "key pos len" — known-length write dedupe
     private val activeWriters = mutableSetOf<Long>() // live writer ids; temp files carry the id in their name
     private var writerId = 0L // monotonic per-writer id counter
@@ -119,14 +127,16 @@ class DiskMediaBlobCache(
             } catch (e: Throwable) {
                 handles.forEach { it.close() }
                 val missing = e is FileNotFoundException
-                synchronized(lock) {
-                    chunks.forEach { unpin(spanId(it.key, it.start, it.len)) }
+                val released = synchronized(lock) {
                     if (missing) {
                         index.delete(chunk.key, chunk.start, chunk.len)
                         // Drop the key's resident list so its next load re-validates every row against disk.
                         spanCache.remove(chunk.key)
+                        spanGens.remove(spanId(chunk.key, chunk.start, chunk.len))
                     }
+                    chunks.mapNotNull { unpin(it.key, it.start, it.len) }
                 }
+                deleteRetired(released)
                 if (!missing) throw if (e is IOException) MediaCacheStorageException("span open: ${e.message}", e) else e
                 logger?.log(Logger.Level.WARN, "span file missing, cache miss", e)
                 return null
@@ -135,12 +145,18 @@ class DiskMediaBlobCache(
         return StitchedSource(chunks, handles)
     }
 
-    override fun writer(key: String, position: Long, length: Long): BlobWriter {
+    override fun coverageId(key: String, position: Long, length: Long): String? = synchronized(lock) {
+        cover(key, cachedSpans(key), position, length)?.joinToString(",") { chunk ->
+            spanGens.getOrPut(spanId(chunk.key, chunk.start, chunk.len)) { ++lastGen }.toString()
+        }
+    }
+
+    override fun writer(key: String, position: Long, length: Long, publishOnCommit: Boolean): BlobWriter {
         if (length < 0) {
             // Unknown length: no region dedupe (the region isn't known). Just a unique writer id for
-            // collision-free temp names; per-block dedupe in commitBlock still avoids re-storing bytes.
+            // collision-free temp names; per-block dedupe in publish still avoids re-storing bytes.
             val id = synchronized(lock) { nextWriterId() }
-            return RealBlobWriter(key, position, regionToken = null, id = id)
+            return RealBlobWriter(key, position, regionToken = null, id = id, publishOnCommit)
         }
         val token = flightToken(key, position, length)
         val id = synchronized(lock) {
@@ -149,7 +165,25 @@ class DiskMediaBlobCache(
             inFlight += token
             nextWriterId()
         }
-        return RealBlobWriter(key, position, regionToken = token, id = id)
+        return RealBlobWriter(key, position, regionToken = token, id = id, publishOnCommit)
+    }
+
+    override fun invalidate(key: String, position: Long, length: Long) {
+        val end = position + length
+        val files = synchronized(lock) {
+            cachedSpans(key).filter { it.start < end && it.end > position }.mapNotNull { span ->
+                index.delete(key, span.start, span.len)
+                removeSpanFromCache(key, span.start, span.len)
+                val id = spanId(key, span.start, span.len)
+                if ((pins[id] ?: 0) > 0) {
+                    doomed += id
+                    null
+                } else {
+                    retire(pathOf(key, span.start, span.len))
+                }
+            }
+        }
+        deleteRetired(files)
     }
 
     /** A process-unique id per writer, recorded in [activeWriters] so the maintenance worker can tell a
@@ -173,14 +207,37 @@ class DiskMediaBlobCache(
             budget = capped.coerceAtLeast(0)
             planEviction(0)
         }
-        victims.forEach { fileSystem.delete(it, mustExist = false) }
+        deleteRetired(victims)
+    }
+
+    /** Under [lock]: [path]'s span is unindexed and its file is about to be deleted outside the lock. */
+    private fun retire(path: Path): Path {
+        retired += path
+        return path
+    }
+
+    private fun deleteRetired(paths: List<Path>) {
+        if (paths.isEmpty()) return
+        try {
+            paths.forEach { fileSystem.delete(it, mustExist = false) }
+        } finally {
+            synchronized(lock) { retired -= paths.toSet() }
+        }
     }
 
     private fun pin(id: String) { pins[id] = (pins[id] ?: 0) + 1 }
 
-    private fun unpin(id: String) {
-        val n = pins[id] ?: return
-        if (n <= 1) pins.remove(id) else pins[id] = n - 1
+    /** Drop one read pin. Returns the span's file when that was the last pin of an invalidated span, for the
+     *  caller to delete outside [lock]. */
+    private fun unpin(key: String, start: Long, len: Long): Path? {
+        val id = spanId(key, start, len)
+        val n = pins[id] ?: return null
+        if (n > 1) {
+            pins[id] = n - 1
+            return null
+        }
+        pins.remove(id)
+        return if (doomed.remove(id)) retire(pathOf(key, start, len)) else null
     }
 
     // --- hot span-list cache -------------------------------------------------------------------------
@@ -200,6 +257,7 @@ class DiskMediaBlobCache(
                 loaded += span
             } else {
                 index.delete(span.key, span.start, span.len)
+                spanGens.remove(spanId(span.key, span.start, span.len))
                 if (size != null) {
                     logger?.log(Logger.Level.WARN, "span ${span.start}_${span.len} holds $size bytes, dropped")
                     fileSystem.delete(path, mustExist = false)
@@ -222,6 +280,7 @@ class DiskMediaBlobCache(
     /** Reflect an evicted / dropped span in the resident list (if any). */
     private fun removeSpanFromCache(key: String, start: Long, len: Long) {
         spanCache[key]?.removeAll { it.start == start && it.len == len }
+        spanGens.remove(spanId(key, start, len))
     }
 
     // --- covering (greedy max-reach; tolerates overlapping spans) ------------------------------------
@@ -273,7 +332,7 @@ class DiskMediaBlobCache(
             index.delete(row.key, row.start, row.len)
             removeSpanFromCache(row.key, row.start, row.len)
             total -= row.len
-            victims += pathOf(row.key, row.start, row.len)
+            victims += retire(pathOf(row.key, row.start, row.len))
         }
         return victims
     }
@@ -284,23 +343,31 @@ class DiskMediaBlobCache(
 
     // --- writer --------------------------------------------------------------------------------------
 
+    private enum class Existing { COMMITTED, BEING_DELETED, NONE }
+
+    /** A full temp block of `[start, start+len)`, not yet a span. */
+    private class SealedBlock(val tmp: Path, val start: Long, val len: Long)
+
     private inner class RealBlobWriter(
         private val key: String,
         position: Long,
         private val regionToken: String?, // known-length: the [inFlight] dedupe token to release; else null
         private val id: Long, // unique per writer → collision-free temp names + [activeWriters] membership
+        private val publishOnCommit: Boolean,
     ) : BlobWriter {
+        override val storesBytes = true
         private val dir = root / key
         private var blockStart = position
         private var blockBytes = 0L
         private var tmp: Path? = null
         private var tmpSink: BufferedSink? = null
+        private val sealed = ArrayList<SealedBlock>() // publishOnCommit: blocks waiting for commit()
         private var released = false
 
         override val sink: BufferedSink = RelaySink().buffer()
 
         /** Spills the region to disk block-by-block: each `write` fills the current temp until it reaches
-         *  [maxSpanBytes], then seals it as an immutable span and starts the next. */
+         *  [maxSpanBytes], then seals it and starts the next. */
         private inner class RelaySink : Sink {
             override fun write(source: Buffer, byteCount: Long) = storage("span write") {
                 var remaining = byteCount
@@ -310,7 +377,7 @@ class DiskMediaBlobCache(
                     s.write(source, chunk)
                     blockBytes += chunk
                     remaining -= chunk
-                    if (blockBytes >= maxSpanBytes) commitBlock()
+                    if (blockBytes >= maxSpanBytes) sealBlock()
                 }
             }
             override fun flush() { tmpSink?.flush() }
@@ -328,29 +395,78 @@ class DiskMediaBlobCache(
             fileSystem.sink(t).buffer().also { tmpSink = it }
         }
 
-        /** Seal the current temp into `{start}_{len}.span` and index it. No-op on an empty block. */
-        private fun commitBlock(): Unit = storage("span commit") {
+        /** Close the current temp as a block; publish it now, or hold it for [commit]. No-op when empty. */
+        private fun sealBlock(): Unit = storage("span commit") {
             val t = tmp ?: return@storage
             tmpSink?.close(); tmpSink = null; tmp = null
             val len = blockBytes; blockBytes = 0
             val start = blockStart; blockStart += len
             if (len == 0L) { fileSystem.delete(t, mustExist = false); return@storage }
+            val block = SealedBlock(t, start, len)
+            if (publishOnCommit) sealed += block else publish(block)
+        }
+
+        /** Move a sealed block to `{start}_{len}.span` and index it. */
+        private fun publish(block: SealedBlock): Unit = storage("span commit") {
+            val start = block.start
+            val len = block.len
             val spanPath = dir / spanName(start, len)
-            if (fileSystem.exists(spanPath)) {
-                // Identical range already committed (resume, or a concurrent equal writer beat us). Bytes are
-                // identical by the contiguity invariant — drop our temp; don't atomicMove over a file a
-                // reader may hold open. Make sure it's indexed (INSERT OR IGNORE).
-                fileSystem.delete(t, mustExist = false)
-                synchronized(lock) { index.insert(key, start, len); addSpanToCache(key, start, len) }
-                return@storage
+            val spanKey = spanId(key, start, len)
+            // An invalidated span a reader still holds: its file has the corrupt bytes. Un-doomed here so its
+            // last unpin cannot delete what replaces it.
+            val replacesCorrupt = synchronized(lock) { doomed.remove(spanKey) }
+            if (replacesCorrupt) {
+                try {
+                    // The reader keeps reading the old bytes through its open handle.
+                    fileSystem.atomicMove(block.tmp, spanPath)
+                } catch (e: IOException) {
+                    // Windows will not replace a file that is open: stay uncached, the old file goes on the last unpin.
+                    fileSystem.delete(block.tmp, mustExist = false)
+                    val orphan = synchronized(lock) {
+                        if ((pins[spanKey] ?: 0) > 0) {
+                            doomed += spanKey
+                            null
+                        } else {
+                            retire(spanPath)
+                        }
+                    }
+                    deleteRetired(listOfNotNull(orphan))
+                    logger?.log(Logger.Level.INFO, "refill of an invalidated span not stored, a reader holds it", e)
+                    return@storage
+                }
+            } else {
+                // Decided under the lock, not by the file's presence: a purged span's file stays on disk until
+                // its deferred delete, and re-indexing it would serve the corrupt bytes, then a missing file.
+                val existing = synchronized(lock) {
+                    when {
+                        cachedSpans(key).any { it.start == start && it.len == len } -> Existing.COMMITTED
+                        spanPath in retired -> Existing.BEING_DELETED
+                        else -> Existing.NONE
+                    }
+                }
+                when (existing) {
+                    // Identical bytes by the contiguity invariant; a reader may hold that file open.
+                    Existing.COMMITTED -> {
+                        fileSystem.delete(block.tmp, mustExist = false)
+                        return@storage
+                    }
+                    Existing.BEING_DELETED -> {
+                        fileSystem.delete(block.tmp, mustExist = false)
+                        logger?.log(Logger.Level.INFO, "refill of a span being deleted not stored ($key ${start}_$len)")
+                        return@storage
+                    }
+                    // No reader can hold an unindexed, unretired file: replacing it is safe.
+                    Existing.NONE -> fileSystem.atomicMove(block.tmp, spanPath)
+                }
             }
-            fileSystem.atomicMove(t, spanPath)
             val victims = synchronized(lock) {
                 index.insert(key, start, len)
                 addSpanToCache(key, start, len)
+                spanGens[spanKey] = ++lastGen
                 planEviction(0)
             }
-            victims.forEach { fileSystem.delete(it, mustExist = false) }
+            logger?.debug { "commit span $key ${start}_$len writer=$id" }
+            deleteRetired(victims)
         }
 
         override fun commit() = finish(commitTail = true)
@@ -362,20 +478,27 @@ class DiskMediaBlobCache(
             try {
                 if (commitTail) {
                     sink.flush() // push whatever the buffered façade still holds into RelaySink → the temp
-                    commitBlock()
+                    sealBlock()
+                    while (sealed.isNotEmpty()) publish(sealed.removeAt(0))
                 } else {
                     tmpSink?.close()
                     tmp?.let { fileSystem.delete(it, mustExist = false) }
                     tmpSink = null; tmp = null
                 }
             } finally {
-                // Released even when the tail fails, or the region stays "in flight" (unwritable) forever.
-                val victims = synchronized(lock) {
-                    regionToken?.let { inFlight -= it } // known-length only
-                    activeWriters -= id
-                    planEviction(0)
+                try {
+                    // Held blocks of an abort, or the rest of a commit that failed part-way.
+                    sealed.forEach { fileSystem.delete(it.tmp, mustExist = false) }
+                    sealed.clear()
+                } finally {
+                    // Released even when the tail fails, or the region stays "in flight" (unwritable) forever.
+                    val victims = synchronized(lock) {
+                        regionToken?.let { inFlight -= it } // known-length only
+                        activeWriters -= id
+                        planEviction(0)
+                    }
+                    deleteRetired(victims)
                 }
-                victims.forEach { fileSystem.delete(it, mustExist = false) }
             }
         }
     }
@@ -412,6 +535,20 @@ class DiskMediaBlobCache(
             }
         }
 
+        override fun readAt(position: Long, sink: Buffer, byteCount: Long): Long {
+            check(!closed) { "closed" }
+            var chunkStart = 0L
+            for ((i, chunk) in chunks.withIndex()) {
+                if (position < chunkStart + chunk.take) {
+                    val within = position - chunkStart
+                    val n = minOf(byteCount, chunk.take - within)
+                    return storage("span read") { handles[i].read(chunk.skip + within, sink, n) }
+                }
+                chunkStart += chunk.take
+            }
+            return -1
+        }
+
         override fun timeout(): Timeout = Timeout.NONE
 
         override fun close() {
@@ -419,7 +556,8 @@ class DiskMediaBlobCache(
             closed = true
             closeCurrent()
             handles.forEach { it.close() }
-            synchronized(lock) { chunks.forEach { unpin(spanId(it.key, it.start, it.len)) } }
+            val released = synchronized(lock) { chunks.mapNotNull { unpin(it.key, it.start, it.len) } }
+            deleteRetired(released)
         }
 
         /** Close the current span's source then its handle (okio handle close is idempotent, so [close]
@@ -459,6 +597,7 @@ class DiskMediaBlobCache(
 /** Discards its bytes — returned when the region is already committed or being written elsewhere. */
 private class NoOpBlobWriter : BlobWriter {
     override val sink: BufferedSink = okio.blackholeSink().buffer()
+    override val storesBytes = false
     override fun commit() { /* nothing written */ }
     override fun abort() { /* nothing written */ }
 }

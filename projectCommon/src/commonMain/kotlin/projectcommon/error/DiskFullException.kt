@@ -11,9 +11,10 @@ class DiskFullException(cause: Throwable? = null) :
 
 const val DISK_FULL_CODE = "disk_full"
 
-/** An uncoded platform out-of-space failure: SQLite's SQLITE_FULL, or an ENOSPC write. */
+/** An uncoded platform out-of-space failure: SQLite's SQLITE_FULL, SQLite failing to grow its WAL
+ *  index (SQLITE_IOERR_SHMSIZE, seen only with zero free storage), or an ENOSPC write. */
 internal fun Throwable.isOutOfSpace(): Boolean {
     if (this::class.simpleName == "SQLiteFullException") return true
     val text = message ?: return false
-    return "ENOSPC" in text || "No space left on device" in text || "SQLITE_FULL" in text
+    return "ENOSPC" in text || "No space left on device" in text || "SQLITE_FULL" in text || "SQLITE_IOERR_SHMSIZE" in text
 }

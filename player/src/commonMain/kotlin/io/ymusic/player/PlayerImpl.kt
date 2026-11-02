@@ -164,6 +164,12 @@ internal class PlayerImpl(
         publishQueue()
     }
 
+    override fun moveToPlayNext(index: Int) {
+        if (released) return
+        controller.moveNext(index)
+        publishQueue()
+    }
+
     override fun move(from: Int, to: Int) {
         if (released) return
         controller.move(from, to)
@@ -245,7 +251,15 @@ internal class PlayerImpl(
     }
 
     override fun togglePlay() {
-        if (status.value.playWhenReady) pause() else play()
+        val status = status.value
+        when {
+            status.state.isEnded() -> {
+                seekTo(0L)
+                play()
+            }
+            status.playWhenReady -> pause()
+            else -> play()
+        }
     }
 
     override fun stop() {
@@ -422,14 +436,12 @@ internal class PlayerImpl(
 
     override fun refreshOnNext() {
         ytResetOnNext = true
-        ytEngine?.refreshOnNext()
     }
 
     override fun reload() {
         if (released) return
         if (controller.state.currentItem == null) return
         val resumeMs = _progress.value.positionMs
-        if (_currentEngine.value === ytEngine) ytEngine?.refreshOnNext()
         _currentEngine.value?.reset("reload")
         loadCurrent(resumeMs)
     }
@@ -717,10 +729,7 @@ internal class PlayerImpl(
             is PlaybackState.Uninitialized -> {
                 if (!first.isInitializing) engine.init()
             }
-            is PlaybackState.Error -> {
-                if (!first.error.canRetry) return first.error
-                if (first.error.needReset) engine.reset("error ${first.error.code} needs reset") else return null
-            }
+            is PlaybackState.Error -> engine.reset("error ${first.error.code} needs reset")
             else -> return null
         }
         val settled = suspend {

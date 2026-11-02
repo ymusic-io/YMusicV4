@@ -77,6 +77,9 @@ class SabrServeTest {
         approxDurationMs = 3_000, audioTrackIsDefault = true, audioTrackId = null, isDrc = false,
     )
 
+    /** init + 3 audio segments, 10 bytes each, contiguous over [0,40). */
+    private val segments = listOf(webmSegment(10, 0, init = true), webmSegment(10, 1), webmSegment(10, 2), webmSegment(10, 3))
+
     private fun Buffer.putSegment(headerId: Int, seg: Int, startRange: Long, data: ByteArray, isInit: Boolean) {
         val header = MediaHeader(
             headerId = headerId, videoId = "vid", itag = itag, lmt = lmt, xtag = null,
@@ -99,10 +102,7 @@ class SabrServeTest {
             SqlDelightSegmentIndex(driver, now = { 1_000 }),
         )
         val resp = Buffer().apply {
-            putSegment(0, 0, 0, ByteArray(10) { 0 }, isInit = true)
-            putSegment(1, 1, 10, ByteArray(10) { 1 }, isInit = false)
-            putSegment(2, 2, 20, ByteArray(10) { 2 }, isInit = false)
-            putSegment(3, 3, 30, ByteArray(10) { 3 }, isInit = false)
+            segments.forEachIndexed { i, data -> putSegment(i, i, i * 10L, data, isInit = i == 0) }
         }
         SabrSession(random = Random(1)).readResponse(asyncOf(resp), SabrTrack(fmt, MemoryFile()), null, cache)
         // A synthesized hit replays the format's init metadata before its init segment (the tee captures it
@@ -144,8 +144,7 @@ class SabrServeTest {
         val outcome = SabrSession(random = Random(2))
             .readResponse(asyncOf(serve.ump.toBuffer()), SabrTrack(fmt, outFile), null, null)
         assertEquals(4, outcome.completedSegments)
-        val expected = ByteArray(10) { 0 } + ByteArray(10) { 1 } + ByteArray(10) { 2 } + ByteArray(10) { 3 }
-        assertContentEquals(expected, outFile.data.peek().readByteArray())
+        assertContentEquals(segments.reduce(ByteArray::plus), outFile.data.peek().readByteArray())
     }
 
     @Test

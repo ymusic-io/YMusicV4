@@ -188,30 +188,35 @@ val javaHomeForJni: String = run {
         ?: error("No JDK with JNI headers (include/jni.h) found. Checked: $candidates")
 }
 
-// Without an explicit deployment target, the MachO header records the BUILD HOST's SDK as the
-// minimum OS — a lib built here refused to load on anything below macOS 14.8. 11.0 is Compose
-// Desktop's own floor (and the first Apple-silicon release).
-val macDeploymentTarget = "11.0"
+val macDeploymentTarget = Versions.macosMin
 
+// Windows: the CMake project uses GCC/Clang-only syntax (`__attribute__((format))`, POSIX headers,
+// `--gc-sections`), so MSVC can't compile it; mingwCmakeArgs points CMake at MinGW-w64 instead.
 val cmakeConfigure by tasks.registering(Exec::class) {
     val out = quickJsJniDir.get().asFile
     doFirst { out.mkdirs() }
     inputs.dir(nativeSrc)
     inputs.property("javaHome", javaHomeForJni)
     inputs.property("macDeploymentTarget", macDeploymentTarget)
+    inputs.property("mingwHome", mingwToolchainHome()?.absolutePath ?: "")
     outputs.file(File(out, "CMakeCache.txt"))
     environment("JAVA_HOME", javaHomeForJni)
-    commandLine(
+    val args = listOf(
         "cmake", "-S", nativeSrc.absolutePath, "-B", out.absolutePath,
         "-DCMAKE_BUILD_TYPE=Release",
         "-DCMAKE_OSX_DEPLOYMENT_TARGET=$macDeploymentTarget",
     )
+    // At run time: a Windows host without MinGW fails this task, not the configuration of every build.
+    doFirst { commandLine(args + mingwCmakeArgs()) }
 }
 
 val cmakeBuild by tasks.registering(Exec::class) {
     dependsOn(cmakeConfigure)
     inputs.dir(nativeSrc)
     outputs.dir(quickJsJniDir)
+    // MinGW Makefiles is single-config; CMAKE_BUILD_TYPE from configure applies. The Visual Studio
+    // generator (default on Windows without MinGW) would need --config Release here, but we force
+    // MinGW on Windows above.
     commandLine("cmake", "--build", quickJsJniDir.get().asFile.absolutePath, "-j", "4")
 }
 

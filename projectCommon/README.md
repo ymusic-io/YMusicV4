@@ -12,7 +12,7 @@ Small helpers shared by the app's modules, grouped by package. Pure Kotlin, no p
   `"network"` category, so the UI, download failures and telemetry's network filter agree), and `runSuspendCatching` (a `runCatching` that rethrows cancellation).
 - `projectcommon.log` — app telemetry plumbing over `kmpcommon.log.Logger`: `TrailMark` /
   `markTrail` / `trailMark()` (a logger trail riding a throw as a suppressed marker),
-  `FileAttachment` (a `captureError` prop attached by path), and `LoggingWorker` / `FileLogger`
-  (the rotating on-disk log the feedback form ships).
+  and `FileAttachment` (a `captureError` prop attached by path). The app log itself is
+  [`:log-store`](../log-store/README.md).
 
 Library-shaped code with its own identity (`:kmpCommon`, `:kmpHttp`) stays out of this module — and app logic stays out of those: they are meant to be publishable.

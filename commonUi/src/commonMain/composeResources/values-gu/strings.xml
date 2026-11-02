@@ -23,6 +23,10 @@
     <string name="downloads_none_title">હજી કોઈ ડાઉનલોડ નથી</string>
     <string name="downloads_none_message">ડાઉનલોડ કરેલાં ગીતો અને વીડિયો ઑફલાઇન ચાલે છે.</string>
     <string name="downloads_failed">ડાઉનલોડ નિષ્ફળ</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Finder માં બતાવો</string>
+    <string name="menu_reveal_explorer">ફાઇલ એક્સપ્લોરરમાં બતાવો</string>
+    <string name="menu_reveal_file_manager">ફાઇલ મેનેજરમાં બતાવો</string>
     <string name="section_settings">સેટિંગ્સ</string>
     <string name="section_donate">દાન કરો</string>
     <string name="section_feedback">પ્રતિસાદ</string>
@@ -121,8 +125,33 @@
     <string name="yt_playlist_removed_video">પ્લેલિસ્ટમાંથી %1$s દૂર કર્યું</string>
     <string name="cd_add_to_playlist">પ્લેલિસ્ટમાં ઉમેરો</string>
     <string name="cd_share">શેર કરો</string>
-    <string name="cd_music_video">મ્યુઝિક</string>
-    <string name="cd_album">આલ્બમ</string>
+    <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
+    <string name="a11y_kind_video">વીડિયો</string>
+    <string name="a11y_kind_music_video">મ્યુઝિક વીડિયો</string>
+    <string name="a11y_kind_live">લાઇવ વીડિયો</string>
+    <string name="a11y_kind_playlist">પ્લેલિસ્ટ</string>
+    <string name="a11y_kind_album">આલ્બમ</string>
+    <string name="a11y_kind_mix">મિક્સ</string>
+    <string name="a11y_kind_channel">ચૅનલ</string>
+    <!-- A video's length as a screen reader speaks it, joined with spaces: "1 hour 5 minutes 3 seconds" -->
+    <plurals name="a11y_duration_hours">
+        <item quantity="one">%1$d કલાક</item>
+        <item quantity="other">%1$d કલાક</item>
+    </plurals>
+    <plurals name="a11y_duration_minutes">
+        <item quantity="one">%1$d મિનિટ</item>
+        <item quantity="other">%1$d મિનિટ</item>
+    </plurals>
+    <plurals name="a11y_duration_seconds">
+        <item quantity="one">%1$d સેકન્ડ</item>
+        <item quantity="other">%1$d સેકન્ડ</item>
+    </plurals>
+    <string name="a11y_now_playing">હમણાં ચાલી રહ્યું છે</string>
+    <string name="a11y_playback_position">પ્લેબેકની સ્થિતિ</string>
+    <string name="a11y_x_of_y">%2$s માંથી %1$s</string>
+    <string name="a11y_behind_live">લાઇવથી %1$s પાછળ</string>
+    <string name="a11y_downloaded">ડાઉનલોડ કરેલું</string>
+    <string name="a11y_eq_preamp">પ્રીએમ્પ</string>
 
     <!-- Library -->
     <string name="library_tab_folders">ફોલ્ડર</string>
@@ -363,7 +392,6 @@
     <string name="account_sign_out">સાઇન આઉટ</string>
     <string name="account_switch">એકાઉન્ટ બદલો</string>
     <string name="switch_account_hint">તમને જોઈતું એકાઉન્ટ પસંદ કરો, પછી પાછળના તીરથી આ સ્ક્રીન બંધ કરો — ઍપ નવા એકાઉન્ટ હેઠળ રિફ્રેશ થશે.</string>
-    <string name="cd_account_avatar">એકાઉન્ટનો ફોટો</string>
     <string name="account_my_channel">મારી ચૅનલ</string>
     <string name="account_watch_history">જોવાનો ઇતિહાસ</string>
     <string name="account_watch_later">પછીથી જુઓ</string>
@@ -551,6 +579,24 @@
     <string name="video_details_delete_title">ટિપ્પણી કાઢી નાખો</string>
     <string name="video_details_delete_message">તમારી ટિપ્પણી અને તેના બધા જવાબો કાયમ માટે કાઢી નાખીએ?</string>
     <string name="video_details_deleted">ટિપ્પણી કાઢી નાખી</string>
+    <string name="cookie_protect_title">તમારું સાઇન ઇન પાસવર્ડથી સુરક્ષિત કરવું છે?</string>
+    <string name="cookie_protect_body">તમારું સાઇન ઇન આ કમ્પ્યુટર પર સેવ કરેલું છે, જ્યાં તમે ચલાવો છો તે અન્ય ઍપ તેને વાંચી શકે છે. તેને લૉક કરવા પાસવર્ડ સેટ કરો; YMusic દરેક વખતે શરૂ થાય ત્યારે તે પૂછશે.</string>
+    <string name="cookie_password">પાસવર્ડ</string>
+    <string name="cookie_protect_confirm">પાસવર્ડની પુષ્ટિ કરો</string>
+    <string name="cookie_protect_mismatch">પાસવર્ડ મેળ ખાતા નથી.</string>
+    <string name="cookie_protect_submit">સુરક્ષિત કરો</string>
+    <string name="cookie_protect_skip">હમણાં નહીં</string>
+    <string name="cookie_unlock_title">તમારું સાઇન ઇન અનલૉક કરો</string>
+    <string name="cookie_unlock_body">તમારું YouTube સાઇન ઇન પાસવર્ડથી સુરક્ષિત છે.</string>
+    <string name="cookie_unlock_submit">અનલૉક કરો</string>
+    <string name="cookie_unlock_wrong">ખોટો પાસવર્ડ.</string>
+    <string name="cookie_unlock_cant_unlock">અનલૉક નથી થતું?</string>
+    <string name="cookie_unlock_guest">મહેમાન તરીકે ચાલુ રાખો</string>
+    <string name="cookie_unlock_guest_hint">સાઇન ઇન વિના શરૂ થાય છે. કંઈ સાચવવામાં આવતું નથી.</string>
+    <string name="cookie_unlock_sign_out">સાઇન આઉટ</string>
+    <string name="cookie_unlock_sign_out_hint">આ સેવ કરેલું સાઇન ઇન દૂર કરે છે.</string>
+    <string name="cookie_unlock_sign_out_title">સાઇન આઉટ કરવું છે?</string>
+    <string name="cookie_unlock_sign_out_body">આનાથી આ કમ્પ્યુટર પરથી સેવ કરેલું સાઇન ઇન દૂર થશે. ફરી સાઇન ઇન કરવા, YMusic ઍપ વડે QR કોડ સ્કૅન કરો.</string>
     <string name="menu_details_comments">વિગતો અને ટિપ્પણીઓ</string>
     <string name="menu_search_lyrics">ગીતના શબ્દો શોધો</string>
     <string name="menu_speed_pitch">ઝડપ અને પિચ</string>
@@ -570,4 +616,22 @@
     <string name="download_other_format">બીજા ફોર્મેટમાં ડાઉનલોડ કરો</string>
     <string name="unsubscribe">અનસબ્સ્ક્રાઇબ કરો</string>
     <string name="unsubscribed">અનસબ્સ્ક્રાઇબ કર્યું</string>
+    <string name="tray_pause">થોભાવો</string>
+    <string name="tray_resume">ફરી શરૂ કરો</string>
+    <string name="tray_stop">રોકો (કતાર સાફ કરો)</string>
+    <string name="tray_quit">બંધ કરો</string>
+    <string name="shortcuts_title">કીબોર્ડ શૉર્ટકટ</string>
+    <string name="shortcuts_play_pause">વગાડો / થોભાવો</string>
+    <string name="shortcuts_now_playing">Now Playing બતાવો અથવા છુપાવો</string>
+    <string name="shortcuts_nav_menu">મેનુ ખોલો અથવા બંધ કરો</string>
+    <string name="shortcuts_switch_tabs">ટૅબ બદલો</string>
+    <string name="shortcuts_escape">પૂર્ણ સ્ક્રીનમાંથી બહાર નીકળો, અથવા Now Playing, મેનુ કે પૉપ-અપ બંધ કરો</string>
+    <string name="shortcuts_help">આ મદદ બતાવો</string>
+    <string name="shortcuts_volume_up">અવાજ વધારો</string>
+    <string name="shortcuts_volume_down">અવાજ ઘટાડો</string>
+    <string name="a11y_key_arrow_left">ડાબો તીર</string>
+    <string name="a11y_key_arrow_right">જમણો તીર</string>
+    <string name="a11y_key_arrow_up">ઉપર તીર</string>
+    <string name="a11y_key_arrow_down">નીચે તીર</string>
+    <string name="cd_always_on_top">હંમેશાં ટોચ પર</string>
 </resources>

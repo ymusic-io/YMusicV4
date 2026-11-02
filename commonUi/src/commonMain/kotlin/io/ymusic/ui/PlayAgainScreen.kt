@@ -34,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -176,7 +177,7 @@ private fun PlayAgainCard(
         Row(
             horizontalArrangement = Arrangement.spacedBy(DesignSpacing.Space16),
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(top = DesignSpacing.Space8),
+            modifier = Modifier.padding(top = DesignSpacing.Space8).semantics(mergeDescendants = true) {},
         ) {
             LibraryThumb(Icons.Default.MusicNote, badge = null, artUrl = session.thumbnailUrl)
             Column(Modifier.weight(1f)) {
@@ -187,11 +188,12 @@ private fun PlayAgainCard(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    sessionLine(session),
+                    sessionLine(session, formatProgressClock(session.positionMs)),
                     style = ListSubStyle,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(top = DesignSpacing.Space4),
+                    modifier = Modifier.padding(top = DesignSpacing.Space4)
+                        .spokenAs(sessionLine(session, spokenDuration(session.positionMs))),
                 )
             }
             MoreMenu(ItemActions(listOf(fromBeginning to onPlayFromBeginning, remove to onRemove)))
@@ -247,12 +249,12 @@ private fun QueueStrip(session: PlayAgainSession, modifier: Modifier) {
     }
 }
 
-/** "artist · 7 of 32" — or "artist · Resume at 1:12:40" for long content left mid-item. */
+/** "artist · 7 of 32" — or "artist · Resume at 1:12:40" for long content left mid-item, the time as [resumeAt]. */
 @Composable
-private fun sessionLine(session: PlayAgainSession): String {
+private fun sessionLine(session: PlayAgainSession, resumeAt: String): String {
     // Under a second the clock reads 0:00 — that is the track's start, not a resume point.
     val position = if (session.resumesMidItem && session.positionMs >= 1_000L) {
-        stringResource(Res.string.play_again_resume_at, formatProgressClock(session.positionMs))
+        stringResource(Res.string.play_again_resume_at, resumeAt)
     } else {
         stringResource(Res.string.play_again_track_of, session.queueIndex + 1, session.queueSize)
     }

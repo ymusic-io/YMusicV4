@@ -23,6 +23,10 @@
     <string name="downloads_none_title">Még nincs letöltés</string>
     <string name="downloads_none_message">A letöltött dalok és videók offline is lejátszhatók.</string>
     <string name="downloads_failed">A letöltés sikertelen</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Megjelenítés a Finderben</string>
+    <string name="menu_reveal_explorer">Megjelenítés a Fájlkezelőben</string>
+    <string name="menu_reveal_file_manager">Megjelenítés a fájlkezelőben</string>
     <string name="section_settings">Beállítások</string>
     <string name="section_donate">Támogatás</string>
     <string name="section_feedback">Visszajelzés</string>
@@ -121,8 +125,33 @@
     <string name="yt_playlist_removed_video">%1$s eltávolítva a lejátszási listáról</string>
     <string name="cd_add_to_playlist">Hozzáadás lejátszási listához</string>
     <string name="cd_share">Megosztás</string>
-    <string name="cd_music_video">Zene</string>
-    <string name="cd_album">Album</string>
+    <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
+    <string name="a11y_kind_video">Videó</string>
+    <string name="a11y_kind_music_video">Zenei videó</string>
+    <string name="a11y_kind_live">Élő közvetítés</string>
+    <string name="a11y_kind_playlist">Lejátszási lista</string>
+    <string name="a11y_kind_album">Album</string>
+    <string name="a11y_kind_mix">Mix</string>
+    <string name="a11y_kind_channel">Csatorna</string>
+    <!-- A video's length as a screen reader speaks it, joined with spaces: "1 hour 5 minutes 3 seconds" -->
+    <plurals name="a11y_duration_hours">
+        <item quantity="one">%1$d óra</item>
+        <item quantity="other">%1$d óra</item>
+    </plurals>
+    <plurals name="a11y_duration_minutes">
+        <item quantity="one">%1$d perc</item>
+        <item quantity="other">%1$d perc</item>
+    </plurals>
+    <plurals name="a11y_duration_seconds">
+        <item quantity="one">%1$d másodperc</item>
+        <item quantity="other">%1$d másodperc</item>
+    </plurals>
+    <string name="a11y_now_playing">Most szól</string>
+    <string name="a11y_playback_position">Lejátszási pozíció</string>
+    <string name="a11y_x_of_y">%1$s, összesen %2$s</string>
+    <string name="a11y_behind_live">%1$s késés az élő adáshoz képest</string>
+    <string name="a11y_downloaded">Letöltve</string>
+    <string name="a11y_eq_preamp">Előerősítő</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Mappák</string>
@@ -363,7 +392,6 @@
     <string name="account_sign_out">Kijelentkezés</string>
     <string name="account_switch">Fiókváltás</string>
     <string name="switch_account_hint">Válaszd ki a kívánt fiókot, majd zárd be ezt a képernyőt a vissza nyíllal — az alkalmazás az új fiókkal frissül.</string>
-    <string name="cd_account_avatar">Fiók képe</string>
     <string name="account_my_channel">Saját csatorna</string>
     <string name="account_watch_history">Megtekintési előzmények</string>
     <string name="account_watch_later">Megnézendő</string>
@@ -551,6 +579,24 @@
     <string name="video_details_delete_title">Hozzászólás törlése</string>
     <string name="video_details_delete_message">Véglegesen törlöd a hozzászólásodat és az összes rá érkezett választ?</string>
     <string name="video_details_deleted">Hozzászólás törölve</string>
+    <string name="cookie_protect_title">Jelszóval véded a bejelentkezésed?</string>
+    <string name="cookie_protect_body">A bejelentkezésed ezen a számítógépen van mentve, ahol az általad futtatott más alkalmazások is olvashatják. Állíts be jelszót a zárolásához; a YMusic minden indításkor kérni fogja.</string>
+    <string name="cookie_password">Jelszó</string>
+    <string name="cookie_protect_confirm">Jelszó megerősítése</string>
+    <string name="cookie_protect_mismatch">A jelszavak nem egyeznek.</string>
+    <string name="cookie_protect_submit">Védelem</string>
+    <string name="cookie_protect_skip">Most nem</string>
+    <string name="cookie_unlock_title">Bejelentkezés feloldása</string>
+    <string name="cookie_unlock_body">A YouTube-bejelentkezésed jelszóval védett.</string>
+    <string name="cookie_unlock_submit">Feloldás</string>
+    <string name="cookie_unlock_wrong">Hibás jelszó.</string>
+    <string name="cookie_unlock_cant_unlock">Nem tudod feloldani?</string>
+    <string name="cookie_unlock_guest">Folytatás vendégként</string>
+    <string name="cookie_unlock_guest_hint">Kijelentkezve indul. Semmi sem marad meg.</string>
+    <string name="cookie_unlock_sign_out">Kijelentkezés</string>
+    <string name="cookie_unlock_sign_out_hint">Törli ezt a mentett bejelentkezést.</string>
+    <string name="cookie_unlock_sign_out_title">Kijelentkezel?</string>
+    <string name="cookie_unlock_sign_out_body">Ezzel törlöd a mentett bejelentkezést erről a számítógépről. Az újbóli bejelentkezéshez olvasd be a QR-kódot a YMusic alkalmazással.</string>
     <string name="menu_details_comments">Részletek és hozzászólások</string>
     <string name="menu_search_lyrics">Dalszöveg keresése</string>
     <string name="menu_speed_pitch">Sebesség és hangmagasság</string>
@@ -570,4 +616,22 @@
     <string name="download_other_format">Letöltés más formátumban</string>
     <string name="unsubscribe">Leiratkozás</string>
     <string name="unsubscribed">Leiratkozva</string>
+    <string name="tray_pause">Szünet</string>
+    <string name="tray_resume">Folytatás</string>
+    <string name="tray_stop">Leállítás (sor törlése)</string>
+    <string name="tray_quit">Bezárás</string>
+    <string name="shortcuts_title">Billentyűparancsok</string>
+    <string name="shortcuts_play_pause">Lejátszás / szünet</string>
+    <string name="shortcuts_now_playing">A Most szól képernyő megjelenítése vagy elrejtése</string>
+    <string name="shortcuts_nav_menu">A menü megnyitása vagy bezárása</string>
+    <string name="shortcuts_switch_tabs">Váltás a lapok között</string>
+    <string name="shortcuts_escape">Kilépés a teljes képernyőből, vagy a Most szól, a menü vagy egy felugró ablak bezárása</string>
+    <string name="shortcuts_help">A súgó megjelenítése</string>
+    <string name="shortcuts_volume_up">Hangerő fel</string>
+    <string name="shortcuts_volume_down">Hangerő le</string>
+    <string name="a11y_key_arrow_left">balra nyíl</string>
+    <string name="a11y_key_arrow_right">jobbra nyíl</string>
+    <string name="a11y_key_arrow_up">felfelé nyíl</string>
+    <string name="a11y_key_arrow_down">lefelé nyíl</string>
+    <string name="cd_always_on_top">Mindig felül</string>
 </resources>

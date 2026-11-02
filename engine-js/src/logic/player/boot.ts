@@ -5,6 +5,7 @@ import {
   activeHtmlMedia,
   dropVideoFakeOverlay,
   installMseGlobals,
+  installPlaybackQuality,
   isLiveDuration,
   mseCreateObjectURL,
   mseRevokeObjectURL,
@@ -13,6 +14,8 @@ import {
   resetDrainCounts,
 } from "../../protocol/mse";
 import { applyNavigatorLanguages, endLayoutProbes, installOrigEnv } from "./env";
+import { installMediaCapabilities } from "./media_caps";
+import { applyHostScreen } from "./device";
 import { installXhr } from "../yt/xhr";
 import { installFetch } from "../yt/fetch";
 import { executeWithCookies } from "../yt/cookies";
@@ -428,72 +431,6 @@ function installNativeUrl(): void {
   g["URL"] = ctor;
 }
 
-function installSabrObserver(): void {
-  function IntersectionObserver(this: Record<string, unknown>, cb: unknown) {
-    this["_cb"] = cb;
-  }
-  IntersectionObserver.prototype.observe = asNative(
-    "observe",
-    function (this: Record<string, unknown>, el: unknown) {
-      const self = this;
-      const rec = el && typeof el === "object" ? (el as Record<string, unknown>) : null;
-      const getRect =
-        rec && typeof rec["getBoundingClientRect"] === "function"
-          ? (rec["getBoundingClientRect"] as () => Record<string, number>)
-          : null;
-      const vw = viewportWidth();
-      const vh = viewportHeight();
-      const rect = getRect
-        ? getRect.call(rec)
-        : { x: 0, y: 0, width: vw, height: vh, top: 0, left: 0, bottom: vh, right: vw };
-      const w = Number(rect["width"]) || vw;
-      const h = Number(rect["height"]) || vh;
-      Promise.resolve().then(function () {
-        const cb = self["_cb"];
-        if (typeof cb !== "function") return;
-        try {
-          (cb as Function)(
-            [
-              {
-                target: el,
-                isIntersecting: true,
-                isVisible: true,
-                intersectionRatio: 1,
-                time: 0,
-                boundingClientRect: rect,
-                intersectionRect: {
-                  x: 0,
-                  y: 0,
-                  width: w,
-                  height: h,
-                  top: 0,
-                  left: 0,
-                  bottom: h,
-                  right: w,
-                },
-                rootBounds: {
-                  x: 0,
-                  y: 0,
-                  width: 1280,
-                  height: 720,
-                  top: 0,
-                  left: 0,
-                  bottom: 720,
-                  right: 1280,
-                },
-              },
-            ],
-            self,
-          );
-        } catch (_e) {}
-      });
-    },
-  );
-  IntersectionObserver.prototype.unobserve = asNative("unobserve", function () {});
-  IntersectionObserver.prototype.disconnect = asNative("disconnect", function () {});
-  (globalThis as unknown as Record<string, unknown>)["IntersectionObserver"] = IntersectionObserver;
-}
-
 function installPlayerTree(): void {
   if (document.getElementById("player")) return;
   const player = document.createElement("div");
@@ -872,7 +809,9 @@ class Player {
       return self.mintToken(id);
     });
     installMseGlobals();
-    installSabrObserver();
+    installMediaCapabilities();
+    applyHostScreen();
+    installPlaybackQuality();
     installXhr();
     installFetch();
     installSharedOwl(this.mintFn);

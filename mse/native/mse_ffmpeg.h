@@ -27,7 +27,23 @@ void mse_logf(const char *fmt, ...);
 /* INFO/WARN/ERROR: always emitted. Never blocks. */
 void mse_critf(int level, const char *fmt, ...);
 
+/* The uncompressed header of a VP9 packet's first frame. The fields after `key` are set on a keyframe only. */
+typedef struct {
+    int profile;
+    int key;
+    int bit_depth;
+    int ss_x, ss_y;
+    int full_range;
+} MseVp9Header;
+/* 0 when p starts with a VP9 frame header. */
+int mse_vp9_header(const uint8_t *p, size_t n, MseVp9Header *h);
+
+struct AVCodecParameters;
+/* The bundled libvpx has no high bit depth: VP9 profiles 2 and 3 decode on native vp9. */
+int mse_vp9_high_depth(const struct AVCodecParameters *par);
+
 typedef struct MseAv MseAv;
+struct VPresenter;
 
 typedef struct {
     int n;
@@ -61,21 +77,23 @@ int mse_av_video_parked(const MseAv *a);
 #endif
 void mse_av_seek(MseAv *a, double seconds);
 
-/* Android: borrowed ANativeWindow. Apple: borrowed AVSampleBufferDisplayLayer.
- * NULL detaches. No-op on other hosts. */
+#ifdef __ANDROID__
+/* Borrowed ANativeWindow; NULL detaches. */
 void mse_av_set_window(MseAv *a, void *window);
+#endif
+/* Where decoded pictures go (desktop, iOS), shown under the bind token `engine`; NULL drops
+ * them. MseAv holds its own reference. */
+void mse_av_set_presenter(MseAv *a, struct VPresenter *p, const void *engine);
 #ifdef __APPLE__
 /* Foreground after iOS suspend: catch up from last RAP still in leftover. */
 void mse_av_recover_display(MseAv *a, double clock);
 #endif
 
-/* JVM desktop blit hole in pixels. 0×0 = decode size. Downscale-only min-fit
- * (never upscale; dest is the fitted picture, not a letterboxed panel). */
-void mse_av_set_blit_size(MseAv *a, int w, int h);
-
-/* 1 = frame, 0 = none yet, -1 = error. *bgra is borrowed from MseAv (do not
- * free). Android MediaCodec / Apple VT layer return 1 with *bgra == NULL. */
-int mse_av_pull_video(MseAv *a, double clock, uint8_t **bgra, int *w, int *h, double *pts);
+/* 1 = a frame was presented (or dropped by the presenter), 0 = none yet, -1 = error. *w × *h is
+ * the decoded size. The presenter call runs on the calling thread, outside the video lock. */
+int mse_av_pull_video(MseAv *a, double clock, int *w, int *h, double *pts);
+/* Pictures shown, and pictures dropped for missing their time, since this MseAv was created. Any thread. */
+void mse_av_video_quality(MseAv *a, int *shown, int *dropped);
 /* 1 = pcm, 0 = none. *s16 is interleaved S16, borrowed until the next
  * pull_audio or destroy (do not free). Decodes up to `until`; audio more than
  * 50ms behind `clock` (the playhead) is skipped. */

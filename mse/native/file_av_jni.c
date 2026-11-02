@@ -4,7 +4,6 @@
 #endif
 
 #include <jni.h>
-#include <limits.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,13 +12,9 @@
 typedef struct {
     JavaVM *jvm;
     jobject sink;
-    jmethodID onFrame;
     jmethodID onProgress;
     jmethodID onEvent;
     jmethodID onCaption;
-    jobject direct;
-    const uint8_t *direct_ptr;
-    int direct_n;
 } JniSink;
 
 static JNIEnv *sink_env(JniSink *s)
@@ -32,49 +27,6 @@ static JNIEnv *sink_env(JniSink *s)
         return env;
     (*s->jvm)->AttachCurrentThread(s->jvm, (void **)&env, NULL);
     return env;
-}
-
-static jobject direct_for(JNIEnv *env, JniSink *s, const uint8_t *bgra, int n)
-{
-    jobject local;
-    if (s->direct && s->direct_ptr == bgra && s->direct_n >= n)
-        return s->direct;
-    if (s->direct) {
-        (*env)->DeleteGlobalRef(env, s->direct);
-        s->direct = NULL;
-    }
-    local = (*env)->NewDirectByteBuffer(env, (void *)bgra, (jlong)n);
-    if (!local)
-        return NULL;
-    s->direct = (*env)->NewGlobalRef(env, local);
-    (*env)->DeleteLocalRef(env, local);
-    s->direct_ptr = bgra;
-    s->direct_n = n;
-    return s->direct;
-}
-
-static void on_frame(void *user, int w, int h, const uint8_t *bgra)
-{
-    JniSink *s = user;
-    JNIEnv *env;
-    jobject buf;
-    int n;
-    if (!s || w <= 0 || h <= 0)
-        return;
-    env = sink_env(s);
-    if (!env)
-        return;
-    if (!bgra) {
-        (*env)->CallVoidMethod(env, s->sink, s->onFrame, w, h, NULL);
-        return;
-    }
-    if ((uint64_t)w * (uint64_t)h > (uint64_t)(INT_MAX / 4))
-        return;
-    n = w * h * 4;
-    buf = direct_for(env, s, bgra, n);
-    if (!buf)
-        return;
-    (*env)->CallVoidMethod(env, s->sink, s->onFrame, w, h, buf);
 }
 
 static void on_prog(void *user, double pos, double dur, int w, int h)
@@ -126,8 +78,6 @@ static void drop_sink(JNIEnv *env, JniSink *s)
 {
     if (!s)
         return;
-    if (s->direct)
-        (*env)->DeleteGlobalRef(env, s->direct);
     if (s->sink)
         (*env)->DeleteGlobalRef(env, s->sink);
     free(s);
@@ -150,7 +100,7 @@ Java_io_ymusic_mse_FileAvNative_destroy(JNIEnv *env, jclass cls, jlong handle)
     if (!p)
         return;
     s = (JniSink *)file_av_user(p);
-    file_av_set_sinks(p, NULL, NULL, NULL, NULL, NULL, NULL);
+    file_av_set_sinks(p, NULL, NULL, NULL, NULL, NULL);
     file_av_destroy(p);
     drop_sink(env, s);
 }
@@ -368,37 +318,19 @@ Java_io_ymusic_mse_FileAvNative_setVideoEnabled(JNIEnv *env, jclass cls, jlong h
 }
 
 JNIEXPORT void JNICALL
-Java_io_ymusic_mse_FileAvNative_setBlitMax(JNIEnv *env, jclass cls, jlong handle, jint maxHeight)
+Java_io_ymusic_mse_FileAvNative_bindPresenter(JNIEnv *env, jclass cls, jlong handle, jlong presenter)
 {
     (void)env;
     (void)cls;
-    file_av_set_blit_max((FileAv *)(intptr_t)handle, maxHeight);
+    file_av_bind_presenter((FileAv *)(intptr_t)handle, (struct VPresenter *)(intptr_t)presenter);
 }
 
-JNIEXPORT void JNICALL
-Java_io_ymusic_mse_FileAvNative_setBlitSize(JNIEnv *env, jclass cls, jlong handle, jint w, jint h)
+JNIEXPORT jint JNICALL
+Java_io_ymusic_mse_FileAvNative_frames(JNIEnv *env, jclass cls, jlong handle)
 {
     (void)env;
     (void)cls;
-    file_av_set_blit_size((FileAv *)(intptr_t)handle, w, h);
-}
-
-JNIEXPORT jboolean JNICALL
-Java_io_ymusic_mse_FileAvNative_setVideoComponent(JNIEnv *env, jclass cls, jlong handle, jobject component)
-{
-    (void)cls;
-#ifdef __APPLE__
-    void *layer = NULL;
-    if (component)
-        layer = mse_vt_attach_component(env, component);
-    file_av_set_video_layer((FileAv *)(intptr_t)handle, layer);
-    return layer ? JNI_TRUE : JNI_FALSE;
-#else
-    (void)env;
-    (void)handle;
-    (void)component;
-    return JNI_FALSE;
-#endif
+    return file_av_frames((FileAv *)(intptr_t)handle);
 }
 
 JNIEXPORT void JNICALL
@@ -436,91 +368,6 @@ Java_io_ymusic_mse_FileAvNative_toggleFullScreen(JNIEnv *env, jclass cls, jobjec
     (void)env;
     (void)primary;
 #endif
-}
-
-JNIEXPORT void JNICALL
-Java_io_ymusic_mse_FileAvNative_setOverlayHidden(JNIEnv *env, jclass cls, jboolean hid)
-{
-    (void)env;
-    (void)cls;
-#ifdef __APPLE__
-    mse_vt_set_overlay_hidden(hid ? 1 : 0);
-#else
-    (void)hid;
-#endif
-}
-
-JNIEXPORT void JNICALL
-Java_io_ymusic_mse_FileAvNative_layoutVideo(JNIEnv *env, jclass cls, jint x, jint y, jint w, jint h)
-{
-    (void)env;
-    (void)cls;
-#ifdef __APPLE__
-    mse_vt_layout_screen(x, y, w, h);
-#else
-    (void)x;
-    (void)y;
-    (void)w;
-    (void)h;
-#endif
-}
-
-JNIEXPORT jbyteArray JNICALL
-Java_io_ymusic_mse_FileAvNative_snapshotOverlay(JNIEnv *env, jclass cls, jintArray wh)
-{
-    int w = 0, h = 0, need;
-    jbyteArray arr;
-    jbyte *dst;
-    jint m[2];
-    (void)cls;
-#ifdef __APPLE__
-    need = mse_vt_copy_last(NULL, 0, &w, &h);
-    if (need <= 0)
-        return NULL;
-    arr = (*env)->NewByteArray(env, need);
-    if (!arr)
-        return NULL;
-    dst = (*env)->GetByteArrayElements(env, arr, NULL);
-    if (!dst) {
-        (*env)->DeleteLocalRef(env, arr);
-        return NULL;
-    }
-    if (mse_vt_copy_last((uint8_t *)dst, need, &w, &h) <= 0) {
-        (*env)->ReleaseByteArrayElements(env, arr, dst, JNI_ABORT);
-        (*env)->DeleteLocalRef(env, arr);
-        return NULL;
-    }
-    (*env)->ReleaseByteArrayElements(env, arr, dst, 0);
-    if (wh && (*env)->GetArrayLength(env, wh) >= 2) {
-        m[0] = w;
-        m[1] = h;
-        (*env)->SetIntArrayRegion(env, wh, 0, 2, m);
-    }
-    return arr;
-#else
-    (void)env;
-    (void)wh;
-    return NULL;
-#endif
-}
-
-/* memcpy BGRA into TYPE_INT_RGB. IntBuffer.get of 4K is several ms. */
-JNIEXPORT void JNICALL
-Java_io_ymusic_mse_FileAvNative_copyBgra(JNIEnv *env, jclass cls, jobject buf, jintArray rgb, jint n)
-{
-    void *src;
-    jint *dst;
-    (void)cls;
-    if (!buf || !rgb || n <= 0)
-        return;
-    src = (*env)->GetDirectBufferAddress(env, buf);
-    if (!src)
-        return;
-    dst = (*env)->GetPrimitiveArrayCritical(env, rgb, NULL);
-    if (!dst)
-        return;
-    memcpy(dst, src, (size_t)n * 4u);
-    (*env)->ReleasePrimitiveArrayCritical(env, rgb, dst, 0);
 }
 
 JNIEXPORT jdouble JNICALL
@@ -602,7 +449,7 @@ Java_io_ymusic_mse_FileAvNative_setSink(JNIEnv *env, jclass cls, jlong handle, j
     if (!p)
         return;
     s = (JniSink *)file_av_user(p);
-    file_av_set_sinks(p, NULL, NULL, NULL, NULL, NULL, NULL);
+    file_av_set_sinks(p, NULL, NULL, NULL, NULL, NULL);
     drop_sink(env, s);
     if (!sink)
         return;
@@ -612,7 +459,6 @@ Java_io_ymusic_mse_FileAvNative_setSink(JNIEnv *env, jclass cls, jlong handle, j
     (*env)->GetJavaVM(env, &s->jvm);
     s->sink = (*env)->NewGlobalRef(env, sink);
     sc = (*env)->GetObjectClass(env, sink);
-    s->onFrame = (*env)->GetMethodID(env, sc, "onFrame", "(IILjava/nio/ByteBuffer;)V");
     s->onProgress = (*env)->GetMethodID(env, sc, "onProgress", "(DDII)V");
     s->onEvent = (*env)->GetMethodID(env, sc, "onEvent", "(ZLjava/lang/String;)V");
     s->onCaption = (*env)->GetMethodID(env, sc, "onCaption", "(IDDLjava/lang/String;)V");
@@ -627,5 +473,5 @@ Java_io_ymusic_mse_FileAvNative_setSink(JNIEnv *env, jclass cls, jlong handle, j
         if ((*env)->ExceptionCheck(env))
             (*env)->ExceptionClear(env);
     }
-    file_av_set_sinks(p, on_frame, NULL, on_prog, on_event, on_caption, s);
+    file_av_set_sinks(p, NULL, on_prog, on_event, on_caption, s);
 }

@@ -32,6 +32,7 @@ Each module has a one-line summary here; deeper detail lives in the module's own
 - **`:desktopApp`** — the JVM desktop product shell (`./gradlew :desktopApp:run`): MSE YouTube + ffmpeg local engines, file-backed media store + scanner. → [`desktopApp/README.md`](desktopApp/README.md)
 - **`:androidApp`** — the Android product shell (plain AGP 9 application module) booting the shared `App` over ExoPlayer + MSE YouTube (WebView is login + cookie store). → [`androidApp/README.md`](androidApp/README.md)
 - **`iosApp`** *(not a Gradle module — the Xcode shell)* — the iOS product shell: SwiftUI `@main` hosting the same shared Compose `App` from the `:commonUi` framework, over AVFoundation local + MSE YouTube engines. → [`iosApp/README.md`](iosApp/README.md)
+- **`:log-store`** — the app log: one SQLite table (`logs.db`) every layer writes through `DbLogger`, read by the feedback export and by the lines an error event takes to Sentry. → [`log-store/README.md`](log-store/README.md)
 - **`:settings`** — typed key-value `SettingsStore` (StateFlow reads, per-key distinct), in-memory + JVM Properties-file impls, `AppSettings` descriptors (hl/gl/theme accent/uiLanguage — hl/gl is InnerTube content language/region, uiLanguage is the app chrome; kept independent). Android persistence = the shell's SharedPreferences-backed store (`androidApp/PrefsSettingsStore`).
 - **`:playground`** — Compose MP MSE YouTube lab (`YtMsePlayerScreen` + native blit hole) on JVM, iOS, and Android (`:playground-android`). → [`playground/README.md`](playground/README.md)
 
@@ -114,13 +115,19 @@ On the current working branch:
 1. Bump `ymusic.versionName` (`gradle.properties`) and versionCode +1 in `androidApp/build.gradle.kts`, `desktopApp/build.gradle.kts` (`desktopVersionCode`), `iosApp/iosApp/Info.plist`.
 2. In `CHANGELOG.md`, rename `## Unreleased` to the version.
 3. In `error-codes.txt`, flip shipped `-` rows to `D`.
-4. Tag the commit: `hotfix-v<version>` for a hotfix, `release-v<version>` for a release. The tag message is the update dialog's release notes, **per platform**: each platform's lines go under its `[android]` / `[macos]` header (repeat a line under both when it applies to both); a message without headers goes to every platform, and an unknown header fails the release job. Each platform's notes: at most 7 lines of ≤40 chars (the dialog cuts off the rest), no title (the dialog shows the version); when there is more, the last line says so and points to the full changelog:
+4. Tag the commit: `hotfix-v<version>` for a hotfix, `release-v<version>` for a release. The tag message is the update dialog's release notes, **per platform**: each platform's lines go under its `[android]` / `[macos]` / `[windows]` / `[linux]` header (repeat a line under each header it applies to); a message without headers goes to every platform, and an unknown header fails the release job. Each platform's notes: at most 7 lines of ≤40 chars (the dialog cuts off the rest), no title (the dialog shows the version); when there is more, the last line says so and points to the full changelog:
    ```
    git tag -a release-v4.0.6 -m "[android]
    Fix: crash on picture-in-picture
    Fix: downloads with long titles
    And more, see the full changelog
    [macos]
+   Fix: downloads with long titles
+   And more, see the full changelog
+   [windows]
+   Fix: downloads with long titles
+   And more, see the full changelog
+   [linux]
    Fix: downloads with long titles
    And more, see the full changelog"
    ```

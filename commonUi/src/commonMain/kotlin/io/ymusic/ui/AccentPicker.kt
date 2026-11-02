@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -38,12 +39,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.ymusic.ui.resources.Res
+import io.ymusic.ui.resources.play_again_track_of
 import io.ymusic.ui.resources.settings_accent_color
 import io.ymusic.ui.resources.sound_ok
 import io.ymusic.ui.resources.sound_reset
@@ -145,8 +148,10 @@ private fun AccentPresetRow(selectedHex: String, onPick: (Color) -> Unit) {
         horizontalArrangement = Arrangement.spacedBy(DesignSpacing.Space8),
         verticalArrangement = Arrangement.spacedBy(DesignSpacing.Space8),
     ) {
-        AccentPresets.forEach { preset ->
+        val name = stringResource(Res.string.settings_accent_color)
+        AccentPresets.forEachIndexed { i, preset ->
             val selected = accentHexOf(darkenedAccent(preset)) == selectedHex
+            val position = stringResource(Res.string.play_again_track_of, i + 1, AccentPresets.size)
             Box(
                 Modifier
                     .size(32.dp)
@@ -155,7 +160,8 @@ private fun AccentPresetRow(selectedHex: String, onPick: (Color) -> Unit) {
                     .padding(DesignSpacing.Space4)
                     .clip(CircleShape)
                     .background(darkenedAccent(preset))
-                    .clickable { onPick(preset) },
+                    .selectable(selected = selected, role = Role.RadioButton) { onPick(preset) }
+                    .a11yActionLabel("$name, $position"),
             )
         }
     }

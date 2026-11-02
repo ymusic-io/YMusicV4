@@ -59,6 +59,9 @@ import io.ymusic.dynamicengine.yt.YtLocaleOption
 import io.ymusic.mediastore.BetterMediaStore
 import io.ymusic.mediastore.model.Playlist
 import io.ymusic.ui.resources.Res
+import io.ymusic.ui.resources.a11y_downloaded
+import io.ymusic.ui.resources.a11y_kind_live
+import io.ymusic.ui.resources.a11y_kind_music_video
 import io.ymusic.ui.resources.cd_back
 import io.ymusic.ui.resources.cd_more
 import io.ymusic.ui.resources.download_location_not_set
@@ -233,12 +236,12 @@ private fun LoadedHeader(session: PlaylistDownloadSession, ready: Pager.State.Re
             FeedChip(pluralStringResource(Res.plurals.playlist_videos_loaded, videos.size, videos.size), selected = false, onClick = null)
             when {
                 ready?.loadingMore == true -> CircularProgressIndicator(Modifier.size(18.dp), color = DesignColors.Accent, strokeWidth = 2.dp)
-                ready?.continuation != null -> FeedChip(stringResource(Res.string.playlist_load_more), selected = true) { session.pager.loadMore() }
+                ready?.continuation != null -> FeedChip(stringResource(Res.string.playlist_load_more), selected = true, choice = false) { session.pager.loadMore() }
             }
             Box(Modifier.weight(1f))
             Box {
-                IconButton(onClick = { menuOpen = true }) {
-                    Icon(Icons.Default.MoreVert, stringResource(Res.string.cd_more), tint = DesignColors.InkSoft)
+                IconButton(onClick = { menuOpen = true }, modifier = Modifier.a11yActionLabel(stringResource(Res.string.cd_more))) {
+                    Icon(Icons.Default.MoreVert, null, tint = DesignColors.InkSoft)
                 }
                 DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }, containerColor = DesignColors.Surface) {
                     val pickable = videos.filter { !it.live }
@@ -362,11 +365,24 @@ private fun OptionsCard(
 
 @Composable
 private fun VideoCheckRow(video: YtFeedItem, position: Int?, checked: Boolean, downloaded: Boolean, onToggle: (Boolean) -> Unit) {
+    val title = if (position != null) "$position. ${video.title}" else video.title
+    val label = listOfNotNull(
+        title,
+        when {
+            video.live -> stringResource(Res.string.a11y_kind_live)
+            video.musicVideo -> stringResource(Res.string.a11y_kind_music_video)
+            else -> null
+        },
+        spokenLength(video.durationMs, video.duration),
+        video.subtitleLine1,
+        if (downloaded) stringResource(Res.string.a11y_downloaded) else null,
+    ).joinToString(", ")
     Row(
         Modifier
             .widthIn(max = CONTENT_MAX_WIDTH)
             .fillMaxWidth()
             .toggleable(value = checked, enabled = !video.live, role = Role.Checkbox, onValueChange = onToggle)
+            .a11yActionLabel(label)
             .padding(horizontal = DesignSpacing.Space8, vertical = DesignSpacing.Space4),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(DesignSpacing.Space8),
@@ -377,14 +393,17 @@ private fun VideoCheckRow(video: YtFeedItem, position: Int?, checked: Boolean, d
             enabled = !video.live,
             colors = CheckboxDefaults.colors(checkedColor = DesignColors.Accent),
         )
-        Box(Modifier.size(width = 96.dp, height = 54.dp).clip(RoundedCornerShape(6.dp)), contentAlignment = Alignment.Center) {
+        Box(
+            Modifier.size(width = 96.dp, height = 54.dp).clip(RoundedCornerShape(6.dp)).a11ySilent(),
+            contentAlignment = Alignment.Center,
+        ) {
             ThumbImage(video.thumbs, RoundedCornerShape(6.dp)) { ThumbPlaceholder(Icons.Outlined.Image, 20.dp) }
             Badges(video, Modifier.align(Alignment.BottomEnd).padding(DesignSpacing.Space2), textSize = 10, iconSize = 12.dp)
             if (downloaded) AvailableOfflineMark(Modifier.align(Alignment.TopStart))
         }
-        Column(Modifier.weight(1f)) {
+        Column(Modifier.weight(1f).a11ySilent()) {
             Text(
-                if (position != null) "$position. ${video.title}" else video.title,
+                title,
                 style = TextStyle(fontSize = 14.sp, color = if (video.live) DesignColors.InkFaint else DesignColors.Ink),
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,

@@ -76,6 +76,9 @@ interface Player {
     /** Insert right after the current item. */
     fun addToPlayNext(items: List<PlayableItem>)
 
+    /** Move the queued item at [index] to play next, after anything already queued to play next. */
+    fun moveToPlayNext(index: Int)
+
     fun move(from: Int, to: Int)
 
     /** Move the `[fromIndex, toIndex)` block so it starts at [newIndex] (post-removal indexing —

@@ -86,10 +86,11 @@ internal expect class NativeEngine {
     fun destroy()
 
     companion object {
-        /** A bare engine — natives + the frozen `versions` global (`{app: appVersion}`), no
-         *  script. [callbacks] route from the first instruction of the later [evalEngine], so
-         *  host-served commands registered before it are visible to the bundle's top-level code. */
-        fun create(appVersion: Int, callbacks: EngineCallbacks): NativeEngine
+        /** A bare engine — natives + the frozen `versions` global (`{app: appVersion}` plus the flat
+         *  JSON object [versionsJson]), no script. [callbacks] route from the first instruction of
+         *  the later [evalEngine], so host-served commands registered before it are visible to the
+         *  bundle's top-level code. */
+        fun create(appVersion: Int, versionsJson: String?, callbacks: EngineCallbacks): NativeEngine
 
         /** Compile [script] to serialized bytecode with per-function source text stripped
          *  (`Function.prototype.toString` yields a placeholder; line-number debug info is kept). */

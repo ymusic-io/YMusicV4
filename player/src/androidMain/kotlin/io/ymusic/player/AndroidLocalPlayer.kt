@@ -15,11 +15,13 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
+import androidx.media3.common.Timeline
 import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
 import androidx.media3.common.text.CueGroup
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DefaultRenderersFactory
+import androidx.media3.exoplayer.ExoPlaybackException
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.DefaultAudioSink
@@ -109,6 +111,9 @@ internal class AndroidLocalPlayer(
     private val surfaceView: SurfaceView? = rootView?.let { SurfaceView(it.context) }
     private val subtitleView: SubtitleView? = rootView?.let { SubtitleView(it.context) }
 
+    /** The preloaded next item that failed to open, and its error, published when that item is loaded. */
+    private var preloadError: Pair<MediaItem, PlayerError>? = null
+
     // Audio-track id → its (group, index) for TrackSelectionOverride, refreshed on onTracksChanged.
     private val audioGroups = mutableMapOf<String, Pair<Tracks.Group, Int>>()
 
@@ -143,7 +148,17 @@ internal class AndroidLocalPlayer(
                 } else if (error.isAccessDenied()) {
                     PlayerError(PlayerError.FOLDER_ACCESS_LOST, detail, canRetry = false, cause = error)
                 } else {
-                    PlayerError("E60010", detail, cause = error)
+                    PlayerError(error.localErrorCode(), detail, cause = error)
+                }
+                // ExoPlayer raises the preloaded next item's open failure only once the current one has
+                // played to its end: that track ended, and the error waits for the next item's load.
+                val failedPreload = failedItem(error)?.takeIf { it == PRELOAD_INDEX }?.let(player::getMediaItemAt)
+                if (failedPreload != null) {
+                    preloadError = failedPreload to playerError
+                    _status.update {
+                        it.copy(state = PlaybackState.Prepared(playWhenReady = false, buffering = false, ended = true))
+                    }
+                    return
                 }
                 _status.update { it.copy(state = PlaybackState.Error(playerError)) }
             }
@@ -229,6 +244,12 @@ internal class AndroidLocalPlayer(
     override fun load(source: PlayableItem.LocalMedia, startPositionMs: Long, playWhenReady: Boolean, config: PlaybackConfig) {
         if (released) return
         val uri = source.uri
+        val failedPreload = preloadError
+        preloadError = null
+        if (failedPreload != null && sameUri(failedPreload.first, MediaItem.fromUri(uri.toPlayableUri()))) {
+            _status.update { it.copy(state = PlaybackState.Error(failedPreload.second)) }
+            return
+        }
         // Apply config before prepare so the first frame is already at the right settings.
         appliedConfig = config
         audioOnly = config.audioOnly
@@ -313,8 +334,18 @@ internal class AndroidLocalPlayer(
         _progress.update { it.copy(positionMs = clamped) }
     }
 
+    /** The playlist index of the item [error] came from, when ExoPlayer names its media period. */
+    private fun failedItem(error: PlaybackException): Int? {
+        val periodUid = (error as? ExoPlaybackException)?.mediaPeriodId?.periodUid ?: return null
+        val timeline = player.currentTimeline
+        val periodIndex = timeline.getIndexOfPeriod(periodUid)
+        if (periodIndex == C.INDEX_UNSET) return null
+        return timeline.getPeriod(periodIndex, Timeline.Period()).windowIndex
+    }
+
     override fun stop() {
         if (released) return
+        preloadError = null
         player.stop()
         player.clearMediaItems()
         _progress.value = Progress()
@@ -472,7 +503,7 @@ internal class AndroidLocalPlayer(
         }
         _status.update {
             it.copy(
-                state = if (it.state is PlaybackState.Error) it.state else mapped,
+                state = if (it.state is PlaybackState.Error || preloadError != null) it.state else mapped,
             )
         }
         _progress.update { it.copy(durationMs = durationOrUnknown()) }
@@ -528,6 +559,9 @@ internal class AndroidLocalPlayer(
 private fun String.toPlayableUri(): Uri =
     if (contains("://")) Uri.parse(this) else Uri.fromFile(java.io.File(this))
 
+/** The playlist slot [AndroidLocalPlayer.preload] fills with the next item. */
+private const val PRELOAD_INDEX = 1
+
 private fun sameUri(a: MediaItem, b: MediaItem): Boolean =
     a.localConfiguration?.uri == b.localConfiguration?.uri
 
@@ -542,3 +576,12 @@ private fun PlaybackException.isFileMissing(): Boolean =
         generateSequence<Throwable>(this) { it.cause }.any {
             it is FileNotFoundException || (it is IllegalArgumentException && it.message?.contains("FileNotFoundException") == true)
         }
+
+/** ExoPlayer's error code ranges: 3xxx parsing, 4xxx decoding, 5xxx audio output. */
+private fun PlaybackException.localErrorCode(): String = when (errorCode) {
+    in 4000..4999 -> "E60011"
+    in 3000..3999 -> "E60012"
+    in 5000..5999 -> "E60013"
+    PlaybackException.ERROR_CODE_TIMEOUT -> "E60014"
+    else -> "E60010"
+}

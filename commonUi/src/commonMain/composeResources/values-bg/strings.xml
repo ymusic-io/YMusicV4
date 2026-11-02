@@ -23,6 +23,10 @@
     <string name="downloads_none_title">Все още няма изтегляния</string>
     <string name="downloads_none_message">Изтеглените песни и видеоклипове се пускат офлайн.</string>
     <string name="downloads_failed">Изтеглянето не бе успешно</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Покажи във Finder</string>
+    <string name="menu_reveal_explorer">Покажи във Файлов мениджър</string>
+    <string name="menu_reveal_file_manager">Покажи във файловия мениджър</string>
     <string name="section_settings">Настройки</string>
     <string name="section_donate">Дарение</string>
     <string name="section_feedback">Обратна връзка</string>
@@ -121,8 +125,33 @@
     <string name="yt_playlist_removed_video">„%1$s“ е премахнат от плейлиста</string>
     <string name="cd_add_to_playlist">Добави в плейлист</string>
     <string name="cd_share">Сподели</string>
-    <string name="cd_music_video">Музика</string>
-    <string name="cd_album">Албум</string>
+    <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
+    <string name="a11y_kind_video">Видеоклип</string>
+    <string name="a11y_kind_music_video">Музикален видеоклип</string>
+    <string name="a11y_kind_live">Излъчване на живо</string>
+    <string name="a11y_kind_playlist">Плейлист</string>
+    <string name="a11y_kind_album">Албум</string>
+    <string name="a11y_kind_mix">Микс</string>
+    <string name="a11y_kind_channel">Канал</string>
+    <!-- A video's length as a screen reader speaks it, joined with spaces: "1 hour 5 minutes 3 seconds" -->
+    <plurals name="a11y_duration_hours">
+        <item quantity="one">%1$d час</item>
+        <item quantity="other">%1$d часа</item>
+    </plurals>
+    <plurals name="a11y_duration_minutes">
+        <item quantity="one">%1$d минута</item>
+        <item quantity="other">%1$d минути</item>
+    </plurals>
+    <plurals name="a11y_duration_seconds">
+        <item quantity="one">%1$d секунда</item>
+        <item quantity="other">%1$d секунди</item>
+    </plurals>
+    <string name="a11y_now_playing">Сега звучи</string>
+    <string name="a11y_playback_position">Позиция на възпроизвеждане</string>
+    <string name="a11y_x_of_y">%1$s от %2$s</string>
+    <string name="a11y_behind_live">%1$s зад предаването на живо</string>
+    <string name="a11y_downloaded">Изтеглено</string>
+    <string name="a11y_eq_preamp">Предусилвател</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Папки</string>
@@ -363,7 +392,6 @@
     <string name="account_sign_out">Изход</string>
     <string name="account_switch">Смяна на профила</string>
     <string name="switch_account_hint">Изберете желания профил, после затворете този екран със стрелката назад — приложението ще се опресни с новия профил.</string>
-    <string name="cd_account_avatar">Снимка на профила</string>
     <string name="account_my_channel">Моят канал</string>
     <string name="account_watch_history">История на гледане</string>
     <string name="account_watch_later">Гледай по-късно</string>
@@ -551,6 +579,24 @@
     <string name="video_details_delete_title">Изтриване на коментара</string>
     <string name="video_details_delete_message">Да се изтрият ли окончателно коментарът ви и всички отговори към него?</string>
     <string name="video_details_deleted">Коментарът е изтрит</string>
+    <string name="cookie_protect_title">Да защитите данните за вход с парола?</string>
+    <string name="cookie_protect_body">Данните ви за вход са запазени на този компютър, където други приложения, които стартирате, могат да ги прочетат. Задайте парола, за да ги заключите; YMusic ще я иска при всяко стартиране.</string>
+    <string name="cookie_password">Парола</string>
+    <string name="cookie_protect_confirm">Потвърдете паролата</string>
+    <string name="cookie_protect_mismatch">Паролите не съвпадат.</string>
+    <string name="cookie_protect_submit">Защити</string>
+    <string name="cookie_protect_skip">Не сега</string>
+    <string name="cookie_unlock_title">Отключете данните за вход</string>
+    <string name="cookie_unlock_body">Данните ви за вход в YouTube са защитени с парола.</string>
+    <string name="cookie_unlock_submit">Отключи</string>
+    <string name="cookie_unlock_wrong">Грешна парола.</string>
+    <string name="cookie_unlock_cant_unlock">Не можете да отключите?</string>
+    <string name="cookie_unlock_guest">Продължи като гост</string>
+    <string name="cookie_unlock_guest_hint">Стартира без вход. Нищо не се запазва.</string>
+    <string name="cookie_unlock_sign_out">Изход</string>
+    <string name="cookie_unlock_sign_out_hint">Премахва тези запазени данни за вход.</string>
+    <string name="cookie_unlock_sign_out_title">Да излезете ли от профила?</string>
+    <string name="cookie_unlock_sign_out_body">Това премахва запазените данни за вход от този компютър. За да влезете отново, сканирайте QR кода с приложението YMusic.</string>
     <string name="menu_details_comments">Подробности и коментари</string>
     <string name="menu_search_lyrics">Търсене на текста</string>
     <string name="menu_speed_pitch">Скорост и тон</string>
@@ -570,4 +616,22 @@
     <string name="download_other_format">Изтегляне в друг формат</string>
     <string name="unsubscribe">Отписване</string>
     <string name="unsubscribed">Абонаментът е прекратен</string>
+    <string name="tray_pause">Пауза</string>
+    <string name="tray_resume">Продължаване</string>
+    <string name="tray_stop">Стоп (изчистване на опашката)</string>
+    <string name="tray_quit">Затваряне</string>
+    <string name="shortcuts_title">Клавишни комбинации</string>
+    <string name="shortcuts_play_pause">Пускане / пауза</string>
+    <string name="shortcuts_now_playing">Показване или скриване на „Сега се изпълнява“</string>
+    <string name="shortcuts_nav_menu">Отваряне или затваряне на менюто</string>
+    <string name="shortcuts_switch_tabs">Превключване между разделите</string>
+    <string name="shortcuts_escape">Изход от цял екран или затваряне на „Сега се изпълнява“, менюто или изскачащ прозорец</string>
+    <string name="shortcuts_help">Показване на тази помощ</string>
+    <string name="shortcuts_volume_up">Увеличаване на звука</string>
+    <string name="shortcuts_volume_down">Намаляване на звука</string>
+    <string name="a11y_key_arrow_left">стрелка наляво</string>
+    <string name="a11y_key_arrow_right">стрелка надясно</string>
+    <string name="a11y_key_arrow_up">стрелка нагоре</string>
+    <string name="a11y_key_arrow_down">стрелка надолу</string>
+    <string name="cd_always_on_top">Винаги отгоре</string>
 </resources>

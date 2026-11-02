@@ -20,6 +20,17 @@ foreach(_n libavformat.so libavformat.dylib avformat.dll libavformat.dll)
     endif()
   endforeach()
 endforeach()
+# ffmpeg on Windows ships the shared libs with a version-in-name: `avformat-63.dll` (no `lib`
+# prefix), not `avformat.dll`. Match the pattern instead of a fixed set of names.
+if(NOT _avformat_shared)
+  foreach(_d ${FFMPEG_ROOT}/bin ${FFMPEG_ROOT}/lib ${FFMPEG_ROOT})
+    file(GLOB _av_dlls "${_d}/avformat-*.dll" "${_d}/libavformat-*.dll")
+    if(_av_dlls)
+      list(GET _av_dlls 0 _avformat_shared)
+      break()
+    endif()
+  endforeach()
+endif()
 if(NOT _avformat_shared)
   message(FATAL_ERROR
     "FFMPEG_ROOT=${FFMPEG_ROOT} has no shared libavformat (.so/.dylib/.dll). "
@@ -31,8 +42,21 @@ if(NOT DEFINED PRODUCTION)
   set(PRODUCTION 0)
 endif()
 
-set(MSE_SOURCES mse_ffmpeg.c mse_host.c mse_vt.c mse_host_jni.c file_av.c file_av_jni.c audio_fx.c audio_fx_jni.c)
+set(MSE_SOURCES mse_ffmpeg.c mse_host.c mse_caps.c mse_vt.c mse_host_jni.c audio_fx.c audio_fx_jni.c
+  vpresent.c vpresent_cpu.c vpipe.c)
 add_library(mseffmpegjni SHARED ${MSE_SOURCES})
+# MinGW on Windows adds a `lib` prefix to shared libs; the JVM loader expects mseffmpegjni.dll
+# (System.mapLibraryName on Windows has no prefix). Drop it so MinGW matches MSVC and the loader.
+if(WIN32)
+  set_target_properties(mseffmpegjni PROPERTIES PREFIX "")
+  # Statically link the MinGW runtime so mseffmpegjni.dll has no outside deps on the user's
+  # machine. Without this it loads libgcc_s_seh-1.dll / libwinpthread-1.dll (which only exist
+  # if MinGW-w64 is installed) and startup fails with "Can't find dependent libraries".
+  target_link_options(mseffmpegjni PRIVATE
+    -static-libgcc
+    -Wl,-Bstatic,--whole-archive -lwinpthread -Wl,--no-whole-archive,-Bdynamic
+  )
+endif()
 target_compile_definitions(mseffmpegjni PRIVATE PRODUCTION=${PRODUCTION})
 target_include_directories(mseffmpegjni PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/../../quickjs/native
@@ -61,6 +85,10 @@ if(ANDROID)
   return()
 endif()
 
+# Local-file playback (FileAvNative) and the Canvas presenters (VideoPresenterNative) exist only in
+# the desktop JVM app.
+target_sources(mseffmpegjni PRIVATE file_av.c file_av_jni.c vpresent_jni.c)
+
 if(APPLE)
     enable_language(OBJC)
 endif()
@@ -78,13 +106,24 @@ elseif(UNIX)
     "-Wl,-rpath,${FFMPEG_ROOT}/lib")
   # libpulse-simple is dlopen'd by aq_pulse.c; only its headers are needed here.
   find_path(PULSE_INCLUDE_DIR pulse/simple.h REQUIRED)
-  target_sources(mseffmpegjni PRIVATE aq_pulse.c mse_hwdev.c)
+  target_sources(mseffmpegjni PRIVATE aq_pulse.c mse_hwdev.c vpipe_hw_linux.c)
   target_include_directories(mseffmpegjni PRIVATE ${PULSE_INCLUDE_DIR})
   target_link_libraries(mseffmpegjni PRIVATE dl m pthread)
 endif()
 
+if(WIN32)
+  target_sources(mseffmpegjni PRIVATE
+    mse_d3d11.c mse_d3d11_dec.c vpresent_d3d11.c vpipe_hw_d3d11.c
+    aq_winmm.c)
+  # d3dcompiler.lib runtime-compiles the NV12 shader; dxguid.lib provides IID_* GUID symbols.
+  # winmm.lib is waveOut* for aq_winmm (file_av AudioQueue shim on Windows).
+  target_link_libraries(mseffmpegjni PRIVATE d3d11 dxgi d3dcompiler dxguid winmm)
+  target_compile_definitions(mseffmpegjni PRIVATE MSE_WIN_HW=1)
+endif()
+
 if(APPLE)
-  target_sources(mseffmpegjni PRIVATE mse_vt_present.m mse_vt_layer.m mse_vt_dec.m mse_vt_blit.c)
+  target_sources(mseffmpegjni PRIVATE
+    mse_vt_present.m mse_vt_layer.m mse_vt_dec.m mse_vt_blit.c vpresent_vt.c vpipe_hw_vt.c)
   set_source_files_properties(mse_vt_present.m mse_vt_layer.m mse_vt_dec.m PROPERTIES COMPILE_FLAGS "-fobjc-arc")
   # JAWT is dlopen'd at runtime (System.loadLibrary("jawt")). Do not link libjawt:
   # its install name is @rpath/libjawt.dylib and the JVM, not this DSO, owns that rpath.

@@ -175,7 +175,7 @@ static void set_err(JSContext *ctx, char **err, const char *fallback) {
     JS_FreeValue(ctx, exc);
 }
 
-static QjsEngine *engine_new(int app_version, QjsInboundCb cb, void *user) {
+static QjsEngine *engine_new(int app_version, const char *versions_json, QjsInboundCb cb, void *user) {
     QjsEngine *e = (QjsEngine *)calloc(1, sizeof(QjsEngine));
     e->rt = JS_NewRuntime();
     e->ctx = JS_NewContext(e->rt);
@@ -197,7 +197,7 @@ static QjsEngine *engine_new(int app_version, QjsInboundCb cb, void *user) {
     qjs_register_json(e->ctx);
     e->pipe = qjs_register_pipe(e->ctx, drain_hook, e);
     qjs_mse_install(e->ctx);
-    qjs_install_versions(e->ctx, app_version);
+    qjs_install_versions(e->ctx, app_version, versions_json);
     JS_SetHostPromiseRejectionTracker(e->rt, promise_rejection_tracker, e);
     return e;
 }
@@ -211,8 +211,8 @@ static void engine_capture(QjsEngine *e) {
     JS_FreeValue(e->ctx, g);
 }
 
-QjsEngine *qjs_create(int app_version, QjsInboundCb cb, void *user) {
-    return engine_new(app_version, cb, user);
+QjsEngine *qjs_create(int app_version, const char *versions_json, QjsInboundCb cb, void *user) {
+    return engine_new(app_version, versions_json, cb, user);
 }
 
 int qjs_eval_engine(QjsEngine *e, const char *script, char **err) {

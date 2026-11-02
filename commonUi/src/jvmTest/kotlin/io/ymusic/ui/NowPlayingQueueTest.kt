@@ -6,7 +6,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.ExperimentalTestApi
-import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.runComposeUiTest
@@ -43,8 +44,9 @@ class NowPlayingQueueTest {
                 }
                 waitForIdle()
 
-                onAllNodes(hasContentDescription("Drag to reorder"), useUnmergedTree = true).onFirst().performTouchInput {
-                    down(center)
+                // The handle is the row's unlabelled leading icon: 16dp row padding, then 18dp of glyph.
+                onAllNodes(hasText("song0.mp3", substring = true) and hasClickAction()).onFirst().performTouchInput {
+                    down(centerLeft + Offset(25.dp.toPx(), 0f))
                     repeat(8) { moveBy(Offset(0f, 30f)) }
                     up()
                 }

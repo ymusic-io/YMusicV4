@@ -28,6 +28,8 @@ kotlin {
         commonMain.dependencies {
             api(project(":kmpCommon"))
             implementation(project(":projectCommon"))
+            implementation(project(":log-store")) // installErrorLogs reads the one app log
+            implementation(project(":remote-config")) // errorLogLines, once the config has loaded
             api(Libs.Sentry.kmp)
             implementation(Libs.Kotlinx.coroutinesCore) // bindCrashReporting collects the consent flow
         }

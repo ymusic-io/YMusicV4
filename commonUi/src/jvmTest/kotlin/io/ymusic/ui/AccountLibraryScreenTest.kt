@@ -6,7 +6,6 @@ import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
-import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
@@ -159,7 +158,7 @@ class AccountLibraryScreenTest {
         try {
             runComposeUiTest {
                 setContent { App(AppGraph(engines = engines, player = StubPlayer(), playerSurface = {})) }
-                onNodeWithContentDescription("Library").performClick()
+                onNodeWithActionLabel("Library").performClick()
                 waitUntilAtLeastOneExists(hasText("Sign in with YouTube"), 20_000)
                 onAllNodesWithText("Watch history").assertCountEquals(0)
             }
@@ -180,7 +179,7 @@ class AccountLibraryScreenTest {
         try {
             runComposeUiTest {
                 setContent { App(AppGraph(engines = engines, player = StubPlayer(), playerSurface = {})) }
-                onNodeWithContentDescription("Library").performClick()
+                onNodeWithActionLabel("Library").performClick()
 
                 // The account card (from account_menu) over the cookie gate.
                 waitUntilAtLeastOneExists(hasText("Mock Account"), 20_000)
@@ -196,8 +195,8 @@ class AccountLibraryScreenTest {
                 waitUntilAtLeastOneExists(hasText("Playlists"), 20_000)
                 assertTrue(onAllNodesWithText("View all").fetchSemanticsNodes().isNotEmpty())
                 onAllNodes(hasScrollAction()).onFirst()
-                    .performScrollToNode(hasText("Private · Playlist"))
-                waitUntilAtLeastOneExists(hasText("Private · Playlist"), 20_000)
+                    .performScrollToNode(hasText("Private · Playlist", substring = true))
+                waitUntilAtLeastOneExists(hasText("Private · Playlist", substring = true), 20_000)
 
                 // The Watch history nav row opens the GENERIC feed page — the FEhistory browse
                 // fires and no channel chrome (Subscribe) appears.

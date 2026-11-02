@@ -15,7 +15,6 @@ interface YtEngine :
     CaptionRenderable,
     AudioTrackSelectable {
     val watchNextSeen: SharedFlow<WatchNextSeen>
-    fun refreshOnNext()
     suspend fun requestPlayerResponse(videoId: String): String
     suspend fun requestPoToken(videoId: String): String
 }

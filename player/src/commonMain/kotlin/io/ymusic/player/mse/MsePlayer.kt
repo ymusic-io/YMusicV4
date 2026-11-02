@@ -166,7 +166,6 @@ class MsePlayer internal constructor(
     private var hasPendingVideoSurface = false
     private var viewportW: Int = 640
     private var viewportH: Int = 360
-    private var freshConfigNext = false
 
     /** A newer published player.js, downloaded and verified, waiting for the next session to boot it. */
     private val pendingPlayerJs = MutableStateFlow<VerifiedBundle?>(null)
@@ -178,15 +177,10 @@ class MsePlayer internal constructor(
         playerJs.published.conflate().collect { remote -> if (remote != null) download(remote) }
     }
 
-    /** The next session takes its player config from a new homepage scrape ([PlayerImpl] resets). */
-    override fun refreshOnNext() {
-        freshConfigNext = true
-    }
-
     override fun init() {
         requireMainThread()
         if (released || session != null) return
-        startSession("init")
+        startSession("init", freshConfig = false)
     }
 
     override fun reset() = reset("unspecified")
@@ -195,7 +189,7 @@ class MsePlayer internal constructor(
         requireMainThread()
         if (released) return
         tearDownSession("reset: $reason")
-        startSession("reset: $reason")
+        startSession("reset: $reason", freshConfig = true)
     }
 
     override fun load(
@@ -363,16 +357,15 @@ class MsePlayer internal constructor(
         session?.player?.setVideoSurface(surface)
     }
 
-    /** Display hole in CSS pixels. YouTube Auto ABR uses this. Never report a hole shorter than 360. */
+    /**
+     * Display hole in CSS pixels; YouTube Auto ABR uses it × devicePixelRatio. No floor here: base.js
+     * raises the viewport it sends to at least 640x360 real pixels itself.
+     */
     fun setViewport(width: Int, height: Int) {
         requireMainThread()
         if (released) return
-        var holeWidth = width.coerceAtLeast(1)
-        var holeHeight = height.coerceAtLeast(1)
-        if (holeHeight < 360) {
-            holeWidth = (holeWidth * 360.0 / holeHeight).toInt().coerceAtLeast(1)
-            holeHeight = 360
-        }
+        val holeWidth = width.coerceAtLeast(1)
+        val holeHeight = height.coerceAtLeast(1)
         if (holeWidth == viewportW && holeHeight == viewportH) return
         viewportW = holeWidth
         viewportH = holeHeight
@@ -435,9 +428,10 @@ class MsePlayer internal constructor(
         null
     }
 
-    private fun startSession(reason: String) {
+    /** [freshConfig] re-scrapes the homepage: a reset session's held params may be the ones the server rejected. */
+    private fun startSession(reason: String, freshConfig: Boolean) {
         check(session == null) { "mse session already running" }
-        log?.log(Logger.Level.INFO, "mse session start ($reason) freshConfig=$freshConfigNext")
+        log?.log(Logger.Level.INFO, "mse session start ($reason) freshConfig=$freshConfig")
         _status.update { it.copy(state = PlaybackState.Uninitialized(isInitializing = true)) }
         val newSession = Session(SupervisorJob(mainScope.coroutineContext[Job]))
         session = newSession
@@ -466,8 +460,6 @@ class MsePlayer internal constructor(
                 }
                 newSession.player = enginePlayer
                 if (hasPendingVideoSurface) enginePlayer.setVideoSurface(pendingVideoSurface)
-                val freshConfig = freshConfigNext
-                freshConfigNext = false
                 withTimeoutOrNull(INIT_TIMEOUT_MS) { enginePlayer.init(log, viewportW, viewportH, freshConfig) }
                     ?: throw TechnicalException("E60066", "mse player/init not done within $INIT_TIMEOUT_MS ms")
                 listen(newSession, enginePlayer)
@@ -580,9 +572,7 @@ class MsePlayer internal constructor(
             state = awaitSettled()
         }
         val enginePlayer = session?.player
-        // An error the last playback left behind (no reset needed) doesn't stop a request for another video.
-        val usable = state.readyToLoad || (state is PlaybackState.Error && !state.error.needReset)
-        if (!usable || enginePlayer == null) {
+        if (!state.readyToLoad || enginePlayer == null) {
             throw TechnicalException(
                 "E60034",
                 "mse engine not ready: $state",

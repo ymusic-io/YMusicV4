@@ -88,9 +88,11 @@ static int vt_create_session(struct MseVtDec *d)
     spec = CFDictionaryCreateMutable(kCFAllocatorDefault, 1,
                                      &kCFTypeDictionaryKeyCallBacks,
                                      &kCFTypeDictionaryValueCallBacks);
-    /* Enable HW; do not Require it. Simulator / Intel use Apple software VT. */
-    CFDictionarySetValue(spec, kVTVideoDecoderSpecification_EnableHardwareAcceleratedVideoDecoder,
-                         kCFBooleanTrue);
+    /* Enable HW; do not Require it. Simulator / Intel use Apple software VT. iOS before 17 has no
+       such key and decodes in hardware where it can. */
+    if (__builtin_available(macOS 10.9, iOS 17.0, *))
+        CFDictionarySetValue(spec, kVTVideoDecoderSpecification_EnableHardwareAcceleratedVideoDecoder,
+                             kCFBooleanTrue);
     dst = vt_dst_attrs(d->w, d->h);
     cb.decompressionOutputCallback = vt_dec_cb;
     cb.decompressionOutputRefCon = d;
@@ -180,29 +182,47 @@ void *mse_vt_dec_open(const uint8_t *avcc, int avcc_n, int w, int h)
     return d;
 }
 
-void *mse_vt_dec_open_vp9(const uint8_t *vpcc, int vpcc_n, int w, int h)
+/* FullBox vpcC, version 1: profile, depth, chroma and range from the keyframe; BT.709 colour. */
+static void vp9_vpcc_synth(uint8_t out[12], int profile, const uint8_t *frame, int n)
+{
+    MseVp9Header h;
+    memset(out, 0, 12);
+    if (!frame || n <= 0 || mse_vp9_header(frame, (size_t)n, &h) != 0) {
+        memset(&h, 0, sizeof(h));
+        h.profile = profile >= 0 && profile <= 3 ? profile : 0;
+    }
+    if (!h.key) {
+        h.bit_depth = h.profile >= 2 ? 10 : 8;
+        h.ss_x = h.ss_y = !(h.profile & 1);
+    }
+    out[0] = 1;
+    out[4] = (uint8_t)h.profile;
+    /* chromaSubsampling: 1 = 4:2:0 co-sited, 2 = 4:2:2, 3 = 4:4:4. */
+    out[6] = (uint8_t)((h.bit_depth << 4) | ((h.ss_x ? (h.ss_y ? 1 : 2) : 3) << 1) | h.full_range);
+    out[7] = 1;
+    out[8] = 1;
+    out[9] = 1;
+}
+
+void *mse_vt_dec_open_vp9(const uint8_t *extradata, int extradata_n, int profile,
+                          const uint8_t *frame, int frame_n, int w, int h)
 {
     struct MseVtDec *d;
     CFMutableDictionaryRef atoms = NULL, ext = NULL;
     CFDataRef data = NULL;
+    const uint8_t *vpcc = extradata;
+    int vpcc_n = extradata_n;
     uint8_t syn[12];
     OSStatus st;
     if (w <= 0 || h <= 0)
         return NULL;
-    if (!vpcc || vpcc_n < 8) {
-        /* FullBox vpcC: version=1, profile 0, 8-bit 4:2:0 BT.709. */
-        memset(syn, 0, sizeof(syn));
-        syn[0] = 1;
-        syn[4] = 0;
-        syn[5] = 0;
-        syn[6] = (8 << 4) | (1 << 1);
-        syn[7] = 1;
-        syn[8] = 1;
-        syn[9] = 1;
+    if (!vpcc || vpcc_n < 12 || vpcc[0] != 1) {
+        vp9_vpcc_synth(syn, profile, frame, frame_n);
         vpcc = syn;
         vpcc_n = 12;
     }
-    if (__builtin_available(macOS 11.0, iOS 14.0, *)) {
+    /* Without the supplemental decoder (iOS before 26.2) the session may not open: VP9 goes software. */
+    if (__builtin_available(macOS 11.0, iOS 26.2, *)) {
         VTRegisterSupplementalVideoDecoderIfAvailable(kCMVideoCodecType_VP9);
         mse_critf(MSE_LOG_INFO, "mse-v vt-dec vp9 hw=%d",
                  (int)VTIsHardwareDecodeSupported(kCMVideoCodecType_VP9));

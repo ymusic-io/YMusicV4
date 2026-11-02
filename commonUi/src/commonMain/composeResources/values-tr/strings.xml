@@ -23,6 +23,10 @@
     <string name="downloads_none_title">Henüz indirme yok</string>
     <string name="downloads_none_message">İndirilen şarkılar ve videolar çevrimdışı çalar.</string>
     <string name="downloads_failed">İndirme başarısız</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Finder'da göster</string>
+    <string name="menu_reveal_explorer">Dosya Gezgini'nde göster</string>
+    <string name="menu_reveal_file_manager">Dosya yöneticisinde göster</string>
     <string name="section_settings">Ayarlar</string>
     <string name="section_donate">Bağış yap</string>
     <string name="section_feedback">Geri bildirim</string>
@@ -121,8 +125,33 @@
     <string name="yt_playlist_removed_video">%1$s oynatma listesinden kaldırıldı</string>
     <string name="cd_add_to_playlist">Oynatma listesine ekle</string>
     <string name="cd_share">Paylaş</string>
-    <string name="cd_music_video">Müzik</string>
-    <string name="cd_album">Albüm</string>
+    <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
+    <string name="a11y_kind_video">Video</string>
+    <string name="a11y_kind_music_video">Müzik videosu</string>
+    <string name="a11y_kind_live">Canlı yayın</string>
+    <string name="a11y_kind_playlist">Oynatma listesi</string>
+    <string name="a11y_kind_album">Albüm</string>
+    <string name="a11y_kind_mix">Mix</string>
+    <string name="a11y_kind_channel">Kanal</string>
+    <!-- A video's length as a screen reader speaks it, joined with spaces: "1 hour 5 minutes 3 seconds" -->
+    <plurals name="a11y_duration_hours">
+        <item quantity="one">%1$d saat</item>
+        <item quantity="other">%1$d saat</item>
+    </plurals>
+    <plurals name="a11y_duration_minutes">
+        <item quantity="one">%1$d dakika</item>
+        <item quantity="other">%1$d dakika</item>
+    </plurals>
+    <plurals name="a11y_duration_seconds">
+        <item quantity="one">%1$d saniye</item>
+        <item quantity="other">%1$d saniye</item>
+    </plurals>
+    <string name="a11y_now_playing">Şimdi çalıyor</string>
+    <string name="a11y_playback_position">Oynatma konumu</string>
+    <string name="a11y_x_of_y">%1$s, toplam %2$s</string>
+    <string name="a11y_behind_live">Canlı yayının %1$s gerisinde</string>
+    <string name="a11y_downloaded">İndirildi</string>
+    <string name="a11y_eq_preamp">Ön yükseltici</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Klasörler</string>
@@ -363,7 +392,6 @@
     <string name="account_sign_out">Çıkış yap</string>
     <string name="account_switch">Hesap değiştir</string>
     <string name="switch_account_hint">İstediğiniz hesabı seçin, ardından bu ekranı geri okuyla kapatın — uygulama yeni hesapla yenilenir.</string>
-    <string name="cd_account_avatar">Hesap resmi</string>
     <string name="account_my_channel">Kanalım</string>
     <string name="account_watch_history">İzleme geçmişi</string>
     <string name="account_watch_later">Daha sonra izle</string>
@@ -551,6 +579,24 @@
     <string name="video_details_delete_title">Yorumu sil</string>
     <string name="video_details_delete_message">Yorumunuz ve tüm yanıtları kalıcı olarak silinsin mi?</string>
     <string name="video_details_deleted">Yorum silindi</string>
+    <string name="cookie_protect_title">Girişiniz şifreyle korunsun mu?</string>
+    <string name="cookie_protect_body">Girişiniz bu bilgisayarda kayıtlıdır ve çalıştırdığınız diğer uygulamalar onu okuyabilir. Kilitlemek için bir şifre belirleyin; YMusic her açılışta bu şifreyi sorar.</string>
+    <string name="cookie_password">Şifre</string>
+    <string name="cookie_protect_confirm">Şifreyi onaylayın</string>
+    <string name="cookie_protect_mismatch">Şifreler eşleşmiyor.</string>
+    <string name="cookie_protect_submit">Koru</string>
+    <string name="cookie_protect_skip">Şimdi değil</string>
+    <string name="cookie_unlock_title">Girişinizin kilidini açın</string>
+    <string name="cookie_unlock_body">YouTube girişiniz bir şifreyle korunuyor.</string>
+    <string name="cookie_unlock_submit">Kilidi aç</string>
+    <string name="cookie_unlock_wrong">Yanlış şifre.</string>
+    <string name="cookie_unlock_cant_unlock">Kilidi açamıyor musunuz?</string>
+    <string name="cookie_unlock_guest">Misafir olarak devam et</string>
+    <string name="cookie_unlock_guest_hint">Giriş yapılmadan başlar. Hiçbir şey saklanmaz.</string>
+    <string name="cookie_unlock_sign_out">Çıkış yap</string>
+    <string name="cookie_unlock_sign_out_hint">Bu kayıtlı girişi kaldırır.</string>
+    <string name="cookie_unlock_sign_out_title">Çıkış yapılsın mı?</string>
+    <string name="cookie_unlock_sign_out_body">Bu işlem kayıtlı girişi bu bilgisayardan kaldırır. Tekrar giriş yapmak için QR kodunu YMusic uygulamasıyla tarayın.</string>
     <string name="menu_details_comments">Ayrıntılar ve yorumlar</string>
     <string name="menu_search_lyrics">Şarkı sözlerini ara</string>
     <string name="menu_speed_pitch">Hız ve perde</string>
@@ -570,4 +616,22 @@
     <string name="download_other_format">Başka biçimde indir</string>
     <string name="unsubscribe">Abonelikten çık</string>
     <string name="unsubscribed">Abonelikten çıkıldı</string>
+    <string name="tray_pause">Duraklat</string>
+    <string name="tray_resume">Devam et</string>
+    <string name="tray_stop">Durdur (sırayı temizle)</string>
+    <string name="tray_quit">Kapat</string>
+    <string name="shortcuts_title">Klavye kısayolları</string>
+    <string name="shortcuts_play_pause">Oynat / duraklat</string>
+    <string name="shortcuts_now_playing">Şimdi Çalıyor'u göster veya gizle</string>
+    <string name="shortcuts_nav_menu">Menüyü aç veya kapat</string>
+    <string name="shortcuts_switch_tabs">Sekmeler arasında geçiş yap</string>
+    <string name="shortcuts_escape">Tam ekrandan çık ya da Şimdi Çalıyor'u, menüyü veya açılır pencereyi kapat</string>
+    <string name="shortcuts_help">Bu yardımı göster</string>
+    <string name="shortcuts_volume_up">Sesi aç</string>
+    <string name="shortcuts_volume_down">Sesi kıs</string>
+    <string name="a11y_key_arrow_left">sol ok</string>
+    <string name="a11y_key_arrow_right">sağ ok</string>
+    <string name="a11y_key_arrow_up">yukarı ok</string>
+    <string name="a11y_key_arrow_down">aşağı ok</string>
+    <string name="cd_always_on_top">Her zaman üstte</string>
 </resources>

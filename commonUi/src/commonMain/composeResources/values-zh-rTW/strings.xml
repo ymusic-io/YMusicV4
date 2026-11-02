@@ -23,6 +23,10 @@
     <string name="downloads_none_title">尚無下載</string>
     <string name="downloads_none_message">已下載的歌曲和影片可離線播放。</string>
     <string name="downloads_failed">下載失敗</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">在 Finder 中顯示</string>
+    <string name="menu_reveal_explorer">在檔案總管中顯示</string>
+    <string name="menu_reveal_file_manager">在檔案管理員中顯示</string>
     <string name="section_settings">設定</string>
     <string name="section_donate">贊助</string>
     <string name="section_feedback">意見回饋</string>
@@ -121,8 +125,30 @@
     <string name="yt_playlist_removed_video">已從播放清單中移除 %1$s</string>
     <string name="cd_add_to_playlist">加入播放清單</string>
     <string name="cd_share">分享</string>
-    <string name="cd_music_video">音樂</string>
-    <string name="cd_album">專輯</string>
+    <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
+    <string name="a11y_kind_video">影片</string>
+    <string name="a11y_kind_music_video">音樂影片</string>
+    <string name="a11y_kind_live">直播</string>
+    <string name="a11y_kind_playlist">播放清單</string>
+    <string name="a11y_kind_album">專輯</string>
+    <string name="a11y_kind_mix">合輯</string>
+    <string name="a11y_kind_channel">頻道</string>
+    <!-- A video's length as a screen reader speaks it, joined with spaces: "1 hour 5 minutes 3 seconds" -->
+    <plurals name="a11y_duration_hours">
+        <item quantity="other">%1$d 小時</item>
+    </plurals>
+    <plurals name="a11y_duration_minutes">
+        <item quantity="other">%1$d 分鐘</item>
+    </plurals>
+    <plurals name="a11y_duration_seconds">
+        <item quantity="other">%1$d 秒</item>
+    </plurals>
+    <string name="a11y_now_playing">正在播放</string>
+    <string name="a11y_playback_position">播放進度</string>
+    <string name="a11y_x_of_y">%1$s，共 %2$s</string>
+    <string name="a11y_behind_live">比直播慢 %1$s</string>
+    <string name="a11y_downloaded">已下載</string>
+    <string name="a11y_eq_preamp">前級放大</string>
 
     <!-- Library -->
     <string name="library_tab_folders">資料夾</string>
@@ -362,7 +388,6 @@
     <string name="account_sign_out">登出</string>
     <string name="account_switch">切換帳戶</string>
     <string name="switch_account_hint">選擇你要使用的帳戶，然後按返回箭頭關閉這個畫面 — 應用程式會以新帳戶重新整理。</string>
-    <string name="cd_account_avatar">帳戶相片</string>
     <string name="account_my_channel">我的頻道</string>
     <string name="account_watch_history">觀看記錄</string>
     <string name="account_watch_later">稍後觀看</string>
@@ -546,6 +571,24 @@
     <string name="video_details_delete_title">刪除留言</string>
     <string name="video_details_delete_message">要永久刪除你的留言及所有回覆嗎？</string>
     <string name="video_details_deleted">已刪除留言</string>
+    <string name="cookie_protect_title">要用密碼保護你的登入資訊嗎？</string>
+    <string name="cookie_protect_body">你的登入資訊儲存在這台電腦上，你執行的其他應用程式都能讀取。設定密碼將其鎖定後，YMusic 每次啟動時都會要求輸入密碼。</string>
+    <string name="cookie_password">密碼</string>
+    <string name="cookie_protect_confirm">確認密碼</string>
+    <string name="cookie_protect_mismatch">兩次輸入的密碼不一致。</string>
+    <string name="cookie_protect_submit">保護</string>
+    <string name="cookie_protect_skip">稍後再說</string>
+    <string name="cookie_unlock_title">解鎖登入資訊</string>
+    <string name="cookie_unlock_body">你的 YouTube 登入資訊已受密碼保護。</string>
+    <string name="cookie_unlock_submit">解鎖</string>
+    <string name="cookie_unlock_wrong">密碼錯誤。</string>
+    <string name="cookie_unlock_cant_unlock">無法解鎖？</string>
+    <string name="cookie_unlock_guest">以訪客身分繼續</string>
+    <string name="cookie_unlock_guest_hint">以未登入狀態啟動，不會保留任何內容。</string>
+    <string name="cookie_unlock_sign_out">登出</string>
+    <string name="cookie_unlock_sign_out_hint">移除這組已儲存的登入資訊。</string>
+    <string name="cookie_unlock_sign_out_title">要登出嗎？</string>
+    <string name="cookie_unlock_sign_out_body">這會從這台電腦移除已儲存的登入資訊。如要重新登入，請使用 YMusic 應用程式掃描 QR 圖碼。</string>
     <string name="menu_details_comments">詳細資料和留言</string>
     <string name="menu_search_lyrics">搜尋歌詞</string>
     <string name="menu_speed_pitch">速度和音高</string>
@@ -565,4 +608,22 @@
     <string name="download_other_format">以其他格式下載</string>
     <string name="unsubscribe">取消訂閱</string>
     <string name="unsubscribed">已取消訂閱</string>
+    <string name="tray_pause">暫停</string>
+    <string name="tray_resume">繼續</string>
+    <string name="tray_stop">停止（清除佇列）</string>
+    <string name="tray_quit">結束</string>
+    <string name="shortcuts_title">鍵盤快速鍵</string>
+    <string name="shortcuts_play_pause">播放/暫停</string>
+    <string name="shortcuts_now_playing">顯示或隱藏「現正播放」</string>
+    <string name="shortcuts_nav_menu">開啟或關閉選單</string>
+    <string name="shortcuts_switch_tabs">切換分頁</string>
+    <string name="shortcuts_escape">結束全螢幕，或關閉「現正播放」、選單或彈出式視窗</string>
+    <string name="shortcuts_help">顯示此說明</string>
+    <string name="shortcuts_volume_up">調高音量</string>
+    <string name="shortcuts_volume_down">調低音量</string>
+    <string name="a11y_key_arrow_left">左方向鍵</string>
+    <string name="a11y_key_arrow_right">右方向鍵</string>
+    <string name="a11y_key_arrow_up">上方向鍵</string>
+    <string name="a11y_key_arrow_down">下方向鍵</string>
+    <string name="cd_always_on_top">永遠在最上層</string>
 </resources>

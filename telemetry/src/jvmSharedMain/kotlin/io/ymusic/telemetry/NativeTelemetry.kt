@@ -14,11 +14,14 @@ import java.util.Date
  * block. Native options, not the KMP ones: a KMP `beforeSend` round-trips each event through KMP
  * types and rebuilds every breadcrumb, which re-stamps them all with the send time. No PII
  * scrubbing: sensitive values (cookie values, SAPISIDHASH) are never put into log lines at the
- * source — names only.
+ * source — names only. Log lines reach Sentry only with an error event ([installErrorLogs]).
  */
 fun SentryOptions.applyYMusicTelemetry() {
     // The KMP options default this on; keep it now that they no longer apply.
     isAttachThreads = true
+    // One scope for every thread, as SentryAndroid.init already sets: off, each thread forks its own and
+    // the log's trace (ErrorLogShipper.onSentryStarted) reaches only the thread that set it.
+    isGlobalHubMode = true
     maxBreadcrumbs = 200
     // Consent is enforced HERE, not by deinitializing (see bindCrashReporting): everything that
     // would leave the process passes one of these hooks and is dropped while consent says no.
@@ -26,12 +29,18 @@ fun SentryOptions.applyYMusicTelemetry() {
     // passes even before the gate's collector has seen that flip.
     setBeforeSend { event, _ ->
         val feedback = event.getTag(REPORT_TYPE_TAG) == REPORT_TYPE_FEEDBACK
-        if (crashReportingAllowed || feedback) fingerprintPolicy(event).also(::sortBreadcrumbs) else null
+        when {
+            feedback -> fingerprintPolicy(event).also(::sortBreadcrumbs)
+            !crashReportingAllowed -> null
+            else -> {
+                errorLogShipper?.attach(event)
+                fingerprintPolicy(event).also(::sortBreadcrumbs)
+            }
+        }
     }
-    // Sentry Logs are OFF by default — without this every Sentry.logger call is dropped. A log is
-    // NOT an event: it has its own pipeline and its own beforeSend, so the consent lock repeats.
+    // The log lines an error event takes go to the client directly; a Sentry Log only needs the
+    // pipeline enabled.
     logs.isEnabled = true
-    logs.setBeforeSend { log -> if (crashReportingAllowed) log else null }
     // Sessions are the one outbound thing WITHOUT a consent hook, so the option itself is the
     // gate: bindCrashReporting sets the flag from the stored answer BEFORE first init, so this
     // reads the real consent. Decided per launch — a mid-session change applies from the next
@@ -106,13 +115,16 @@ internal actual fun captureTrailedError(
             )
         }
         message?.let { scope.setExtra("capture.message", it) }
+        val context = mutableMapOf<String, Any>()
         prop?.forEach { (key, value) ->
             when (value) {
                 is FileAttachment -> scope.addAttachment(Attachment(value.path, value.filename, value.contentType))
                 is ByteArray -> scope.addAttachment(Attachment(value, key))
-                else -> scope.setContexts("capture.$key", value)
+                else -> context[key] = value
             }
         }
+        // Sentry drops a context that is not an object, so the props travel as one map.
+        if (context.isNotEmpty()) scope.setContexts("capture", context)
     }
 }
 

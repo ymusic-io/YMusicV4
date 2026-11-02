@@ -57,6 +57,7 @@ kotlin {
                 implementation(compose.ui)
                 implementation(compose.components.resources)
                 implementation(Libs.Kotlinx.coroutinesCore)
+                implementation(Libs.Kotlinx.atomicfu) // SynchronizedObject for GlobalShortcutActions
                 implementation(Libs.Kotlinx.dateTime)
                 implementation(project(":kmpHttp:core"))
                 implementation(project(":kmpHttp:json"))

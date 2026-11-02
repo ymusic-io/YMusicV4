@@ -86,6 +86,9 @@ declare function __nativeFn(name: string, impl?: Function, length?: number): Fun
 /** Host IANA time zone (TZ / Android persist.sys.timezone / /etc/localtime). */
 declare function __timeZone(): string;
 
+/** Wall-clock ms like Date.now, but off the BotGuard entropy tape. Newer hosts only: guard with typeof. */
+declare function __hostNow(): number;
+
 /** Native MSE session attached to this engine (sync C, not pipes). */
 declare function __mseReady(): boolean;
 declare function __mseCurrentTime(): number;
@@ -124,6 +127,18 @@ declare function __mseAv1Ok(): number;
 declare function __mseVp9Ok(): number;
 /** Max AVC level_idc (0x1f = 3.1). 255 = no cap. */
 declare function __mseAvcMaxLevel(): number;
+/** The host's decoder table for one MediaCapabilities part; width/height/framerate 0 = any size.
+ *  Bits 1 supported, 2 smooth, 4 powerEfficient; -1 no table (Android before its MediaCodec rows,
+ *  no MSE host), -2 still probing — ask again. Newer hosts only: guard with typeof. */
+declare function __mseDecodingInfo(
+  contentType: string,
+  width: number,
+  height: number,
+  framerate: number,
+  bitrate: number,
+): number;
+/** [totalVideoFrames, droppedVideoFrames] since the last load; [0, 0] without a host. Newer hosts only. */
+declare function __mseVideoQuality(): number[];
 
 declare function atob(data: string): string;
 declare function btoa(data: string): string;

@@ -84,7 +84,7 @@ async function browsePage(fields: Record<string, unknown>, log?: JsLogger): Prom
 // later load — fresh or continuation — browses normally.
 let homeBootstrapUsed = false;
 
-const PLAYER_CONFIG_MAX_AGE_MS = 60 * 60 * 1000;
+const PLAYER_CONFIG_MAX_AGE_MS = 20 * 60 * 1000;
 
 onAccept(
   "get_player_config",

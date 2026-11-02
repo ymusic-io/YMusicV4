@@ -23,6 +23,10 @@
     <string name="downloads_none_title">Још нема преузимања</string>
     <string name="downloads_none_message">Преузете песме и видео снимци пуштају се офлајн.</string>
     <string name="downloads_failed">Преузимање није успело</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Прикажи у Finder-у</string>
+    <string name="menu_reveal_explorer">Прикажи у Истраживачу датотека</string>
+    <string name="menu_reveal_file_manager">Прикажи у менаџеру датотека</string>
     <string name="section_settings">Подешавања</string>
     <string name="section_donate">Донирајте</string>
     <string name="section_feedback">Повратне информације</string>
@@ -121,8 +125,36 @@
     <string name="yt_playlist_removed_video">„%1$s“ је уклоњено са плејлисте</string>
     <string name="cd_add_to_playlist">Додај на плејлисту</string>
     <string name="cd_share">Дели</string>
-    <string name="cd_music_video">Музика</string>
-    <string name="cd_album">Албум</string>
+    <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
+    <string name="a11y_kind_video">Видео</string>
+    <string name="a11y_kind_music_video">Музички спот</string>
+    <string name="a11y_kind_live">Пренос уживо</string>
+    <string name="a11y_kind_playlist">Плејлиста</string>
+    <string name="a11y_kind_album">Албум</string>
+    <string name="a11y_kind_mix">Микс</string>
+    <string name="a11y_kind_channel">Канал</string>
+    <!-- A video's length as a screen reader speaks it, joined with spaces: "1 hour 5 minutes 3 seconds" -->
+    <plurals name="a11y_duration_hours">
+        <item quantity="one">%1$d сат</item>
+        <item quantity="few">%1$d сата</item>
+        <item quantity="other">%1$d сати</item>
+    </plurals>
+    <plurals name="a11y_duration_minutes">
+        <item quantity="one">%1$d минут</item>
+        <item quantity="few">%1$d минута</item>
+        <item quantity="other">%1$d минута</item>
+    </plurals>
+    <plurals name="a11y_duration_seconds">
+        <item quantity="one">%1$d секунда</item>
+        <item quantity="few">%1$d секунде</item>
+        <item quantity="other">%1$d секунди</item>
+    </plurals>
+    <string name="a11y_now_playing">Управо свира</string>
+    <string name="a11y_playback_position">Позиција репродукције</string>
+    <string name="a11y_x_of_y">%1$s, укупно %2$s</string>
+    <string name="a11y_behind_live">%1$s иза преноса уживо</string>
+    <string name="a11y_downloaded">Преузето</string>
+    <string name="a11y_eq_preamp">Претпојачало</string>
 
     <!-- Library -->
     <string name="library_tab_folders">Фасцикле</string>
@@ -364,7 +396,6 @@
     <string name="account_sign_out">Одјави се</string>
     <string name="account_switch">Промени налог</string>
     <string name="switch_account_hint">Изаберите жељени налог, па затворите овај екран стрелицом назад — апликација ће се освежити под новим налогом.</string>
-    <string name="cd_account_avatar">Слика налога</string>
     <string name="account_my_channel">Мој канал</string>
     <string name="account_watch_history">Историја гледања</string>
     <string name="account_watch_later">Гледај касније</string>
@@ -556,6 +587,24 @@
     <string name="video_details_delete_title">Избриши коментар</string>
     <string name="video_details_delete_message">Трајно избрисати ваш коментар и све одговоре на њега?</string>
     <string name="video_details_deleted">Коментар је избрисан</string>
+    <string name="cookie_protect_title">Заштитити пријаву лозинком?</string>
+    <string name="cookie_protect_body">Ваша пријава је сачувана на овом рачунару, где могу да је прочитају друге апликације које покрећете. Подесите лозинку да бисте је закључали; YMusic ће је тражити при сваком покретању.</string>
+    <string name="cookie_password">Лозинка</string>
+    <string name="cookie_protect_confirm">Потврдите лозинку</string>
+    <string name="cookie_protect_mismatch">Лозинке се не подударају.</string>
+    <string name="cookie_protect_submit">Заштити</string>
+    <string name="cookie_protect_skip">Не сада</string>
+    <string name="cookie_unlock_title">Откључајте пријаву</string>
+    <string name="cookie_unlock_body">Ваша YouTube пријава је заштићена лозинком.</string>
+    <string name="cookie_unlock_submit">Откључај</string>
+    <string name="cookie_unlock_wrong">Погрешна лозинка.</string>
+    <string name="cookie_unlock_cant_unlock">Не можете да откључате?</string>
+    <string name="cookie_unlock_guest">Настави као гост</string>
+    <string name="cookie_unlock_guest_hint">Покреће се без пријаве. Ништа се не чува.</string>
+    <string name="cookie_unlock_sign_out">Одјави се</string>
+    <string name="cookie_unlock_sign_out_hint">Уклања ову сачувану пријаву.</string>
+    <string name="cookie_unlock_sign_out_title">Одјавити се?</string>
+    <string name="cookie_unlock_sign_out_body">Ово уклања сачувану пријаву са овог рачунара. Да бисте се поново пријавили, скенирајте QR кôд апликацијом YMusic.</string>
     <string name="menu_details_comments">Детаљи и коментари</string>
     <string name="menu_search_lyrics">Претражи текст песме</string>
     <string name="menu_speed_pitch">Брзина и висина тона</string>
@@ -575,4 +624,22 @@
     <string name="download_other_format">Преузми у другом формату</string>
     <string name="unsubscribe">Откажи праћење</string>
     <string name="unsubscribed">Праћење је отказано</string>
+    <string name="tray_pause">Паузирај</string>
+    <string name="tray_resume">Настави</string>
+    <string name="tray_stop">Заустави (обриши ред)</string>
+    <string name="tray_quit">Затвори</string>
+    <string name="shortcuts_title">Пречице на тастатури</string>
+    <string name="shortcuts_play_pause">Пусти / паузирај</string>
+    <string name="shortcuts_now_playing">Прикажи или сакриј „Сада се пушта“</string>
+    <string name="shortcuts_nav_menu">Отвори или затвори мени</string>
+    <string name="shortcuts_switch_tabs">Промени картицу</string>
+    <string name="shortcuts_escape">Изађи из целог екрана или затвори „Сада се пушта“, мени или искачући прозор</string>
+    <string name="shortcuts_help">Прикажи ову помоћ</string>
+    <string name="shortcuts_volume_up">Појачај звук</string>
+    <string name="shortcuts_volume_down">Утишај звук</string>
+    <string name="a11y_key_arrow_left">стрелица лево</string>
+    <string name="a11y_key_arrow_right">стрелица десно</string>
+    <string name="a11y_key_arrow_up">стрелица горе</string>
+    <string name="a11y_key_arrow_down">стрелица доле</string>
+    <string name="cd_always_on_top">Увек на врху</string>
 </resources>

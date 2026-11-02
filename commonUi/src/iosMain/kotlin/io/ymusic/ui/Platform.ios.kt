@@ -6,11 +6,25 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import platform.UIKit.UIApplication
 
 internal actual val platformUsesTouch: Boolean = true
 
 internal actual val desktopLayoutHole: Boolean = false
+
+actual fun Modifier.a11yActionLabel(label: String?): Modifier =
+    if (label.isNullOrEmpty()) this
+    else this.semantics { contentDescription = label }
+
+internal actual fun Modifier.a11ySlider(
+    label: String?,
+    value: String,
+    fraction: Float,
+    enabled: Boolean,
+    onSet: (Float) -> Unit,
+): Modifier = rangeSliderSemantics(label, value, fraction, enabled, onSet)
 
 @Composable
 internal actual fun PlatformBackHandler(enabled: Boolean, onBack: () -> Unit) {

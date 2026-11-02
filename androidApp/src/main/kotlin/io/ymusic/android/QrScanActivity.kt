@@ -61,6 +61,7 @@ import com.google.zxing.common.HybridBinarizer
 import io.ymusic.ui.resources.Res
 import io.ymusic.ui.resources.cd_close
 import io.ymusic.ui.resources.device_link_scan_hint
+import kmpcommon.log.Logger
 import org.jetbrains.compose.resources.stringResource
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
@@ -71,6 +72,8 @@ import kotlin.math.min
  * ZXing and only the centered viewfinder square is read.
  */
 class QrScanActivity : ComponentActivity() {
+    private val log by lazy { (application as YMusicApplication).rootLogger.fork("qr-scan") }
+
     private val analysisExecutor = Executors.newSingleThreadExecutor()
     private val found = AtomicBoolean(false)
     private val reader = MultiFormatReader().apply { setHints(qrHints) }
@@ -115,7 +118,7 @@ class QrScanActivity : ComponentActivity() {
                 val provider = try {
                     future.get()
                 } catch (e: Exception) {
-                    android.util.Log.e("QrScan", "camera provider unavailable", e)
+                    log.log(Logger.Level.WARN, "camera provider unavailable", e)
                     finish()
                     return@addListener
                 }
@@ -170,7 +173,7 @@ class QrScanActivity : ComponentActivity() {
                         .build()
                     provider.bindToLifecycle(this, selector, group)
                 } catch (t: Exception) {
-                    android.util.Log.e("QrScan", "bind failed", t)
+                    log.log(Logger.Level.WARN, "bind failed", t)
                     finish()
                 }
             },

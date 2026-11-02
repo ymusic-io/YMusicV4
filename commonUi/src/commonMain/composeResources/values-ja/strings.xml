@@ -23,6 +23,10 @@
     <string name="downloads_none_title">ダウンロードはまだありません</string>
     <string name="downloads_none_message">ダウンロードした曲や動画はオフラインで再生できます。</string>
     <string name="downloads_failed">ダウンロードに失敗しました</string>
+    <!-- Shows a file or folder in the OS file manager; one label per desktop OS (Finder / File Explorer are product names). -->
+    <string name="menu_reveal_finder">Finderで表示</string>
+    <string name="menu_reveal_explorer">エクスプローラーで表示</string>
+    <string name="menu_reveal_file_manager">ファイルマネージャーで表示</string>
     <string name="section_settings">設定</string>
     <string name="section_donate">寄付</string>
     <string name="section_feedback">フィードバック</string>
@@ -121,8 +125,30 @@
     <string name="yt_playlist_removed_video">%1$s をプレイリストから削除しました</string>
     <string name="cd_add_to_playlist">プレイリストに追加</string>
     <string name="cd_share">共有</string>
-    <string name="cd_music_video">音楽</string>
-    <string name="cd_album">アルバム</string>
+    <!-- Screen-reader prefix naming what a feed card is: "Video, <title>, 5 minutes 3 seconds, <channel>" -->
+    <string name="a11y_kind_video">動画</string>
+    <string name="a11y_kind_music_video">ミュージックビデオ</string>
+    <string name="a11y_kind_live">ライブ動画</string>
+    <string name="a11y_kind_playlist">プレイリスト</string>
+    <string name="a11y_kind_album">アルバム</string>
+    <string name="a11y_kind_mix">ミックスリスト</string>
+    <string name="a11y_kind_channel">チャンネル</string>
+    <!-- A video's length as a screen reader speaks it, joined with spaces: "1 hour 5 minutes 3 seconds" -->
+    <plurals name="a11y_duration_hours">
+        <item quantity="other">%1$d 時間</item>
+    </plurals>
+    <plurals name="a11y_duration_minutes">
+        <item quantity="other">%1$d 分</item>
+    </plurals>
+    <plurals name="a11y_duration_seconds">
+        <item quantity="other">%1$d 秒</item>
+    </plurals>
+    <string name="a11y_now_playing">再生中</string>
+    <string name="a11y_playback_position">再生位置</string>
+    <string name="a11y_x_of_y">%2$s中%1$s</string>
+    <string name="a11y_behind_live">ライブから%1$s遅れ</string>
+    <string name="a11y_downloaded">ダウンロード済み</string>
+    <string name="a11y_eq_preamp">プリアンプ</string>
 
     <!-- Library -->
     <string name="library_tab_folders">フォルダ</string>
@@ -362,7 +388,6 @@
     <string name="account_sign_out">サインアウト</string>
     <string name="account_switch">アカウントを切り替え</string>
     <string name="switch_account_hint">使用するアカウントを選び、戻る矢印でこの画面を閉じてください — アプリが新しいアカウントで更新されます。</string>
-    <string name="cd_account_avatar">アカウントの画像</string>
     <string name="account_my_channel">マイチャンネル</string>
     <string name="account_watch_history">再生履歴</string>
     <string name="account_watch_later">後で見る</string>
@@ -546,6 +571,24 @@
     <string name="video_details_delete_title">コメントを削除</string>
     <string name="video_details_delete_message">コメントとそのすべての返信を完全に削除しますか？</string>
     <string name="video_details_deleted">コメントを削除しました</string>
+    <string name="cookie_protect_title">サインイン情報をパスワードで保護しますか？</string>
+    <string name="cookie_protect_body">サインイン情報はこのパソコンに保存されていて、ほかに実行しているアプリからも読み取れます。パスワードを設定してロックすると、YMusic は起動するたびにパスワードを求めます。</string>
+    <string name="cookie_password">パスワード</string>
+    <string name="cookie_protect_confirm">パスワードを再入力</string>
+    <string name="cookie_protect_mismatch">パスワードが一致しません。</string>
+    <string name="cookie_protect_submit">保護する</string>
+    <string name="cookie_protect_skip">後で</string>
+    <string name="cookie_unlock_title">サインイン情報のロックを解除</string>
+    <string name="cookie_unlock_body">YouTube のサインイン情報はパスワードで保護されています。</string>
+    <string name="cookie_unlock_submit">ロックを解除</string>
+    <string name="cookie_unlock_wrong">パスワードが違います。</string>
+    <string name="cookie_unlock_cant_unlock">ロックを解除できない場合</string>
+    <string name="cookie_unlock_guest">ゲストとして続行</string>
+    <string name="cookie_unlock_guest_hint">サインインせずに起動します。何も保存されません。</string>
+    <string name="cookie_unlock_sign_out">サインアウト</string>
+    <string name="cookie_unlock_sign_out_hint">保存されているこのサインイン情報を削除します。</string>
+    <string name="cookie_unlock_sign_out_title">サインアウトしますか？</string>
+    <string name="cookie_unlock_sign_out_body">保存されているサインイン情報をこのパソコンから削除します。もう一度サインインするには、YMusic アプリで QR コードをスキャンしてください。</string>
     <string name="menu_details_comments">詳細とコメント</string>
     <string name="menu_search_lyrics">歌詞を検索</string>
     <string name="menu_speed_pitch">速度とピッチ</string>
@@ -565,4 +608,22 @@
     <string name="download_other_format">別の形式でダウンロード</string>
     <string name="unsubscribe">登録解除</string>
     <string name="unsubscribed">登録を解除しました</string>
+    <string name="tray_pause">一時停止</string>
+    <string name="tray_resume">再開</string>
+    <string name="tray_stop">停止（キューをクリア）</string>
+    <string name="tray_quit">終了</string>
+    <string name="shortcuts_title">キーボードショートカット</string>
+    <string name="shortcuts_play_pause">再生 / 一時停止</string>
+    <string name="shortcuts_now_playing">再生画面を表示 / 非表示</string>
+    <string name="shortcuts_nav_menu">メニューを開く / 閉じる</string>
+    <string name="shortcuts_switch_tabs">タブを切り替え</string>
+    <string name="shortcuts_escape">全画面表示を終了、または再生画面・メニュー・ポップアップを閉じる</string>
+    <string name="shortcuts_help">このヘルプを表示</string>
+    <string name="shortcuts_volume_up">音量を上げる</string>
+    <string name="shortcuts_volume_down">音量を下げる</string>
+    <string name="a11y_key_arrow_left">左矢印</string>
+    <string name="a11y_key_arrow_right">右矢印</string>
+    <string name="a11y_key_arrow_up">上矢印</string>
+    <string name="a11y_key_arrow_down">下矢印</string>
+    <string name="cd_always_on_top">常に手前に表示</string>
 </resources>
