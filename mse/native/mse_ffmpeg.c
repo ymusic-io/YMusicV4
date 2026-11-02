@@ -234,6 +234,9 @@ static void maybe_apply_video_rep(MseAv *a);
 #define MSE_SEND_AHEAD 0.08
 #endif
 
+/* Coded frames further apart than this are separate buffered ranges (an old island left behind a seek). */
+#define MSE_VIDEO_GAP_S 0.5
+
 static double mc_send_ahead(const MseAv *a)
 {
 #ifdef __ANDROID__
@@ -1542,6 +1545,17 @@ static int mc_feed_paced(MseAv *a, double clock, double pts)
     return pts > clock + ahead;
 }
 
+/* The next frame starts a later buffered range that the clock has not reached: feeding it puts that
+   range's picture in the decoder's output ahead of everything the range at the playhead still needs. */
+static int mc_gap_ahead(const MseAv *a, double clock, double pts)
+{
+    const Cf *prev;
+    if (a->vf.rd == 0)
+        return 0;
+    prev = &a->vf.f[a->vf.rd - 1];
+    return pts > prev->pts + prev->dur + MSE_VIDEO_GAP_S && pts > clock + mc_send_ahead(a);
+}
+
 /* Fill every free input slot: a decoder that emits only once several AUs are
    queued starves under clock pacing and hands back pictures in late clumps. */
 static int mc_feed(MseAv *a, double clock)
@@ -1581,7 +1595,7 @@ static int mc_feed(MseAv *a, double clock)
             mc_drain_for_switch(a, clock);
             break;
         }
-        if (mc_feed_paced(a, clock, sp)) {
+        if (mc_feed_paced(a, clock, sp) || mc_gap_ahead(a, clock, sp)) {
             vlog_starve_ahead(a, clock, a->vf.rd);
             break;
         }
@@ -3481,16 +3495,25 @@ int mse_av_span(MseAv *a, double *first, double *last)
 
 int mse_av_video_end(MseAv *a, double *end)
 {
-    double first = 0;
+    const Cfb *b;
+    size_t i;
     int have;
     if (!a || !end)
         return 0;
     av_lock_all(a);
+    b = &a->vf;
     have = !a->v_rest &&
 #ifdef __APPLE__
            !a->v_bg_park &&
 #endif
-           cfb_span(&a->vf, &first, end);
+           b->n > 0;
+    if (have) {
+        /* The range the decoder reads from, not a later island past a gap. */
+        i = b->rd > 0 ? b->rd - 1 : 0;
+        while (i + 1 < b->n && b->f[i + 1].pts <= b->f[i].pts + b->f[i].dur + MSE_VIDEO_GAP_S)
+            i++;
+        *end = b->f[i].pts + b->f[i].dur;
+    }
     av_unlock_all(a);
     return have;
 }
