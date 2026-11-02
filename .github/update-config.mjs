@@ -99,6 +99,12 @@ const INSTALLERS = [
   { platform: 'windows-arm64', file: 'windows-arm64-setup.exe', versionCode: desktopVersionCode },
 ]
 
+// The oldest build per platform that can install a new one in place; older builds get the release
+// page instead. macOS before 18 swaps the bundle and then cannot spawn the relaunch (or hdiutil on a
+// retry): its JVM still uses POSIX_SPAWN through the replaced jspawnhelper.
+const MIN_VERSION = { 'macos-arm64': 18 }
+const releasePage = `https://github.com/${repo}/releases/tag/${tag}`
+
 const releases = {}
 for (const { platform, file, versionCode } of INSTALLERS) {
   const path = join(dir, file)
@@ -112,6 +118,7 @@ for (const { platform, file, versionCode } of INSTALLERS) {
     sha256,
     signature: signUpdate(`app-${platform}:${versionCode}:${sha256}`),
     changelogUrl,
+    ...(MIN_VERSION[platform] ? { minVersion: MIN_VERSION[platform], downloadPage: releasePage } : {}),
   }
 }
 
