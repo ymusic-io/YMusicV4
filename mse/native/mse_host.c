@@ -49,6 +49,12 @@
 #define DAC_EXTRAPOLATE_S 0.05
 #endif
 
+/* Audio plays this far past the end of buffered video, then waits for it: a short video gap keeps
+   the sound going, a long one stalls playback so the picture catches up (Chrome waits at once). */
+#define VIDEO_LEAD_S 0.25
+/* Once waiting, audio resumes when video is buffered this far past the clock, not frame by frame. */
+#define VIDEO_RESUME_S 1.0
+
 static void (*g_js_event)(const char *name);
 
 void mse_host_set_js_event(void (*fn)(const char *name))
@@ -95,6 +101,8 @@ struct MseHost {
     float speed;
     int64_t samples_played;
     int64_t samples_pulled;
+    /* When audio started waiting for video data (now_ns), 0 while it is not. */
+    double v_starve_ns;
     AudioFx *fx;
     int16_t *fx_pcm;
     size_t fx_pcm_n;
@@ -869,6 +877,31 @@ static void *vid_loop(void *arg)
 static int audio_done(MseHost *h);
 
 #ifdef MSE_DAC
+enum { STARVE_NONE, STARVE_BEGIN, STARVE_END };
+
+/* h->mu held. How far audio may be pulled while video is buffered to `end` (have = video present). */
+static double video_bound(MseHost *h, double clock, double until, int have, double end, int *event)
+{
+    int done = !have || h->eos || (h->yt_dur > 0 && end + 1.5 >= h->yt_dur);
+    *event = STARVE_NONE;
+    if (h->v_starve_ns > 0) {
+        if (!done && end < clock + VIDEO_RESUME_S)
+            return clock;
+        *event = STARVE_END;
+        return until;
+    }
+    if (done || end + VIDEO_LEAD_S >= until)
+        return until;
+    if (end + VIDEO_LEAD_S <= clock) {
+        h->v_starve_ns = now_ns();
+        *event = STARVE_BEGIN;
+        return clock;
+    }
+    return end + VIDEO_LEAD_S;
+}
+#endif
+
+#ifdef MSE_DAC
 /* Media3 hands the clock to wall time when the audio renderer has read its stream to the end but
    the period runs on (DefaultMediaClock, ExoPlayer #1874): a shorter audio track must not freeze
    the video at its last sample. Only after endOfStream; a SABR starve stays waiting. */
@@ -990,6 +1023,9 @@ static void *dec_loop(void *arg)
             double lead = 0.35;
             double until;
             double from = clock;
+            double vend = 0, starved_ms = 0;
+            int vhave = mse_av_video_end(h->av, &vend);
+            int starve;
             pthread_mutex_lock(&h->mu);
             want = ring_ms(h) < 400;
             gen = h->ring_gen;
@@ -1015,8 +1051,20 @@ static void *dec_loop(void *arg)
             if (h->aq_started && !h->dac_live && from > h->seek_base)
                 from = h->seek_base;
 #endif
+            until = video_bound(h, clock, until, vhave, vend, &starve);
+            if (starve == STARVE_END) {
+                starved_ms = (now_ns() - h->v_starve_ns) / 1e6;
+                h->v_starve_ns = 0;
+            }
             pthread_mutex_unlock(&h->mu);
-            if (!want)
+            if (starve == STARVE_BEGIN)
+                mse_critf(MSE_LOG_INFO, "mse-v starve: audio waits for video buffered to %.3f clock=%.3f",
+                          vend, clock);
+            else if (starve == STARVE_END)
+                mse_critf(MSE_LOG_INFO, "mse-v starve over after %.0f ms: video buffered to %.3f clock=%.3f",
+                          starved_ms, vend, clock);
+            /* Not even up to `until`: a pull takes packets up to 80 ms past it, and that creeps the clock. */
+            if (!want || until <= clock)
                 break;
             pcm = NULL;
             if (mse_av_pull_audio(h->av, from, until, &pcm, &frames, &rate, &ch, &pts) <= 0 || !pcm)
@@ -1537,6 +1585,7 @@ static void seek_common(MseHost *h, double seconds)
     h->origin_ns = now_ns();
     h->eos = 0;
     h->ended_sent = 0;
+    h->v_starve_ns = 0;
 #ifdef MSE_DAC
     h->samples_played = 0;
     h->aq_started = 0;

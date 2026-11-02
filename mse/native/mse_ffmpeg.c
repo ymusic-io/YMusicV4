@@ -3479,6 +3479,22 @@ int mse_av_span(MseAv *a, double *first, double *last)
     return 1;
 }
 
+int mse_av_video_end(MseAv *a, double *end)
+{
+    double first = 0;
+    int have;
+    if (!a || !end)
+        return 0;
+    av_lock_all(a);
+    have = !a->v_rest &&
+#ifdef __APPLE__
+           !a->v_bg_park &&
+#endif
+           cfb_span(&a->vf, &first, end);
+    av_unlock_all(a);
+    return have;
+}
+
 int mse_av_drained(MseAv *a)
 {
     int had, a_done, v_done;
