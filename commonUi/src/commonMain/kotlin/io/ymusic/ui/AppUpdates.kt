@@ -63,6 +63,9 @@ sealed interface UpdateDownload {
     data object Installing : UpdateDownload
     data class Failed(val code: String) : UpdateDownload
 
+    /** The downloaded installer is intact but installing it failed; "Install now" tries again. */
+    data class InstallFailed(val code: String) : UpdateDownload
+
     /** The OS will not let this app install packages until the user allows it ("Install unknown
      *  apps"). [offerBrowser]: the user has struggled with that long enough to be offered the
      *  release in the browser instead. */
