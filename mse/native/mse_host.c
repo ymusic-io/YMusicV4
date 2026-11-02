@@ -52,8 +52,13 @@
 /* Audio plays this far past the end of buffered video, then waits for it: a short video gap keeps
    the sound going, a long one stalls playback so the picture catches up (Chrome waits at once). */
 #define VIDEO_LEAD_S 0.25
-/* Once waiting, audio resumes when video is buffered this far past the clock, not frame by frame. */
-#define VIDEO_RESUME_S 1.0
+/* Once waiting, audio resumes when video is buffered this far past the clock, not frame by frame.
+   A wait that begins soon after the last one ended doubles it (a link slower than the stream would
+   otherwise play a second, stall, play a second); a wait right after a seek starts on less. */
+#define VIDEO_START_S 0.5
+#define VIDEO_RESUME_S 2.0
+#define VIDEO_RESUME_MAX_S 8.0
+#define VIDEO_RESTARVE_NS 20e9
 
 static void (*g_js_event)(const char *name);
 
@@ -103,6 +108,10 @@ struct MseHost {
     int64_t samples_pulled;
     /* When audio started waiting for video data (now_ns), 0 while it is not. */
     double v_starve_ns;
+    double v_starve_end_ns;
+    double v_resume_s;
+    /* Where playback last started from (a seek target). */
+    double v_start_t;
     AudioFx *fx;
     int16_t *fx_pcm;
     size_t fx_pcm_n;
@@ -894,7 +903,7 @@ static double video_bound(MseHost *h, double clock, double until, int have, doub
     int done = !have || h->eos || (h->yt_dur > 0 && end + 1.5 >= h->yt_dur);
     *event = STARVE_NONE;
     if (h->v_starve_ns > 0) {
-        if (!done && end < clock + VIDEO_RESUME_S)
+        if (!done && end < clock + h->v_resume_s)
             return clock;
         *event = STARVE_END;
         return until;
@@ -902,7 +911,15 @@ static double video_bound(MseHost *h, double clock, double until, int have, doub
     if (done || end + VIDEO_LEAD_S >= until)
         return until;
     if (end + VIDEO_LEAD_S <= clock) {
-        h->v_starve_ns = now_ns();
+        double now = now_ns();
+        if (clock < h->v_start_t + 1.0)
+            h->v_resume_s = VIDEO_START_S;
+        else if (h->v_starve_end_ns > 0 && now - h->v_starve_end_ns < VIDEO_RESTARVE_NS) {
+            double next = h->v_resume_s * 2;
+            h->v_resume_s = next < VIDEO_RESUME_S ? VIDEO_RESUME_S : next > VIDEO_RESUME_MAX_S ? VIDEO_RESUME_MAX_S : next;
+        } else
+            h->v_resume_s = VIDEO_RESUME_S;
+        h->v_starve_ns = now;
         *event = STARVE_BEGIN;
         return clock;
     }
@@ -1032,7 +1049,7 @@ static void *dec_loop(void *arg)
             double lead = 0.35;
             double until;
             double from = clock;
-            double vend = 0, starved_ms = 0;
+            double vend = 0, starved_ms = 0, resume_s;
             int vhave = mse_av_video_end(h->av, &vend);
             int starve;
             pthread_mutex_lock(&h->mu);
@@ -1062,13 +1079,15 @@ static void *dec_loop(void *arg)
 #endif
             until = video_bound(h, clock, until, vhave, vend, &starve);
             if (starve == STARVE_END) {
-                starved_ms = (now_ns() - h->v_starve_ns) / 1e6;
+                h->v_starve_end_ns = now_ns();
+                starved_ms = (h->v_starve_end_ns - h->v_starve_ns) / 1e6;
                 h->v_starve_ns = 0;
             }
+            resume_s = h->v_resume_s;
             pthread_mutex_unlock(&h->mu);
             if (starve == STARVE_BEGIN)
-                mse_critf(MSE_LOG_INFO, "mse-v starve: audio waits for video buffered to %.3f clock=%.3f",
-                          vend, clock);
+                mse_critf(MSE_LOG_INFO, "mse-v starve: audio waits for video buffered to %.3f clock=%.3f resume=+%.1fs",
+                          vend, clock, resume_s);
             else if (starve == STARVE_END)
                 mse_critf(MSE_LOG_INFO, "mse-v starve over after %.0f ms: video buffered to %.3f clock=%.3f",
                           starved_ms, vend, clock);
@@ -1595,6 +1614,8 @@ static void seek_common(MseHost *h, double seconds)
     h->eos = 0;
     h->ended_sent = 0;
     h->v_starve_ns = 0;
+    h->v_starve_end_ns = 0;
+    h->v_start_t = seconds;
 #ifdef MSE_DAC
     h->samples_played = 0;
     h->aq_started = 0;
@@ -1664,11 +1685,19 @@ int mse_host_paused(MseHost *h)
     return p;
 }
 
+/* 2 (HAVE_CURRENT_DATA) while audio waits for video: the element's buffered ranges can already
+   cover the playhead then, and only the host knows playback is held. */
 int mse_host_ready_state(MseHost *h)
 {
     double d;
+    int starving;
     if (!h)
         return 0;
+    pthread_mutex_lock(&h->mu);
+    starving = h->v_starve_ns > 0;
+    pthread_mutex_unlock(&h->mu);
+    if (starving)
+        return 2;
     d = mse_av_duration(h->av);
     if (d > 0)
         return 4;
