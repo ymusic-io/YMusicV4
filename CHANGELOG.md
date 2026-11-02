@@ -1,5 +1,21 @@
 # Changelog
 
+## 4.0.14
+
+### NEW
+- Linux: updates from inside the app, for YMusic installed from the .deb ([c1af217ae](https://github.com/ymusic-io/YMusicV4/commit/c1af217ae55ef7e832dd49536daff364c71e0c4c))
+
+### FIXED
+- Desktop: after updating from inside the app, YMusic didn't open again, and trying again failed on macOS; updates now restart the app even when the new version brings a different Java runtime. On macOS and Linux, 4.0.13 and older download this update from the browser ([9b8903b2c](https://github.com/ymusic-io/YMusicV4/commit/9b8903b2cc2bfc148178eeff29cbda38c05f1d47), [9308137ec](https://github.com/ymusic-io/YMusicV4/commit/9308137ec46a7b64e7dceac380e8bcc006b02227), [edfa1d94b](https://github.com/ymusic-io/YMusicV4/commit/edfa1d94b51b4d8bdfd598e6ee879d7a6704d81f))
+- Library: when the next song's file had been deleted, the song that just finished showed "This file is no longer on your device" and the queue stopped on it ([949a646ef](https://github.com/ymusic-io/YMusicV4/commit/949a646ef339f26cc53dfd4156329da493fd8d53))
+- After one missing local file, every other local file failed with "This file is no longer on your device" until a YouTube song played ([ba794df3a](https://github.com/ymusic-io/YMusicV4/commit/ba794df3ac627a38b97f673b6867e7be23aa2d83))
+- Linux: opening YMusic again started another copy of the app, and settings could fail to save ([a79a58e95](https://github.com/ymusic-io/YMusicV4/commit/a79a58e95c01ebd26ce011e57a163cacb5aeb171))
+
+### INTERNAL
+- YouTube player: the page's observers (IntersectionObserver, ResizeObserver, MutationObserver, …) construct as in Chrome, so YouTube's bot check no longer catches errors from them ([ba78a3fb7](https://github.com/ymusic-io/YMusicV4/commit/ba78a3fb7ee330710a67304451c62b08bd38a292))
+- BotGuard dumps leave the app's own log timestamps off the timing tape ([216cad639](https://github.com/ymusic-io/YMusicV4/commit/216cad63900d6438970e84b838623d7feda277fe), [c74d070a0](https://github.com/ymusic-io/YMusicV4/commit/c74d070a071b16932df383c85c88ed03e84bfeb1))
+- Telemetry: an error's details reach Sentry instead of being discarded ([47c2b8844](https://github.com/ymusic-io/YMusicV4/commit/47c2b88447cded91f21d033a1b9bee0819d77467))
+
 ## 4.0.13
 
 ### NEW
