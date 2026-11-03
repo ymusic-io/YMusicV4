@@ -137,6 +137,7 @@ import io.ymusic.telemetry.bindCrashReporting
 import io.ymusic.telemetry.bindErrorPolicy
 import io.ymusic.telemetry.captureFeedbackReport
 import io.ymusic.telemetry.installErrorLogs
+import io.ymusic.telemetry.installSentryDesktopOsContext
 import io.ymusic.telemetry.installSentryDeviceId
 import io.ymusic.telemetry.installSentryEngineVersion
 import io.ymusic.telemetry.installSentryPlayerVersion
@@ -347,6 +348,7 @@ fun main(args: Array<String>) {
                 it.environment = if (DEBUG_BUILD) "debug" else "production"
             }
             installSentryDeviceId(telemetryDeviceId)
+            installSentryDesktopOsContext()
             shareLogTraceWithSentry()
         }
     }
