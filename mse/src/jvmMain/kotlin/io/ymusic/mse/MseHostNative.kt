@@ -142,8 +142,15 @@ actual object MseHostNative {
         try {
             System.load(File(dir, libFileName).absolutePath)
         } catch (error: UnsatisfiedLinkError) {
-            depErrors.forEach(error::addSuppressed)
-            throw error
+            val reported = if (isWindows()) {
+                val missing = describeMissingWindowsImports(dir)
+                MseLogBridge.fire(LOG_WARN, "mse: $libFileName did not load: $missing")
+                UnsatisfiedLinkError("${error.message}: $missing").apply { initCause(error) }
+            } else {
+                error
+            }
+            depErrors.forEach(reported::addSuppressed)
+            throw reported
         }
     }
 
