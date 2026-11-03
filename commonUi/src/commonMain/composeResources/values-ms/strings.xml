@@ -625,7 +625,11 @@
     <string name="a11y_key_arrow_up">anak panah atas</string>
     <string name="a11y_key_arrow_down">anak panah bawah</string>
     <string name="cd_always_on_top">Sentiasa di atas</string>
-    <string name="settings_caption_size">Saiz kapsyen</string>
-    <string name="settings_caption_size_hint">Saiz teks kapsyen video</string>
+    <string name="settings_caption_size">Saiz</string>
     <string name="caption_size_preview">Kapsyen akan kelihatan seperti ini</string>
+    <string name="settings_caption_style">Gaya kapsyen</string>
+    <string name="settings_caption_style_hint">Saiz, warna dan latar belakang kapsyen video</string>
+    <string name="caption_text_color">Warna teks</string>
+    <string name="caption_background">Latar belakang</string>
+    <string name="caption_background_opacity">Kelegapan latar belakang</string>
 </resources>

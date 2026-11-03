@@ -625,7 +625,11 @@
     <string name="a11y_key_arrow_up">위쪽 화살표</string>
     <string name="a11y_key_arrow_down">아래쪽 화살표</string>
     <string name="cd_always_on_top">항상 위에 표시</string>
-    <string name="settings_caption_size">자막 크기</string>
-    <string name="settings_caption_size_hint">동영상 자막의 글자 크기</string>
+    <string name="settings_caption_size">크기</string>
     <string name="caption_size_preview">자막이 이렇게 표시됩니다</string>
+    <string name="settings_caption_style">자막 스타일</string>
+    <string name="settings_caption_style_hint">동영상 자막의 크기, 색상, 배경</string>
+    <string name="caption_text_color">글자 색상</string>
+    <string name="caption_background">배경</string>
+    <string name="caption_background_opacity">배경 불투명도</string>
 </resources>

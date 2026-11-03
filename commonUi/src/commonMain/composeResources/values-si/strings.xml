@@ -633,7 +633,11 @@
     <string name="a11y_key_arrow_up">ඉහළ ඊතලය</string>
     <string name="a11y_key_arrow_down">පහළ ඊතලය</string>
     <string name="cd_always_on_top">සැමවිටම ඉහළින්</string>
-    <string name="settings_caption_size">උපසිරැසි ප්‍රමාණය</string>
-    <string name="settings_caption_size_hint">වීඩියෝ උපසිරැසිවල පෙළ ප්‍රමාණය</string>
+    <string name="settings_caption_size">ප්‍රමාණය</string>
     <string name="caption_size_preview">උපසිරැසි මෙලෙස පෙනෙනු ඇත</string>
+    <string name="settings_caption_style">උපසිරැසි විලාසය</string>
+    <string name="settings_caption_style_hint">වීඩියෝ උපසිරැසිවල ප්‍රමාණය, වර්ණය සහ පසුබිම</string>
+    <string name="caption_text_color">පෙළ වර්ණය</string>
+    <string name="caption_background">පසුබිම</string>
+    <string name="caption_background_opacity">පසුබිමේ පාරාන්ධතාව</string>
 </resources>

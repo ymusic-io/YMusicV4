@@ -649,7 +649,11 @@
     <string name="a11y_key_arrow_up">šípka hore</string>
     <string name="a11y_key_arrow_down">šípka dole</string>
     <string name="cd_always_on_top">Vždy navrchu</string>
-    <string name="settings_caption_size">Veľkosť titulkov</string>
-    <string name="settings_caption_size_hint">Veľkosť textu titulkov videa</string>
+    <string name="settings_caption_size">Veľkosť</string>
     <string name="caption_size_preview">Titulky budú vyzerať takto</string>
+    <string name="settings_caption_style">Štýl titulkov</string>
+    <string name="settings_caption_style_hint">Veľkosť, farba a pozadie titulkov videa</string>
+    <string name="caption_text_color">Farba textu</string>
+    <string name="caption_background">Pozadie</string>
+    <string name="caption_background_opacity">Nepriehľadnosť pozadia</string>
 </resources>

@@ -649,7 +649,11 @@
     <string name="a11y_key_arrow_up">strzałka w górę</string>
     <string name="a11y_key_arrow_down">strzałka w dół</string>
     <string name="cd_always_on_top">Zawsze na wierzchu</string>
-    <string name="settings_caption_size">Rozmiar napisów</string>
-    <string name="settings_caption_size_hint">Rozmiar tekstu napisów wideo</string>
+    <string name="settings_caption_size">Rozmiar</string>
     <string name="caption_size_preview">Napisy będą wyglądać tak</string>
+    <string name="settings_caption_style">Styl napisów</string>
+    <string name="settings_caption_style_hint">Rozmiar, kolor i tło napisów wideo</string>
+    <string name="caption_text_color">Kolor tekstu</string>
+    <string name="caption_background">Tło</string>
+    <string name="caption_background_opacity">Krycie tła</string>
 </resources>

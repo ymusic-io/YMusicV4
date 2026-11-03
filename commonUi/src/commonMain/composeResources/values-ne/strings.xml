@@ -633,7 +633,11 @@
     <string name="a11y_key_arrow_up">माथि वाण</string>
     <string name="a11y_key_arrow_down">तल वाण</string>
     <string name="cd_always_on_top">सधैं माथि</string>
-    <string name="settings_caption_size">क्याप्सनको आकार</string>
-    <string name="settings_caption_size_hint">भिडियो क्याप्सनको पाठको आकार</string>
+    <string name="settings_caption_size">आकार</string>
     <string name="caption_size_preview">क्याप्सन यस्तो देखिनेछ</string>
+    <string name="settings_caption_style">क्याप्सन शैली</string>
+    <string name="settings_caption_style_hint">भिडियो क्याप्सनको आकार, रङ र पृष्ठभूमि</string>
+    <string name="caption_text_color">पाठको रङ</string>
+    <string name="caption_background">पृष्ठभूमि</string>
+    <string name="caption_background_opacity">पृष्ठभूमिको अपारदर्शिता</string>
 </resources>

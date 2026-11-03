@@ -633,7 +633,11 @@
     <string name="a11y_key_arrow_up">Pfeil nach oben</string>
     <string name="a11y_key_arrow_down">Pfeil nach unten</string>
     <string name="cd_always_on_top">Immer im Vordergrund</string>
-    <string name="settings_caption_size">Untertitelgröße</string>
-    <string name="settings_caption_size_hint">Textgröße der Videountertitel</string>
+    <string name="settings_caption_size">Größe</string>
     <string name="caption_size_preview">So sehen Untertitel aus</string>
+    <string name="settings_caption_style">Untertitelstil</string>
+    <string name="settings_caption_style_hint">Größe, Farbe und Hintergrund der Videountertitel</string>
+    <string name="caption_text_color">Textfarbe</string>
+    <string name="caption_background">Hintergrund</string>
+    <string name="caption_background_opacity">Deckkraft des Hintergrunds</string>
 </resources>

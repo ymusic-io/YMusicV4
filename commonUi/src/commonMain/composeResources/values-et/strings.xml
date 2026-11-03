@@ -633,7 +633,11 @@
     <string name="a11y_key_arrow_up">ülesnool</string>
     <string name="a11y_key_arrow_down">allanool</string>
     <string name="cd_always_on_top">Alati peal</string>
-    <string name="settings_caption_size">Subtiitrite suurus</string>
-    <string name="settings_caption_size_hint">Videosubtiitrite teksti suurus</string>
+    <string name="settings_caption_size">Suurus</string>
     <string name="caption_size_preview">Subtiitrid näevad välja nii</string>
+    <string name="settings_caption_style">Subtiitrite stiil</string>
+    <string name="settings_caption_style_hint">Videosubtiitrite suurus, värv ja taust</string>
+    <string name="caption_text_color">Teksti värv</string>
+    <string name="caption_background">Taust</string>
+    <string name="caption_background_opacity">Tausta läbipaistmatus</string>
 </resources>

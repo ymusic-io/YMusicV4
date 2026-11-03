@@ -641,7 +641,11 @@
     <string name="a11y_key_arrow_up">fletxa amunt</string>
     <string name="a11y_key_arrow_down">fletxa avall</string>
     <string name="cd_always_on_top">Sempre visible</string>
-    <string name="settings_caption_size">Mida dels subtítols</string>
-    <string name="settings_caption_size_hint">Mida del text dels subtítols del vídeo</string>
+    <string name="settings_caption_size">Mida</string>
     <string name="caption_size_preview">Els subtítols es veuran així</string>
+    <string name="settings_caption_style">Estil dels subtítols</string>
+    <string name="settings_caption_style_hint">Mida, color i fons dels subtítols del vídeo</string>
+    <string name="caption_text_color">Color del text</string>
+    <string name="caption_background">Fons</string>
+    <string name="caption_background_opacity">Opacitat del fons</string>
 </resources>

@@ -633,7 +633,11 @@
     <string name="a11y_key_arrow_up">ऊपर तीर</string>
     <string name="a11y_key_arrow_down">नीचे तीर</string>
     <string name="cd_always_on_top">हमेशा सबसे ऊपर</string>
-    <string name="settings_caption_size">कैप्शन का आकार</string>
-    <string name="settings_caption_size_hint">वीडियो कैप्शन के टेक्स्ट का आकार</string>
+    <string name="settings_caption_size">आकार</string>
     <string name="caption_size_preview">कैप्शन ऐसे दिखेंगे</string>
+    <string name="settings_caption_style">कैप्शन की शैली</string>
+    <string name="settings_caption_style_hint">वीडियो कैप्शन का आकार, रंग और बैकग्राउंड</string>
+    <string name="caption_text_color">टेक्स्ट का रंग</string>
+    <string name="caption_background">बैकग्राउंड</string>
+    <string name="caption_background_opacity">बैकग्राउंड की अपारदर्शिता</string>
 </resources>

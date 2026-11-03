@@ -633,7 +633,11 @@
     <string name="a11y_key_arrow_up">стрелка горе</string>
     <string name="a11y_key_arrow_down">стрелка долу</string>
     <string name="cd_always_on_top">Секогаш најгоре</string>
-    <string name="settings_caption_size">Големина на титловите</string>
-    <string name="settings_caption_size_hint">Големина на текстот на видео титловите</string>
+    <string name="settings_caption_size">Големина</string>
     <string name="caption_size_preview">Титловите ќе изгледаат вака</string>
+    <string name="settings_caption_style">Стил на титловите</string>
+    <string name="settings_caption_style_hint">Големина, боја и позадина на видео титловите</string>
+    <string name="caption_text_color">Боја на текстот</string>
+    <string name="caption_background">Позадина</string>
+    <string name="caption_background_opacity">Непроѕирност на позадината</string>
 </resources>

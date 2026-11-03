@@ -625,7 +625,11 @@
     <string name="a11y_key_arrow_up">上箭头</string>
     <string name="a11y_key_arrow_down">下箭头</string>
     <string name="cd_always_on_top">始终置顶</string>
-    <string name="settings_caption_size">字幕大小</string>
-    <string name="settings_caption_size_hint">视频字幕的文字大小</string>
+    <string name="settings_caption_size">大小</string>
     <string name="caption_size_preview">字幕将显示为这样</string>
+    <string name="settings_caption_style">字幕样式</string>
+    <string name="settings_caption_style_hint">视频字幕的大小、颜色和背景</string>
+    <string name="caption_text_color">文字颜色</string>
+    <string name="caption_background">背景</string>
+    <string name="caption_background_opacity">背景不透明度</string>
 </resources>

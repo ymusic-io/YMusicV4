@@ -633,7 +633,11 @@
     <string name="a11y_key_arrow_up">mshale wa juu</string>
     <string name="a11y_key_arrow_down">mshale wa chini</string>
     <string name="cd_always_on_top">Juu kila wakati</string>
-    <string name="settings_caption_size">Ukubwa wa manukuu</string>
-    <string name="settings_caption_size_hint">Ukubwa wa maandishi ya manukuu ya video</string>
+    <string name="settings_caption_size">Ukubwa</string>
     <string name="caption_size_preview">Manukuu yataonekana hivi</string>
+    <string name="settings_caption_style">Mtindo wa manukuu</string>
+    <string name="settings_caption_style_hint">Ukubwa, rangi na mandharinyuma ya manukuu ya video</string>
+    <string name="caption_text_color">Rangi ya maandishi</string>
+    <string name="caption_background">Mandharinyuma</string>
+    <string name="caption_background_opacity">Uangavu wa mandharinyuma</string>
 </resources>

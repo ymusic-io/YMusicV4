@@ -625,7 +625,11 @@
     <string name="a11y_key_arrow_up">ลูกศรขึ้น</string>
     <string name="a11y_key_arrow_down">ลูกศรลง</string>
     <string name="cd_always_on_top">อยู่ด้านบนเสมอ</string>
-    <string name="settings_caption_size">ขนาดคำบรรยาย</string>
-    <string name="settings_caption_size_hint">ขนาดตัวอักษรของคำบรรยายวิดีโอ</string>
+    <string name="settings_caption_size">ขนาด</string>
     <string name="caption_size_preview">คำบรรยายจะแสดงแบบนี้</string>
+    <string name="settings_caption_style">รูปแบบคำบรรยาย</string>
+    <string name="settings_caption_style_hint">ขนาด สี และพื้นหลังของคำบรรยายวิดีโอ</string>
+    <string name="caption_text_color">สีตัวอักษร</string>
+    <string name="caption_background">พื้นหลัง</string>
+    <string name="caption_background_opacity">ความทึบของพื้นหลัง</string>
 </resources>

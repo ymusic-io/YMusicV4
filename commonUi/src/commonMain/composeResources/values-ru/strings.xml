@@ -649,7 +649,11 @@
     <string name="a11y_key_arrow_up">стрелка вверх</string>
     <string name="a11y_key_arrow_down">стрелка вниз</string>
     <string name="cd_always_on_top">Поверх всех окон</string>
-    <string name="settings_caption_size">Размер субтитров</string>
-    <string name="settings_caption_size_hint">Размер текста субтитров видео</string>
+    <string name="settings_caption_size">Размер</string>
     <string name="caption_size_preview">Субтитры будут выглядеть так</string>
+    <string name="settings_caption_style">Стиль субтитров</string>
+    <string name="settings_caption_style_hint">Размер, цвет и фон субтитров видео</string>
+    <string name="caption_text_color">Цвет текста</string>
+    <string name="caption_background">Фон</string>
+    <string name="caption_background_opacity">Непрозрачность фона</string>
 </resources>

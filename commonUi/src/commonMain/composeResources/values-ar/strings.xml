@@ -798,7 +798,11 @@
     <string name="a11y_key_arrow_up">سهم لأعلى</string>
     <string name="a11y_key_arrow_down">سهم لأسفل</string>
     <string name="cd_always_on_top">دائمًا في المقدمة</string>
-    <string name="settings_caption_size">حجم الترجمة</string>
-    <string name="settings_caption_size_hint">حجم نص ترجمة الفيديو</string>
+    <string name="settings_caption_size">الحجم</string>
     <string name="caption_size_preview">ستظهر الترجمة هكذا</string>
+    <string name="settings_caption_style">نمط الترجمة</string>
+    <string name="settings_caption_style_hint">حجم ترجمة الفيديو ولونها وخلفيتها</string>
+    <string name="caption_text_color">لون النص</string>
+    <string name="caption_background">الخلفية</string>
+    <string name="caption_background_opacity">عتامة الخلفية</string>
 </resources>

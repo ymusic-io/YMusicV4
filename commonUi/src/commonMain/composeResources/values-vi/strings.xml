@@ -747,7 +747,11 @@
     <string name="a11y_key_arrow_up">mũi tên lên</string>
     <string name="a11y_key_arrow_down">mũi tên xuống</string>
     <string name="cd_always_on_top">Luôn ở trên cùng</string>
-    <string name="settings_caption_size">Cỡ phụ đề</string>
-    <string name="settings_caption_size_hint">Cỡ chữ phụ đề video</string>
+    <string name="settings_caption_size">Cỡ chữ</string>
     <string name="caption_size_preview">Phụ đề sẽ trông như thế này</string>
+    <string name="settings_caption_style">Kiểu phụ đề</string>
+    <string name="settings_caption_style_hint">Cỡ chữ, màu và nền của phụ đề video</string>
+    <string name="caption_text_color">Màu chữ</string>
+    <string name="caption_background">Nền</string>
+    <string name="caption_background_opacity">Độ mờ của nền</string>
 </resources>

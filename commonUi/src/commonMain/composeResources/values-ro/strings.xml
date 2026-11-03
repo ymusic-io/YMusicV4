@@ -641,7 +641,11 @@
     <string name="a11y_key_arrow_up">săgeată sus</string>
     <string name="a11y_key_arrow_down">săgeată jos</string>
     <string name="cd_always_on_top">Mereu deasupra</string>
-    <string name="settings_caption_size">Dimensiunea subtitrărilor</string>
-    <string name="settings_caption_size_hint">Dimensiunea textului subtitrărilor video</string>
+    <string name="settings_caption_size">Dimensiune</string>
     <string name="caption_size_preview">Subtitrările vor arăta așa</string>
+    <string name="settings_caption_style">Stilul subtitrărilor</string>
+    <string name="settings_caption_style_hint">Dimensiunea, culoarea și fundalul subtitrărilor video</string>
+    <string name="caption_text_color">Culoarea textului</string>
+    <string name="caption_background">Fundal</string>
+    <string name="caption_background_opacity">Opacitatea fundalului</string>
 </resources>

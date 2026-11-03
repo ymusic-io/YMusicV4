@@ -633,7 +633,11 @@
     <string name="a11y_key_arrow_up">pijl-omhoog</string>
     <string name="a11y_key_arrow_down">pijl-omlaag</string>
     <string name="cd_always_on_top">Altijd bovenop</string>
-    <string name="settings_caption_size">Ondertitelgrootte</string>
-    <string name="settings_caption_size_hint">Tekstgrootte van video-ondertitels</string>
+    <string name="settings_caption_size">Grootte</string>
     <string name="caption_size_preview">Ondertitels zien er zo uit</string>
+    <string name="settings_caption_style">Ondertitelstijl</string>
+    <string name="settings_caption_style_hint">Grootte, kleur en achtergrond van video-ondertitels</string>
+    <string name="caption_text_color">Tekstkleur</string>
+    <string name="caption_background">Achtergrond</string>
+    <string name="caption_background_opacity">Dekking van achtergrond</string>
 </resources>

@@ -633,7 +633,11 @@
     <string name="a11y_key_arrow_up">ಮೇಲಿನ ಬಾಣ</string>
     <string name="a11y_key_arrow_down">ಕೆಳಗಿನ ಬಾಣ</string>
     <string name="cd_always_on_top">ಯಾವಾಗಲೂ ಮೇಲೆ</string>
-    <string name="settings_caption_size">ಶೀರ್ಷಿಕೆ ಗಾತ್ರ</string>
-    <string name="settings_caption_size_hint">ವೀಡಿಯೊ ಶೀರ್ಷಿಕೆಗಳ ಪಠ್ಯದ ಗಾತ್ರ</string>
+    <string name="settings_caption_size">ಗಾತ್ರ</string>
     <string name="caption_size_preview">ಶೀರ್ಷಿಕೆಗಳು ಹೀಗೆ ಕಾಣುತ್ತವೆ</string>
+    <string name="settings_caption_style">ಶೀರ್ಷಿಕೆ ಶೈಲಿ</string>
+    <string name="settings_caption_style_hint">ವೀಡಿಯೊ ಶೀರ್ಷಿಕೆಗಳ ಗಾತ್ರ, ಬಣ್ಣ ಮತ್ತು ಹಿನ್ನೆಲೆ</string>
+    <string name="caption_text_color">ಪಠ್ಯದ ಬಣ್ಣ</string>
+    <string name="caption_background">ಹಿನ್ನೆಲೆ</string>
+    <string name="caption_background_opacity">ಹಿನ್ನೆಲೆಯ ಅಪಾರದರ್ಶಕತೆ</string>
 </resources>

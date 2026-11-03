@@ -789,7 +789,11 @@
     <string name="a11y_key_arrow_up">up arrow</string>
     <string name="a11y_key_arrow_down">down arrow</string>
     <string name="cd_always_on_top">Always on top</string>
-    <string name="settings_caption_size">Caption size</string>
-    <string name="settings_caption_size_hint">Text size of video captions</string>
+    <string name="settings_caption_size">Size</string>
     <string name="caption_size_preview">Captions will look like this</string>
+    <string name="settings_caption_style">Caption style</string>
+    <string name="settings_caption_style_hint">Size, color and background of video captions</string>
+    <string name="caption_text_color">Text color</string>
+    <string name="caption_background">Background</string>
+    <string name="caption_background_opacity">Background opacity</string>
 </resources>

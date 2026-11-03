@@ -633,7 +633,11 @@
     <string name="a11y_key_arrow_up">yukarı ok</string>
     <string name="a11y_key_arrow_down">aşağı ok</string>
     <string name="cd_always_on_top">Her zaman üstte</string>
-    <string name="settings_caption_size">Altyazı boyutu</string>
-    <string name="settings_caption_size_hint">Video altyazılarının metin boyutu</string>
+    <string name="settings_caption_size">Boyut</string>
     <string name="caption_size_preview">Altyazılar böyle görünecek</string>
+    <string name="settings_caption_style">Altyazı stili</string>
+    <string name="settings_caption_style_hint">Video altyazılarının boyutu, rengi ve arka planı</string>
+    <string name="caption_text_color">Metin rengi</string>
+    <string name="caption_background">Arka plan</string>
+    <string name="caption_background_opacity">Arka plan opaklığı</string>
 </resources>

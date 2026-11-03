@@ -641,7 +641,11 @@
     <string name="a11y_key_arrow_up">flèche haut</string>
     <string name="a11y_key_arrow_down">flèche bas</string>
     <string name="cd_always_on_top">Toujours au premier plan</string>
-    <string name="settings_caption_size">Taille des sous-titres</string>
-    <string name="settings_caption_size_hint">Taille du texte des sous-titres vidéo</string>
+    <string name="settings_caption_size">Taille</string>
     <string name="caption_size_preview">Les sous-titres ressembleront à ceci</string>
+    <string name="settings_caption_style">Style des sous-titres</string>
+    <string name="settings_caption_style_hint">Taille, couleur et fond des sous-titres vidéo</string>
+    <string name="caption_text_color">Couleur du texte</string>
+    <string name="caption_background">Fond</string>
+    <string name="caption_background_opacity">Opacité du fond</string>
 </resources>

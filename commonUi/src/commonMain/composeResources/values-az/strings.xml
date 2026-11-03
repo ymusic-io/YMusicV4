@@ -633,7 +633,11 @@
     <string name="a11y_key_arrow_up">yuxarı ox</string>
     <string name="a11y_key_arrow_down">aşağı ox</string>
     <string name="cd_always_on_top">Həmişə üstdə</string>
-    <string name="settings_caption_size">Altyazı ölçüsü</string>
-    <string name="settings_caption_size_hint">Video altyazılarının mətn ölçüsü</string>
+    <string name="settings_caption_size">Ölçü</string>
     <string name="caption_size_preview">Altyazılar belə görünəcək</string>
+    <string name="settings_caption_style">Altyazı üslubu</string>
+    <string name="settings_caption_style_hint">Video altyazılarının ölçüsü, rəngi və fonu</string>
+    <string name="caption_text_color">Mətn rəngi</string>
+    <string name="caption_background">Fon</string>
+    <string name="caption_background_opacity">Fonun qeyri-şəffaflığı</string>
 </resources>

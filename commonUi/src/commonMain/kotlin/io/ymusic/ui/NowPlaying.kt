@@ -1005,8 +1005,8 @@ private fun BoxScope.PlayerCaptionOverlay(
     val audioOnly = showsAudioOnly(player)
     val strip = VideoControlsStrip * LocalVideoOverlayScale.current
     val controlsInset by animateDpAsState(if (overlayVisible) strip else 12.dp)
-    val scale by remember(graph) { graph.settings.flow(AppSettings.captionScale) }.collectAsState()
-    val twoRows = captionTwoRowHeight(scale)
+    val look = rememberCaptionLook(graph)
+    val twoRows = captionTwoRowHeight(look.scale)
     BoxWithConstraints(Modifier.matchParentSize()) {
         val ratio = status.videoSize?.aspectRatio?.takeIf { it > 0f } ?: (16f / 9f)
         val pictureWidth: Dp
@@ -1022,7 +1022,7 @@ private fun BoxScope.PlayerCaptionOverlay(
         if (bar >= twoRows + strip + DesignSpacing.Space8) {
             CaptionOverlay(
                 lines,
-                scale,
+                look,
                 Modifier.align(Alignment.TopCenter)
                     .padding(top = bar + pictureHeight + DesignSpacing.Space8)
                     .width(pictureWidth),
@@ -1030,7 +1030,7 @@ private fun BoxScope.PlayerCaptionOverlay(
         } else {
             CaptionOverlay(
                 lines,
-                scale,
+                look,
                 Modifier.align(Alignment.BottomCenter)
                     .padding(bottom = maxOf(bar + 12.dp, controlsInset))
                     .width(pictureWidth),

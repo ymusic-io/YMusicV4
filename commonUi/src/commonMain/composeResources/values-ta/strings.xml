@@ -633,7 +633,11 @@
     <string name="a11y_key_arrow_up">மேல் அம்பு</string>
     <string name="a11y_key_arrow_down">கீழ் அம்பு</string>
     <string name="cd_always_on_top">எப்போதும் மேலே</string>
-    <string name="settings_caption_size">தலைப்பின் அளவு</string>
-    <string name="settings_caption_size_hint">வீடியோ தலைப்புகளின் உரை அளவு</string>
+    <string name="settings_caption_size">அளவு</string>
     <string name="caption_size_preview">தலைப்புகள் இப்படித் தோன்றும்</string>
+    <string name="settings_caption_style">தலைப்பு நடை</string>
+    <string name="settings_caption_style_hint">வீடியோ தலைப்புகளின் அளவு, நிறம், பின்னணி</string>
+    <string name="caption_text_color">உரையின் நிறம்</string>
+    <string name="caption_background">பின்னணி</string>
+    <string name="caption_background_opacity">பின்னணி ஒளிபுகாமை</string>
 </resources>

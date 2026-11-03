@@ -806,7 +806,11 @@
     <string name="a11y_key_arrow_up">стрілка вгору</string>
     <string name="a11y_key_arrow_down">стрілка вниз</string>
     <string name="cd_always_on_top">Поверх усіх вікон</string>
-    <string name="settings_caption_size">Розмір субтитрів</string>
-    <string name="settings_caption_size_hint">Розмір тексту субтитрів відео</string>
+    <string name="settings_caption_size">Розмір</string>
     <string name="caption_size_preview">Субтитри виглядатимуть так</string>
+    <string name="settings_caption_style">Стиль субтитрів</string>
+    <string name="settings_caption_style_hint">Розмір, колір і фон субтитрів відео</string>
+    <string name="caption_text_color">Колір тексту</string>
+    <string name="caption_background">Фон</string>
+    <string name="caption_background_opacity">Непрозорість фону</string>
 </resources>
