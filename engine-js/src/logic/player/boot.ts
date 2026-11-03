@@ -743,6 +743,8 @@ class Player {
   private speed = 1;
   private tempo = 1;
   private pitch = 1;
+  /** The live seek bar's 0, in media ms, as last reported: a bar position is relative to it. */
+  private barStartMs = 0;
   private mintFn: ((id: Uint8Array) => unknown) | null = null;
   private configP: Promise<Record<string, unknown>> | null = null;
   private minterP: Promise<Record<string, unknown>> | null = null;
@@ -1167,6 +1169,8 @@ class Player {
       const d = Number(el["duration"]);
       if (isFinite(d) && d > 0 && t >= d - LOOP_TAIL_S) t = 0;
     }
+    // The host's position for a live video counts from the DVR window start; seekTo takes media time.
+    if (isLiveDuration()) t += this.barStartMs / 1000;
     player["seekTo"](t, true);
     onCaptionSeek();
   }
@@ -1260,6 +1264,7 @@ class Player {
     const skEndMs = Math.round((isFinite(skEnd) ? skEnd : 0) * 1000);
     const window = live && skEndMs > skStartMs;
     const barStart = window ? skStartMs : 0;
+    this.barStartMs = barStart;
     const barEnd = window ? skEndMs : durationMs;
     const barSpan = Math.max(0, barEnd - barStart);
     const progress =
