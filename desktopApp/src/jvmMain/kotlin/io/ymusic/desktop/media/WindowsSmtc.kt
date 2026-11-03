@@ -17,6 +17,11 @@ import io.ymusic.desktop.comCall
 import io.ymusic.desktop.comQuery
 import io.ymusic.desktop.comRelease
 import kmpcommon.log.Logger
+import org.jetbrains.skia.EncodedImageFormat
+import org.jetbrains.skia.Image
+import java.net.URI
+import java.nio.file.Files
+import java.nio.file.Path
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.ExecutionException
@@ -42,6 +47,8 @@ internal class WindowsSmtcSession(
     private val kernel32 = NativeLibrary.getInstance("kernel32")
     private val combase = NativeLibrary.getInstance("combase")
     private val shell32 = NativeLibrary.getInstance("shell32")
+    private val ole32 = NativeLibrary.getInstance("ole32")
+    private val shcore = NativeLibrary.getInstance("shcore")
 
     private val jobs = ConcurrentLinkedQueue<() -> Unit>()
     private val stopped = CompletableFuture<Unit>()
@@ -251,9 +258,14 @@ internal class WindowsSmtcSession(
         smtc2.comCall(SMTC2_PUT_PLAYBACK_RATE, state.speed.toDouble()).checkHresult("put_PlaybackRate")
     }
 
-    /** `RandomAccessStreamReference.CreateFromUri` resolves http(s) only; anything else clears the thumbnail. */
+    /** http(s) goes as a uri Windows fetches itself; `CreateFromUri` takes no `file:`, so a local file goes as a stream. */
     private fun publishThumbnail(url: String?) {
-        val reference = url?.takeIf { it.startsWith("https://") || it.startsWith("http://") }?.let(::streamReference)
+        val reference = when {
+            url == null -> null
+            url.startsWith("https://") || url.startsWith("http://") -> streamReferenceFromUri(url)
+            url.startsWith("file:") -> streamReferenceFromFile(Path.of(URI(url)))
+            else -> null
+        }
         try {
             updater.comCall(UPDATER_PUT_THUMBNAIL, reference).checkHresult("put_Thumbnail")
         } finally {
@@ -261,15 +273,52 @@ internal class WindowsSmtcSession(
         }
     }
 
-    private fun streamReference(url: String): Pointer {
+    private fun streamReferenceStatics(): Pointer = streamReferences
+        ?: own(activationFactory(CLASS_STREAM_REFERENCE, IID_STREAM_REFERENCE_STATICS)).also { streamReferences = it }
+
+    private fun streamReferenceFromUri(url: String): Pointer {
         val factory = uriFactory ?: own(activationFactory(CLASS_URI, IID_URI_FACTORY)).also { uriFactory = it }
-        val statics = streamReferences
-            ?: own(activationFactory(CLASS_STREAM_REFERENCE, IID_STREAM_REFERENCE_STATICS)).also { streamReferences = it }
         val uri = withHString(url) { factory.callForObject(URI_FACTORY_CREATE_URI, "CreateUri", it) }
         try {
-            return statics.callForObject(STREAM_REFERENCE_CREATE_FROM_URI, "CreateFromUri", uri)
+            return streamReferenceStatics().callForObject(STREAM_REFERENCE_CREATE_FROM_URI, "CreateFromUri", uri)
         } finally {
             uri.comRelease()
+        }
+    }
+
+    /** Copied into memory rather than opened: the file is a cache entry that may be evicted while Windows still reads it. */
+    private fun streamReferenceFromFile(file: Path): Pointer {
+        val out = PointerByReference()
+        ole32.fn("CreateStreamOnHGlobal").invokeInt(arrayOf(null, 1, out)).checkHresult("CreateStreamOnHGlobal")
+        val stream = out.value
+        try {
+            val png = encodePng(file)
+            stream.comCall(ISTREAM_WRITE, png, png.size, null).checkHresult("IStream.Write")
+            stream.comCall(ISTREAM_SEEK, 0L, STREAM_SEEK_SET, null).checkHresult("IStream.Seek")
+            shcore.fn("CreateRandomAccessStreamOverStream")
+                .invokeInt(arrayOf(stream, BSOS_DEFAULT, WindowsCom.guid(IID_RANDOM_ACCESS_STREAM), out))
+                .checkHresult("CreateRandomAccessStreamOverStream")
+            val randomAccess = out.value
+            try {
+                return streamReferenceStatics().callForObject(STREAM_REFERENCE_CREATE_FROM_STREAM, "CreateFromStream", randomAccess)
+            } finally {
+                randomAccess.comRelease()
+            }
+        } finally {
+            stream.comRelease()
+        }
+    }
+
+    /**
+     * Windows silently drops a thumbnail it cannot decode — WebP, the image cache's format among them —
+     * so the art goes over re-encoded as PNG. ByteArray: Skia's codec decodes and encodes bytes only.
+     */
+    private fun encodePng(file: Path): ByteArray {
+        val image = Image.makeFromEncoded(Files.readAllBytes(file))
+        try {
+            return image.encodeToData(EncodedImageFormat.PNG)?.bytes ?: error("PNG encode failed: $file")
+        } finally {
+            image.close()
         }
     }
 
@@ -433,6 +482,12 @@ internal class WindowsSmtcSession(
         const val POSITION_ARGS_GET_REQUESTED_POSITION = 6
         const val URI_FACTORY_CREATE_URI = 6
         const val STREAM_REFERENCE_CREATE_FROM_URI = 7
+        const val STREAM_REFERENCE_CREATE_FROM_STREAM = 8
+        const val IID_RANDOM_ACCESS_STREAM = "905A0FE1-BC53-11DF-8C49-001E4FC686DA"
+        const val BSOS_DEFAULT = 0
+        const val ISTREAM_WRITE = 4 // IUnknown, then ISequentialStream Read/Write, then IStream
+        const val ISTREAM_SEEK = 5
+        const val STREAM_SEEK_SET = 0
 
         // Windows.Media.MediaPlaybackStatus / MediaPlaybackType / SystemMediaTransportControlsButton
         const val STATUS_CLOSED = 0

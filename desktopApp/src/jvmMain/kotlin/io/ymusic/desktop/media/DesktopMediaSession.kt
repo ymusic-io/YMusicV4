@@ -1,12 +1,19 @@
 package io.ymusic.desktop.media
 
+import io.ymusic.imageloader.ImageLoader
 import io.ymusic.player.PlayableItem
 import io.ymusic.player.Player
 import io.ymusic.player.isPlaying
 import io.ymusic.ui.youtubeThumbUrl
 import kmpcommon.log.Logger
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 
@@ -87,9 +94,11 @@ interface DesktopMediaSession {
  * duration, speed) and on position jumps the OS cannot extrapolate (seeks); commands flow back in
  * on [scope]'s main dispatcher. Returns null when this OS has no backend.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 fun connectMediaSession(
     player: Player,
     scope: CoroutineScope,
+    imageLoader: ImageLoader? = null,
     logger: Logger? = null,
     onRaise: () -> Unit = {},
 ): DesktopMediaSession? {
@@ -125,10 +134,18 @@ fun connectMediaSession(
         },
         logger = logger,
     ) ?: return null
+    // Tagged with its item, so a track change never publishes the previous track's art.
+    val localArtwork = player.queue
+        .map { it.currentItem }
+        .distinctUntilChanged()
+        .mapLatest { item ->
+            item to item?.takeIf { it !is PlayableItem.YtMedia }?.let { localArtworkUrl(it, imageLoader, logger) }
+        }
+        .onStart { emit(null to null) }
     scope.launch {
         var last: MediaSessionState? = null
         var lastAtMs = 0L
-        combine(player.status, player.queue, player.progress, player.config) { status, queue, progress, config ->
+        combine(player.status, player.queue, player.progress, player.config, localArtwork) { status, queue, progress, config, art ->
             val item = queue.currentItem
             val video = item as? PlayableItem.YtMedia
             MediaSessionState(
@@ -136,8 +153,7 @@ fun connectMediaSession(
                 // A video queued without its channel gets it once the player response names it.
                 artist = item?.displaySubtitle
                     ?: status.details?.takeIf { video != null && it.videoId == video.videoId }?.channelTitle,
-                artworkUrl = (if (video != null) youtubeThumbUrl(video.videoId) else item?.displayThumbnailUrl)
-                    ?.takeIf { it.startsWith("https://") || it.startsWith("http://") || it.startsWith("file:") },
+                artworkUrl = if (video != null) youtubeThumbUrl(video.videoId) else art.second.takeIf { art.first == item },
                 playing = status.state.isPlaying(),
                 positionMs = progress.positionMs,
                 durationMs = progress.durationMs.takeIf { it > 0 },
@@ -163,6 +179,25 @@ fun connectMediaSession(
     }
     return session
 }
+
+/**
+ * A local item's art as an http(s) or `file:` url. App schemes (`art://` embedded album art) have no
+ * form an OS process can read, so they go through the loader's scaled disk cache.
+ */
+private suspend fun localArtworkUrl(item: PlayableItem, imageLoader: ImageLoader?, logger: Logger?): String? {
+    val url = item.displayThumbnailUrl ?: return null
+    if (url.startsWith("https://") || url.startsWith("http://") || url.startsWith("file:")) return url
+    return try {
+        imageLoader?.loadFile(url, ARTWORK_PX, ARTWORK_PX)?.toNioPath()?.toUri()?.toString()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Throwable) {
+        logger?.log(Logger.Level.WARN, "media session artwork unavailable: $url", e)
+        null
+    }
+}
+
+private const val ARTWORK_PX = 512
 
 /** Position drift beyond normal tick jitter = a seek the OS must be told about. */
 private const val SEEK_DRIFT_MS = 2_000L

@@ -980,7 +980,7 @@ private suspend fun buildGraph(settings: AppStoreSettings, session: CookieSessio
 
     // OS media surface + media keys (macOS Now Playing, Linux MPRIS, Windows SMTC). Commands come
     // back on the Main dispatcher, where the player is driven.
-    connectMediaSession(player, CoroutineScope(Dispatchers.Main), rootLogger.fork("now-playing")) {
+    connectMediaSession(player, CoroutineScope(Dispatchers.Main), imageLoader, rootLogger.fork("now-playing")) {
         showWindowRequests.tryEmit(Unit)
     }
 
