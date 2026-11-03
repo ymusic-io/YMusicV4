@@ -1,7 +1,9 @@
 package io.ymusic.desktop.media
 
+import io.ymusic.player.PlayableItem
 import io.ymusic.player.Player
 import io.ymusic.player.isPlaying
+import io.ymusic.ui.youtubeThumbUrl
 import kmpcommon.log.Logger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.combine
@@ -115,16 +117,20 @@ fun connectMediaSession(player: Player, scope: CoroutineScope, logger: Logger? =
         var last: MediaSessionState? = null
         var lastAtMs = 0L
         combine(player.status, player.queue, player.progress, player.config) { status, queue, progress, config ->
+            val item = queue.currentItem
+            val video = item as? PlayableItem.YtMedia
             MediaSessionState(
-                title = queue.currentItem?.displayTitle,
-                artist = queue.currentItem?.displaySubtitle,
-                artworkUrl = queue.currentItem?.displayThumbnailUrl
+                title = item?.displayTitle,
+                // A video queued without its channel gets it once the player response names it.
+                artist = item?.displaySubtitle
+                    ?: status.details?.takeIf { video != null && it.videoId == video.videoId }?.channelTitle,
+                artworkUrl = (if (video != null) youtubeThumbUrl(video.videoId) else item?.displayThumbnailUrl)
                     ?.takeIf { it.startsWith("https://") || it.startsWith("http://") || it.startsWith("file:") },
                 playing = status.state.isPlaying(),
                 positionMs = progress.positionMs,
                 durationMs = progress.durationMs.takeIf { it > 0 },
                 speed = config.speed,
-                hasItem = queue.currentItem != null,
+                hasItem = item != null,
             )
         }.collect { state ->
             val now = System.currentTimeMillis()
