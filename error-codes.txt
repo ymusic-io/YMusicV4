@@ -172,3 +172,4 @@ E91011 D android update APK's size/sha256 differs from the config entry (Android
 E91012 D android update APK download failed (AndroidAppUpdates.download)
 E91013 D android update APK could not be handed to PackageInstaller (AndroidAppUpdates.installAndRestart)
 E91014 D android update APK download failed: the device doesn't trust the host's TLS chain (AndroidAppUpdates.download)
+E91015 - android update install refused by the device: SD-card install it can't move, policy/FRP restriction, or no installer session (AndroidAppUpdates.installAndRestart)

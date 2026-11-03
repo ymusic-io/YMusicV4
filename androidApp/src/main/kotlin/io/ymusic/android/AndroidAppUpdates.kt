@@ -262,7 +262,7 @@ class AndroidAppUpdates(
                     }
                     isDeviceInstallBlock(error) -> {
                         log?.log(Logger.Level.WARN, "device refused installing update ${update.versionCode}", error)
-                        "E91013"
+                        "E91015"
                     }
                     else -> {
                         log?.captureError(error, "installing update ${update.versionCode} failed")
