@@ -250,9 +250,9 @@ private fun Swatches(colors: List<String>, selected: String, onPick: (String) ->
             Box(
                 Modifier
                     .size(DesignSpacing.Space32)
-                    .clip(CircleShape)
-                    .background(color)
+                    .background(color, CircleShape)
                     .border(if (isSelected) 2.dp else 1.dp, if (isSelected) DesignColors.Accent else DesignColors.Outline, CircleShape)
+                    .clip(CircleShape)
                     .clickable(role = Role.RadioButton) { onPick(hex) }
                     .semantics {
                         contentDescription = "#$hex"
