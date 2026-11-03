@@ -206,6 +206,9 @@ interface Player {
     /** Pictures the active engine dropped for missing their time since its current load. 0 when it has no counter. */
     fun droppedFrames(): Int = 0
 
+    /** The active engine's video decoder, e.g. "hw vp9"; null when unknown. Blocking: call off the main thread. */
+    fun videoDecoder(): String? = null
+
     /** Releases both engines and stops all internal work. The instance is unusable afterwards. */
     fun release()
 }

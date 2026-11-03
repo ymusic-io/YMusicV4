@@ -167,6 +167,9 @@ interface MediaEngine<in S : PlayableItem> {
     /** Pictures dropped for missing their time since the current load. 0 when the backend has no counter. */
     fun droppedFrames(): Int = 0
 
+    /** The video decoder in use, e.g. "hw vp9"; null when unknown. Blocking: call off the main thread. */
+    fun videoDecoder(): String? = null
+
     /** Releases native resources. The instance is unusable afterwards. Idempotent. */
     fun release()
 }

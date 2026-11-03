@@ -65,6 +65,8 @@ void vpipe_new_stream(VPipe *vp);
 int vpipe_failure(const VPipe *vp, char *out, int cap);
 /* "libdav1d sw threads=auto", "h264 d3d11va", "" when closed. */
 const char *vpipe_describe(const VPipe *vp);
+/* 1 when the open decoder runs on a hardware device. */
+int vpipe_is_hw(const VPipe *vp);
 
 #ifdef __cplusplus
 }

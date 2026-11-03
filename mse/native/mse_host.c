@@ -1871,6 +1871,16 @@ int mse_host_dropped_frames(MseHost *h)
     return dropped;
 }
 
+void mse_host_video_decoder(MseHost *h, char *out, int cap)
+{
+    out[0] = 0;
+    if (!h)
+        return;
+    pthread_mutex_lock(&h->av_mu);
+    mse_av_video_decoder(h->av, out, cap);
+    pthread_mutex_unlock(&h->av_mu);
+}
+
 #ifdef __ANDROID__
 int mse_host_audio_session(MseHost *h)
 {

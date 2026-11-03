@@ -463,6 +463,8 @@ internal class PlayerImpl(
     override fun droppedFrames(): Int =
         if (released) 0 else _currentEngine.value?.droppedFrames() ?: 0
 
+    override fun videoDecoder(): String? = if (released) null else _currentEngine.value?.videoDecoder()
+
     override fun release() {
         if (released) return
         released = true

@@ -372,8 +372,8 @@ private fun FpsBadge(player: Player, settings: SettingsStore, modifier: Modifier
     FpsBadgeActive(player, modifier)
 }
 
-/** Pictures shown over the last second, and dropped since the current item started. */
-private data class FrameRate(val shown: Int, val dropped: Int)
+/** Pictures shown over the last second, dropped since the current item started, and the video decoder. */
+private data class FrameRate(val shown: Int, val dropped: Int, val decoder: String? = null)
 
 /** Dropped pictures summed over an item: the host's counter restarts with every load (a quality switch too). */
 private class DroppedTotal(var last: Int) {
@@ -403,14 +403,19 @@ private fun FpsBadgeActive(player: Player, modifier: Modifier = Modifier) {
             delay(1_000)
             val shown = player.presentedFrames()
             dropped.add(player.droppedFrames())
-            value = FrameRate((shown - prevShown).coerceAtLeast(0), dropped.total)
+            val decoder = withContext(Dispatchers.Default) { player.videoDecoder() }
+            value = FrameRate((shown - prevShown).coerceAtLeast(0), dropped.total, decoder)
             prevShown = shown
         }
     }
     if (!sampling || (rate.shown <= 0 && rate.dropped <= 0)) return
     Text(
         // A developer readout, not localized.
-        if (rate.dropped > 0) "${rate.shown}fps - ${rate.dropped} dropped" else "${rate.shown}fps",
+        listOfNotNull(
+            "${rate.shown} fps",
+            "${rate.dropped} dropped".takeIf { rate.dropped > 0 },
+            rate.decoder,
+        ).joinToString(" - "),
         style = TextStyle(fontSize = 13.sp, color = Color.White),
         modifier = modifier
             .background(Color.Black.copy(alpha = 0.55f))

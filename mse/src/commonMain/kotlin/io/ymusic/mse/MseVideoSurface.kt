@@ -10,6 +10,9 @@ expect class MseVideoSurface {
     /** Pictures dropped for missing their time since the last load (`mse_host_video_quality`). */
     fun droppedFrames(): Int
 
+    /** "hw vp9", "sw av1"; "" while no video decoder is open. Blocking: takes the decoder lock. */
+    fun videoDecoder(): String
+
     fun setVolume(volume: Float)
 
     fun setAudioEffect(
