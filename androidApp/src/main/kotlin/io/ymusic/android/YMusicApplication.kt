@@ -6,6 +6,7 @@ import android.app.UiModeManager
 import android.content.ComponentCallbacks2
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.graphics.SurfaceTexture
 import android.hardware.display.DisplayManager
 import android.os.Build
@@ -120,6 +121,7 @@ import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -250,6 +252,13 @@ class YMusicApplication : Application() {
      *  gone), so the player and its video container live here, against the application context. */
     fun graphAsync(): Deferred<AppGraph> =
         builtGraph ?: appScope.async { buildGraph() }.also { builtGraph = it }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        // A system language change resets the default locale before the Activity is recreated.
+        builtGraph?.takeIf { it.isCompleted && !it.isCancelled }?.getCompleted()?.reapplyUiLanguage()
+    }
 
     /** Device facts every engine sees in `versions`: the real display for YouTube's quality cap, the
      *  rest for device-specific fixes in a remote bundle. */
