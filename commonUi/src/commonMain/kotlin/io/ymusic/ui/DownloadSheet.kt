@@ -210,7 +210,7 @@ private fun SheetHeader(state: DownloadOptionsState, onRename: () -> Unit) {
             ThumbImage(state.video.thumbs, RoundedCornerShape(8.dp)) {
                 ThumbPlaceholder(Icons.Outlined.MusicNote, 24.dp)
             }
-            Badges(state.video, Modifier.align(Alignment.BottomEnd).padding(DesignSpacing.Space4), textSize = 10, iconSize = 12.dp)
+            Badges(state.badgeItem, Modifier.align(Alignment.BottomEnd).padding(DesignSpacing.Space4), textSize = 10, iconSize = 12.dp)
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(DesignSpacing.Space4)) {
             Text(

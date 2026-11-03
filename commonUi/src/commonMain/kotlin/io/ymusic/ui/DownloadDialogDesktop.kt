@@ -146,7 +146,7 @@ private fun LeftPane(state: DownloadOptionsState, locationName: String?, onPickL
             ThumbImage(state.video.thumbs, RoundedCornerShape(10.dp)) {
                 ThumbPlaceholder(Icons.Outlined.Image, 26.dp)
             }
-            Badges(state.video, Modifier.align(Alignment.BottomEnd).padding(DesignSpacing.Space8), textSize = 11, iconSize = 14.dp)
+            Badges(state.badgeItem, Modifier.align(Alignment.BottomEnd).padding(DesignSpacing.Space8), textSize = 11, iconSize = 14.dp)
         }
         Column(verticalArrangement = Arrangement.spacedBy(DesignSpacing.Space4)) {
             Text(state.video.title, style = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = DesignColors.Ink, lineHeight = 18.sp), maxLines = 3)

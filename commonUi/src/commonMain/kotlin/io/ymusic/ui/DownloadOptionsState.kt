@@ -64,6 +64,13 @@ internal class DownloadOptionsState(
     var caption by mutableStateOf<String?>(null)
     var fileName by mutableStateOf(DownloadFileNames.fromTitle(video.title).ifEmpty { video.id })
 
+    /** [video] with the probed length filled in when the feed item came without a duration badge. */
+    val badgeItem: YtFeedItem
+        get() {
+            val probedMs = options?.durationMs?.takeIf { it > 0 }
+            return if (video.duration != null || probedMs == null) video else video.copy(duration = formatMillis(probedMs), durationMs = probedMs)
+        }
+
     val hasVideo: Boolean get() = options?.video?.isNotEmpty() == true
 
     /** The video containers this video can be downloaded in. */
