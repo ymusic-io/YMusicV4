@@ -147,6 +147,9 @@ struct MseAv {
        too late, or a stale GOP skipped undecoded). Read without a->mu. */
     atomic_int q_shown;
     atomic_int q_dropped;
+    /* The last mse_av_video_decoder answer, handed out while a->mu is busy. */
+    pthread_mutex_t desc_mu;
+    char v_desc[48];
 #ifdef __APPLE__
     void *vt_dec;
     /* Decoded pictures waiting in PTS (display) order. H.264 B-frames are
@@ -163,6 +166,9 @@ struct MseAv {
     ANativeWindow *mc_win;
     enum AVCodecID mc_codec_id;
     int mc_fail;
+    /* mc_is_software's verdict, for the codec it was taken from. */
+    AMediaCodec *mc_kind_of;
+    int mc_kind_sw;
     /* Failed opens in a row; the next try waits until mc_retry_us. */
     int mc_open_tries;
     int64_t mc_retry_us;
@@ -2223,6 +2229,7 @@ MseAv *mse_av_create(void)
     pthread_mutex_init(&a->mu, NULL);
     pthread_mutex_init(&a->amu, NULL);
     pthread_mutex_init(&a->show_mu, NULL);
+    pthread_mutex_init(&a->desc_mu, NULL);
     a->a_sent = -1;
     a->v_sent = -1;
     a->v_switch_pts = -1;
@@ -2306,6 +2313,7 @@ void mse_av_destroy(MseAv *a)
     vpresent_release(vp);
 #endif
     pthread_mutex_destroy(&a->show_mu);
+    pthread_mutex_destroy(&a->desc_mu);
     pthread_mutex_destroy(&a->amu);
     pthread_mutex_destroy(&a->mu);
     free(a);
@@ -4383,47 +4391,70 @@ void mse_av_video_quality(MseAv *a, int *shown, int *dropped)
 }
 
 #ifdef __ANDROID__
-/* AMediaCodec_getName is API 28; minSdk is lower, so it is looked up at run time. Unknown = hw. */
-static int mc_is_software(AMediaCodec *mc)
+typedef media_status_t (*McGetName)(AMediaCodec *, char **);
+typedef void (*McReleaseName)(AMediaCodec *, char *);
+static McGetName mc_get_name;
+static McReleaseName mc_release_name;
+static pthread_once_t mc_name_once = PTHREAD_ONCE_INIT;
+
+/* AMediaCodec_getName is API 28; minSdk is lower, so it is looked up at run time. */
+static void mc_resolve_name(void)
 {
-    typedef media_status_t (*GetName)(AMediaCodec *, char **);
-    typedef void (*ReleaseName)(AMediaCodec *, char *);
-    GetName get_name = (GetName)dlsym(RTLD_DEFAULT, "AMediaCodec_getName");
-    ReleaseName release_name = (ReleaseName)dlsym(RTLD_DEFAULT, "AMediaCodec_releaseName");
+    mc_get_name = (McGetName)dlsym(RTLD_DEFAULT, "AMediaCodec_getName");
+    mc_release_name = (McReleaseName)dlsym(RTLD_DEFAULT, "AMediaCodec_releaseName");
+}
+
+/* a->mu held. Unknown = hw. */
+static int mc_is_software(MseAv *a)
+{
     char *name = NULL;
-    int sw;
-    if (!get_name || !release_name || get_name(mc, &name) != AMEDIA_OK || !name)
+    if (a->mc_kind_of == a->mc)
+        return a->mc_kind_sw;
+    pthread_once(&mc_name_once, mc_resolve_name);
+    a->mc_kind_of = a->mc;
+    a->mc_kind_sw = 0;
+    if (!mc_get_name || !mc_release_name || mc_get_name(a->mc, &name) != AMEDIA_OK || !name)
         return 0;
-    sw = !strncmp(name, "c2.android.", 11) || !strncmp(name, "OMX.google.", 11) || strstr(name, ".sw.") != NULL;
-    release_name(mc, name);
-    return sw;
+    a->mc_kind_sw = !strncmp(name, "c2.android.", 11) || !strncmp(name, "OMX.google.", 11) || strstr(name, ".sw.") != NULL;
+    mc_release_name(a->mc, name);
+    return a->mc_kind_sw;
 }
 #endif
 
 void mse_av_video_decoder(MseAv *a, char *out, int cap)
 {
     const char *kind = NULL;
+    char desc[sizeof(a->v_desc)];
     out[0] = 0;
     if (!a)
         return;
-    pthread_mutex_lock(&a->mu);
-    if (!a->vpar) {
-        pthread_mutex_unlock(&a->mu);
+    /* Never waits on the decoder lock (a UI thread polls this): a busy decoder gets the last answer. */
+    if (pthread_mutex_trylock(&a->mu) != 0) {
+        pthread_mutex_lock(&a->desc_mu);
+        snprintf(out, cap, "%s", a->v_desc);
+        pthread_mutex_unlock(&a->desc_mu);
         return;
     }
+    desc[0] = 0;
+    if (a->vpar) {
 #ifdef __ANDROID__
-    if (a->mc)
-        kind = mc_is_software(a->mc) ? "sw" : "hw";
+        if (a->mc)
+            kind = mc_is_software(a) ? "sw" : "hw";
 #endif
 #ifdef __APPLE__
-    if (!kind && a->vt_dec)
-        kind = "hw";
+        if (!kind && a->vt_dec)
+            kind = "hw";
 #endif
-    if (!kind && vpipe_is_open(a->vpipe))
-        kind = vpipe_is_hw(a->vpipe) ? "hw" : "sw";
-    if (kind)
-        snprintf(out, cap, "%s %s", kind, avcodec_get_name(a->vpar->codec_id));
+        if (!kind && vpipe_is_open(a->vpipe))
+            kind = vpipe_is_hw(a->vpipe) ? "hw" : "sw";
+        if (kind)
+            snprintf(desc, sizeof(desc), "%s %s", kind, avcodec_get_name(a->vpar->codec_id));
+    }
     pthread_mutex_unlock(&a->mu);
+    pthread_mutex_lock(&a->desc_mu);
+    memcpy(a->v_desc, desc, sizeof(desc));
+    pthread_mutex_unlock(&a->desc_mu);
+    snprintf(out, cap, "%s", desc);
 }
 
 int mse_av_pull_audio(MseAv *a, double clock, double until, int16_t **s16, int *frames, int *rate, int *ch,

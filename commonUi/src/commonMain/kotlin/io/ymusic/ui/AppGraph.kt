@@ -299,6 +299,9 @@ class AppGraph(
     /** The UI language in effect; the composition rebuilds on it (the platform locale is not snapshot state). */
     val uiLanguage: StateFlow<String> = appliedUiLanguage
 
+    /** Puts [uiLanguage] back as the platform locale after the system reset it (an Android system language change). */
+    fun reapplyUiLanguage() = applyUiLocale(appliedUiLanguage.value)
+
     init {
         // Settings reach the player, cache and locale here, not in App: the process also runs without the UI
         // (Android Auto, media buttons, the playback service).

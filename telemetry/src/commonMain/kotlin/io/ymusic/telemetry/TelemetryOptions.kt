@@ -27,8 +27,3 @@ fun installSentryEngineVersion(version: Int) {
 fun installSentryPlayerVersion(version: Int) {
     Sentry.configureScope { scope -> scope.setTag("player.version", version.toString()) }
 }
-
-/** The system WebView's Chromium version (Android), as the `webview.version` tag. */
-fun installSentryWebViewVersion(version: String) {
-    Sentry.configureScope { scope -> scope.setTag("webview.version", version) }
-}

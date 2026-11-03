@@ -6,6 +6,7 @@ import android.app.UiModeManager
 import android.content.ComponentCallbacks2
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.graphics.SurfaceTexture
 import android.hardware.display.DisplayManager
 import android.os.Build
@@ -83,7 +84,6 @@ import io.ymusic.telemetry.installErrorLogs
 import io.ymusic.telemetry.installSentryDeviceId
 import io.ymusic.telemetry.installSentryEngineVersion
 import io.ymusic.telemetry.installSentryPlayerVersion
-import io.ymusic.telemetry.installSentryWebViewVersion
 import io.ymusic.telemetry.shareLogTraceWithSentry
 import io.ymusic.ui.APP_HTTP_TIMEOUT
 import io.ymusic.ui.AppGraph
@@ -121,6 +121,7 @@ import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -252,6 +253,13 @@ class YMusicApplication : Application() {
     fun graphAsync(): Deferred<AppGraph> =
         builtGraph ?: appScope.async { buildGraph() }.also { builtGraph = it }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        // A system language change resets the default locale before the Activity is recreated.
+        builtGraph?.takeIf { it.isCompleted && !it.isCancelled }?.getCompleted()?.reapplyUiLanguage()
+    }
+
     /** Device facts every engine sees in `versions`: the real display for YouTube's quality cap, the
      *  rest for device-specific fixes in a remote bundle. */
     private fun hostVersions(): Map<String, Any> {
@@ -270,10 +278,6 @@ class YMusicApplication : Application() {
             }
         }
     }
-
-    /** The system WebView's Chromium version ("66.0.3359.158") from its default user agent. */
-    private fun webViewChromiumVersion(): String? =
-        Regex("""Chrome/([\d.]+)""").find(WebSettings.getDefaultUserAgent(this))?.groupValues?.get(1)
 
     private suspend fun buildServices(): SharedServices {
         MseDecoderCaps.start(rootLogger)
@@ -319,7 +323,6 @@ class YMusicApplication : Application() {
                     it.isEnableUserInteractionBreadcrumbs = false
                 }
                 installSentryDeviceId(deviceId)
-                webViewChromiumVersion()?.let(::installSentryWebViewVersion)
                 shareLogTraceWithSentry()
             }
         }
