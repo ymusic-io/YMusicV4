@@ -33,7 +33,7 @@ class ImageLoaderBitmapLoader(
     private val imageLoader: ImageLoader,
     private val scope: CoroutineScope,
     private val ownAuthority: String,
-    /** The session's bitmap limit ([MediaSession.getBitmapDimensionLimit]). */
+    /** The largest artwork the platform session keeps unscaled. */
     sessionBitmapLimit: Int,
 ) : BitmapLoader {
     // Artwork over the session limit is rescaled by the platform on every metadata update
