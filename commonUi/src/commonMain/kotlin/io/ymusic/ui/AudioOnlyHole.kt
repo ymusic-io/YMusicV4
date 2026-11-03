@@ -403,7 +403,7 @@ private fun FpsBadgeActive(player: Player, modifier: Modifier = Modifier) {
             delay(1_000)
             val shown = player.presentedFrames()
             dropped.add(player.droppedFrames())
-            val decoder = withContext(Dispatchers.Default) { player.videoDecoder() }
+            val decoder = player.videoDecoder()
             value = FrameRate((shown - prevShown).coerceAtLeast(0), dropped.total, decoder)
             prevShown = shown
         }
