@@ -1626,6 +1626,8 @@ static void seek_common(MseHost *h, double seconds)
     h->gate = 1;
     pthread_cond_broadcast(&h->cv);
     wait_idle(h);
+    if (h->fx)
+        audio_fx_reset(h->fx);
     h->hold = seconds;
     h->seek_base = seconds;
     h->origin_ns = now_ns();
@@ -1664,6 +1666,8 @@ void mse_host_reset(MseHost *h)
     h->gate = 1;
     pthread_cond_broadcast(&h->cv);
     wait_idle(h);
+    if (h->fx)
+        audio_fx_reset(h->fx);
     h->gate = 0;
     h->hold = 0;
     h->seek_base = 0;
