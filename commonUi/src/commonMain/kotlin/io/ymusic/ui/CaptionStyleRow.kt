@@ -1,7 +1,6 @@
 package io.ymusic.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -33,7 +32,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -247,13 +248,27 @@ private fun Swatches(colors: List<String>, selected: String, onPick: (String) ->
         colors.forEach { hex ->
             val color = captionColor(hex, Color.White)
             val isSelected = hex.equals(selected, ignoreCase = true)
+            val outline = DesignColors.Outline
+            val ring = if (isSelected) DesignColors.Accent else outline
             Box(
                 Modifier
                     .size(DesignSpacing.Space32)
-                    .background(color, CircleShape)
-                    .border(if (isSelected) 2.dp else 1.dp, if (isSelected) DesignColors.Accent else DesignColors.Outline, CircleShape)
                     .clip(CircleShape)
                     .clickable(role = Role.RadioButton) { onPick(hex) }
+                    .drawBehind {
+                        val outer = size.minDimension / 2
+                        if (isSelected) {
+                            val stroke = 2.dp.toPx()
+                            val inner = outer - stroke - 2.dp.toPx()
+                            drawCircle(ring, radius = outer - stroke / 2, style = Stroke(stroke))
+                            drawCircle(color, radius = inner)
+                            drawCircle(outline, radius = inner, style = Stroke(1.dp.toPx()))
+                        } else {
+                            val stroke = 1.dp.toPx()
+                            drawCircle(color, radius = outer - stroke)
+                            drawCircle(ring, radius = outer - stroke, style = Stroke(stroke))
+                        }
+                    }
                     .semantics {
                         contentDescription = "#$hex"
                         this.selected = isSelected
