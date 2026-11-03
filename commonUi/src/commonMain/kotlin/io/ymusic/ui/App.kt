@@ -351,7 +351,7 @@ private fun AppRoot(
         val profileReady by accountController.profileReady.collectAsState()
         val loginEpoch by accountController.loginEpoch.collectAsState()
         // App-level so a scan started in Library keeps running (and still notifies) across sections.
-        val scanController = remember { ScanController(scope, graph.logger?.fork("library-scan")) }
+        val scanController = graph.scans
         val drawer = rememberDrawerState(DrawerValue.Closed)
         if (catalogue == null) {
             LaunchedEffect(section) {

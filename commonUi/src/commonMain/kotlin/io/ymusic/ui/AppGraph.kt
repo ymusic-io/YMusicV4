@@ -291,6 +291,9 @@ class AppGraph(
     /** Sign-in state, one per process; probes the login on first use. */
     internal val account by lazy { AccountController(this, processScope) }
 
+    /** Library scans, one per process so a scan outlives the screen and the activity that started it. */
+    internal val scans by lazy { ScanController(processScope, logger?.fork("library-scan")) }
+
     private val appliedUiLanguage = MutableStateFlow(uiLanguageTag(settings).also(::applyUiLocale))
 
     /** The UI language in effect; the composition rebuilds on it (the platform locale is not snapshot state). */
