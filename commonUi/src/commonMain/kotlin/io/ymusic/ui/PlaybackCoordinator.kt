@@ -1,6 +1,7 @@
 package io.ymusic.ui
 
 import io.ymusic.dynamicengine.yt.YtFeedItem
+import io.ymusic.dynamicengine.yt.YtFeedPage
 import io.ymusic.dynamicengine.yt.YtThumb
 import io.ymusic.mediastore.model.MediaStoreItem
 import io.ymusic.player.PlayableItem
@@ -168,6 +169,20 @@ class PlaybackCoordinator(
             playIndex = startIndex.coerceIn(0, playable.size - 1),
             source = source,
         )
+    }
+
+    /** Play the playlist at [url] from [videoId], [page] being its loaded first page; the rest of the list
+     *  loads as the queue goes. False when [videoId] isn't on [page]. */
+    fun playPlaylist(url: String, page: YtFeedPage, videoId: String): Boolean {
+        val videos = page.sections.flatMap { it.items }.filter { it.kind == YtFeedItem.KIND_VIDEO }
+        val index = videos.indexOfFirst { it.id == videoId }
+        if (index < 0) return false
+        playAll(
+            videos,
+            startIndex = index,
+            source = NextQueueSource.playlist(graph.engines, url, videos, page.pageHeader?.itemCount, log?.fork("queue-source")),
+        )
+        return true
     }
 
     /** Play local library [songs] as the queue, starting at [index]. [shuffle] null keeps the user's shuffle mode. */

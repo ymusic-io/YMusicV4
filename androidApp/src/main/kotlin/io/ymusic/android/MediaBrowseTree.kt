@@ -77,6 +77,9 @@ class MediaBrowseTree(private val context: Context, private val graph: AppGraph)
     /** The last full list served for a local container — play context for [localContext]. */
     private var lastLocal: Pair<String, List<MediaStoreItem>>? = null
 
+    /** The last engine playlist page served — play context for [ytListContext]. */
+    private var lastYtList: Pair<String, YtFeedPage>? = null
+
     fun rootItem(): MediaItem = ROOT_ITEM
 
     /** The remembered feed item behind a "yt:" playable id, for queue building. */
@@ -87,6 +90,18 @@ class MediaBrowseTree(private val context: Context, private val graph: AppGraph)
     suspend fun localContext(containerId: String): List<MediaStoreItem> {
         lastLocal?.let { (id, songs) -> if (id == containerId) return songs }
         return localSongs(containerId)
+    }
+
+    /** The engine playlist page [url] last served (or re-fetched), for context queueing. */
+    suspend fun ytListContext(url: String): YtFeedPage {
+        lastYtList?.let { (listUrl, page) -> if (listUrl == url) return page }
+        return ytList(url)
+    }
+
+    private suspend fun ytList(url: String): YtFeedPage = if (url.startsWith(MusicBrowsePrefix)) {
+        graph.engines.extractMusicBrowse(url)
+    } else {
+        graph.engines.extractPlaylistDetail(url)
     }
 
     suspend fun children(parentId: String, page: Int, pageSize: Int): List<MediaItem> {
@@ -132,13 +147,7 @@ class MediaBrowseTree(private val context: Context, private val graph: AppGraph)
             parentId == YTM_CHARTS -> feedChildren(graph.engines.extractMusicCharts())
             parentId.startsWith(YT_LIST_PREFIX) -> {
                 val url = parentId.removePrefix(YT_LIST_PREFIX)
-                feedChildren(
-                    if (url.startsWith(MusicBrowsePrefix)) {
-                        graph.engines.extractMusicBrowse(url)
-                    } else {
-                        graph.engines.extractPlaylistDetail(url)
-                    },
-                )
+                feedChildren(ytList(url).also { lastYtList = url to it }, listUrl = url)
             }
             parentId.startsWith(YT_FEED_PREFIX) ->
                 feedChildren(graph.engines.extractChannelDetail(parentId.removePrefix(YT_FEED_PREFIX)))
@@ -153,6 +162,10 @@ class MediaBrowseTree(private val context: Context, private val graph: AppGraph)
         mediaId.startsWith(YT_SONG_PREFIX) -> {
             val videoId = mediaId.removePrefix(YT_SONG_PREFIX)
             ytItem(videoId)?.toMediaItem(groupTitle = null)
+        }
+        mediaId.startsWith(YT_LIST_SONG_PREFIX) -> {
+            val (videoId, listUrl) = parseYtListSongId(mediaId) ?: return null
+            ytItem(videoId)?.toMediaItem(groupTitle = null, listUrl = listUrl)
         }
         mediaId.startsWith(LOCAL_SONG_PREFIX) -> {
             val (containerId, rowId) = parseLocalSongId(mediaId) ?: return null
@@ -170,9 +183,14 @@ class MediaBrowseTree(private val context: Context, private val graph: AppGraph)
      *  artworkUri is our wrapped content:// form — unwrap it back to the raw url). */
     suspend fun toPlayableItem(mediaItem: MediaItem): PlayableItem? {
         val id = mediaItem.mediaId
+        val ytVideoId = when {
+            id.startsWith(YT_SONG_PREFIX) -> id.removePrefix(YT_SONG_PREFIX)
+            id.startsWith(YT_LIST_SONG_PREFIX) -> parseYtListSongId(id)?.first
+            else -> null
+        }
         return when {
-            id.startsWith(YT_SONG_PREFIX) -> {
-                val videoId = id.removePrefix(YT_SONG_PREFIX)
+            ytVideoId != null -> {
+                val videoId = ytVideoId
                 ytItem(videoId)?.toYtMedia() ?: PlayableItem.YtMedia(
                     videoId = videoId,
                     title = mediaItem.mediaMetadata.title?.toString(),
@@ -243,17 +261,25 @@ class MediaBrowseTree(private val context: Context, private val graph: AppGraph)
         return body.substringBeforeLast('/') to rowId
     }
 
+    /** "ytlistsong:<videoId>/<list app link>" → videoId + link; the list is the play context. */
+    fun parseYtListSongId(mediaId: String): Pair<String, String>? {
+        val body = mediaId.removePrefix(YT_LIST_SONG_PREFIX)
+        val slash = body.indexOf('/')
+        if (slash <= 0) return null
+        return body.substring(0, slash) to body.substring(slash + 1)
+    }
+
     // ---- engine feeds ----
 
     /** Shelves flattened into one list: videos playable, playlists/albums browsable, each tagged
      *  with its shelf title as a group heading; channels and nav tags have no Auto surface. */
-    private fun feedChildren(feed: YtFeedPage): List<MediaItem> = feed.sections.flatMap { section ->
+    private fun feedChildren(feed: YtFeedPage, listUrl: String? = null): List<MediaItem> = feed.sections.flatMap { section ->
         val group = section.header?.title
         section.items.mapNotNull { item ->
             when (item.kind) {
                 YtFeedItem.KIND_VIDEO -> {
                     remember(item)
-                    item.toMediaItem(group)
+                    item.toMediaItem(group, listUrl)
                 }
                 YtFeedItem.KIND_PLAYLIST -> item.url?.let { url ->
                     browsable(
@@ -275,7 +301,7 @@ class MediaBrowseTree(private val context: Context, private val graph: AppGraph)
         ytItems[item.id] = item
     }
 
-    private fun YtFeedItem.toMediaItem(groupTitle: String?): MediaItem {
+    private fun YtFeedItem.toMediaItem(groupTitle: String?, listUrl: String? = null): MediaItem {
         val metadata = MediaMetadata.Builder()
             .setTitle(title)
             .setArtist(channelTitle)
@@ -286,7 +312,7 @@ class MediaBrowseTree(private val context: Context, private val graph: AppGraph)
         // rotating signature params and expire inside long-lived browse/session uris.
         metadata.setArtworkUri(artworkContentUri(context, youtubeThumbUrl(id)))
         return MediaItem.Builder()
-            .setMediaId(YT_SONG_PREFIX + id)
+            .setMediaId(if (listUrl == null) YT_SONG_PREFIX + id else "$YT_LIST_SONG_PREFIX$id/$listUrl")
             .setMediaMetadata(metadata.build())
             .build()
     }
@@ -350,6 +376,10 @@ class MediaBrowseTree(private val context: Context, private val graph: AppGraph)
 
         /** Playable YouTube video: `yt:<videoId>`. */
         const val YT_SONG_PREFIX = "yt:"
+
+        /** Playable YouTube video inside an engine playlist: `ytlistsong:<videoId>/<list app link>` —
+         *  the list is the play context. */
+        const val YT_LIST_SONG_PREFIX = "ytlistsong:"
 
         /** Browsable engine playlist/album: `ytlist:<engine app link, verbatim>`. */
         const val YT_LIST_PREFIX = "ytlist:"

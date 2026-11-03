@@ -59,6 +59,7 @@ import io.ymusic.ui.resources.cd_shuffle
 import io.ymusic.ui.youtubeThumbUrl
 import kmpcommon.log.Logger
 import kmpcommon.log.debug
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
@@ -286,6 +287,17 @@ class PlaybackService : MediaLibraryService() {
         if (player.queue.value.currentItem == null) updateNotification()
     }
 
+    /** The browsed feed item behind [videoId]; a cache miss (process died since browsing) still plays
+     *  from the id and the controller's metadata. */
+    private fun browsedVideo(tree: MediaBrowseTree, videoId: String, chosen: MediaItem) =
+        tree.ytItem(videoId) ?: io.ymusic.dynamicengine.yt.YtFeedItem(
+            kind = io.ymusic.dynamicengine.yt.YtFeedItem.KIND_VIDEO,
+            id = videoId,
+            title = chosen.mediaMetadata.title?.toString() ?: videoId,
+            subtitleLine1 = chosen.mediaMetadata.artist?.toString(),
+            channelTitle = chosen.mediaMetadata.artist?.toString(),
+        )
+
     /** A controller's setMediaItems (Auto browse/search tap), applied with phone-app semantics. */
     private fun applyBrowseItems(items: List<MediaItem>, startIndex: Int) {
         val tree = this.tree ?: return
@@ -295,17 +307,23 @@ class PlaybackService : MediaLibraryService() {
         when {
             // A voice request: no id, the words in requestMetadata (see onAddMediaItems).
             id.isEmpty() -> playFromVoice(chosen.requestMetadata.searchQuery, chosen.requestMetadata.extras)
-            id.startsWith(MediaBrowseTree.YT_SONG_PREFIX) -> {
-                val videoId = id.removePrefix(MediaBrowseTree.YT_SONG_PREFIX)
-                // A cache miss (process died since browsing) still plays from the id alone.
-                val video = tree.ytItem(videoId) ?: io.ymusic.dynamicengine.yt.YtFeedItem(
-                    kind = io.ymusic.dynamicengine.yt.YtFeedItem.KIND_VIDEO,
-                    id = videoId,
-                    title = chosen.mediaMetadata.title?.toString() ?: videoId,
-                    subtitleLine1 = chosen.mediaMetadata.artist?.toString(),
-                    channelTitle = chosen.mediaMetadata.artist?.toString(),
-                )
-                coordinator.playNow(video)
+            id.startsWith(MediaBrowseTree.YT_SONG_PREFIX) ->
+                coordinator.playNow(browsedVideo(tree, id.removePrefix(MediaBrowseTree.YT_SONG_PREFIX), chosen))
+            id.startsWith(MediaBrowseTree.YT_LIST_SONG_PREFIX) -> {
+                val (videoId, listUrl) = tree.parseYtListSongId(id) ?: return
+                serviceScope.launch {
+                    val page = try {
+                        tree.ytListContext(listUrl)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        log?.fork("auto-playlist", mapOf("videoId" to videoId))?.log(Logger.Level.WARN, "playlist load failed, playing the video alone", e)
+                        null
+                    }
+                    if (page == null || !coordinator.playPlaylist(listUrl, page, videoId)) {
+                        coordinator.playNow(browsedVideo(tree, videoId, chosen))
+                    }
+                }
             }
             id.startsWith(MediaBrowseTree.LOCAL_SONG_PREFIX) -> {
                 val (containerId, rowId) = tree.parseLocalSongId(id) ?: return
