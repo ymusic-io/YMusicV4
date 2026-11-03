@@ -5,7 +5,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define AFX_OVL_MAX 1024
+/* WSOLA window frames: 20 ms up to 192 kHz. */
+#define AFX_WS_MAX 4096
 #define AFX_FIR 32
 #define AFX_FFT 2048
 #define AFX_VIS_CAP 65536 /* power of two; > the deepest sink delay (~1.3s at 48k) */
@@ -49,11 +50,14 @@ struct AudioFx {
     float *xf;
     int xf_n;
     int xf_cap;
-    float ovl[2][AFX_OVL_MAX];
-    int have_ovl;
-    int ovl_n;
-    int prev_off;
-    double skip_frac;
+    /* WSOLA state, as indices into the tempo stage's input buffer. */
+    int ws_have;
+    int ws_target;
+    double ws_time;
+    int ws_tail_n;
+    float ws_tail[2][AFX_WS_MAX / 2];
+    float ws_win[AFX_WS_MAX];
+    int ws_win_n;
     int path;
     float fir_h[AFX_FIR];
     float fir_z[2][AFX_FIR];
@@ -250,13 +254,10 @@ static void stretch_reset_unlocked(AudioFx *fx)
     fx->mid_n = 0;
     fx->mid_frac = 0;
     fx->xf_n = 0;
-    fx->have_ovl = 0;
-    fx->ovl_n = 0;
-    fx->prev_off = 0;
-    fx->skip_frac = 0;
+    fx->ws_have = 0;
+    fx->ws_tail_n = 0;
     fx->path = 0;
     fx->fir_cut = 0;
-    memset(fx->ovl, 0, sizeof(fx->ovl));
     memset(fx->fir_z, 0, sizeof(fx->fir_z));
 }
 
@@ -639,34 +640,21 @@ static void consume(float *buf, int *n, int drop, int nch)
         memmove(buf, buf + drop * nch, (size_t)*n * (size_t)nch * sizeof(float));
 }
 
-static void st_params(int rate, float tempo, int *ovl, int *seq, int *seek)
+/* 20 ms Hann windows (periodic, so the halves of neighbours sum to 1) and 30 ms of candidates. */
+static void ws_params(AudioFx *fx, int *win, int *cand)
 {
-    float seq_ms, seek_ms;
-    int ov, sq, sk;
-    if (rate < 8000)
-        rate = 48000;
-    ov = ((rate * 8) / 1000 + 7) & ~7;
-    if (ov < 64)
-        ov = 64;
-    if (ov > AFX_OVL_MAX)
-        ov = AFX_OVL_MAX;
-    /* Above 1x, SoundTouch's speech preset: a longer sequence skips whole phonemes. */
-    if (tempo > 1.f) {
-        seq_ms = 40.f;
-        seek_ms = 15.f;
-    } else {
-        seq_ms = 110.f - 20.f * tempo;
-        seek_ms = 23.f - 2.5f * tempo;
+    int rate = fx->rate < 8000 ? 48000 : fx->rate;
+    int w = (rate / 50) & ~1;
+    if (w > AFX_WS_MAX)
+        w = AFX_WS_MAX;
+    *win = w;
+    *cand = rate * 3 / 100;
+    if (fx->ws_win_n != w) {
+        int i;
+        for (i = 0; i < w; i++)
+            fx->ws_win[i] = 0.5f - 0.5f * cosf(2.f * PI * (float)i / (float)w);
+        fx->ws_win_n = w;
     }
-    sq = ((int)((float)rate * seq_ms / 1000.f) + 7) & ~7;
-    if (sq < ov * 3)
-        sq = ov * 3;
-    sk = ((int)((float)rate * seek_ms / 1000.f) + 7) & ~7;
-    if (sk < 64)
-        sk = 64;
-    *ovl = ov;
-    *seq = sq;
-    *seek = sk;
 }
 
 /* SoundTouch RateTransposer: cubic + FIR cutoff 0.5/max(rate,1). */
@@ -729,115 +717,111 @@ static int rate_to_s16(AudioFx *fx, float *src, int *src_n, double *frac, float 
     return o;
 }
 
-static float xcorr(const float *src, int off, int nch, const float ovl[2][AFX_OVL_MAX], int ovl_n)
+/* The window at src[off] against the target window, as a dot product over the candidate's energy
+   (the target's energy is the same for every candidate). Every `step`-th frame. */
+static float ws_similarity(const float *src, int off, int tgt, int win, int nch, int step)
 {
-    float e = 0.f, nrm = 0.f;
+    float dot = 0.f, energy = 0.f;
     int t, c;
-    for (t = 0; t < ovl_n; t++) {
+    for (t = 0; t < win; t += step) {
         for (c = 0; c < nch; c++) {
             float x = src[(off + t) * nch + c];
-            e += x * ovl[c][t];
-            nrm += x * x;
+            dot += x * src[(tgt + t) * nch + c];
+            energy += x * x;
         }
     }
-    if (nrm < 1e-12f)
-        return 0.f;
-    return e / sqrtf(nrm);
+    return energy < 1e-9f ? 0.f : dot / sqrtf(energy);
 }
 
-static int best_off(AudioFx *fx, const float *src, int src_n, int nch, int ovl_n, int seek_n)
+/* Coarse pass over every 5th candidate at half resolution, then every candidate around the best. */
+static int ws_best(const float *src, int search, int cand, int tgt, int win, int nch)
 {
-    int i, best = 0, max, lo, hi;
+    int i, lo, hi, best = search;
     float beste = -1e30f;
-    max = seek_n;
-    if (max + ovl_n > src_n)
-        max = src_n - ovl_n;
-    if (max < 0)
-        return 0;
-    for (i = 0; i <= max; i += 4) {
-        float e = xcorr(src, i, nch, fx->ovl, ovl_n);
-        if (i == fx->prev_off)
-            e += 0.1f;
+    for (i = 0; i < cand; i += 5) {
+        float e = ws_similarity(src, search + i, tgt, win, nch, 2);
         if (e > beste) {
             beste = e;
-            best = i;
+            best = search + i;
         }
     }
-    lo = best - 3;
-    hi = best + 3;
-    if (lo < 0)
-        lo = 0;
-    if (hi > max)
-        hi = max;
+    lo = best - 4 < search ? search : best - 4;
+    hi = best + 4 > search + cand - 1 ? search + cand - 1 : best + 4;
+    beste = -1e30f;
     for (i = lo; i <= hi; i++) {
-        float e = xcorr(src, i, nch, fx->ovl, ovl_n);
+        float e = ws_similarity(src, i, tgt, win, nch, 1);
         if (e > beste) {
             beste = e;
             best = i;
         }
     }
-    fx->prev_off = best;
     return best;
 }
 
-static void tdstretch(AudioFx *fx, float *src, int *src_n, float tempo, float *dst, int *dst_n,
-                      int dst_cap, int nch, int ovl_n, int seq_n, int seek_n)
+/* Chromium's AudioRendererAlgorithm WSOLA: each hop overlap-adds the next window onto the held half of
+   the last, every output frame a crossfade. The next window is the last one's natural continuation
+   while that lies in the search region around where the input should be, else the candidate most
+   like that continuation. Input before both the continuation and the next search is dropped. */
+static void wsola(AudioFx *fx, float *src, int *src_n, float tempo, float *dst, int *dst_n,
+                  int dst_cap, int nch)
 {
-    int t, c, off, skip, midlen, req;
-    float nom;
-    if (tempo < 0.26f)
-        tempo = 0.26f;
-    if (ovl_n > AFX_OVL_MAX)
-        ovl_n = AFX_OVL_MAX;
-    nom = tempo * (float)(seq_n - ovl_n);
-    if (nom < 1.f)
-        nom = 1.f;
-    req = (int)(nom + 0.5f) + ovl_n;
-    if (req < seq_n + seek_n)
-        req = seq_n + seek_n;
-    if (!fx->have_ovl) {
-        if (*src_n < ovl_n)
-            return;
-        for (t = 0; t < ovl_n; t++) {
-            for (c = 0; c < nch; c++)
-                fx->ovl[c][t] = src[t * nch + c];
-        }
-        fx->have_ovl = 1;
-        fx->ovl_n = ovl_n;
-        consume(src, src_n, ovl_n, nch);
+    int win, cand, hop, center, t, c;
+    ws_params(fx, &win, &cand);
+    hop = win / 2;
+    center = cand / 2 + hop - 1;
+    if (!fx->ws_have) {
+        fx->ws_time = center;
+        fx->ws_target = -1;
+        fx->ws_tail_n = 0;
+        fx->ws_have = 1;
     }
-    while (*src_n >= req && *dst_n + (seq_n - ovl_n) <= dst_cap) {
-        off = best_off(fx, src, *src_n, nch, ovl_n, seek_n);
-        for (t = 0; t < ovl_n; t++) {
-            float a = (float)t / (float)ovl_n;
-            float b = 1.f - a;
-            for (c = 0; c < nch; c++)
-                dst[(*dst_n + t) * nch + c] = src[(off + t) * nch + c] * a + fx->ovl[c][t] * b;
-        }
-        *dst_n += ovl_n;
-        midlen = seq_n - 2 * ovl_n;
-        if (midlen > 0) {
-            if (*dst_n + midlen > dst_cap)
-                midlen = dst_cap - *dst_n;
-            if (off + ovl_n + midlen > *src_n)
-                midlen = *src_n - off - ovl_n;
-            if (midlen > 0) {
-                memcpy(dst + *dst_n * nch, src + (off + ovl_n) * nch,
-                       (size_t)midlen * (size_t)nch * sizeof(float));
-                *dst_n += midlen;
+    for (;;) {
+        int search = (int)(fx->ws_time + 0.5) - center;
+        int opt, next, drop;
+        if (*dst_n + hop > dst_cap || search + cand + win - 1 > *src_n)
+            break;
+        if (fx->ws_target < 0)
+            opt = 0;
+        else if (fx->ws_target >= search && fx->ws_target + win <= search + cand + win - 1)
+            opt = fx->ws_target;
+        else
+            opt = ws_best(src, search, cand, fx->ws_target, win, nch);
+        for (t = 0; t < hop; t++) {
+            float rise = fx->ws_win[t], fall = fx->ws_win[hop + t];
+            for (c = 0; c < nch; c++) {
+                float x = src[(opt + t) * nch + c];
+                dst[(*dst_n + t) * nch + c] = fx->ws_tail_n ? fx->ws_tail[c][t] * fall + x * rise : x;
             }
         }
-        if (off + seq_n <= *src_n) {
-            for (t = 0; t < ovl_n; t++) {
-                for (c = 0; c < nch; c++)
-                    fx->ovl[c][t] = src[(off + seq_n - ovl_n + t) * nch + c];
-            }
+        *dst_n += hop;
+        for (t = 0; t < hop; t++) {
+            for (c = 0; c < nch; c++)
+                fx->ws_tail[c][t] = src[(opt + hop + t) * nch + c];
         }
-        fx->skip_frac += (double)nom;
-        skip = (int)fx->skip_frac;
-        fx->skip_frac -= (double)skip;
-        consume(src, src_n, skip, nch);
+        fx->ws_tail_n = hop;
+        fx->ws_target = opt + hop;
+        fx->ws_time += (double)hop * (double)tempo;
+        next = (int)(fx->ws_time + 0.5) - center;
+        drop = next < fx->ws_target ? next : fx->ws_target;
+        if (drop > 0) {
+            consume(src, src_n, drop, nch);
+            fx->ws_target -= drop;
+            fx->ws_time -= drop;
+        }
     }
+}
+
+/* Leaves the tempo stage's input at the last window's natural continuation and forgets the WSOLA
+   state: the held half-window is that input itself, so playing on from there repeats and drops
+   nothing. */
+static void ws_settle(AudioFx *fx, int nch)
+{
+    float *src = fx->path == 4 ? fx->mid : fx->inbuf;
+    int *src_n = fx->path == 4 ? &fx->mid_n : &fx->in_n;
+    if (fx->ws_have && fx->ws_target > 0)
+        consume(src, src_n, fx->ws_target < *src_n ? fx->ws_target : *src_n, nch);
+    fx->ws_have = 0;
+    fx->ws_tail_n = 0;
 }
 
 static int prepend(float **buf, int *n, int *cap, float *src, int *src_n, int nch)
@@ -853,30 +837,16 @@ static int prepend(float **buf, int *n, int *cap, float *src, int *src_n, int nc
     return 0;
 }
 
-static void fade_in_from_ovl(AudioFx *fx, float *dst, int n, int nch)
-{
-    int t, c, len;
-    if (!fx->have_ovl)
-        return;
-    len = fx->ovl_n < n ? fx->ovl_n : n;
-    for (t = 0; t < len; t++) {
-        float a = (float)t / (float)len;
-        for (c = 0; c < nch; c++)
-            dst[t * nch + c] = dst[t * nch + c] * a + fx->ovl[c][t] * (1.f - a);
-    }
-}
-
 /* Back to 1x: what the stretcher holds plays out first (in play order, through inbuf), so no
    audio is lost or replayed later and the A/V clock stays exact. */
 static void stretch_to_plain(AudioFx *fx, int nch)
 {
     int rc = 0;
+    ws_settle(fx, nch);
     if (fx->path == 4) {
-        fade_in_from_ovl(fx, fx->mid, fx->mid_n, nch);
         rc |= prepend(&fx->inbuf, &fx->in_n, &fx->in_cap, fx->mid, &fx->mid_n, nch);
         rc |= prepend(&fx->inbuf, &fx->in_n, &fx->in_cap, fx->xf, &fx->xf_n, nch);
     } else if (fx->path == 2 || fx->path == 3) {
-        fade_in_from_ovl(fx, fx->inbuf, fx->in_n, nch);
         rc |= prepend(&fx->inbuf, &fx->in_n, &fx->in_cap, fx->mid, &fx->mid_n, nch);
     }
     if (rc != 0) {
@@ -885,9 +855,6 @@ static void stretch_to_plain(AudioFx *fx, int nch)
     }
     fx->in_frac = 0;
     fx->mid_frac = 0;
-    fx->have_ovl = 0;
-    fx->prev_off = 0;
-    fx->skip_frac = 0;
     fx->fir_cut = 0;
     memset(fx->fir_z, 0, sizeof(fx->fir_z));
     fx->path = 0;
@@ -955,46 +922,41 @@ int audio_fx_stretch(AudioFx *fx, const int16_t *in, int in_frames, int16_t *out
     {
         int path = !do_tempo ? 1 : !do_rate ? 2 : pitch > 1.f ? 3 : 4;
         if (path != fx->path) {
-            fx->have_ovl = 0;
-            fx->skip_frac = 0;
-            fx->prev_off = 0;
+            ws_settle(fx, nch);
             fx->fir_cut = 0;
             memset(fx->fir_z, 0, sizeof(fx->fir_z));
             fx->path = path;
         }
     }
     {
-        int ovl_n, seq_n, seek_n;
-        st_params(fx->rate, tempo, &ovl_n, &seq_n, &seek_n);
+        int win, cand;
+        ws_params(fx, &win, &cand);
         if (!do_tempo) {
             produced = rate_to_s16(fx, fx->inbuf, &fx->in_n, &fx->in_frac, pitch, out, out_cap, nch,
                                    1);
         } else if (!do_rate) {
-            if (ensure_buf(&fx->mid, &fx->mid_cap, fx->mid_n + seq_n * 2, nch) != 0) {
+            if (ensure_buf(&fx->mid, &fx->mid_cap, fx->mid_n + win * 2, nch) != 0) {
                 pthread_mutex_unlock(&fx->mu);
                 return 0;
             }
-            tdstretch(fx, fx->inbuf, &fx->in_n, tempo, fx->mid, &fx->mid_n, fx->mid_cap, nch, ovl_n,
-                      seq_n, seek_n);
+            wsola(fx, fx->inbuf, &fx->in_n, tempo, fx->mid, &fx->mid_n, fx->mid_cap, nch);
             produced = fifo_to_s16(fx->mid, &fx->mid_n, out, out_cap, nch);
         } else if (pitch > 1.f) {
-            if (ensure_buf(&fx->mid, &fx->mid_cap, fx->mid_n + seq_n * 2, nch) != 0) {
+            if (ensure_buf(&fx->mid, &fx->mid_cap, fx->mid_n + win * 2, nch) != 0) {
                 pthread_mutex_unlock(&fx->mu);
                 return 0;
             }
-            tdstretch(fx, fx->inbuf, &fx->in_n, tempo, fx->mid, &fx->mid_n, fx->mid_cap, nch, ovl_n,
-                      seq_n, seek_n);
+            wsola(fx, fx->inbuf, &fx->in_n, tempo, fx->mid, &fx->mid_n, fx->mid_cap, nch);
             produced = rate_to_s16(fx, fx->mid, &fx->mid_n, &fx->mid_frac, pitch, out, out_cap, nch,
                                    1);
         } else {
             rate_xfer(fx, fx->inbuf, &fx->in_n, &fx->in_frac, &fx->mid, &fx->mid_n, &fx->mid_cap,
                       pitch, nch, 1);
-            if (ensure_buf(&fx->xf, &fx->xf_cap, fx->xf_n + seq_n * 2, nch) != 0) {
+            if (ensure_buf(&fx->xf, &fx->xf_cap, fx->xf_n + win * 2, nch) != 0) {
                 pthread_mutex_unlock(&fx->mu);
                 return 0;
             }
-            tdstretch(fx, fx->mid, &fx->mid_n, tempo, fx->xf, &fx->xf_n, fx->xf_cap, nch, ovl_n,
-                      seq_n, seek_n);
+            wsola(fx, fx->mid, &fx->mid_n, tempo, fx->xf, &fx->xf_n, fx->xf_cap, nch);
             produced = fifo_to_s16(fx->xf, &fx->xf_n, out, out_cap, nch);
         }
     }
