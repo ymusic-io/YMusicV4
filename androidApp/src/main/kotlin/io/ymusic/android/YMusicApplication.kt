@@ -83,7 +83,6 @@ import io.ymusic.telemetry.installErrorLogs
 import io.ymusic.telemetry.installSentryDeviceId
 import io.ymusic.telemetry.installSentryEngineVersion
 import io.ymusic.telemetry.installSentryPlayerVersion
-import io.ymusic.telemetry.installSentryWebViewVersion
 import io.ymusic.telemetry.shareLogTraceWithSentry
 import io.ymusic.ui.APP_HTTP_TIMEOUT
 import io.ymusic.ui.AppGraph
@@ -271,10 +270,6 @@ class YMusicApplication : Application() {
         }
     }
 
-    /** The system WebView's Chromium version ("66.0.3359.158") from its default user agent. */
-    private fun webViewChromiumVersion(): String? =
-        Regex("""Chrome/([\d.]+)""").find(WebSettings.getDefaultUserAgent(this))?.groupValues?.get(1)
-
     private suspend fun buildServices(): SharedServices {
         MseDecoderCaps.start(rootLogger)
         QuickJsRuntime.hostVersions = hostVersions()
@@ -319,7 +314,6 @@ class YMusicApplication : Application() {
                     it.isEnableUserInteractionBreadcrumbs = false
                 }
                 installSentryDeviceId(deviceId)
-                webViewChromiumVersion()?.let(::installSentryWebViewVersion)
                 shareLogTraceWithSentry()
             }
         }
