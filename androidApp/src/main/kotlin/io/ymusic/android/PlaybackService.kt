@@ -1,5 +1,6 @@
 package io.ymusic.android
 
+import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -180,7 +181,7 @@ class PlaybackService : MediaLibraryService() {
                 it,
                 serviceScope,
                 artworkAuthority(this@PlaybackService),
-                MediaSession.getBitmapDimensionLimit(this@PlaybackService),
+                sessionArtworkLimit(),
             )
         }
         session?.player = adapter
@@ -767,6 +768,17 @@ class PlaybackService : MediaLibraryService() {
         return builder.build()
     }
 
+    /**
+     * The platform session scales artwork above config_mediaMetadataBitmapMaxSize measured with the app's
+     * resources; media3's limit measures it at the system density, which differs once the display size changed.
+     */
+    @SuppressLint("DiscouragedApi") // the dimen is not public
+    private fun sessionArtworkLimit(): Int {
+        val id = resources.getIdentifier("config_mediaMetadataBitmapMaxSize", "dimen", "android")
+        val platform = if (id != 0) resources.getDimensionPixelSize(id) else Int.MAX_VALUE
+        return minOf(platform, MediaSession.getBitmapDimensionLimit(this))
+    }
+
     /** One in-flight load keyed by url; on success the notification is rebuilt with the bitmap. */
     private fun loadArt(url: String) {
         val s = session ?: return
@@ -778,7 +790,8 @@ class PlaybackService : MediaLibraryService() {
                     .onFailure { log?.debug { "notification artwork load failed for $url: $it" } }
                     .getOrNull() ?: return@addListener
                 if (art?.first == url) {
-                    art = url to bitmap
+                    // Its own copy: the session publishes the same cached instance.
+                    art = url to bitmap.copy(bitmap.config ?: Bitmap.Config.ARGB_8888, false)
                     updateNotification()
                 }
             },
