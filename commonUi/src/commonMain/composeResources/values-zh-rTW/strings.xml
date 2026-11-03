@@ -625,4 +625,7 @@
     <string name="a11y_key_arrow_up">上方向鍵</string>
     <string name="a11y_key_arrow_down">下方向鍵</string>
     <string name="cd_always_on_top">永遠在最上層</string>
+    <string name="settings_caption_size">字幕大小</string>
+    <string name="settings_caption_size_hint">影片字幕的文字大小</string>
+    <string name="caption_size_preview">字幕將會這樣顯示</string>
 </resources>

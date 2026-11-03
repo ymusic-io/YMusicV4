@@ -633,4 +633,7 @@
     <string name="a11y_key_arrow_up">वर बाण</string>
     <string name="a11y_key_arrow_down">खाली बाण</string>
     <string name="cd_always_on_top">नेहमी सर्वात वर</string>
+    <string name="settings_caption_size">कॅप्शनचा आकार</string>
+    <string name="settings_caption_size_hint">व्हिडिओ कॅप्शनच्या मजकुराचा आकार</string>
+    <string name="caption_size_preview">कॅप्शन असे दिसतील</string>
 </resources>

@@ -641,4 +641,7 @@
     <string name="a11y_key_arrow_up">flecha arriba</string>
     <string name="a11y_key_arrow_down">flecha abajo</string>
     <string name="cd_always_on_top">Siempre visible</string>
+    <string name="settings_caption_size">Tamaño de subtítulos</string>
+    <string name="settings_caption_size_hint">Tamaño del texto de los subtítulos del vídeo</string>
+    <string name="caption_size_preview">Los subtítulos se verán así</string>
 </resources>

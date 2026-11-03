@@ -641,4 +641,7 @@
     <string name="a11y_key_arrow_up">стрелица горе</string>
     <string name="a11y_key_arrow_down">стрелица доле</string>
     <string name="cd_always_on_top">Увек на врху</string>
+    <string name="settings_caption_size">Величина титлова</string>
+    <string name="settings_caption_size_hint">Величина текста титлова видеа</string>
+    <string name="caption_size_preview">Титлови ће изгледати овако</string>
 </resources>

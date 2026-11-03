@@ -633,4 +633,7 @@
     <string name="a11y_key_arrow_up">മുകളിലേക്കുള്ള അമ്പ്</string>
     <string name="a11y_key_arrow_down">താഴേക്കുള്ള അമ്പ്</string>
     <string name="cd_always_on_top">എപ്പോഴും മുകളിൽ</string>
+    <string name="settings_caption_size">അടിക്കുറിപ്പിന്റെ വലുപ്പം</string>
+    <string name="settings_caption_size_hint">വീഡിയോ അടിക്കുറിപ്പുകളുടെ ടെക്സ്റ്റ് വലുപ്പം</string>
+    <string name="caption_size_preview">അടിക്കുറിപ്പുകൾ ഇങ്ങനെ കാണപ്പെടും</string>
 </resources>

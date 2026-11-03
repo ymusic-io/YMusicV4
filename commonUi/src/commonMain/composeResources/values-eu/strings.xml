@@ -633,4 +633,7 @@
     <string name="a11y_key_arrow_up">gora gezia</string>
     <string name="a11y_key_arrow_down">behera gezia</string>
     <string name="cd_always_on_top">Beti gainean</string>
+    <string name="settings_caption_size">Azpitituluen tamaina</string>
+    <string name="settings_caption_size_hint">Bideoko azpitituluen testu-tamaina</string>
+    <string name="caption_size_preview">Azpitituluak honela ikusiko dira</string>
 </resources>

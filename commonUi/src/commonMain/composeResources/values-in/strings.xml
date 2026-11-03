@@ -625,4 +625,7 @@
     <string name="a11y_key_arrow_up">panah atas</string>
     <string name="a11y_key_arrow_down">panah bawah</string>
     <string name="cd_always_on_top">Selalu di atas</string>
+    <string name="settings_caption_size">Ukuran teks</string>
+    <string name="settings_caption_size_hint">Ukuran teks subtitel video</string>
+    <string name="caption_size_preview">Subtitel akan terlihat seperti ini</string>
 </resources>

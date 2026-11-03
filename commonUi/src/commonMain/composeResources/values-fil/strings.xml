@@ -633,4 +633,7 @@
     <string name="a11y_key_arrow_up">pataas na arrow</string>
     <string name="a11y_key_arrow_down">pababang arrow</string>
     <string name="cd_always_on_top">Laging nasa ibabaw</string>
+    <string name="settings_caption_size">Laki ng caption</string>
+    <string name="settings_caption_size_hint">Laki ng text ng mga caption ng video</string>
+    <string name="caption_size_preview">Ganito ang magiging hitsura ng mga caption</string>
 </resources>

@@ -649,4 +649,7 @@
     <string name="a11y_key_arrow_up">strzałka w górę</string>
     <string name="a11y_key_arrow_down">strzałka w dół</string>
     <string name="cd_always_on_top">Zawsze na wierzchu</string>
+    <string name="settings_caption_size">Rozmiar napisów</string>
+    <string name="settings_caption_size_hint">Rozmiar tekstu napisów wideo</string>
+    <string name="caption_size_preview">Napisy będą wyglądać tak</string>
 </resources>

@@ -633,4 +633,7 @@
     <string name="a11y_key_arrow_up">վերև սլաք</string>
     <string name="a11y_key_arrow_down">ներքև սլաք</string>
     <string name="cd_always_on_top">Միշտ վերևում</string>
+    <string name="settings_caption_size">Ենթագրերի չափը</string>
+    <string name="settings_caption_size_hint">Տեսանյութի ենթագրերի տեքստի չափը</string>
+    <string name="caption_size_preview">Ենթագրերն այսպես կերևան</string>
 </resources>

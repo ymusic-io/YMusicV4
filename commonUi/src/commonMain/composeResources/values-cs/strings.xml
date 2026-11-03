@@ -649,4 +649,7 @@
     <string name="a11y_key_arrow_up">šipka nahoru</string>
     <string name="a11y_key_arrow_down">šipka dolů</string>
     <string name="cd_always_on_top">Vždy navrchu</string>
+    <string name="settings_caption_size">Velikost titulků</string>
+    <string name="settings_caption_size_hint">Velikost textu titulků videa</string>
+    <string name="caption_size_preview">Titulky budou vypadat takto</string>
 </resources>

@@ -633,4 +633,7 @@
     <string name="a11y_key_arrow_up">oppyltjie</string>
     <string name="a11y_key_arrow_down">afpyltjie</string>
     <string name="cd_always_on_top">Altyd bo-op</string>
+    <string name="settings_caption_size">Onderskrifgrootte</string>
+    <string name="settings_caption_size_hint">Teksgrootte van video-onderskrifte</string>
+    <string name="caption_size_preview">Onderskrifte sal so lyk</string>
 </resources>

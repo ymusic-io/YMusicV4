@@ -633,4 +633,7 @@
     <string name="a11y_key_arrow_up">উপরের তীর</string>
     <string name="a11y_key_arrow_down">নিচের তীর</string>
     <string name="cd_always_on_top">সবসময় উপরে</string>
+    <string name="settings_caption_size">ক্যাপশনের আকার</string>
+    <string name="settings_caption_size_hint">ভিডিও ক্যাপশনের লেখার আকার</string>
+    <string name="caption_size_preview">ক্যাপশন এভাবে দেখাবে</string>
 </resources>

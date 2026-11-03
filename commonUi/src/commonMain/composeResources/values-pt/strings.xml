@@ -641,4 +641,7 @@
     <string name="a11y_key_arrow_up">seta para cima</string>
     <string name="a11y_key_arrow_down">seta para baixo</string>
     <string name="cd_always_on_top">Sempre visível</string>
+    <string name="settings_caption_size">Tamanho das legendas</string>
+    <string name="settings_caption_size_hint">Tamanho do texto das legendas do vídeo</string>
+    <string name="caption_size_preview">As legendas vão ficar assim</string>
 </resources>

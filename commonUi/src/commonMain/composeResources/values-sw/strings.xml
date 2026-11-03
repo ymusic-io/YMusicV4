@@ -633,4 +633,7 @@
     <string name="a11y_key_arrow_up">mshale wa juu</string>
     <string name="a11y_key_arrow_down">mshale wa chini</string>
     <string name="cd_always_on_top">Juu kila wakati</string>
+    <string name="settings_caption_size">Ukubwa wa manukuu</string>
+    <string name="settings_caption_size_hint">Ukubwa wa maandishi ya manukuu ya video</string>
+    <string name="caption_size_preview">Manukuu yataonekana hivi</string>
 </resources>

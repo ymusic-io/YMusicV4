@@ -641,4 +641,7 @@
     <string name="a11y_key_arrow_up">freccia su</string>
     <string name="a11y_key_arrow_down">freccia giù</string>
     <string name="cd_always_on_top">Sempre in primo piano</string>
+    <string name="settings_caption_size">Dimensione sottotitoli</string>
+    <string name="settings_caption_size_hint">Dimensione del testo dei sottotitoli video</string>
+    <string name="caption_size_preview">I sottotitoli appariranno così</string>
 </resources>

@@ -633,4 +633,7 @@
     <string name="a11y_key_arrow_up">πάνω βέλος</string>
     <string name="a11y_key_arrow_down">κάτω βέλος</string>
     <string name="cd_always_on_top">Πάντα σε πρώτο πλάνο</string>
+    <string name="settings_caption_size">Μέγεθος υποτίτλων</string>
+    <string name="settings_caption_size_hint">Μέγεθος κειμένου των υποτίτλων βίντεο</string>
+    <string name="caption_size_preview">Οι υπότιτλοι θα φαίνονται έτσι</string>
 </resources>

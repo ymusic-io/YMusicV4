@@ -625,4 +625,7 @@
     <string name="a11y_key_arrow_up">上矢印</string>
     <string name="a11y_key_arrow_down">下矢印</string>
     <string name="cd_always_on_top">常に手前に表示</string>
+    <string name="settings_caption_size">字幕のサイズ</string>
+    <string name="settings_caption_size_hint">動画の字幕の文字サイズ</string>
+    <string name="caption_size_preview">字幕はこのように表示されます</string>
 </resources>

@@ -633,4 +633,7 @@
     <string name="a11y_key_arrow_up">ઉપર તીર</string>
     <string name="a11y_key_arrow_down">નીચે તીર</string>
     <string name="cd_always_on_top">હંમેશાં ટોચ પર</string>
+    <string name="settings_caption_size">કૅપ્શનનું કદ</string>
+    <string name="settings_caption_size_hint">વિડિયો કૅપ્શનના ટેક્સ્ટનું કદ</string>
+    <string name="caption_size_preview">કૅપ્શન આ રીતે દેખાશે</string>
 </resources>

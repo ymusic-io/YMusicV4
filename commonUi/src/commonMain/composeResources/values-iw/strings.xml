@@ -641,4 +641,7 @@
     <string name="a11y_key_arrow_up">חץ למעלה</string>
     <string name="a11y_key_arrow_down">חץ למטה</string>
     <string name="cd_always_on_top">תמיד למעלה</string>
+    <string name="settings_caption_size">גודל הכתוביות</string>
+    <string name="settings_caption_size_hint">גודל הטקסט של כתוביות הווידאו</string>
+    <string name="caption_size_preview">כך ייראו הכתוביות</string>
 </resources>

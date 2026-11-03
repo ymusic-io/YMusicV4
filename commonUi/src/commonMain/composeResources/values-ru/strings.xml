@@ -649,4 +649,7 @@
     <string name="a11y_key_arrow_up">стрелка вверх</string>
     <string name="a11y_key_arrow_down">стрелка вниз</string>
     <string name="cd_always_on_top">Поверх всех окон</string>
+    <string name="settings_caption_size">Размер субтитров</string>
+    <string name="settings_caption_size_hint">Размер текста субтитров видео</string>
+    <string name="caption_size_preview">Субтитры будут выглядеть так</string>
 </resources>

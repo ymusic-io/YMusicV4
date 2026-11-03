@@ -633,4 +633,7 @@
     <string name="a11y_key_arrow_up">стрелка нагоре</string>
     <string name="a11y_key_arrow_down">стрелка надолу</string>
     <string name="cd_always_on_top">Винаги отгоре</string>
+    <string name="settings_caption_size">Размер на субтитрите</string>
+    <string name="settings_caption_size_hint">Размер на текста на видео субтитрите</string>
+    <string name="caption_size_preview">Субтитрите ще изглеждат така</string>
 </resources>

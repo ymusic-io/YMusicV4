@@ -633,4 +633,7 @@
     <string name="a11y_key_arrow_up">felfelé nyíl</string>
     <string name="a11y_key_arrow_down">lefelé nyíl</string>
     <string name="cd_always_on_top">Mindig felül</string>
+    <string name="settings_caption_size">Feliratméret</string>
+    <string name="settings_caption_size_hint">A videófeliratok szövegmérete</string>
+    <string name="caption_size_preview">A feliratok így fognak kinézni</string>
 </resources>

@@ -641,4 +641,7 @@
     <string name="a11y_key_arrow_up">strelica gore</string>
     <string name="a11y_key_arrow_down">strelica dolje</string>
     <string name="cd_always_on_top">Uvijek na vrhu</string>
+    <string name="settings_caption_size">Veličina titlova</string>
+    <string name="settings_caption_size_hint">Veličina teksta titlova videozapisa</string>
+    <string name="caption_size_preview">Titlovi će izgledati ovako</string>
 </resources>

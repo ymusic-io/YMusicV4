@@ -633,4 +633,7 @@
     <string name="a11y_key_arrow_up">fallaar kor</string>
     <string name="a11y_key_arrow_down">fallaar hoos</string>
     <string name="cd_always_on_top">Had iyo jeer xagga sare</string>
+    <string name="settings_caption_size">Cabbirka qoraalka hoose</string>
+    <string name="settings_caption_size_hint">Cabbirka qoraalka hoose ee fiidiyowga</string>
+    <string name="caption_size_preview">Qoraalka hoose wuxuu u ekaan doonaa sidan</string>
 </resources>

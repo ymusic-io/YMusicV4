@@ -633,4 +633,7 @@
     <string name="a11y_key_arrow_up">پیکان بالا</string>
     <string name="a11y_key_arrow_down">پیکان پایین</string>
     <string name="cd_always_on_top">همیشه در بالا</string>
+    <string name="settings_caption_size">اندازه زیرنویس</string>
+    <string name="settings_caption_size_hint">اندازه متن زیرنویس ویدیو</string>
+    <string name="caption_size_preview">زیرنویس‌ها این‌گونه دیده می‌شوند</string>
 </resources>
