@@ -73,6 +73,7 @@ import io.ymusic.remoteconfig.StatUsage
 import io.ymusic.settings.AppSettings
 import io.ymusic.settings.anonymousDeviceId
 import io.ymusic.settings.flow
+import io.ymusic.settings.playerCacheMaxBytes
 import io.ymusic.settings.put
 import io.ymusic.telemetry.SentryLogger
 import io.ymusic.telemetry.applyYMusicTelemetry
@@ -566,6 +567,8 @@ class YMusicApplication : Application() {
                     cacheRoot.toOkioPath(),
                     FileSystem.SYSTEM,
                     SqlDelightBlobIndex(driver, now = { System.currentTimeMillis() }),
+                    // The user's cap from the start: playback can write before the UI applies the setting.
+                    budgetBytes = shared.settings.playerCacheMaxBytes(),
                     logger = rootLogger.fork("player-cache"),
                 ),
                 SqlDelightSegmentIndex(driver, now = { System.currentTimeMillis() }),
