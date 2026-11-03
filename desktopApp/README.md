@@ -13,6 +13,8 @@ Module detail for the one-line summary in the root [`AGENTS.md`](../AGENTS.md) �
 
 - **Settings, cookies, keys** — one SQLite `app.db` (`AppStore`): settings rows, the AES-GCM sealed `PersistentCookieJar` document (`CookieVault`, OS-user or password key) and the Windows DPAPI / Linux fallback key; the macOS key stays in the Keychain. Pre-4.0.7 loose files are imported once and removed. No Chromium. Sign-in is owned here (`DesktopCookieSignIn` via `AppGraph.cookieSignIn`): scan a QR from the phone app (Settings → Link devices; matching confirmation code + phone unlock), or paste a Copy as cURL dump from Chrome / Firefox / Safari Network. The encrypted handoff goes through the YMusic service's one-shot `/v1/link` slot, deleted as the desktop reads it.
 
+- **OS media surface** — `media/DesktopMediaSession` publishes playback state and takes transport commands: macOS through MPNowPlayingInfoCenter / MPRemoteCommandCenter (JNA over the ObjC runtime), Linux as an MPRIS player (`org.mpris.MediaPlayer2.ymusic`) over a minimal in-tree D-Bus client (`DBusConnection`: JDK Unix sockets, no dependency, nothing reflective for ProGuard). Windows has no backend yet. Check Linux with `busctl --user introspect org.mpris.MediaPlayer2.ymusic /org/mpris/MediaPlayer2`.
+
 - **Assets** — needs the built `engine-js` bundle in the jar.
 
 - **macOS icon** — `ymusic.icns` is the `CFBundleIconFile`; macOS 26+ draws `CFBundleIconName` from `macos/Assets.car` instead, compiled from the Icon Composer source `macos/YMusic.icon` by `macos/build-icon.sh` (Xcode 26). The build copies the committed `.car` into the bundle after jpackage and re-signs it. Edit the `.icon`, rerun the script, and commit both.

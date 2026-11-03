@@ -15,6 +15,8 @@ import kotlin.math.abs
 data class MediaSessionState(
     val title: String?,
     val artist: String?,
+    /** http(s) or file URL only — MPRIS clients cannot resolve the app's custom image schemes. */
+    val artworkUrl: String? = null,
     val playing: Boolean,
     val positionMs: Long,
     val durationMs: Long?,
@@ -43,10 +45,10 @@ interface MediaSessionCommands {
 
 /**
  * The desktop counterpart of Android's MediaSession: publishes playback state to the OS media
- * surface and receives its transport commands. Per-OS backends — macOS is implemented
- * (MPNowPlayingInfoCenter + MPRemoteCommandCenter → Control Center, media keys); Linux (MPRIS over
- * D-Bus) and Windows (SystemMediaTransportControls) have no backend yet, where [create] returns
- * null and the app simply has no OS media surface.
+ * surface and receives its transport commands. Per-OS backends: macOS (MPNowPlayingInfoCenter +
+ * MPRemoteCommandCenter → Control Center, media keys) and Linux (MPRIS over D-Bus → the desktop's
+ * Now Playing widget, media keys). Windows (SystemMediaTransportControls) has no backend yet, where
+ * [create] returns null and the app simply has no OS media surface.
  */
 interface DesktopMediaSession {
     fun update(state: MediaSessionState)
@@ -62,6 +64,9 @@ interface DesktopMediaSession {
                     .onFailure {
                         logger?.log(Logger.Level.WARN, "macOS Now Playing bridge unavailable — media keys dead", it)
                     }
+                    .getOrNull()
+                "linux" in os -> runCatching { LinuxMprisSession(commands, logger) }
+                    .onFailure { logger?.log(Logger.Level.WARN, "MPRIS unavailable — media keys dead", it) }
                     .getOrNull()
                 else -> null
             }
@@ -110,6 +115,8 @@ fun connectMediaSession(player: Player, scope: CoroutineScope, logger: Logger? =
             MediaSessionState(
                 title = queue.currentItem?.displayTitle,
                 artist = queue.currentItem?.displaySubtitle,
+                artworkUrl = queue.currentItem?.displayThumbnailUrl
+                    ?.takeIf { it.startsWith("https://") || it.startsWith("http://") || it.startsWith("file:") },
                 playing = status.state.isPlaying(),
                 positionMs = progress.positionMs,
                 durationMs = progress.durationMs.takeIf { it > 0 },
