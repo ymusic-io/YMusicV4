@@ -282,6 +282,15 @@ class AppGraph(
         PlaybackCoordinator(this, CoroutineScope(SupervisorJob() + Dispatchers.Default + onFailure))
     }
 
+    /** Work that must outlive any screen or activity: the process also runs without the UI. */
+    internal val processScope = CoroutineScope(
+        SupervisorJob() + Dispatchers.Main.immediate +
+            CoroutineExceptionHandler { _, e -> logger?.fork("app")?.captureError(e, "process-scope job failed") },
+    )
+
+    /** Sign-in state, one per process; probes the login on first use. */
+    internal val account by lazy { AccountController(this, processScope) }
+
     private val appliedUiLanguage = MutableStateFlow(uiLanguageTag(settings).also(::applyUiLocale))
 
     /** The UI language in effect; the composition rebuilds on it (the platform locale is not snapshot state). */
@@ -290,8 +299,7 @@ class AppGraph(
     init {
         // Settings reach the player, cache and locale here, not in App: the process also runs without the UI
         // (Android Auto, media buttons, the playback service).
-        val onBindingFailure = CoroutineExceptionHandler { _, e -> logger?.fork("settings")?.captureError(e, "settings binding failed") }
-        val bindings = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate + onBindingFailure)
+        val bindings = processScope
         bindings.launch {
             settings.flow(AppSettings.uiLanguage).map { uiLanguageTag(settings) }.distinctUntilChanged().collect { tag ->
                 applyUiLocale(tag)
