@@ -49,6 +49,17 @@ suspend fun SettingsStore.put(
     value: Int,
 ) = putInt(setting.key, value)
 
+/** A float setting, kept as its decimal string; an unparsable value reads as [default]. */
+data class FloatSetting(val key: String, val default: Float)
+
+fun SettingsStore.flow(setting: FloatSetting): StateFlow<Float> =
+    MappedStateFlow(string(setting.key, "")) { it.toFloatOrNull() ?: setting.default }
+
+suspend fun SettingsStore.put(
+    setting: FloatSetting,
+    value: Float,
+) = putString(setting.key, value.toString())
+
 /**
  * The app language, seeded on first ask: a blank read resolves [default], PERSISTS it, and returns
  * it — from then on the key is never blank and is the single source of truth for every reader (the
@@ -77,6 +88,9 @@ object AppSettings {
 
     /** The Quick download preset, JSON-encoded by the UI; empty = the UI's default preset. */
     val quickDownloadPreset = StringSetting("download.quickPreset", "")
+
+    /** Video caption text size, a multiplier of the default caption font. */
+    val captionScale = FloatSetting("captions.scale", 1f)
 
     /** Player cache size limit in MB; 0 = no cache. The cache also leaves the disk's last 100 MB free. */
     val playerCacheMaxMb = IntSetting("playerCache.maxMb", 2048)
