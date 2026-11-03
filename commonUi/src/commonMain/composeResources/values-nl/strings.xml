@@ -255,8 +255,6 @@
     <string name="settings_debug">Debug</string>
     <string name="settings_show_fps">FPS tonen</string>
     <string name="settings_show_fps_hint">Toon beelden per seconde over de video in Speelt nu. Meten stopt bij pauzeren of als je dat scherm verlaat.</string>
-    <string name="overlay_fps">%1$d fps</string>
-    <string name="overlay_fps_dropped">%1$d fps · %2$d overgeslagen</string>
     <string name="settings_licenses">Opensourcelicenties</string>
     <string name="settings_terms">Voorwaarden &amp; privacy</string>
     <string name="settings_licenses_intro">YMusic is open source onder de GNU GPL v3.0. Het bevat deze componenten:</string>

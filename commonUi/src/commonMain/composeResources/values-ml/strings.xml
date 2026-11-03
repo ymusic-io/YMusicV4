@@ -255,8 +255,6 @@
     <string name="settings_debug">ഡീബഗ്</string>
     <string name="settings_show_fps">FPS കാണിക്കുക</string>
     <string name="settings_show_fps_hint">Now Playing വീഡിയോയുടെ മുകളിൽ ഓരോ സെക്കൻഡിലെയും ഫ്രെയിമുകൾ കാണിക്കുക. താൽക്കാലികമായി നിർത്തുമ്പോഴോ ആ സ്ക്രീനിൽ നിന്ന് പുറത്തുപോകുമ്പോഴോ അളക്കൽ നിർത്തും.</string>
-    <string name="overlay_fps">%1$d fps</string>
-    <string name="overlay_fps_dropped">%1$d fps · %2$d ഒഴിവാക്കി</string>
     <string name="settings_licenses">ഓപ്പൺ സോഴ്‌സ് ലൈസൻസുകൾ</string>
     <string name="settings_terms">നിബന്ധനകളും സ്വകാര്യതയും</string>
     <string name="settings_licenses_intro">YMusic GNU GPL v3.0 പ്രകാരം ഓപ്പൺ സോഴ്‌സ് ആണ്. ഇതിൽ ഈ ഘടകങ്ങൾ ഉൾപ്പെടുന്നു:</string>

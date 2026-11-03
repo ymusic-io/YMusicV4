@@ -251,8 +251,6 @@
     <string name="settings_debug">Nyahpepijat</string>
     <string name="settings_show_fps">Tunjukkan FPS</string>
     <string name="settings_show_fps_hint">Paparkan bingkai sesaat di atas video Sedang Dimainkan. Pensampelan berhenti apabila dijeda atau anda meninggalkan skrin itu.</string>
-    <string name="overlay_fps">%1$d fps</string>
-    <string name="overlay_fps_dropped">%1$d fps · %2$d tercicir</string>
     <string name="settings_licenses">Lesen sumber terbuka</string>
     <string name="settings_terms">Terma &amp; privasi</string>
     <string name="settings_licenses_intro">YMusic ialah sumber terbuka di bawah GNU GPL v3.0. Ia mengandungi komponen berikut:</string>

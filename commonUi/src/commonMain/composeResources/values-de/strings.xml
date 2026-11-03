@@ -255,8 +255,6 @@
     <string name="settings_debug">Debug</string>
     <string name="settings_show_fps">FPS anzeigen</string>
     <string name="settings_show_fps_hint">Bilder pro Sekunde über dem Video in „Aktuelle Wiedergabe“ einblenden. Die Messung stoppt bei Pause oder wenn du den Bildschirm verlässt.</string>
-    <string name="overlay_fps">%1$d fps</string>
-    <string name="overlay_fps_dropped">%1$d fps · %2$d verworfen</string>
     <string name="settings_licenses">Open-Source-Lizenzen</string>
     <string name="settings_terms">Nutzungsbedingungen &amp; Datenschutz</string>
     <string name="settings_licenses_intro">YMusic ist Open Source unter der GNU GPL v3.0. Es enthält diese Komponenten:</string>

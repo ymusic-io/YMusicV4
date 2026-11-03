@@ -255,8 +255,6 @@
     <string name="settings_debug">Cilad-bixin</string>
     <string name="settings_show_fps">Tus FPS</string>
     <string name="settings_show_fps_hint">Ku tus tirada sawirada ilbiriqsigiiba muuqaalka La daarayo. Cabbiriddu way joogsataa marka la hakiyo ama aad ka baxdo shaashaddaas.</string>
-    <string name="overlay_fps">%1$d fps</string>
-    <string name="overlay_fps_dropped">%1$d fps · %2$d la tuuray</string>
     <string name="settings_licenses">Laysinada tixraaca furan</string>
     <string name="settings_terms">Shuruudaha &amp; asturnaanta</string>
     <string name="settings_licenses_intro">YMusic waa tixraac furan oo hoos yimaada GNU GPL v3.0. Wuxuu ka kooban yahay qaybahan:</string>

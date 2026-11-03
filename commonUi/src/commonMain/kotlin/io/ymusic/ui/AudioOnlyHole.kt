@@ -63,9 +63,6 @@ import io.ymusic.player.showsVideo
 import io.ymusic.settings.AppSettings
 import io.ymusic.settings.SettingsStore
 import io.ymusic.settings.flow
-import io.ymusic.ui.resources.Res
-import io.ymusic.ui.resources.overlay_fps
-import io.ymusic.ui.resources.overlay_fps_dropped
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -74,7 +71,6 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.jetbrains.compose.resources.stringResource
 import kotlin.time.TimeSource
 
 private const val WAVE_BARS = 40
@@ -413,11 +409,8 @@ private fun FpsBadgeActive(player: Player, modifier: Modifier = Modifier) {
     }
     if (!sampling || (rate.shown <= 0 && rate.dropped <= 0)) return
     Text(
-        if (rate.dropped > 0) {
-            stringResource(Res.string.overlay_fps_dropped, rate.shown, rate.dropped)
-        } else {
-            stringResource(Res.string.overlay_fps, rate.shown)
-        },
+        // A developer readout, not localized.
+        if (rate.dropped > 0) "${rate.shown}fps - ${rate.dropped} dropped" else "${rate.shown}fps",
         style = TextStyle(fontSize = 13.sp, color = Color.White),
         modifier = modifier
             .background(Color.Black.copy(alpha = 0.55f))

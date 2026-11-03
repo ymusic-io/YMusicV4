@@ -255,8 +255,6 @@
     <string name="settings_debug">ডিবাগ</string>
     <string name="settings_show_fps">FPS দেখান</string>
     <string name="settings_show_fps_hint">Now Playing ভিডিওর উপর প্রতি সেকেন্ডে ফ্রেম দেখান। বিরতি দিলে বা স্ক্রিন ছেড়ে গেলে মাপা বন্ধ হয়।</string>
-    <string name="overlay_fps">%1$d fps</string>
-    <string name="overlay_fps_dropped">%1$d fps · %2$d বাদ পড়েছে</string>
     <string name="settings_licenses">ওপেন সোর্স লাইসেন্স</string>
     <string name="settings_terms">শর্তাবলী ও গোপনীয়তা</string>
     <string name="settings_licenses_intro">YMusic GNU GPL v3.0-এর অধীনে ওপেন সোর্স। এতে এই উপাদানগুলো রয়েছে:</string>
