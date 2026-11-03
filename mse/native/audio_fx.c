@@ -650,17 +650,14 @@ static void st_params(int rate, float tempo, int *ovl, int *seq, int *seek)
         ov = 64;
     if (ov > AFX_OVL_MAX)
         ov = AFX_OVL_MAX;
-    /* SoundTouch auto sequence 50–125ms, seek 15–25ms. */
-    seq_ms = 110.f - 20.f * tempo;
-    if (seq_ms < 50.f)
-        seq_ms = 50.f;
-    if (seq_ms > 125.f)
-        seq_ms = 125.f;
-    seek_ms = 23.f - 2.5f * tempo;
-    if (seek_ms < 15.f)
+    /* Above 1x, SoundTouch's speech preset: a longer sequence skips whole phonemes. */
+    if (tempo > 1.f) {
+        seq_ms = 40.f;
         seek_ms = 15.f;
-    if (seek_ms > 25.f)
-        seek_ms = 25.f;
+    } else {
+        seq_ms = 110.f - 20.f * tempo;
+        seek_ms = 23.f - 2.5f * tempo;
+    }
     sq = ((int)((float)rate * seq_ms / 1000.f) + 7) & ~7;
     if (sq < ov * 3)
         sq = ov * 3;
