@@ -1416,9 +1416,27 @@
   var ci;
   for (ci = 0; ci < WINDOW_CTORS.length; ci++) illegalCtor(WINDOW_CTORS[ci]);
   if (globalThis.HTMLMediaElement && globalThis.HTMLMediaElement.prototype) {
+    /* Chrome's answers for a type without codecs= (fixed MIME list, never the device); BotGuard
+     * probes audio/x-m4a in the mill. */
+    var BARE_TYPE_ANSWERS = {
+      "audio/x-m4a": "maybe",
+      "audio/mp4": "maybe",
+      "audio/webm": "maybe",
+      "audio/mpeg": "probably",
+      "audio/ogg": "maybe",
+      "video/mp4": "maybe",
+      "video/webm": "maybe",
+      "audio/aac": "probably",
+      "audio/wav": "maybe",
+      "audio/flac": "probably",
+    };
     globalThis.HTMLMediaElement.prototype.canPlayType = native("canPlayType", function (type) {
       type = String(type == null ? "" : type).toLowerCase();
       if (!type) return "";
+      if (type.indexOf("codecs=") < 0) {
+        var bare = BARE_TYPE_ANSWERS[type.split(";")[0].trim()];
+        if (typeof bare === "string") return bare;
+      }
       var avc = /avc1\.([0-9a-f]{6})/i.exec(type);
       if (avc && typeof __mseAvcMaxLevel === "function") {
         var lvl = parseInt(avc[1].slice(4, 6), 16);

@@ -255,7 +255,6 @@
     <string name="settings_debug">डिबग</string>
     <string name="settings_show_fps">FPS देखाउनुहोस्</string>
     <string name="settings_show_fps_hint">बजिरहेको भिडियोमाथि प्रति सेकेन्ड फ्रेम देखाउनुहोस्। पज गर्दा वा त्यो स्क्रिन छोड्दा मापन रोकिन्छ।</string>
-    <string name="overlay_fps">%1$d fps</string>
     <string name="settings_licenses">खुला स्रोत इजाजतपत्रहरू</string>
     <string name="settings_terms">सर्तहरू र गोपनीयता</string>
     <string name="settings_licenses_intro">YMusic GNU GPL v3.0 अन्तर्गत खुला स्रोत हो। यसमा यी कम्पोनेन्टहरू समावेश छन्:</string>

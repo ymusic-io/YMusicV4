@@ -10,6 +10,7 @@ import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.test.waitUntilAtLeastOneExists
 import io.ymusic.dynamicengine.DynamicEngineManager
 import io.ymusic.dynamicengine.embeddedEngineJsSource
+import io.ymusic.settings.InMemorySettingsStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -53,7 +54,7 @@ class SearchScreenTest {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         try {
             runComposeUiTest {
-                val graph = AppGraph(engines = engines, player = StubPlayer(), playerSurface = {})
+                val graph = AppGraph(settings = InMemorySettingsStore(), engines = engines, player = StubPlayer(), playerSurface = {})
                 val coordinator = PlaybackCoordinator(graph, scope)
                 setContent { YMusicTheme { SearchScreen(graph, coordinator, onBack = {}) } }
 

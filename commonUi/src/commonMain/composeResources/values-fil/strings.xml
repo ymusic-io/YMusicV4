@@ -255,7 +255,6 @@
     <string name="settings_debug">Debug</string>
     <string name="settings_show_fps">Ipakita ang FPS</string>
     <string name="settings_show_fps_hint">Ipakita ang frames per second sa ibabaw ng video sa Now Playing. Humihinto ang sampling kapag naka-pause o umalis ka sa screen na iyon.</string>
-    <string name="overlay_fps">%1$d fps</string>
     <string name="settings_licenses">Mga open source na lisensya</string>
     <string name="settings_terms">Mga tuntunin at privacy</string>
     <string name="settings_licenses_intro">Open source ang YMusic sa ilalim ng GNU GPL v3.0. Kasama rito ang mga component na ito:</string>

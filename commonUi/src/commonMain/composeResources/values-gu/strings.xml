@@ -255,7 +255,6 @@
     <string name="settings_debug">ડીબગ</string>
     <string name="settings_show_fps">FPS બતાવો</string>
     <string name="settings_show_fps_hint">Now Playing વીડિયો પર પ્રતિ સેકન્ડ ફ્રેમ બતાવો. થોભાવો અથવા તે સ્ક્રીન છોડો ત્યારે માપન બંધ થાય છે.</string>
-    <string name="overlay_fps">%1$d fps</string>
     <string name="settings_licenses">ઓપન સોર્સ લાઇસન્સ</string>
     <string name="settings_terms">શરતો અને ગોપનીયતા</string>
     <string name="settings_licenses_intro">YMusic GNU GPL v3.0 હેઠળ ઓપન સોર્સ છે. તેમાં આ ઘટકો શામેલ છે:</string>

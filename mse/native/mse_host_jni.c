@@ -339,6 +339,23 @@ Java_io_ymusic_mse_MseHostNative_frames(JNIEnv *env, jclass cls, jlong handle)
     return mse_host_frames((MseHost *)(intptr_t)handle);
 }
 
+JNIEXPORT jint JNICALL
+Java_io_ymusic_mse_MseHostNative_droppedFrames(JNIEnv *env, jclass cls, jlong handle)
+{
+    (void)env;
+    (void)cls;
+    return mse_host_dropped_frames((MseHost *)(intptr_t)handle);
+}
+
+JNIEXPORT jstring JNICALL
+Java_io_ymusic_mse_MseHostNative_videoDecoder(JNIEnv *env, jclass cls, jlong handle)
+{
+    char buf[48];
+    (void)cls;
+    mse_host_video_decoder((MseHost *)(intptr_t)handle, buf, sizeof(buf));
+    return (*env)->NewStringUTF(env, buf);
+}
+
 JNIEXPORT jlong JNICALL
 Java_io_ymusic_mse_MseHostNative_samplesPlayed(JNIEnv *env, jclass cls, jlong handle)
 {

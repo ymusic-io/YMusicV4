@@ -86,6 +86,14 @@ sealed class JsonWriter {
 
     fun value(value: Int): JsonWriter = value(value.toLong())
 
+    /** JSON has no NaN or Infinity, so a non-finite [value] throws. */
+    fun value(value: Double): JsonWriter {
+        require(value.isFinite()) { "JSON numbers must be finite: $value" }
+        beforeValue()
+        buffer.writeUtf8(value.toString())
+        return this
+    }
+
     fun value(value: Boolean): JsonWriter {
         beforeValue()
         buffer.write(if (value) TRUE else FALSE)

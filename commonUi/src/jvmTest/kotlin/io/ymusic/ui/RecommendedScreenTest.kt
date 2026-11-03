@@ -10,6 +10,7 @@ import io.ymusic.dynamicengine.DynamicEngineManager
 import io.ymusic.dynamicengine.desktopEngineCacheStore
 import io.ymusic.dynamicengine.embeddedEngineJsSource
 import io.ymusic.player.WatchNextSeen
+import io.ymusic.settings.InMemorySettingsStore
 import kotlinx.coroutines.runBlocking
 import java.util.Locale
 import kotlin.test.Test
@@ -54,7 +55,7 @@ class RecommendedScreenTest {
         try {
             runComposeUiTest {
                 val player = StubPlayer()
-                val graph = AppGraph(engines = engines, player = player, playerSurface = {})
+                val graph = AppGraph(settings = InMemorySettingsStore(), engines = engines, player = player, playerSurface = {})
                 setContent { App(graph) }
 
                 onNodeWithActionLabel("Recommended").performClick()

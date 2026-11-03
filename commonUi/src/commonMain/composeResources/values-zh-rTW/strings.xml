@@ -251,7 +251,6 @@
     <string name="settings_debug">偵錯</string>
     <string name="settings_show_fps">顯示 FPS</string>
     <string name="settings_show_fps_hint">在「現正播放」的影片上疊加顯示每秒影格數。暫停或離開該畫面時會停止取樣。</string>
-    <string name="overlay_fps">%1$d fps</string>
     <string name="settings_licenses">開放原始碼授權</string>
     <string name="settings_terms">條款與隱私</string>
     <string name="settings_licenses_intro">YMusic 以 GNU GPL v3.0 授權開放原始碼，包含以下元件：</string>

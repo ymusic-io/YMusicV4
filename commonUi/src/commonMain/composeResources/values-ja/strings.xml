@@ -251,7 +251,6 @@
     <string name="settings_debug">デバッグ</string>
     <string name="settings_show_fps">FPS を表示</string>
     <string name="settings_show_fps_hint">再生中の動画に毎秒のフレーム数を重ねて表示します。一時停止中や画面を離れると計測は停止します。</string>
-    <string name="overlay_fps">%1$d fps</string>
     <string name="settings_licenses">オープンソースライセンス</string>
     <string name="settings_terms">利用規約とプライバシー</string>
     <string name="settings_licenses_intro">YMusic は GNU GPL v3.0 のもとで公開されているオープンソースです。以下のコンポーネントを含みます：</string>

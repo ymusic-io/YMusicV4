@@ -255,7 +255,6 @@
     <string name="settings_debug">Ontfouting</string>
     <string name="settings_show_fps">Wys FPS</string>
     <string name="settings_show_fps_hint">Wys rame per sekonde oor die Speel nou-video. Meting stop wanneer onderbreek of wanneer jy daardie skerm verlaat.</string>
-    <string name="overlay_fps">%1$d fps</string>
     <string name="settings_licenses">Oopbronlisensies</string>
     <string name="settings_terms">Bepalings &amp; privaatheid</string>
     <string name="settings_licenses_intro">YMusic is oopbron onder die GNU GPL v3.0. Dit sluit hierdie komponente in:</string>

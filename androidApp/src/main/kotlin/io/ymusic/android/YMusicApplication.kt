@@ -6,6 +6,7 @@ import android.app.UiModeManager
 import android.content.ComponentCallbacks2
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.graphics.SurfaceTexture
 import android.hardware.display.DisplayManager
 import android.os.Build
@@ -77,12 +78,12 @@ import io.ymusic.settings.put
 import io.ymusic.telemetry.SentryLogger
 import io.ymusic.telemetry.applyYMusicTelemetry
 import io.ymusic.telemetry.bindCrashReporting
+import io.ymusic.telemetry.bindErrorPolicy
 import io.ymusic.telemetry.captureFeedbackReport
 import io.ymusic.telemetry.installErrorLogs
 import io.ymusic.telemetry.installSentryDeviceId
 import io.ymusic.telemetry.installSentryEngineVersion
 import io.ymusic.telemetry.installSentryPlayerVersion
-import io.ymusic.telemetry.sendFeedbackMessage
 import io.ymusic.telemetry.shareLogTraceWithSentry
 import io.ymusic.ui.APP_HTTP_TIMEOUT
 import io.ymusic.ui.AppGraph
@@ -120,6 +121,7 @@ import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -251,6 +253,13 @@ class YMusicApplication : Application() {
     fun graphAsync(): Deferred<AppGraph> =
         builtGraph ?: appScope.async { buildGraph() }.also { builtGraph = it }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        // A system language change resets the default locale before the Activity is recreated.
+        builtGraph?.takeIf { it.isCompleted && !it.isCancelled }?.getCompleted()?.reapplyUiLanguage()
+    }
+
     /** Device facts every engine sees in `versions`: the real display for YouTube's quality cap, the
      *  rest for device-specific fixes in a remote bundle. */
     private fun hostVersions(): Map<String, Any> {
@@ -353,6 +362,7 @@ class YMusicApplication : Application() {
             log = rootLogger.fork("remote-config"),
         ).also { it.checkUpdate() } // app open is itself a hotpoint
         installErrorLogs(logStore, remoteConfig, BuildConfig.VERSION_CODE)
+        bindErrorPolicy(appScope, remoteConfig, rootLogger.fork("error-policy"))
         appScope.launch {
             // The cap waits for the loaded config: the store trims nothing until it has one.
             remoteConfig.awaitLoaded()
@@ -751,7 +761,6 @@ class YMusicApplication : Application() {
             },
             downloads = downloadService,
             captureFeedbackReport = captureFeedbackReportAction.takeIf { BuildConfig.SENTRY_DSN.isNotEmpty() },
-            sendFeedbackMessage = ::sendFeedbackMessage.takeIf { BuildConfig.SENTRY_DSN.isNotEmpty() },
             platformInfo = listOfNotNull("Android ${android.os.Build.VERSION.RELEASE}", android.os.Build.SUPPORTED_ABIS.firstOrNull()).joinToString(" · "),
             createDocument = { name, mimeType ->
                 documentCreator?.invoke(name, mimeType)?.let { uri ->
@@ -795,8 +804,8 @@ class YMusicApplication : Application() {
         }
     }
 
-    /** Sends the app logs as one anonymous Sentry report for the Feedback screen; returns its event id. */
-    private val captureFeedbackReportAction: suspend () -> String? = {
+    /** Sends the app logs as one anonymous Sentry report for the Feedback screen. */
+    private val captureFeedbackReportAction: suspend (String, String?) -> Unit = { subject, message ->
         withContext(Dispatchers.IO) {
             val export = File(cacheDir, FEEDBACK_LOG_NAME)
             // The report still goes without the log when the export fails or the log store is stuck.
@@ -812,7 +821,7 @@ class YMusicApplication : Application() {
                 rootLogger.fork("feedback").log(Logger.Level.WARN, "log export for feedback failed", e)
                 emptyList()
             }
-            captureFeedbackReport(attachments)
+            captureFeedbackReport(subject, message, attachments)
         }
     }
 

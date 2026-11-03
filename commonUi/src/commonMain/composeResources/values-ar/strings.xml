@@ -309,7 +309,6 @@
     <string name="settings_debug">تصحيح</string>
     <string name="settings_show_fps">إظهار معدل الإطارات</string>
     <string name="settings_show_fps_hint">عرض عدد الإطارات في الثانية على فيديو التشغيل الآن. يتوقف القياس عند الإيقاف المؤقت أو مغادرة تلك الشاشة.</string>
-    <string name="overlay_fps">%1$d إطار/ث</string>
     <string name="settings_changelog">سجل التغييرات</string>
     <string name="settings_source_code">الشيفرة المصدرية</string>
     <string name="settings_licenses">تراخيص المصادر المفتوحة</string>

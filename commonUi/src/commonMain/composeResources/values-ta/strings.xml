@@ -255,7 +255,6 @@
     <string name="settings_debug">பிழைத்திருத்தம்</string>
     <string name="settings_show_fps">FPS காட்டு</string>
     <string name="settings_show_fps_hint">Now Playing வீடியோவின் மேல் ஒரு வினாடிக்கான படங்களைக் காட்டு. இடைநிறுத்தும்போதோ அந்தத் திரையை விட்டு வெளியேறும்போதோ அளவிடல் நிற்கும்.</string>
-    <string name="overlay_fps">%1$d fps</string>
     <string name="settings_licenses">ஓப்பன் சோர்ஸ் உரிமங்கள்</string>
     <string name="settings_terms">விதிமுறைகள் &amp; தனியுரிமை</string>
     <string name="settings_licenses_intro">YMusic GNU GPL v3.0 இன் கீழ் ஓப்பன் சோர்ஸ் ஆகும். இதில் இந்தக் கூறுகள் அடங்கும்:</string>

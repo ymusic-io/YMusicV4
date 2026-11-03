@@ -790,3 +790,8 @@ const char *vpipe_describe(const VPipe *vp)
 {
     return vp->desc;
 }
+
+int vpipe_is_hw(const VPipe *vp)
+{
+    return vpipe_is_open(vp) && vp->cur.hw;
+}

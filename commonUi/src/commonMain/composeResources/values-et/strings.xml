@@ -255,7 +255,6 @@
     <string name="settings_debug">Silumine</string>
     <string name="settings_show_fps">Näita FPS-i</string>
     <string name="settings_show_fps_hint">Kuva kaadrisagedus vaate Praegu mängib video peal. Mõõtmine peatub pausi ajal või kui sellelt ekraanilt lahkud.</string>
-    <string name="overlay_fps">%1$d fps</string>
     <string name="settings_licenses">Avatud lähtekoodi litsentsid</string>
     <string name="settings_terms">Tingimused ja privaatsus</string>
     <string name="settings_licenses_intro">YMusic on avatud lähtekoodiga litsentsi GNU GPL v3.0 alusel. See sisaldab järgmisi komponente:</string>

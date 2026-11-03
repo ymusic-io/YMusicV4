@@ -42,6 +42,7 @@
 #endif
 #ifdef __ANDROID__
 #include <android/native_window.h>
+#include <dlfcn.h>
 #include <media/NdkMediaCodec.h>
 #include <media/NdkMediaFormat.h>
 #endif
@@ -146,6 +147,9 @@ struct MseAv {
        too late, or a stale GOP skipped undecoded). Read without a->mu. */
     atomic_int q_shown;
     atomic_int q_dropped;
+    /* The last mse_av_video_decoder answer, handed out while a->mu is busy. */
+    pthread_mutex_t desc_mu;
+    char v_desc[48];
 #ifdef __APPLE__
     void *vt_dec;
     /* Decoded pictures waiting in PTS (display) order. H.264 B-frames are
@@ -162,6 +166,9 @@ struct MseAv {
     ANativeWindow *mc_win;
     enum AVCodecID mc_codec_id;
     int mc_fail;
+    /* mc_is_software's verdict, for the codec it was taken from. */
+    AMediaCodec *mc_kind_of;
+    int mc_kind_sw;
     /* Failed opens in a row; the next try waits until mc_retry_us. */
     int mc_open_tries;
     int64_t mc_retry_us;
@@ -233,6 +240,11 @@ static void maybe_apply_video_rep(MseAv *a);
 #else
 #define MSE_SEND_AHEAD 0.08
 #endif
+
+/* Coded frames further apart than this are separate buffered ranges (an old island left behind a seek). */
+#define MSE_VIDEO_GAP_S 0.5
+#define MSE_SPAN_GAP_S 1.0
+#define MSE_SPAN_EDGE_S 0.25
 
 static double mc_send_ahead(const MseAv *a)
 {
@@ -1542,6 +1554,17 @@ static int mc_feed_paced(MseAv *a, double clock, double pts)
     return pts > clock + ahead;
 }
 
+/* The next frame starts a later buffered range that the clock has not reached: feeding it puts that
+   range's picture in the decoder's output ahead of everything the range at the playhead still needs. */
+static int mc_gap_ahead(const MseAv *a, double clock, double pts)
+{
+    const Cf *prev;
+    if (a->vf.rd == 0)
+        return 0;
+    prev = &a->vf.f[a->vf.rd - 1];
+    return pts > prev->pts + prev->dur + MSE_VIDEO_GAP_S && pts > clock + mc_send_ahead(a);
+}
+
 /* Fill every free input slot: a decoder that emits only once several AUs are
    queued starves under clock pacing and hands back pictures in late clumps. */
 static int mc_feed(MseAv *a, double clock)
@@ -1581,7 +1604,7 @@ static int mc_feed(MseAv *a, double clock)
             mc_drain_for_switch(a, clock);
             break;
         }
-        if (mc_feed_paced(a, clock, sp)) {
+        if (mc_feed_paced(a, clock, sp) || mc_gap_ahead(a, clock, sp)) {
             vlog_starve_ahead(a, clock, a->vf.rd);
             break;
         }
@@ -2206,6 +2229,7 @@ MseAv *mse_av_create(void)
     pthread_mutex_init(&a->mu, NULL);
     pthread_mutex_init(&a->amu, NULL);
     pthread_mutex_init(&a->show_mu, NULL);
+    pthread_mutex_init(&a->desc_mu, NULL);
     a->a_sent = -1;
     a->v_sent = -1;
     a->v_switch_pts = -1;
@@ -2289,6 +2313,7 @@ void mse_av_destroy(MseAv *a)
     vpresent_release(vp);
 #endif
     pthread_mutex_destroy(&a->show_mu);
+    pthread_mutex_destroy(&a->desc_mu);
     pthread_mutex_destroy(&a->amu);
     pthread_mutex_destroy(&a->mu);
     free(a);
@@ -3443,26 +3468,43 @@ void mse_av_flush(MseAv *a, int audio, int video)
     av_unlock_all(a);
 }
 
-static int cfb_span(const Cfb *b, double *first, double *last)
+/* The buffered range around `at`: frames apart by up to MSE_SPAN_GAP_S count as one range. 0 when
+   no range reaches within MSE_SPAN_EDGE_S of `at`. */
+static int cfb_span(const Cfb *b, double at, double *first, double *last)
 {
-    if (!b->n)
+    size_t lo = 0, hi, i, j;
+    if (!b->n || b->f[0].pts > at + MSE_SPAN_EDGE_S)
         return 0;
-    *first = b->f[0].pts;
-    *last = b->f[b->n - 1].pts + b->f[b->n - 1].dur;
+    hi = b->n;
+    while (hi - lo > 1) {
+        size_t mid = lo + (hi - lo) / 2;
+        if (b->f[mid].pts <= at + MSE_SPAN_EDGE_S)
+            lo = mid;
+        else
+            hi = mid;
+    }
+    for (j = lo; j + 1 < b->n && b->f[j + 1].pts <= b->f[j].pts + b->f[j].dur + MSE_SPAN_GAP_S; j++)
+        ;
+    if (b->f[j].pts + b->f[j].dur + MSE_SPAN_EDGE_S < at)
+        return 0;
+    for (i = lo; i > 0 && b->f[i].pts <= b->f[i - 1].pts + b->f[i - 1].dur + MSE_SPAN_GAP_S; i--)
+        ;
+    *first = b->f[i].pts;
+    *last = b->f[j].pts + b->f[j].dur;
     return 1;
 }
 
-int mse_av_span(MseAv *a, double *first, double *last)
+int mse_av_span(MseAv *a, double at, double *first, double *last)
 {
     double af = 0, al = 0, vf = 0, vl = 0;
     int ha, hv;
     if (!a || !first || !last)
         return 0;
     av_lock_all(a);
-    ha = cfb_span(&a->af, &af, &al);
+    ha = cfb_span(&a->af, at, &af, &al);
     /* Resting decoder: leftover stays in vf but the clock must follow
        audio or currentTime snaps when video last is behind playhead. */
-    hv = a->v_rest ? 0 : cfb_span(&a->vf, &vf, &vl);
+    hv = a->v_rest ? 0 : cfb_span(&a->vf, at, &vf, &vl);
     av_unlock_all(a);
     if (!ha && !hv)
         return 0;
@@ -3477,6 +3519,31 @@ int mse_av_span(MseAv *a, double *first, double *last)
         *last = vl;
     }
     return 1;
+}
+
+int mse_av_video_end(MseAv *a, double *end)
+{
+    const Cfb *b;
+    size_t i;
+    int have;
+    if (!a || !end)
+        return 0;
+    av_lock_all(a);
+    b = &a->vf;
+    have = !a->v_rest &&
+#ifdef __APPLE__
+           !a->v_bg_park &&
+#endif
+           b->n > 0;
+    if (have) {
+        /* The range the decoder reads from, not a later island past a gap. */
+        i = b->rd > 0 ? b->rd - 1 : 0;
+        while (i + 1 < b->n && b->f[i + 1].pts <= b->f[i].pts + b->f[i].dur + MSE_VIDEO_GAP_S)
+            i++;
+        *end = b->f[i].pts + b->f[i].dur;
+    }
+    av_unlock_all(a);
+    return have;
 }
 
 int mse_av_drained(MseAv *a)
@@ -4321,6 +4388,73 @@ void mse_av_video_quality(MseAv *a, int *shown, int *dropped)
 {
     *shown = a ? atomic_load_explicit(&a->q_shown, memory_order_relaxed) : 0;
     *dropped = a ? atomic_load_explicit(&a->q_dropped, memory_order_relaxed) : 0;
+}
+
+#ifdef __ANDROID__
+typedef media_status_t (*McGetName)(AMediaCodec *, char **);
+typedef void (*McReleaseName)(AMediaCodec *, char *);
+static McGetName mc_get_name;
+static McReleaseName mc_release_name;
+static pthread_once_t mc_name_once = PTHREAD_ONCE_INIT;
+
+/* AMediaCodec_getName is API 28; minSdk is lower, so it is looked up at run time. */
+static void mc_resolve_name(void)
+{
+    mc_get_name = (McGetName)dlsym(RTLD_DEFAULT, "AMediaCodec_getName");
+    mc_release_name = (McReleaseName)dlsym(RTLD_DEFAULT, "AMediaCodec_releaseName");
+}
+
+/* a->mu held. Unknown = hw. */
+static int mc_is_software(MseAv *a)
+{
+    char *name = NULL;
+    if (a->mc_kind_of == a->mc)
+        return a->mc_kind_sw;
+    pthread_once(&mc_name_once, mc_resolve_name);
+    a->mc_kind_of = a->mc;
+    a->mc_kind_sw = 0;
+    if (!mc_get_name || !mc_release_name || mc_get_name(a->mc, &name) != AMEDIA_OK || !name)
+        return 0;
+    a->mc_kind_sw = !strncmp(name, "c2.android.", 11) || !strncmp(name, "OMX.google.", 11) || strstr(name, ".sw.") != NULL;
+    mc_release_name(a->mc, name);
+    return a->mc_kind_sw;
+}
+#endif
+
+void mse_av_video_decoder(MseAv *a, char *out, int cap)
+{
+    const char *kind = NULL;
+    char desc[sizeof(a->v_desc)];
+    out[0] = 0;
+    if (!a)
+        return;
+    /* Never waits on the decoder lock (a UI thread polls this): a busy decoder gets the last answer. */
+    if (pthread_mutex_trylock(&a->mu) != 0) {
+        pthread_mutex_lock(&a->desc_mu);
+        snprintf(out, cap, "%s", a->v_desc);
+        pthread_mutex_unlock(&a->desc_mu);
+        return;
+    }
+    desc[0] = 0;
+    if (a->vpar) {
+#ifdef __ANDROID__
+        if (a->mc)
+            kind = mc_is_software(a) ? "sw" : "hw";
+#endif
+#ifdef __APPLE__
+        if (!kind && a->vt_dec)
+            kind = "hw";
+#endif
+        if (!kind && vpipe_is_open(a->vpipe))
+            kind = vpipe_is_hw(a->vpipe) ? "hw" : "sw";
+        if (kind)
+            snprintf(desc, sizeof(desc), "%s %s", kind, avcodec_get_name(a->vpar->codec_id));
+    }
+    pthread_mutex_unlock(&a->mu);
+    pthread_mutex_lock(&a->desc_mu);
+    memcpy(a->v_desc, desc, sizeof(desc));
+    pthread_mutex_unlock(&a->desc_mu);
+    snprintf(out, cap, "%s", desc);
 }
 
 int mse_av_pull_audio(MseAv *a, double clock, double until, int16_t **s16, int *frames, int *rate, int *ch,

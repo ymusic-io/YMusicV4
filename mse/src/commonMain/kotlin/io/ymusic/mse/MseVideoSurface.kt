@@ -7,6 +7,12 @@ expect class MseVideoSurface {
     /** Native presents since attach (`mse_host_frames`). */
     fun presentedFrames(): Int
 
+    /** Pictures dropped for missing their time since the last load (`mse_host_video_quality`). */
+    fun droppedFrames(): Int
+
+    /** "hw vp9", "sw av1"; "" while no video decoder is open. Never waits on the decoder. */
+    fun videoDecoder(): String
+
     fun setVolume(volume: Float)
 
     fun setAudioEffect(

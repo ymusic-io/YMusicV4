@@ -9,14 +9,17 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.NativeClipboard
 import androidx.compose.ui.platform.UriHandler
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.test.waitUntilAtLeastOneExists
 import io.ymusic.dynamicengine.DynamicEngineManager
 import io.ymusic.dynamicengine.embeddedEngineJsSource
 import io.ymusic.settings.AppSettings
+import io.ymusic.settings.InMemorySettingsStore
 import io.ymusic.settings.flow
 import io.ymusic.settings.put
 import kotlinx.coroutines.runBlocking
@@ -52,17 +55,15 @@ class FeedbackScreenTest {
     }
 
     @Test
-    fun copy_or_a_contact_row_sends_the_logs_once() {
+    fun contact_rows_send_the_logs_once_and_a_message_sends_its_own_report() {
         Locale.setDefault(Locale.ENGLISH)
-        var captures = 0
+        val captures = mutableListOf<Pair<String, String?>>()
         val graph = AppGraph(
+            settings = InMemorySettingsStore(),
             engines = engines(),
             player = StubPlayer(),
             playerSurface = {},
-            captureFeedbackReport = {
-                captures++
-                "5ec086b24c2d4982b85a056ee39ef5ae"
-            },
+            captureFeedbackReport = { subject, message -> synchronized(captures) { captures += subject to message } },
         )
         runBlocking { graph.settings.put(AppSettings.crashReports, false) }
         val clipboard = RecordingClipboard()
@@ -74,24 +75,30 @@ class FeedbackScreenTest {
                 }
             }
             waitUntilAtLeastOneExists(hasText("Anonymous reports are off"), 5_000)
-            assertEquals(0, captures, "nothing is sent before the user agrees")
+            assertEquals(emptyList(), captures, "nothing is sent before the user agrees")
             onNodeWithText("Continue").performClick()
 
             waitUntilAtLeastOneExists(hasText("Copy"), 5_000)
             waitForIdle()
             assertTrue(graph.settings.flow(AppSettings.crashReports).value)
             assertEquals(null, clipboard.text, "arriving copies nothing")
-            assertEquals(0, captures, "arriving sends nothing")
+            assertEquals(emptyList(), captures, "arriving sends nothing")
 
             onNodeWithText("Copy").performClick()
-            waitUntil(timeoutMillis = 5_000) { clipboard.text != null && captures > 0 }
+            waitUntil(timeoutMillis = 5_000) { clipboard.text != null && synchronized(captures) { captures.isNotEmpty() } }
             assertTrue("Device ID: " in clipboard.text!!, "copied: ${clipboard.text}")
 
             onNodeWithText("Open an issue on GitHub").performClick()
             onNodeWithText("Email feedback@ymusic.io").performClick()
             waitUntil(timeoutMillis = 5_000) { uriHandler.opened.size == 2 }
             waitForIdle()
-            assertEquals(1, captures, "one report per visit")
+            assertEquals(listOf<Pair<String, String?>>("Copy" to null), captures, "one logs report per visit")
+
+            onNodeWithText("or via Sentry").performClick()
+            onNode(hasSetTextAction()).performTextInput("  playback stops  ")
+            onNodeWithText("Send").performClick()
+            waitUntil(timeoutMillis = 5_000) { synchronized(captures) { captures.size == 2 } }
+            assertEquals(listOf("Copy" to null, "playback stops" to "playback stops"), captures)
         }
     }
 
@@ -101,13 +108,11 @@ class FeedbackScreenTest {
         var captures = 0
         var dismissed = false
         val graph = AppGraph(
+            settings = InMemorySettingsStore(),
             engines = engines(),
             player = StubPlayer(),
             playerSurface = {},
-            captureFeedbackReport = {
-                captures++
-                null
-            },
+            captureFeedbackReport = { _, _ -> captures++ },
         )
         runBlocking { graph.settings.put(AppSettings.crashReports, false) }
         runComposeUiTest {

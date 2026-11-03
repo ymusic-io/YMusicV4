@@ -94,6 +94,8 @@ void mse_av_recover_display(MseAv *a, double clock);
 int mse_av_pull_video(MseAv *a, double clock, int *w, int *h, double *pts);
 /* Pictures shown, and pictures dropped for missing their time, since this MseAv was created. Any thread. */
 void mse_av_video_quality(MseAv *a, int *shown, int *dropped);
+/* "hw vp9", "sw av1"; "" while no video decoder is open. Never blocks on the decoder: a busy one gives the last answer. */
+void mse_av_video_decoder(MseAv *a, char *out, int cap);
 /* 1 = pcm, 0 = none. *s16 is interleaved S16, borrowed until the next
  * pull_audio or destroy (do not free). Decodes up to `until`; audio more than
  * 50ms behind `clock` (the playhead) is skipped. */
@@ -102,8 +104,12 @@ int mse_av_pull_audio(MseAv *a, double clock, double until, int16_t **s16, int *
 
 double mse_av_duration(MseAv *a);
 
-/* First..last PTS across leftover. 1 if any packets. */
-int mse_av_span(MseAv *a, double *first, double *last);
+/* First..last PTS of the leftover range (audio or video) around `at`. 0 if none reaches it. */
+int mse_av_span(MseAv *a, double at, double *first, double *last);
+
+/* Where the buffered video range the decoder reads from ends. 0 without video leftover, or while the
+   decoder rests or is parked. */
+int mse_av_video_end(MseAv *a, double *end);
 
 /* 1 when leftover had samples and every AU is consumed (rd >= n). Mid-play
  * SABR starve with an empty unread queue also returns 1 — the host still

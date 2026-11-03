@@ -232,7 +232,11 @@ private fun MediaCache.findCachedSegments(
         }
         newBufferedPos = bufferedPosMs
     } else {
-        val seg = addNext { index.findByStartTime(it.itag, it.lmt, playerTimeMs) } ?: return CheckResult.Miss
+        val seg = addNext { format ->
+            index.findByStartTime(format.itag, format.lmt, playerTimeMs)?.takeUnless { segment ->
+                sorted.any { it.formatId == format && segment.segmentIndex in it.startSegmentIndex..it.endSegmentIndex }
+            }
+        } ?: return CheckResult.Miss
         nextSeg = seg.segmentIndex + 1
         newBufferedPos = checkNotNull(seg.startMs) + checkNotNull(seg.durationMs) - 1
     }

@@ -263,7 +263,6 @@
     <string name="settings_debug">Debugowanie</string>
     <string name="settings_show_fps">Pokaż FPS</string>
     <string name="settings_show_fps_hint">Wyświetla liczbę klatek na sekundę na filmie w Teraz odtwarzane. Pomiar zatrzymuje się po pauzie lub opuszczeniu ekranu.</string>
-    <string name="overlay_fps">%1$d fps</string>
     <string name="settings_licenses">Licencje open source</string>
     <string name="settings_terms">Warunki i prywatność</string>
     <string name="settings_licenses_intro">YMusic jest oprogramowaniem open source na licencji GNU GPL v3.0. Zawiera następujące komponenty:</string>

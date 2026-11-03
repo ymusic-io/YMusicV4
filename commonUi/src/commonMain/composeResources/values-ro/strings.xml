@@ -259,7 +259,6 @@
     <string name="settings_debug">Depanare</string>
     <string name="settings_show_fps">Afișează FPS</string>
     <string name="settings_show_fps_hint">Afișează cadrele pe secundă peste videoclipul din Se redă acum. Măsurarea se oprește când pui pauză sau părăsești ecranul.</string>
-    <string name="overlay_fps">%1$d fps</string>
     <string name="settings_licenses">Licențe open source</string>
     <string name="settings_terms">Termeni și confidențialitate</string>
     <string name="settings_licenses_intro">YMusic este open source sub licența GNU GPL v3.0. Include aceste componente:</string>

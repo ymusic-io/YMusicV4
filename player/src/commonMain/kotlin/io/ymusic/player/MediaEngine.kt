@@ -164,6 +164,12 @@ interface MediaEngine<in S : PlayableItem> {
     /** Pictures presented since attach. 0 when the backend has no counter. */
     fun presentedFrames(): Int = 0
 
+    /** Pictures dropped for missing their time since the current load. 0 when the backend has no counter. */
+    fun droppedFrames(): Int = 0
+
+    /** The video decoder in use, e.g. "hw vp9"; null when unknown. Main thread: off it the engine may free its host mid-call. */
+    fun videoDecoder(): String? = null
+
     /** Releases native resources. The instance is unusable afterwards. Idempotent. */
     fun release()
 }

@@ -109,10 +109,8 @@ import io.ymusic.dynamicengine.yt.extractHomeFeed
 import io.ymusic.dynamicengine.yt.extractMusicBrowse
 import io.ymusic.dynamicengine.yt.extractTrendingMusicFeed
 import io.ymusic.dynamicengine.yt.getRecommendedFeed
-import io.ymusic.dynamicengine.yt.handleWebViewPlayNext
 import io.ymusic.dynamicengine.yt.resolveLink
 import io.ymusic.player.PlayableItem
-import io.ymusic.player.VideoQualityState
 import io.ymusic.player.showsVideo
 import io.ymusic.settings.AppSettings
 import io.ymusic.settings.flow
@@ -150,25 +148,16 @@ import io.ymusic.ui.resources.tab_music
 import io.ymusic.ui.resources.tab_recommended
 import io.ymusic.ui.resources.tab_top_tracks
 import io.ymusic.ui.resources.yt_playlist_sign_in
-import io.ymusic.ui.sponsorblock.SponsorBlockCoordinator
 import kmpcommon.log.Logger
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
-import projectcommon.error.DISK_FULL_CODE
 import projectcommon.error.errorCode
-import projectcommon.error.runSuspendCatching
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -236,12 +225,7 @@ fun App(
     sectionState: androidx.compose.runtime.MutableState<AppSection>,
     catalogue: (@Composable () -> Unit)? = null,
 ) {
-    val uiLanguage by remember(graph) { graph.settings.flow(AppSettings.uiLanguage) }.collectAsState()
-    // ONE language, decided ONCE: the shell seeded the setting before the engine started
-    // (ensureAppLanguage), so this is a concrete tag — the blank fallback only covers unseeded
-    // test graphs. The engine pulls the same key for its hl default; no push happens here.
-    val tag = uiLanguage.ifBlank { defaultUiLanguageTag() }
-    remember(tag) { applyUiLocale(tag) }
+    val tag by graph.uiLanguage.collectAsState()
     val themePref by remember(graph) { graph.settings.flow(AppSettings.theme) }.collectAsState()
     val accentPref by remember(graph) { graph.settings.flow(AppSettings.themeAccent) }.collectAsState()
     val palette = designPaletteFor(themePref, androidx.compose.foundation.isSystemInDarkTheme(), accentPref)
@@ -250,60 +234,6 @@ fun App(
         snapshotFlow { sectionState.value }
             .filter { it in ResumableSections }
             .collect { graph.settings.put(AppSettings.lastSection, it.id) }
-    }
-    LaunchedEffect(graph.playerCache, graph.settings) {
-        val cache = graph.playerCache ?: return@LaunchedEffect
-        graph.settings.flow(AppSettings.playerCacheMaxMb).collect { mb ->
-            runSuspendCatching { withContext(Dispatchers.IO) { cache.blobs.setMaxSize(mb * 1024L * 1024L) } }
-                .onFailure { error ->
-                    val log = graph.logger?.fork("player-cache")
-                    if (error.errorCode() == DISK_FULL_CODE) {
-                        log?.log(Logger.Level.WARN, "player cache cap: storage is full", error)
-                    } else {
-                        log?.captureError(error, "player cache cap failed")
-                    }
-                }
-        }
-    }
-    LaunchedEffect(graph.player, graph.settings) {
-        val quality = graph.settings.string(PlaybackQualitySettingKey, VideoQualityState.AUTO).value
-        if (quality != VideoQualityState.AUDIO_ONLY) graph.player.selectVideoQuality(quality)
-        graph.player.setAudioOnly(graph.settings.string(PlaybackAudioOnlyKey, "1").value != "0")
-        graph.player.volume = graph.settings.string(PlaybackVolumeKey, "1").value.toFloatOrNull()?.coerceIn(0f, 1f) ?: 1f
-        graph.player.speed = graph.settings.string(PlaybackSpeedKey, "1").value.toFloatOrNull()?.coerceIn(0.25f, 4f) ?: 1f
-        graph.player.setPitch(graph.settings.string(PlaybackPitchKey, "1").value.toFloatOrNull()?.coerceIn(0.5f, 2f) ?: 1f)
-        graph.settings.string(PlaybackEqKey, "").value.split(',').mapNotNull { it.toFloatOrNull() }.let { n ->
-            if (n.size >= 12) {
-                graph.player.setBassBoost(n[0])
-                graph.player.setVirtualizer(n[1])
-                graph.player.setEqBands(n.drop(2).take(10))
-                n.getOrNull(12)?.let { graph.player.setPreamp(it) }
-            }
-        }
-        launch {
-            graph.player.config.map { it.preferVideoQuality.first }.distinctUntilChanged()
-                .collect { graph.settings.putString(PlaybackQualitySettingKey, it) }
-        }
-        launch {
-            combine(graph.player.config.map { it.audioOnly }, graph.pip.demotedToAudioOnly) { audioOnly, demoted ->
-                audioOnly.takeUnless { demoted }
-            }.filterNotNull().distinctUntilChanged()
-                .collect { graph.settings.putString(PlaybackAudioOnlyKey, if (it) "1" else "0") }
-        }
-        launch {
-            graph.player.config.map { "${it.volume}|${it.speed}|${it.pitchFactor}|${it.bassBoostDb}|${it.virtualizer}|${it.eqBands.joinToString(",")}|${it.preampDb}" }
-                .distinctUntilChanged()
-                .collect { blob ->
-                    val p = blob.split('|')
-                    if (p.size >= 7) {
-                        graph.settings.putString(PlaybackVolumeKey, p[0])
-                        graph.settings.putString(PlaybackSpeedKey, p[1])
-                        graph.settings.putString(PlaybackPitchKey, p[2])
-                        // bass, virtualizer, 10 bands, preamp — preamp last so 12-value saves still load.
-                        graph.settings.putString(PlaybackEqKey, "${p[3]},${p[4]},${p[5]},${p[6]}")
-                    }
-                }
-        }
     }
     key(tag) {
         val direction = if (isRtlLanguage(Locale.current.language)) LayoutDirection.Rtl else LayoutDirection.Ltr
@@ -403,7 +333,6 @@ private fun AppRoot(
     run {
         val scope = rememberCoroutineScope()
         val coordinator = graph.playback
-        remember { SponsorBlockCoordinator(graph, scope) }
         val inPip by graph.pip.inPip.collectAsState()
         if (inPip) {
             Box(Modifier.fillMaxSize().background(Color.Black)) {
@@ -416,22 +345,13 @@ private fun AppRoot(
         val libraryReveal = remember { androidx.compose.runtime.mutableStateOf<Long?>(null) }
         val libraryGroupReveal = remember { androidx.compose.runtime.mutableStateOf<LibraryGroupReveal?>(null) }
         // Signed-in state, derived from the engine's cookie gate. Bumps loginEpoch on sign-in/out.
-        val accountController = remember { AccountController(graph, scope) }
+        val accountController = graph.account
         val signedIn by accountController.signedIn.collectAsState()
         val account by accountController.account.collectAsState()
         val profileReady by accountController.profileReady.collectAsState()
         val loginEpoch by accountController.loginEpoch.collectAsState()
-        // The Recommended feed's raw material: the playing page reports YouTube's related items for
-        // a music video and the engine keeps them. Pure hand-off — the app parses nothing, and a
-        // harvest that fails must never disturb playback.
-        LaunchedEffect(graph) {
-            graph.player.watchNextSeen.collect { seen ->
-                runSuspendCatching { graph.engines.handleWebViewPlayNext(seen.videoId, seen.contentsJson) }
-                    .onFailure { graph.logger?.fork("watch-next-harvest")?.log(kmpcommon.log.Logger.Level.WARN, "harvest hand-off failed", it) }
-            }
-        }
         // App-level so a scan started in Library keeps running (and still notifies) across sections.
-        val scanController = remember { ScanController(scope, graph.logger?.fork("library-scan")) }
+        val scanController = graph.scans
         val drawer = rememberDrawerState(DrawerValue.Closed)
         if (catalogue == null) {
             LaunchedEffect(section) {

@@ -10,6 +10,7 @@ import io.ymusic.dynamicengine.DynamicEngineManager
 import io.ymusic.dynamicengine.embeddedEngineJsSource
 import io.ymusic.dynamicengine.yt.YtFeedItem
 import io.ymusic.dynamicengine.yt.extractMusicLibrary
+import io.ymusic.settings.InMemorySettingsStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -117,7 +118,7 @@ class MusicLibraryScreenTest {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         try {
             runComposeUiTest {
-                val graph = AppGraph(engines = engines, player = StubPlayer(), playerSurface = {})
+                val graph = AppGraph(settings = InMemorySettingsStore(), engines = engines, player = StubPlayer(), playerSurface = {})
                 val coordinator = PlaybackCoordinator(graph, scope)
                 setContent {
                     YMusicTheme {

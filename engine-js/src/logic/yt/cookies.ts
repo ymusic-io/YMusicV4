@@ -254,6 +254,14 @@ function prefWithout(pref: string | undefined, drop: string[]): string[] {
   return out;
 }
 
+// ---- SameSite -----------------------------------------------------------------------------------
+// Chromium 51-66 (the system WebView of un-updated devices, e.g. Android 9 head units) silently drops
+// every cookie marked `SameSite=None`, which YouTube's identity and sign-in cookies all are. The
+// attribute is stripped from every cookie before it reaches the store.
+function withoutSameSite(setCookie: string): string {
+  return setCookie.replace(/;\s*samesite\s*=\s*[^;]*/gi, "");
+}
+
 // ---- Remote logout ------------------------------------------------------------------------------
 // A response EXPLICITLY wiping LOGIN_INFO (`Set-Cookie: LOGIN_INFO=;…`) is YouTube revoking the
 // session server-side — the ONE trustworthy logout signal. (A missing account header is NOT: that
@@ -287,7 +295,7 @@ export async function storeSetCookies(url: string, res: HttpResponse): Promise<v
 async function applySetCookieValues(url: string, values: string[]): Promise<void> {
   if (values.length === 0) return;
   try {
-    await Cookies.set(url, values);
+    await Cookies.set(url, values.map(withoutSameSite));
   } catch (e) {
     console.warn("cookie store write failed:", e);
   }

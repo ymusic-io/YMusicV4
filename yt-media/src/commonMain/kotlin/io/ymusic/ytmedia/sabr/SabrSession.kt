@@ -250,9 +250,9 @@ class SabrSession(
     ): VideoPlaybackAbrRequest {
         val audioBuffered = bufferedRange(audioSegment)
         val videoBuffered = if (video != null) bufferedRange(videoSegment) else null
-        var playerTimeMs = audioBuffered?.let { it.endMs + 1 } ?: 0
+        var playerTimeMs = audioBuffered?.endMs ?: 0
         if (video != null) {
-            playerTimeMs = minOf(playerTimeMs, videoBuffered?.let { it.endMs + 1 } ?: 0)
+            playerTimeMs = minOf(playerTimeMs, videoBuffered?.endMs ?: 0)
         }
         val timeSinceLastSeek = random.nextInt(50) + 1 // must be > 0
         return VideoPlaybackAbrRequest(

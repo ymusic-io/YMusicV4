@@ -13,6 +13,8 @@ void *mse_host_create(void);
 void mse_host_destroy(void *h);
 const void *mse_host_vtable(void);
 int mse_host_frames(void *h);
+int mse_host_dropped_frames(void *h);
+void mse_host_video_decoder(void *h, char *out, int cap);
 int mse_host_video_size(void *h, int *w, int *ht);
 int64_t mse_host_samples_played(void *h);
 int mse_host_copy_frame(void *h, uint8_t *dst, int cap, int *w, int *ht, int *gen);

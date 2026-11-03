@@ -81,12 +81,9 @@ import io.ymusic.ui.resources.feedback_sentry_note
 import io.ymusic.ui.resources.feedback_sentry_send
 import io.ymusic.ui.resources.feedback_sentry_sent
 import io.ymusic.ui.resources.feedback_sentry_title
-import kmpcommon.log.Logger
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.launch
@@ -95,9 +92,9 @@ import org.jetbrains.compose.resources.stringResource
 /**
  * The drawer's Feedback section: the anonymous info a user quotes on GitHub or by email, copied by
  * its Copy button and prefilled into both, or sent with a message through Sentry. The app logs go
- * out through [AppGraph.captureFeedbackReport] only on Copy, GitHub, email or Send, at most once per
- * visit, found in Sentry by the Device ID; with anonymous reports off, a dialog first asks to turn
- * them back on, and declining leaves the section.
+ * out through [AppGraph.captureFeedbackReport], found in Sentry by the Device ID: once per visit on
+ * Copy, GitHub or email, and with every sent message; with anonymous reports off, a dialog first asks
+ * to turn them back on, and declining leaves the section.
  */
 @Composable
 internal fun FeedbackScreen(graph: AppGraph, onDismiss: () -> Unit) {
@@ -105,7 +102,6 @@ internal fun FeedbackScreen(graph: AppGraph, onDismiss: () -> Unit) {
     val log = remember(graph) { graph.logger?.fork("Feedback") }
     val reportsEnabled = remember(graph) { graph.settings.flow(AppSettings.crashReports) }.collectAsState().value
     var consented by remember { mutableStateOf(capture == null || reportsEnabled) }
-    var report by remember { mutableStateOf<Deferred<String?>?>(null) }
     val deviceId by produceState("", graph) { value = graph.settings.anonymousDeviceId() }
     val config by remember(graph) { graph.remoteConfig ?: emptyFlow() }.collectAsState(initial = null)
     val links = AppLinks(config)
@@ -127,20 +123,25 @@ internal fun FeedbackScreen(graph: AppGraph, onDismiss: () -> Unit) {
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
     val copy = { scope.launch { clipboard.setClipEntry(plainTextClipEntry(currentInfo.text)) } }
-
-    // The event id of the logs sent this visit, null when nothing went out.
-    val sendLogs: () -> Deferred<String?> = {
-        report ?: FeedbackSendScope.async {
-            if (capture == null) return@async null
-            try {
-                capture()
-            } catch (c: kotlinx.coroutines.CancellationException) {
-                throw c
-            } catch (e: Exception) {
-                log?.captureError(e, "feedback report capture failed")
-                null
+    val sendReport: (String, String?) -> Unit = { subject, message ->
+        if (capture != null) {
+            FeedbackSendScope.launch {
+                try {
+                    capture(subject, message)
+                } catch (c: kotlinx.coroutines.CancellationException) {
+                    throw c
+                } catch (e: Exception) {
+                    log?.captureError(e, "feedback report capture failed")
+                }
             }
-        }.also { report = it }
+        }
+    }
+    var contactReportSent by remember { mutableStateOf(false) }
+    val sendContactReport: (String) -> Unit = { channel ->
+        if (!contactReportSent) {
+            contactReportSent = true
+            sendReport(channel, null)
+        }
     }
 
     if (!consented) {
@@ -190,7 +191,7 @@ internal fun FeedbackScreen(graph: AppGraph, onDismiss: () -> Unit) {
                     }
                 }
                 InfoCard(info, copied = copiedByTap, onCopy = {
-                    sendLogs()
+                    sendContactReport("Copy")
                     copy()
                     copiedByTap = true
                 })
@@ -200,7 +201,7 @@ internal fun FeedbackScreen(graph: AppGraph, onDismiss: () -> Unit) {
                     title = stringResource(Res.string.feedback_github_title),
                     hint = stringResource(Res.string.feedback_github_hint),
                     onClick = {
-                        sendLogs()
+                        sendContactReport("Github")
                         uriHandler.openUri(currentInfo.githubIssueUrl())
                     },
                 )
@@ -210,27 +211,18 @@ internal fun FeedbackScreen(graph: AppGraph, onDismiss: () -> Unit) {
                     title = stringResource(Res.string.feedback_email_title, links.feedbackEmail),
                     hint = stringResource(Res.string.feedback_email_hint),
                     onClick = {
-                        sendLogs()
+                        sendContactReport("Email")
                         uriHandler.openUri(currentInfo.mailtoUrl(subject))
                     },
                 )
-                val sendMessage = graph.sendFeedbackMessage
-                if (sendMessage != null && capture != null) {
+                if (capture != null) {
                     var writing by remember { mutableStateOf(false) }
                     var sent by remember { mutableStateOf(false) }
                     SentryLink(sent = sent, onClick = { writing = true })
                     if (writing) {
                         SentryMessageDialog(
                             onSend = { message ->
-                                val logs = sendLogs()
-                                FeedbackSendScope.launch {
-                                    val reportId = logs.await()
-                                    if (reportId != null) {
-                                        sendMessage(reportId, message)
-                                    } else {
-                                        log?.log(Logger.Level.WARN, "feedback message dropped: the logs report wasn't sent")
-                                    }
-                                }
+                                sendReport(message, message)
                                 sent = true
                                 writing = false
                             },
@@ -421,5 +413,5 @@ private val InfoLabelWidth = 96.dp
 
 private const val COPIED_LABEL_MILLIS = 2_000L
 
-/** Fire and forget: the logs and a sent message must go out even when the user leaves the section right away. */
+/** Fire and forget: a sent report must go out even when the user leaves the section right away. */
 private val FeedbackSendScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)

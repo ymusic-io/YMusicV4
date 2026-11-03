@@ -35,6 +35,12 @@ actual object MseHostNative {
     actual external fun frames(handle: Long): Int
 
     @JvmStatic
+    actual external fun droppedFrames(handle: Long): Int
+
+    @JvmStatic
+    actual external fun videoDecoder(handle: Long): String
+
+    @JvmStatic
     actual external fun samplesPlayed(handle: Long): Long
 
     actual fun copyFrame(handle: Long, afterGen: Int): NativeMseFrame? {
@@ -139,8 +145,15 @@ actual object MseHostNative {
         try {
             System.load(File(dir, libFileName).absolutePath)
         } catch (error: UnsatisfiedLinkError) {
-            depErrors.forEach(error::addSuppressed)
-            throw error
+            val reported = if (isWindows()) {
+                val missing = describeMissingWindowsImports(dir)
+                MseLogBridge.fire(LOG_WARN, "mse: $libFileName did not load: $missing")
+                UnsatisfiedLinkError("${error.message}: $missing").apply { initCause(error) }
+            } else {
+                error
+            }
+            depErrors.forEach(reported::addSuppressed)
+            throw reported
         }
     }
 

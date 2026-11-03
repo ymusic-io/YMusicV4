@@ -255,7 +255,6 @@
     <string name="settings_debug">Arazketa</string>
     <string name="settings_show_fps">Erakutsi FPSak</string>
     <string name="settings_show_fps_hint">Erakutsi segundoko irudiak Orain erreproduzitzen pantailako bideoaren gainean. Neurketa gelditu egiten da pausatzean edo pantaila hori uztean.</string>
-    <string name="overlay_fps">%1$d fps</string>
     <string name="settings_licenses">Kode irekiko lizentziak</string>
     <string name="settings_terms">Baldintzak eta pribatutasuna</string>
     <string name="settings_licenses_intro">YMusic kode irekikoa da GNU GPL v3.0 lizentziapean. Osagai hauek ditu:</string>

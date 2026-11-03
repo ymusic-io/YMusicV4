@@ -150,7 +150,8 @@ data class BufferedRange(
     val startSegmentIndex: Int,
     val endSegmentIndex: Int,
 ) {
-    val endMs get() = startMs + durationMs - 1
+    /** Exclusive: the range covers `startMs <= t < endMs`. */
+    val endMs get() = startMs + durationMs
 
     companion object {
         fun from(fields: List<ProtoField>) = BufferedRange(

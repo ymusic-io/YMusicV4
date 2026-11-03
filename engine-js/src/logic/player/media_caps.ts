@@ -3,6 +3,7 @@
 
 import {
   decodeCaps,
+  decodeCapsAtRate,
   decodeTableRejects,
   mimeCodec,
   mseTypeSupported,
@@ -87,7 +88,7 @@ function partBits(p: Part): number {
     return 0;
   }
   const bits = p.video
-    ? decodeCaps(p.contentType, p.width, p.height, p.framerate, p.bitrate)
+    ? decodeCapsAtRate(p.contentType, p.width, p.height, p.framerate, p.bitrate)
     : decodeCaps(p.contentType, 0, 0, 0, p.bitrate);
   if (bits >= 0) {
     logVerdict(p, bits, "");

@@ -1,8 +1,10 @@
 package io.ymusic.ui
 
 import androidx.compose.runtime.Composable
+import io.ymusic.settings.AppSettings
 import io.ymusic.settings.SettingsStore
 import io.ymusic.settings.ensureUiLanguage
+import io.ymusic.settings.flow
 import io.ymusic.ui.resources.Res
 import io.ymusic.ui.resources.startup_failed
 import org.jetbrains.compose.resources.StringResource
@@ -114,6 +116,9 @@ internal expect fun systemLocaleTag(): String
  * deliberately ignored.
  */
 internal fun defaultUiLanguageTag(): String = uiLanguageFor(systemLocaleTag())
+
+/** The app language in [settings]; the shell seeds it on first launch, so blank only happens in unseeded test graphs. */
+internal fun uiLanguageTag(settings: SettingsStore): String = settings.flow(AppSettings.uiLanguage).value.ifBlank { defaultUiLanguageTag() }
 
 /** Maps a device locale tag onto a [UiLanguages] tag: legacy/modern code pairs fold together and
  *  Chinese splits by script/region (Hant or TW/HK/MO → Traditional). */

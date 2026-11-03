@@ -255,7 +255,6 @@
     <string name="settings_debug">اشکال‌زدایی</string>
     <string name="settings_show_fps">نمایش FPS</string>
     <string name="settings_show_fps_hint">نمایش تعداد فریم در ثانیه روی ویدیوی در حال پخش. نمونه‌برداری هنگام توقف یا خروج از آن صفحه متوقف می‌شود.</string>
-    <string name="overlay_fps">%1$d fps</string>
     <string name="settings_licenses">مجوزهای متن‌باز</string>
     <string name="settings_terms">شرایط و حریم خصوصی</string>
     <string name="settings_licenses_intro">YMusic متن‌باز و تحت مجوز GNU GPL v3.0 است. این برنامه شامل این اجزا است:</string>

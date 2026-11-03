@@ -29,8 +29,8 @@ compose.resources {
 
 val desktopVersion = appVersionName()
 // BUMP ON EVERY RELEASE. The update check compares this and nothing else — desktopVersion is a
-// display string. Desktop counts separately from androidApp's versionCode (separate cadence).
-val desktopVersionCode = 18
+// display string. Every platform shares one versionCode (androidApp, iosApp's CFBundleVersion): bump them together.
+val desktopVersionCode = 20
 version = desktopVersion
 
 /** The first candidate JDK that carries jpackage — the marker for "full JDK, not a JBR/JRE". */

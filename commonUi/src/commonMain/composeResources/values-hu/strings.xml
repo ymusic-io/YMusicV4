@@ -255,7 +255,6 @@
     <string name="settings_debug">Hibakeresés</string>
     <string name="settings_show_fps">FPS megjelenítése</string>
     <string name="settings_show_fps_hint">Másodpercenkénti képkockaszám megjelenítése a Most szól videón. A mérés leáll szüneteltetéskor vagy a képernyő elhagyásakor.</string>
-    <string name="overlay_fps">%1$d fps</string>
     <string name="settings_licenses">Nyílt forráskódú licencek</string>
     <string name="settings_terms">Feltételek és adatvédelem</string>
     <string name="settings_licenses_intro">A YMusic nyílt forráskódú, GNU GPL v3.0 licenc alatt. A következő összetevőket tartalmazza:</string>

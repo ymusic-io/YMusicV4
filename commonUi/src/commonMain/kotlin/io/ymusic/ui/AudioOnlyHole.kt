@@ -63,8 +63,6 @@ import io.ymusic.player.showsVideo
 import io.ymusic.settings.AppSettings
 import io.ymusic.settings.SettingsStore
 import io.ymusic.settings.flow
-import io.ymusic.ui.resources.Res
-import io.ymusic.ui.resources.overlay_fps
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -73,7 +71,6 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.jetbrains.compose.resources.stringResource
 import kotlin.time.TimeSource
 
 private const val WAVE_BARS = 40
@@ -375,26 +372,50 @@ private fun FpsBadge(player: Player, settings: SettingsStore, modifier: Modifier
     FpsBadgeActive(player, modifier)
 }
 
+/** Pictures shown over the last second, dropped since the current item started, and the video decoder. */
+private data class FrameRate(val shown: Int, val dropped: Int, val decoder: String? = null)
+
+/** Dropped pictures summed over an item: the host's counter restarts with every load (a quality switch too). */
+private class DroppedTotal(var last: Int) {
+    var total = 0
+
+    fun add(counter: Int) {
+        total += if (counter >= last) counter - last else counter
+        last = counter
+    }
+}
+
 @Composable
 private fun FpsBadgeActive(player: Player, modifier: Modifier = Modifier) {
     val status by player.status.collectAsState()
+    val queue by player.queue.collectAsState()
+    val item = queue.currentItem
+    val dropped = remember(item) { DroppedTotal(player.droppedFrames()) }
     val sampling = status.playWhenReady && windowVisible()
-    val fps by produceState(0, player, sampling) {
+    val rate by produceState(FrameRate(0, dropped.total), player, sampling, dropped) {
         if (!sampling) {
-            value = 0
+            value = FrameRate(0, dropped.total)
             return@produceState
         }
-        var prev = player.presentedFrames()
+        var prevShown = player.presentedFrames()
+        dropped.add(player.droppedFrames())
         while (isActive) {
             delay(1_000)
-            val n = player.presentedFrames()
-            value = (n - prev).coerceAtLeast(0)
-            prev = n
+            val shown = player.presentedFrames()
+            dropped.add(player.droppedFrames())
+            val decoder = player.videoDecoder()
+            value = FrameRate((shown - prevShown).coerceAtLeast(0), dropped.total, decoder)
+            prevShown = shown
         }
     }
-    if (fps <= 0) return
+    if (!sampling || (rate.shown <= 0 && rate.dropped <= 0)) return
     Text(
-        stringResource(Res.string.overlay_fps, fps),
+        // A developer readout, not localized.
+        listOfNotNull(
+            "${rate.shown} fps",
+            "${rate.dropped} dropped".takeIf { rate.dropped > 0 },
+            rate.decoder,
+        ).joinToString(" - "),
         style = TextStyle(fontSize = 13.sp, color = Color.White),
         modifier = modifier
             .background(Color.Black.copy(alpha = 0.55f))

@@ -134,12 +134,13 @@ import io.ymusic.settings.put
 import io.ymusic.telemetry.SentryLogger
 import io.ymusic.telemetry.applyYMusicTelemetry
 import io.ymusic.telemetry.bindCrashReporting
+import io.ymusic.telemetry.bindErrorPolicy
 import io.ymusic.telemetry.captureFeedbackReport
 import io.ymusic.telemetry.installErrorLogs
+import io.ymusic.telemetry.installSentryDesktopOsContext
 import io.ymusic.telemetry.installSentryDeviceId
 import io.ymusic.telemetry.installSentryEngineVersion
 import io.ymusic.telemetry.installSentryPlayerVersion
-import io.ymusic.telemetry.sendFeedbackMessage
 import io.ymusic.telemetry.shareLogTraceWithSentry
 import io.ymusic.ui.APP_HTTP_TIMEOUT
 import io.ymusic.ui.ActionIcon
@@ -347,6 +348,7 @@ fun main(args: Array<String>) {
                 it.environment = if (DEBUG_BUILD) "debug" else "production"
             }
             installSentryDeviceId(telemetryDeviceId)
+            installSentryDesktopOsContext()
             shareLogTraceWithSentry()
         }
     }
@@ -808,6 +810,7 @@ private suspend fun buildGraph(settings: AppStoreSettings, session: CookieSessio
         log = rootLogger.fork("remote-config"),
     ).also { it.checkUpdate() } // app open is itself a hotpoint
     installErrorLogs(logStore, remoteConfig, APP_VERSION_CODE)
+    bindErrorPolicy(backgroundScope, remoteConfig, rootLogger.fork("error-policy"))
     backgroundScope.launch {
         // The cap waits for the loaded config: the store trims nothing until it has one.
         remoteConfig.awaitLoaded()
@@ -1124,7 +1127,6 @@ private suspend fun buildGraph(settings: AppStoreSettings, session: CookieSessio
         api = api,
         remoteConfig = remoteConfig.config,
         captureFeedbackReport = captureFeedbackReportAction.takeIf { SENTRY_DSN.isNotEmpty() },
-        sendFeedbackMessage = ::sendFeedbackMessage.takeIf { SENTRY_DSN.isNotEmpty() },
         platformInfo = "${System.getProperty("os.name")} ${System.getProperty("os.version")} · ${desktopArch()}",
         createDocument = { name, _ -> pickSaveFile(name)?.let { file -> withContext(Dispatchers.IO) { FileSystem.SYSTEM.sink(file.toOkioPath()) } } },
         openDocument = { _ -> pickOpenFile()?.let { file -> withContext(Dispatchers.IO) { FileSystem.SYSTEM.source(file.toOkioPath()) } } },
@@ -1550,8 +1552,8 @@ private fun saveWindowPrefs(size: DpSize, position: WindowPosition) {
     }
 }
 
-/** Sends the app logs as one anonymous Sentry report for the Feedback screen; returns its event id. */
-private val captureFeedbackReportAction: suspend () -> String? = {
+/** Sends the app logs as one anonymous Sentry report for the Feedback screen. */
+private val captureFeedbackReportAction: suspend (String, String?) -> Unit = { subject, message ->
     withContext(Dispatchers.IO) {
         val export = File(System.getProperty("java.io.tmpdir"), FEEDBACK_LOG_NAME)
         // The report still goes without the log when the export fails or the log store is stuck.
@@ -1567,7 +1569,7 @@ private val captureFeedbackReportAction: suspend () -> String? = {
             rootLogger.fork("feedback").log(Logger.Level.WARN, "log export for feedback failed", e)
             emptyList()
         }
-        captureFeedbackReport(attachments)
+        captureFeedbackReport(subject, message, attachments)
     }
 }
 
@@ -1594,10 +1596,10 @@ private suspend fun pickOpenFile(): File? {
 }
 
 // Windows gets the native Explorer folder picker. macOS's AWT FileDialog only picks directories
-// while this property is set; on Linux the dialog picks a single file, which the scanner indexes on
-// its own (a supported single-file scan).
+// while this property is set.
 private suspend fun pickFolder(): File? {
     val title = getString(Res.string.folder_picker_title)
+    if (desktopOsKey() == "linux") return LinuxFolderPicker.pick(mainWindow, title)
     if (desktopOsKey() == "windows") {
         val owner = withContext(Dispatchers.Main) { mainWindow?.let { Native.getComponentPointer(it) } }
         try {
