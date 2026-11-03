@@ -4,16 +4,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import io.ymusic.dynamicengine.DynamicEngineManager
+import io.ymusic.dynamicengine.yt.handleWebViewPlayNext
 import io.ymusic.imageloader.ImageLoader
 import io.ymusic.mediastore.BetterMediaStore
 import io.ymusic.player.LoopMode
 import io.ymusic.player.PlayableItem
 import io.ymusic.player.Player
+import io.ymusic.player.VideoQualityState
 import io.ymusic.remoteconfig.ApiService
 import io.ymusic.remoteconfig.RemoteConfigData
 import io.ymusic.remoteconfig.StatUsage
 import io.ymusic.settings.AppSettings
-import io.ymusic.settings.InMemorySettingsStore
 import io.ymusic.settings.SettingsStore
 import io.ymusic.settings.flow
 import io.ymusic.settings.mapState
@@ -23,20 +24,29 @@ import io.ymusic.ui.playhistory.PlayHistoryStore
 import io.ymusic.ui.sponsorblock.InMemorySponsorBlockStore
 import io.ymusic.ui.sponsorblock.ServiceSponsorBlockApi
 import io.ymusic.ui.sponsorblock.SponsorBlockApi
+import io.ymusic.ui.sponsorblock.SponsorBlockCoordinator
 import io.ymusic.ui.sponsorblock.SponsorBlockService
 import io.ymusic.ui.sponsorblock.SponsorBlockStore
 import kmpcommon.WorkerThread
+import kmpcommon.log.Logger
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import projectcommon.error.DISK_FULL_CODE
+import projectcommon.error.errorCode
+import projectcommon.error.runSuspendCatching
 
 /** The player-quality settings key — public because shell settings stores (iOS NSUserDefaults
  *  seeding) enumerate the keys they persist. */
@@ -147,8 +157,8 @@ class AppGraph(
     val imageLoader: ImageLoader? = null,
     /** The app's root logger (Sentry-backed in the shells); screens fork their own scope off it. */
     val logger: kmpcommon.log.Logger? = null,
-    /** App settings (UI language, theme, …); the in-memory default works but doesn't persist. */
-    val settings: SettingsStore = InMemorySettingsStore(),
+    /** The process's one settings store. */
+    val settings: SettingsStore,
     /**
      * True when [playerSurface] may be shown at any size (MSE blit / ffmpeg frames scale) —
      * the mini player then hosts it as its 36dp art tile. False keeps a real-size docked preview
@@ -272,7 +282,32 @@ class AppGraph(
         PlaybackCoordinator(this, CoroutineScope(SupervisorJob() + Dispatchers.Default + onFailure))
     }
 
+    private val appliedUiLanguage = MutableStateFlow(uiLanguageTag(settings).also(::applyUiLocale))
+
+    /** The UI language in effect; the composition rebuilds on it (the platform locale is not snapshot state). */
+    val uiLanguage: StateFlow<String> = appliedUiLanguage
+
     init {
+        // Settings reach the player, cache and locale here, not in App: the process also runs without the UI
+        // (Android Auto, media buttons, the playback service).
+        val onBindingFailure = CoroutineExceptionHandler { _, e -> logger?.fork("settings")?.captureError(e, "settings binding failed") }
+        val bindings = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate + onBindingFailure)
+        bindings.launch {
+            settings.flow(AppSettings.uiLanguage).map { uiLanguageTag(settings) }.distinctUntilChanged().collect { tag ->
+                applyUiLocale(tag)
+                appliedUiLanguage.value = tag
+            }
+        }
+        bindPlayerConfig(bindings)
+        bindPlayerCacheLimit(bindings)
+        SponsorBlockCoordinator(this, bindings)
+        bindings.launch {
+            player.watchNextSeen.collect { seen ->
+                // The Recommended feed's raw material; a failed hand-off must never disturb playback.
+                runSuspendCatching { engines.handleWebViewPlayNext(seen.videoId, seen.contentsJson) }
+                    .onFailure { logger?.fork("watch-next-harvest")?.log(Logger.Level.WARN, "harvest hand-off failed", it) }
+            }
+        }
         // Process-lifetime like the graph itself: every queue is recorded, whatever screen is up.
         playHistory?.takeUnless { guest }?.let {
             PlayAgainRecorder(player, it.playAgain, logger?.fork("play-again")) { item ->
@@ -280,14 +315,71 @@ class AppGraph(
             }
                 .start(CoroutineScope(SupervisorJob() + Dispatchers.Default))
         }
-        // Here, not in App: Android Auto can start playback without the UI ever composing.
-        CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate).launch {
+        bindings.launch {
             val savedLoop = settings.string(PlaybackLoopModeKey, "").value
             player.setLoopMode(LoopMode.entries.firstOrNull { it.name == savedLoop } ?: LoopMode.None)
             player.setShuffle(settings.string(PlaybackShuffleKey, "0").value == "1")
             player.queue.map { it.shuffle to it.loopMode }.distinctUntilChanged().collect { (shuffle, loop) ->
                 settings.putString(PlaybackShuffleKey, if (shuffle) "1" else "0")
                 settings.putString(PlaybackLoopModeKey, loop.name)
+            }
+        }
+    }
+
+    /** Restores the saved quality, audio-only, volume, speed, pitch and EQ, and saves every later change. */
+    private fun bindPlayerConfig(scope: CoroutineScope) {
+        scope.launch {
+            val quality = settings.string(PlaybackQualitySettingKey, VideoQualityState.AUTO).value
+            if (quality != VideoQualityState.AUDIO_ONLY) player.selectVideoQuality(quality)
+            player.setAudioOnly(settings.string(PlaybackAudioOnlyKey, "1").value != "0")
+            player.volume = settings.string(PlaybackVolumeKey, "1").value.toFloatOrNull()?.coerceIn(0f, 1f) ?: 1f
+            player.speed = settings.string(PlaybackSpeedKey, "1").value.toFloatOrNull()?.coerceIn(0.25f, 4f) ?: 1f
+            player.setPitch(settings.string(PlaybackPitchKey, "1").value.toFloatOrNull()?.coerceIn(0.5f, 2f) ?: 1f)
+            settings.string(PlaybackEqKey, "").value.split(',').mapNotNull { it.toFloatOrNull() }.let { eq ->
+                if (eq.size >= 12) {
+                    player.setBassBoost(eq[0])
+                    player.setVirtualizer(eq[1])
+                    player.setEqBands(eq.drop(2).take(10))
+                    eq.getOrNull(12)?.let { player.setPreamp(it) }
+                }
+            }
+            launch {
+                player.config.map { it.preferVideoQuality.first }.distinctUntilChanged()
+                    .collect { settings.putString(PlaybackQualitySettingKey, it) }
+            }
+            launch {
+                combine(player.config.map { it.audioOnly }, pip.demotedToAudioOnly) { audioOnly, demoted ->
+                    audioOnly.takeUnless { demoted }
+                }.filterNotNull().distinctUntilChanged()
+                    .collect { settings.putString(PlaybackAudioOnlyKey, if (it) "1" else "0") }
+            }
+            launch {
+                player.config.map { listOf(it.volume, it.speed, it.pitchFactor) to Triple(it.bassBoostDb, it.virtualizer, it.eqBands to it.preampDb) }
+                    .distinctUntilChanged()
+                    .collect { (levels, eq) ->
+                        settings.putString(PlaybackVolumeKey, levels[0].toString())
+                        settings.putString(PlaybackSpeedKey, levels[1].toString())
+                        settings.putString(PlaybackPitchKey, levels[2].toString())
+                        // bass, virtualizer, 10 bands, preamp — preamp last so 12-value saves still load.
+                        settings.putString(PlaybackEqKey, "${eq.first},${eq.second},${eq.third.first.joinToString(",")},${eq.third.second}")
+                    }
+            }
+        }
+    }
+
+    private fun bindPlayerCacheLimit(scope: CoroutineScope) {
+        val cache = playerCache ?: return
+        scope.launch {
+            settings.flow(AppSettings.playerCacheMaxMb).collect { mb ->
+                runSuspendCatching { withContext(Dispatchers.IO) { cache.blobs.setMaxSize(mb * 1024L * 1024L) } }
+                    .onFailure { error ->
+                        val log = logger?.fork("player-cache")
+                        if (error.errorCode() == DISK_FULL_CODE) {
+                            log?.log(Logger.Level.WARN, "player cache cap: storage is full", error)
+                        } else {
+                            log?.captureError(error, "player cache cap failed")
+                        }
+                    }
             }
         }
     }

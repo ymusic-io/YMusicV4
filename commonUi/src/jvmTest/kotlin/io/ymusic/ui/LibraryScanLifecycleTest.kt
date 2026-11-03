@@ -11,6 +11,7 @@ import io.ymusic.dynamicengine.embeddedEngineJsSource
 import io.ymusic.mediastore.BetterMediaStore
 import io.ymusic.mediastore.mediaStoreJdbcDriver
 import io.ymusic.mediastore.model.BucketDraft
+import io.ymusic.settings.InMemorySettingsStore
 import kmpcommon.uri.Uri
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.runBlocking
@@ -41,6 +42,7 @@ class LibraryScanLifecycleTest {
         try {
             runComposeUiTest {
                 val graph = AppGraph(
+                    settings = InMemorySettingsStore(),
                     engines = engines,
                     player = StubPlayer(),
                     playerSurface = {},

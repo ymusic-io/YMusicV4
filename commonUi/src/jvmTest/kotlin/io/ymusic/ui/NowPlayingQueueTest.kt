@@ -16,6 +16,7 @@ import io.ymusic.dynamicengine.DynamicEngineManager
 import io.ymusic.dynamicengine.embeddedEngineJsSource
 import io.ymusic.player.PlayableItem
 import io.ymusic.player.QueueState
+import io.ymusic.settings.InMemorySettingsStore
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -35,7 +36,7 @@ class NowPlayingQueueTest {
         try {
             runComposeUiTest {
                 setContent {
-                    val graph = AppGraph(engines = engines, player = player, playerSurface = {})
+                    val graph = AppGraph(settings = InMemorySettingsStore(), engines = engines, player = player, playerSurface = {})
                     val coordinator = PlaybackCoordinator(graph, rememberCoroutineScope())
                     // Portrait bounds: the phone layout with the sticky Up-next header above the rows.
                     Box(Modifier.requiredSize(400.dp, 800.dp)) {

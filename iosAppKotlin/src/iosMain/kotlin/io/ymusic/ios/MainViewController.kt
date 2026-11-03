@@ -40,7 +40,6 @@ import io.ymusic.remoteconfig.StatUsage
 import io.ymusic.settings.AppSettings
 import io.ymusic.settings.anonymousDeviceId
 import io.ymusic.settings.flow
-import io.ymusic.settings.playerCacheMaxBytes
 import io.ymusic.settings.put
 import io.ymusic.ui.App
 import io.ymusic.ui.AppGraph
@@ -155,7 +154,7 @@ private suspend fun buildIosGraph(container: UIView): AppGraph {
             .resolve("ymusic-http-cache"),
         logger = rootLogger,
     )
-    val settings = IosSettingsStore()
+    val settings = IosSettingsStore.settingsStore
     // First launch decides the app language (device if supported, else English) and persists it —
     // BEFORE the engine starts, because the engine pulls the same key as its content-language (hl).
     ensureAppLanguage(settings)
@@ -254,8 +253,6 @@ private suspend fun buildIosGraph(container: UIView): AppGraph {
             playerCacheRoot,
             FileSystem.SYSTEM,
             SqlDelightBlobIndex(cacheDriver, now = { (NSDate().timeIntervalSince1970 * 1000).toLong() }),
-            // The user's cap from the start: playback can write before the UI applies the setting.
-            budgetBytes = settings.playerCacheMaxBytes(),
             logger = rootLogger.fork("player-cache"),
         ),
         SqlDelightSegmentIndex(

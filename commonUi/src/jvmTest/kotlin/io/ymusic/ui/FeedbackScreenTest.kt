@@ -19,6 +19,7 @@ import androidx.compose.ui.test.waitUntilAtLeastOneExists
 import io.ymusic.dynamicengine.DynamicEngineManager
 import io.ymusic.dynamicengine.embeddedEngineJsSource
 import io.ymusic.settings.AppSettings
+import io.ymusic.settings.InMemorySettingsStore
 import io.ymusic.settings.flow
 import io.ymusic.settings.put
 import kotlinx.coroutines.runBlocking
@@ -58,6 +59,7 @@ class FeedbackScreenTest {
         Locale.setDefault(Locale.ENGLISH)
         val captures = mutableListOf<Pair<String, String?>>()
         val graph = AppGraph(
+            settings = InMemorySettingsStore(),
             engines = engines(),
             player = StubPlayer(),
             playerSurface = {},
@@ -106,6 +108,7 @@ class FeedbackScreenTest {
         var captures = 0
         var dismissed = false
         val graph = AppGraph(
+            settings = InMemorySettingsStore(),
             engines = engines(),
             player = StubPlayer(),
             playerSurface = {},
