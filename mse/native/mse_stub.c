@@ -28,6 +28,13 @@ int mse_host_dropped_frames(void *h)
     return 0;
 }
 
+void mse_host_video_decoder(void *h, char *out, int cap)
+{
+    (void)h;
+    if (cap > 0)
+        out[0] = 0;
+}
+
 int64_t mse_host_samples_played(void *h)
 {
     (void)h;

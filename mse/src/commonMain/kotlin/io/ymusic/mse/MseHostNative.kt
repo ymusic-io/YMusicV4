@@ -11,6 +11,8 @@ expect object MseHostNative {
 
     fun droppedFrames(handle: Long): Int
 
+    fun videoDecoder(handle: Long): String
+
     fun samplesPlayed(handle: Long): Long
 
     fun copyFrame(handle: Long, afterGen: Int = -1): NativeMseFrame?

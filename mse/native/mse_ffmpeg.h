@@ -94,6 +94,8 @@ void mse_av_recover_display(MseAv *a, double clock);
 int mse_av_pull_video(MseAv *a, double clock, int *w, int *h, double *pts);
 /* Pictures shown, and pictures dropped for missing their time, since this MseAv was created. Any thread. */
 void mse_av_video_quality(MseAv *a, int *shown, int *dropped);
+/* "hw vp9", "sw av1"; "" while no video decoder is open. Takes the decoder lock. */
+void mse_av_video_decoder(MseAv *a, char *out, int cap);
 /* 1 = pcm, 0 = none. *s16 is interleaved S16, borrowed until the next
  * pull_audio or destroy (do not free). Decodes up to `until`; audio more than
  * 50ms behind `clock` (the playhead) is skipped. */

@@ -29,6 +29,8 @@ actual class MseVideoSurface(val video: DesktopVideoSurface = DesktopVideoSurfac
 
     actual fun droppedFrames(): Int = if (host == 0L) 0 else MseHostNative.droppedFrames(host)
 
+    actual fun videoDecoder(): String = if (host == 0L) "" else MseHostNative.videoDecoder(host)
+
     actual fun setVolume(volume: Float) {
         if (host == 0L) return
         MseHostNative.setVolume(host, volume)

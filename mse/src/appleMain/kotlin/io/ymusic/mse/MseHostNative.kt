@@ -16,10 +16,12 @@ import io.ymusic.mse.cinterop.mse_host_set_speed
 import io.ymusic.mse.cinterop.mse_host_set_video_surface
 import io.ymusic.mse.cinterop.mse_host_set_virtualizer
 import io.ymusic.mse.cinterop.mse_host_set_volume
+import io.ymusic.mse.cinterop.mse_host_video_decoder
 import io.ymusic.mse.cinterop.mse_host_video_size
 import io.ymusic.mse.cinterop.mse_host_vtable
 import io.ymusic.mse.cinterop.mse_ios_log
 import io.ymusic.mse.cinterop.mse_set_log_callback
+import kotlinx.cinterop.ByteVar
 import kotlinx.cinterop.COpaque
 import kotlinx.cinterop.COpaquePointer
 import kotlinx.cinterop.ExperimentalForeignApi
@@ -27,6 +29,7 @@ import kotlinx.cinterop.IntVar
 import kotlinx.cinterop.UByteVar
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.alloc
+import kotlinx.cinterop.allocArray
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.ptr
 import kotlinx.cinterop.reinterpret
@@ -38,6 +41,7 @@ import kotlinx.cinterop.value
 
 @OptIn(ExperimentalForeignApi::class)
 actual object MseHostNative {
+    private const val VIDEO_DECODER_CAP = 48
     private var frameScratch = ByteArray(0)
 
     init {
@@ -94,6 +98,15 @@ actual object MseHostNative {
     actual fun droppedFrames(handle: Long): Int {
         if (handle == 0L) return 0
         return mse_host_dropped_frames(handle.toCPointer<COpaque>())
+    }
+
+    actual fun videoDecoder(handle: Long): String {
+        if (handle == 0L) return ""
+        return memScoped {
+            val buf = allocArray<ByteVar>(VIDEO_DECODER_CAP)
+            mse_host_video_decoder(handle.toCPointer<COpaque>(), buf, VIDEO_DECODER_CAP)
+            buf.toKString()
+        }
     }
 
     actual fun samplesPlayed(handle: Long): Long {

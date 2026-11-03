@@ -42,6 +42,7 @@
 #endif
 #ifdef __ANDROID__
 #include <android/native_window.h>
+#include <dlfcn.h>
 #include <media/NdkMediaCodec.h>
 #include <media/NdkMediaFormat.h>
 #endif
@@ -4379,6 +4380,50 @@ void mse_av_video_quality(MseAv *a, int *shown, int *dropped)
 {
     *shown = a ? atomic_load_explicit(&a->q_shown, memory_order_relaxed) : 0;
     *dropped = a ? atomic_load_explicit(&a->q_dropped, memory_order_relaxed) : 0;
+}
+
+#ifdef __ANDROID__
+/* AMediaCodec_getName is API 28; minSdk is lower, so it is looked up at run time. Unknown = hw. */
+static int mc_is_software(AMediaCodec *mc)
+{
+    typedef media_status_t (*GetName)(AMediaCodec *, char **);
+    typedef void (*ReleaseName)(AMediaCodec *, char *);
+    GetName get_name = (GetName)dlsym(RTLD_DEFAULT, "AMediaCodec_getName");
+    ReleaseName release_name = (ReleaseName)dlsym(RTLD_DEFAULT, "AMediaCodec_releaseName");
+    char *name = NULL;
+    int sw;
+    if (!get_name || !release_name || get_name(mc, &name) != AMEDIA_OK || !name)
+        return 0;
+    sw = !strncmp(name, "c2.android.", 11) || !strncmp(name, "OMX.google.", 11) || strstr(name, ".sw.") != NULL;
+    release_name(mc, name);
+    return sw;
+}
+#endif
+
+void mse_av_video_decoder(MseAv *a, char *out, int cap)
+{
+    const char *kind = NULL;
+    out[0] = 0;
+    if (!a)
+        return;
+    pthread_mutex_lock(&a->mu);
+    if (!a->vpar) {
+        pthread_mutex_unlock(&a->mu);
+        return;
+    }
+#ifdef __ANDROID__
+    if (a->mc)
+        kind = mc_is_software(a->mc) ? "sw" : "hw";
+#endif
+#ifdef __APPLE__
+    if (!kind && a->vt_dec)
+        kind = "hw";
+#endif
+    if (!kind && vpipe_is_open(a->vpipe))
+        kind = vpipe_is_hw(a->vpipe) ? "hw" : "sw";
+    if (kind)
+        snprintf(out, cap, "%s %s", kind, avcodec_get_name(a->vpar->codec_id));
+    pthread_mutex_unlock(&a->mu);
 }
 
 int mse_av_pull_audio(MseAv *a, double clock, double until, int16_t **s16, int *frames, int *rate, int *ch,
