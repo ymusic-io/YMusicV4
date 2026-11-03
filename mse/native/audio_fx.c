@@ -843,6 +843,59 @@ static void tdstretch(AudioFx *fx, float *src, int *src_n, float tempo, float *d
     }
 }
 
+static int prepend(float **buf, int *n, int *cap, float *src, int *src_n, int nch)
+{
+    if (*src_n <= 0)
+        return 0;
+    if (ensure_buf(buf, cap, *n + *src_n, nch) != 0)
+        return -1;
+    memmove(*buf + (size_t)*src_n * (size_t)nch, *buf, (size_t)*n * (size_t)nch * sizeof(float));
+    memcpy(*buf, src, (size_t)*src_n * (size_t)nch * sizeof(float));
+    *n += *src_n;
+    *src_n = 0;
+    return 0;
+}
+
+static void fade_in_from_ovl(AudioFx *fx, float *dst, int n, int nch)
+{
+    int t, c, len;
+    if (!fx->have_ovl)
+        return;
+    len = fx->ovl_n < n ? fx->ovl_n : n;
+    for (t = 0; t < len; t++) {
+        float a = (float)t / (float)len;
+        for (c = 0; c < nch; c++)
+            dst[t * nch + c] = dst[t * nch + c] * a + fx->ovl[c][t] * (1.f - a);
+    }
+}
+
+/* Back to 1x: what the stretcher holds plays out first (in play order, through inbuf), so no
+   audio is lost or replayed later and the A/V clock stays exact. */
+static void stretch_to_plain(AudioFx *fx, int nch)
+{
+    int rc = 0;
+    if (fx->path == 4) {
+        fade_in_from_ovl(fx, fx->mid, fx->mid_n, nch);
+        rc |= prepend(&fx->inbuf, &fx->in_n, &fx->in_cap, fx->mid, &fx->mid_n, nch);
+        rc |= prepend(&fx->inbuf, &fx->in_n, &fx->in_cap, fx->xf, &fx->xf_n, nch);
+    } else if (fx->path == 2 || fx->path == 3) {
+        fade_in_from_ovl(fx, fx->inbuf, fx->in_n, nch);
+        rc |= prepend(&fx->inbuf, &fx->in_n, &fx->in_cap, fx->mid, &fx->mid_n, nch);
+    }
+    if (rc != 0) {
+        stretch_reset_unlocked(fx);
+        return;
+    }
+    fx->in_frac = 0;
+    fx->mid_frac = 0;
+    fx->have_ovl = 0;
+    fx->prev_off = 0;
+    fx->skip_frac = 0;
+    fx->fir_cut = 0;
+    memset(fx->fir_z, 0, sizeof(fx->fir_z));
+    fx->path = 0;
+}
+
 static int fifo_to_s16(float *src, int *src_n, int16_t *out, int out_cap, int nch)
 {
     int n = *src_n < out_cap ? *src_n : out_cap;
@@ -858,7 +911,7 @@ static int fifo_to_s16(float *src, int *src_n, int16_t *out, int out_cap, int nc
 int audio_fx_stretch(AudioFx *fx, const int16_t *in, int in_frames, int16_t *out, int out_cap, int ch)
 {
     float pitch, speed, tempo;
-    int nch, i, c, produced = 0, do_rate, do_tempo;
+    int nch, i, c, produced = 0, do_rate, do_tempo, plain;
     if (!fx || !out || out_cap <= 0)
         return 0;
     nch = ch < 1 ? 1 : (ch > 2 ? 2 : ch);
@@ -875,7 +928,10 @@ int audio_fx_stretch(AudioFx *fx, const int16_t *in, int in_frames, int16_t *out
     tempo = speed / pitch;
     do_rate = fabsf(pitch - 1.f) >= 0.005f;
     do_tempo = fabsf(tempo - 1.f) >= 0.005f;
-    if (!do_rate && !do_tempo) {
+    plain = !do_rate && !do_tempo;
+    if (plain && fx->path != 0)
+        stretch_to_plain(fx, nch);
+    if (plain && fx->in_n == 0) {
         int n = in_frames < out_cap ? in_frames : out_cap;
         if (in && n > 0)
             memcpy(out, in, (size_t)n * (size_t)nch * sizeof(int16_t));
@@ -893,6 +949,11 @@ int audio_fx_stretch(AudioFx *fx, const int16_t *in, int in_frames, int16_t *out
                 fx->inbuf[dst * nch + c] = (float)in[i * nch + c];
         }
         fx->in_n += in_frames;
+    }
+    if (plain) {
+        produced = fifo_to_s16(fx->inbuf, &fx->in_n, out, out_cap, nch);
+        pthread_mutex_unlock(&fx->mu);
+        return produced;
     }
     {
         int path = !do_tempo ? 1 : !do_rate ? 2 : pitch > 1.f ? 3 : 4;

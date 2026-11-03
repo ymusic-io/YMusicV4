@@ -1707,6 +1707,8 @@ void file_av_close(FileAv *p)
     p->dec_drain = 0;
     p->v_dead = 0;
     free_codecs(p);
+    if (p->fx)
+        audio_fx_reset(p->fx);
     if (p->fmt)
         avformat_close_input(&p->fmt);
     free(p->streams);
@@ -1804,6 +1806,8 @@ void file_av_seek(FileAv *p, double seconds)
     av_seek_frame(p->fmt, -1, ts, AVSEEK_FLAG_BACKWARD);
     if (p->adec)
         avcodec_flush_buffers(p->adec);
+    if (p->fx)
+        audio_fx_reset(p->fx);
     if (p->v_open)
         vpipe_flush(p->vpipe);
     if (p->sdec)
