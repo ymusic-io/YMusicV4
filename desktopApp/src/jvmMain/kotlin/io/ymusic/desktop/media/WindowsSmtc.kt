@@ -52,7 +52,11 @@ internal class WindowsSmtcSession(
     private val buttonHandler = WinRtDelegate(IID_BUTTON_PRESSED_HANDLER, log, ::onButton)
     private val seekHandler = WinRtDelegate(IID_POSITION_CHANGE_HANDLER, log, ::onSeek)
 
+    private val wndProc = WndProc(::onWindowMessage)
+
     // SMTC thread only.
+    private var hInstance: Pointer? = null
+    private var windowClass: WString? = null
     private var window: Pointer? = null
     private val owned = ArrayDeque<Pointer>()
     private lateinit var smtc: Pointer
@@ -119,8 +123,13 @@ internal class WindowsSmtcSession(
     }
 
     private fun setUp() {
+        val module = kernel32.fn("GetModuleHandleW").invokePointer(arrayOf<Any?>(null))
+        hInstance = module
+        val className = WString("YMusicMediaSession${System.nanoTime()}")
+        registerWindowClass(className, module)
+        windowClass = className
         val hwnd = user32.fn("CreateWindowExW").invokePointer(
-            arrayOf(0, WString("STATIC"), WString("YMusic"), WS_POPUP, 0, 0, 0, 0, null, null, null, null),
+            arrayOf(WS_EX_TOOLWINDOW, className, WString("YMusic"), WS_POPUP, 0, 0, 0, 0, null, null, module, null),
         ) ?: error("CreateWindowExW failed")
         window = hwnd
         setWindowAppId(hwnd, APP_ID)
@@ -168,6 +177,37 @@ internal class WindowsSmtcSession(
             setWindowAppId(it, null)
             user32.fn("DestroyWindow").invokeInt(arrayOf(it))
         }
+        windowClass?.let { user32.fn("UnregisterClassW").invokeInt(arrayOf(it, hInstance)) }
+    }
+
+    /**
+     * Clicking the media flyout card activates the window the session was created for — ours is
+     * hidden, so the activation is turned into [MediaSessionCommands.raise].
+     */
+    private fun onWindowMessage(hwnd: Pointer?, msg: Int, wParam: Pointer?, lParam: Pointer?): Pointer? {
+        if (msg == WM_ACTIVATE && (Pointer.nativeValue(wParam) and 0xFFFF) != WA_INACTIVE) {
+            try {
+                commands.raise()
+            } catch (error: Throwable) {
+                log?.log(Logger.Level.WARN, "SMTC raise failed", error)
+            }
+        }
+        return user32.fn("DefWindowProcW").invokePointer(arrayOf(hwnd, msg, wParam, lParam))
+    }
+
+    private fun registerWindowClass(className: WString, hInstance: Pointer?) {
+        val p = Native.POINTER_SIZE
+        val hInstanceAt = (16 + p + p - 1) / p * p // WNDCLASSEXW: after cbSize, style, lpfnWndProc, two ints
+        val size = hInstanceAt + 7 * p
+        val name = Memory((className.length + 1) * 2L).apply { setWideString(0, className.toString()) }
+        val wc = Memory(size.toLong()).apply {
+            clear()
+            setInt(0, size)
+            setPointer(8, CallbackReference.getFunctionPointer(wndProc))
+            setPointer(hInstanceAt.toLong(), hInstance)
+            setPointer(hInstanceAt + 5L * p, name) // lpszClassName
+        }
+        if (user32.fn("RegisterClassExW").invokeInt(arrayOf(wc)) and 0xFFFF == 0) error("RegisterClassExW failed")
     }
 
     private fun publish(state: MediaSessionState) {
@@ -323,6 +363,9 @@ internal class WindowsSmtcSession(
         const val THREAD_TIMEOUT_S = 5L
         const val RO_INIT_MULTITHREADED = 1
         const val WS_POPUP = 0x80000000.toInt()
+        const val WS_EX_TOOLWINDOW = 0x80 // never in the taskbar or Alt+Tab
+        const val WM_ACTIVATE = 0x0006
+        const val WA_INACTIVE = 0L
         const val WM_RUN_JOBS = 0x8000 + 1 // WM_APP + 1
         const val MSG_SIZE = 64L // ≥ sizeof(MSG) on every ABI
         const val TICKS_PER_MS = 10_000L // Windows.Foundation.TimeSpan is 100 ns ticks
@@ -401,6 +444,10 @@ internal class WindowsSmtcSession(
         const val BUTTON_NEXT = 6
         const val BUTTON_PREVIOUS = 7
     }
+}
+
+internal fun interface WndProc : StdCallLibrary.StdCallCallback {
+    fun invoke(hwnd: Pointer?, msg: Int, wParam: Pointer?, lParam: Pointer?): Pointer?
 }
 
 /**

@@ -43,6 +43,9 @@ interface MediaSessionCommands {
     fun previous()
 
     fun seekTo(positionMs: Long)
+
+    /** Bring the app window forward, from the tray too (the user clicked the OS media surface). */
+    fun raise() = Unit
 }
 
 /**
@@ -84,7 +87,12 @@ interface DesktopMediaSession {
  * duration, speed) and on position jumps the OS cannot extrapolate (seeks); commands flow back in
  * on [scope]'s main dispatcher. Returns null when this OS has no backend.
  */
-fun connectMediaSession(player: Player, scope: CoroutineScope, logger: Logger? = null): DesktopMediaSession? {
+fun connectMediaSession(
+    player: Player,
+    scope: CoroutineScope,
+    logger: Logger? = null,
+    onRaise: () -> Unit = {},
+): DesktopMediaSession? {
     val session = DesktopMediaSession.create(
         commands = object : MediaSessionCommands {
             override fun togglePlay() {
@@ -109,6 +117,10 @@ fun connectMediaSession(player: Player, scope: CoroutineScope, logger: Logger? =
 
             override fun seekTo(positionMs: Long) {
                 scope.launch { player.seekTo(positionMs) }
+            }
+
+            override fun raise() {
+                scope.launch { onRaise() }
             }
         },
         logger = logger,
