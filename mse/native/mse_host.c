@@ -42,6 +42,8 @@
 /* Handover holds cover queue latency, not a wall clock that ran away while audio was missing. */
 #define DAC_HANDOVER_MAX_S 0.5
 #define DAC_START_WAIT_NS 2e9
+/* Audio the ring holds before the device starts. */
+#define DAC_START_MS 160
 #endif
 #ifdef __ANDROID__
 #define DAC_FIRST_REPORT_NS 1e9
@@ -400,6 +402,10 @@ static double clock_with_span(MseHost *h, int have, double first, double last, i
            would start behind it. A device that never starts falls back to wall time. */
         wait_audio = h->rate > 0 && !h->aq_started && !h->audio_out &&
                      now_ns() - h->flush_ns < DAC_START_WAIT_NS;
+        /* Audio held back for video has not started the device either: the clock waits with it,
+           however long the video takes. */
+        if (h->rate > 0 && !h->aq_started && !h->audio_out && h->v_starve_ns > 0)
+            wait_audio = 1;
 #endif
         if (wait_audio && h->playing)
             h->origin_ns = now_ns();
@@ -923,6 +929,11 @@ static double video_bound(MseHost *h, double clock, double until, int have, doub
         *event = STARVE_BEGIN;
         return clock;
     }
+#ifdef MSE_DAC
+    /* Video ending just past the clock must still let the device start. */
+    if (!h->aq_started && end + VIDEO_LEAD_S < clock + DAC_START_MS / 1000.0)
+        return clock + DAC_START_MS / 1000.0 < until ? clock + DAC_START_MS / 1000.0 : until;
+#endif
     return end + VIDEO_LEAD_S;
 }
 #endif
@@ -1145,7 +1156,7 @@ static void *dec_loop(void *arg)
                     }
                     ring_write(h, (const uint8_t *)pcm, nbytes);
                 }
-                if (dac && !h->aq_started && ring_ms(h) >= 160) {
+                if (dac && !h->aq_started && ring_ms(h) >= DAC_START_MS) {
                     h->aq_started = 1;
                     dac_rebase(h, 0);
                     h->dac_tick_ns = 0;
