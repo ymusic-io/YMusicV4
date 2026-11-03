@@ -560,13 +560,8 @@ private fun PortraitNowPlaying(
     // Queue rows sit after the controls item and the sticky header in this list.
     val dragState = rememberReorderDragState(listState, indexOffset = 2) { from, to -> player.move(from, to) }
     val locateCurrent = rememberLocateCurrent(listState, queue.currentIndex, indexOffset = 2)
-    // Keyboard entry lands on the playing row; touch opens on item 0 (title, seek bar, transport).
-    val currentRowFocus = remember { FocusRequester() }
-    if (!platformUsesTouch) {
-        LaunchedEffect(Unit) {
-            if (queue.currentIndex >= 0) currentRowFocus.focusListItem(listState, queue.currentIndex + 2)
-        }
-    }
+    // Opens on item 0 (video, title, seek bar, transport): the queue shares this list, so jumping to the
+    // playing row would scroll the controls away.
 
     Column(
         Modifier.fillMaxSize()
@@ -667,8 +662,7 @@ private fun PortraitNowPlaying(
             }
             itemsIndexed(queue.items) { index, item ->
                 val current = index == queue.currentIndex
-                QueueRow(coordinator, index, item, current = current, dragState,
-                    focusRequester = if (current) currentRowFocus else null)
+                QueueRow(coordinator, index, item, current = current, dragState)
             }
             queue.more?.let { more -> item { QueueMoreRow(player, more) } }
         }
