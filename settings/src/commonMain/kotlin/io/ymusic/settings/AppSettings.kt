@@ -92,6 +92,13 @@ object AppSettings {
     /** Video caption text size, a multiplier of the default caption font. */
     val captionScale = FloatSetting("captions.scale", 1f)
 
+    /** Video caption text color as `RRGGBB`. */
+    val captionTextColor = StringSetting("captions.textColor", "FFFFFF")
+
+    /** Video caption box color as `RRGGBB`, drawn at [captionBackgroundOpacity]. */
+    val captionBackgroundColor = StringSetting("captions.backgroundColor", "000000")
+    val captionBackgroundOpacity = FloatSetting("captions.backgroundOpacity", 0.55f)
+
     /** Player cache size limit in MB; 0 = no cache. The cache also leaves the disk's last 100 MB free. */
     val playerCacheMaxMb = IntSetting("playerCache.maxMb", 2048)
 
