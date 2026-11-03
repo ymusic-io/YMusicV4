@@ -23,7 +23,7 @@ import projectcommon.error.errorCode
 /**
  * App-level owner of a library scan/rescan, so it outlives the Library screen: a scan started from
  * the Folders tab keeps running (and its result still reaches the user) after navigating to Discover.
- * Hosted on [AppRoot]'s scope; its [summaries] are piped to the app snackbar there, so the completion
+ * Owned by [AppGraph.scans] on the process scope; [AppRoot] pipes its [summaries] to the app snackbar, so the completion
  * message shows on whatever screen is open — a notification, not a Library-only banner.
  */
 internal class ScanController(private val scope: CoroutineScope, private val log: Logger? = null) {

@@ -30,7 +30,6 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -341,9 +340,9 @@ internal class PlaylistTransferState(
 
 @Composable
 internal fun rememberPlaylistTransferState(store: BetterMediaStore, graph: AppGraph, onChanged: () -> Unit): PlaylistTransferState {
-    val scope = rememberCoroutineScope()
     val snackbar = LocalSnackbar.current
-    return remember(store, graph) { PlaylistTransferState(store, graph, scope, snackbar, onChanged) }
+    // The process scope: leaving the Library must not cancel a restore halfway through its writes.
+    return remember(store, graph) { PlaylistTransferState(store, graph, graph.processScope, snackbar, onChanged) }
 }
 
 @Composable

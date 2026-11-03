@@ -345,13 +345,13 @@ private fun AppRoot(
         val libraryReveal = remember { androidx.compose.runtime.mutableStateOf<Long?>(null) }
         val libraryGroupReveal = remember { androidx.compose.runtime.mutableStateOf<LibraryGroupReveal?>(null) }
         // Signed-in state, derived from the engine's cookie gate. Bumps loginEpoch on sign-in/out.
-        val accountController = remember { AccountController(graph, scope) }
+        val accountController = graph.account
         val signedIn by accountController.signedIn.collectAsState()
         val account by accountController.account.collectAsState()
         val profileReady by accountController.profileReady.collectAsState()
         val loginEpoch by accountController.loginEpoch.collectAsState()
         // App-level so a scan started in Library keeps running (and still notifies) across sections.
-        val scanController = remember { ScanController(scope, graph.logger?.fork("library-scan")) }
+        val scanController = graph.scans
         val drawer = rememberDrawerState(DrawerValue.Closed)
         if (catalogue == null) {
             LaunchedEffect(section) {
