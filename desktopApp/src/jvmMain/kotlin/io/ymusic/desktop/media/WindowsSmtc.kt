@@ -41,6 +41,7 @@ internal class WindowsSmtcSession(
     private val user32 = NativeLibrary.getInstance("user32")
     private val kernel32 = NativeLibrary.getInstance("kernel32")
     private val combase = NativeLibrary.getInstance("combase")
+    private val shell32 = NativeLibrary.getInstance("shell32")
 
     private val jobs = ConcurrentLinkedQueue<() -> Unit>()
     private val stopped = CompletableFuture<Unit>()
@@ -122,6 +123,7 @@ internal class WindowsSmtcSession(
             arrayOf(0, WString("STATIC"), WString("YMusic"), WS_POPUP, 0, 0, 0, 0, null, null, null, null),
         ) ?: error("CreateWindowExW failed")
         window = hwnd
+        setWindowAppId(hwnd, APP_ID)
         val interop = activationFactory(CLASS_SMTC, IID_SMTC_INTEROP)
         try {
             smtc = own(interop.callForObject(INTEROP_GET_FOR_WINDOW, "GetForWindow", hwnd, WindowsCom.guid(IID_SMTC)))
@@ -162,7 +164,10 @@ internal class WindowsSmtcSession(
         seekToken?.let { smtc2.comCall(SMTC2_REMOVE_POSITION_CHANGE_REQUESTED, it) }
         if (::smtc.isInitialized) smtc.comCall(SMTC_PUT_IS_ENABLED, FALSE)
         while (owned.isNotEmpty()) owned.removeLast().comRelease()
-        window?.let { user32.fn("DestroyWindow").invokeInt(arrayOf(it)) }
+        window?.let {
+            setWindowAppId(it, null)
+            user32.fn("DestroyWindow").invokeInt(arrayOf(it))
+        }
     }
 
     private fun publish(state: MediaSessionState) {
@@ -249,6 +254,34 @@ internal class WindowsSmtcSession(
 
     // --- WinRT plumbing ---
 
+    /**
+     * The window's `System.AppUserModel.ID`, which SMTC names the session by; null clears it before destroy.
+     * The media flyout finds the app's name and icon only through a Start Menu shortcut carrying the same ID.
+     */
+    private fun setWindowAppId(hwnd: Pointer, appId: String?) {
+        val out = PointerByReference()
+        shell32.fn("SHGetPropertyStoreForWindow").invokeInt(arrayOf(hwnd, WindowsCom.guid(IID_PROPERTY_STORE), out))
+            .checkHresult("SHGetPropertyStoreForWindow")
+        val store = out.value
+        try {
+            val key = Memory(20).apply {
+                write(0, WindowsCom.guid(FMTID_APP_USER_MODEL).getByteArray(0, 16), 0, 16)
+                setInt(16, PID_APP_USER_MODEL_ID)
+            }
+            val text = appId?.let { Memory((it.length + 1) * 2L).apply { setWideString(0, it) } }
+            val value = Memory(PROPVARIANT_SIZE).apply {
+                clear()
+                if (text != null) {
+                    setShort(0, VT_LPWSTR)
+                    setPointer(8, text)
+                }
+            }
+            store.comCall(PROPERTY_STORE_SET_VALUE, key, value).checkHresult("IPropertyStore.SetValue(AppUserModel.ID)")
+        } finally {
+            store.comRelease()
+        }
+    }
+
     private fun own(pointer: Pointer): Pointer = pointer.also { owned.addLast(it) }
 
     private fun activationFactory(classId: String, iid: String): Pointer = withHString(classId) { id ->
@@ -295,6 +328,14 @@ internal class WindowsSmtcSession(
         const val TICKS_PER_MS = 10_000L // Windows.Foundation.TimeSpan is 100 ns ticks
         const val TRUE: Byte = 1
         const val FALSE: Byte = 0
+
+        const val APP_ID = "io.ymusic.YMusic"
+        const val IID_PROPERTY_STORE = "886D8EEB-8CF2-4446-8D02-CDBA1DBDCF99"
+        const val PROPERTY_STORE_SET_VALUE = 6
+        const val FMTID_APP_USER_MODEL = "9F4C2855-9F79-4B39-A8D0-E1D42DE1D5F3"
+        const val PID_APP_USER_MODEL_ID = 5
+        const val PROPVARIANT_SIZE = 24L // ≥ sizeof(PROPVARIANT) on every ABI
+        const val VT_LPWSTR: Short = 31
 
         const val CLASS_SMTC = "Windows.Media.SystemMediaTransportControls"
         const val CLASS_TIMELINE_PROPERTIES = "Windows.Media.SystemMediaTransportControlsTimelineProperties"
