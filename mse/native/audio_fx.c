@@ -786,8 +786,27 @@ static void wsola(AudioFx *fx, float *src, int *src_n, float tempo, float *dst, 
             opt = fx->ws_target;
         else
             opt = ws_best(src, search, cand, fx->ws_target, win, nch);
+        /* Hann halves keep the amplitude of correlated audio; uncorrelated audio (fricatives, noise)
+           needs power-complementary halves (their square roots), or it dips 3 dB at every overlap:
+           a flutter at the hop rate. The overlap's correlation blends the two. */
+        float corr = 0.f;
+        if (fx->ws_tail_n) {
+            float dot = 0.f, e_tail = 0.f, e_new = 0.f;
+            for (t = 0; t < hop; t++) {
+                for (c = 0; c < nch; c++) {
+                    float a = fx->ws_tail[c][t], b = src[(opt + t) * nch + c];
+                    dot += a * b;
+                    e_tail += a * a;
+                    e_new += b * b;
+                }
+            }
+            if (e_tail > 1e-9f && e_new > 1e-9f)
+                corr = clampf(dot / sqrtf(e_tail * e_new), 0.f, 1.f);
+        }
         for (t = 0; t < hop; t++) {
-            float rise = fx->ws_win[t], fall = fx->ws_win[hop + t];
+            float hann_rise = fx->ws_win[t], hann_fall = fx->ws_win[hop + t];
+            float rise = corr * hann_rise + (1.f - corr) * sqrtf(hann_rise);
+            float fall = corr * hann_fall + (1.f - corr) * sqrtf(hann_fall);
             for (c = 0; c < nch; c++) {
                 float x = src[(opt + t) * nch + c];
                 dst[(*dst_n + t) * nch + c] = fx->ws_tail_n ? fx->ws_tail[c][t] * fall + x * rise : x;
