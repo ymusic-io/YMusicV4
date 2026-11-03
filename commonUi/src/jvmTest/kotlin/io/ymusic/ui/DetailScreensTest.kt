@@ -15,6 +15,7 @@ import io.ymusic.dynamicengine.DynamicEngineManager
 import io.ymusic.dynamicengine.embeddedEngineJsSource
 import io.ymusic.dynamicengine.yt.YtFeedItem
 import io.ymusic.player.PlayableItem
+import io.ymusic.settings.InMemorySettingsStore
 import kmphttp.Request
 import kmphttp.Response
 import kotlinx.coroutines.CoroutineScope
@@ -71,7 +72,7 @@ class DetailScreensTest {
             textResponse(request, fixture, "application/json")
         }) { engines, player, scope ->
             runComposeUiTest {
-                val graph = AppGraph(engines = engines, player = player, playerSurface = {})
+                val graph = AppGraph(settings = InMemorySettingsStore(), engines = engines, player = player, playerSurface = {})
                 val coordinator = PlaybackCoordinator(graph, scope)
                 val item = YtFeedItem(
                     kind = YtFeedItem.KIND_PLAYLIST,
@@ -119,7 +120,7 @@ class DetailScreensTest {
             textResponse(request, if (isWindow2) window2 else fixture, "application/json")
         }) { engines, player, scope ->
             runComposeUiTest {
-                val graph = AppGraph(engines = engines, player = player, playerSurface = {})
+                val graph = AppGraph(settings = InMemorySettingsStore(), engines = engines, player = player, playerSurface = {})
                 val coordinator = PlaybackCoordinator(graph, scope)
                 val item = YtFeedItem(
                     kind = YtFeedItem.KIND_PLAYLIST,
@@ -174,7 +175,7 @@ class DetailScreensTest {
             textResponse(request, fixture, "application/json")
         }) { engines, player, scope ->
             runComposeUiTest {
-                val graph = AppGraph(engines = engines, player = player, playerSurface = {})
+                val graph = AppGraph(settings = InMemorySettingsStore(), engines = engines, player = player, playerSurface = {})
                 val coordinator = PlaybackCoordinator(graph, scope)
                 val opened = CopyOnWriteArrayList<YtFeedItem>()
                 val item = YtFeedItem(

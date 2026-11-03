@@ -15,6 +15,7 @@ import io.ymusic.mediastore.mediaStoreJdbcDriver
 import io.ymusic.mediastore.model.BucketDraft
 import io.ymusic.mediastore.model.MediaItemDraft
 import io.ymusic.mediastore.model.MediaStoreItem
+import io.ymusic.settings.InMemorySettingsStore
 import kmpcommon.uri.Uri
 import kotlinx.coroutines.runBlocking
 import java.util.Locale
@@ -54,6 +55,7 @@ class LibraryDeleteFromDiskTest {
                 setContent {
                     App(
                         AppGraph(
+                            settings = InMemorySettingsStore(),
                             engines = engines,
                             player = StubPlayer(),
                             playerSurface = {},

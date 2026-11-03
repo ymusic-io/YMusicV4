@@ -40,7 +40,6 @@ import io.ymusic.remoteconfig.StatUsage
 import io.ymusic.settings.AppSettings
 import io.ymusic.settings.anonymousDeviceId
 import io.ymusic.settings.flow
-import io.ymusic.settings.playerCacheMaxBytes
 import io.ymusic.settings.put
 import io.ymusic.ui.App
 import io.ymusic.ui.AppGraph
@@ -254,8 +253,6 @@ private suspend fun buildIosGraph(container: UIView): AppGraph {
             playerCacheRoot,
             FileSystem.SYSTEM,
             SqlDelightBlobIndex(cacheDriver, now = { (NSDate().timeIntervalSince1970 * 1000).toLong() }),
-            // The user's cap from the start: playback can write before the UI applies the setting.
-            budgetBytes = settings.playerCacheMaxBytes(),
             logger = rootLogger.fork("player-cache"),
         ),
         SqlDelightSegmentIndex(

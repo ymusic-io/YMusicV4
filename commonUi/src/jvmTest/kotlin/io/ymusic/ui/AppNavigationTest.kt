@@ -15,6 +15,7 @@ import io.ymusic.mediastore.BetterMediaStore
 import io.ymusic.mediastore.mediaStoreJdbcDriver
 import io.ymusic.mediastore.model.BucketDraft
 import io.ymusic.mediastore.model.MediaItemDraft
+import io.ymusic.settings.InMemorySettingsStore
 import kmpcommon.uri.Uri
 import kotlinx.coroutines.runBlocking
 import java.util.Locale
@@ -52,7 +53,7 @@ class AppNavigationTest {
         runBlocking { engines.start() }
         try {
             runComposeUiTest {
-                val graph = AppGraph(engines = engines, player = StubPlayer(), playerSurface = {})
+                val graph = AppGraph(settings = InMemorySettingsStore(), engines = engines, player = StubPlayer(), playerSurface = {})
                 setContent { App(graph) }
 
                 onNodeWithActionLabel("Search").performClick()
@@ -103,7 +104,7 @@ class AppNavigationTest {
         runBlocking { engines.start() }
         try {
             runComposeUiTest {
-                val graph = AppGraph(engines = engines, player = StubPlayer(), playerSurface = {})
+                val graph = AppGraph(settings = InMemorySettingsStore(), engines = engines, player = StubPlayer(), playerSurface = {})
                 setContent { App(graph) }
 
                 // Search → results → a result's detail page.
@@ -151,7 +152,7 @@ class AppNavigationTest {
         runBlocking { engines.start() }
         try {
             runComposeUiTest {
-                val graph = AppGraph(engines = engines, player = StubPlayer(), playerSurface = {})
+                val graph = AppGraph(settings = InMemorySettingsStore(), engines = engines, player = StubPlayer(), playerSurface = {})
                 // Hoisted so the test can switch sections the way a drawer tap does — over the
                 // results layer the drawer only opens by touch edge-swipe, which jvm can't drive.
                 val section = androidx.compose.runtime.mutableStateOf(AppSection.Discover)
@@ -203,7 +204,7 @@ class AppNavigationTest {
         runBlocking { engines.start() }
         try {
             runComposeUiTest {
-                val graph = AppGraph(engines = engines, player = StubPlayer(), playerSurface = {})
+                val graph = AppGraph(settings = InMemorySettingsStore(), engines = engines, player = StubPlayer(), playerSurface = {})
                 setContent { App(graph) }
 
                 // Home loads once, then the desktop F5 path (AppGraph.requestRefresh) refetches it.
@@ -259,7 +260,7 @@ class AppNavigationTest {
         }
         try {
             runComposeUiTest {
-                val graph = AppGraph(engines = engines, player = StubPlayer(), playerSurface = {}, mediaStore = store)
+                val graph = AppGraph(settings = InMemorySettingsStore(), engines = engines, player = StubPlayer(), playerSurface = {}, mediaStore = store)
                 val section = androidx.compose.runtime.mutableStateOf(AppSection.Library)
                 setContent { App(graph, section) }
 
@@ -323,7 +324,7 @@ class AppNavigationTest {
         }
         try {
             runComposeUiTest {
-                val graph = AppGraph(engines = engines, player = StubPlayer(), playerSurface = {}, mediaStore = store)
+                val graph = AppGraph(settings = InMemorySettingsStore(), engines = engines, player = StubPlayer(), playerSurface = {}, mediaStore = store)
                 val section = androidx.compose.runtime.mutableStateOf(AppSection.Library)
                 setContent { App(graph, section) }
 

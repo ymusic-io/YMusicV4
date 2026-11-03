@@ -7,6 +7,7 @@ import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.test.waitUntilAtLeastOneExists
 import io.ymusic.dynamicengine.DynamicEngineManager
 import io.ymusic.dynamicengine.embeddedEngineJsSource
+import io.ymusic.settings.InMemorySettingsStore
 import kotlinx.coroutines.runBlocking
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicInteger
@@ -41,7 +42,7 @@ class FeedCachingTest {
         runBlocking { engines.start() }
         try {
             runComposeUiTest {
-                val graph = AppGraph(engines = engines, player = StubPlayer(), playerSurface = {})
+                val graph = AppGraph(settings = InMemorySettingsStore(), engines = engines, player = StubPlayer(), playerSurface = {})
                 setContent { App(graph) }
                 onNodeWithActionLabel("Home").performClick()
 

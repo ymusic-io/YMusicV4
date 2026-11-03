@@ -44,9 +44,6 @@ data class IntSetting(val key: String, val default: Int)
 
 fun SettingsStore.flow(setting: IntSetting): StateFlow<Int> = int(setting.key, setting.default)
 
-/** [AppSettings.playerCacheMaxMb] in bytes. */
-fun SettingsStore.playerCacheMaxBytes(): Long = flow(AppSettings.playerCacheMaxMb).value * 1024L * 1024L
-
 suspend fun SettingsStore.put(
     setting: IntSetting,
     value: Int,

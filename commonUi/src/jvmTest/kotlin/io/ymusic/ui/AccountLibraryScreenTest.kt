@@ -15,6 +15,7 @@ import io.ymusic.dynamicengine.DynamicEngineManager
 import io.ymusic.dynamicengine.embeddedEngineJsSource
 import io.ymusic.dynamicengine.yt.extractAccountLibrary
 import io.ymusic.dynamicengine.yt.extractChannelDetail
+import io.ymusic.settings.InMemorySettingsStore
 import kmphttp.CookieBuilder
 import kmphttp.saveFromResponse
 import kmphttp.toHttpUrl
@@ -157,7 +158,7 @@ class AccountLibraryScreenTest {
         runBlocking { engines.start() }
         try {
             runComposeUiTest {
-                setContent { App(AppGraph(engines = engines, player = StubPlayer(), playerSurface = {})) }
+                setContent { App(AppGraph(settings = InMemorySettingsStore(), engines = engines, player = StubPlayer(), playerSurface = {})) }
                 onNodeWithActionLabel("Library").performClick()
                 waitUntilAtLeastOneExists(hasText("Sign in with YouTube"), 20_000)
                 onAllNodesWithText("Watch history").assertCountEquals(0)
@@ -178,7 +179,7 @@ class AccountLibraryScreenTest {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         try {
             runComposeUiTest {
-                setContent { App(AppGraph(engines = engines, player = StubPlayer(), playerSurface = {})) }
+                setContent { App(AppGraph(settings = InMemorySettingsStore(), engines = engines, player = StubPlayer(), playerSurface = {})) }
                 onNodeWithActionLabel("Library").performClick()
 
                 // The account card (from account_menu) over the cookie gate.
