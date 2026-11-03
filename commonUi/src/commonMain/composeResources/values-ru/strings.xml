@@ -263,8 +263,6 @@
     <string name="settings_debug">Отладка</string>
     <string name="settings_show_fps">Показывать FPS</string>
     <string name="settings_show_fps_hint">Показывать число кадров в секунду поверх видео на экране воспроизведения. Подсчёт останавливается на паузе или при уходе с экрана.</string>
-    <string name="overlay_fps">%1$d кадр/с</string>
-    <string name="overlay_fps_dropped">%1$d кадр/с · %2$d пропущено</string>
     <string name="settings_licenses">Лицензии открытого ПО</string>
     <string name="settings_terms">Условия и конфиденциальность</string>
     <string name="settings_licenses_intro">YMusic — открытое ПО под лицензией GNU GPL v3.0. В него входят следующие компоненты:</string>

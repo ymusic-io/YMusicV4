@@ -255,8 +255,6 @@
     <string name="settings_debug">Εντοπισμός σφαλμάτων</string>
     <string name="settings_show_fps">Εμφάνιση FPS</string>
     <string name="settings_show_fps_hint">Εμφανίζει τα καρέ ανά δευτερόλεπτο πάνω στο βίντεο της Αναπαραγωγής τώρα. Η μέτρηση σταματά σε παύση ή όταν φύγετε από την οθόνη.</string>
-    <string name="overlay_fps">%1$d fps</string>
-    <string name="overlay_fps_dropped">%1$d fps · %2$d απορρίφθηκαν</string>
     <string name="settings_licenses">Άδειες ανοιχτού κώδικα</string>
     <string name="settings_terms">Όροι &amp; απόρρητο</string>
     <string name="settings_licenses_intro">Το YMusic είναι ανοιχτού κώδικα με άδεια GNU GPL v3.0. Περιλαμβάνει τα εξής στοιχεία:</string>

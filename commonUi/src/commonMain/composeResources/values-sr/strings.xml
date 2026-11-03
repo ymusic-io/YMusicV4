@@ -259,8 +259,6 @@
     <string name="settings_debug">Отклањање грешака</string>
     <string name="settings_show_fps">Прикажи FPS</string>
     <string name="settings_show_fps_hint">Приказује број слика у секунди преко видеа у „Сада се пушта“. Мерење стаје при паузи или када напустите тај екран.</string>
-    <string name="overlay_fps">%1$d fps</string>
-    <string name="overlay_fps_dropped">%1$d fps · %2$d испуштено</string>
     <string name="settings_licenses">Лиценце отвореног кода</string>
     <string name="settings_terms">Услови и приватност</string>
     <string name="settings_licenses_intro">YMusic је отвореног кода под лиценцом GNU GPL v3.0. Обухвата следеће компоненте:</string>

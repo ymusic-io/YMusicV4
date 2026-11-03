@@ -259,8 +259,6 @@
     <string name="settings_debug">Depuració</string>
     <string name="settings_show_fps">Mostra els FPS</string>
     <string name="settings_show_fps_hint">Mostra els fotogrames per segon sobre el vídeo de Ara sona. La mesura s'atura en pausa o quan surts d'aquesta pantalla.</string>
-    <string name="overlay_fps">%1$d fps</string>
-    <string name="overlay_fps_dropped">%1$d fps · %2$d perduts</string>
     <string name="settings_licenses">Llicències de codi obert</string>
     <string name="settings_terms">Condicions i privadesa</string>
     <string name="settings_licenses_intro">YMusic és de codi obert sota la GNU GPL v3.0. Inclou aquests components:</string>

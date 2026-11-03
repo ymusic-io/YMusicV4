@@ -255,8 +255,6 @@
     <string name="settings_debug">Utatuzi</string>
     <string name="settings_show_fps">Onyesha FPS</string>
     <string name="settings_show_fps_hint">Onyesha fremu kwa sekunde juu ya video ya Inayocheza Sasa. Upimaji hukoma unaposimamisha au ukiondoka kwenye skrini hiyo.</string>
-    <string name="overlay_fps">%1$d fps</string>
-    <string name="overlay_fps_dropped">%1$d fps · %2$d zimedondoshwa</string>
     <string name="settings_licenses">Leseni za programu huria</string>
     <string name="settings_terms">Masharti na faragha</string>
     <string name="settings_licenses_intro">YMusic ni programu huria chini ya GNU GPL v3.0. Inajumuisha vipengele hivi:</string>

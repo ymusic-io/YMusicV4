@@ -259,8 +259,6 @@
     <string name="settings_debug">ניפוי באגים</string>
     <string name="settings_show_fps">הצג FPS</string>
     <string name="settings_show_fps_hint">הצגת מספר התמונות לשנייה מעל הסרטון במסך המתנגן כעת. המדידה נעצרת בהשהיה או כשיוצאים מהמסך.</string>
-    <string name="overlay_fps">%1$d fps</string>
-    <string name="overlay_fps_dropped">%1$d fps · %2$d הושמטו</string>
     <string name="settings_licenses">רישיונות קוד פתוח</string>
     <string name="settings_terms">תנאים ופרטיות</string>
     <string name="settings_licenses_intro">YMusic היא תוכנת קוד פתוח ברישיון GNU GPL v3.0. היא כוללת את הרכיבים הבאים:</string>

@@ -251,8 +251,6 @@
     <string name="settings_debug">ดีบัก</string>
     <string name="settings_show_fps">แสดง FPS</string>
     <string name="settings_show_fps_hint">แสดงจำนวนภาพต่อวินาทีซ้อนบนวิดีโอที่กำลังเล่น การวัดจะหยุดเมื่อหยุดชั่วคราวหรือออกจากหน้าจอนั้น</string>
-    <string name="overlay_fps">%1$d fps</string>
-    <string name="overlay_fps_dropped">%1$d fps · หลุด %2$d</string>
     <string name="settings_licenses">ใบอนุญาตโอเพนซอร์ส</string>
     <string name="settings_terms">ข้อกำหนดและความเป็นส่วนตัว</string>
     <string name="settings_licenses_intro">YMusic เป็นโอเพนซอร์สภายใต้ GNU GPL v3.0 และมีส่วนประกอบต่อไปนี้:</string>

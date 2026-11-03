@@ -263,8 +263,6 @@
     <string name="settings_debug">Ladenie</string>
     <string name="settings_show_fps">Zobraziť FPS</string>
     <string name="settings_show_fps_hint">Zobrazí počet snímok za sekundu cez video v Práve hrá. Meranie sa zastaví pri pozastavení alebo opustení obrazovky.</string>
-    <string name="overlay_fps">%1$d fps</string>
-    <string name="overlay_fps_dropped">%1$d fps · %2$d zahodených</string>
     <string name="settings_licenses">Licencie open source</string>
     <string name="settings_terms">Podmienky a súkromie</string>
     <string name="settings_licenses_intro">YMusic je open source pod licenciou GNU GPL v3.0. Obsahuje tieto komponenty:</string>

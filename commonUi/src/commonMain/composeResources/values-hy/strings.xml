@@ -255,8 +255,6 @@
     <string name="settings_debug">Վրիպազերծում</string>
     <string name="settings_show_fps">Ցույց տալ FPS-ը</string>
     <string name="settings_show_fps_hint">Ցուցադրում է կադրերի քանակը վայրկյանում «Հիմա հնչում է» տեսանյութի վրա։ Չափումը դադարում է դադարի ժամանակ կամ էկրանից դուրս գալիս։</string>
-    <string name="overlay_fps">%1$d fps</string>
-    <string name="overlay_fps_dropped">%1$d fps · %2$d բաց թողնված</string>
     <string name="settings_licenses">Բաց կոդի լիցենզիաներ</string>
     <string name="settings_terms">Պայմաններ և գաղտնիություն</string>
     <string name="settings_licenses_intro">YMusic-ը բաց կոդով է՝ GNU GPL v3.0 լիցենզիայով։ Այն ներառում է հետևյալ բաղադրիչները՝</string>

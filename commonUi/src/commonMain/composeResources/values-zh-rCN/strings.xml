@@ -251,8 +251,6 @@
     <string name="settings_debug">调试</string>
     <string name="settings_show_fps">显示 FPS</string>
     <string name="settings_show_fps_hint">在“正在播放”的视频上叠加显示每秒帧数。暂停或离开该页面时停止统计。</string>
-    <string name="overlay_fps">%1$d fps</string>
-    <string name="overlay_fps_dropped">%1$d fps · 丢帧 %2$d</string>
     <string name="settings_licenses">开源许可</string>
     <string name="settings_terms">条款与隐私</string>
     <string name="settings_licenses_intro">YMusic 基于 GNU GPL v3.0 开源，包含以下组件：</string>

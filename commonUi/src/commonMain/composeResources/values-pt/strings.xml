@@ -259,8 +259,6 @@
     <string name="settings_debug">Depuração</string>
     <string name="settings_show_fps">Mostrar FPS</string>
     <string name="settings_show_fps_hint">Mostra os quadros por segundo sobre o vídeo em reprodução. A medição para quando pausado ou quando você sai dessa tela.</string>
-    <string name="overlay_fps">%1$d fps</string>
-    <string name="overlay_fps_dropped">%1$d fps · %2$d perdidos</string>
     <string name="settings_licenses">Licenças de código aberto</string>
     <string name="settings_terms">Termos e privacidade</string>
     <string name="settings_licenses_intro">O YMusic é de código aberto sob a GNU GPL v3.0. Ele inclui estes componentes:</string>
