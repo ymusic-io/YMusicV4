@@ -46,9 +46,9 @@ interface MediaSessionCommands {
 /**
  * The desktop counterpart of Android's MediaSession: publishes playback state to the OS media
  * surface and receives its transport commands. Per-OS backends: macOS (MPNowPlayingInfoCenter +
- * MPRemoteCommandCenter → Control Center, media keys) and Linux (MPRIS over D-Bus → the desktop's
- * Now Playing widget, media keys). Windows (SystemMediaTransportControls) has no backend yet, where
- * [create] returns null and the app simply has no OS media surface.
+ * MPRemoteCommandCenter → Control Center, media keys), Linux (MPRIS over D-Bus → the desktop's
+ * Now Playing widget, media keys) and Windows (SystemMediaTransportControls → the media flyout,
+ * media keys).
  */
 interface DesktopMediaSession {
     fun update(state: MediaSessionState)
@@ -67,6 +67,9 @@ interface DesktopMediaSession {
                     .getOrNull()
                 "linux" in os -> runCatching { LinuxMprisSession(commands, logger) }
                     .onFailure { logger?.log(Logger.Level.WARN, "MPRIS unavailable — media keys dead", it) }
+                    .getOrNull()
+                "windows" in os -> runCatching { WindowsSmtcSession(commands, logger) }
+                    .onFailure { logger?.log(Logger.Level.WARN, "SMTC unavailable — media keys dead", it) }
                     .getOrNull()
                 else -> null
             }

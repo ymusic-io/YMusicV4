@@ -978,8 +978,8 @@ private suspend fun buildGraph(settings: AppStoreSettings, session: CookieSessio
         )
     }
 
-    // OS media surface — macOS Now Playing widget + media keys (Linux MPRIS / Windows SMTC have no
-    // backend yet). Commands come back on the Main dispatcher, where the player is driven.
+    // OS media surface + media keys (macOS Now Playing, Linux MPRIS, Windows SMTC). Commands come
+    // back on the Main dispatcher, where the player is driven.
     connectMediaSession(player, CoroutineScope(Dispatchers.Main), rootLogger.fork("now-playing"))
 
     // Offline downloads: SABR stack over ffmpeg. Spec comes from the MSE engine's cached
