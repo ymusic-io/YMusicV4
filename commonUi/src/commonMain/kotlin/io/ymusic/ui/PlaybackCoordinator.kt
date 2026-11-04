@@ -213,12 +213,11 @@ class PlaybackCoordinator(
      * thumbnail, resolved at the view size by the `art:` fetcher.
      */
     suspend fun playDownloaded(uri: String, videoId: String, title: String, artist: String?) {
-        mediaStore?.findItemByUri(Uri.parse(uri))?.let { return playLocalSingle(it) }
-        val art = if (mediaStore != null) youtubeArtUrl(videoId) else youtubeThumbUrl(videoId)
-        player.setQueue(
-            listOf(PlayableItem.LocalMedia(uri = uri, title = title, artist = artist, thumbnailUrl = art)),
-            origin = QueueOrigin.Downloads,
-        )
+        val item = mediaStore?.findItemByUri(Uri.parse(uri))?.toLocalMedia() ?: run {
+            val art = if (mediaStore != null) youtubeArtUrl(videoId) else youtubeThumbUrl(videoId)
+            PlayableItem.LocalMedia(uri = uri, title = title, artist = artist, thumbnailUrl = art)
+        }
+        player.setQueue(listOf(item), origin = QueueOrigin.Downloads)
     }
 
     /**
