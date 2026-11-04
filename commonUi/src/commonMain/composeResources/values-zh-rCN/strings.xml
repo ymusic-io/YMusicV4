@@ -452,11 +452,9 @@
     <string name="download_more_qualities">另有 %1$d 项</string>
     <string name="download_down_to">低至 %1$s</string>
     <string name="download_less">收起</string>
-    <string name="download_webm_detail">WebM · 原始流</string>
+    <string name="download_webm_detail">Opus · 原始流</string>
     <string name="download_m4a_detail">AAC · 原始流</string>
-    <string name="download_mp3_detail">%1$d kbps · 到处都能播放</string>
-    <string name="settings_mp3_source_bitrate">以原始码率下载 MP3</string>
-    <string name="settings_mp3_source_bitrate_hint">以约 256 kbps（可变码率）而非 320 kbps 编码 MP3。文件更小，音质相同。</string>
+    <string name="download_mp3_detail">到处都能播放</string>
     <string name="download_audio_track">音轨</string>
     <string name="download_captions">字幕</string>
     <string name="download_captions_off">关闭</string>
@@ -483,7 +481,7 @@
     <string name="download_no_subtitles">无可用字幕</string>
     <string name="dialog_ok_done">完成</string>
     <string name="download_captions_as_lyrics">%1$s · 作为歌词</string>
-    <string name="download_lyrics_note">MP3 会将字幕保存为歌词，支持歌词的播放器可显示。</string>
+    <string name="download_lyrics_note">此格式会将字幕保存为歌词，支持歌词的播放器可显示。</string>
     <string name="download_caption_translated">%1$s（自动翻译）</string>
     <string name="download_live_unsupported">无法下载直播视频</string>
     <string name="download_save_quick">保存为快速下载</string>
@@ -625,4 +623,15 @@
     <string name="a11y_key_arrow_up">上箭头</string>
     <string name="a11y_key_arrow_down">下箭头</string>
     <string name="cd_always_on_top">始终置顶</string>
+    <string name="settings_caption_size">大小</string>
+    <string name="caption_size_preview">字幕将显示为这样</string>
+    <string name="settings_caption_style">字幕样式</string>
+    <string name="settings_caption_style_hint">视频字幕的大小、颜色和背景</string>
+    <string name="caption_text_color">文字颜色</string>
+    <string name="caption_background">背景</string>
+    <string name="caption_background_opacity">背景不透明度</string>
+    <string name="download_quality_save">省流</string>
+    <string name="download_quality_medium">中</string>
+    <string name="download_quality_best">最佳</string>
+    <string name="download_kbps">%1$d kbps</string>
 </resources>

@@ -452,11 +452,9 @@
     <string name="download_more_qualities">+%1$d개 더보기</string>
     <string name="download_down_to">최저 %1$s까지</string>
     <string name="download_less">간략히</string>
-    <string name="download_webm_detail">WebM · 원본 스트림</string>
+    <string name="download_webm_detail">Opus · 원본 스트림</string>
     <string name="download_m4a_detail">AAC · 원본 스트림</string>
-    <string name="download_mp3_detail">%1$d kbps · 어디서나 재생 가능</string>
-    <string name="settings_mp3_source_bitrate">원본 비트레이트로 MP3 다운로드</string>
-    <string name="settings_mp3_source_bitrate_hint">MP3를 320 kbps 대신 약 256 kbps(가변 비트레이트)로 인코딩합니다. 파일은 더 작고 음질은 같습니다.</string>
+    <string name="download_mp3_detail">어디서나 재생 가능</string>
     <string name="download_audio_track">오디오 트랙</string>
     <string name="download_captions">자막</string>
     <string name="download_captions_off">끄기</string>
@@ -483,7 +481,7 @@
     <string name="download_no_subtitles">사용 가능한 항목 없음</string>
     <string name="dialog_ok_done">완료</string>
     <string name="download_captions_as_lyrics">%1$s · 가사로</string>
-    <string name="download_lyrics_note">MP3는 자막을 가사로 저장하며, 가사를 지원하는 플레이어에서 표시됩니다.</string>
+    <string name="download_lyrics_note">이 형식은 자막을 가사로 저장하며, 가사를 지원하는 플레이어에서 표시됩니다.</string>
     <string name="download_caption_translated">%1$s(자동 번역됨)</string>
     <string name="download_live_unsupported">실시간 동영상은 다운로드할 수 없습니다</string>
     <string name="download_save_quick">빠른 다운로드로 저장</string>
@@ -625,4 +623,15 @@
     <string name="a11y_key_arrow_up">위쪽 화살표</string>
     <string name="a11y_key_arrow_down">아래쪽 화살표</string>
     <string name="cd_always_on_top">항상 위에 표시</string>
+    <string name="settings_caption_size">크기</string>
+    <string name="caption_size_preview">자막이 이렇게 표시됩니다</string>
+    <string name="settings_caption_style">자막 스타일</string>
+    <string name="settings_caption_style_hint">동영상 자막의 크기, 색상, 배경</string>
+    <string name="caption_text_color">글자 색상</string>
+    <string name="caption_background">배경</string>
+    <string name="caption_background_opacity">배경 불투명도</string>
+    <string name="download_quality_save">절약</string>
+    <string name="download_quality_medium">중간</string>
+    <string name="download_quality_best">최고</string>
+    <string name="download_kbps">%1$d kbps</string>
 </resources>

@@ -456,11 +456,9 @@
     <string name="download_more_qualities">+%1$d meer</string>
     <string name="download_down_to">tot %1$s</string>
     <string name="download_less">Minder</string>
-    <string name="download_webm_detail">WebM · originele stream</string>
+    <string name="download_webm_detail">Opus · originele stream</string>
     <string name="download_m4a_detail">AAC · originele stream</string>
-    <string name="download_mp3_detail">%1$d kbps · speelt overal af</string>
-    <string name="settings_mp3_source_bitrate">MP3 downloaden met originele bitrate</string>
-    <string name="settings_mp3_source_bitrate_hint">MP3 coderen met ongeveer 256 kbps (variabele bitrate) in plaats van 320 kbps. Kleinere bestanden, dezelfde kwaliteit.</string>
+    <string name="download_mp3_detail">Speelt overal af</string>
     <string name="download_audio_track">Audiospoor</string>
     <string name="download_captions">Ondertiteling</string>
     <string name="download_captions_off">Uit</string>
@@ -487,7 +485,7 @@
     <string name="download_no_subtitles">Geen beschikbaar</string>
     <string name="dialog_ok_done">Klaar</string>
     <string name="download_captions_as_lyrics">%1$s · als songtekst</string>
-    <string name="download_lyrics_note">MP3 bewaart ondertiteling als songtekst, getoond door spelers die songteksten lezen.</string>
+    <string name="download_lyrics_note">Deze indeling bewaart ondertiteling als songtekst, getoond door spelers die songteksten lezen.</string>
     <string name="download_caption_translated">%1$s (automatisch vertaald)</string>
     <string name="download_live_unsupported">Een LIVE-video kan niet worden gedownload</string>
     <string name="download_save_quick">Opslaan als Snelle download</string>
@@ -633,4 +631,15 @@
     <string name="a11y_key_arrow_up">pijl-omhoog</string>
     <string name="a11y_key_arrow_down">pijl-omlaag</string>
     <string name="cd_always_on_top">Altijd bovenop</string>
+    <string name="settings_caption_size">Grootte</string>
+    <string name="caption_size_preview">Ondertitels zien er zo uit</string>
+    <string name="settings_caption_style">Ondertitelstijl</string>
+    <string name="settings_caption_style_hint">Grootte, kleur en achtergrond van video-ondertitels</string>
+    <string name="caption_text_color">Tekstkleur</string>
+    <string name="caption_background">Achtergrond</string>
+    <string name="caption_background_opacity">Dekking van achtergrond</string>
+    <string name="download_quality_save">Zuinig</string>
+    <string name="download_quality_medium">Gemiddeld</string>
+    <string name="download_quality_best">Beste</string>
+    <string name="download_kbps">%1$d kbps</string>
 </resources>

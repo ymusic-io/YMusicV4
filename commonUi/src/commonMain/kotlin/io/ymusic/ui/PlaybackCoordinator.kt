@@ -1,6 +1,7 @@
 package io.ymusic.ui
 
 import io.ymusic.dynamicengine.yt.YtFeedItem
+import io.ymusic.dynamicengine.yt.YtFeedPage
 import io.ymusic.dynamicengine.yt.YtThumb
 import io.ymusic.mediastore.model.MediaStoreItem
 import io.ymusic.player.PlayableItem
@@ -9,7 +10,9 @@ import io.ymusic.player.PlaybackState
 import io.ymusic.player.PlaybackStatus
 import io.ymusic.player.Player
 import io.ymusic.player.PlayerError
+import io.ymusic.player.QueueOrigin
 import io.ymusic.player.QueueSource
+import io.ymusic.player.QueueState
 import io.ymusic.ui.playhistory.PlayAgainSession
 import kmpcommon.log.Logger
 import kmpcommon.log.info
@@ -18,6 +21,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.distinctUntilChangedBy
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -49,8 +54,13 @@ class PlaybackCoordinator(
         if (log != null) {
             scope.launch {
                 combine(player.status, player.queue, player.config) { status, queue, config ->
-                    playTrail(status, queue.currentItem, config)
+                    playTrail(status, queue, config)
                 }.distinctUntilChanged().collect { log.info(it) }
+            }
+            scope.launch {
+                player.queue.filter { it.queueId != null }.distinctUntilChangedBy { it.queueId }.collect { queue ->
+                    log.info("queue origin=${queue.origin.name.lowercase()} size=${queue.items.size} index=${queue.currentIndex}")
+                }
             }
             scope.launch {
                 player.status.map { it.error }.distinctUntilChanged().collect { err ->
@@ -149,12 +159,13 @@ class PlaybackCoordinator(
         player.setQueue(
             listOf(video.toYtMedia()),
             source = NextQueueSource.radio(graph.engines, video.id, log?.fork("queue-source")),
+            origin = QueueOrigin.Radio,
         )
     }
 
     /** Play [video] alone — no radio. */
     fun playSingle(video: YtFeedItem) {
-        player.setQueue(listOf(video.toYtMedia()))
+        player.setQueue(listOf(video.toYtMedia()), origin = QueueOrigin.Single)
     }
 
     /** Play [videos] as the queue (a playlist page), starting at [startIndex]; [source] loads the rest of
@@ -167,18 +178,33 @@ class PlaybackCoordinator(
             playable.map { it.toYtMedia() },
             playIndex = startIndex.coerceIn(0, playable.size - 1),
             source = source,
+            origin = QueueOrigin.Playlist,
         )
+    }
+
+    /** Play the playlist at [url] from [videoId], [page] being its loaded first page; the rest of the list
+     *  loads as the queue goes. False when [videoId] isn't on [page]. */
+    fun playPlaylist(url: String, page: YtFeedPage, videoId: String): Boolean {
+        val videos = page.sections.flatMap { it.items }.filter { it.kind == YtFeedItem.KIND_VIDEO }
+        val index = videos.indexOfFirst { it.id == videoId }
+        if (index < 0) return false
+        playAll(
+            videos,
+            startIndex = index,
+            source = NextQueueSource.playlist(graph.engines, url, videos, page.pageHeader?.itemCount, log?.fork("queue-source")),
+        )
+        return true
     }
 
     /** Play local library [songs] as the queue, starting at [index]. [shuffle] null keeps the user's shuffle mode. */
     fun playLocal(songs: List<MediaStoreItem>, index: Int, shuffle: Boolean? = null) {
         shuffle?.let(player::setShuffle)
-        player.setQueue(songs.map { it.toLocalMedia() }, playIndex = index)
+        player.setQueue(songs.map { it.toLocalMedia() }, playIndex = index, origin = QueueOrigin.Library)
     }
 
     /** Play just [song] now (queue of one). */
     fun playLocalSingle(song: MediaStoreItem) {
-        player.setQueue(listOf(song.toLocalMedia()))
+        player.setQueue(listOf(song.toLocalMedia()), origin = QueueOrigin.Single)
     }
 
     /**
@@ -187,9 +213,11 @@ class PlaybackCoordinator(
      * thumbnail, resolved at the view size by the `art:` fetcher.
      */
     suspend fun playDownloaded(uri: String, videoId: String, title: String, artist: String?) {
-        mediaStore?.findItemByUri(Uri.parse(uri))?.let { return playLocalSingle(it) }
-        val art = if (mediaStore != null) youtubeArtUrl(videoId) else youtubeThumbUrl(videoId)
-        player.setQueue(listOf(PlayableItem.LocalMedia(uri = uri, title = title, artist = artist, thumbnailUrl = art)))
+        val item = mediaStore?.findItemByUri(Uri.parse(uri))?.toLocalMedia() ?: run {
+            val art = if (mediaStore != null) youtubeArtUrl(videoId) else youtubeThumbUrl(videoId)
+            PlayableItem.LocalMedia(uri = uri, title = title, artist = artist, thumbnailUrl = art)
+        }
+        player.setQueue(listOf(item), origin = QueueOrigin.Downloads)
     }
 
     /**
@@ -205,6 +233,7 @@ class PlaybackCoordinator(
             items,
             playIndex = saved.queueIndex.coerceIn(0, items.lastIndex),
             startPositionMs = if (fromBeginning || !saved.resumesMidItem) 0L else saved.positionMs,
+            origin = QueueOrigin.Resume,
             queueId = saved.queueId,
             source = saved.sourceToken?.let { NextQueueSource.resume(it, graph.engines, items, log?.fork("queue-source")) },
         )
@@ -263,8 +292,8 @@ private fun itemId(item: PlayableItem?): String = when (item) {
     null -> "-"
 }
 
-private fun playTrail(status: PlaybackStatus, item: PlayableItem?, config: PlaybackConfig): String {
-    val id = itemId(item)
+private fun playTrail(status: PlaybackStatus, queue: QueueState, config: PlaybackConfig): String {
+    val id = itemId(queue.currentItem)
     val phase = when (val st = status.state) {
         is PlaybackState.Uninitialized -> if (st.isInitializing) "init" else "uninit"
         is PlaybackState.Idle -> "idle"
@@ -290,6 +319,8 @@ private fun playTrail(status: PlaybackStatus, item: PlayableItem?, config: Playb
         append(" speed=${config.speed} pitch=${config.pitchFactor}")
         append(' ')
         append(size)
+        append(" queue=${queue.currentIndex + 1}/${queue.items.size}")
+        append(" via=${queue.lastChange.name.lowercase()}")
     }
 }
 

@@ -30,7 +30,7 @@ compose.resources {
 val desktopVersion = appVersionName()
 // BUMP ON EVERY RELEASE. The update check compares this and nothing else — desktopVersion is a
 // display string. Every platform shares one versionCode (androidApp, iosApp's CFBundleVersion): bump them together.
-val desktopVersionCode = 20
+val desktopVersionCode = 21
 version = desktopVersion
 
 /** The first candidate JDK that carries jpackage — the marker for "full JDK, not a JBR/JRE". */
@@ -339,7 +339,8 @@ compose.desktop {
                 // artwork from src/jvmMain/resources/ymusic_dock.png. macOS 26+ draws the
                 // CFBundleIconName icon from macos/Assets.car instead (installMacIconAssets).
                 iconFile.set(project.file("ymusic.icns"))
-                // ymusic:// links open the app (Main.kt's open-URI handler takes them).
+                // ymusic:// links open the app (Main.kt's open-URI handler takes them). Media files
+                // list it under Open With (its open-file handler); Alternate never claims a default.
                 infoPlist {
                     extraKeysRawXml = """
                         <key>CFBundleIconName</key>
@@ -351,6 +352,39 @@ compose.desktop {
                                 <string>io.ymusic.desktop</string>
                                 <key>CFBundleURLSchemes</key>
                                 <array><string>ymusic</string></array>
+                            </dict>
+                        </array>
+                        <key>CFBundleDocumentTypes</key>
+                        <array>
+                            <dict>
+                                <key>CFBundleTypeName</key>
+                                <string>Media file</string>
+                                <key>CFBundleTypeRole</key>
+                                <string>Viewer</string>
+                                <key>LSHandlerRank</key>
+                                <string>Alternate</string>
+                                <key>LSItemContentTypes</key>
+                                <array>
+                                    <string>public.mp3</string>
+                                    <string>com.apple.m4a-audio</string>
+                                    <string>public.mpeg-4-audio</string>
+                                    <string>public.aac-audio</string>
+                                    <string>org.xiph.flac</string>
+                                    <string>com.microsoft.waveform-audio</string>
+                                    <string>public.mpeg-4</string>
+                                    <string>com.apple.m4v-video</string>
+                                    <string>com.apple.quicktime-movie</string>
+                                </array>
+                            </dict>
+                            <dict>
+                                <key>CFBundleTypeName</key>
+                                <string>Media file</string>
+                                <key>CFBundleTypeRole</key>
+                                <string>Viewer</string>
+                                <key>LSHandlerRank</key>
+                                <string>Alternate</string>
+                                <key>CFBundleTypeExtensions</key>
+                                <array><string>m4b</string><string>ogg</string><string>oga</string><string>opus</string><string>mka</string><string>webm</string><string>mkv</string></array>
                             </dict>
                         </array>
                     """.trimIndent()
@@ -424,6 +458,13 @@ val hostOs = org.gradle.internal.os.OperatingSystem.current().let {
 }
 val hostArm64 = System.getProperty("os.arch").lowercase() in setOf("aarch64", "arm64")
 
+/** What the .desktop entry offers to open; the demuxers the packed ffmpeg has. */
+val linuxMimeTypes = listOf(
+    "audio/mpeg", "audio/mp4", "audio/x-m4a", "audio/x-m4b", "audio/aac", "audio/flac", "audio/x-flac", "audio/wav",
+    "audio/x-wav", "audio/ogg", "audio/opus", "audio/webm", "audio/x-matroska", "video/mp4", "video/x-m4v",
+    "video/quicktime", "video/webm", "video/x-matroska",
+).joinToString(";", postfix = ";")
+
 /** `macos-x64`, `windows-x64`, …: the update service's platform key, and the installer's suffix. */
 val hostPlatform = "$hostOs-${if (hostArm64) "arm64" else "x64"}"
 
@@ -471,7 +512,8 @@ if (hostOs == "linux") {
             val control = File(root, "DEBIAN/control")
             control.writeText(control.readText().trimEnd() + "\nHomepage: https://ymusic.io\n")
             root.walk().filter { it.isFile && it.name.endsWith(".desktop") }.forEach {
-                it.writeText(it.readText().trimEnd() + "\nStartupWMClass=io-ymusic-desktop-MainKt\n")
+                val lines = it.readLines().map { line -> if (line.startsWith("Exec=")) "$line %F" else line }
+                it.writeText((lines + "StartupWMClass=io-ymusic-desktop-MainKt" + "MimeType=$linuxMimeTypes").joinToString("\n", postfix = "\n"))
             }
             run("dpkg-deb", "--root-owner-group", "--build", root.path, deb.path)
             root.deleteRecursively()

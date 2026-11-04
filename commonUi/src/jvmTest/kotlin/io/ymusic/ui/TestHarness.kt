@@ -134,6 +134,7 @@ internal class StubPlayer : Player {
         playWhenReady: Boolean,
         queueId: String?,
         source: io.ymusic.player.QueueSource?,
+        origin: io.ymusic.player.QueueOrigin,
     ) {
         lastQueue = items
         lastPlayIndex = playIndex

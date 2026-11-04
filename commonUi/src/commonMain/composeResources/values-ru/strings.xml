@@ -464,11 +464,9 @@
     <string name="download_more_qualities">Ещё %1$d</string>
     <string name="download_down_to">до %1$s</string>
     <string name="download_less">Меньше</string>
-    <string name="download_webm_detail">WebM · исходный поток</string>
+    <string name="download_webm_detail">Opus · исходный поток</string>
     <string name="download_m4a_detail">AAC · исходный поток</string>
-    <string name="download_mp3_detail">%1$d kbps · играет везде</string>
-    <string name="settings_mp3_source_bitrate">Скачивать MP3 с исходным битрейтом</string>
-    <string name="settings_mp3_source_bitrate_hint">Кодировать MP3 примерно в 256 kbps (переменный битрейт) вместо 320 kbps. Файлы меньше, качество то же.</string>
+    <string name="download_mp3_detail">Играет везде</string>
     <string name="download_audio_track">Звуковая дорожка</string>
     <string name="download_captions">Субтитры</string>
     <string name="download_captions_off">Выкл.</string>
@@ -495,7 +493,7 @@
     <string name="download_no_subtitles">Нет доступных</string>
     <string name="dialog_ok_done">Готово</string>
     <string name="download_captions_as_lyrics">%1$s · как текст песни</string>
-    <string name="download_lyrics_note">В MP3 субтитры сохраняются как текст песни — его показывают плееры с поддержкой текстов.</string>
+    <string name="download_lyrics_note">В этом формате субтитры сохраняются как текст песни — его показывают плееры с поддержкой текстов.</string>
     <string name="download_caption_translated">%1$s (автоперевод)</string>
     <string name="download_live_unsupported">Нельзя скачать прямую трансляцию</string>
     <string name="download_save_quick">Сохранить как быструю загрузку</string>
@@ -649,4 +647,15 @@
     <string name="a11y_key_arrow_up">стрелка вверх</string>
     <string name="a11y_key_arrow_down">стрелка вниз</string>
     <string name="cd_always_on_top">Поверх всех окон</string>
+    <string name="settings_caption_size">Размер</string>
+    <string name="caption_size_preview">Субтитры будут выглядеть так</string>
+    <string name="settings_caption_style">Стиль субтитров</string>
+    <string name="settings_caption_style_hint">Размер, цвет и фон субтитров видео</string>
+    <string name="caption_text_color">Цвет текста</string>
+    <string name="caption_background">Фон</string>
+    <string name="caption_background_opacity">Непрозрачность фона</string>
+    <string name="download_quality_save">Экономия</string>
+    <string name="download_quality_medium">Среднее</string>
+    <string name="download_quality_best">Лучшее</string>
+    <string name="download_kbps">%1$d kbps</string>
 </resources>

@@ -452,11 +452,9 @@
     <string name="download_more_qualities">+%1$d lainnya</string>
     <string name="download_down_to">hingga %1$s</string>
     <string name="download_less">Lebih sedikit</string>
-    <string name="download_webm_detail">WebM · stream asli</string>
+    <string name="download_webm_detail">Opus · stream asli</string>
     <string name="download_m4a_detail">AAC · stream asli</string>
-    <string name="download_mp3_detail">%1$d kbps · bisa diputar di mana saja</string>
-    <string name="settings_mp3_source_bitrate">Unduh MP3 dengan bitrate asli</string>
-    <string name="settings_mp3_source_bitrate_hint">Enkode MP3 sekitar 256 kbps (bitrate variabel), bukan 320 kbps. File lebih kecil, kualitas sama.</string>
+    <string name="download_mp3_detail">Bisa diputar di mana saja</string>
     <string name="download_audio_track">Trek audio</string>
     <string name="download_captions">Teks</string>
     <string name="download_captions_off">Nonaktif</string>
@@ -483,7 +481,7 @@
     <string name="download_no_subtitles">Tidak tersedia</string>
     <string name="dialog_ok_done">Selesai</string>
     <string name="download_captions_as_lyrics">%1$s · sebagai lirik</string>
-    <string name="download_lyrics_note">MP3 menyimpan teks sebagai lirik, ditampilkan oleh pemutar yang mendukung lirik.</string>
+    <string name="download_lyrics_note">Format ini menyimpan teks sebagai lirik, ditampilkan oleh pemutar yang mendukung lirik.</string>
     <string name="download_caption_translated">%1$s (terjemahan otomatis)</string>
     <string name="download_live_unsupported">Tidak dapat mengunduh video LIVE</string>
     <string name="download_save_quick">Simpan sebagai Unduhan cepat</string>
@@ -625,4 +623,15 @@
     <string name="a11y_key_arrow_up">panah atas</string>
     <string name="a11y_key_arrow_down">panah bawah</string>
     <string name="cd_always_on_top">Selalu di atas</string>
+    <string name="settings_caption_size">Ukuran</string>
+    <string name="caption_size_preview">Subtitel akan terlihat seperti ini</string>
+    <string name="settings_caption_style">Gaya subtitel</string>
+    <string name="settings_caption_style_hint">Ukuran, warna, dan latar subtitel video</string>
+    <string name="caption_text_color">Warna teks</string>
+    <string name="caption_background">Latar</string>
+    <string name="caption_background_opacity">Opasitas latar</string>
+    <string name="download_quality_save">Hemat</string>
+    <string name="download_quality_medium">Sedang</string>
+    <string name="download_quality_best">Terbaik</string>
+    <string name="download_kbps">%1$d kbps</string>
 </resources>

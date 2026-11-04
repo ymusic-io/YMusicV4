@@ -57,6 +57,13 @@ internal fun Pointer.comCall(index: Int, vararg args: Any?): Int {
     return Function.getFunction(slot, Function.ALT_CONVENTION).invokeInt(arrayOf(this, *args))
 }
 
+/** `IUnknown::QueryInterface`; the caller releases the result. */
+internal fun Pointer.comQuery(iid: String): Pointer {
+    val out = PointerByReference()
+    comCall(0, WindowsCom.guid(iid), out).checkHresult("QueryInterface($iid)")
+    return out.value
+}
+
 /** `IUnknown::Release`. */
 internal fun Pointer.comRelease() {
     comCall(2)

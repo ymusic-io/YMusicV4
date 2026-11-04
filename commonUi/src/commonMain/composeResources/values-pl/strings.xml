@@ -464,11 +464,9 @@
     <string name="download_more_qualities">+%1$d więcej</string>
     <string name="download_down_to">aż do %1$s</string>
     <string name="download_less">Mniej</string>
-    <string name="download_webm_detail">WebM · oryginalny strumień</string>
+    <string name="download_webm_detail">Opus · oryginalny strumień</string>
     <string name="download_m4a_detail">AAC · oryginalny strumień</string>
-    <string name="download_mp3_detail">%1$d kbps · działa wszędzie</string>
-    <string name="settings_mp3_source_bitrate">Pobieraj MP3 w oryginalnej przepływności</string>
-    <string name="settings_mp3_source_bitrate_hint">Koduj MP3 w około 256 kbps (zmienna przepływność) zamiast 320 kbps. Mniejsze pliki, ta sama jakość.</string>
+    <string name="download_mp3_detail">Działa wszędzie</string>
     <string name="download_audio_track">Ścieżka dźwiękowa</string>
     <string name="download_captions">Napisy</string>
     <string name="download_captions_off">Wył.</string>
@@ -495,7 +493,7 @@
     <string name="download_no_subtitles">Brak dostępnych</string>
     <string name="dialog_ok_done">Gotowe</string>
     <string name="download_captions_as_lyrics">%1$s · jako tekst utworu</string>
-    <string name="download_lyrics_note">MP3 zachowuje napisy jako tekst utworu, wyświetlany przez odtwarzacze, które go obsługują.</string>
+    <string name="download_lyrics_note">Ten format zachowuje napisy jako tekst utworu, wyświetlany przez odtwarzacze, które go obsługują.</string>
     <string name="download_caption_translated">%1$s (tłumaczenie automatyczne)</string>
     <string name="download_live_unsupported">Nie można pobrać filmu NA ŻYWO</string>
     <string name="download_save_quick">Zapisz jako Szybkie pobieranie</string>
@@ -649,4 +647,15 @@
     <string name="a11y_key_arrow_up">strzałka w górę</string>
     <string name="a11y_key_arrow_down">strzałka w dół</string>
     <string name="cd_always_on_top">Zawsze na wierzchu</string>
+    <string name="settings_caption_size">Rozmiar</string>
+    <string name="caption_size_preview">Napisy będą wyglądać tak</string>
+    <string name="settings_caption_style">Styl napisów</string>
+    <string name="settings_caption_style_hint">Rozmiar, kolor i tło napisów wideo</string>
+    <string name="caption_text_color">Kolor tekstu</string>
+    <string name="caption_background">Tło</string>
+    <string name="caption_background_opacity">Krycie tła</string>
+    <string name="download_quality_save">Oszczędna</string>
+    <string name="download_quality_medium">Średnia</string>
+    <string name="download_quality_best">Najlepsza</string>
+    <string name="download_kbps">%1$d kbps</string>
 </resources>

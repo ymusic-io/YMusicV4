@@ -456,11 +456,9 @@
     <string name="download_more_qualities">+%1$d kale</string>
     <string name="download_down_to">ilaa %1$s</string>
     <string name="download_less">Wax yar</string>
-    <string name="download_webm_detail">WebM · durdurkii asalka ahaa</string>
+    <string name="download_webm_detail">Opus · durdurkii asalka ahaa</string>
     <string name="download_m4a_detail">AAC · durdurkii asalka ahaa</string>
-    <string name="download_mp3_detail">%1$d kbps · meel walba ka shaqeeya</string>
-    <string name="settings_mp3_source_bitrate">Soo deji MP3 heerka bit-ka asalka ah</string>
-    <string name="settings_mp3_source_bitrate_hint">MP3 ku codee qiyaastii 256 kbps (heer bit isbeddela) halkii 320 kbps. Faylal yar, tayo isku mid ah.</string>
+    <string name="download_mp3_detail">Meel walba ka shaqeeya</string>
     <string name="download_audio_track">Raadka codka</string>
     <string name="download_captions">Qoraal-hooseed</string>
     <string name="download_captions_off">Xidhan</string>
@@ -487,7 +485,7 @@
     <string name="download_no_subtitles">Midna ma jiro</string>
     <string name="dialog_ok_done">Dhameeyay</string>
     <string name="download_captions_as_lyrics">%1$s · sida midhaha heesta</string>
-    <string name="download_lyrics_note">MP3 wuxuu qoraal-hooseedka u kaydiyaa midhaha heesta, waxaana tusa daarayaasha akhriya midhaha.</string>
+    <string name="download_lyrics_note">Qaabkan wuxuu qoraal-hooseedka u kaydiyaa midhaha heesta, waxaana tusa daarayaasha akhriya midhaha.</string>
     <string name="download_caption_translated">%1$s (si toos ah loo turjumay)</string>
     <string name="download_live_unsupported">Lama dajin karo muuqaal TOOS ah</string>
     <string name="download_save_quick">U kaydi Dajin degdeg ah</string>
@@ -633,4 +631,15 @@
     <string name="a11y_key_arrow_up">fallaar kor</string>
     <string name="a11y_key_arrow_down">fallaar hoos</string>
     <string name="cd_always_on_top">Had iyo jeer xagga sare</string>
+    <string name="settings_caption_size">Cabbir</string>
+    <string name="caption_size_preview">Qoraalka hoose wuxuu u ekaan doonaa sidan</string>
+    <string name="settings_caption_style">Qaabka qoraalka hoose</string>
+    <string name="settings_caption_style_hint">Cabbirka, midabka iyo asalka qoraalka hoose ee fiidiyowga</string>
+    <string name="caption_text_color">Midabka qoraalka</string>
+    <string name="caption_background">Asalka</string>
+    <string name="caption_background_opacity">Mugdiga asalka</string>
+    <string name="download_quality_save">Dhaqaale</string>
+    <string name="download_quality_medium">Dhexdhexaad</string>
+    <string name="download_quality_best">Ugu fiican</string>
+    <string name="download_kbps">%1$d kbps</string>
 </resources>

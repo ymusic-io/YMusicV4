@@ -456,11 +456,9 @@
     <string name="download_more_qualities">+%1$d ಇನ್ನಷ್ಟು</string>
     <string name="download_down_to">%1$s ವರೆಗೆ</string>
     <string name="download_less">ಕಡಿಮೆ</string>
-    <string name="download_webm_detail">WebM · ಮೂಲ ಸ್ಟ್ರೀಮ್</string>
+    <string name="download_webm_detail">Opus · ಮೂಲ ಸ್ಟ್ರೀಮ್</string>
     <string name="download_m4a_detail">AAC · ಮೂಲ ಸ್ಟ್ರೀಮ್</string>
-    <string name="download_mp3_detail">%1$d kbps · ಎಲ್ಲೆಡೆ ಪ್ಲೇ ಆಗುತ್ತದೆ</string>
-    <string name="settings_mp3_source_bitrate">ಮೂಲ ಬಿಟ್‌ರೇಟ್‌ನಲ್ಲಿ MP3 ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ</string>
-    <string name="settings_mp3_source_bitrate_hint">320 kbps ಬದಲು ಸುಮಾರು 256 kbps (ಬದಲಾಗುವ ಬಿಟ್‌ರೇಟ್) ನಲ್ಲಿ MP3 ಎನ್‌ಕೋಡ್ ಮಾಡಿ. ಚಿಕ್ಕ ಫೈಲ್‌ಗಳು, ಅದೇ ಗುಣಮಟ್ಟ.</string>
+    <string name="download_mp3_detail">ಎಲ್ಲೆಡೆ ಪ್ಲೇ ಆಗುತ್ತದೆ</string>
     <string name="download_audio_track">ಆಡಿಯೊ ಟ್ರ್ಯಾಕ್</string>
     <string name="download_captions">ಶೀರ್ಷಿಕೆಗಳು</string>
     <string name="download_captions_off">ಆಫ್</string>
@@ -487,7 +485,7 @@
     <string name="download_no_subtitles">ಯಾವುದೂ ಲಭ್ಯವಿಲ್ಲ</string>
     <string name="dialog_ok_done">ಮುಗಿದಿದೆ</string>
     <string name="download_captions_as_lyrics">%1$s · ಸಾಹಿತ್ಯವಾಗಿ</string>
-    <string name="download_lyrics_note">MP3 ಶೀರ್ಷಿಕೆಗಳನ್ನು ಸಾಹಿತ್ಯವಾಗಿ ಇರಿಸುತ್ತದೆ, ಸಾಹಿತ್ಯ ಓದುವ ಪ್ಲೇಯರ್‌ಗಳಲ್ಲಿ ಕಾಣಿಸುತ್ತದೆ.</string>
+    <string name="download_lyrics_note">ಈ ಫಾರ್ಮ್ಯಾಟ್ ಶೀರ್ಷಿಕೆಗಳನ್ನು ಸಾಹಿತ್ಯವಾಗಿ ಇರಿಸುತ್ತದೆ, ಸಾಹಿತ್ಯ ಓದುವ ಪ್ಲೇಯರ್‌ಗಳಲ್ಲಿ ಕಾಣಿಸುತ್ತದೆ.</string>
     <string name="download_caption_translated">%1$s (ಸ್ವಯಂ ಅನುವಾದಿತ)</string>
     <string name="download_live_unsupported">ಲೈವ್ ವೀಡಿಯೊವನ್ನು ಡೌನ್‌ಲೋಡ್ ಮಾಡಲು ಸಾಧ್ಯವಿಲ್ಲ</string>
     <string name="download_save_quick">ತ್ವರಿತ ಡೌನ್‌ಲೋಡ್ ಆಗಿ ಉಳಿಸಿ</string>
@@ -633,4 +631,15 @@
     <string name="a11y_key_arrow_up">ಮೇಲಿನ ಬಾಣ</string>
     <string name="a11y_key_arrow_down">ಕೆಳಗಿನ ಬಾಣ</string>
     <string name="cd_always_on_top">ಯಾವಾಗಲೂ ಮೇಲೆ</string>
+    <string name="settings_caption_size">ಗಾತ್ರ</string>
+    <string name="caption_size_preview">ಶೀರ್ಷಿಕೆಗಳು ಹೀಗೆ ಕಾಣುತ್ತವೆ</string>
+    <string name="settings_caption_style">ಶೀರ್ಷಿಕೆ ಶೈಲಿ</string>
+    <string name="settings_caption_style_hint">ವೀಡಿಯೊ ಶೀರ್ಷಿಕೆಗಳ ಗಾತ್ರ, ಬಣ್ಣ ಮತ್ತು ಹಿನ್ನೆಲೆ</string>
+    <string name="caption_text_color">ಪಠ್ಯದ ಬಣ್ಣ</string>
+    <string name="caption_background">ಹಿನ್ನೆಲೆ</string>
+    <string name="caption_background_opacity">ಹಿನ್ನೆಲೆಯ ಅಪಾರದರ್ಶಕತೆ</string>
+    <string name="download_quality_save">ಉಳಿತಾಯ</string>
+    <string name="download_quality_medium">ಮಧ್ಯಮ</string>
+    <string name="download_quality_best">ಅತ್ಯುತ್ತಮ</string>
+    <string name="download_kbps">%1$d kbps</string>
 </resources>

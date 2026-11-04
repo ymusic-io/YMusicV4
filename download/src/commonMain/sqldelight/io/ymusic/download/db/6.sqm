@@ -1,0 +1,1 @@
+UPDATE downloadTask SET audio_quality = 'BEST' WHERE mp3_source_bitrate != 0 AND format != 'MP3';

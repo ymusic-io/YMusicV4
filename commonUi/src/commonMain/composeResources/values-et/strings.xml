@@ -456,11 +456,9 @@
     <string name="download_more_qualities">+%1$d veel</string>
     <string name="download_down_to">kuni %1$s</string>
     <string name="download_less">Vähem</string>
-    <string name="download_webm_detail">WebM · algne voog</string>
+    <string name="download_webm_detail">Opus · algne voog</string>
     <string name="download_m4a_detail">AAC · algne voog</string>
-    <string name="download_mp3_detail">%1$d kbps · mängib kõikjal</string>
-    <string name="settings_mp3_source_bitrate">Laadi MP3 alla algse bitikiirusega</string>
-    <string name="settings_mp3_source_bitrate_hint">Kodeeri MP3 umbes 256 kbps juures (muutuv bitikiirus) 320 kbps asemel. Väiksemad failid, sama kvaliteet.</string>
+    <string name="download_mp3_detail">Mängib kõikjal</string>
     <string name="download_audio_track">Helirada</string>
     <string name="download_captions">Subtiitrid</string>
     <string name="download_captions_off">Väljas</string>
@@ -487,7 +485,7 @@
     <string name="download_no_subtitles">Pole saadaval</string>
     <string name="dialog_ok_done">Valmis</string>
     <string name="download_captions_as_lyrics">%1$s · laulusõnadena</string>
-    <string name="download_lyrics_note">MP3 säilitab subtiitrid laulusõnadena, mida näitavad laulusõnu toetavad pleierid.</string>
+    <string name="download_lyrics_note">See vorming säilitab subtiitrid laulusõnadena, mida näitavad laulusõnu toetavad pleierid.</string>
     <string name="download_caption_translated">%1$s (automaatselt tõlgitud)</string>
     <string name="download_live_unsupported">OTSE-videot ei saa alla laadida</string>
     <string name="download_save_quick">Salvesta kiirallalaadimisena</string>
@@ -633,4 +631,15 @@
     <string name="a11y_key_arrow_up">ülesnool</string>
     <string name="a11y_key_arrow_down">allanool</string>
     <string name="cd_always_on_top">Alati peal</string>
+    <string name="settings_caption_size">Suurus</string>
+    <string name="caption_size_preview">Subtiitrid näevad välja nii</string>
+    <string name="settings_caption_style">Subtiitrite stiil</string>
+    <string name="settings_caption_style_hint">Videosubtiitrite suurus, värv ja taust</string>
+    <string name="caption_text_color">Teksti värv</string>
+    <string name="caption_background">Taust</string>
+    <string name="caption_background_opacity">Tausta läbipaistmatus</string>
+    <string name="download_quality_save">Säästlik</string>
+    <string name="download_quality_medium">Keskmine</string>
+    <string name="download_quality_best">Parim</string>
+    <string name="download_kbps">%1$d kbps</string>
 </resources>

@@ -460,11 +460,9 @@
     <string name="download_more_qualities">Још %1$d</string>
     <string name="download_down_to">до %1$s</string>
     <string name="download_less">Мање</string>
-    <string name="download_webm_detail">WebM · оригинални стрим</string>
+    <string name="download_webm_detail">Opus · оригинални стрим</string>
     <string name="download_m4a_detail">AAC · оригинални стрим</string>
-    <string name="download_mp3_detail">%1$d kbps · ради свуда</string>
-    <string name="settings_mp3_source_bitrate">Преузми MP3 у изворном битрејту</string>
-    <string name="settings_mp3_source_bitrate_hint">Кодирај MP3 у око 256 kbps (променљиви битрејт) уместо 320 kbps. Мање датотеке, исти квалитет.</string>
+    <string name="download_mp3_detail">Ради свуда</string>
     <string name="download_audio_track">Аудио запис</string>
     <string name="download_captions">Титлови</string>
     <string name="download_captions_off">Искључено</string>
@@ -491,7 +489,7 @@
     <string name="download_no_subtitles">Нема доступних</string>
     <string name="dialog_ok_done">Готово</string>
     <string name="download_captions_as_lyrics">%1$s · као текст песме</string>
-    <string name="download_lyrics_note">MP3 чува титлове као текст песме, који приказују плејери што подржавају текстове.</string>
+    <string name="download_lyrics_note">Овај формат чува титлове као текст песме, који приказују плејери што подржавају текстове.</string>
     <string name="download_caption_translated">%1$s (аутоматски преведено)</string>
     <string name="download_live_unsupported">Видео УЖИВО не може да се преузме</string>
     <string name="download_save_quick">Сачувај као брзо преузимање</string>
@@ -641,4 +639,15 @@
     <string name="a11y_key_arrow_up">стрелица горе</string>
     <string name="a11y_key_arrow_down">стрелица доле</string>
     <string name="cd_always_on_top">Увек на врху</string>
+    <string name="settings_caption_size">Величина</string>
+    <string name="caption_size_preview">Титлови ће изгледати овако</string>
+    <string name="settings_caption_style">Стил титлова</string>
+    <string name="settings_caption_style_hint">Величина, боја и позадина титлова видеа</string>
+    <string name="caption_text_color">Боја текста</string>
+    <string name="caption_background">Позадина</string>
+    <string name="caption_background_opacity">Непровидност позадине</string>
+    <string name="download_quality_save">Уштеда</string>
+    <string name="download_quality_medium">Средњи</string>
+    <string name="download_quality_best">Најбољи</string>
+    <string name="download_kbps">%1$d kbps</string>
 </resources>

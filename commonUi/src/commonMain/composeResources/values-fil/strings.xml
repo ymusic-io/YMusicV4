@@ -456,11 +456,9 @@
     <string name="download_more_qualities">+%1$d pa</string>
     <string name="download_down_to">hanggang %1$s</string>
     <string name="download_less">Kaunti</string>
-    <string name="download_webm_detail">WebM · orihinal na stream</string>
+    <string name="download_webm_detail">Opus · orihinal na stream</string>
     <string name="download_m4a_detail">AAC · orihinal na stream</string>
-    <string name="download_mp3_detail">%1$d kbps · nagpe-play kahit saan</string>
-    <string name="settings_mp3_source_bitrate">I-download ang MP3 sa orihinal na bitrate</string>
-    <string name="settings_mp3_source_bitrate_hint">I-encode ang MP3 sa humigit-kumulang 256 kbps (variable bitrate) sa halip na 320 kbps. Mas maliliit na file, parehong kalidad.</string>
+    <string name="download_mp3_detail">Nagpe-play kahit saan</string>
     <string name="download_audio_track">Audio track</string>
     <string name="download_captions">Mga caption</string>
     <string name="download_captions_off">Naka-off</string>
@@ -487,7 +485,7 @@
     <string name="download_no_subtitles">Walang available</string>
     <string name="dialog_ok_done">Tapos na</string>
     <string name="download_captions_as_lyrics">%1$s · bilang lyrics</string>
-    <string name="download_lyrics_note">Itinatago ng MP3 ang mga caption bilang lyrics, na ipinapakita ng mga player na nakakabasa ng lyrics.</string>
+    <string name="download_lyrics_note">Itinatago ng format na ito ang mga caption bilang lyrics, na ipinapakita ng mga player na nakakabasa ng lyrics.</string>
     <string name="download_caption_translated">%1$s (awtomatikong isinalin)</string>
     <string name="download_live_unsupported">Hindi ma-download ang LIVE na video</string>
     <string name="download_save_quick">I-save bilang Quick download</string>
@@ -633,4 +631,15 @@
     <string name="a11y_key_arrow_up">pataas na arrow</string>
     <string name="a11y_key_arrow_down">pababang arrow</string>
     <string name="cd_always_on_top">Laging nasa ibabaw</string>
+    <string name="settings_caption_size">Laki</string>
+    <string name="caption_size_preview">Ganito ang magiging hitsura ng mga caption</string>
+    <string name="settings_caption_style">Istilo ng caption</string>
+    <string name="settings_caption_style_hint">Laki, kulay at background ng mga caption ng video</string>
+    <string name="caption_text_color">Kulay ng text</string>
+    <string name="caption_background">Background</string>
+    <string name="caption_background_opacity">Opacity ng background</string>
+    <string name="download_quality_save">Tipid</string>
+    <string name="download_quality_medium">Katamtaman</string>
+    <string name="download_quality_best">Pinakamahusay</string>
+    <string name="download_kbps">%1$d kbps</string>
 </resources>

@@ -456,11 +456,9 @@
     <string name="download_more_qualities">තව +%1$d</string>
     <string name="download_down_to">%1$s දක්වා</string>
     <string name="download_less">අඩුවෙන්</string>
-    <string name="download_webm_detail">WebM · මුල් ප්‍රවාහය</string>
+    <string name="download_webm_detail">Opus · මුල් ප්‍රවාහය</string>
     <string name="download_m4a_detail">AAC · මුල් ප්‍රවාහය</string>
-    <string name="download_mp3_detail">%1$d kbps · ඕනෑම තැනක වාදනය වේ</string>
-    <string name="settings_mp3_source_bitrate">මුල් බිට්රේට් එකෙන් MP3 බාගන්න</string>
-    <string name="settings_mp3_source_bitrate_hint">320 kbps වෙනුවට ආසන්න වශයෙන් 256 kbps (විචල්‍ය බිට්රේට්) වලින් MP3 කේතනය කරන්න. කුඩා ගොනු, එම ගුණත්වයම.</string>
+    <string name="download_mp3_detail">ඕනෑම තැනක වාදනය වේ</string>
     <string name="download_audio_track">ශ්‍රව්‍ය පථය</string>
     <string name="download_captions">උපසිරැසි</string>
     <string name="download_captions_off">අක්‍රිය</string>
@@ -487,7 +485,7 @@
     <string name="download_no_subtitles">කිසිවක් නැත</string>
     <string name="dialog_ok_done">නිමයි</string>
     <string name="download_captions_as_lyrics">%1$s · පද රචනා ලෙස</string>
-    <string name="download_lyrics_note">MP3 උපසිරැසි පද රචනා ලෙස තබා ගනී, පද රචනා කියවන ප්ලේයර්වල පෙන්වයි.</string>
+    <string name="download_lyrics_note">මෙම ආකෘතිය උපසිරැසි පද රචනා ලෙස තබා ගනී, පද රචනා කියවන ප්ලේයර්වල පෙන්වයි.</string>
     <string name="download_caption_translated">%1$s (ස්වයංක්‍රීයව පරිවර්තිත)</string>
     <string name="download_live_unsupported">සජීවී වීඩියෝවක් බාගත කළ නොහැක</string>
     <string name="download_save_quick">ඉක්මන් බාගැනීමක් ලෙස සුරකින්න</string>
@@ -633,4 +631,15 @@
     <string name="a11y_key_arrow_up">ඉහළ ඊතලය</string>
     <string name="a11y_key_arrow_down">පහළ ඊතලය</string>
     <string name="cd_always_on_top">සැමවිටම ඉහළින්</string>
+    <string name="settings_caption_size">ප්‍රමාණය</string>
+    <string name="caption_size_preview">උපසිරැසි මෙලෙස පෙනෙනු ඇත</string>
+    <string name="settings_caption_style">උපසිරැසි විලාසය</string>
+    <string name="settings_caption_style_hint">වීඩියෝ උපසිරැසිවල ප්‍රමාණය, වර්ණය සහ පසුබිම</string>
+    <string name="caption_text_color">පෙළ වර්ණය</string>
+    <string name="caption_background">පසුබිම</string>
+    <string name="caption_background_opacity">පසුබිමේ පාරාන්ධතාව</string>
+    <string name="download_quality_save">ඉතිරි</string>
+    <string name="download_quality_medium">මධ්‍යම</string>
+    <string name="download_quality_best">හොඳම</string>
+    <string name="download_kbps">%1$d kbps</string>
 </resources>

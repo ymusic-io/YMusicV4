@@ -16,7 +16,8 @@ function continuationToken(item: unknown): string | undefined {
 function factoidOf(node: unknown): WireFactoid | undefined {
   const f =
     get(node, "factoidRenderer") ??
-    get(node, "viewCountFactoidRenderer", "factoid", "factoidRenderer");
+    get(node, "viewCountFactoidRenderer", "factoid", "factoidRenderer") ??
+    get(node, "uploadTimeFactoidRenderer", "factoid", "factoidRenderer");
   const value = textOf(get(f, "value"));
   const label = textOf(get(f, "label"));
   return value !== undefined && label !== undefined
@@ -99,6 +100,14 @@ export function videoDetailsOf(root: Record<string, unknown>): WireVideoDetails 
           if (factoid !== undefined) list.push(factoid);
         }
         if (list.length > 0) out["factoids"] = list;
+      }
+      // Premieres can come without factoids; the header's localized lines stand in, label-less.
+      if (out["factoids"] === undefined) {
+        const lines: WireFactoid[] = [];
+        for (const line of [textOf(value["views"]), textOf(value["publishDate"])]) {
+          if (line !== undefined) lines.push({ "value": line, "label": "" });
+        }
+        if (lines.length > 0) out["factoids"] = lines;
       }
       return true;
     }

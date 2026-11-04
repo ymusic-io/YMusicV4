@@ -456,11 +456,9 @@
     <string name="download_more_qualities">+%1$d மேலும்</string>
     <string name="download_down_to">%1$s வரை</string>
     <string name="download_less">குறைவு</string>
-    <string name="download_webm_detail">WebM · அசல் ஸ்ட்ரீம்</string>
+    <string name="download_webm_detail">Opus · அசல் ஸ்ட்ரீம்</string>
     <string name="download_m4a_detail">AAC · அசல் ஸ்ட்ரீம்</string>
-    <string name="download_mp3_detail">%1$d kbps · எங்கும் இயங்கும்</string>
-    <string name="settings_mp3_source_bitrate">அசல் பிட்ரேட்டில் MP3 பதிவிறக்கு</string>
-    <string name="settings_mp3_source_bitrate_hint">320 kbps-க்கு பதிலாக சுமார் 256 kbps-ல் (மாறும் பிட்ரேட்) MP3-ஐ குறியாக்கு. சிறிய கோப்புகள், அதே தரம்.</string>
+    <string name="download_mp3_detail">எங்கும் இயங்கும்</string>
     <string name="download_audio_track">ஆடியோ டிராக்</string>
     <string name="download_captions">வசனங்கள்</string>
     <string name="download_captions_off">முடக்கம்</string>
@@ -487,7 +485,7 @@
     <string name="download_no_subtitles">எதுவும் கிடைக்கவில்லை</string>
     <string name="dialog_ok_done">முடிந்தது</string>
     <string name="download_captions_as_lyrics">%1$s · பாடல் வரிகளாக</string>
-    <string name="download_lyrics_note">MP3 வசனங்களைப் பாடல் வரிகளாக வைத்திருக்கும், பாடல் வரிகளைப் படிக்கும் பிளேயர்களில் காட்டப்படும்.</string>
+    <string name="download_lyrics_note">இந்த வடிவம் வசனங்களைப் பாடல் வரிகளாக வைத்திருக்கும், பாடல் வரிகளைப் படிக்கும் பிளேயர்களில் காட்டப்படும்.</string>
     <string name="download_caption_translated">%1$s (தானாக மொழிபெயர்க்கப்பட்டது)</string>
     <string name="download_live_unsupported">நேரலை வீடியோவைப் பதிவிறக்க முடியாது</string>
     <string name="download_save_quick">விரைவுப் பதிவிறக்கமாகச் சேமி</string>
@@ -633,4 +631,15 @@
     <string name="a11y_key_arrow_up">மேல் அம்பு</string>
     <string name="a11y_key_arrow_down">கீழ் அம்பு</string>
     <string name="cd_always_on_top">எப்போதும் மேலே</string>
+    <string name="settings_caption_size">அளவு</string>
+    <string name="caption_size_preview">தலைப்புகள் இப்படித் தோன்றும்</string>
+    <string name="settings_caption_style">தலைப்பு நடை</string>
+    <string name="settings_caption_style_hint">வீடியோ தலைப்புகளின் அளவு, நிறம், பின்னணி</string>
+    <string name="caption_text_color">உரையின் நிறம்</string>
+    <string name="caption_background">பின்னணி</string>
+    <string name="caption_background_opacity">பின்னணி ஒளிபுகாமை</string>
+    <string name="download_quality_save">சிக்கனம்</string>
+    <string name="download_quality_medium">நடுத்தரம்</string>
+    <string name="download_quality_best">சிறந்தது</string>
+    <string name="download_kbps">%1$d kbps</string>
 </resources>

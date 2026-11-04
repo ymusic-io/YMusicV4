@@ -33,8 +33,6 @@ import io.ymusic.ui.resources.download_location_prompt_not_now
 import io.ymusic.ui.resources.download_location_prompt_set_default
 import io.ymusic.ui.resources.download_location_read_only
 import io.ymusic.ui.resources.menu_download_location
-import io.ymusic.ui.resources.settings_mp3_source_bitrate
-import io.ymusic.ui.resources.settings_mp3_source_bitrate_hint
 import kmpcommon.uri.Uri
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.StringResource
@@ -51,13 +49,7 @@ import org.jetbrains.compose.resources.stringResource
 internal fun DownloadSettingsRows(graph: AppGraph) {
     if (graph.mediaStore != null) DownloadLocationRow(graph)
     QuickDownloadRow(graph)
-    if (graph.downloads?.ffmpegAvailable == true) {
-        ToggleRow(graph, AppSettings.downloadMp3SourceBitrate, Res.string.settings_mp3_source_bitrate, Res.string.settings_mp3_source_bitrate_hint)
-    }
 }
-
-/** [AppSettings.downloadMp3SourceBitrate] as a new MP3 download takes it. */
-internal fun AppGraph.mp3SourceBitrate(): Boolean = settings.flow(AppSettings.downloadMp3SourceBitrate).value
 
 @Composable
 private fun DownloadLocationRow(graph: AppGraph) {

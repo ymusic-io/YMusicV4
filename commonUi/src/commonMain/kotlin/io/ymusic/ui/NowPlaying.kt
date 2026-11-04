@@ -521,7 +521,7 @@ private fun FullscreenVideo(graph: AppGraph, coordinator: PlaybackCoordinator, o
                 )
             }
             status.error?.let { PlaybackErrorText(graph, it, VideoOverlayNative.showing) }
-            PlayerCaptionOverlay(graph.player, VideoOverlayNative.showing, fill = fillScreen)
+            PlayerCaptionOverlay(graph, graph.player, VideoOverlayNative.showing, fill = fillScreen)
         }
     }
 }
@@ -595,7 +595,7 @@ private fun PortraitNowPlaying(
                 }
                 status.error?.let { PlaybackErrorText(graph, it, VideoOverlayNative.showing) }
                 val overlayOn = VideoOverlayNative.showing
-                PlayerCaptionOverlay(player, overlayVisible = overlayOn)
+                PlayerCaptionOverlay(graph, player, overlayVisible = overlayOn)
                 if (!overlayOn) {
                     Row(
                         Modifier.align(Alignment.BottomEnd).padding(end = 6.dp, bottom = 4.dp),
@@ -708,7 +708,7 @@ private fun LandscapeNowPlaying(
                         VideoOverlayControls(coordinator, status, progress, current, onToggleFullscreen = onFullscreen)
                     }
                     status.error?.let { PlaybackErrorText(graph, it, VideoOverlayNative.showing) }
-                    PlayerCaptionOverlay(player, VideoOverlayNative.showing)
+                    PlayerCaptionOverlay(graph, player, VideoOverlayNative.showing)
                 }
             }
             VerticalDivider(color = DesignColors.Divider)
@@ -994,6 +994,7 @@ private fun VideoOverlayHost(modifier: Modifier, content: @Composable BoxScope.(
  */
 @Composable
 private fun BoxScope.PlayerCaptionOverlay(
+    graph: AppGraph,
     player: io.ymusic.player.Player,
     overlayVisible: Boolean,
     fill: Boolean = false,
@@ -1004,7 +1005,8 @@ private fun BoxScope.PlayerCaptionOverlay(
     val audioOnly = showsAudioOnly(player)
     val strip = VideoControlsStrip * LocalVideoOverlayScale.current
     val controlsInset by animateDpAsState(if (overlayVisible) strip else 12.dp)
-    val twoRows = captionTwoRowHeight()
+    val look = rememberCaptionLook(graph)
+    val twoRows = captionTwoRowHeight(look.scale)
     BoxWithConstraints(Modifier.matchParentSize()) {
         val ratio = status.videoSize?.aspectRatio?.takeIf { it > 0f } ?: (16f / 9f)
         val pictureWidth: Dp
@@ -1020,6 +1022,7 @@ private fun BoxScope.PlayerCaptionOverlay(
         if (bar >= twoRows + strip + DesignSpacing.Space8) {
             CaptionOverlay(
                 lines,
+                look,
                 Modifier.align(Alignment.TopCenter)
                     .padding(top = bar + pictureHeight + DesignSpacing.Space8)
                     .width(pictureWidth),
@@ -1027,6 +1030,7 @@ private fun BoxScope.PlayerCaptionOverlay(
         } else {
             CaptionOverlay(
                 lines,
+                look,
                 Modifier.align(Alignment.BottomCenter)
                     .padding(bottom = maxOf(bar + 12.dp, controlsInset))
                     .width(pictureWidth),

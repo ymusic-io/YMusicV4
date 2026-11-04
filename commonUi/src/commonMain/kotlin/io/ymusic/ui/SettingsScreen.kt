@@ -179,6 +179,7 @@ fun SettingsScreen(graph: AppGraph, signedIn: Boolean = false, onLogin: () -> Un
         SettingsSection(Res.string.settings_section_playback) {
             SoundRow(graph, speed = true)
             SoundRow(graph, speed = false)
+            CaptionStyleRow(graph)
             ToggleRow(graph, AppSettings.enablePip, Res.string.settings_enable_pip, Res.string.settings_enable_pip_hint)
             if (graph.audioFocusSetting) AudioFocusRow(graph)
             ToggleRow(

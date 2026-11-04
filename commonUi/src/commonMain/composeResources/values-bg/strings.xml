@@ -456,11 +456,9 @@
     <string name="download_more_qualities">Още %1$d</string>
     <string name="download_down_to">до %1$s</string>
     <string name="download_less">По-малко</string>
-    <string name="download_webm_detail">WebM · оригинален поток</string>
+    <string name="download_webm_detail">Opus · оригинален поток</string>
     <string name="download_m4a_detail">AAC · оригинален поток</string>
-    <string name="download_mp3_detail">%1$d kbps · върви навсякъде</string>
-    <string name="settings_mp3_source_bitrate">Изтегляне на MP3 с оригинален битрейт</string>
-    <string name="settings_mp3_source_bitrate_hint">Кодиране на MP3 с около 256 kbps (променлив битрейт) вместо 320 kbps. По-малки файлове, същото качество.</string>
+    <string name="download_mp3_detail">Върви навсякъде</string>
     <string name="download_audio_track">Аудиозапис</string>
     <string name="download_captions">Субтитри</string>
     <string name="download_captions_off">Изкл.</string>
@@ -487,7 +485,7 @@
     <string name="download_no_subtitles">Няма налични</string>
     <string name="dialog_ok_done">Готово</string>
     <string name="download_captions_as_lyrics">%1$s · като текст на песента</string>
-    <string name="download_lyrics_note">MP3 запазва субтитрите като текст на песента, който се показва от плейъри с поддръжка на текстове.</string>
+    <string name="download_lyrics_note">Този формат запазва субтитрите като текст на песента, който се показва от плейъри с поддръжка на текстове.</string>
     <string name="download_caption_translated">%1$s (автоматичен превод)</string>
     <string name="download_live_unsupported">Видеоклип НА ЖИВО не може да се изтегли</string>
     <string name="download_save_quick">Запази като бързо изтегляне</string>
@@ -633,4 +631,15 @@
     <string name="a11y_key_arrow_up">стрелка нагоре</string>
     <string name="a11y_key_arrow_down">стрелка надолу</string>
     <string name="cd_always_on_top">Винаги отгоре</string>
+    <string name="settings_caption_size">Размер</string>
+    <string name="caption_size_preview">Субтитрите ще изглеждат така</string>
+    <string name="settings_caption_style">Стил на субтитрите</string>
+    <string name="settings_caption_style_hint">Размер, цвят и фон на видео субтитрите</string>
+    <string name="caption_text_color">Цвят на текста</string>
+    <string name="caption_background">Фон</string>
+    <string name="caption_background_opacity">Непрозрачност на фона</string>
+    <string name="download_quality_save">Икономично</string>
+    <string name="download_quality_medium">Средно</string>
+    <string name="download_quality_best">Най-добро</string>
+    <string name="download_kbps">%1$d kbps</string>
 </resources>

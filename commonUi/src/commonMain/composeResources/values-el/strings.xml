@@ -456,11 +456,9 @@
     <string name="download_more_qualities">+%1$d ακόμη</string>
     <string name="download_down_to">έως %1$s</string>
     <string name="download_less">Λιγότερα</string>
-    <string name="download_webm_detail">WebM · αρχική ροή</string>
+    <string name="download_webm_detail">Opus · αρχική ροή</string>
     <string name="download_m4a_detail">AAC · αρχική ροή</string>
-    <string name="download_mp3_detail">%1$d kbps · παίζει παντού</string>
-    <string name="settings_mp3_source_bitrate">Λήψη MP3 με τον αρχικό ρυθμό bit</string>
-    <string name="settings_mp3_source_bitrate_hint">Κωδικοποίηση MP3 στα περίπου 256 kbps (μεταβλητός ρυθμός bit) αντί για 320 kbps. Μικρότερα αρχεία, ίδια ποιότητα.</string>
+    <string name="download_mp3_detail">Παίζει παντού</string>
     <string name="download_audio_track">Κομμάτι ήχου</string>
     <string name="download_captions">Υπότιτλοι</string>
     <string name="download_captions_off">Ανενεργοί</string>
@@ -487,7 +485,7 @@
     <string name="download_no_subtitles">Δεν υπάρχουν διαθέσιμοι</string>
     <string name="dialog_ok_done">Τέλος</string>
     <string name="download_captions_as_lyrics">%1$s · ως στίχοι</string>
-    <string name="download_lyrics_note">Το MP3 κρατά τους υπότιτλους ως στίχους, που εμφανίζονται σε προγράμματα που διαβάζουν στίχους.</string>
+    <string name="download_lyrics_note">Αυτή η μορφή κρατά τους υπότιτλους ως στίχους, που εμφανίζονται σε προγράμματα που διαβάζουν στίχους.</string>
     <string name="download_caption_translated">%1$s (αυτόματη μετάφραση)</string>
     <string name="download_live_unsupported">Δεν είναι δυνατή η λήψη ΖΩΝΤΑΝΟΥ βίντεο</string>
     <string name="download_save_quick">Αποθήκευση ως Γρήγορη λήψη</string>
@@ -633,4 +631,15 @@
     <string name="a11y_key_arrow_up">πάνω βέλος</string>
     <string name="a11y_key_arrow_down">κάτω βέλος</string>
     <string name="cd_always_on_top">Πάντα σε πρώτο πλάνο</string>
+    <string name="settings_caption_size">Μέγεθος</string>
+    <string name="caption_size_preview">Οι υπότιτλοι θα φαίνονται έτσι</string>
+    <string name="settings_caption_style">Στυλ υποτίτλων</string>
+    <string name="settings_caption_style_hint">Μέγεθος, χρώμα και φόντο των υποτίτλων βίντεο</string>
+    <string name="caption_text_color">Χρώμα κειμένου</string>
+    <string name="caption_background">Φόντο</string>
+    <string name="caption_background_opacity">Αδιαφάνεια φόντου</string>
+    <string name="download_quality_save">Οικονομία</string>
+    <string name="download_quality_medium">Μεσαία</string>
+    <string name="download_quality_best">Καλύτερη</string>
+    <string name="download_kbps">%1$d kbps</string>
 </resources>

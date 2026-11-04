@@ -456,11 +456,9 @@
     <string name="download_more_qualities">+%1$d gehiago</string>
     <string name="download_down_to">gutxienez %1$s</string>
     <string name="download_less">Gutxiago</string>
-    <string name="download_webm_detail">WebM · jatorrizko korrontea</string>
+    <string name="download_webm_detail">Opus · jatorrizko korrontea</string>
     <string name="download_m4a_detail">AAC · jatorrizko korrontea</string>
-    <string name="download_mp3_detail">%1$d kbps · edonon erreproduzitzen da</string>
-    <string name="settings_mp3_source_bitrate">Deskargatu MP3a jatorrizko bit-tasarekin</string>
-    <string name="settings_mp3_source_bitrate_hint">Kodetu MP3a 256 kbps ingurura (bit-tasa aldakorra) 320 kbps-en ordez. Fitxategi txikiagoak, kalitate bera.</string>
+    <string name="download_mp3_detail">Edonon erreproduzitzen da</string>
     <string name="download_audio_track">Audio-pista</string>
     <string name="download_captions">Azpitituluak</string>
     <string name="download_captions_off">Desaktibatuta</string>
@@ -487,7 +485,7 @@
     <string name="download_no_subtitles">Ez dago erabilgarririk</string>
     <string name="dialog_ok_done">Eginda</string>
     <string name="download_captions_as_lyrics">%1$s · letra gisa</string>
-    <string name="download_lyrics_note">MP3k azpitituluak letra gisa gordetzen ditu; letrak irakurtzen dituzten erreproduzigailuek erakusten dituzte.</string>
+    <string name="download_lyrics_note">Formatu honek azpitituluak letra gisa gordetzen ditu; letrak irakurtzen dituzten erreproduzigailuek erakusten dituzte.</string>
     <string name="download_caption_translated">%1$s (automatikoki itzulia)</string>
     <string name="download_live_unsupported">Ezin da ZUZENEKO bideo bat deskargatu</string>
     <string name="download_save_quick">Gorde Deskarga azkar gisa</string>
@@ -633,4 +631,15 @@
     <string name="a11y_key_arrow_up">gora gezia</string>
     <string name="a11y_key_arrow_down">behera gezia</string>
     <string name="cd_always_on_top">Beti gainean</string>
+    <string name="settings_caption_size">Tamaina</string>
+    <string name="caption_size_preview">Azpitituluak honela ikusiko dira</string>
+    <string name="settings_caption_style">Azpitituluen estiloa</string>
+    <string name="settings_caption_style_hint">Bideoko azpitituluen tamaina, kolorea eta atzeko planoa</string>
+    <string name="caption_text_color">Testuaren kolorea</string>
+    <string name="caption_background">Atzeko planoa</string>
+    <string name="caption_background_opacity">Atzeko planoaren opakutasuna</string>
+    <string name="download_quality_save">Aurrezpena</string>
+    <string name="download_quality_medium">Ertaina</string>
+    <string name="download_quality_best">Onena</string>
+    <string name="download_kbps">%1$d kbps</string>
 </resources>

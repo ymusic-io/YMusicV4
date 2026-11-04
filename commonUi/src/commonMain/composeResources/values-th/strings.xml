@@ -452,11 +452,9 @@
     <string name="download_more_qualities">+%1$d เพิ่มเติม</string>
     <string name="download_down_to">ต่ำสุดถึง %1$s</string>
     <string name="download_less">น้อยลง</string>
-    <string name="download_webm_detail">WebM · สตรีมต้นฉบับ</string>
+    <string name="download_webm_detail">Opus · สตรีมต้นฉบับ</string>
     <string name="download_m4a_detail">AAC · สตรีมต้นฉบับ</string>
-    <string name="download_mp3_detail">%1$d kbps · เล่นได้ทุกที่</string>
-    <string name="settings_mp3_source_bitrate">ดาวน์โหลด MP3 ที่บิตเรตต้นฉบับ</string>
-    <string name="settings_mp3_source_bitrate_hint">เข้ารหัส MP3 ที่ประมาณ 256 kbps (บิตเรตแปรผัน) แทน 320 kbps ไฟล์เล็กลง คุณภาพเท่าเดิม</string>
+    <string name="download_mp3_detail">เล่นได้ทุกที่</string>
     <string name="download_audio_track">แทร็กเสียง</string>
     <string name="download_captions">คำบรรยาย</string>
     <string name="download_captions_off">ปิด</string>
@@ -483,7 +481,7 @@
     <string name="download_no_subtitles">ไม่มี</string>
     <string name="dialog_ok_done">เสร็จสิ้น</string>
     <string name="download_captions_as_lyrics">%1$s · เป็นเนื้อเพลง</string>
-    <string name="download_lyrics_note">MP3 จะเก็บคำบรรยายเป็นเนื้อเพลง ซึ่งแสดงในเพลเยอร์ที่รองรับเนื้อเพลง</string>
+    <string name="download_lyrics_note">รูปแบบนี้จะเก็บคำบรรยายเป็นเนื้อเพลง ซึ่งแสดงในเพลเยอร์ที่รองรับเนื้อเพลง</string>
     <string name="download_caption_translated">%1$s (แปลอัตโนมัติ)</string>
     <string name="download_live_unsupported">ดาวน์โหลดวิดีโอสดไม่ได้</string>
     <string name="download_save_quick">บันทึกเป็นดาวน์โหลดด่วน</string>
@@ -625,4 +623,15 @@
     <string name="a11y_key_arrow_up">ลูกศรขึ้น</string>
     <string name="a11y_key_arrow_down">ลูกศรลง</string>
     <string name="cd_always_on_top">อยู่ด้านบนเสมอ</string>
+    <string name="settings_caption_size">ขนาด</string>
+    <string name="caption_size_preview">คำบรรยายจะแสดงแบบนี้</string>
+    <string name="settings_caption_style">รูปแบบคำบรรยาย</string>
+    <string name="settings_caption_style_hint">ขนาด สี และพื้นหลังของคำบรรยายวิดีโอ</string>
+    <string name="caption_text_color">สีตัวอักษร</string>
+    <string name="caption_background">พื้นหลัง</string>
+    <string name="caption_background_opacity">ความทึบของพื้นหลัง</string>
+    <string name="download_quality_save">ประหยัด</string>
+    <string name="download_quality_medium">ปานกลาง</string>
+    <string name="download_quality_best">ดีที่สุด</string>
+    <string name="download_kbps">%1$d kbps</string>
 </resources>

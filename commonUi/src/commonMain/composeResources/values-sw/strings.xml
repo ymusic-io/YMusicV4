@@ -456,11 +456,9 @@
     <string name="download_more_qualities">+%1$d zaidi</string>
     <string name="download_down_to">hadi %1$s</string>
     <string name="download_less">Chache</string>
-    <string name="download_webm_detail">WebM · mtiririko asili</string>
+    <string name="download_webm_detail">Opus · mtiririko asili</string>
     <string name="download_m4a_detail">AAC · mtiririko asili</string>
-    <string name="download_mp3_detail">%1$d kbps · inacheza popote</string>
-    <string name="settings_mp3_source_bitrate">Pakua MP3 kwa kasi biti asili</string>
-    <string name="settings_mp3_source_bitrate_hint">Simba MP3 kwa takriban 256 kbps (kasi biti inayobadilika) badala ya 320 kbps. Faili ndogo, ubora uleule.</string>
+    <string name="download_mp3_detail">Inacheza popote</string>
     <string name="download_audio_track">Wimbo wa sauti</string>
     <string name="download_captions">Manukuu</string>
     <string name="download_captions_off">Yamezimwa</string>
@@ -487,7 +485,7 @@
     <string name="download_no_subtitles">Hakuna yanayopatikana</string>
     <string name="dialog_ok_done">Nimemaliza</string>
     <string name="download_captions_as_lyrics">%1$s · kama maneno ya wimbo</string>
-    <string name="download_lyrics_note">MP3 huhifadhi manukuu kama maneno ya wimbo, yanayoonyeshwa na vicheza vinavyosoma maneno ya wimbo.</string>
+    <string name="download_lyrics_note">Umbizo hili huhifadhi manukuu kama maneno ya wimbo, yanayoonyeshwa na vicheza vinavyosoma maneno ya wimbo.</string>
     <string name="download_caption_translated">%1$s (imetafsiriwa kiotomatiki)</string>
     <string name="download_live_unsupported">Huwezi kupakua video ya MUBASHARA</string>
     <string name="download_save_quick">Hifadhi kama Upakuaji wa haraka</string>
@@ -633,4 +631,15 @@
     <string name="a11y_key_arrow_up">mshale wa juu</string>
     <string name="a11y_key_arrow_down">mshale wa chini</string>
     <string name="cd_always_on_top">Juu kila wakati</string>
+    <string name="settings_caption_size">Ukubwa</string>
+    <string name="caption_size_preview">Manukuu yataonekana hivi</string>
+    <string name="settings_caption_style">Mtindo wa manukuu</string>
+    <string name="settings_caption_style_hint">Ukubwa, rangi na mandharinyuma ya manukuu ya video</string>
+    <string name="caption_text_color">Rangi ya maandishi</string>
+    <string name="caption_background">Mandharinyuma</string>
+    <string name="caption_background_opacity">Uangavu wa mandharinyuma</string>
+    <string name="download_quality_save">Akiba</string>
+    <string name="download_quality_medium">Wastani</string>
+    <string name="download_quality_best">Bora zaidi</string>
+    <string name="download_kbps">%1$d kbps</string>
 </resources>

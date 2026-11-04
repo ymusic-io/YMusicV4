@@ -14,6 +14,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.ymusic.download.AudioQuality
 import io.ymusic.download.DownloadFormat
 import io.ymusic.download.DownloadKind
 import io.ymusic.dynamicengine.yt.YtLocaleOption
@@ -25,6 +26,7 @@ import io.ymusic.ui.resources.download_captions
 import io.ymusic.ui.resources.download_captions_off
 import io.ymusic.ui.resources.download_default_track
 import io.ymusic.ui.resources.download_format
+import io.ymusic.ui.resources.download_quality
 import io.ymusic.ui.resources.download_video
 import kmpcommon.log.Logger
 import kotlinx.coroutines.CancellationException
@@ -55,6 +57,16 @@ internal fun QuickPresetFields(
                     Choice(heightLabel(h), container == preset.format && h == preset.height) {
                         onChange(preset.copy(format = container, height = h))
                     }
+                },
+                close,
+            )
+        }
+    }
+    if (preset.format.kind == DownloadKind.AUDIO) {
+        OptionLine(stringResource(Res.string.download_quality), preset.audioQuality.label(preset.format)) { close ->
+            ChoiceMenuItems(
+                AudioQuality.entries.map { quality ->
+                    Choice(quality.label(preset.format), quality == preset.audioQuality) { onChange(preset.copy(audioQuality = quality)) }
                 },
                 close,
             )

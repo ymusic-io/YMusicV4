@@ -57,7 +57,7 @@ interface Player {
 
     /** Replace the queue and load [playIndex]. An empty [items] clears and stops. [queueId] becomes
      *  [QueueState.queueId] — pass a saved queue's id to resume it as the same queue; null mints one.
-     *  [source] grows the queue past [items] (see [QueueSource]). */
+     *  [source] grows the queue past [items] (see [QueueSource]). [origin] labels it in the log. */
     fun setQueue(
         items: List<PlayableItem>,
         playIndex: Int = 0,
@@ -65,6 +65,7 @@ interface Player {
         playWhenReady: Boolean = true,
         queueId: String? = null,
         source: QueueSource? = null,
+        origin: QueueOrigin = QueueOrigin.Unknown,
     )
 
     /** Fetch the queue source's next page now (the queue's "Load more" / retry). No-op without one. */

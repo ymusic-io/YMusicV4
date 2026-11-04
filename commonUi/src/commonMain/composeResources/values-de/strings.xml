@@ -456,11 +456,9 @@
     <string name="download_more_qualities">+%1$d weitere</string>
     <string name="download_down_to">bis %1$s</string>
     <string name="download_less">Weniger</string>
-    <string name="download_webm_detail">WebM · Originalstream</string>
+    <string name="download_webm_detail">Opus · Originalstream</string>
     <string name="download_m4a_detail">AAC · Originalstream</string>
-    <string name="download_mp3_detail">%1$d kbps · läuft überall</string>
-    <string name="settings_mp3_source_bitrate">MP3 mit Originalbitrate herunterladen</string>
-    <string name="settings_mp3_source_bitrate_hint">MP3 mit etwa 256 kbps (variable Bitrate) statt 320 kbps kodieren. Kleinere Dateien, gleiche Qualität.</string>
+    <string name="download_mp3_detail">Läuft überall</string>
     <string name="download_audio_track">Audiospur</string>
     <string name="download_captions">Untertitel</string>
     <string name="download_captions_off">Aus</string>
@@ -487,7 +485,7 @@
     <string name="download_no_subtitles">Keine verfügbar</string>
     <string name="dialog_ok_done">Fertig</string>
     <string name="download_captions_as_lyrics">%1$s · als Songtext</string>
-    <string name="download_lyrics_note">MP3 speichert Untertitel als Songtext, der von Playern mit Songtext-Unterstützung angezeigt wird.</string>
+    <string name="download_lyrics_note">Dieses Format speichert Untertitel als Songtext, der von Playern mit Songtext-Unterstützung angezeigt wird.</string>
     <string name="download_caption_translated">%1$s (automatisch übersetzt)</string>
     <string name="download_live_unsupported">LIVE-Videos können nicht heruntergeladen werden</string>
     <string name="download_save_quick">Als Schnell-Download speichern</string>
@@ -633,4 +631,15 @@
     <string name="a11y_key_arrow_up">Pfeil nach oben</string>
     <string name="a11y_key_arrow_down">Pfeil nach unten</string>
     <string name="cd_always_on_top">Immer im Vordergrund</string>
+    <string name="settings_caption_size">Größe</string>
+    <string name="caption_size_preview">So sehen Untertitel aus</string>
+    <string name="settings_caption_style">Untertitelstil</string>
+    <string name="settings_caption_style_hint">Größe, Farbe und Hintergrund der Videountertitel</string>
+    <string name="caption_text_color">Textfarbe</string>
+    <string name="caption_background">Hintergrund</string>
+    <string name="caption_background_opacity">Deckkraft des Hintergrunds</string>
+    <string name="download_quality_save">Sparsam</string>
+    <string name="download_quality_medium">Mittel</string>
+    <string name="download_quality_best">Beste</string>
+    <string name="download_kbps">%1$d kbps</string>
 </resources>

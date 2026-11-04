@@ -537,11 +537,9 @@
     <string name="download_more_qualities">+%1$d أخرى</string>
     <string name="download_down_to">حتى %1$s</string>
     <string name="download_less">أقل</string>
-    <string name="download_webm_detail">WebM · البث الأصلي</string>
+    <string name="download_webm_detail">Opus · البث الأصلي</string>
     <string name="download_m4a_detail">AAC · البث الأصلي</string>
-    <string name="download_mp3_detail">%1$d kbps · يعمل في كل مكان</string>
-    <string name="settings_mp3_source_bitrate">تنزيل MP3 بمعدل البت الأصلي</string>
-    <string name="settings_mp3_source_bitrate_hint">ترميز MP3 بنحو 256 kbps (معدل بت متغير) بدلًا من 320 kbps. ملفات أصغر بالجودة نفسها.</string>
+    <string name="download_mp3_detail">يعمل في كل مكان</string>
     <string name="download_audio_track">المسار الصوتي</string>
     <string name="download_captions">الترجمة</string>
     <string name="download_captions_off">إيقاف</string>
@@ -571,7 +569,7 @@
     <string name="download_no_subtitles">لا يوجد</string>
     <string name="dialog_ok_done">تم</string>
     <string name="download_captions_as_lyrics">%1$s · ككلمات أغنية</string>
-    <string name="download_lyrics_note">يحفظ MP3 الترجمة ككلمات أغنية، وتظهر في المشغلات التي تدعم الكلمات.</string>
+    <string name="download_lyrics_note">يحفظ هذا التنسيق الترجمة ككلمات أغنية، وتظهر في المشغلات التي تدعم الكلمات.</string>
     <string name="download_caption_translated">%1$s (ترجمة تلقائية)</string>
     <string name="download_live_unsupported">لا يمكن تنزيل فيديو مباشر</string>
     <string name="download_save_quick">حفظ كتنزيل سريع</string>
@@ -798,4 +796,15 @@
     <string name="a11y_key_arrow_up">سهم لأعلى</string>
     <string name="a11y_key_arrow_down">سهم لأسفل</string>
     <string name="cd_always_on_top">دائمًا في المقدمة</string>
+    <string name="settings_caption_size">الحجم</string>
+    <string name="caption_size_preview">ستظهر الترجمة هكذا</string>
+    <string name="settings_caption_style">نمط الترجمة</string>
+    <string name="settings_caption_style_hint">حجم ترجمة الفيديو ولونها وخلفيتها</string>
+    <string name="caption_text_color">لون النص</string>
+    <string name="caption_background">الخلفية</string>
+    <string name="caption_background_opacity">عتامة الخلفية</string>
+    <string name="download_quality_save">توفير</string>
+    <string name="download_quality_medium">متوسطة</string>
+    <string name="download_quality_best">الأفضل</string>
+    <string name="download_kbps">%1$d kbps</string>
 </resources>

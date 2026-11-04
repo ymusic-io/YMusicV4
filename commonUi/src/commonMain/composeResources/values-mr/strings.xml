@@ -456,11 +456,9 @@
     <string name="download_more_qualities">+%1$d अधिक</string>
     <string name="download_down_to">%1$s पर्यंत</string>
     <string name="download_less">कमी</string>
-    <string name="download_webm_detail">WebM · मूळ स्ट्रीम</string>
+    <string name="download_webm_detail">Opus · मूळ स्ट्रीम</string>
     <string name="download_m4a_detail">AAC · मूळ स्ट्रीम</string>
-    <string name="download_mp3_detail">%1$d kbps · सगळीकडे प्ले होते</string>
-    <string name="settings_mp3_source_bitrate">मूळ बिटरेटवर MP3 डाउनलोड करा</string>
-    <string name="settings_mp3_source_bitrate_hint">320 kbps ऐवजी सुमारे 256 kbps (बदलता बिटरेट) वर MP3 एन्कोड करा. लहान फाइल्स, तीच गुणवत्ता.</string>
+    <string name="download_mp3_detail">सगळीकडे प्ले होते</string>
     <string name="download_audio_track">ऑडिओ ट्रॅक</string>
     <string name="download_captions">कॅप्शन</string>
     <string name="download_captions_off">बंद</string>
@@ -487,7 +485,7 @@
     <string name="download_no_subtitles">काहीही उपलब्ध नाही</string>
     <string name="dialog_ok_done">झाले</string>
     <string name="download_captions_as_lyrics">%1$s · गीतांचे बोल म्हणून</string>
-    <string name="download_lyrics_note">MP3 कॅप्शन गीतांचे बोल म्हणून ठेवते, जे बोल वाचणाऱ्या प्लेअरमध्ये दिसतात.</string>
+    <string name="download_lyrics_note">हा फॉरमॅट कॅप्शन गीतांचे बोल म्हणून ठेवतो, जे बोल वाचणाऱ्या प्लेअरमध्ये दिसतात.</string>
     <string name="download_caption_translated">%1$s (ऑटो-भाषांतरित)</string>
     <string name="download_live_unsupported">लाइव्ह व्हिडिओ डाउनलोड करता येत नाही</string>
     <string name="download_save_quick">क्विक डाउनलोड म्हणून सेव्ह करा</string>
@@ -633,4 +631,15 @@
     <string name="a11y_key_arrow_up">वर बाण</string>
     <string name="a11y_key_arrow_down">खाली बाण</string>
     <string name="cd_always_on_top">नेहमी सर्वात वर</string>
+    <string name="settings_caption_size">आकार</string>
+    <string name="caption_size_preview">कॅप्शन असे दिसतील</string>
+    <string name="settings_caption_style">कॅप्शन शैली</string>
+    <string name="settings_caption_style_hint">व्हिडिओ कॅप्शनचा आकार, रंग आणि पार्श्वभूमी</string>
+    <string name="caption_text_color">मजकुराचा रंग</string>
+    <string name="caption_background">पार्श्वभूमी</string>
+    <string name="caption_background_opacity">पार्श्वभूमीची अपारदर्शकता</string>
+    <string name="download_quality_save">बचत</string>
+    <string name="download_quality_medium">मध्यम</string>
+    <string name="download_quality_best">सर्वोत्तम</string>
+    <string name="download_kbps">%1$d kbps</string>
 </resources>

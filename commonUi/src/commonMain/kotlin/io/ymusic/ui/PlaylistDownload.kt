@@ -135,11 +135,10 @@ fun PlaylistDownloadScreen(graph: AppGraph, session: PlaylistDownloadSession, on
         scope.launch {
             val gated = graph.mediaStore != null && graph.libraryFolderPicker != null
             if (gated && !hasUsableDownloadLocation(graph) && !pickDownloadFolder(graph, snackbar, scans)) return@launch
-            val mp3SourceBitrate = graph.mp3SourceBitrate()
             val positions = videos.withIndex().associate { (index, video) -> video.id to index + 1 }
             picked.forEach { video ->
                 val prefix = if (session.indexPrefix) positions[video.id]?.let { "$it. " }.orEmpty() else ""
-                downloads.enqueue(preset.request(video, mp3SourceBitrate, prefix))
+                downloads.enqueue(preset.request(video, prefix))
             }
             val target = session.targetPlaylist
             val store = graph.mediaStore

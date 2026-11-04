@@ -460,11 +460,9 @@
     <string name="download_more_qualities">+%1$d više</string>
     <string name="download_down_to">sve do %1$s</string>
     <string name="download_less">Manje</string>
-    <string name="download_webm_detail">WebM · izvorni stream</string>
+    <string name="download_webm_detail">Opus · izvorni stream</string>
     <string name="download_m4a_detail">AAC · izvorni stream</string>
-    <string name="download_mp3_detail">%1$d kbps · radi svugdje</string>
-    <string name="settings_mp3_source_bitrate">Preuzmi MP3 u izvornoj brzini prijenosa</string>
-    <string name="settings_mp3_source_bitrate_hint">Kodiraj MP3 na oko 256 kbps (promjenjiva brzina prijenosa) umjesto 320 kbps. Manje datoteke, ista kvaliteta.</string>
+    <string name="download_mp3_detail">Radi svugdje</string>
     <string name="download_audio_track">Audiozapis</string>
     <string name="download_captions">Titlovi</string>
     <string name="download_captions_off">Isključeno</string>
@@ -491,7 +489,7 @@
     <string name="download_no_subtitles">Nema dostupnih</string>
     <string name="dialog_ok_done">Gotovo</string>
     <string name="download_captions_as_lyrics">%1$s · kao tekst pjesme</string>
-    <string name="download_lyrics_note">MP3 čuva titlove kao tekst pjesme, koji prikazuju playeri što podržavaju tekstove.</string>
+    <string name="download_lyrics_note">Ovaj format čuva titlove kao tekst pjesme, koji prikazuju playeri što podržavaju tekstove.</string>
     <string name="download_caption_translated">%1$s (automatski prevedeno)</string>
     <string name="download_live_unsupported">Videozapis UŽIVO nije moguće preuzeti</string>
     <string name="download_save_quick">Spremi kao Brzo preuzimanje</string>
@@ -641,4 +639,15 @@
     <string name="a11y_key_arrow_up">strelica gore</string>
     <string name="a11y_key_arrow_down">strelica dolje</string>
     <string name="cd_always_on_top">Uvijek na vrhu</string>
+    <string name="settings_caption_size">Veličina</string>
+    <string name="caption_size_preview">Titlovi će izgledati ovako</string>
+    <string name="settings_caption_style">Stil titlova</string>
+    <string name="settings_caption_style_hint">Veličina, boja i pozadina titlova videozapisa</string>
+    <string name="caption_text_color">Boja teksta</string>
+    <string name="caption_background">Pozadina</string>
+    <string name="caption_background_opacity">Neprozirnost pozadine</string>
+    <string name="download_quality_save">Štednja</string>
+    <string name="download_quality_medium">Srednja</string>
+    <string name="download_quality_best">Najbolja</string>
+    <string name="download_kbps">%1$d kbps</string>
 </resources>

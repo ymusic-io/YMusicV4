@@ -544,11 +544,9 @@
     <string name="download_more_qualities">Ще %1$d</string>
     <string name="download_down_to">до %1$s</string>
     <string name="download_less">Менше</string>
-    <string name="download_webm_detail">WebM · оригінальний потік</string>
+    <string name="download_webm_detail">Opus · оригінальний потік</string>
     <string name="download_m4a_detail">AAC · оригінальний потік</string>
-    <string name="download_mp3_detail">%1$d кбіт/с · грає всюди</string>
-    <string name="settings_mp3_source_bitrate">Завантажувати MP3 з оригінальним бітрейтом</string>
-    <string name="settings_mp3_source_bitrate_hint">Кодувати MP3 приблизно в 256 кбіт/с (змінний бітрейт) замість 320 кбіт/с. Менші файли, та сама якість.</string>
+    <string name="download_mp3_detail">Грає всюди</string>
     <string name="download_audio_track">Звукова доріжка</string>
     <string name="download_captions">Субтитри</string>
     <string name="download_captions_off">Вимк.</string>
@@ -576,7 +574,7 @@
     <string name="download_no_subtitles">Немає доступних</string>
     <string name="dialog_ok_done">Готово</string>
     <string name="download_captions_as_lyrics">%1$s · як текст пісні</string>
-    <string name="download_lyrics_note">У MP3 субтитри зберігаються як текст пісні — його показують плеєри з підтримкою текстів.</string>
+    <string name="download_lyrics_note">У цьому форматі субтитри зберігаються як текст пісні — його показують плеєри з підтримкою текстів.</string>
     <string name="download_caption_translated">%1$s (автопереклад)</string>
     <string name="download_live_unsupported">Неможливо завантажити пряму трансляцію</string>
     <string name="download_save_quick">Зберегти як швидке завантаження</string>
@@ -806,4 +804,15 @@
     <string name="a11y_key_arrow_up">стрілка вгору</string>
     <string name="a11y_key_arrow_down">стрілка вниз</string>
     <string name="cd_always_on_top">Поверх усіх вікон</string>
+    <string name="settings_caption_size">Розмір</string>
+    <string name="caption_size_preview">Субтитри виглядатимуть так</string>
+    <string name="settings_caption_style">Стиль субтитрів</string>
+    <string name="settings_caption_style_hint">Розмір, колір і фон субтитрів відео</string>
+    <string name="caption_text_color">Колір тексту</string>
+    <string name="caption_background">Фон</string>
+    <string name="caption_background_opacity">Непрозорість фону</string>
+    <string name="download_quality_save">Економія</string>
+    <string name="download_quality_medium">Середня</string>
+    <string name="download_quality_best">Найкраща</string>
+    <string name="download_kbps">%1$d kbps</string>
 </resources>

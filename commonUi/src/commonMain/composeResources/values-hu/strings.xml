@@ -456,11 +456,9 @@
     <string name="download_more_qualities">+%1$d további</string>
     <string name="download_down_to">le egészen: %1$s</string>
     <string name="download_less">Kevesebb</string>
-    <string name="download_webm_detail">WebM · eredeti stream</string>
+    <string name="download_webm_detail">Opus · eredeti stream</string>
     <string name="download_m4a_detail">AAC · eredeti stream</string>
-    <string name="download_mp3_detail">%1$d kbps · mindenhol lejátszható</string>
-    <string name="settings_mp3_source_bitrate">MP3 letöltése eredeti bitrátával</string>
-    <string name="settings_mp3_source_bitrate_hint">Az MP3 kódolása körülbelül 256 kbps-sel (változó bitráta) 320 kbps helyett. Kisebb fájlok, azonos minőség.</string>
+    <string name="download_mp3_detail">Mindenhol lejátszható</string>
     <string name="download_audio_track">Hangsáv</string>
     <string name="download_captions">Feliratok</string>
     <string name="download_captions_off">Ki</string>
@@ -487,7 +485,7 @@
     <string name="download_no_subtitles">Nem érhető el</string>
     <string name="dialog_ok_done">Kész</string>
     <string name="download_captions_as_lyrics">%1$s · dalszövegként</string>
-    <string name="download_lyrics_note">Az MP3 dalszövegként őrzi meg a feliratokat, amelyeket a dalszöveget olvasó lejátszók megjelenítenek.</string>
+    <string name="download_lyrics_note">Ez a formátum dalszövegként őrzi meg a feliratokat, amelyeket a dalszöveget olvasó lejátszók megjelenítenek.</string>
     <string name="download_caption_translated">%1$s (automatikusan fordított)</string>
     <string name="download_live_unsupported">ÉLŐ videó nem tölthető le</string>
     <string name="download_save_quick">Mentés Gyors letöltésként</string>
@@ -633,4 +631,15 @@
     <string name="a11y_key_arrow_up">felfelé nyíl</string>
     <string name="a11y_key_arrow_down">lefelé nyíl</string>
     <string name="cd_always_on_top">Mindig felül</string>
+    <string name="settings_caption_size">Méret</string>
+    <string name="caption_size_preview">A feliratok így fognak kinézni</string>
+    <string name="settings_caption_style">Feliratstílus</string>
+    <string name="settings_caption_style_hint">A videófeliratok mérete, színe és háttere</string>
+    <string name="caption_text_color">Szövegszín</string>
+    <string name="caption_background">Háttér</string>
+    <string name="caption_background_opacity">Háttér átlátszatlansága</string>
+    <string name="download_quality_save">Takarékos</string>
+    <string name="download_quality_medium">Közepes</string>
+    <string name="download_quality_best">Legjobb</string>
+    <string name="download_kbps">%1$d kbps</string>
 </resources>

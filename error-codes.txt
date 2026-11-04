@@ -132,6 +132,7 @@ E60063 D queue page (QueueSource.loadMore) failed with an uncoded error (commonU
 E60064 D MSE video stream has no working MediaCodec decoder; playback fails instead of a CPU fallback (player MsePlayer, Android)
 E60065 D googlevideo rejected the MSE session's PO token (StreamProtectionStatus=3); fails with needReset (player MsePlayer)
 E60066 D MsePlayer player/init not done within 30 s (player MsePlayer)
+E60067 D files opened from the OS failed to reach the queue; the collector keeps running (desktopApp Main)
 
 E70001 D unclassified download failure (download DownloadService.execute fallback)
 E70010 D no SABR stream; progressive download not yet supported (download YtStreamDownloader)

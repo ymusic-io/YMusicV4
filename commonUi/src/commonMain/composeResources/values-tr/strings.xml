@@ -456,11 +456,9 @@
     <string name="download_more_qualities">+%1$d daha</string>
     <string name="download_down_to">%1$s değerine kadar</string>
     <string name="download_less">Daha az</string>
-    <string name="download_webm_detail">WebM · orijinal akış</string>
+    <string name="download_webm_detail">Opus · orijinal akış</string>
     <string name="download_m4a_detail">AAC · orijinal akış</string>
-    <string name="download_mp3_detail">%1$d kbps · her yerde çalar</string>
-    <string name="settings_mp3_source_bitrate">MP3'ü orijinal bit hızında indir</string>
-    <string name="settings_mp3_source_bitrate_hint">MP3'ü 320 kbps yerine yaklaşık 256 kbps (değişken bit hızı) ile kodla. Daha küçük dosyalar, aynı kalite.</string>
+    <string name="download_mp3_detail">Her yerde çalar</string>
     <string name="download_audio_track">Ses parçası</string>
     <string name="download_captions">Altyazılar</string>
     <string name="download_captions_off">Kapalı</string>
@@ -487,7 +485,7 @@
     <string name="download_no_subtitles">Mevcut değil</string>
     <string name="dialog_ok_done">Bitti</string>
     <string name="download_captions_as_lyrics">%1$s · şarkı sözü olarak</string>
-    <string name="download_lyrics_note">MP3, altyazıları şarkı sözü olarak saklar; şarkı sözlerini okuyan oynatıcılar bunları gösterir.</string>
+    <string name="download_lyrics_note">Bu biçim, altyazıları şarkı sözü olarak saklar; şarkı sözlerini okuyan oynatıcılar bunları gösterir.</string>
     <string name="download_caption_translated">%1$s (otomatik çeviri)</string>
     <string name="download_live_unsupported">CANLI video indirilemez</string>
     <string name="download_save_quick">Hızlı indirme olarak kaydet</string>
@@ -633,4 +631,15 @@
     <string name="a11y_key_arrow_up">yukarı ok</string>
     <string name="a11y_key_arrow_down">aşağı ok</string>
     <string name="cd_always_on_top">Her zaman üstte</string>
+    <string name="settings_caption_size">Boyut</string>
+    <string name="caption_size_preview">Altyazılar böyle görünecek</string>
+    <string name="settings_caption_style">Altyazı stili</string>
+    <string name="settings_caption_style_hint">Video altyazılarının boyutu, rengi ve arka planı</string>
+    <string name="caption_text_color">Metin rengi</string>
+    <string name="caption_background">Arka plan</string>
+    <string name="caption_background_opacity">Arka plan opaklığı</string>
+    <string name="download_quality_save">Tasarruf</string>
+    <string name="download_quality_medium">Orta</string>
+    <string name="download_quality_best">En iyi</string>
+    <string name="download_kbps">%1$d kbps</string>
 </resources>

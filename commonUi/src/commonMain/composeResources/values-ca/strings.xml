@@ -460,11 +460,9 @@
     <string name="download_more_qualities">+%1$d més</string>
     <string name="download_down_to">fins a %1$s</string>
     <string name="download_less">Menys</string>
-    <string name="download_webm_detail">WebM · flux original</string>
+    <string name="download_webm_detail">Opus · flux original</string>
     <string name="download_m4a_detail">AAC · flux original</string>
-    <string name="download_mp3_detail">%1$d kbps · funciona a tot arreu</string>
-    <string name="settings_mp3_source_bitrate">Baixa MP3 amb la taxa de bits original</string>
-    <string name="settings_mp3_source_bitrate_hint">Codifica l'MP3 a uns 256 kbps (taxa de bits variable) en lloc de 320 kbps. Fitxers més petits, la mateixa qualitat.</string>
+    <string name="download_mp3_detail">Funciona a tot arreu</string>
     <string name="download_audio_track">Pista d'àudio</string>
     <string name="download_captions">Subtítols</string>
     <string name="download_captions_off">Desactivats</string>
@@ -491,7 +489,7 @@
     <string name="download_no_subtitles">Cap de disponible</string>
     <string name="dialog_ok_done">Fet</string>
     <string name="download_captions_as_lyrics">%1$s · com a lletra</string>
-    <string name="download_lyrics_note">L'MP3 conserva els subtítols com a lletra, que mostren els reproductors compatibles.</string>
+    <string name="download_lyrics_note">Aquest format conserva els subtítols com a lletra, que mostren els reproductors compatibles.</string>
     <string name="download_caption_translated">%1$s (traducció automàtica)</string>
     <string name="download_live_unsupported">No es pot descarregar un vídeo EN DIRECTE</string>
     <string name="download_save_quick">Desa com a Descàrrega ràpida</string>
@@ -641,4 +639,15 @@
     <string name="a11y_key_arrow_up">fletxa amunt</string>
     <string name="a11y_key_arrow_down">fletxa avall</string>
     <string name="cd_always_on_top">Sempre visible</string>
+    <string name="settings_caption_size">Mida</string>
+    <string name="caption_size_preview">Els subtítols es veuran així</string>
+    <string name="settings_caption_style">Estil dels subtítols</string>
+    <string name="settings_caption_style_hint">Mida, color i fons dels subtítols del vídeo</string>
+    <string name="caption_text_color">Color del text</string>
+    <string name="caption_background">Fons</string>
+    <string name="caption_background_opacity">Opacitat del fons</string>
+    <string name="download_quality_save">Estalvi</string>
+    <string name="download_quality_medium">Mitjana</string>
+    <string name="download_quality_best">Millor</string>
+    <string name="download_kbps">%1$d kbps</string>
 </resources>

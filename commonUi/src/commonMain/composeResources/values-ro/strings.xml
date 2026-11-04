@@ -460,11 +460,9 @@
     <string name="download_more_qualities">încă +%1$d</string>
     <string name="download_down_to">până la %1$s</string>
     <string name="download_less">Mai puțin</string>
-    <string name="download_webm_detail">WebM · flux original</string>
+    <string name="download_webm_detail">Opus · flux original</string>
     <string name="download_m4a_detail">AAC · flux original</string>
-    <string name="download_mp3_detail">%1$d kbps · merge oriunde</string>
-    <string name="settings_mp3_source_bitrate">Descarcă MP3 la rata de biți originală</string>
-    <string name="settings_mp3_source_bitrate_hint">Codifică MP3 la aproximativ 256 kbps (rată de biți variabilă) în loc de 320 kbps. Fișiere mai mici, aceeași calitate.</string>
+    <string name="download_mp3_detail">Merge oriunde</string>
     <string name="download_audio_track">Pistă audio</string>
     <string name="download_captions">Subtitrări</string>
     <string name="download_captions_off">Dezactivate</string>
@@ -491,7 +489,7 @@
     <string name="download_no_subtitles">Niciuna disponibilă</string>
     <string name="dialog_ok_done">Gata</string>
     <string name="download_captions_as_lyrics">%1$s · ca versuri</string>
-    <string name="download_lyrics_note">MP3 păstrează subtitrările ca versuri, afișate de playerele care citesc versuri.</string>
+    <string name="download_lyrics_note">Acest format păstrează subtitrările ca versuri, afișate de playerele care citesc versuri.</string>
     <string name="download_caption_translated">%1$s (traduse automat)</string>
     <string name="download_live_unsupported">Un videoclip LIVE nu poate fi descărcat</string>
     <string name="download_save_quick">Salvează ca Descărcare rapidă</string>
@@ -641,4 +639,15 @@
     <string name="a11y_key_arrow_up">săgeată sus</string>
     <string name="a11y_key_arrow_down">săgeată jos</string>
     <string name="cd_always_on_top">Mereu deasupra</string>
+    <string name="settings_caption_size">Dimensiune</string>
+    <string name="caption_size_preview">Subtitrările vor arăta așa</string>
+    <string name="settings_caption_style">Stilul subtitrărilor</string>
+    <string name="settings_caption_style_hint">Dimensiunea, culoarea și fundalul subtitrărilor video</string>
+    <string name="caption_text_color">Culoarea textului</string>
+    <string name="caption_background">Fundal</string>
+    <string name="caption_background_opacity">Opacitatea fundalului</string>
+    <string name="download_quality_save">Economic</string>
+    <string name="download_quality_medium">Medie</string>
+    <string name="download_quality_best">Cea mai bună</string>
+    <string name="download_kbps">%1$d kbps</string>
 </resources>

@@ -19,6 +19,12 @@ enum class LoopMode {
  * changes only on the next setQueue; null when nothing is queued. [more] is set when the queue
  * has a [QueueSource] to grow from.
  */
+/** Where a queue came from, for the playback log. */
+enum class QueueOrigin { Unknown, Library, Downloads, Single, Radio, Playlist, Resume, Link, File }
+
+/** Why the current item last changed, for the playback log. */
+enum class QueueChange { Load, Auto, User }
+
 data class QueueState(
     val items: List<PlayableItem> = emptyList(),
     val currentIndex: Int = -1,
@@ -26,6 +32,8 @@ data class QueueState(
     val shuffle: Boolean = false,
     val queueId: String? = null,
     val more: QueueMore? = null,
+    val origin: QueueOrigin = QueueOrigin.Unknown,
+    val lastChange: QueueChange = QueueChange.Load,
 ) {
     val currentItem: PlayableItem? get() = items.getOrNull(currentIndex)
 }

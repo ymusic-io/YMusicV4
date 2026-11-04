@@ -456,11 +456,9 @@
     <string name="download_more_qualities">+%1$d વધુ</string>
     <string name="download_down_to">%1$s સુધી</string>
     <string name="download_less">ઓછું</string>
-    <string name="download_webm_detail">WebM · મૂળ સ્ટ્રીમ</string>
+    <string name="download_webm_detail">Opus · મૂળ સ્ટ્રીમ</string>
     <string name="download_m4a_detail">AAC · મૂળ સ્ટ્રીમ</string>
-    <string name="download_mp3_detail">%1$d kbps · બધે ચાલે છે</string>
-    <string name="settings_mp3_source_bitrate">મૂળ બિટરેટ પર MP3 ડાઉનલોડ કરો</string>
-    <string name="settings_mp3_source_bitrate_hint">320 kbps ને બદલે લગભગ 256 kbps (ચલ બિટરેટ) પર MP3 એન્કોડ કરો. નાની ફાઇલો, એ જ ગુણવત્તા.</string>
+    <string name="download_mp3_detail">બધે ચાલે છે</string>
     <string name="download_audio_track">ઑડિયો ટ્રેક</string>
     <string name="download_captions">કૅપ્શન</string>
     <string name="download_captions_off">બંધ</string>
@@ -487,7 +485,7 @@
     <string name="download_no_subtitles">કોઈ ઉપલબ્ધ નથી</string>
     <string name="dialog_ok_done">થઈ ગયું</string>
     <string name="download_captions_as_lyrics">%1$s · ગીતના શબ્દો તરીકે</string>
-    <string name="download_lyrics_note">MP3 કૅપ્શનને ગીતના શબ્દો તરીકે રાખે છે, જે ગીતના શબ્દો વાંચતા પ્લેયરમાં દેખાય છે.</string>
+    <string name="download_lyrics_note">આ ફોર્મેટ કૅપ્શનને ગીતના શબ્દો તરીકે રાખે છે, જે ગીતના શબ્દો વાંચતા પ્લેયરમાં દેખાય છે.</string>
     <string name="download_caption_translated">%1$s (સ્વતઃ અનુવાદિત)</string>
     <string name="download_live_unsupported">લાઇવ વીડિયો ડાઉનલોડ કરી શકાતો નથી</string>
     <string name="download_save_quick">ઝડપી ડાઉનલોડ તરીકે સેવ કરો</string>
@@ -633,4 +631,15 @@
     <string name="a11y_key_arrow_up">ઉપર તીર</string>
     <string name="a11y_key_arrow_down">નીચે તીર</string>
     <string name="cd_always_on_top">હંમેશાં ટોચ પર</string>
+    <string name="settings_caption_size">કદ</string>
+    <string name="caption_size_preview">કૅપ્શન આ રીતે દેખાશે</string>
+    <string name="settings_caption_style">કૅપ્શનની શૈલી</string>
+    <string name="settings_caption_style_hint">વિડિયો કૅપ્શનનું કદ, રંગ અને પૃષ્ઠભૂમિ</string>
+    <string name="caption_text_color">ટેક્સ્ટનો રંગ</string>
+    <string name="caption_background">પૃષ્ઠભૂમિ</string>
+    <string name="caption_background_opacity">પૃષ્ઠભૂમિની અપારદર્શિતા</string>
+    <string name="download_quality_save">બચત</string>
+    <string name="download_quality_medium">મધ્યમ</string>
+    <string name="download_quality_best">શ્રેષ્ઠ</string>
+    <string name="download_kbps">%1$d kbps</string>
 </resources>

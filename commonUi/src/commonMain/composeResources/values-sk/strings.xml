@@ -464,11 +464,9 @@
     <string name="download_more_qualities">+%1$d ďalšie</string>
     <string name="download_down_to">až po %1$s</string>
     <string name="download_less">Menej</string>
-    <string name="download_webm_detail">WebM · pôvodný stream</string>
+    <string name="download_webm_detail">Opus · pôvodný stream</string>
     <string name="download_m4a_detail">AAC · pôvodný stream</string>
-    <string name="download_mp3_detail">%1$d kbps · prehrá sa všade</string>
-    <string name="settings_mp3_source_bitrate">Sťahovať MP3 v pôvodnom dátovom toku</string>
-    <string name="settings_mp3_source_bitrate_hint">Kódovať MP3 približne v 256 kbps (premenlivý dátový tok) namiesto 320 kbps. Menšie súbory, rovnaká kvalita.</string>
+    <string name="download_mp3_detail">Prehrá sa všade</string>
     <string name="download_audio_track">Zvuková stopa</string>
     <string name="download_captions">Titulky</string>
     <string name="download_captions_off">Vyp.</string>
@@ -495,7 +493,7 @@
     <string name="download_no_subtitles">Nie sú k dispozícii</string>
     <string name="dialog_ok_done">Hotovo</string>
     <string name="download_captions_as_lyrics">%1$s · ako text piesne</string>
-    <string name="download_lyrics_note">MP3 zachová titulky ako text piesne, ktorý zobrazia prehrávače podporujúce texty.</string>
+    <string name="download_lyrics_note">Tento formát zachová titulky ako text piesne, ktorý zobrazia prehrávače podporujúce texty.</string>
     <string name="download_caption_translated">%1$s (automaticky preložené)</string>
     <string name="download_live_unsupported">Video NAŽIVO sa nedá stiahnuť</string>
     <string name="download_save_quick">Uložiť ako Rýchle stiahnutie</string>
@@ -649,4 +647,15 @@
     <string name="a11y_key_arrow_up">šípka hore</string>
     <string name="a11y_key_arrow_down">šípka dole</string>
     <string name="cd_always_on_top">Vždy navrchu</string>
+    <string name="settings_caption_size">Veľkosť</string>
+    <string name="caption_size_preview">Titulky budú vyzerať takto</string>
+    <string name="settings_caption_style">Štýl titulkov</string>
+    <string name="settings_caption_style_hint">Veľkosť, farba a pozadie titulkov videa</string>
+    <string name="caption_text_color">Farba textu</string>
+    <string name="caption_background">Pozadie</string>
+    <string name="caption_background_opacity">Nepriehľadnosť pozadia</string>
+    <string name="download_quality_save">Úsporná</string>
+    <string name="download_quality_medium">Stredná</string>
+    <string name="download_quality_best">Najlepšia</string>
+    <string name="download_kbps">%1$d kbps</string>
 </resources>

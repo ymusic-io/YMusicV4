@@ -456,11 +456,9 @@
     <string name="download_more_qualities">Уште %1$d</string>
     <string name="download_down_to">до %1$s</string>
     <string name="download_less">Помалку</string>
-    <string name="download_webm_detail">WebM · оригинален стрим</string>
+    <string name="download_webm_detail">Opus · оригинален стрим</string>
     <string name="download_m4a_detail">AAC · оригинален стрим</string>
-    <string name="download_mp3_detail">%1$d kbps · се пушта насекаде</string>
-    <string name="settings_mp3_source_bitrate">Преземи MP3 со оригинален битрејт</string>
-    <string name="settings_mp3_source_bitrate_hint">Кодирај MP3 со околу 256 kbps (променлив битрејт) наместо 320 kbps. Помали датотеки, ист квалитет.</string>
+    <string name="download_mp3_detail">Се пушта насекаде</string>
     <string name="download_audio_track">Аудиозапис</string>
     <string name="download_captions">Титлови</string>
     <string name="download_captions_off">Исклучено</string>
@@ -487,7 +485,7 @@
     <string name="download_no_subtitles">Нема достапни</string>
     <string name="dialog_ok_done">Готово</string>
     <string name="download_captions_as_lyrics">%1$s · како стихови</string>
-    <string name="download_lyrics_note">MP3 ги чува титловите како стихови, што ги прикажуваат плеерите што читаат стихови.</string>
+    <string name="download_lyrics_note">Овој формат ги чува титловите како стихови, што ги прикажуваат плеерите што читаат стихови.</string>
     <string name="download_caption_translated">%1$s (автоматски преведено)</string>
     <string name="download_live_unsupported">Не може да се преземе видео ВО ЖИВО</string>
     <string name="download_save_quick">Зачувај како брзо преземање</string>
@@ -633,4 +631,15 @@
     <string name="a11y_key_arrow_up">стрелка горе</string>
     <string name="a11y_key_arrow_down">стрелка долу</string>
     <string name="cd_always_on_top">Секогаш најгоре</string>
+    <string name="settings_caption_size">Големина</string>
+    <string name="caption_size_preview">Титловите ќе изгледаат вака</string>
+    <string name="settings_caption_style">Стил на титловите</string>
+    <string name="settings_caption_style_hint">Големина, боја и позадина на видео титловите</string>
+    <string name="caption_text_color">Боја на текстот</string>
+    <string name="caption_background">Позадина</string>
+    <string name="caption_background_opacity">Непроѕирност на позадината</string>
+    <string name="download_quality_save">Штедење</string>
+    <string name="download_quality_medium">Средно</string>
+    <string name="download_quality_best">Најдобро</string>
+    <string name="download_kbps">%1$d kbps</string>
 </resources>

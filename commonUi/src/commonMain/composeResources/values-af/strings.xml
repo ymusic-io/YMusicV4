@@ -456,11 +456,9 @@
     <string name="download_more_qualities">+%1$d meer</string>
     <string name="download_down_to">tot %1$s</string>
     <string name="download_less">Minder</string>
-    <string name="download_webm_detail">WebM · oorspronklike stroom</string>
+    <string name="download_webm_detail">Opus · oorspronklike stroom</string>
     <string name="download_m4a_detail">AAC · oorspronklike stroom</string>
-    <string name="download_mp3_detail">%1$d kbps · speel oral</string>
-    <string name="settings_mp3_source_bitrate">Laai MP3 af teen oorspronklike bistempo</string>
-    <string name="settings_mp3_source_bitrate_hint">Enkodeer MP3 teen ongeveer 256 kbps (veranderlike bistempo) in plaas van 320 kbps. Kleiner lêers, dieselfde kwaliteit.</string>
+    <string name="download_mp3_detail">Speel oral</string>
     <string name="download_audio_track">Oudiosnit</string>
     <string name="download_captions">Onderskrifte</string>
     <string name="download_captions_off">Af</string>
@@ -487,7 +485,7 @@
     <string name="download_no_subtitles">Geen beskikbaar nie</string>
     <string name="dialog_ok_done">Klaar</string>
     <string name="download_captions_as_lyrics">%1$s · as lirieke</string>
-    <string name="download_lyrics_note">MP3 hou onderskrifte as lirieke, wat gewys word deur spelers wat lirieke lees.</string>
+    <string name="download_lyrics_note">Hierdie formaat hou onderskrifte as lirieke, wat gewys word deur spelers wat lirieke lees.</string>
     <string name="download_caption_translated">%1$s (outomaties vertaal)</string>
     <string name="download_live_unsupported">Kan nie 'n REGSTREEKSE video aflaai nie</string>
     <string name="download_save_quick">Stoor as Vinnige aflaai</string>
@@ -633,4 +631,15 @@
     <string name="a11y_key_arrow_up">oppyltjie</string>
     <string name="a11y_key_arrow_down">afpyltjie</string>
     <string name="cd_always_on_top">Altyd bo-op</string>
+    <string name="settings_caption_size">Grootte</string>
+    <string name="caption_size_preview">Onderskrifte sal so lyk</string>
+    <string name="settings_caption_style">Onderskrifstyl</string>
+    <string name="settings_caption_style_hint">Grootte, kleur en agtergrond van video-onderskrifte</string>
+    <string name="caption_text_color">Tekskleur</string>
+    <string name="caption_background">Agtergrond</string>
+    <string name="caption_background_opacity">Agtergrond-ondeursigtigheid</string>
+    <string name="download_quality_save">Spaar</string>
+    <string name="download_quality_medium">Medium</string>
+    <string name="download_quality_best">Beste</string>
+    <string name="download_kbps">%1$d kbps</string>
 </resources>

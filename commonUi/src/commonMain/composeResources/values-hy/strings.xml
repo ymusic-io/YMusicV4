@@ -456,11 +456,9 @@
     <string name="download_more_qualities">+%1$d ևս</string>
     <string name="download_down_to">մինչև %1$s</string>
     <string name="download_less">Ավելի քիչ</string>
-    <string name="download_webm_detail">WebM · բնօրինակ հոսք</string>
+    <string name="download_webm_detail">Opus · բնօրինակ հոսք</string>
     <string name="download_m4a_detail">AAC · բնօրինակ հոսք</string>
-    <string name="download_mp3_detail">%1$d kbps · նվագարկվում է ամենուր</string>
-    <string name="settings_mp3_source_bitrate">Ներբեռնել MP3-ը սկզբնական բիթրեյթով</string>
-    <string name="settings_mp3_source_bitrate_hint">Կոդավորել MP3-ը մոտ 256 kbps-ով (փոփոխական բիթրեյթ)՝ 320 kbps-ի փոխարեն։ Ավելի փոքր ֆայլեր, նույն որակը։</string>
+    <string name="download_mp3_detail">Նվագարկվում է ամենուր</string>
     <string name="download_audio_track">Աուդիո ուղի</string>
     <string name="download_captions">Ենթագրեր</string>
     <string name="download_captions_off">Անջատված</string>
@@ -487,7 +485,7 @@
     <string name="download_no_subtitles">Հասանելի չեն</string>
     <string name="dialog_ok_done">Պատրաստ է</string>
     <string name="download_captions_as_lyrics">%1$s · որպես երգի բառեր</string>
-    <string name="download_lyrics_note">MP3-ը պահում է ենթագրերը որպես երգի բառեր, որոնք ցուցադրվում են բառեր կարդացող նվագարկիչներում։</string>
+    <string name="download_lyrics_note">Այս ձևաչափը պահում է ենթագրերը որպես երգի բառեր, որոնք ցուցադրվում են բառեր կարդացող նվագարկիչներում։</string>
     <string name="download_caption_translated">%1$s (ավտոմատ թարգմանված)</string>
     <string name="download_live_unsupported">Հնարավոր չէ ներբեռնել ՈՒՂԻՂ տեսանյութ</string>
     <string name="download_save_quick">Պահել որպես Արագ ներբեռնում</string>
@@ -633,4 +631,15 @@
     <string name="a11y_key_arrow_up">վերև սլաք</string>
     <string name="a11y_key_arrow_down">ներքև սլաք</string>
     <string name="cd_always_on_top">Միշտ վերևում</string>
+    <string name="settings_caption_size">Չափ</string>
+    <string name="caption_size_preview">Ենթագրերն այսպես կերևան</string>
+    <string name="settings_caption_style">Ենթագրերի ոճ</string>
+    <string name="settings_caption_style_hint">Տեսանյութի ենթագրերի չափը, գույնը և ֆոնը</string>
+    <string name="caption_text_color">Տեքստի գույն</string>
+    <string name="caption_background">Ֆոն</string>
+    <string name="caption_background_opacity">Ֆոնի անթափանցիկություն</string>
+    <string name="download_quality_save">Խնայողական</string>
+    <string name="download_quality_medium">Միջին</string>
+    <string name="download_quality_best">Լավագույն</string>
+    <string name="download_kbps">%1$d kbps</string>
 </resources>

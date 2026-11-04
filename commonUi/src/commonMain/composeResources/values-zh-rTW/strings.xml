@@ -452,11 +452,9 @@
     <string name="download_more_qualities">還有 %1$d 個</string>
     <string name="download_down_to">最低 %1$s</string>
     <string name="download_less">收合</string>
-    <string name="download_webm_detail">WebM · 原始串流</string>
+    <string name="download_webm_detail">Opus · 原始串流</string>
     <string name="download_m4a_detail">AAC · 原始串流</string>
-    <string name="download_mp3_detail">%1$d kbps · 到處都能播放</string>
-    <string name="settings_mp3_source_bitrate">以原始位元率下載 MP3</string>
-    <string name="settings_mp3_source_bitrate_hint">以約 256 kbps（可變位元率）而非 320 kbps 編碼 MP3。檔案更小，音質相同。</string>
+    <string name="download_mp3_detail">到處都能播放</string>
     <string name="download_audio_track">音軌</string>
     <string name="download_captions">字幕</string>
     <string name="download_captions_off">關閉</string>
@@ -483,7 +481,7 @@
     <string name="download_no_subtitles">無可用字幕</string>
     <string name="dialog_ok_done">完成</string>
     <string name="download_captions_as_lyrics">%1$s · 作為歌詞</string>
-    <string name="download_lyrics_note">MP3 會將字幕儲存為歌詞，可由支援歌詞的播放器顯示。</string>
+    <string name="download_lyrics_note">此格式會將字幕儲存為歌詞，可由支援歌詞的播放器顯示。</string>
     <string name="download_caption_translated">%1$s（自動翻譯）</string>
     <string name="download_live_unsupported">無法下載直播影片</string>
     <string name="download_save_quick">儲存為快速下載</string>
@@ -625,4 +623,15 @@
     <string name="a11y_key_arrow_up">上方向鍵</string>
     <string name="a11y_key_arrow_down">下方向鍵</string>
     <string name="cd_always_on_top">永遠在最上層</string>
+    <string name="settings_caption_size">大小</string>
+    <string name="caption_size_preview">字幕將會這樣顯示</string>
+    <string name="settings_caption_style">字幕樣式</string>
+    <string name="settings_caption_style_hint">影片字幕的大小、顏色和背景</string>
+    <string name="caption_text_color">文字顏色</string>
+    <string name="caption_background">背景</string>
+    <string name="caption_background_opacity">背景不透明度</string>
+    <string name="download_quality_save">節省</string>
+    <string name="download_quality_medium">中</string>
+    <string name="download_quality_best">最佳</string>
+    <string name="download_kbps">%1$d kbps</string>
 </resources>

@@ -456,11 +456,9 @@
     <string name="download_more_qualities">+%1$d مورد دیگر</string>
     <string name="download_down_to">تا %1$s</string>
     <string name="download_less">کمتر</string>
-    <string name="download_webm_detail">WebM · جریان اصلی</string>
+    <string name="download_webm_detail">Opus · جریان اصلی</string>
     <string name="download_m4a_detail">AAC · جریان اصلی</string>
-    <string name="download_mp3_detail">%1$d kbps · همه‌جا پخش می‌شود</string>
-    <string name="settings_mp3_source_bitrate">دانلود MP3 با نرخ بیت اصلی</string>
-    <string name="settings_mp3_source_bitrate_hint">MP3 را به‌جای 320 kbps با حدود 256 kbps (نرخ بیت متغیر) رمزگذاری کن. فایل‌های کوچک‌تر، همان کیفیت.</string>
+    <string name="download_mp3_detail">همه‌جا پخش می‌شود</string>
     <string name="download_audio_track">تراک صوتی</string>
     <string name="download_captions">زیرنویس</string>
     <string name="download_captions_off">خاموش</string>
@@ -487,7 +485,7 @@
     <string name="download_no_subtitles">موردی موجود نیست</string>
     <string name="dialog_ok_done">انجام شد</string>
     <string name="download_captions_as_lyrics">%1$s · به‌عنوان متن ترانه</string>
-    <string name="download_lyrics_note">MP3 زیرنویس‌ها را به‌عنوان متن ترانه نگه می‌دارد که در پخش‌کننده‌های پشتیبانی‌کننده نمایش داده می‌شود.</string>
+    <string name="download_lyrics_note">این قالب زیرنویس‌ها را به‌عنوان متن ترانه نگه می‌دارد که در پخش‌کننده‌های پشتیبانی‌کننده نمایش داده می‌شود.</string>
     <string name="download_caption_translated">%1$s (ترجمه خودکار)</string>
     <string name="download_live_unsupported">ویدیوی زنده قابل دانلود نیست</string>
     <string name="download_save_quick">ذخیره به‌عنوان دانلود سریع</string>
@@ -633,4 +631,15 @@
     <string name="a11y_key_arrow_up">پیکان بالا</string>
     <string name="a11y_key_arrow_down">پیکان پایین</string>
     <string name="cd_always_on_top">همیشه در بالا</string>
+    <string name="settings_caption_size">اندازه</string>
+    <string name="caption_size_preview">زیرنویس‌ها این‌گونه دیده می‌شوند</string>
+    <string name="settings_caption_style">سبک زیرنویس</string>
+    <string name="settings_caption_style_hint">اندازه، رنگ و پس‌زمینه زیرنویس ویدیو</string>
+    <string name="caption_text_color">رنگ متن</string>
+    <string name="caption_background">پس‌زمینه</string>
+    <string name="caption_background_opacity">کدری پس‌زمینه</string>
+    <string name="download_quality_save">کم‌حجم</string>
+    <string name="download_quality_medium">متوسط</string>
+    <string name="download_quality_best">بهترین</string>
+    <string name="download_kbps">%1$d kbps</string>
 </resources>

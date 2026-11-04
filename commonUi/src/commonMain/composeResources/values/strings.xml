@@ -548,11 +548,9 @@
     <string name="download_more_qualities">+%1$d more</string>
     <string name="download_down_to">down to %1$s</string>
     <string name="download_less">Less</string>
-    <string name="download_webm_detail">WebM · original stream</string>
+    <string name="download_webm_detail">Opus · original stream</string>
     <string name="download_m4a_detail">AAC · original stream</string>
-    <string name="download_mp3_detail">%1$d kbps · plays everywhere</string>
-    <string name="settings_mp3_source_bitrate">Download MP3 at original bitrate</string>
-    <string name="settings_mp3_source_bitrate_hint">Encode MP3 at about 256 kbps (variable bitrate) instead of 320 kbps. Smaller files, same quality.</string>
+    <string name="download_mp3_detail">Plays everywhere</string>
     <string name="download_audio_track">Audio track</string>
     <string name="download_captions">Captions</string>
     <string name="download_captions_off">Off</string>
@@ -582,7 +580,7 @@
     <string name="download_no_subtitles">None available</string>
     <string name="dialog_ok_done">Done</string>
     <string name="download_captions_as_lyrics">%1$s · as lyrics</string>
-    <string name="download_lyrics_note">MP3 keeps captions as lyrics, shown by players that read lyrics.</string>
+    <string name="download_lyrics_note">This format keeps captions as lyrics, shown by players that read lyrics.</string>
     <string name="download_caption_translated">%1$s (auto-translated)</string>
     <string name="download_live_unsupported">Can’t download a LIVE video</string>
     <string name="download_save_quick">Save as Quick download</string>
@@ -789,4 +787,15 @@
     <string name="a11y_key_arrow_up">up arrow</string>
     <string name="a11y_key_arrow_down">down arrow</string>
     <string name="cd_always_on_top">Always on top</string>
+    <string name="settings_caption_size">Size</string>
+    <string name="caption_size_preview">Captions will look like this</string>
+    <string name="settings_caption_style">Caption style</string>
+    <string name="settings_caption_style_hint">Size, color and background of video captions</string>
+    <string name="caption_text_color">Text color</string>
+    <string name="caption_background">Background</string>
+    <string name="caption_background_opacity">Background opacity</string>
+    <string name="download_quality_save">Save</string>
+    <string name="download_quality_medium">Medium</string>
+    <string name="download_quality_best">Best</string>
+    <string name="download_kbps">%1$d kbps</string>
 </resources>

@@ -517,11 +517,9 @@
     <string name="download_more_qualities">+%1$d nữa</string>
     <string name="download_down_to">xuống %1$s</string>
     <string name="download_less">Thu gọn</string>
-    <string name="download_webm_detail">WebM · luồng gốc</string>
+    <string name="download_webm_detail">Opus · luồng gốc</string>
     <string name="download_m4a_detail">AAC · luồng gốc</string>
-    <string name="download_mp3_detail">%1$d kbps · phát ở mọi nơi</string>
-    <string name="settings_mp3_source_bitrate">Tải MP3 với bitrate gốc</string>
-    <string name="settings_mp3_source_bitrate_hint">Mã hóa MP3 ở khoảng 256 kbps (bitrate thay đổi) thay vì 320 kbps. Tệp nhỏ hơn, chất lượng như nhau.</string>
+    <string name="download_mp3_detail">Phát ở mọi nơi</string>
     <string name="download_audio_track">Bản âm thanh</string>
     <string name="download_captions">Phụ đề</string>
     <string name="download_captions_off">Tắt</string>
@@ -551,7 +549,7 @@
     <string name="download_no_subtitles">Không có</string>
     <string name="dialog_ok_done">Xong</string>
     <string name="download_captions_as_lyrics">%1$s · dạng lời bài hát</string>
-    <string name="download_lyrics_note">MP3 lưu phụ đề dưới dạng lời bài hát, hiển thị trong trình phát hỗ trợ lời bài hát.</string>
+    <string name="download_lyrics_note">Định dạng này lưu phụ đề dưới dạng lời bài hát, hiển thị trong trình phát hỗ trợ lời bài hát.</string>
     <string name="download_caption_translated">%1$s (dịch tự động)</string>
     <string name="download_live_unsupported">Không thể tải video đang phát trực tiếp</string>
     <string name="download_save_quick">Lưu làm Tải nhanh</string>
@@ -747,4 +745,15 @@
     <string name="a11y_key_arrow_up">mũi tên lên</string>
     <string name="a11y_key_arrow_down">mũi tên xuống</string>
     <string name="cd_always_on_top">Luôn ở trên cùng</string>
+    <string name="settings_caption_size">Cỡ chữ</string>
+    <string name="caption_size_preview">Phụ đề sẽ trông như thế này</string>
+    <string name="settings_caption_style">Kiểu phụ đề</string>
+    <string name="settings_caption_style_hint">Cỡ chữ, màu và nền của phụ đề video</string>
+    <string name="caption_text_color">Màu chữ</string>
+    <string name="caption_background">Nền</string>
+    <string name="caption_background_opacity">Độ mờ của nền</string>
+    <string name="download_quality_save">Tiết kiệm</string>
+    <string name="download_quality_medium">Trung bình</string>
+    <string name="download_quality_best">Tốt nhất</string>
+    <string name="download_kbps">%1$d kbps</string>
 </resources>

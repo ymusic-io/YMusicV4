@@ -22,12 +22,19 @@ import projectcommon.error.CodedError
 enum class DownloadFormat(val kind: DownloadKind, val fileExtension: String) {
     MP3(DownloadKind.AUDIO, "mp3"),
     M4A(DownloadKind.AUDIO, "m4a"),
-    AUDIO_WEBM(DownloadKind.AUDIO, "webm"),
+    /** Opus in Ogg. The name is persisted on tasks, so it outlives the container it was named for. */
+    AUDIO_WEBM(DownloadKind.AUDIO, "opus"),
     VIDEO_WEBM(DownloadKind.VIDEO, "webm"),
     VIDEO_MP4(DownloadKind.VIDEO, "mp4"),
 }
 
+/** The container has no subtitle tracks, so captions go in as LRC lyrics. */
+val DownloadFormat.captionsAsLyrics: Boolean get() = this == DownloadFormat.MP3 || this == DownloadFormat.AUDIO_WEBM
+
 enum class DownloadKind { AUDIO, VIDEO }
+
+/** An audio-only download's size/quality tier, lowest first. */
+enum class AudioQuality { SAVE, MEDIUM, BEST }
 
 /**
  * Lifecycle of one download. Only [QUEUED], [PAUSED] and [FAILED] are resumable entry points; the
@@ -89,12 +96,15 @@ class DownloadRequest(
     /** A preferred caption language, resolved when the download runs: the track in it (uploaded,
      *  auto-generated or auto-translated), else the video's default caption. Used when [captions] is null. */
     val captionLanguage: String? = null,
-    /** MP3 only: encode [Mp3Encoding.VBR_V0] instead of [Mp3Encoding.ABR_320]. */
-    val mp3SourceBitrate: Boolean = false,
+    /** Audio-only outputs: the stream tier for Opus/M4A, the encoding for MP3. */
+    val audioQuality: AudioQuality = AudioQuality.BEST,
 )
 
-/** Captions picked for one download — caption keys ([captionKey]). Embedded as subtitle tracks; MP3,
- *  which has none, gets them as LRC lyrics in its ID3 tag. */
+/** One exact stream of a video: [lmt] changes when YouTube re-encodes an [itag]. */
+data class StreamId(val itag: Int, val lmt: Long)
+
+/** Captions picked for one download — caption keys ([captionKey]). Embedded as subtitle tracks; a format
+ *  with none ([captionsAsLyrics]) gets them as LRC lyrics in its tags. */
 class CaptionChoice(val languages: List<String>)
 
 /**
@@ -129,7 +139,10 @@ class DownloadTask(
     val captionLanguage: String? = null,
     /** The failure's [CodedError.code] — a well-known category or an `E#####` site code; null unless FAILED. */
     val errorCode: String? = null,
-    val mp3SourceBitrate: Boolean = false,
+    val audioQuality: AudioQuality = AudioQuality.BEST,
+    /** The streams the scratches hold, kept across runs: their bytes can only continue those streams. */
+    val audioStream: StreamId? = null,
+    val videoStream: StreamId? = null,
 ) {
     /** 0f..1f, or null when the total isn't known yet (before the first MEDIA_HEADER). */
     val progress: Float?
@@ -147,7 +160,7 @@ class DownloadTask(
     ) = DownloadTask(
         id, videoId, title, artist, thumbnailUrl, format, requestedHeight,
         state, downloadedBytes, totalBytes, fileUri, errorMessage, createdAt, updatedAt,
-        fileName, audioTrackId, captions, audioLanguage, captionLanguage, errorCode, mp3SourceBitrate,
+        fileName, audioTrackId, captions, audioLanguage, captionLanguage, errorCode, audioQuality, audioStream, videoStream,
     )
 }
 

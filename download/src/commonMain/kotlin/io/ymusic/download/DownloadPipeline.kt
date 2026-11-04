@@ -6,6 +6,7 @@ import io.ymusic.ytmedia.sabr.AdaptiveFormat
 import io.ymusic.ytmedia.sabr.SabrStreamSpec
 import kmpcommon.log.Logger
 import kmphttp.KmpHttpClient
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import okio.buffer
@@ -64,8 +65,8 @@ class DownloadPipeline(
         onDownloading: () -> Unit,
         onProcessing: () -> Unit,
         onProgress: (done: Long, total: Long) -> Unit,
-        /** The output format changed from the task's (WebM video unavailable → MP4); persist it. */
-        onFormatChanged: (DownloadFormat) -> Unit = {},
+        /** The output (WebM video unavailable → MP4) or streams differ from the task's; see [YtStreamDownloader.download]. */
+        onStreams: suspend (format: DownloadFormat, audio: StreamId, video: StreamId?) -> Unit = { _, _, _ -> },
     ): Result {
         // A previous run already produced the final file and failed only to publish it (e.g. the download
         // folder lost its write grant): publish that again, skipping steps 1-2.
@@ -75,8 +76,7 @@ class DownloadPipeline(
         }
 
         // 1. download the elementary streams (+ captions) to scratch files.
-        val streams = downloader.download(task, onPreparing, onDownloading, onProgress)
-        if (streams.format != task.format) onFormatChanged(streams.format)
+        val streams = downloader.download(task, onPreparing, onDownloading, onStreams, onProgress)
         return assemble(task.copy(format = streams.format), streams, destinationFolder, onProcessing, onProgress)
     }
 
@@ -121,15 +121,16 @@ class DownloadPipeline(
         val subs = streams.captions.map { SubtitleInput(it.scratch.path, it.languageCode, it.name) }
         when (task.format) {
             DownloadFormat.MP3 -> {
-                val encoding = Mp3Encoding.of(task.mp3SourceBitrate)
+                val encoding = Mp3Encoding.of(task.audioQuality)
                 withCover(task) { cover -> ff.toMp3(audio.path, out.path, encoding, cover, meta, onFfProgress) }
                 if (streams.captions.isNotEmpty()) outName = withLyrics(task.id, out, streams.captions)
             }
             DownloadFormat.M4A -> withCover(task) { cover ->
                 ff.toM4a(audio.path, out.path, captions = subs, cover = cover, metadata = meta, onProgressUs = onFfProgress)
             }
-            DownloadFormat.AUDIO_WEBM -> withCover(task) { cover ->
-                ff.toWebmAudio(audio.path, out.path, captions = subs, cover = cover, metadata = meta, onProgressUs = onFfProgress)
+            DownloadFormat.AUDIO_WEBM -> {
+                ff.toOpus(audio.path, out.path, meta, onFfProgress)
+                outName = withOpusTags(task, out, streams.captions)
             }
             DownloadFormat.VIDEO_WEBM -> ff.muxWebm(video!!.path, audio.path, out.path, captions = subs, metadata = meta, onProgressUs = onFfProgress)
             DownloadFormat.VIDEO_MP4 -> ff.muxMp4(video!!.path, audio.path, out.path, subs, meta, onFfProgress)
@@ -223,6 +224,46 @@ class DownloadPipeline(
         tagged.delete()
         return OUT_SCRATCH
     }
+
+    /** The name of the scratch holding [opus] (the [OUT_SCRATCH]) with cover art and [captions] (as LRC lyrics)
+     *  in its tags — a new scratch, or [OUT_SCRATCH] itself when there is nothing to add. Best-effort tag by
+     *  tag like both of those: a failure is logged and the song still publishes with the rest. */
+    private suspend fun withOpusTags(task: DownloadTask, opus: DownloadScratch, captions: List<DownloadedCaption>): String {
+        val comments = buildList {
+            opusComment("cover") {
+                coverArt.fetch(task)?.let { cover -> OggOpusTags.pictureComment(cover.source().buffer().use { it.readByteArray() }) }
+            }?.let(::add)
+            captions.forEach { cc ->
+                opusComment("lyrics ${cc.languageCode}") {
+                    val lrc = cc.scratch.source().buffer().use { VttToLrc.convert(it.readUtf8()) }
+                    if (lrc.isEmpty()) null else "LYRICS=$lrc"
+                }?.let(::add)
+            }
+        }
+        if (comments.isEmpty()) return OUT_SCRATCH
+        val tagged = storage.scratch(task.id, OUT_LYRICS_SCRATCH)
+        try {
+            tagged.delete()
+            opus.source().buffer().use { source ->
+                tagged.appendSink().use { sink -> OggOpusTags.insert(source, sink, comments) }
+            }
+            return OUT_LYRICS_SCRATCH
+        } catch (e: Exception) {
+            logger?.log(Logger.Level.WARN, "opus tags failed; publishing without them", e)
+        }
+        tagged.delete()
+        return OUT_SCRATCH
+    }
+
+    private inline fun opusComment(tag: String, build: () -> String?): String? =
+        try {
+            build()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            logger?.log(Logger.Level.WARN, "opus $tag failed; publishing without it", e)
+            null
+        }
 
     /** Container tags embedded into the finished file. The videoId goes in the standard `composer` field
      *  — it survives in both ID3 (TCOM) and MP4 (©wrt), and the app's ffmpeg metadata parser reads it

@@ -452,11 +452,9 @@
     <string name="download_more_qualities">+%1$d lagi</string>
     <string name="download_down_to">hingga %1$s</string>
     <string name="download_less">Kurang</string>
-    <string name="download_webm_detail">WebM · strim asal</string>
+    <string name="download_webm_detail">Opus · strim asal</string>
     <string name="download_m4a_detail">AAC · strim asal</string>
-    <string name="download_mp3_detail">%1$d kbps · boleh dimainkan di mana-mana</string>
-    <string name="settings_mp3_source_bitrate">Muat turun MP3 pada kadar bit asal</string>
-    <string name="settings_mp3_source_bitrate_hint">Kodkan MP3 pada kira-kira 256 kbps (kadar bit berubah) dan bukannya 320 kbps. Fail lebih kecil, kualiti sama.</string>
+    <string name="download_mp3_detail">Boleh dimainkan di mana-mana</string>
     <string name="download_audio_track">Trek audio</string>
     <string name="download_captions">Sari kata</string>
     <string name="download_captions_off">Mati</string>
@@ -483,7 +481,7 @@
     <string name="download_no_subtitles">Tiada yang tersedia</string>
     <string name="dialog_ok_done">Selesai</string>
     <string name="download_captions_as_lyrics">%1$s · sebagai lirik</string>
-    <string name="download_lyrics_note">MP3 menyimpan sari kata sebagai lirik, dipaparkan oleh pemain yang membaca lirik.</string>
+    <string name="download_lyrics_note">Format ini menyimpan sari kata sebagai lirik, dipaparkan oleh pemain yang membaca lirik.</string>
     <string name="download_caption_translated">%1$s (diterjemahkan secara automatik)</string>
     <string name="download_live_unsupported">Tidak dapat memuat turun video LANGSUNG</string>
     <string name="download_save_quick">Simpan sebagai Muat turun pantas</string>
@@ -625,4 +623,15 @@
     <string name="a11y_key_arrow_up">anak panah atas</string>
     <string name="a11y_key_arrow_down">anak panah bawah</string>
     <string name="cd_always_on_top">Sentiasa di atas</string>
+    <string name="settings_caption_size">Saiz</string>
+    <string name="caption_size_preview">Kapsyen akan kelihatan seperti ini</string>
+    <string name="settings_caption_style">Gaya kapsyen</string>
+    <string name="settings_caption_style_hint">Saiz, warna dan latar belakang kapsyen video</string>
+    <string name="caption_text_color">Warna teks</string>
+    <string name="caption_background">Latar belakang</string>
+    <string name="caption_background_opacity">Kelegapan latar belakang</string>
+    <string name="download_quality_save">Jimat</string>
+    <string name="download_quality_medium">Sederhana</string>
+    <string name="download_quality_best">Terbaik</string>
+    <string name="download_kbps">%1$d kbps</string>
 </resources>

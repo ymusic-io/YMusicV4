@@ -63,16 +63,13 @@ class Ffmpeg(
         onProgressUs: ((Long) -> Unit)? = null,
     ) = run(m4aArgs(input, output, captions, metadata, cover), onProgressUs)
 
-    /** Opus audio → audio-only WebM, stream-copied (+ any [captions], as WebVTT). A JPEG [cover] goes in
-     *  as a Matroska attachment. */
-    suspend fun toWebmAudio(
+    /** Opus → Ogg, stream-copied. Cover and lyrics are added afterward ([OggOpusTags]). */
+    suspend fun toOpus(
         input: String,
         output: String,
-        captions: List<SubtitleInput> = emptyList(),
-        cover: String? = null,
         metadata: List<Pair<String, String>> = emptyList(),
         onProgressUs: ((Long) -> Unit)? = null,
-    ) = run(webmAudioArgs(input, output, captions, metadata, cover), onProgressUs)
+    ) = run(opusArgs(input, output, metadata), onProgressUs)
 
     /** Mux VP9/AV1 video + Opus audio, both stream-copied (+ any [captions], as WebVTT), into one WebM. */
     suspend fun muxWebm(
@@ -156,6 +153,7 @@ internal fun mp3Args(
     if (cover != null) addAll(coverOutputArgs(inputIndex = 1))
     add("-c:a"); add("libmp3lame")
     when (encoding) {
+        Mp3Encoding.ABR_128 -> { add("-abr"); add("1"); add("-b:a"); add("128k") }
         Mp3Encoding.ABR_320 -> { add("-abr"); add("1"); add("-b:a"); add("320k") }
         Mp3Encoding.VBR_V0 -> { add("-q:a"); add("0") }
     }
@@ -185,32 +183,16 @@ internal fun m4aArgs(
     add("-f"); add("ipod"); add(output.ffSpec()) // ipod = the m4a muxer
 }
 
-/**
- * Opus audio (+ subtitles as WebVTT) → audio-only WebM, audio stream-copied. With a
- * [cover] it is written by the `matroska` muxer: the `webm` one drops attachments (WebM's spec omits
- * them), and Matroska-reading players take a `cover.jpg` attachment as the artwork.
- */
-internal fun webmAudioArgs(
+internal fun opusArgs(
     audio: String,
     output: String,
-    captions: List<SubtitleInput>,
     metadata: List<Pair<String, String>>,
-    cover: String? = null,
 ): List<String> = buildList {
     add("-i"); add(audio.ffSpec())
-    captions.forEach { add("-i"); add(it.path.ffSpec()) }
     add("-map"); add("0:a:0")
-    captions.indices.forEach { add("-map"); add("${it + 1}:0") }
     add("-c:a"); add("copy")
-    if (captions.isNotEmpty()) { add("-c:s"); add("webvtt") }
-    addAll(subtitleMetaArgs(captions))
-    if (cover != null) {
-        add("-attach"); add(cover.ffSpec())
-        add("-metadata:s:t:0"); add("mimetype=image/jpeg")
-        add("-metadata:s:t:0"); add("filename=cover.jpg")
-    }
     addAll(metaArgs(metadata))
-    add("-f"); add(if (cover != null) "matroska" else "webm"); add(output.ffSpec())
+    add("-f"); add("opus"); add(output.ffSpec())
 }
 
 /** Mux video + AAC audio (+subtitles as mov_text) into an MP4, both stream-copied. */

@@ -170,6 +170,7 @@ import io.ymusic.ui.resources.cd_always_on_top
 import io.ymusic.ui.resources.cd_close
 import io.ymusic.ui.resources.cd_fullscreen
 import io.ymusic.ui.resources.cd_minimize
+import io.ymusic.ui.resources.error_generic
 import io.ymusic.ui.resources.folder_picker_title
 import io.ymusic.ui.resources.playlist_menu_backup
 import io.ymusic.ui.resources.playlist_menu_restore
@@ -215,6 +216,7 @@ import okio.Path.Companion.toPath
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import projectcommon.error.TechnicalException
 import java.awt.BorderLayout
 import java.awt.Canvas
 import java.awt.Desktop
@@ -280,15 +282,17 @@ private var mseViewportPlayer: io.ymusic.player.mse.MsePlayer? = null
 private var mainWindow: Frame? = null
 
 fun main(args: Array<String>) {
+    if (isWindows) WindowsAppId.claim(rootLogger.fork("app-id"))
     defaultLinuxSoftwareRendering()
     // The log moved to logs.db: the text log files of older builds go.
     File(ymusicDataDir(), "logs").listFiles { file -> file.name.startsWith("ymusic.log") }?.forEach { it.delete() }
+    val launchFiles = launchFileUris(args.toList())
     // macOS LaunchServices already keeps one app process; Windows and Linux start one per launch.
     val instance = if (isWindows || isLinux) {
         val command = InstanceCommand.of(args.toList())
         val log = rootLogger.fork("instance")
         val claim = try {
-            SingleInstance.claim(ymusicDataDir(), command, log)
+            SingleInstance.claim(ymusicDataDir(), command, launchFiles, log)
         } catch (e: InstanceHandoffException) {
             log.log(Logger.Level.ERROR, "another instance holds the lock but did not answer", e)
             flushLogBeforeExit()
@@ -306,6 +310,7 @@ fun main(args: Array<String>) {
     } else {
         null
     }
+    IncomingFiles.open(launchFiles)
     useBundledMseNatives()
     QuickJsRuntime.hostVersions = hostVersions()
     // macOS delivers ymusic:// opens (Info.plist CFBundleURLTypes) as Apple Events to the running
@@ -313,6 +318,13 @@ fun main(args: Array<String>) {
     if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.APP_OPEN_URI)) {
         Desktop.getDesktop().setOpenURIHandler { event ->
             IncomingLinks.open(event.uri.toString())
+            showWindowRequests.tryEmit(Unit)
+        }
+    }
+    // Finder's Open With, delivered the same way: Info.plist CFBundleDocumentTypes.
+    if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.APP_OPEN_FILE)) {
+        Desktop.getDesktop().setOpenFileHandler { event ->
+            IncomingFiles.open(event.files.map { fileUri(it.path).toString() })
             showWindowRequests.tryEmit(Unit)
         }
     }
@@ -719,9 +731,10 @@ fun main(args: Array<String>) {
         // Gone while quitting: the queue clear would otherwise republish tasks after quit cleared them.
         if (jumpListExe != null && !quitting) JumpListTasks(jumpListExe, playing, queueNotEmpty, rootLogger.fork("jump-list"))
         LaunchedEffect(instance) {
-            instance?.commands?.collect { command ->
+            instance?.requests?.collect { request ->
                 if (quitting) return@collect
-                when (command) {
+                IncomingFiles.open(request.fileUris)
+                when (request.command) {
                     InstanceCommand.Show -> showWindowRequests.tryEmit(Unit)
                     InstanceCommand.TogglePlay -> graph?.player?.togglePlay()
                     InstanceCommand.Stop -> {
@@ -730,6 +743,22 @@ fun main(args: Array<String>) {
                     }
                     InstanceCommand.Quit -> quit()
                 }
+            }
+        }
+        LaunchedEffect(graph) {
+            val ready = graph ?: return@LaunchedEffect
+            val metadata = withContext(Dispatchers.IO) { resolveFfmpeg() }?.let { FfmpegMetadataExtractor(FfmpegMetadataGetter(it)) }
+            IncomingFiles.uris.collect { uris ->
+                try {
+                    ready.playFiles(uris, metadata)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    val error = TechnicalException("E60067", "opening ${uris.size} file(s) failed", cause = e)
+                    rootLogger.fork("open-file").captureError(error)
+                    io.ymusic.ui.GlobalShortcutActions.showMessage(getString(Res.string.error_generic, error.code))
+                }
+                showWindowRequests.tryEmit(Unit)
             }
         }
         if (!quitting && (queueNotEmpty || !windowVisible)) {
@@ -978,9 +1007,11 @@ private suspend fun buildGraph(settings: AppStoreSettings, session: CookieSessio
         )
     }
 
-    // OS media surface — macOS Now Playing widget + media keys (Linux MPRIS / Windows SMTC have no
-    // backend yet). Commands come back on the Main dispatcher, where the player is driven.
-    connectMediaSession(player, CoroutineScope(Dispatchers.Main), rootLogger.fork("now-playing"))
+    // OS media surface + media keys (macOS Now Playing, Linux MPRIS, Windows SMTC). Commands come
+    // back on the Main dispatcher, where the player is driven.
+    connectMediaSession(player, CoroutineScope(Dispatchers.Main), imageLoader, rootLogger.fork("now-playing")) {
+        showWindowRequests.tryEmit(Unit)
+    }
 
     // Offline downloads: SABR stack over ffmpeg. Spec comes from the MSE engine's cached
     // /player + decoded googlevideo URL (preload if that video is not already cached).

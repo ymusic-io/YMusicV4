@@ -22,7 +22,7 @@ import okio.use
 import projectcommon.error.TechnicalException
 import projectcommon.error.codedError
 
-/** Caption tracks to fetch: the ones a per-task [choice] names (MP3 takes them as lyrics); else the
+/** Caption tracks to fetch: the ones a per-task [choice] names (MP3 and Opus take them as lyrics); else the
  *  track in [preferredLanguage] or, lacking it, the video's default; else none. */
 internal fun captionsToDownload(
     tracks: List<CaptionTrack>,
@@ -70,7 +70,8 @@ class DownloadedStreams(
  *     which drives the WebView.
  *  2. picks the concrete audio/video [AdaptiveFormat]s for the task and the caption tracks for [captions].
  *  3. streams each audio/video track to its own scratch file over SABR — resumable (the scratch's
- *     on-disk length is the resume point), re-attesting once if the PO token is rejected mid-stream.
+ *     on-disk length is the resume point, on the streams the task remembers), re-attesting once if the
+ *     PO token is rejected mid-stream.
  *  4. fetches each selected caption over plain HTTP (its baseUrl carries the content PO token, see
  *     [timedTextUrl]) into a scratch file.
  *
@@ -95,6 +96,8 @@ class YtStreamDownloader(
         task: DownloadTask,
         onPreparing: () -> Unit,
         onDownloading: () -> Unit,
+        /** The output and streams differ from the task's: persist them, before any byte lands. */
+        onStreams: suspend (format: DownloadFormat, audio: StreamId, video: StreamId?) -> Unit = { _, _, _ -> },
         onProgress: (done: Long, total: Long) -> Unit,
     ): DownloadedStreams {
         onPreparing()
@@ -106,6 +109,11 @@ class YtStreamDownloader(
 
         val audioScratch = storage.scratch(task.id, AUDIO_SCRATCH)
         val videoScratch = if (videoFmt != null) storage.scratch(task.id, "video") else null
+        dropOtherStream(task.audioStream, audioFmt, audioScratch)
+        if (videoFmt != null) dropOtherStream(task.videoStream, videoFmt, videoScratch!!)
+        if (format != task.format || audioFmt.streamId != task.audioStream || videoFmt?.streamId != task.videoStream) {
+            onStreams(format, audioFmt.streamId, videoFmt?.streamId)
+        }
 
         onDownloading()
         downloadTracks(
@@ -131,6 +139,13 @@ class YtStreamDownloader(
             artist = resolved.artist,
             format = format,
         )
+    }
+
+    /** Runs before the new pick is recorded, so a row never names a stream its scratch doesn't hold. */
+    private fun dropOtherStream(remembered: StreamId?, picked: AdaptiveFormat, scratch: DownloadScratch) {
+        if (remembered == null || remembered == picked.streamId) return
+        log?.log(Logger.Level.INFO, "stream $remembered is gone; restarting its scratch on ${picked.streamId}")
+        scratch.delete()
     }
 
     private suspend fun resolveSpec(videoId: String): ResolvedVideo =
@@ -159,10 +174,18 @@ class YtStreamDownloader(
     /** Choose the audio (and, for video outputs, video) [AdaptiveFormat]s for a [format] output. */
     private fun selectFormats(task: DownloadTask, format: DownloadFormat, formats: List<AdaptiveFormat>): Pair<AdaptiveFormat, AdaptiveFormat?> {
         val codec = AudioCodec.of(format)
-        val audio = FormatSelection.bestAudio(formats, codec, audioTrackId = task.audioTrackId, audioLanguage = task.audioLanguage)
+        val trackId = task.audioTrackId
+        val language = task.audioLanguage
+        val audio = task.audioStream?.let { FormatSelection.rememberedAudio(formats, codec, it, trackId, language) }
+            ?: when (format) {
+                DownloadFormat.M4A, DownloadFormat.AUDIO_WEBM -> FormatSelection.audioAt(formats, codec, task.audioQuality, trackId, language)
+                // A video keeps its best audio, and MP3 sets its quality when it encodes.
+                else -> FormatSelection.bestAudio(formats, codec, trackId, language)
+            }
             ?: throw TechnicalException("E70011", "no $codec audio format for ${task.videoId} ($format)")
         val video = if (format.kind == DownloadKind.VIDEO) {
-            FormatSelection.videoNearest(formats, task.requestedHeight, format)
+            task.videoStream?.let { FormatSelection.rememberedVideo(formats, it, format) }
+                ?: FormatSelection.videoNearest(formats, task.requestedHeight, format)
                 ?: throw TechnicalException("E70012", "no video format for ${task.videoId}")
         } else {
             null

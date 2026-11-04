@@ -26,6 +26,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.HighQuality
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.InsertDriveFile
 import androidx.compose.material.icons.outlined.Subtitles
@@ -59,6 +60,7 @@ import androidx.compose.ui.unit.sp
 import io.ymusic.download.DownloadFileNames
 import io.ymusic.download.DownloadFormat
 import io.ymusic.download.DownloadKind
+import io.ymusic.download.captionsAsLyrics
 import io.ymusic.ui.resources.Res
 import io.ymusic.ui.resources.dialog_cancel
 import io.ymusic.ui.resources.download_action
@@ -73,6 +75,7 @@ import io.ymusic.ui.resources.download_location_not_set
 import io.ymusic.ui.resources.download_lyrics_note
 import io.ymusic.ui.resources.download_mp4_note
 import io.ymusic.ui.resources.download_name_empty
+import io.ymusic.ui.resources.download_quality
 import io.ymusic.ui.resources.download_save_to
 import io.ymusic.ui.resources.download_subtitles
 import io.ymusic.ui.resources.download_title
@@ -146,7 +149,7 @@ private fun LeftPane(state: DownloadOptionsState, locationName: String?, onPickL
             ThumbImage(state.video.thumbs, RoundedCornerShape(10.dp)) {
                 ThumbPlaceholder(Icons.Outlined.Image, 26.dp)
             }
-            Badges(state.video, Modifier.align(Alignment.BottomEnd).padding(DesignSpacing.Space8), textSize = 11, iconSize = 14.dp)
+            Badges(state.badgeItem, Modifier.align(Alignment.BottomEnd).padding(DesignSpacing.Space8), textSize = 11, iconSize = 14.dp)
         }
         Column(verticalArrangement = Arrangement.spacedBy(DesignSpacing.Space4)) {
             Text(state.video.title, style = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = DesignColors.Ink, lineHeight = 18.sp), maxLines = 3)
@@ -208,16 +211,22 @@ private fun TrackRows(state: DownloadOptionsState) {
     TrackRow(Icons.Outlined.InsertDriveFile, stringResource(Res.string.download_format)) {
         FormatDropdown(state)
     }
+    if (state.showsAudioQuality) {
+        TrackRow(Icons.Outlined.HighQuality, stringResource(Res.string.download_quality)) {
+            val choices = audioQualityChoices(state)
+            DropdownField(audioQualityLabel(state)) { close -> ChoiceMenuItems(choices, close) }
+        }
+    }
     TrackRow(Icons.Outlined.VolumeUp, stringResource(Res.string.download_audio_language)) {
         val choices = audioTrackChoices(state)
         DropdownField(audioTrackLabel(state)) { close -> ChoiceMenuItems(choices, close) }
     }
     if (options.captions.isNotEmpty() && state.captionsSupported) {
-        TrackRow(Icons.Outlined.Subtitles, stringResource(Res.string.download_subtitles), alignTop = state.format == DownloadFormat.MP3) {
+        TrackRow(Icons.Outlined.Subtitles, stringResource(Res.string.download_subtitles), alignTop = state.format.captionsAsLyrics) {
             Column(verticalArrangement = Arrangement.spacedBy(DesignSpacing.Space4)) {
                 val choices = captionChoices(state)
                 DropdownField(captionSummary(state)) { close -> ChoiceMenuItems(choices, close) }
-                if (state.format == DownloadFormat.MP3) {
+                if (state.format.captionsAsLyrics) {
                     Text(stringResource(Res.string.download_lyrics_note), style = TextStyle(fontSize = 12.sp, color = DesignColors.InkSecondary))
                 }
             }
@@ -279,7 +288,7 @@ private fun FormatDropdown(state: DownloadOptionsState) {
         MenuGroupLabel(stringResource(Res.string.download_audio_only))
         options.audio.forEach { audio ->
             DropdownMenuItem(
-                text = { Text("${audio.format.displayName()} · ${audio.detail()} — ${formatDownloadSize(audio.bytes)}") },
+                text = { Text("${audio.format.displayName()} · ${audio.detail()}") },
                 onClick = {
                     state.audioOnly = true
                     state.audioFormat = audio.format

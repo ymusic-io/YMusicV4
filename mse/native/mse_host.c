@@ -114,6 +114,8 @@ struct MseHost {
     double v_resume_s;
     /* Where playback last started from (a seek target). */
     double v_start_t;
+    /* Video woke from rest and has not reached the clock yet: audio plays on while it catches up. */
+    int v_wake;
     AudioFx *fx;
     int16_t *fx_pcm;
     size_t fx_pcm_n;
@@ -908,6 +910,11 @@ static double video_bound(MseHost *h, double clock, double until, int have, doub
 {
     int done = !have || h->eos || (h->yt_dur > 0 && end + 1.5 >= h->yt_dur);
     *event = STARVE_NONE;
+    if (h->v_wake) {
+        if (!have || end < clock)
+            return until;
+        h->v_wake = 0;
+    }
     if (h->v_starve_ns > 0) {
         if (!done && end < clock + h->v_resume_s)
             return clock;
@@ -1619,6 +1626,8 @@ static void seek_common(MseHost *h, double seconds)
     h->gate = 1;
     pthread_cond_broadcast(&h->cv);
     wait_idle(h);
+    if (h->fx)
+        audio_fx_reset(h->fx);
     h->hold = seconds;
     h->seek_base = seconds;
     h->origin_ns = now_ns();
@@ -1627,6 +1636,7 @@ static void seek_common(MseHost *h, double seconds)
     h->v_starve_ns = 0;
     h->v_starve_end_ns = 0;
     h->v_start_t = seconds;
+    h->v_wake = 0;
 #ifdef MSE_DAC
     h->samples_played = 0;
     h->aq_started = 0;
@@ -1656,6 +1666,8 @@ void mse_host_reset(MseHost *h)
     h->gate = 1;
     pthread_cond_broadcast(&h->cv);
     wait_idle(h);
+    if (h->fx)
+        audio_fx_reset(h->fx);
     h->gate = 0;
     h->hold = 0;
     h->seek_base = 0;
@@ -2139,6 +2151,7 @@ void mse_host_rest_video(MseHost *h, int on)
     clock = host_clock(h);
     mse_av_rest_video(h->av, on, clock);
     pthread_mutex_lock(&h->mu);
+    h->v_wake = !on;
     pthread_cond_broadcast(&h->cv);
     pthread_mutex_unlock(&h->mu);
     if (on)

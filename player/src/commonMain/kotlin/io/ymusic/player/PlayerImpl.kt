@@ -45,6 +45,8 @@ internal class PlayerImpl(
     /** Next queue index ([QueueController.peekNext]); [prepareNextArmed] once preload (or skip) ran. */
     private var prepareNextIndex: Int? = null
     private var prepareNextArmed = false
+    private var queueOrigin = QueueOrigin.Unknown
+    private var lastChange = QueueChange.Load
 
     /** [prepareNextIndex] came from a freshly loaded page — a user skip honors it too. */
     private var nextFromPage = false
@@ -138,8 +140,11 @@ internal class PlayerImpl(
         playWhenReady: Boolean,
         queueId: String?,
         source: QueueSource?,
+        origin: QueueOrigin,
     ) {
         if (released) return
+        queueOrigin = origin
+        lastChange = QueueChange.Load
         attachSource(source.takeIf { items.isNotEmpty() })
         controller.setQueue(items, playIndex, queueId ?: Uuid.random().toString())
         setPlayWhenReadyIntent(playWhenReady)
@@ -186,6 +191,7 @@ internal class PlayerImpl(
         if (released) return
         val removedCurrent = controller.removeAt(index)
         if (removedCurrent) {
+            lastChange = QueueChange.User
             publishQueue(refreshNext = false)
             if (controller.state.currentIndex >= 0) loadCurrent(0L) else {
                 refreshPrepareNext()
@@ -200,6 +206,7 @@ internal class PlayerImpl(
         if (released) return
         val removedCurrent = controller.removeRange(fromIndex, toIndex)
         if (removedCurrent) {
+            lastChange = QueueChange.User
             publishQueue(refreshNext = false)
             if (controller.state.currentIndex >= 0) loadCurrent(0L) else {
                 refreshPrepareNext()
@@ -221,6 +228,7 @@ internal class PlayerImpl(
     override fun playAt(index: Int) {
         if (released) return
         if (controller.moveTo(index)) {
+            lastChange = QueueChange.User
             publishQueue(refreshNext = false)
             setPlayWhenReadyIntent(true)
             loadCurrent(0L)
@@ -292,6 +300,7 @@ internal class PlayerImpl(
         val pagePick = prepareNextIndex.takeIf { nextFromPage }
         val next = if (pagePick != null) pagePick.also { controller.commitNext(it) } else controller.advance(userInitiated = true)
         if (next != null) {
+            lastChange = QueueChange.User
             publishQueue(refreshNext = false)
             loadCurrent(0L)
         }
@@ -306,6 +315,7 @@ internal class PlayerImpl(
         }
         val prev = controller.previous()
         if (prev != null) {
+            lastChange = QueueChange.User
             publishQueue(refreshNext = false)
             loadCurrent(0L)
         } else {
@@ -358,7 +368,7 @@ internal class PlayerImpl(
     override fun setBassBoost(db: Float) = pushConfig(currentConfig.copy(bassBoostDb = db.coerceIn(-12f, 12f)))
 
     override fun setVirtualizer(width: Float) =
-        pushConfig(currentConfig.copy(virtualizer = width.coerceIn(0f, 2f)))
+        pushConfig(currentConfig.copy(virtualizer = width.coerceIn(0.5f, 2f)))
 
     override fun setPreamp(db: Float) = pushConfig(currentConfig.copy(preampDb = db.coerceIn(-12f, 12f)))
 
@@ -478,7 +488,7 @@ internal class PlayerImpl(
     }
 
     private fun publishQueue(refreshNext: Boolean = true) {
-        _queue.value = controller.state.copy(more = more)
+        _queue.value = controller.state.copy(more = more, origin = queueOrigin, lastChange = lastChange)
         if (refreshNext) refreshPrepareNext()
         maybeLoadAhead()
     }
@@ -838,6 +848,7 @@ internal class PlayerImpl(
         val next = prepareNextIndex
         if (next != null) {
             controller.commitNext(next)
+            lastChange = QueueChange.Auto
             publishQueue(refreshNext = false)
             loadCurrent(0L)
         }

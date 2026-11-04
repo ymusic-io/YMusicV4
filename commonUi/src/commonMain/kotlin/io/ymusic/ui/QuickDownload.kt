@@ -7,6 +7,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import io.ymusic.download.AudioQuality
 import io.ymusic.download.CaptionChoice
 import io.ymusic.download.DownloadFileNames
 import io.ymusic.download.DownloadFormat
@@ -36,8 +37,9 @@ data class QuickDownloadPreset(
     val height: Int?,
     val audioLanguage: String?,
     val captionLanguage: String?,
+    val audioQuality: AudioQuality = AudioQuality.BEST,
 ) {
-    fun request(video: YtFeedItem, mp3SourceBitrate: Boolean, fileNamePrefix: String = ""): DownloadRequest = DownloadRequest(
+    fun request(video: YtFeedItem, fileNamePrefix: String = ""): DownloadRequest = DownloadRequest(
         videoId = video.id,
         title = video.title,
         artist = null,
@@ -48,11 +50,12 @@ data class QuickDownloadPreset(
         captions = if (captionLanguage == null) CaptionChoice(emptyList()) else null,
         audioLanguage = audioLanguage,
         captionLanguage = captionLanguage,
-        mp3SourceBitrate = mp3SourceBitrate,
+        audioQuality = audioQuality,
     )
 
     fun encode(): String = buildJsonObject {
         put(KEY_FORMAT, format.name)
+        put(KEY_AUDIO_QUALITY, audioQuality.name)
         height?.let { put(KEY_HEIGHT, it) }
         audioLanguage?.let { put(KEY_AUDIO, it) }
         captionLanguage?.let { put(KEY_CAPTION, it) }
@@ -60,12 +63,13 @@ data class QuickDownloadPreset(
 
     companion object {
         private const val KEY_FORMAT = "format"
+        private const val KEY_AUDIO_QUALITY = "audioQuality"
         private const val KEY_HEIGHT = "height"
         private const val KEY_AUDIO = "audioLanguage"
         private const val KEY_CAPTION = "captionLanguage"
 
         /**
-         * Opus (YouTube's best audio, ~256 kbps in WebM) when ffmpeg can write the WebM, else M4A; the default
+         * Opus (YouTube's best audio, in Ogg) when ffmpeg can write the WebM, else M4A; the default
          * audio track; captions in the device language — until the user saves a preset.
          */
         fun default(ffmpegAvailable: Boolean): QuickDownloadPreset = QuickDownloadPreset(
@@ -85,6 +89,7 @@ data class QuickDownloadPreset(
                 height = json.intOrNull(KEY_HEIGHT),
                 audioLanguage = json.stringOrNull(KEY_AUDIO),
                 captionLanguage = json.stringOrNull(KEY_CAPTION),
+                audioQuality = AudioQuality.entries.firstOrNull { it.name == json.stringOrNull(KEY_AUDIO_QUALITY) } ?: AudioQuality.BEST,
             )
         }
     }
@@ -125,7 +130,7 @@ internal fun QuickDownloadHost(graph: AppGraph, pending: YtFeedItem?, format: Do
     LaunchedEffect(video) {
         val gated = graph.mediaStore != null && graph.libraryFolderPicker != null
         if (!gated || hasUsableDownloadLocation(graph) || pickDownloadFolder(graph, snackbar, scans)) {
-            downloads.enqueue(preset.request(video, graph.mp3SourceBitrate()))
+            downloads.enqueue(preset.request(video))
             snackbar(added)
         }
         onDone()

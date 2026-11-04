@@ -36,8 +36,8 @@ import io.ymusic.player.CaptionLine
  * taller swaps.
  */
 @Composable
-fun CaptionOverlay(lines: List<CaptionLine>, modifier: Modifier = Modifier) {
-    val style = MaterialTheme.typography.bodyLarge
+fun CaptionOverlay(lines: List<CaptionLine>, look: CaptionLook, modifier: Modifier = Modifier) {
+    val style = captionStyle(look.scale)
     val inset = captionInsetFraction()
     val strip = remember { CaptionStrip() }
     val frame = strip.advance(lines)
@@ -49,7 +49,7 @@ fun CaptionOverlay(lines: List<CaptionLine>, modifier: Modifier = Modifier) {
     Layout(
         content = {
             frame.entries.forEach { entry ->
-                key(entry.id) { CaptionCue(entry.text, style) }
+                key(entry.id) { CaptionCue(entry.text, style, look) }
             }
         },
         modifier = modifier.fillMaxWidth().clipToBounds(),
@@ -90,17 +90,29 @@ private fun Density.captionRowHeight(style: TextStyle): Dp = style.lineHeight.to
 
 /** Two caption rows: what the area below the picture must fit for captions to sit there. */
 @Composable
-fun captionTwoRowHeight(): Dp = with(LocalDensity.current) { captionRowHeight(MaterialTheme.typography.bodyLarge) * 2 }
+fun captionTwoRowHeight(scale: Float): Dp = with(LocalDensity.current) { captionRowHeight(captionStyle(scale)) * 2 }
 
 @Composable
-private fun CaptionCue(text: String, style: TextStyle) {
+internal fun captionStyle(scale: Float): TextStyle {
+    val base = MaterialTheme.typography.bodyLarge
+    return base.copy(fontSize = base.fontSize * scale, lineHeight = base.lineHeight * scale)
+}
+
+/** The user's caption style: size multiplier, text color, and box color (alpha = its opacity). */
+data class CaptionLook(val scale: Float, val text: Color, val background: Color)
+
+internal fun captionColor(hex: String, fallback: Color): Color =
+    hex.toLongOrNull(16)?.takeIf { hex.length == 6 }?.let { Color(0xFF000000 or it) } ?: fallback
+
+@Composable
+internal fun CaptionCue(text: String, style: TextStyle, look: CaptionLook) {
     Text(
         text = text,
-        color = Color.White,
+        color = look.text,
         style = style,
         textAlign = TextAlign.Start,
         modifier = Modifier
-            .background(Color.Black.copy(alpha = 0.55f), RoundedCornerShape(4.dp))
+            .background(look.background, RoundedCornerShape(4.dp))
             .padding(horizontal = DesignSpacing.Space8, vertical = DesignSpacing.Space2),
     )
 }
