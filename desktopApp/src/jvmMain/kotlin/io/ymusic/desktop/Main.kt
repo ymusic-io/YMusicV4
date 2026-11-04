@@ -1017,6 +1017,7 @@ private suspend fun buildGraph(settings: AppStoreSettings, session: CookieSessio
     // /player + decoded googlevideo URL (preload if that video is not already cached).
     val downloadService = withContext(Dispatchers.IO) {
         val ffmpegPath = resolveFfmpeg()
+        if (ffmpegPath == null) rootLogger.fork("ffmpeg").log(Logger.Level.WARN, "no executable ffmpeg found")
         val ffmpeg = ffmpegPath?.let { io.ymusic.download.Ffmpeg(it) }
         // Probes a finished download's metadata into its Library bucket (same path as the folder scan);
         // null without ffmpeg → registerCompletedDownload falls back to a hand-built draft.
