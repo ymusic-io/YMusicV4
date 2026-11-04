@@ -97,7 +97,26 @@ import kotlin.math.sin
 private val EQ_HZ = listOf("31", "62", "125", "250", "500", "1k", "2k", "4k", "8k", "16k")
 private const val EQ_MAX_DB = 12f
 private const val BASS_MAX_DB = 12f
+private const val VIRTUALIZER_MIN = 0.5f
 private const val VIRTUALIZER_MAX = 2f
+private const val VIRTUALIZER_STEPS_PER_UNIT = 20f
+
+/** Two linear halves, so the neutral 1× sits at the knob's top. */
+private fun virtualizerFraction(width: Float): Float =
+    if (width <= 1f) {
+        (width - VIRTUALIZER_MIN) / (1f - VIRTUALIZER_MIN) / 2f
+    } else {
+        0.5f + (width - 1f) / (VIRTUALIZER_MAX - 1f) / 2f
+    }
+
+private fun virtualizerWidth(fraction: Float): Float {
+    val width = if (fraction <= 0.5f) {
+        VIRTUALIZER_MIN + fraction * 2f * (1f - VIRTUALIZER_MIN)
+    } else {
+        1f + (fraction - 0.5f) * 2f * (VIRTUALIZER_MAX - 1f)
+    }
+    return (width * VIRTUALIZER_STEPS_PER_UNIT).roundToInt() / VIRTUALIZER_STEPS_PER_UNIT
+}
 
 private val FaderBankCorner = 14.dp
 private val FaderHeight = 180.dp
@@ -213,10 +232,10 @@ internal fun EqualizerFxSheet(graph: AppGraph, onDismiss: () -> Unit) {
                 RotaryKnob(
                     enabled = enabled,
                     title = stringResource(Res.string.sound_virtualizer_title),
-                    fraction = config.virtualizer / VIRTUALIZER_MAX,
+                    fraction = virtualizerFraction(config.virtualizer),
                     valueText = "${trimFloat(config.virtualizer)}×",
-                    keyStep = 0.1f / VIRTUALIZER_MAX,
-                    onChange = { player.setVirtualizer((it * VIRTUALIZER_MAX * 10).roundToInt() / 10f) },
+                    keyStep = 0.1f,
+                    onChange = { player.setVirtualizer(virtualizerWidth(it)) },
                 )
             }
         }
