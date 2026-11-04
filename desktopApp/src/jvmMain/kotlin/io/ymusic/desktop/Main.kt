@@ -322,7 +322,7 @@ fun main(args: Array<String>) {
     // Finder's Open With, delivered the same way: Info.plist CFBundleDocumentTypes.
     if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.APP_OPEN_FILE)) {
         Desktop.getDesktop().setOpenFileHandler { event ->
-            IncomingFiles.open(event.files.map { it.toURI().toString() })
+            IncomingFiles.open(event.files.map { fileUri(it.path).toString() })
             showWindowRequests.tryEmit(Unit)
         }
     }
@@ -745,8 +745,9 @@ fun main(args: Array<String>) {
         }
         LaunchedEffect(graph) {
             val ready = graph ?: return@LaunchedEffect
+            val metadata = withContext(Dispatchers.IO) { resolveFfmpeg() }?.let { FfmpegMetadataExtractor(FfmpegMetadataGetter(it)) }
             IncomingFiles.uris.collect { uris ->
-                ready.playFiles(uris)
+                ready.playFiles(uris, metadata)
                 showWindowRequests.tryEmit(Unit)
             }
         }

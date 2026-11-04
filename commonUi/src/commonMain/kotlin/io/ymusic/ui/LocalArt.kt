@@ -14,6 +14,7 @@ import io.ymusic.imageloader.decodeScaledFile
 import io.ymusic.imageloader.sourceCacheKey
 import io.ymusic.mediastore.BetterMediaStore
 import io.ymusic.mediastore.model.MediaStoreItem
+import kmpcommon.uri.Uri
 import kmpcommon.uri.UriBuilder
 import kmpffmpeg.metadata.FfmpegMetadataGetter
 import kotlinx.coroutines.Dispatchers
@@ -47,6 +48,21 @@ fun youtubeThumbUrl(videoId: String): String = "https://i.ytimg.com/vi/$videoId/
 /** `art://yt/<videoId>` — a video's best thumbnail at the view size, for a file not in the store. */
 fun youtubeArtUrl(videoId: String): String =
     UriBuilder().scheme("art").authority("yt").appendPathSegment(videoId).buildString()
+
+/** `art://file?kind=…&uri=…` — art for a file not in the store: its embedded cover, else its video's
+ *  thumbnail, else a decoded frame. Null when it has none of those. */
+fun fileArtUrl(uri: String, hasCover: Boolean, youtubeVid: String?, hasVideo: Boolean): String? = when {
+    hasCover -> fileArtUrl(uri, ART_KIND_COVER)
+    youtubeVid != null -> youtubeArtUrl(youtubeVid)
+    hasVideo -> fileArtUrl(uri, ART_KIND_FRAME)
+    else -> null
+}
+
+private fun fileArtUrl(uri: String, kind: String): String =
+    UriBuilder().scheme("art").authority("file").appendQueryParam("kind", kind).appendQueryParam("uri", uri).buildString()
+
+private const val ART_KIND_COVER = "cover"
+private const val ART_KIND_FRAME = "frame"
 
 /** A video's thumbnail at a size — the art fetcher's fallback for files tagged with a video id. */
 fun interface YoutubeArt {
@@ -88,6 +104,13 @@ fun mediaStoreArtFetcher(
         val videoId = uri.path.toString().substringAfterLast('/').takeIf { it.isNotEmpty() }
             ?: throw ImageLoadException(ImageLoadException.Reason.Unsupported, "malformed art uri: $url")
         return@ImageFetcher youtubeArt.load(videoId, size, scale)
+    }
+    if (uri.authority?.toString() == "file") {
+        val file = uri.queryParamValue("uri")?.let { Uri.parse(it) }
+            ?: throw ImageLoadException(ImageLoadException.Reason.Unsupported, "malformed art uri: $url")
+        val source = if (uri.queryParamValue("kind")?.toString() == ART_KIND_COVER) getter.getAttachedPic(file) else getter.extractThumbnail(file)
+        val bytes = readCapped(source, maxImageBytes, url)
+        return@ImageFetcher decodeChecked(url) { decodeScaled(bytes, size, scale) }
     }
     if (uri.authority?.toString() != "pic") return@ImageFetcher null
     val id = uri.path.toString().substringAfterLast('/').toLongOrNull()
