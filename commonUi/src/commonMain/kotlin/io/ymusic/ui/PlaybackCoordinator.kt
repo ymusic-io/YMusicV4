@@ -22,7 +22,7 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.distinctUntilChangedBy
-import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -58,7 +58,7 @@ class PlaybackCoordinator(
                 }.distinctUntilChanged().collect { log.info(it) }
             }
             scope.launch {
-                player.queue.distinctUntilChangedBy { it.queueId }.drop(1).collect { queue ->
+                player.queue.filter { it.queueId != null }.distinctUntilChangedBy { it.queueId }.collect { queue ->
                     log.info("queue origin=${queue.origin.name.lowercase()} size=${queue.items.size} index=${queue.currentIndex}")
                 }
             }
