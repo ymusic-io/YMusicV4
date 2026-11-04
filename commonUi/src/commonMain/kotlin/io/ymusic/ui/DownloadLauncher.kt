@@ -84,7 +84,6 @@ internal fun DownloadDialogHost(graph: AppGraph, pending: YtFeedItem?, onDismiss
             video = video,
             downloads = downloads,
             preferredCaptionLanguage = graph.quickDownload.value.captionLanguage,
-            mp3SourceBitrate = graph.mp3SourceBitrate(),
         )
     }
     LaunchedEffect(state) { state.load(log) }

@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Headphones
+import androidx.compose.material.icons.outlined.HighQuality
 import androidx.compose.material.icons.outlined.InsertDriveFile
 import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.RecordVoiceOver
@@ -72,6 +73,7 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.ymusic.download.AudioOption
+import io.ymusic.download.AudioQuality
 import io.ymusic.download.CaptionOption
 import io.ymusic.download.DownloadFileNames
 import io.ymusic.download.DownloadFormat
@@ -96,6 +98,7 @@ import io.ymusic.ui.resources.download_failed
 import io.ymusic.ui.resources.download_file_name
 import io.ymusic.ui.resources.download_forbidden_hint
 import io.ymusic.ui.resources.download_format
+import io.ymusic.ui.resources.download_kbps
 import io.ymusic.ui.resources.download_less
 import io.ymusic.ui.resources.download_live_unsupported
 import io.ymusic.ui.resources.download_loading
@@ -105,6 +108,9 @@ import io.ymusic.ui.resources.download_more_qualities
 import io.ymusic.ui.resources.download_mp3_detail
 import io.ymusic.ui.resources.download_name_empty
 import io.ymusic.ui.resources.download_quality
+import io.ymusic.ui.resources.download_quality_best
+import io.ymusic.ui.resources.download_quality_medium
+import io.ymusic.ui.resources.download_quality_save
 import io.ymusic.ui.resources.download_rename
 import io.ymusic.ui.resources.download_save
 import io.ymusic.ui.resources.download_save_quick
@@ -171,6 +177,14 @@ internal fun DownloadSheet(
                                 stringResource(Res.string.download_container),
                                 state.format.displayName(),
                                 containerChoices(state),
+                            )
+                        }
+                        if (state.showsAudioQuality) {
+                            DropdownOptionRow(
+                                Icons.Outlined.HighQuality,
+                                stringResource(Res.string.download_quality),
+                                audioQualityLabel(state),
+                                audioQualityChoices(state),
                             )
                         }
                         DropdownOptionRow(
@@ -421,7 +435,6 @@ private fun AudioFormats(state: DownloadOptionsState, audio: List<AudioOption>) 
                     Text(option.format.displayName(), style = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Bold, color = DesignColors.Ink))
                     Text(option.detail(), style = TextStyle(fontSize = 12.sp, color = DesignColors.InkSecondary))
                 }
-                Text(formatDownloadSize(option.bytes), style = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = DesignColors.InkSecondary))
             }
         }
     }
@@ -439,7 +452,7 @@ internal fun DownloadFormat.displayName(): String = when (this) {
 internal fun AudioOption.detail(): String = when (format) {
     DownloadFormat.AUDIO_WEBM -> stringResource(Res.string.download_webm_detail)
     DownloadFormat.M4A -> stringResource(Res.string.download_m4a_detail)
-    DownloadFormat.MP3 -> stringResource(Res.string.download_mp3_detail, kbps ?: Mp3Encoding.ABR_320.kbps)
+    DownloadFormat.MP3 -> stringResource(Res.string.download_mp3_detail)
     DownloadFormat.VIDEO_WEBM, DownloadFormat.VIDEO_MP4 -> ""
 }
 
@@ -490,6 +503,27 @@ internal fun captionSummary(state: DownloadOptionsState): String {
 }
 
 /** One pickable entry of an options dropdown. */
+/** MP3 names its bitrate; a stream's bitrate is whatever YouTube offers, so it names the tier. */
+@Composable
+internal fun AudioQuality.label(format: DownloadFormat): String = when {
+    format == DownloadFormat.MP3 -> stringResource(Res.string.download_kbps, Mp3Encoding.of(this).kbps)
+    this == AudioQuality.SAVE -> stringResource(Res.string.download_quality_save)
+    this == AudioQuality.MEDIUM -> stringResource(Res.string.download_quality_medium)
+    else -> stringResource(Res.string.download_quality_best)
+}
+
+@Composable
+internal fun audioQualityLabel(state: DownloadOptionsState): String =
+    state.selectedAudioQuality?.let { "${it.quality.label(state.audioFormat)} · ${formatDownloadSize(it.bytes)}" }.orEmpty()
+
+@Composable
+internal fun audioQualityChoices(state: DownloadOptionsState): List<Choice> {
+    val selected = state.selectedAudioQuality?.quality
+    return state.audioOption?.qualities.orEmpty().map { option ->
+        Choice("${option.quality.label(state.audioFormat)} · ${formatDownloadSize(option.bytes)}", option.quality == selected) { state.audioQuality = option.quality }
+    }
+}
+
 internal class Choice(val label: String, val selected: Boolean, val pick: () -> Unit)
 
 /** The chosen audio track's name — "Default" when the video has a single track. */

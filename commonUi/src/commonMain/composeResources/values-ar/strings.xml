@@ -539,9 +539,7 @@
     <string name="download_less">أقل</string>
     <string name="download_webm_detail">WebM · البث الأصلي</string>
     <string name="download_m4a_detail">AAC · البث الأصلي</string>
-    <string name="download_mp3_detail">%1$d kbps · يعمل في كل مكان</string>
-    <string name="settings_mp3_source_bitrate">تنزيل MP3 بمعدل البت الأصلي</string>
-    <string name="settings_mp3_source_bitrate_hint">ترميز MP3 بنحو 256 kbps (معدل بت متغير) بدلًا من 320 kbps. ملفات أصغر بالجودة نفسها.</string>
+    <string name="download_mp3_detail">يعمل في كل مكان</string>
     <string name="download_audio_track">المسار الصوتي</string>
     <string name="download_captions">الترجمة</string>
     <string name="download_captions_off">إيقاف</string>
@@ -805,4 +803,8 @@
     <string name="caption_text_color">لون النص</string>
     <string name="caption_background">الخلفية</string>
     <string name="caption_background_opacity">عتامة الخلفية</string>
+    <string name="download_quality_save">توفير</string>
+    <string name="download_quality_medium">متوسطة</string>
+    <string name="download_quality_best">الأفضل</string>
+    <string name="download_kbps">%1$d kbps</string>
 </resources>

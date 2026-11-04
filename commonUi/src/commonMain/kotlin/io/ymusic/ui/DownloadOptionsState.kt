@@ -5,6 +5,9 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import io.ymusic.download.AudioOption
+import io.ymusic.download.AudioQuality
+import io.ymusic.download.AudioQualityOption
 import io.ymusic.download.CaptionChoice
 import io.ymusic.download.CaptionOption
 import io.ymusic.download.DownloadFileNames
@@ -27,6 +30,7 @@ import projectcommon.error.codedError
 private object LastDownloadChoice {
     var audioOnly = true
     var audioFormat = DownloadFormat.M4A
+    var audioQuality = AudioQuality.BEST
     var container = DownloadFormat.VIDEO_MP4
     var height = 1080
 }
@@ -41,7 +45,6 @@ internal class DownloadOptionsState(
     private val downloads: DownloadService,
     /** The Quick download caption language the dialog starts from; null starts with captions Off. */
     private val preferredCaptionLanguage: String?,
-    private val mp3SourceBitrate: Boolean,
 ) {
     /** Also keep these picks as the Quick download preset. */
     var saveAsQuick by mutableStateOf(false)
@@ -57,6 +60,7 @@ internal class DownloadOptionsState(
 
     var audioOnly by mutableStateOf(LastDownloadChoice.audioOnly)
     var audioFormat by mutableStateOf(LastDownloadChoice.audioFormat)
+    var audioQuality by mutableStateOf(LastDownloadChoice.audioQuality)
     var container by mutableStateOf(LastDownloadChoice.container)
     var height by mutableStateOf<Int?>(null)
     var audioTrackId by mutableStateOf<String?>(null)
@@ -93,13 +97,20 @@ internal class DownloadOptionsState(
     /** Captions go into the file — subtitle tracks, or lyrics for MP3 — which takes ffmpeg (absent on iOS). */
     val captionsSupported: Boolean get() = downloads.ffmpegAvailable
 
+    val audioOption: AudioOption? get() = options?.audio?.firstOrNull { it.format == audioFormat }
+
+    /** [audioQuality] as the selected format offers it. */
+    val selectedAudioQuality: AudioQualityOption? get() = audioOption?.pick(audioQuality)
+
+    val showsAudioQuality: Boolean get() = format.kind == io.ymusic.download.DownloadKind.AUDIO && (audioOption?.qualities?.size ?: 0) > 1
+
     val selectedVideo: VideoOption? get() = options?.video?.firstOrNull { it.height == height }
 
     val selectedBytes: Long?
         get() {
             val opts = options ?: return null
             return if (format.kind == io.ymusic.download.DownloadKind.AUDIO) {
-                opts.audioBytes(format)
+                opts.audioBytes(format, audioQuality)
             } else {
                 selectedVideo?.let { if (format == DownloadFormat.VIDEO_WEBM) it.webmBytes else it.mp4Bytes }
             }
@@ -109,7 +120,7 @@ internal class DownloadOptionsState(
         errorCode = null
         if (isLive) return
         try {
-            val probed = downloads.probe(video.id, mp3SourceBitrate)
+            val probed = downloads.probe(video.id)
             if (probed.audio.none { it.format == audioFormat }) audioFormat = probed.audio.first().format
             height = pickHeight(probed.video, LastDownloadChoice.height)
             audioTrackId = probed.audioTracks.firstOrNull { it.isDefault }?.id ?: probed.audioTracks.firstOrNull()?.id
@@ -131,6 +142,7 @@ internal class DownloadOptionsState(
         return QuickDownloadPreset(
             format = format,
             height = height,
+            audioQuality = selectedAudioQuality?.quality ?: audioQuality,
             audioLanguage = audioTrackId?.takeIf { opts?.audioTracks?.isNotEmpty() == true }?.substringBefore('.'),
             captionLanguage = opts?.captions?.firstOrNull { captionsSupported && it.key == caption }?.languageCode,
         )
@@ -139,6 +151,7 @@ internal class DownloadOptionsState(
     fun request(): DownloadRequest {
         LastDownloadChoice.audioOnly = audioOnly
         LastDownloadChoice.audioFormat = audioFormat
+        LastDownloadChoice.audioQuality = audioQuality
         LastDownloadChoice.container = container
         height?.let { LastDownloadChoice.height = it }
         val opts = options
@@ -154,7 +167,7 @@ internal class DownloadOptionsState(
             captions = CaptionChoice(
                 listOfNotNull(caption?.takeIf { key -> captionsSupported && opts?.captions?.any { it.key == key } == true }),
             ),
-            mp3SourceBitrate = mp3SourceBitrate,
+            audioQuality = selectedAudioQuality?.quality ?: audioQuality,
         )
     }
 

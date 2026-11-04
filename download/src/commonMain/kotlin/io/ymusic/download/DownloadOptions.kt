@@ -40,8 +40,15 @@ class StillProcessingException(videoId: String?) : Exception("post-live replay s
  *  [webmBytes] is null when the video has no VP9/AV1 or no Opus stream, so WebM can't be downloaded. */
 class VideoOption(val height: Int, val fps: Int, val mp4Bytes: Long, val webmBytes: Long?)
 
-/** One audio-only output and its estimated size; [kbps] is the encode bitrate of a transcoded [format] (MP3). */
-class AudioOption(val format: DownloadFormat, val bytes: Long, val kbps: Int? = null)
+/** One [quality] of an audio output and its estimated size; [kbps] is the encode bitrate of a transcoded output (MP3). */
+class AudioQualityOption(val quality: AudioQuality, val bytes: Long, val kbps: Int? = null)
+
+/** One audio-only output and its [qualities], lowest first. */
+class AudioOption(val format: DownloadFormat, val qualities: List<AudioQualityOption>) {
+    /** [quality], else the next one up, else the highest offered. */
+    fun pick(quality: AudioQuality): AudioQualityOption =
+        qualities.firstOrNull { it.quality >= quality } ?: qualities.last()
+}
 
 /** One audio language of a video that has dubs. */
 class AudioTrackOption(val id: String, val name: String, val isDefault: Boolean)
@@ -72,12 +79,13 @@ class DownloadOptions(
     val audioTracks: List<AudioTrackOption>,
     val captions: List<CaptionOption>,
 ) {
-    fun audioBytes(format: DownloadFormat): Long? = audio.firstOrNull { it.format == format }?.bytes
+    fun audioBytes(format: DownloadFormat, quality: AudioQuality): Long? =
+        audio.firstOrNull { it.format == format }?.pick(quality)?.bytes
 
     companion object {
         private val json = Json { ignoreUnknownKeys = true }
 
-        fun parse(playerResponseJson: String, ffmpegAvailable: Boolean, mp3SourceBitrate: Boolean = false): DownloadOptions {
+        fun parse(playerResponseJson: String, ffmpegAvailable: Boolean): DownloadOptions {
             val data = json.parseToJsonElement(playerResponseJson).jsonObject
             val details = data.objectOrNull("videoDetails")
             val streaming = data.objectOrNull("streamingData")
@@ -87,7 +95,7 @@ class DownloadOptions(
             val raw = streaming.objects("adaptiveFormats")
             val durationMs = formats.maxOfOrNull { it.approxDurationMs.toLong() }?.takeIf { it > 0 }
                 ?: (details?.longOrNull("lengthSeconds") ?: 0L) * 1000
-            val audio = audioOptions(formats, durationMs, ffmpegAvailable, mp3SourceBitrate)
+            val audio = audioOptions(formats, durationMs, ffmpegAvailable)
             if (audio.isEmpty()) throw TechnicalException("E70042", "download options: no audio format this platform can save")
             return DownloadOptions(
                 durationMs = durationMs,
@@ -120,16 +128,25 @@ class DownloadOptions(
             formats: List<AdaptiveFormat>,
             durationMs: Long,
             ffmpegAvailable: Boolean,
-            mp3SourceBitrate: Boolean,
         ): List<AudioOption> {
-            val m4a = FormatSelection.bestAudio(formats, AudioCodec.AAC)?.let { AudioOption(DownloadFormat.M4A, it.clen) }
+            val m4a = streamOption(DownloadFormat.M4A, formats, AudioCodec.AAC)
             if (!ffmpegAvailable) return listOfNotNull(m4a)
+            val mp3 = AudioQuality.entries.map { quality ->
+                val kbps = Mp3Encoding.of(quality).kbps
+                AudioQualityOption(quality, bytesAt(kbps * 1000L, durationMs), kbps)
+            }
             return listOfNotNull(
-                FormatSelection.bestAudio(formats, AudioCodec.OPUS)?.let { AudioOption(DownloadFormat.AUDIO_WEBM, it.clen) },
+                streamOption(DownloadFormat.AUDIO_WEBM, formats, AudioCodec.OPUS),
                 m4a,
-                Mp3Encoding.of(mp3SourceBitrate).kbps.let { kbps -> AudioOption(DownloadFormat.MP3, bytesAt(kbps * 1000L, durationMs), kbps) },
+                AudioOption(DownloadFormat.MP3, mp3),
             )
         }
+
+        private fun streamOption(format: DownloadFormat, formats: List<AdaptiveFormat>, codec: AudioCodec): AudioOption? =
+            FormatSelection.audioTiers(formats, codec)
+                .map { (quality, stream) -> AudioQualityOption(quality, stream.clen) }
+                .takeIf { it.isNotEmpty() }
+                ?.let { AudioOption(format, it) }
 
         private fun audioTracks(raw: List<JsonObject>): List<AudioTrackOption> {
             val tracks = raw.mapNotNull { fmt ->

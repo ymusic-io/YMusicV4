@@ -458,9 +458,7 @@
     <string name="download_less">Помалку</string>
     <string name="download_webm_detail">WebM · оригинален стрим</string>
     <string name="download_m4a_detail">AAC · оригинален стрим</string>
-    <string name="download_mp3_detail">%1$d kbps · се пушта насекаде</string>
-    <string name="settings_mp3_source_bitrate">Преземи MP3 со оригинален битрејт</string>
-    <string name="settings_mp3_source_bitrate_hint">Кодирај MP3 со околу 256 kbps (променлив битрејт) наместо 320 kbps. Помали датотеки, ист квалитет.</string>
+    <string name="download_mp3_detail">Се пушта насекаде</string>
     <string name="download_audio_track">Аудиозапис</string>
     <string name="download_captions">Титлови</string>
     <string name="download_captions_off">Исклучено</string>
@@ -640,4 +638,8 @@
     <string name="caption_text_color">Боја на текстот</string>
     <string name="caption_background">Позадина</string>
     <string name="caption_background_opacity">Непроѕирност на позадината</string>
+    <string name="download_quality_save">Штедење</string>
+    <string name="download_quality_medium">Средно</string>
+    <string name="download_quality_best">Најдобро</string>
+    <string name="download_kbps">%1$d kbps</string>
 </resources>

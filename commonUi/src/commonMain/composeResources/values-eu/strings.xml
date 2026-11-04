@@ -458,9 +458,7 @@
     <string name="download_less">Gutxiago</string>
     <string name="download_webm_detail">WebM · jatorrizko korrontea</string>
     <string name="download_m4a_detail">AAC · jatorrizko korrontea</string>
-    <string name="download_mp3_detail">%1$d kbps · edonon erreproduzitzen da</string>
-    <string name="settings_mp3_source_bitrate">Deskargatu MP3a jatorrizko bit-tasarekin</string>
-    <string name="settings_mp3_source_bitrate_hint">Kodetu MP3a 256 kbps ingurura (bit-tasa aldakorra) 320 kbps-en ordez. Fitxategi txikiagoak, kalitate bera.</string>
+    <string name="download_mp3_detail">Edonon erreproduzitzen da</string>
     <string name="download_audio_track">Audio-pista</string>
     <string name="download_captions">Azpitituluak</string>
     <string name="download_captions_off">Desaktibatuta</string>
@@ -640,4 +638,8 @@
     <string name="caption_text_color">Testuaren kolorea</string>
     <string name="caption_background">Atzeko planoa</string>
     <string name="caption_background_opacity">Atzeko planoaren opakutasuna</string>
+    <string name="download_quality_save">Aurrezpena</string>
+    <string name="download_quality_medium">Ertaina</string>
+    <string name="download_quality_best">Onena</string>
+    <string name="download_kbps">%1$d kbps</string>
 </resources>

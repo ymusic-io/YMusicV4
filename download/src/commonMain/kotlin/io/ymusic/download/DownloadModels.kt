@@ -29,6 +29,9 @@ enum class DownloadFormat(val kind: DownloadKind, val fileExtension: String) {
 
 enum class DownloadKind { AUDIO, VIDEO }
 
+/** An audio-only download's size/quality tier, lowest first. */
+enum class AudioQuality { SAVE, MEDIUM, BEST }
+
 /**
  * Lifecycle of one download. Only [QUEUED], [PAUSED] and [FAILED] are resumable entry points; the
  * worker drives a task through [PREPARING] → [DOWNLOADING] → [PROCESSING] → [COMPLETED]. [CANCELED]
@@ -89,8 +92,8 @@ class DownloadRequest(
     /** A preferred caption language, resolved when the download runs: the track in it (uploaded,
      *  auto-generated or auto-translated), else the video's default caption. Used when [captions] is null. */
     val captionLanguage: String? = null,
-    /** MP3 only: encode [Mp3Encoding.VBR_V0] instead of [Mp3Encoding.ABR_320]. */
-    val mp3SourceBitrate: Boolean = false,
+    /** Audio-only outputs: the stream tier for Opus/M4A, the encoding for MP3. */
+    val audioQuality: AudioQuality = AudioQuality.BEST,
 )
 
 /** Captions picked for one download — caption keys ([captionKey]). Embedded as subtitle tracks; MP3,
@@ -129,7 +132,7 @@ class DownloadTask(
     val captionLanguage: String? = null,
     /** The failure's [CodedError.code] — a well-known category or an `E#####` site code; null unless FAILED. */
     val errorCode: String? = null,
-    val mp3SourceBitrate: Boolean = false,
+    val audioQuality: AudioQuality = AudioQuality.BEST,
 ) {
     /** 0f..1f, or null when the total isn't known yet (before the first MEDIA_HEADER). */
     val progress: Float?
@@ -147,7 +150,7 @@ class DownloadTask(
     ) = DownloadTask(
         id, videoId, title, artist, thumbnailUrl, format, requestedHeight,
         state, downloadedBytes, totalBytes, fileUri, errorMessage, createdAt, updatedAt,
-        fileName, audioTrackId, captions, audioLanguage, captionLanguage, errorCode, mp3SourceBitrate,
+        fileName, audioTrackId, captions, audioLanguage, captionLanguage, errorCode, audioQuality,
     )
 }
 

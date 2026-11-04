@@ -458,9 +458,7 @@
     <string name="download_less">Λιγότερα</string>
     <string name="download_webm_detail">WebM · αρχική ροή</string>
     <string name="download_m4a_detail">AAC · αρχική ροή</string>
-    <string name="download_mp3_detail">%1$d kbps · παίζει παντού</string>
-    <string name="settings_mp3_source_bitrate">Λήψη MP3 με τον αρχικό ρυθμό bit</string>
-    <string name="settings_mp3_source_bitrate_hint">Κωδικοποίηση MP3 στα περίπου 256 kbps (μεταβλητός ρυθμός bit) αντί για 320 kbps. Μικρότερα αρχεία, ίδια ποιότητα.</string>
+    <string name="download_mp3_detail">Παίζει παντού</string>
     <string name="download_audio_track">Κομμάτι ήχου</string>
     <string name="download_captions">Υπότιτλοι</string>
     <string name="download_captions_off">Ανενεργοί</string>
@@ -640,4 +638,8 @@
     <string name="caption_text_color">Χρώμα κειμένου</string>
     <string name="caption_background">Φόντο</string>
     <string name="caption_background_opacity">Αδιαφάνεια φόντου</string>
+    <string name="download_quality_save">Οικονομία</string>
+    <string name="download_quality_medium">Μεσαία</string>
+    <string name="download_quality_best">Καλύτερη</string>
+    <string name="download_kbps">%1$d kbps</string>
 </resources>

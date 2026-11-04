@@ -156,6 +156,7 @@ internal fun mp3Args(
     if (cover != null) addAll(coverOutputArgs(inputIndex = 1))
     add("-c:a"); add("libmp3lame")
     when (encoding) {
+        Mp3Encoding.ABR_128 -> { add("-abr"); add("1"); add("-b:a"); add("128k") }
         Mp3Encoding.ABR_320 -> { add("-abr"); add("1"); add("-b:a"); add("320k") }
         Mp3Encoding.VBR_V0 -> { add("-q:a"); add("0") }
     }

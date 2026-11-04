@@ -33,6 +33,45 @@ internal object FormatSelection {
     }
 
     /**
+     * The tiers of the track [bestAudio] picks, lowest first: its smallest stream as [AudioQuality.SAVE],
+     * largest as [AudioQuality.BEST], and a middle one as [AudioQuality.MEDIUM] when there are three or more.
+     */
+    fun audioTiers(
+        formats: List<AdaptiveFormat>,
+        codec: AudioCodec,
+        audioTrackId: String? = null,
+        audioLanguage: String? = null,
+    ): List<Pair<AudioQuality, AdaptiveFormat>> {
+        val best = bestAudio(formats, codec, audioTrackId, audioLanguage) ?: return emptyList()
+        val ladder = formats
+            .filter { it.mimeType.startsWith("audio") && it.clen > 0 && !it.isDrc && codec.accepts(it.mimeType) }
+            .filter { it.audioTrackId == best.audioTrackId }
+            .distinctBy { it.itag }
+            .sortedBy { it.clen }
+        return when (ladder.size) {
+            1 -> listOf(AudioQuality.BEST to best)
+            2 -> listOf(AudioQuality.SAVE to ladder.first(), AudioQuality.BEST to best)
+            else -> listOf(
+                AudioQuality.SAVE to ladder.first(),
+                AudioQuality.MEDIUM to ladder[ladder.size / 2],
+                AudioQuality.BEST to best,
+            )
+        }
+    }
+
+    /** The tier at [quality], else the next one up; a video with fewer tiers lands on its best. */
+    fun audioAt(
+        formats: List<AdaptiveFormat>,
+        codec: AudioCodec,
+        quality: AudioQuality,
+        audioTrackId: String? = null,
+        audioLanguage: String? = null,
+    ): AdaptiveFormat? {
+        val tiers = audioTiers(formats, codec, audioTrackId, audioLanguage)
+        return (tiers.firstOrNull { it.first >= quality } ?: tiers.lastOrNull())?.second
+    }
+
+    /**
      * Video track nearest [requestedHeight] (or the highest when null), biased to the codec family that
      * stream-copies into [container]: VP9/WebM for a WebM output, AVC/mp4 for an MP4 output (VP9-in-mp4
      * copies but plays back poorly on many devices). Ties break on larger [AdaptiveFormat.clen]. A WebM

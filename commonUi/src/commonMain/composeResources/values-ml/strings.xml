@@ -458,9 +458,7 @@
     <string name="download_less">കുറവ്</string>
     <string name="download_webm_detail">WebM · യഥാർത്ഥ സ്ട്രീം</string>
     <string name="download_m4a_detail">AAC · യഥാർത്ഥ സ്ട്രീം</string>
-    <string name="download_mp3_detail">%1$d kbps · എവിടെയും പ്ലേ ചെയ്യും</string>
-    <string name="settings_mp3_source_bitrate">യഥാർത്ഥ ബിറ്റ്റേറ്റിൽ MP3 ഡൗൺലോഡ് ചെയ്യുക</string>
-    <string name="settings_mp3_source_bitrate_hint">320 kbps-ന് പകരം ഏകദേശം 256 kbps-ൽ (മാറുന്ന ബിറ്റ്റേറ്റ്) MP3 എൻകോഡ് ചെയ്യുക. ചെറിയ ഫയലുകൾ, അതേ നിലവാരം.</string>
+    <string name="download_mp3_detail">എവിടെയും പ്ലേ ചെയ്യും</string>
     <string name="download_audio_track">ഓഡിയോ ട്രാക്ക്</string>
     <string name="download_captions">അടിക്കുറിപ്പുകൾ</string>
     <string name="download_captions_off">ഓഫ്</string>
@@ -640,4 +638,8 @@
     <string name="caption_text_color">ടെക്സ്റ്റ് നിറം</string>
     <string name="caption_background">പശ്ചാത്തലം</string>
     <string name="caption_background_opacity">പശ്ചാത്തല അതാര്യത</string>
+    <string name="download_quality_save">ലാഭം</string>
+    <string name="download_quality_medium">ഇടത്തരം</string>
+    <string name="download_quality_best">മികച്ചത്</string>
+    <string name="download_kbps">%1$d kbps</string>
 </resources>

@@ -458,9 +458,7 @@
     <string name="download_less">কম</string>
     <string name="download_webm_detail">WebM · মূল স্ট্রিম</string>
     <string name="download_m4a_detail">AAC · মূল স্ট্রিম</string>
-    <string name="download_mp3_detail">%1$d kbps · সব জায়গায় চলে</string>
-    <string name="settings_mp3_source_bitrate">মূল বিটরেটে MP3 ডাউনলোড করুন</string>
-    <string name="settings_mp3_source_bitrate_hint">320 kbps-এর বদলে প্রায় 256 kbps-এ (পরিবর্তনশীল বিটরেট) MP3 এনকোড করুন। ছোট ফাইল, একই মান।</string>
+    <string name="download_mp3_detail">সব জায়গায় চলে</string>
     <string name="download_audio_track">অডিও ট্র্যাক</string>
     <string name="download_captions">ক্যাপশন</string>
     <string name="download_captions_off">বন্ধ</string>
@@ -640,4 +638,8 @@
     <string name="caption_text_color">লেখার রং</string>
     <string name="caption_background">পটভূমি</string>
     <string name="caption_background_opacity">পটভূমির অস্বচ্ছতা</string>
+    <string name="download_quality_save">সাশ্রয়ী</string>
+    <string name="download_quality_medium">মাঝারি</string>
+    <string name="download_quality_best">সেরা</string>
+    <string name="download_kbps">%1$d kbps</string>
 </resources>

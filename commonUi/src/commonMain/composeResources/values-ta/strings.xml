@@ -458,9 +458,7 @@
     <string name="download_less">குறைவு</string>
     <string name="download_webm_detail">WebM · அசல் ஸ்ட்ரீம்</string>
     <string name="download_m4a_detail">AAC · அசல் ஸ்ட்ரீம்</string>
-    <string name="download_mp3_detail">%1$d kbps · எங்கும் இயங்கும்</string>
-    <string name="settings_mp3_source_bitrate">அசல் பிட்ரேட்டில் MP3 பதிவிறக்கு</string>
-    <string name="settings_mp3_source_bitrate_hint">320 kbps-க்கு பதிலாக சுமார் 256 kbps-ல் (மாறும் பிட்ரேட்) MP3-ஐ குறியாக்கு. சிறிய கோப்புகள், அதே தரம்.</string>
+    <string name="download_mp3_detail">எங்கும் இயங்கும்</string>
     <string name="download_audio_track">ஆடியோ டிராக்</string>
     <string name="download_captions">வசனங்கள்</string>
     <string name="download_captions_off">முடக்கம்</string>
@@ -640,4 +638,8 @@
     <string name="caption_text_color">உரையின் நிறம்</string>
     <string name="caption_background">பின்னணி</string>
     <string name="caption_background_opacity">பின்னணி ஒளிபுகாமை</string>
+    <string name="download_quality_save">சிக்கனம்</string>
+    <string name="download_quality_medium">நடுத்தரம்</string>
+    <string name="download_quality_best">சிறந்தது</string>
+    <string name="download_kbps">%1$d kbps</string>
 </resources>

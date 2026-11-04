@@ -466,9 +466,7 @@
     <string name="download_less">Меньше</string>
     <string name="download_webm_detail">WebM · исходный поток</string>
     <string name="download_m4a_detail">AAC · исходный поток</string>
-    <string name="download_mp3_detail">%1$d kbps · играет везде</string>
-    <string name="settings_mp3_source_bitrate">Скачивать MP3 с исходным битрейтом</string>
-    <string name="settings_mp3_source_bitrate_hint">Кодировать MP3 примерно в 256 kbps (переменный битрейт) вместо 320 kbps. Файлы меньше, качество то же.</string>
+    <string name="download_mp3_detail">Играет везде</string>
     <string name="download_audio_track">Звуковая дорожка</string>
     <string name="download_captions">Субтитры</string>
     <string name="download_captions_off">Выкл.</string>
@@ -656,4 +654,8 @@
     <string name="caption_text_color">Цвет текста</string>
     <string name="caption_background">Фон</string>
     <string name="caption_background_opacity">Непрозрачность фона</string>
+    <string name="download_quality_save">Экономия</string>
+    <string name="download_quality_medium">Среднее</string>
+    <string name="download_quality_best">Лучшее</string>
+    <string name="download_kbps">%1$d kbps</string>
 </resources>

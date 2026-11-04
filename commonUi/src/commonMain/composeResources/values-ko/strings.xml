@@ -454,9 +454,7 @@
     <string name="download_less">간략히</string>
     <string name="download_webm_detail">WebM · 원본 스트림</string>
     <string name="download_m4a_detail">AAC · 원본 스트림</string>
-    <string name="download_mp3_detail">%1$d kbps · 어디서나 재생 가능</string>
-    <string name="settings_mp3_source_bitrate">원본 비트레이트로 MP3 다운로드</string>
-    <string name="settings_mp3_source_bitrate_hint">MP3를 320 kbps 대신 약 256 kbps(가변 비트레이트)로 인코딩합니다. 파일은 더 작고 음질은 같습니다.</string>
+    <string name="download_mp3_detail">어디서나 재생 가능</string>
     <string name="download_audio_track">오디오 트랙</string>
     <string name="download_captions">자막</string>
     <string name="download_captions_off">끄기</string>
@@ -632,4 +630,8 @@
     <string name="caption_text_color">글자 색상</string>
     <string name="caption_background">배경</string>
     <string name="caption_background_opacity">배경 불투명도</string>
+    <string name="download_quality_save">절약</string>
+    <string name="download_quality_medium">중간</string>
+    <string name="download_quality_best">최고</string>
+    <string name="download_kbps">%1$d kbps</string>
 </resources>

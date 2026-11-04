@@ -462,9 +462,7 @@
     <string name="download_less">Menos</string>
     <string name="download_webm_detail">WebM · transmisión original</string>
     <string name="download_m4a_detail">AAC · transmisión original</string>
-    <string name="download_mp3_detail">%1$d kbps · se reproduce en todas partes</string>
-    <string name="settings_mp3_source_bitrate">Descargar MP3 con la tasa de bits original</string>
-    <string name="settings_mp3_source_bitrate_hint">Codifica el MP3 a unos 256 kbps (tasa de bits variable) en lugar de 320 kbps. Archivos más pequeños, misma calidad.</string>
+    <string name="download_mp3_detail">Se reproduce en todas partes</string>
     <string name="download_audio_track">Pista de audio</string>
     <string name="download_captions">Subtítulos</string>
     <string name="download_captions_off">Desactivados</string>
@@ -648,4 +646,8 @@
     <string name="caption_text_color">Color del texto</string>
     <string name="caption_background">Fondo</string>
     <string name="caption_background_opacity">Opacidad del fondo</string>
+    <string name="download_quality_save">Ahorro</string>
+    <string name="download_quality_medium">Media</string>
+    <string name="download_quality_best">Mejor</string>
+    <string name="download_kbps">%1$d kbps</string>
 </resources>

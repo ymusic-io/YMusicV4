@@ -462,9 +462,7 @@
     <string name="download_less">פחות</string>
     <string name="download_webm_detail">WebM · הזרם המקורי</string>
     <string name="download_m4a_detail">AAC · הזרם המקורי</string>
-    <string name="download_mp3_detail">%1$d kbps · מתנגן בכל מקום</string>
-    <string name="settings_mp3_source_bitrate">הורדת MP3 בקצב הסיביות המקורי</string>
-    <string name="settings_mp3_source_bitrate_hint">קידוד MP3 בכ-256 kbps (קצב סיביות משתנה) במקום 320 kbps. קבצים קטנים יותר, אותה איכות.</string>
+    <string name="download_mp3_detail">מתנגן בכל מקום</string>
     <string name="download_audio_track">רצועת אודיו</string>
     <string name="download_captions">כתוביות</string>
     <string name="download_captions_off">כבוי</string>
@@ -648,4 +646,8 @@
     <string name="caption_text_color">צבע הטקסט</string>
     <string name="caption_background">רקע</string>
     <string name="caption_background_opacity">אטימות הרקע</string>
+    <string name="download_quality_save">חיסכון</string>
+    <string name="download_quality_medium">בינונית</string>
+    <string name="download_quality_best">הטובה ביותר</string>
+    <string name="download_kbps">%1$d kbps</string>
 </resources>

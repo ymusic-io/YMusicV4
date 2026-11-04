@@ -190,9 +190,6 @@ object AppSettings {
      */
     val downloadLocation = StringSetting("download.location", "")
 
-    /** Encode MP3 downloads at the source stream's own bitrate. Off = 320 kbps. */
-    val downloadMp3SourceBitrate = BoolSetting("download.mp3SourceBitrate", false)
-
     /**
      * Skip SponsorBlock segments on YouTube items. Default on; a per-video whitelist still
      * excludes individual videos.

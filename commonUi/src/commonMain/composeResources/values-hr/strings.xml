@@ -462,9 +462,7 @@
     <string name="download_less">Manje</string>
     <string name="download_webm_detail">WebM · izvorni stream</string>
     <string name="download_m4a_detail">AAC · izvorni stream</string>
-    <string name="download_mp3_detail">%1$d kbps · radi svugdje</string>
-    <string name="settings_mp3_source_bitrate">Preuzmi MP3 u izvornoj brzini prijenosa</string>
-    <string name="settings_mp3_source_bitrate_hint">Kodiraj MP3 na oko 256 kbps (promjenjiva brzina prijenosa) umjesto 320 kbps. Manje datoteke, ista kvaliteta.</string>
+    <string name="download_mp3_detail">Radi svugdje</string>
     <string name="download_audio_track">Audiozapis</string>
     <string name="download_captions">Titlovi</string>
     <string name="download_captions_off">Isključeno</string>
@@ -648,4 +646,8 @@
     <string name="caption_text_color">Boja teksta</string>
     <string name="caption_background">Pozadina</string>
     <string name="caption_background_opacity">Neprozirnost pozadine</string>
+    <string name="download_quality_save">Štednja</string>
+    <string name="download_quality_medium">Srednja</string>
+    <string name="download_quality_best">Najbolja</string>
+    <string name="download_kbps">%1$d kbps</string>
 </resources>

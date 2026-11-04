@@ -159,8 +159,12 @@ class YtStreamDownloader(
     /** Choose the audio (and, for video outputs, video) [AdaptiveFormat]s for a [format] output. */
     private fun selectFormats(task: DownloadTask, format: DownloadFormat, formats: List<AdaptiveFormat>): Pair<AdaptiveFormat, AdaptiveFormat?> {
         val codec = AudioCodec.of(format)
-        val audio = FormatSelection.bestAudio(formats, codec, audioTrackId = task.audioTrackId, audioLanguage = task.audioLanguage)
-            ?: throw TechnicalException("E70011", "no $codec audio format for ${task.videoId} ($format)")
+        val audio = when (format) {
+            DownloadFormat.M4A, DownloadFormat.AUDIO_WEBM ->
+                FormatSelection.audioAt(formats, codec, task.audioQuality, audioTrackId = task.audioTrackId, audioLanguage = task.audioLanguage)
+            // A video keeps its best audio, and MP3 sets its quality when it encodes.
+            else -> FormatSelection.bestAudio(formats, codec, audioTrackId = task.audioTrackId, audioLanguage = task.audioLanguage)
+        } ?: throw TechnicalException("E70011", "no $codec audio format for ${task.videoId} ($format)")
         val video = if (format.kind == DownloadKind.VIDEO) {
             FormatSelection.videoNearest(formats, task.requestedHeight, format)
                 ?: throw TechnicalException("E70012", "no video format for ${task.videoId}")

@@ -458,9 +458,7 @@
     <string name="download_less">ઓછું</string>
     <string name="download_webm_detail">WebM · મૂળ સ્ટ્રીમ</string>
     <string name="download_m4a_detail">AAC · મૂળ સ્ટ્રીમ</string>
-    <string name="download_mp3_detail">%1$d kbps · બધે ચાલે છે</string>
-    <string name="settings_mp3_source_bitrate">મૂળ બિટરેટ પર MP3 ડાઉનલોડ કરો</string>
-    <string name="settings_mp3_source_bitrate_hint">320 kbps ને બદલે લગભગ 256 kbps (ચલ બિટરેટ) પર MP3 એન્કોડ કરો. નાની ફાઇલો, એ જ ગુણવત્તા.</string>
+    <string name="download_mp3_detail">બધે ચાલે છે</string>
     <string name="download_audio_track">ઑડિયો ટ્રેક</string>
     <string name="download_captions">કૅપ્શન</string>
     <string name="download_captions_off">બંધ</string>
@@ -640,4 +638,8 @@
     <string name="caption_text_color">ટેક્સ્ટનો રંગ</string>
     <string name="caption_background">પૃષ્ઠભૂમિ</string>
     <string name="caption_background_opacity">પૃષ્ઠભૂમિની અપારદર્શિતા</string>
+    <string name="download_quality_save">બચત</string>
+    <string name="download_quality_medium">મધ્યમ</string>
+    <string name="download_quality_best">શ્રેષ્ઠ</string>
+    <string name="download_kbps">%1$d kbps</string>
 </resources>

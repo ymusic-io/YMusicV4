@@ -462,9 +462,7 @@
     <string name="download_less">Menys</string>
     <string name="download_webm_detail">WebM · flux original</string>
     <string name="download_m4a_detail">AAC · flux original</string>
-    <string name="download_mp3_detail">%1$d kbps · funciona a tot arreu</string>
-    <string name="settings_mp3_source_bitrate">Baixa MP3 amb la taxa de bits original</string>
-    <string name="settings_mp3_source_bitrate_hint">Codifica l'MP3 a uns 256 kbps (taxa de bits variable) en lloc de 320 kbps. Fitxers més petits, la mateixa qualitat.</string>
+    <string name="download_mp3_detail">Funciona a tot arreu</string>
     <string name="download_audio_track">Pista d'àudio</string>
     <string name="download_captions">Subtítols</string>
     <string name="download_captions_off">Desactivats</string>
@@ -648,4 +646,8 @@
     <string name="caption_text_color">Color del text</string>
     <string name="caption_background">Fons</string>
     <string name="caption_background_opacity">Opacitat del fons</string>
+    <string name="download_quality_save">Estalvi</string>
+    <string name="download_quality_medium">Mitjana</string>
+    <string name="download_quality_best">Millor</string>
+    <string name="download_kbps">%1$d kbps</string>
 </resources>

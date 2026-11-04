@@ -52,7 +52,7 @@ class DownloadStore(driver: SqlDriver, logger: Logger? = null) {
             audio_language = task.audioLanguage,
             caption_language = task.captionLanguage,
             error_code = task.errorCode,
-            mp3_source_bitrate = if (task.mp3SourceBitrate) 1 else 0,
+            audio_quality = task.audioQuality.name,
         )
     }
 
@@ -101,6 +101,7 @@ class DownloadStore(driver: SqlDriver, logger: Logger? = null) {
         caption_language: String?,
         error_code: String?,
         mp3_source_bitrate: Long,
+        audio_quality: String,
     ) = DownloadTask(
         id = id,
         videoId = video_id,
@@ -126,6 +127,6 @@ class DownloadStore(driver: SqlDriver, logger: Logger? = null) {
         audioLanguage = audio_language,
         captionLanguage = caption_language,
         errorCode = error_code,
-        mp3SourceBitrate = mp3_source_bitrate != 0L,
+        audioQuality = AudioQuality.entries.firstOrNull { it.name == audio_quality } ?: AudioQuality.BEST,
     )
 }

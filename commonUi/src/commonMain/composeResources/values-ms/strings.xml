@@ -454,9 +454,7 @@
     <string name="download_less">Kurang</string>
     <string name="download_webm_detail">WebM · strim asal</string>
     <string name="download_m4a_detail">AAC · strim asal</string>
-    <string name="download_mp3_detail">%1$d kbps · boleh dimainkan di mana-mana</string>
-    <string name="settings_mp3_source_bitrate">Muat turun MP3 pada kadar bit asal</string>
-    <string name="settings_mp3_source_bitrate_hint">Kodkan MP3 pada kira-kira 256 kbps (kadar bit berubah) dan bukannya 320 kbps. Fail lebih kecil, kualiti sama.</string>
+    <string name="download_mp3_detail">Boleh dimainkan di mana-mana</string>
     <string name="download_audio_track">Trek audio</string>
     <string name="download_captions">Sari kata</string>
     <string name="download_captions_off">Mati</string>
@@ -632,4 +630,8 @@
     <string name="caption_text_color">Warna teks</string>
     <string name="caption_background">Latar belakang</string>
     <string name="caption_background_opacity">Kelegapan latar belakang</string>
+    <string name="download_quality_save">Jimat</string>
+    <string name="download_quality_medium">Sederhana</string>
+    <string name="download_quality_best">Terbaik</string>
+    <string name="download_kbps">%1$d kbps</string>
 </resources>

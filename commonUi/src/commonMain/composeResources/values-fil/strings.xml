@@ -458,9 +458,7 @@
     <string name="download_less">Kaunti</string>
     <string name="download_webm_detail">WebM · orihinal na stream</string>
     <string name="download_m4a_detail">AAC · orihinal na stream</string>
-    <string name="download_mp3_detail">%1$d kbps · nagpe-play kahit saan</string>
-    <string name="settings_mp3_source_bitrate">I-download ang MP3 sa orihinal na bitrate</string>
-    <string name="settings_mp3_source_bitrate_hint">I-encode ang MP3 sa humigit-kumulang 256 kbps (variable bitrate) sa halip na 320 kbps. Mas maliliit na file, parehong kalidad.</string>
+    <string name="download_mp3_detail">Nagpe-play kahit saan</string>
     <string name="download_audio_track">Audio track</string>
     <string name="download_captions">Mga caption</string>
     <string name="download_captions_off">Naka-off</string>
@@ -640,4 +638,8 @@
     <string name="caption_text_color">Kulay ng text</string>
     <string name="caption_background">Background</string>
     <string name="caption_background_opacity">Opacity ng background</string>
+    <string name="download_quality_save">Tipid</string>
+    <string name="download_quality_medium">Katamtaman</string>
+    <string name="download_quality_best">Pinakamahusay</string>
+    <string name="download_kbps">%1$d kbps</string>
 </resources>

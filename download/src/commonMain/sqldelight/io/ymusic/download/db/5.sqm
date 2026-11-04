@@ -1,0 +1,2 @@
+ALTER TABLE downloadTask ADD COLUMN audio_quality TEXT NOT NULL DEFAULT 'BEST';
+UPDATE downloadTask SET audio_quality = 'MEDIUM' WHERE mp3_source_bitrate != 0;

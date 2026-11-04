@@ -458,9 +458,7 @@
     <string name="download_less">අඩුවෙන්</string>
     <string name="download_webm_detail">WebM · මුල් ප්‍රවාහය</string>
     <string name="download_m4a_detail">AAC · මුල් ප්‍රවාහය</string>
-    <string name="download_mp3_detail">%1$d kbps · ඕනෑම තැනක වාදනය වේ</string>
-    <string name="settings_mp3_source_bitrate">මුල් බිට්රේට් එකෙන් MP3 බාගන්න</string>
-    <string name="settings_mp3_source_bitrate_hint">320 kbps වෙනුවට ආසන්න වශයෙන් 256 kbps (විචල්‍ය බිට්රේට්) වලින් MP3 කේතනය කරන්න. කුඩා ගොනු, එම ගුණත්වයම.</string>
+    <string name="download_mp3_detail">ඕනෑම තැනක වාදනය වේ</string>
     <string name="download_audio_track">ශ්‍රව්‍ය පථය</string>
     <string name="download_captions">උපසිරැසි</string>
     <string name="download_captions_off">අක්‍රිය</string>
@@ -640,4 +638,8 @@
     <string name="caption_text_color">පෙළ වර්ණය</string>
     <string name="caption_background">පසුබිම</string>
     <string name="caption_background_opacity">පසුබිමේ පාරාන්ධතාව</string>
+    <string name="download_quality_save">ඉතිරි</string>
+    <string name="download_quality_medium">මධ්‍යම</string>
+    <string name="download_quality_best">හොඳම</string>
+    <string name="download_kbps">%1$d kbps</string>
 </resources>
