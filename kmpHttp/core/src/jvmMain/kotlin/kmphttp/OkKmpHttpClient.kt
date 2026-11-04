@@ -12,7 +12,7 @@ import kotlinx.coroutines.withContext
 import okhttp3.Dns
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
-import java.net.Inet6Address
+import java.net.Inet4Address
 import java.net.InetAddress
 import java.net.SocketTimeoutException
 import java.util.concurrent.TimeUnit
@@ -217,13 +217,14 @@ class OkKmpHttpClient : KmpHttpClient {
 
 @Suppress("FunctionName")
 actual fun KmpHttpClient.Companion.Builder(): KmpHttpClient.BaseBuilder<*> {
-    // Fast fallback re-sorts every lookup to IPv6 first, so it must stay off for Ipv4FirstDns to hold.
-    return OkKmpHttpClient.Builder(OkHttpClient.Builder().dns(Ipv4FirstDns).fastFallback(false))
+    return OkKmpHttpClient.Builder(OkHttpClient.Builder().dns(Ipv4PreferredDns))
 }
 
-private object Ipv4FirstDns : Dns {
+private object Ipv4PreferredDns : Dns {
+    // Returning both families would let fast fallback try IPv6 first.
     override fun lookup(hostname: String): List<InetAddress> {
-        return Dns.SYSTEM.lookup(hostname).sortedBy { it is Inet6Address }
+        val addresses = Dns.SYSTEM.lookup(hostname)
+        return addresses.filter { it is Inet4Address }.ifEmpty { addresses }
     }
 }
 
