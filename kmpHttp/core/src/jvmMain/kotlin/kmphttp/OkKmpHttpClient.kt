@@ -9,8 +9,11 @@ import kotlinx.coroutines.job
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import okhttp3.Dns
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
+import java.net.Inet6Address
+import java.net.InetAddress
 import java.net.SocketTimeoutException
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resumeWithException
@@ -214,7 +217,14 @@ class OkKmpHttpClient : KmpHttpClient {
 
 @Suppress("FunctionName")
 actual fun KmpHttpClient.Companion.Builder(): KmpHttpClient.BaseBuilder<*> {
-    return OkKmpHttpClient.Builder()
+    // Fast fallback re-sorts every lookup to IPv6 first, so it must stay off for Ipv4FirstDns to hold.
+    return OkKmpHttpClient.Builder(OkHttpClient.Builder().dns(Ipv4FirstDns).fastFallback(false))
+}
+
+private object Ipv4FirstDns : Dns {
+    override fun lookup(hostname: String): List<InetAddress> {
+        return Dns.SYSTEM.lookup(hostname).sortedBy { it is Inet6Address }
+    }
 }
 
 private const val READ_TIMEOUT_SHARE = 0.9
