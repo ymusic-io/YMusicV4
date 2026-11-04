@@ -1,0 +1,1 @@
+ALTER TABLE downloadTask ADD COLUMN audio_itag INTEGER;

@@ -22,7 +22,7 @@ internal object FormatSelection {
         audioTrackId: String? = null,
         audioLanguage: String? = null,
     ): AdaptiveFormat? {
-        val audio = formats.filter { it.mimeType.startsWith("audio") && it.clen > 0 && !it.isDrc && codec.accepts(it.mimeType) }
+        val audio = audioStreams(formats, codec)
         if (audio.isEmpty()) return null
         return audio.sortedWith(
             compareByDescending<AdaptiveFormat> { audioTrackId != null && it.audioTrackId == audioTrackId }
@@ -43,8 +43,7 @@ internal object FormatSelection {
         audioLanguage: String? = null,
     ): List<Pair<AudioQuality, AdaptiveFormat>> {
         val best = bestAudio(formats, codec, audioTrackId, audioLanguage) ?: return emptyList()
-        val ladder = formats
-            .filter { it.mimeType.startsWith("audio") && it.clen > 0 && !it.isDrc && codec.accepts(it.mimeType) }
+        val ladder = audioStreams(formats, codec)
             .filter { it.audioTrackId == best.audioTrackId }
             .distinctBy { it.itag }
             .sortedBy { it.clen }
@@ -70,6 +69,21 @@ internal object FormatSelection {
         val tiers = audioTiers(formats, codec, audioTrackId, audioLanguage)
         return (tiers.firstOrNull { it.first >= quality } ?: tiers.lastOrNull())?.second
     }
+
+    /** The stream [itag] on the track [bestAudio] picks; null when the video no longer offers it. */
+    fun audioWithItag(
+        formats: List<AdaptiveFormat>,
+        codec: AudioCodec,
+        itag: Int,
+        audioTrackId: String? = null,
+        audioLanguage: String? = null,
+    ): AdaptiveFormat? {
+        val best = bestAudio(formats, codec, audioTrackId, audioLanguage) ?: return null
+        return audioStreams(formats, codec).firstOrNull { it.itag == itag && it.audioTrackId == best.audioTrackId }
+    }
+
+    private fun audioStreams(formats: List<AdaptiveFormat>, codec: AudioCodec): List<AdaptiveFormat> =
+        formats.filter { it.mimeType.startsWith("audio") && it.clen > 0 && !it.isDrc && codec.accepts(it.mimeType) }
 
     /**
      * Video track nearest [requestedHeight] (or the highest when null), biased to the codec family that

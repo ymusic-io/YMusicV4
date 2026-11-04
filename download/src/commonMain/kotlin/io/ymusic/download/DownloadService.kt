@@ -373,6 +373,7 @@ class DownloadService(
                         _changes.emit(DownloadChange.FormatChanged(task.id, format))
                     }
                 },
+                onAudioStream = { itag -> store.updateAudioItag(task.id, itag, now()) },
             )
         } catch (c: CancellationException) {
             throw c

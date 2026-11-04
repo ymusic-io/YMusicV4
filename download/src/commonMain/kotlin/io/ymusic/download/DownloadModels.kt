@@ -137,6 +137,8 @@ class DownloadTask(
     /** The failure's [CodedError.code] — a well-known category or an `E#####` site code; null unless FAILED. */
     val errorCode: String? = null,
     val audioQuality: AudioQuality = AudioQuality.BEST,
+    /** The stream the audio scratch holds, kept across runs: its bytes can only continue that stream. */
+    val audioItag: Int? = null,
 ) {
     /** 0f..1f, or null when the total isn't known yet (before the first MEDIA_HEADER). */
     val progress: Float?
@@ -154,7 +156,7 @@ class DownloadTask(
     ) = DownloadTask(
         id, videoId, title, artist, thumbnailUrl, format, requestedHeight,
         state, downloadedBytes, totalBytes, fileUri, errorMessage, createdAt, updatedAt,
-        fileName, audioTrackId, captions, audioLanguage, captionLanguage, errorCode, audioQuality,
+        fileName, audioTrackId, captions, audioLanguage, captionLanguage, errorCode, audioQuality, audioItag,
     )
 }
 

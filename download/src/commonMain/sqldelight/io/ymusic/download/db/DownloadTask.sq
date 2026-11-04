@@ -26,7 +26,9 @@ CREATE TABLE downloadTask (
     -- Superseded by audio_quality; unread, kept because older SQLite can't drop a column.
     mp3_source_bitrate INTEGER NOT NULL DEFAULT 0,
     -- AudioQuality enum name.
-    audio_quality     TEXT    NOT NULL DEFAULT 'BEST'
+    audio_quality     TEXT    NOT NULL DEFAULT 'BEST',
+    -- The stream the audio scratch holds; NULL until a run picks it.
+    audio_itag        INTEGER
 );
 
 CREATE INDEX downloadTask_created ON downloadTask(created_at);
@@ -35,14 +37,17 @@ upsert:
 INSERT OR REPLACE INTO downloadTask(
     id, video_id, title, artist, thumbnail_url, format, requested_height,
     state, downloaded_bytes, total_bytes, file_path, error_message, created_at, updated_at,
-    file_name, audio_track_id, caption_langs, audio_language, caption_language, error_code, audio_quality
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    file_name, audio_track_id, caption_langs, audio_language, caption_language, error_code, audio_quality, audio_itag
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 updateState:
 UPDATE downloadTask SET state = ?, error_message = ?, error_code = ?, updated_at = ? WHERE id = ?;
 
 updateFormat:
 UPDATE downloadTask SET format = ?, updated_at = ? WHERE id = ?;
+
+updateAudioItag:
+UPDATE downloadTask SET audio_itag = ?, updated_at = ? WHERE id = ?;
 
 updateProgress:
 UPDATE downloadTask SET downloaded_bytes = ?, total_bytes = ?, updated_at = ? WHERE id = ?;

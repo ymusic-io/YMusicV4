@@ -67,6 +67,8 @@ class DownloadPipeline(
         onProgress: (done: Long, total: Long) -> Unit,
         /** The output format changed from the task's (WebM video unavailable → MP4); persist it. */
         onFormatChanged: (DownloadFormat) -> Unit = {},
+        /** See [YtStreamDownloader.download]. */
+        onAudioStream: suspend (itag: Int) -> Unit = {},
     ): Result {
         // A previous run already produced the final file and failed only to publish it (e.g. the download
         // folder lost its write grant): publish that again, skipping steps 1-2.
@@ -76,7 +78,7 @@ class DownloadPipeline(
         }
 
         // 1. download the elementary streams (+ captions) to scratch files.
-        val streams = downloader.download(task, onPreparing, onDownloading, onProgress)
+        val streams = downloader.download(task, onPreparing, onDownloading, onAudioStream, onProgress)
         if (streams.format != task.format) onFormatChanged(streams.format)
         return assemble(task.copy(format = streams.format), streams, destinationFolder, onProcessing, onProgress)
     }
