@@ -742,7 +742,11 @@ private fun AppRoot(
                         val downloads = graph.downloads
                         when {
                             action == LinkAction.PLAY_SINGLE || (queueEmpty && action in QueueActions) ->
-                                coordinator.player.setQueue(listOf(video.toYtMedia()), startPositionMs = target.startMs ?: 0L)
+                                coordinator.player.setQueue(
+                                    listOf(video.toYtMedia()),
+                                    startPositionMs = target.startMs ?: 0L,
+                                    origin = io.ymusic.player.QueueOrigin.Link,
+                                )
                             action == LinkAction.QUEUE_NEXT -> {
                                 coordinator.playNext(video)
                                 showSnackbar(linkQueuedNext)
@@ -766,6 +770,7 @@ private fun AppRoot(
                                     } else {
                                         NextQueueSource.radio(graph.engines, video.id, log?.fork("queue-source"))
                                     },
+                                    origin = io.ymusic.player.QueueOrigin.Link,
                                 )
                                 graph.pip.nowPlayingOpen.value = true
                             }

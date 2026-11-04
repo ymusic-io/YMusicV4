@@ -551,7 +551,10 @@ class MainActivity : FragmentActivity() {
                 null
             }
             graph.temporaryUris.update { it + uri.toString() }
-            graph.player.setQueue(listOf(PlayableItem.LocalMedia(uri = uri.toString(), title = title)))
+            graph.player.setQueue(
+                listOf(PlayableItem.LocalMedia(uri = uri.toString(), title = title)),
+                origin = io.ymusic.player.QueueOrigin.File,
+            )
             graph.pip.nowPlayingOpen.value = true
         }
     }
