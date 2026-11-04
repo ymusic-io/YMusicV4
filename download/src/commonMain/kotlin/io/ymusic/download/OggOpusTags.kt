@@ -89,15 +89,17 @@ internal object OggOpusTags {
             val segments = lacing.copyOfRange(segment, minOf(segment + MAX_SEGMENTS, lacing.size))
             val size = segments.sumOf { it.toInt() and 0xFF }
             val flags = if (segment == 0) 0 else FLAG_CONTINUED
-            val page = Page(flags, GRANULE_ZERO, head.serial, segments, packet.copyOfRange(offset, offset + size))
+            segment += segments.size
+            val granule = if (segment == lacing.size) GRANULE_ZERO else GRANULE_NO_PACKET_ENDS
+            val page = Page(flags, granule, head.serial, segments, packet.copyOfRange(offset, offset + size))
             writePage(sink, page, sequence++)
             offset += size
-            segment += segments.size
         }
         return sequence
     }
 
     private val GRANULE_ZERO = ByteArray(8)
+    private val GRANULE_NO_PACKET_ENDS = ByteArray(8) { -1 }
 
     private class Page(
         val flags: Int,
