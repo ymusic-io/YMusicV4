@@ -170,6 +170,7 @@ import io.ymusic.ui.resources.cd_always_on_top
 import io.ymusic.ui.resources.cd_close
 import io.ymusic.ui.resources.cd_fullscreen
 import io.ymusic.ui.resources.cd_minimize
+import io.ymusic.ui.resources.error_generic
 import io.ymusic.ui.resources.folder_picker_title
 import io.ymusic.ui.resources.playlist_menu_backup
 import io.ymusic.ui.resources.playlist_menu_restore
@@ -215,6 +216,7 @@ import okio.Path.Companion.toPath
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import projectcommon.error.TechnicalException
 import java.awt.BorderLayout
 import java.awt.Canvas
 import java.awt.Desktop
@@ -747,7 +749,15 @@ fun main(args: Array<String>) {
             val ready = graph ?: return@LaunchedEffect
             val metadata = withContext(Dispatchers.IO) { resolveFfmpeg() }?.let { FfmpegMetadataExtractor(FfmpegMetadataGetter(it)) }
             IncomingFiles.uris.collect { uris ->
-                ready.playFiles(uris, metadata)
+                try {
+                    ready.playFiles(uris, metadata)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    val error = TechnicalException("E60067", "opening ${uris.size} file(s) failed", cause = e)
+                    rootLogger.fork("open-file").captureError(error)
+                    io.ymusic.ui.GlobalShortcutActions.showMessage(getString(Res.string.error_generic, error.code))
+                }
                 showWindowRequests.tryEmit(Unit)
             }
         }
