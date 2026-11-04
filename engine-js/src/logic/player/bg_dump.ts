@@ -11,6 +11,8 @@ const SCOPE = "yt.bg.session";
 const KEEP = 4;
 let dump: Pipe | null = null;
 let writeChain: Promise<void> = Promise.resolve();
+/** Shutdown acks on this and the runtime is freed right after: work not on it dies mid-flight. */
+let finishing: Promise<void> = Promise.resolve();
 let sessionKey = "";
 let loggedSps = 0;
 let withheldRounds = 0;
@@ -102,48 +104,47 @@ function writeJsonLine(prefix: string, value: unknown): void {
     );
 }
 
-function finishDump(after?: () => void): void {
+function finishDump(report?: () => Promise<void>): void {
   const pipe = dump;
   dump = null;
-  if (!pipe) {
-    if (after) after();
-    return;
+  if (pipe) {
+    writeChain = writeChain
+      .then(function () {
+        return wait(pipe.sink.close());
+      })
+      .then(function () {
+        return pipe.source.readJsonObject();
+      })
+      .then(function () {
+        pipe.source.close();
+        return scopedCache(SCOPE, keepCount(KEEP));
+      })
+      .then(
+        function () {},
+        function (e) {
+          try {
+            pipe.source.close();
+          } catch (_e) {}
+          warn(e, "close");
+        },
+      );
   }
-  writeChain = writeChain
-    .then(function () {
-      return wait(pipe.sink.close());
-    })
-    .then(function () {
-      return pipe.source.readJsonObject();
-    })
-    .then(function () {
-      pipe.source.close();
-      return scopedCache(SCOPE, keepCount(KEEP));
-    })
-    .then(
-      function () {
-        if (after) after();
-      },
-      function (e) {
-        try {
-          pipe.source.close();
-        } catch (_e) {}
-        warn(e, "close");
-        if (after) after();
-      },
-    );
+  const closed = writeChain;
+  finishing = finishing.then(function () {
+    return closed;
+  });
+  if (report) finishing = finishing.then(report);
 }
 
 // Player engine teardown: save what the session recorded instead of losing it to the hard close.
 onShutdown(function () {
-  return new Promise<void>(function (resolve) {
-    finishDump(resolve);
-  });
+  finishDump();
+  return finishing;
 });
 
-function captureReject(sps: number): void {
+function captureReject(sps: number): Promise<void> {
   const key = sessionKey;
-  callHost("log/capture", async function (pipe) {
+  return callHost("log/capture", async function (pipe) {
     let p = pipe.sink.writeObjectAsJson({
       "code": "E20088",
       "message": "PO rejected sps=" + sps,
@@ -332,6 +333,6 @@ export function noteSps(sps: number, media: number): void {
   if (sps === 1) finishDump();
   else
     finishDump(function () {
-      captureReject(sps);
+      return captureReject(sps);
     });
 }
