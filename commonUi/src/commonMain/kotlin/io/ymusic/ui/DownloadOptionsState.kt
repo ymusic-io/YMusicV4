@@ -102,7 +102,7 @@ internal class DownloadOptionsState(
     /** [audioQuality] as the selected format offers it. */
     val selectedAudioQuality: AudioQualityOption? get() = audioOption?.pick(audioQuality)
 
-    val showsAudioQuality: Boolean get() = format.kind == io.ymusic.download.DownloadKind.AUDIO && (audioOption?.qualities?.size ?: 0) > 1
+    val showsAudioQuality: Boolean get() = format.kind == io.ymusic.download.DownloadKind.AUDIO && audioOption != null
 
     val selectedVideo: VideoOption? get() = options?.video?.firstOrNull { it.height == height }
 
