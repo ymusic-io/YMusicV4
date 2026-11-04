@@ -33,6 +33,9 @@ internal enum class InstanceCommand(val arg: String?) {
     }
 }
 
+/** A later launch's [command] and any media [fileUris] it was started with. */
+internal class InstanceRequest(val command: InstanceCommand, val fileUris: List<String>)
+
 /** How a launch's [SingleInstance.claim] ended. */
 internal sealed interface InstanceClaim {
     /** This process is the app instance. */
@@ -56,10 +59,10 @@ internal class SingleInstance private constructor(
     private val token: String,
     private val logger: Logger,
 ) {
-    private val received = Channel<InstanceCommand>(Channel.UNLIMITED)
+    private val received = Channel<InstanceRequest>(Channel.UNLIMITED)
 
-    /** Commands handed over by later launches; held until collected, so a boot-time task is not lost. */
-    val commands: Flow<InstanceCommand> = received.receiveAsFlow()
+    /** Requests handed over by later launches; held until collected, so a boot-time task is not lost. */
+    val requests: Flow<InstanceRequest> = received.receiveAsFlow()
 
     private fun serve() {
         Thread({
@@ -70,7 +73,7 @@ internal class SingleInstance private constructor(
                         val lines = socket.getInputStream().bufferedReader().readLines()
                         if (lines.firstOrNull() != token) return@use
                         val command = InstanceCommand.entries.firstOrNull { it.name == lines.getOrNull(1) } ?: return@use
-                        received.trySend(command)
+                        received.trySend(InstanceRequest(command, lines.drop(2)))
                     }
                 } catch (e: IOException) {
                     if (server.isClosed) break
@@ -100,12 +103,12 @@ internal class SingleInstance private constructor(
 
     companion object {
         /**
-         * Claims this process as the app instance, or hands [command] to the running one.
+         * Claims this process as the app instance, or hands [command] and [fileUris] to the running one.
          *
          * @throws InstanceHandoffException another process holds the claim but never took [command].
          * @throws IOException this process could not set the claim up (lock file, socket, port file).
          */
-        fun claim(dir: File, command: InstanceCommand, logger: Logger): InstanceClaim {
+        fun claim(dir: File, command: InstanceCommand, fileUris: List<String>, logger: Logger): InstanceClaim {
             dir.mkdirs()
             val lockFile = File(dir, "instance.lock").toPath()
             val portFile = File(dir, "instance.port")
@@ -124,7 +127,7 @@ internal class SingleInstance private constructor(
                 channel.close()
                 if (attempt == 0 && command == InstanceCommand.Show && isWindows) shareForeground(logger)
                 try {
-                    handOff(portFile, command)
+                    handOff(portFile, command, fileUris)
                     return InstanceClaim.HandedOver
                 } catch (e: IOException) {
                     last = e
@@ -172,11 +175,12 @@ internal class SingleInstance private constructor(
             }
         }
 
-        private fun handOff(portFile: File, command: InstanceCommand) {
+        private fun handOff(portFile: File, command: InstanceCommand, fileUris: List<String>) {
             val (port, token) = portFile.readText().trim().split(' ', limit = 2)
             Socket().use { socket ->
                 socket.connect(InetSocketAddress(InetAddress.getLoopbackAddress(), port.toInt()), HANDOFF_TIMEOUT_MS)
-                socket.getOutputStream().write("$token\n${command.name}\n".toByteArray())
+                val lines = listOf(token, command.name) + fileUris
+                socket.getOutputStream().write(lines.joinToString("\n", postfix = "\n").toByteArray())
             }
         }
 

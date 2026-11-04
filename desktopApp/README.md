@@ -18,3 +18,7 @@ Module detail for the one-line summary in the root [`AGENTS.md`](../AGENTS.md) �
 - **Assets** — needs the built `engine-js` bundle in the jar.
 
 - **macOS icon** — `ymusic.icns` is the `CFBundleIconFile`; macOS 26+ draws `CFBundleIconName` from `macos/Assets.car` instead, compiled from the Icon Composer source `macos/YMusic.icon` by `macos/build-icon.sh` (Xcode 26). The build copies the committed `.car` into the bundle after jpackage and re-signs it. Edit the `.icon`, rerun the script, and commit both.
+
+## Open With
+
+Media files list the app under the OS's Open With without taking any default: `CFBundleDocumentTypes` in the macOS plist, `OpenWithProgids` in `installer/windows/ymusic.iss`, `MimeType` and `%F` added to the `.desktop` entry when the deb is built. The file types follow the packed ffmpeg's demuxers, so update all three together. Opened files arrive as arguments (handed to the running app by `SingleInstance`) or, on macOS, through the open-file handler, and play as a temporary queue (`IncomingFiles`). The OS reads these from an installed app, so `:desktopApp:run` never shows up; use `createDistributable`.
