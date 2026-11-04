@@ -384,7 +384,7 @@ compose.desktop {
                                 <key>LSHandlerRank</key>
                                 <string>Alternate</string>
                                 <key>CFBundleTypeExtensions</key>
-                                <array><string>ogg</string><string>oga</string><string>opus</string><string>mka</string><string>webm</string><string>mkv</string><string>flv</string></array>
+                                <array><string>m4b</string><string>ogg</string><string>oga</string><string>opus</string><string>mka</string><string>webm</string><string>mkv</string></array>
                             </dict>
                         </array>
                     """.trimIndent()
@@ -460,9 +460,9 @@ val hostArm64 = System.getProperty("os.arch").lowercase() in setOf("aarch64", "a
 
 /** What the .desktop entry offers to open; the demuxers the packed ffmpeg has. */
 val linuxMimeTypes = listOf(
-    "audio/mpeg", "audio/mp4", "audio/x-m4a", "audio/aac", "audio/flac", "audio/x-flac", "audio/wav", "audio/x-wav",
-    "audio/ogg", "audio/opus", "audio/webm", "audio/x-matroska", "video/mp4", "video/x-m4v", "video/quicktime",
-    "video/webm", "video/x-matroska", "video/x-flv",
+    "audio/mpeg", "audio/mp4", "audio/x-m4a", "audio/x-m4b", "audio/aac", "audio/flac", "audio/x-flac", "audio/wav",
+    "audio/x-wav", "audio/ogg", "audio/opus", "audio/webm", "audio/x-matroska", "video/mp4", "video/x-m4v",
+    "video/quicktime", "video/webm", "video/x-matroska",
 ).joinToString(";", postfix = ";")
 
 /** `macos-x64`, `windows-x64`, …: the update service's platform key, and the installer's suffix. */
