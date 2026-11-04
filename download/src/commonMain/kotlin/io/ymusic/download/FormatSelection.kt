@@ -70,17 +70,21 @@ internal object FormatSelection {
         return (tiers.firstOrNull { it.first >= quality } ?: tiers.lastOrNull())?.second
     }
 
-    /** The stream [itag] on the track [bestAudio] picks; null when the video no longer offers it. */
-    fun audioWithItag(
+    /** [stream] on the track [bestAudio] picks; null when the video no longer offers it. */
+    fun rememberedAudio(
         formats: List<AdaptiveFormat>,
         codec: AudioCodec,
-        itag: Int,
+        stream: StreamId,
         audioTrackId: String? = null,
         audioLanguage: String? = null,
     ): AdaptiveFormat? {
         val best = bestAudio(formats, codec, audioTrackId, audioLanguage) ?: return null
-        return audioStreams(formats, codec).firstOrNull { it.itag == itag && it.audioTrackId == best.audioTrackId }
+        return audioStreams(formats, codec).firstOrNull { it.streamId == stream && it.audioTrackId == best.audioTrackId }
     }
+
+    /** [stream] when the video still offers it for [container]. */
+    fun rememberedVideo(formats: List<AdaptiveFormat>, stream: StreamId, container: DownloadFormat): AdaptiveFormat? =
+        videoStreams(formats, container).firstOrNull { it.streamId == stream }
 
     private fun audioStreams(formats: List<AdaptiveFormat>, codec: AudioCodec): List<AdaptiveFormat> =
         formats.filter { it.mimeType.startsWith("audio") && it.clen > 0 && !it.isDrc && codec.accepts(it.mimeType) }
@@ -96,8 +100,7 @@ internal object FormatSelection {
         requestedHeight: Int?,
         container: DownloadFormat,
     ): AdaptiveFormat? {
-        val playable = formats.filter { it.isVideo && it.clen > 0 && it.height != null }
-        val video = if (container == DownloadFormat.VIDEO_WEBM) playable.filter { isWebmVideo(it.mimeType) } else playable
+        val video = videoStreams(formats, container)
         if (video.isEmpty()) return null
         val preferMp4Codec = container == DownloadFormat.VIDEO_MP4
         return video.sortedWith(
@@ -110,7 +113,14 @@ internal object FormatSelection {
                 .thenByDescending { it.clen },
         ).first()
     }
+
+    private fun videoStreams(formats: List<AdaptiveFormat>, container: DownloadFormat): List<AdaptiveFormat> {
+        val playable = formats.filter { it.isVideo && it.clen > 0 && it.height != null }
+        return if (container == DownloadFormat.VIDEO_WEBM) playable.filter { isWebmVideo(it.mimeType) } else playable
+    }
 }
+
+internal val AdaptiveFormat.streamId: StreamId get() = StreamId(itag, lmt)
 
 /** The audio codecs an output can take: [AAC] for M4A/MP4, [OPUS] for WebM, [ANY] for MP3 (decoded). */
 internal enum class AudioCodec {

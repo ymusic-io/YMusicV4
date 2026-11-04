@@ -53,18 +53,20 @@ class DownloadStore(driver: SqlDriver, logger: Logger? = null) {
             caption_language = task.captionLanguage,
             error_code = task.errorCode,
             audio_quality = task.audioQuality.name,
-            audio_itag = task.audioItag?.toLong(),
+            audio_itag = task.audioStream?.itag?.toLong(),
+            audio_lmt = task.audioStream?.lmt,
+            video_itag = task.videoStream?.itag?.toLong(),
+            video_lmt = task.videoStream?.lmt,
         )
     }
 
     suspend fun updateState(id: String, state: DownloadState, error: DownloadError?, updatedAt: Long): Unit =
         withContext(downloadDbDispatcher()) { queries.updateState(state.name, error?.userMessage, error?.code, updatedAt, id) }
 
-    suspend fun updateFormat(id: String, format: DownloadFormat, updatedAt: Long): Unit =
-        withContext(downloadDbDispatcher()) { queries.updateFormat(format.name, updatedAt, id) }
-
-    suspend fun updateAudioItag(id: String, itag: Int, updatedAt: Long): Unit =
-        withContext(downloadDbDispatcher()) { queries.updateAudioItag(itag.toLong(), updatedAt, id) }
+    suspend fun updateStreams(id: String, format: DownloadFormat, audio: StreamId, video: StreamId?, updatedAt: Long): Unit =
+        withContext(downloadDbDispatcher()) {
+            queries.updateStreams(format.name, audio.itag.toLong(), audio.lmt, video?.itag?.toLong(), video?.lmt, updatedAt, id)
+        }
 
     suspend fun updateProgress(id: String, downloaded: Long, total: Long, updatedAt: Long): Unit =
         withContext(downloadDbDispatcher()) { queries.updateProgress(downloaded, total, updatedAt, id) }
@@ -107,6 +109,9 @@ class DownloadStore(driver: SqlDriver, logger: Logger? = null) {
         mp3_source_bitrate: Long,
         audio_quality: String,
         audio_itag: Long?,
+        audio_lmt: Long?,
+        video_itag: Long?,
+        video_lmt: Long?,
     ) = DownloadTask(
         id = id,
         videoId = video_id,
@@ -133,6 +138,10 @@ class DownloadStore(driver: SqlDriver, logger: Logger? = null) {
         captionLanguage = caption_language,
         errorCode = error_code,
         audioQuality = AudioQuality.entries.firstOrNull { it.name == audio_quality } ?: AudioQuality.BEST,
-        audioItag = audio_itag?.toInt(),
+        audioStream = streamId(audio_itag, audio_lmt),
+        videoStream = streamId(video_itag, video_lmt),
     )
+
+    private fun streamId(itag: Long?, lmt: Long?): StreamId? =
+        if (itag != null && lmt != null) StreamId(itag.toInt(), lmt) else null
 }

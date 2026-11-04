@@ -70,8 +70,8 @@ class DownloadedStreams(
  *     which drives the WebView.
  *  2. picks the concrete audio/video [AdaptiveFormat]s for the task and the caption tracks for [captions].
  *  3. streams each audio/video track to its own scratch file over SABR — resumable (the scratch's
- *     on-disk length is the resume point, on the audio stream the task remembers), re-attesting once if
- *     the PO token is rejected mid-stream.
+ *     on-disk length is the resume point, on the streams the task remembers), re-attesting once if the
+ *     PO token is rejected mid-stream.
  *  4. fetches each selected caption over plain HTTP (its baseUrl carries the content PO token, see
  *     [timedTextUrl]) into a scratch file.
  *
@@ -96,8 +96,8 @@ class YtStreamDownloader(
         task: DownloadTask,
         onPreparing: () -> Unit,
         onDownloading: () -> Unit,
-        /** The run settled on a different audio stream than [DownloadTask.audioItag]; persist it before any byte lands. */
-        onAudioStream: suspend (itag: Int) -> Unit = {},
+        /** The output and streams differ from the task's: persist them, before any byte lands. */
+        onStreams: suspend (format: DownloadFormat, audio: StreamId, video: StreamId?) -> Unit = { _, _, _ -> },
         onProgress: (done: Long, total: Long) -> Unit,
     ): DownloadedStreams {
         onPreparing()
@@ -109,12 +109,10 @@ class YtStreamDownloader(
 
         val audioScratch = storage.scratch(task.id, AUDIO_SCRATCH)
         val videoScratch = if (videoFmt != null) storage.scratch(task.id, "video") else null
-        if (audioFmt.itag != task.audioItag) {
-            if (task.audioItag != null) {
-                log?.log(Logger.Level.INFO, "${task.videoId} no longer offers itag ${task.audioItag}; restarting audio on ${audioFmt.itag}")
-                audioScratch.delete()
-            }
-            onAudioStream(audioFmt.itag)
+        dropOtherStream(task.audioStream, audioFmt, audioScratch)
+        if (videoFmt != null) dropOtherStream(task.videoStream, videoFmt, videoScratch!!)
+        if (format != task.format || audioFmt.streamId != task.audioStream || videoFmt?.streamId != task.videoStream) {
+            onStreams(format, audioFmt.streamId, videoFmt?.streamId)
         }
 
         onDownloading()
@@ -141,6 +139,13 @@ class YtStreamDownloader(
             artist = resolved.artist,
             format = format,
         )
+    }
+
+    /** Runs before the new pick is recorded, so a row never names a stream its scratch doesn't hold. */
+    private fun dropOtherStream(remembered: StreamId?, picked: AdaptiveFormat, scratch: DownloadScratch) {
+        if (remembered == null || remembered == picked.streamId) return
+        log?.log(Logger.Level.INFO, "stream $remembered is gone; restarting its scratch on ${picked.streamId}")
+        scratch.delete()
     }
 
     private suspend fun resolveSpec(videoId: String): ResolvedVideo =
@@ -171,7 +176,7 @@ class YtStreamDownloader(
         val codec = AudioCodec.of(format)
         val trackId = task.audioTrackId
         val language = task.audioLanguage
-        val audio = task.audioItag?.let { FormatSelection.audioWithItag(formats, codec, it, trackId, language) }
+        val audio = task.audioStream?.let { FormatSelection.rememberedAudio(formats, codec, it, trackId, language) }
             ?: when (format) {
                 DownloadFormat.M4A, DownloadFormat.AUDIO_WEBM -> FormatSelection.audioAt(formats, codec, task.audioQuality, trackId, language)
                 // A video keeps its best audio, and MP3 sets its quality when it encodes.
@@ -179,7 +184,8 @@ class YtStreamDownloader(
             }
             ?: throw TechnicalException("E70011", "no $codec audio format for ${task.videoId} ($format)")
         val video = if (format.kind == DownloadKind.VIDEO) {
-            FormatSelection.videoNearest(formats, task.requestedHeight, format)
+            task.videoStream?.let { FormatSelection.rememberedVideo(formats, it, format) }
+                ?: FormatSelection.videoNearest(formats, task.requestedHeight, format)
                 ?: throw TechnicalException("E70012", "no video format for ${task.videoId}")
         } else {
             null

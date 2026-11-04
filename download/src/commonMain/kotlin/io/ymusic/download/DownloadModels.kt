@@ -100,6 +100,9 @@ class DownloadRequest(
     val audioQuality: AudioQuality = AudioQuality.BEST,
 )
 
+/** One exact stream of a video: [lmt] changes when YouTube re-encodes an [itag]. */
+data class StreamId(val itag: Int, val lmt: Long)
+
 /** Captions picked for one download — caption keys ([captionKey]). Embedded as subtitle tracks; a format
  *  with none ([captionsAsLyrics]) gets them as LRC lyrics in its tags. */
 class CaptionChoice(val languages: List<String>)
@@ -137,8 +140,9 @@ class DownloadTask(
     /** The failure's [CodedError.code] — a well-known category or an `E#####` site code; null unless FAILED. */
     val errorCode: String? = null,
     val audioQuality: AudioQuality = AudioQuality.BEST,
-    /** The stream the audio scratch holds, kept across runs: its bytes can only continue that stream. */
-    val audioItag: Int? = null,
+    /** The streams the scratches hold, kept across runs: their bytes can only continue those streams. */
+    val audioStream: StreamId? = null,
+    val videoStream: StreamId? = null,
 ) {
     /** 0f..1f, or null when the total isn't known yet (before the first MEDIA_HEADER). */
     val progress: Float?
@@ -156,7 +160,7 @@ class DownloadTask(
     ) = DownloadTask(
         id, videoId, title, artist, thumbnailUrl, format, requestedHeight,
         state, downloadedBytes, totalBytes, fileUri, errorMessage, createdAt, updatedAt,
-        fileName, audioTrackId, captions, audioLanguage, captionLanguage, errorCode, audioQuality, audioItag,
+        fileName, audioTrackId, captions, audioLanguage, captionLanguage, errorCode, audioQuality, audioStream, videoStream,
     )
 }
 

@@ -367,13 +367,10 @@ class DownloadService(
                 onDownloading = { updates.trySend { setState(task.id, DownloadState.DOWNLOADING) } },
                 onProcessing = { updates.trySend { setState(task.id, DownloadState.PROCESSING) } },
                 onProgress = { done, total -> updates.trySend { setProgress(task.id, done, total) } },
-                onFormatChanged = { format ->
-                    updates.trySend {
-                        store.updateFormat(task.id, format, now())
-                        _changes.emit(DownloadChange.FormatChanged(task.id, format))
-                    }
+                onStreams = { format, audio, video ->
+                    store.updateStreams(task.id, format, audio, video, now())
+                    if (format != task.format) _changes.emit(DownloadChange.FormatChanged(task.id, format))
                 },
-                onAudioStream = { itag -> store.updateAudioItag(task.id, itag, now()) },
             )
         } catch (c: CancellationException) {
             throw c
