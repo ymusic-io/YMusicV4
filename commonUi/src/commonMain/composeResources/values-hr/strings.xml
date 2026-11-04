@@ -489,7 +489,7 @@
     <string name="download_no_subtitles">Nema dostupnih</string>
     <string name="dialog_ok_done">Gotovo</string>
     <string name="download_captions_as_lyrics">%1$s · kao tekst pjesme</string>
-    <string name="download_lyrics_note">MP3 čuva titlove kao tekst pjesme, koji prikazuju playeri što podržavaju tekstove.</string>
+    <string name="download_lyrics_note">Ovaj format čuva titlove kao tekst pjesme, koji prikazuju playeri što podržavaju tekstove.</string>
     <string name="download_caption_translated">%1$s (automatski prevedeno)</string>
     <string name="download_live_unsupported">Videozapis UŽIVO nije moguće preuzeti</string>
     <string name="download_save_quick">Spremi kao Brzo preuzimanje</string>

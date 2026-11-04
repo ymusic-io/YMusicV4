@@ -481,7 +481,7 @@
     <string name="download_no_subtitles">無可用字幕</string>
     <string name="dialog_ok_done">完成</string>
     <string name="download_captions_as_lyrics">%1$s · 作為歌詞</string>
-    <string name="download_lyrics_note">MP3 會將字幕儲存為歌詞，可由支援歌詞的播放器顯示。</string>
+    <string name="download_lyrics_note">此格式會將字幕儲存為歌詞，可由支援歌詞的播放器顯示。</string>
     <string name="download_caption_translated">%1$s（自動翻譯）</string>
     <string name="download_live_unsupported">無法下載直播影片</string>
     <string name="download_save_quick">儲存為快速下載</string>

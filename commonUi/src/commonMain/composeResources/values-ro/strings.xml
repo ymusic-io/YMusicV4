@@ -489,7 +489,7 @@
     <string name="download_no_subtitles">Niciuna disponibilă</string>
     <string name="dialog_ok_done">Gata</string>
     <string name="download_captions_as_lyrics">%1$s · ca versuri</string>
-    <string name="download_lyrics_note">MP3 păstrează subtitrările ca versuri, afișate de playerele care citesc versuri.</string>
+    <string name="download_lyrics_note">Acest format păstrează subtitrările ca versuri, afișate de playerele care citesc versuri.</string>
     <string name="download_caption_translated">%1$s (traduse automat)</string>
     <string name="download_live_unsupported">Un videoclip LIVE nu poate fi descărcat</string>
     <string name="download_save_quick">Salvează ca Descărcare rapidă</string>

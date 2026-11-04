@@ -485,7 +485,7 @@
     <string name="download_no_subtitles">काहीही उपलब्ध नाही</string>
     <string name="dialog_ok_done">झाले</string>
     <string name="download_captions_as_lyrics">%1$s · गीतांचे बोल म्हणून</string>
-    <string name="download_lyrics_note">MP3 कॅप्शन गीतांचे बोल म्हणून ठेवते, जे बोल वाचणाऱ्या प्लेअरमध्ये दिसतात.</string>
+    <string name="download_lyrics_note">हा फॉरमॅट कॅप्शन गीतांचे बोल म्हणून ठेवतो, जे बोल वाचणाऱ्या प्लेअरमध्ये दिसतात.</string>
     <string name="download_caption_translated">%1$s (ऑटो-भाषांतरित)</string>
     <string name="download_live_unsupported">लाइव्ह व्हिडिओ डाउनलोड करता येत नाही</string>
     <string name="download_save_quick">क्विक डाउनलोड म्हणून सेव्ह करा</string>

@@ -489,7 +489,7 @@
     <string name="download_no_subtitles">Nessuno disponibile</string>
     <string name="dialog_ok_done">Fine</string>
     <string name="download_captions_as_lyrics">%1$s · come testo</string>
-    <string name="download_lyrics_note">L'MP3 conserva i sottotitoli come testo del brano, mostrato dai player che leggono i testi.</string>
+    <string name="download_lyrics_note">Questo formato conserva i sottotitoli come testo del brano, mostrato dai player che leggono i testi.</string>
     <string name="download_caption_translated">%1$s (tradotti automaticamente)</string>
     <string name="download_live_unsupported">Impossibile scaricare un video LIVE</string>
     <string name="download_save_quick">Salva come download rapido</string>

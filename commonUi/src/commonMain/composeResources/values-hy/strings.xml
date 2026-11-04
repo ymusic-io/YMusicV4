@@ -485,7 +485,7 @@
     <string name="download_no_subtitles">Հասանելի չեն</string>
     <string name="dialog_ok_done">Պատրաստ է</string>
     <string name="download_captions_as_lyrics">%1$s · որպես երգի բառեր</string>
-    <string name="download_lyrics_note">MP3-ը պահում է ենթագրերը որպես երգի բառեր, որոնք ցուցադրվում են բառեր կարդացող նվագարկիչներում։</string>
+    <string name="download_lyrics_note">Այս ձևաչափը պահում է ենթագրերը որպես երգի բառեր, որոնք ցուցադրվում են բառեր կարդացող նվագարկիչներում։</string>
     <string name="download_caption_translated">%1$s (ավտոմատ թարգմանված)</string>
     <string name="download_live_unsupported">Հնարավոր չէ ներբեռնել ՈՒՂԻՂ տեսանյութ</string>
     <string name="download_save_quick">Պահել որպես Արագ ներբեռնում</string>

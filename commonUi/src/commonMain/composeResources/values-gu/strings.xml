@@ -485,7 +485,7 @@
     <string name="download_no_subtitles">કોઈ ઉપલબ્ધ નથી</string>
     <string name="dialog_ok_done">થઈ ગયું</string>
     <string name="download_captions_as_lyrics">%1$s · ગીતના શબ્દો તરીકે</string>
-    <string name="download_lyrics_note">MP3 કૅપ્શનને ગીતના શબ્દો તરીકે રાખે છે, જે ગીતના શબ્દો વાંચતા પ્લેયરમાં દેખાય છે.</string>
+    <string name="download_lyrics_note">આ ફોર્મેટ કૅપ્શનને ગીતના શબ્દો તરીકે રાખે છે, જે ગીતના શબ્દો વાંચતા પ્લેયરમાં દેખાય છે.</string>
     <string name="download_caption_translated">%1$s (સ્વતઃ અનુવાદિત)</string>
     <string name="download_live_unsupported">લાઇવ વીડિયો ડાઉનલોડ કરી શકાતો નથી</string>
     <string name="download_save_quick">ઝડપી ડાઉનલોડ તરીકે સેવ કરો</string>

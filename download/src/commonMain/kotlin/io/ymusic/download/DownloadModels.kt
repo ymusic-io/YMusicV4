@@ -100,8 +100,8 @@ class DownloadRequest(
     val audioQuality: AudioQuality = AudioQuality.BEST,
 )
 
-/** Captions picked for one download — caption keys ([captionKey]). Embedded as subtitle tracks; MP3,
- *  which has none, gets them as LRC lyrics in its ID3 tag. */
+/** Captions picked for one download — caption keys ([captionKey]). Embedded as subtitle tracks; a format
+ *  with none ([captionsAsLyrics]) gets them as LRC lyrics in its tags. */
 class CaptionChoice(val languages: List<String>)
 
 /**

@@ -481,7 +481,7 @@
     <string name="download_no_subtitles">ไม่มี</string>
     <string name="dialog_ok_done">เสร็จสิ้น</string>
     <string name="download_captions_as_lyrics">%1$s · เป็นเนื้อเพลง</string>
-    <string name="download_lyrics_note">MP3 จะเก็บคำบรรยายเป็นเนื้อเพลง ซึ่งแสดงในเพลเยอร์ที่รองรับเนื้อเพลง</string>
+    <string name="download_lyrics_note">รูปแบบนี้จะเก็บคำบรรยายเป็นเนื้อเพลง ซึ่งแสดงในเพลเยอร์ที่รองรับเนื้อเพลง</string>
     <string name="download_caption_translated">%1$s (แปลอัตโนมัติ)</string>
     <string name="download_live_unsupported">ดาวน์โหลดวิดีโอสดไม่ได้</string>
     <string name="download_save_quick">บันทึกเป็นดาวน์โหลดด่วน</string>

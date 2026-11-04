@@ -481,7 +481,7 @@
     <string name="download_no_subtitles">Tiada yang tersedia</string>
     <string name="dialog_ok_done">Selesai</string>
     <string name="download_captions_as_lyrics">%1$s · sebagai lirik</string>
-    <string name="download_lyrics_note">MP3 menyimpan sari kata sebagai lirik, dipaparkan oleh pemain yang membaca lirik.</string>
+    <string name="download_lyrics_note">Format ini menyimpan sari kata sebagai lirik, dipaparkan oleh pemain yang membaca lirik.</string>
     <string name="download_caption_translated">%1$s (diterjemahkan secara automatik)</string>
     <string name="download_live_unsupported">Tidak dapat memuat turun video LANGSUNG</string>
     <string name="download_save_quick">Simpan sebagai Muat turun pantas</string>

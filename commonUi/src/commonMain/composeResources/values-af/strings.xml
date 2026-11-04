@@ -485,7 +485,7 @@
     <string name="download_no_subtitles">Geen beskikbaar nie</string>
     <string name="dialog_ok_done">Klaar</string>
     <string name="download_captions_as_lyrics">%1$s · as lirieke</string>
-    <string name="download_lyrics_note">MP3 hou onderskrifte as lirieke, wat gewys word deur spelers wat lirieke lees.</string>
+    <string name="download_lyrics_note">Hierdie formaat hou onderskrifte as lirieke, wat gewys word deur spelers wat lirieke lees.</string>
     <string name="download_caption_translated">%1$s (outomaties vertaal)</string>
     <string name="download_live_unsupported">Kan nie 'n REGSTREEKSE video aflaai nie</string>
     <string name="download_save_quick">Stoor as Vinnige aflaai</string>

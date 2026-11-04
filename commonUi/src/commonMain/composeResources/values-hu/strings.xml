@@ -485,7 +485,7 @@
     <string name="download_no_subtitles">Nem érhető el</string>
     <string name="dialog_ok_done">Kész</string>
     <string name="download_captions_as_lyrics">%1$s · dalszövegként</string>
-    <string name="download_lyrics_note">Az MP3 dalszövegként őrzi meg a feliratokat, amelyeket a dalszöveget olvasó lejátszók megjelenítenek.</string>
+    <string name="download_lyrics_note">Ez a formátum dalszövegként őrzi meg a feliratokat, amelyeket a dalszöveget olvasó lejátszók megjelenítenek.</string>
     <string name="download_caption_translated">%1$s (automatikusan fordított)</string>
     <string name="download_live_unsupported">ÉLŐ videó nem tölthető le</string>
     <string name="download_save_quick">Mentés Gyors letöltésként</string>

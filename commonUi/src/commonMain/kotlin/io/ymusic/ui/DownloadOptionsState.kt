@@ -94,7 +94,7 @@ internal class DownloadOptionsState(
 
     val extension: String get() = "." + format.fileExtension
 
-    /** Captions go into the file — subtitle tracks, or lyrics for MP3 — which takes ffmpeg (absent on iOS). */
+    /** Captions go into the file — subtitle tracks, or lyrics for MP3 and Opus — which takes ffmpeg (absent on iOS). */
     val captionsSupported: Boolean get() = downloads.ffmpegAvailable
 
     val audioOption: AudioOption? get() = options?.audio?.firstOrNull { it.format == audioFormat }

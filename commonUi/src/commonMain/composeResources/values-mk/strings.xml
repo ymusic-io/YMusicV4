@@ -485,7 +485,7 @@
     <string name="download_no_subtitles">Нема достапни</string>
     <string name="dialog_ok_done">Готово</string>
     <string name="download_captions_as_lyrics">%1$s · како стихови</string>
-    <string name="download_lyrics_note">MP3 ги чува титловите како стихови, што ги прикажуваат плеерите што читаат стихови.</string>
+    <string name="download_lyrics_note">Овој формат ги чува титловите како стихови, што ги прикажуваат плеерите што читаат стихови.</string>
     <string name="download_caption_translated">%1$s (автоматски преведено)</string>
     <string name="download_live_unsupported">Не може да се преземе видео ВО ЖИВО</string>
     <string name="download_save_quick">Зачувај како брзо преземање</string>

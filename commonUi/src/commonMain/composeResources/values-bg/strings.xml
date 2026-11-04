@@ -485,7 +485,7 @@
     <string name="download_no_subtitles">Няма налични</string>
     <string name="dialog_ok_done">Готово</string>
     <string name="download_captions_as_lyrics">%1$s · като текст на песента</string>
-    <string name="download_lyrics_note">MP3 запазва субтитрите като текст на песента, който се показва от плейъри с поддръжка на текстове.</string>
+    <string name="download_lyrics_note">Този формат запазва субтитрите като текст на песента, който се показва от плейъри с поддръжка на текстове.</string>
     <string name="download_caption_translated">%1$s (автоматичен превод)</string>
     <string name="download_live_unsupported">Видеоклип НА ЖИВО не може да се изтегли</string>
     <string name="download_save_quick">Запази като бързо изтегляне</string>

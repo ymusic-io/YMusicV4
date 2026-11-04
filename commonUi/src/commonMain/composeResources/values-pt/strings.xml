@@ -489,7 +489,7 @@
     <string name="download_no_subtitles">Nenhuma disponível</string>
     <string name="dialog_ok_done">Concluído</string>
     <string name="download_captions_as_lyrics">%1$s · como letra</string>
-    <string name="download_lyrics_note">O MP3 guarda as legendas como letra, exibida por players que leem letras.</string>
+    <string name="download_lyrics_note">Este formato guarda as legendas como letra, exibida por players que leem letras.</string>
     <string name="download_caption_translated">%1$s (tradução automática)</string>
     <string name="download_live_unsupported">Não é possível baixar um vídeo AO VIVO</string>
     <string name="download_save_quick">Salvar como download rápido</string>

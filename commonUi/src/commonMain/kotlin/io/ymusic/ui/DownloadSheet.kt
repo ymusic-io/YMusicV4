@@ -497,7 +497,7 @@ private fun OptionRow(icon: ImageVector, title: String, value: String, onClick: 
     }
 }
 
-/** "English", "English · as lyrics" (MP3), or "Off". */
+/** "English", "English · as lyrics" (MP3, Opus), or "Off". */
 @Composable
 internal fun captionSummary(state: DownloadOptionsState): String {
     val name = state.options?.captions?.firstOrNull { it.key == state.caption }?.displayName()

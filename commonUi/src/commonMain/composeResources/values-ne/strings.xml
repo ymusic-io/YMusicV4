@@ -485,7 +485,7 @@
     <string name="download_no_subtitles">कुनै उपलब्ध छैन</string>
     <string name="dialog_ok_done">सकियो</string>
     <string name="download_captions_as_lyrics">%1$s · गीतका शब्दका रूपमा</string>
-    <string name="download_lyrics_note">MP3 ले क्याप्सनलाई गीतका शब्दका रूपमा राख्छ, जुन शब्द पढ्ने प्लेयरहरूमा देखिन्छ।</string>
+    <string name="download_lyrics_note">यो ढाँचाले क्याप्सनलाई गीतका शब्दका रूपमा राख्छ, जुन शब्द पढ्ने प्लेयरहरूमा देखिन्छ।</string>
     <string name="download_caption_translated">%1$s (स्वतः अनुवादित)</string>
     <string name="download_live_unsupported">लाइभ भिडियो डाउनलोड गर्न सकिँदैन</string>
     <string name="download_save_quick">द्रुत डाउनलोडको रूपमा सेभ गर्नुहोस्</string>

@@ -493,7 +493,7 @@
     <string name="download_no_subtitles">Nejsou k dispozici</string>
     <string name="dialog_ok_done">Hotovo</string>
     <string name="download_captions_as_lyrics">%1$s · jako text písně</string>
-    <string name="download_lyrics_note">MP3 uchová titulky jako text písně, který zobrazí přehrávače podporující texty.</string>
+    <string name="download_lyrics_note">Tento formát uchová titulky jako text písně, který zobrazí přehrávače podporující texty.</string>
     <string name="download_caption_translated">%1$s (automaticky přeloženo)</string>
     <string name="download_live_unsupported">Video ŽIVĚ nelze stáhnout</string>
     <string name="download_save_quick">Uložit jako Rychlé stažení</string>

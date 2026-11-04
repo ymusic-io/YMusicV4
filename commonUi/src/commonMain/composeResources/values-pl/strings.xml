@@ -493,7 +493,7 @@
     <string name="download_no_subtitles">Brak dostępnych</string>
     <string name="dialog_ok_done">Gotowe</string>
     <string name="download_captions_as_lyrics">%1$s · jako tekst utworu</string>
-    <string name="download_lyrics_note">MP3 zachowuje napisy jako tekst utworu, wyświetlany przez odtwarzacze, które go obsługują.</string>
+    <string name="download_lyrics_note">Ten format zachowuje napisy jako tekst utworu, wyświetlany przez odtwarzacze, które go obsługują.</string>
     <string name="download_caption_translated">%1$s (tłumaczenie automatyczne)</string>
     <string name="download_live_unsupported">Nie można pobrać filmu NA ŻYWO</string>
     <string name="download_save_quick">Zapisz jako Szybkie pobieranie</string>

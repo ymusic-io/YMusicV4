@@ -485,7 +485,7 @@
     <string name="download_no_subtitles">Δεν υπάρχουν διαθέσιμοι</string>
     <string name="dialog_ok_done">Τέλος</string>
     <string name="download_captions_as_lyrics">%1$s · ως στίχοι</string>
-    <string name="download_lyrics_note">Το MP3 κρατά τους υπότιτλους ως στίχους, που εμφανίζονται σε προγράμματα που διαβάζουν στίχους.</string>
+    <string name="download_lyrics_note">Αυτή η μορφή κρατά τους υπότιτλους ως στίχους, που εμφανίζονται σε προγράμματα που διαβάζουν στίχους.</string>
     <string name="download_caption_translated">%1$s (αυτόματη μετάφραση)</string>
     <string name="download_live_unsupported">Δεν είναι δυνατή η λήψη ΖΩΝΤΑΝΟΥ βίντεο</string>
     <string name="download_save_quick">Αποθήκευση ως Γρήγορη λήψη</string>

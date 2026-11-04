@@ -485,7 +485,7 @@
     <string name="download_no_subtitles">Mevcut değil</string>
     <string name="dialog_ok_done">Bitti</string>
     <string name="download_captions_as_lyrics">%1$s · şarkı sözü olarak</string>
-    <string name="download_lyrics_note">MP3, altyazıları şarkı sözü olarak saklar; şarkı sözlerini okuyan oynatıcılar bunları gösterir.</string>
+    <string name="download_lyrics_note">Bu biçim, altyazıları şarkı sözü olarak saklar; şarkı sözlerini okuyan oynatıcılar bunları gösterir.</string>
     <string name="download_caption_translated">%1$s (otomatik çeviri)</string>
     <string name="download_live_unsupported">CANLI video indirilemez</string>
     <string name="download_save_quick">Hızlı indirme olarak kaydet</string>

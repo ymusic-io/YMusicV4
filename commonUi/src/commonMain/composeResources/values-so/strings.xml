@@ -485,7 +485,7 @@
     <string name="download_no_subtitles">Midna ma jiro</string>
     <string name="dialog_ok_done">Dhameeyay</string>
     <string name="download_captions_as_lyrics">%1$s · sida midhaha heesta</string>
-    <string name="download_lyrics_note">MP3 wuxuu qoraal-hooseedka u kaydiyaa midhaha heesta, waxaana tusa daarayaasha akhriya midhaha.</string>
+    <string name="download_lyrics_note">Qaabkan wuxuu qoraal-hooseedka u kaydiyaa midhaha heesta, waxaana tusa daarayaasha akhriya midhaha.</string>
     <string name="download_caption_translated">%1$s (si toos ah loo turjumay)</string>
     <string name="download_live_unsupported">Lama dajin karo muuqaal TOOS ah</string>
     <string name="download_save_quick">U kaydi Dajin degdeg ah</string>

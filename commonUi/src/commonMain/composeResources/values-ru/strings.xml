@@ -493,7 +493,7 @@
     <string name="download_no_subtitles">Нет доступных</string>
     <string name="dialog_ok_done">Готово</string>
     <string name="download_captions_as_lyrics">%1$s · как текст песни</string>
-    <string name="download_lyrics_note">В MP3 субтитры сохраняются как текст песни — его показывают плееры с поддержкой текстов.</string>
+    <string name="download_lyrics_note">В этом формате субтитры сохраняются как текст песни — его показывают плееры с поддержкой текстов.</string>
     <string name="download_caption_translated">%1$s (автоперевод)</string>
     <string name="download_live_unsupported">Нельзя скачать прямую трансляцию</string>
     <string name="download_save_quick">Сохранить как быструю загрузку</string>

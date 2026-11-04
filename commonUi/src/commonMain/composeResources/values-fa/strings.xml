@@ -485,7 +485,7 @@
     <string name="download_no_subtitles">موردی موجود نیست</string>
     <string name="dialog_ok_done">انجام شد</string>
     <string name="download_captions_as_lyrics">%1$s · به‌عنوان متن ترانه</string>
-    <string name="download_lyrics_note">MP3 زیرنویس‌ها را به‌عنوان متن ترانه نگه می‌دارد که در پخش‌کننده‌های پشتیبانی‌کننده نمایش داده می‌شود.</string>
+    <string name="download_lyrics_note">این قالب زیرنویس‌ها را به‌عنوان متن ترانه نگه می‌دارد که در پخش‌کننده‌های پشتیبانی‌کننده نمایش داده می‌شود.</string>
     <string name="download_caption_translated">%1$s (ترجمه خودکار)</string>
     <string name="download_live_unsupported">ویدیوی زنده قابل دانلود نیست</string>
     <string name="download_save_quick">ذخیره به‌عنوان دانلود سریع</string>

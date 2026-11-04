@@ -485,7 +485,7 @@
     <string name="download_no_subtitles">Walang available</string>
     <string name="dialog_ok_done">Tapos na</string>
     <string name="download_captions_as_lyrics">%1$s · bilang lyrics</string>
-    <string name="download_lyrics_note">Itinatago ng MP3 ang mga caption bilang lyrics, na ipinapakita ng mga player na nakakabasa ng lyrics.</string>
+    <string name="download_lyrics_note">Itinatago ng format na ito ang mga caption bilang lyrics, na ipinapakita ng mga player na nakakabasa ng lyrics.</string>
     <string name="download_caption_translated">%1$s (awtomatikong isinalin)</string>
     <string name="download_live_unsupported">Hindi ma-download ang LIVE na video</string>
     <string name="download_save_quick">I-save bilang Quick download</string>

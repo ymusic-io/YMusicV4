@@ -485,7 +485,7 @@
     <string name="download_no_subtitles">কিছু উপলব্ধ নেই</string>
     <string name="dialog_ok_done">সম্পন্ন</string>
     <string name="download_captions_as_lyrics">%1$s · লিরিক্স হিসেবে</string>
-    <string name="download_lyrics_note">MP3-তে ক্যাপশন লিরিক্স হিসেবে থাকে, যা লিরিক্স পড়তে পারা প্লেয়ারে দেখা যায়।</string>
+    <string name="download_lyrics_note">এই ফরম্যাটে ক্যাপশন লিরিক্স হিসেবে থাকে, যা লিরিক্স পড়তে পারা প্লেয়ারে দেখা যায়।</string>
     <string name="download_caption_translated">%1$s (স্বয়ংক্রিয় অনুবাদ)</string>
     <string name="download_live_unsupported">লাইভ ভিডিও ডাউনলোড করা যায় না</string>
     <string name="download_save_quick">দ্রুত ডাউনলোড হিসেবে সেভ করুন</string>

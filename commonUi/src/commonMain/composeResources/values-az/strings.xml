@@ -485,7 +485,7 @@
     <string name="download_no_subtitles">Mövcud deyil</string>
     <string name="dialog_ok_done">Hazır</string>
     <string name="download_captions_as_lyrics">%1$s · mahnı sözləri kimi</string>
-    <string name="download_lyrics_note">MP3 subtitrləri mahnı sözləri kimi saxlayır; onları mahnı sözlərini oxuyan pleyerlər göstərir.</string>
+    <string name="download_lyrics_note">Bu format subtitrləri mahnı sözləri kimi saxlayır; onları mahnı sözlərini oxuyan pleyerlər göstərir.</string>
     <string name="download_caption_translated">%1$s (avtomatik tərcümə)</string>
     <string name="download_live_unsupported">CANLI videonu yükləmək olmur</string>
     <string name="download_save_quick">Sürətli yükləmə kimi saxla</string>

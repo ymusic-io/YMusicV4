@@ -485,7 +485,7 @@
     <string name="download_no_subtitles">කිසිවක් නැත</string>
     <string name="dialog_ok_done">නිමයි</string>
     <string name="download_captions_as_lyrics">%1$s · පද රචනා ලෙස</string>
-    <string name="download_lyrics_note">MP3 උපසිරැසි පද රචනා ලෙස තබා ගනී, පද රචනා කියවන ප්ලේයර්වල පෙන්වයි.</string>
+    <string name="download_lyrics_note">මෙම ආකෘතිය උපසිරැසි පද රචනා ලෙස තබා ගනී, පද රචනා කියවන ප්ලේයර්වල පෙන්වයි.</string>
     <string name="download_caption_translated">%1$s (ස්වයංක්‍රීයව පරිවර්තිත)</string>
     <string name="download_live_unsupported">සජීවී වීඩියෝවක් බාගත කළ නොහැක</string>
     <string name="download_save_quick">ඉක්මන් බාගැනීමක් ලෙස සුරකින්න</string>

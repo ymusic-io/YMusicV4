@@ -485,7 +485,7 @@
     <string name="download_no_subtitles">Geen beschikbaar</string>
     <string name="dialog_ok_done">Klaar</string>
     <string name="download_captions_as_lyrics">%1$s · als songtekst</string>
-    <string name="download_lyrics_note">MP3 bewaart ondertiteling als songtekst, getoond door spelers die songteksten lezen.</string>
+    <string name="download_lyrics_note">Deze indeling bewaart ondertiteling als songtekst, getoond door spelers die songteksten lezen.</string>
     <string name="download_caption_translated">%1$s (automatisch vertaald)</string>
     <string name="download_live_unsupported">Een LIVE-video kan niet worden gedownload</string>
     <string name="download_save_quick">Opslaan als Snelle download</string>

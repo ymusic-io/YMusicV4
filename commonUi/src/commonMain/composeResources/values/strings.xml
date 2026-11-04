@@ -580,7 +580,7 @@
     <string name="download_no_subtitles">None available</string>
     <string name="dialog_ok_done">Done</string>
     <string name="download_captions_as_lyrics">%1$s · as lyrics</string>
-    <string name="download_lyrics_note">MP3 keeps captions as lyrics, shown by players that read lyrics.</string>
+    <string name="download_lyrics_note">This format keeps captions as lyrics, shown by players that read lyrics.</string>
     <string name="download_caption_translated">%1$s (auto-translated)</string>
     <string name="download_live_unsupported">Can’t download a LIVE video</string>
     <string name="download_save_quick">Save as Quick download</string>

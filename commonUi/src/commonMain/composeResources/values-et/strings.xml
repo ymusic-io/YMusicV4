@@ -485,7 +485,7 @@
     <string name="download_no_subtitles">Pole saadaval</string>
     <string name="dialog_ok_done">Valmis</string>
     <string name="download_captions_as_lyrics">%1$s · laulusõnadena</string>
-    <string name="download_lyrics_note">MP3 säilitab subtiitrid laulusõnadena, mida näitavad laulusõnu toetavad pleierid.</string>
+    <string name="download_lyrics_note">See vorming säilitab subtiitrid laulusõnadena, mida näitavad laulusõnu toetavad pleierid.</string>
     <string name="download_caption_translated">%1$s (automaatselt tõlgitud)</string>
     <string name="download_live_unsupported">OTSE-videot ei saa alla laadida</string>
     <string name="download_save_quick">Salvesta kiirallalaadimisena</string>

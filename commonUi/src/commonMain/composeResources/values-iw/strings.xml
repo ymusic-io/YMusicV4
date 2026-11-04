@@ -489,7 +489,7 @@
     <string name="download_no_subtitles">אין זמינות</string>
     <string name="dialog_ok_done">סיום</string>
     <string name="download_captions_as_lyrics">%1$s · כמילות שיר</string>
-    <string name="download_lyrics_note">MP3 שומר את הכתוביות כמילות שיר, שמוצגות בנגנים שקוראים מילים.</string>
+    <string name="download_lyrics_note">פורמט זה שומר את הכתוביות כמילות שיר, שמוצגות בנגנים שקוראים מילים.</string>
     <string name="download_caption_translated">%1$s (תורגם אוטומטית)</string>
     <string name="download_live_unsupported">לא ניתן להוריד סרטון בשידור חי</string>
     <string name="download_save_quick">שמור כהורדה מהירה</string>
