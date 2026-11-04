@@ -229,32 +229,44 @@ class DownloadPipeline(
     }
 
     /** The name of the scratch holding [opus] (the [OUT_SCRATCH]) with cover art and [captions] (as LRC lyrics)
-     *  in its tags — a new scratch, or [OUT_SCRATCH] itself when there is nothing to add. Best-effort like
-     *  both of those: a failure is logged and the song still publishes without them. */
+     *  in its tags — a new scratch, or [OUT_SCRATCH] itself when there is nothing to add. Best-effort tag by
+     *  tag like both of those: a failure is logged and the song still publishes with the rest. */
     private suspend fun withOpusTags(task: DownloadTask, opus: DownloadScratch, captions: List<DownloadedCaption>): String {
+        val comments = buildList {
+            opusComment("cover") {
+                coverArt.fetch(task)?.let { cover -> OggOpusTags.pictureComment(cover.source().buffer().use { it.readByteArray() }) }
+            }?.let(::add)
+            captions.forEach { cc ->
+                opusComment("lyrics ${cc.languageCode}") {
+                    val lrc = cc.scratch.source().buffer().use { VttToLrc.convert(it.readUtf8()) }
+                    if (lrc.isEmpty()) null else "LYRICS=$lrc"
+                }?.let(::add)
+            }
+        }
+        if (comments.isEmpty()) return OUT_SCRATCH
         val tagged = storage.scratch(task.id, OUT_LYRICS_SCRATCH)
         try {
-            val comments = buildList {
-                coverArt.fetch(task)?.let { cover -> add(OggOpusTags.pictureComment(cover.source().buffer().use { it.readByteArray() })) }
-                captions.forEach { cc ->
-                    val lrc = cc.scratch.source().buffer().use { VttToLrc.convert(it.readUtf8()) }
-                    if (lrc.isNotEmpty()) add("LYRICS=$lrc")
-                }
-            }
-            if (comments.isEmpty()) return OUT_SCRATCH
             tagged.delete()
             opus.source().buffer().use { source ->
                 tagged.appendSink().use { sink -> OggOpusTags.insert(source, sink, comments) }
             }
             return OUT_LYRICS_SCRATCH
-        } catch (e: CancellationException) {
-            throw e
         } catch (e: Exception) {
             logger?.log(Logger.Level.WARN, "opus tags failed; publishing without them", e)
         }
         tagged.delete()
         return OUT_SCRATCH
     }
+
+    private inline fun opusComment(tag: String, build: () -> String?): String? =
+        try {
+            build()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            logger?.log(Logger.Level.WARN, "opus $tag failed; publishing without it", e)
+            null
+        }
 
     /** Container tags embedded into the finished file. The videoId goes in the standard `composer` field
      *  — it survives in both ID3 (TCOM) and MP4 (©wrt), and the app's ffmpeg metadata parser reads it
