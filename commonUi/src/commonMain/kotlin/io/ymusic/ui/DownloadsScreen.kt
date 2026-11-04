@@ -236,11 +236,8 @@ fun DownloadsScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
                         }
                     },
                     onPlay = {
-                        val queue = shown.filter { it.state == DownloadState.COMPLETED && it.fileUri != null }
-                        val index = queue.indexOfFirst { it.id == task.id }
-                        if (index >= 0) {
-                            val downloads = queue.map { FinishedDownload(it.fileUri!!, it.videoId, it.title, it.artist) }
-                            scope.launch { coordinator.playDownloads(downloads, index) }
+                        task.fileUri?.let { uri ->
+                            scope.launch { coordinator.playDownloaded(uri, task.videoId, task.title, task.artist) }
                         }
                     },
                     onRevealLibrary = if (store != null) ({

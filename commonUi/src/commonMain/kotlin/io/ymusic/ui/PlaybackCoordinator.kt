@@ -37,9 +37,6 @@ import kotlin.time.TimeSource
  * Queues that keep growing (a video's radio, a playlist past its loaded page) carry a
  * [NextQueueSource].
  */
-/** A completed download with a file, as [PlaybackCoordinator.playDownloads] queues it. */
-class FinishedDownload(val uri: String, val videoId: String, val title: String, val artist: String?)
-
 class PlaybackCoordinator(
     internal val graph: AppGraph,
     private val scope: CoroutineScope,
@@ -211,20 +208,17 @@ class PlaybackCoordinator(
     }
 
     /**
-     * Play finished downloads as the queue, starting at [index]. Each is its library item when the
-     * store has indexed it — same id, tags and embedded-cover art as the Library; else the file by
-     * uri with its video's thumbnail, resolved at the view size by the `art:` fetcher.
+     * Play a finished download now (queue of one). Its library item when the store has indexed it —
+     * same id, tags and embedded-cover art as the Library; else the file by uri with [videoId]'s
+     * thumbnail, resolved at the view size by the `art:` fetcher.
      */
-    suspend fun playDownloads(downloads: List<FinishedDownload>, index: Int) {
-        val items = downloads.map { download ->
-            mediaStore?.findItemByUri(Uri.parse(download.uri))?.toLocalMedia() ?: PlayableItem.LocalMedia(
-                uri = download.uri,
-                title = download.title,
-                artist = download.artist,
-                thumbnailUrl = if (mediaStore != null) youtubeArtUrl(download.videoId) else youtubeThumbUrl(download.videoId),
-            )
-        }
-        player.setQueue(items, playIndex = index, origin = QueueOrigin.Downloads)
+    suspend fun playDownloaded(uri: String, videoId: String, title: String, artist: String?) {
+        mediaStore?.findItemByUri(Uri.parse(uri))?.let { return playLocalSingle(it) }
+        val art = if (mediaStore != null) youtubeArtUrl(videoId) else youtubeThumbUrl(videoId)
+        player.setQueue(
+            listOf(PlayableItem.LocalMedia(uri = uri, title = title, artist = artist, thumbnailUrl = art)),
+            origin = QueueOrigin.Downloads,
+        )
     }
 
     /**
