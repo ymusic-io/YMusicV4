@@ -22,10 +22,14 @@ import projectcommon.error.CodedError
 enum class DownloadFormat(val kind: DownloadKind, val fileExtension: String) {
     MP3(DownloadKind.AUDIO, "mp3"),
     M4A(DownloadKind.AUDIO, "m4a"),
-    AUDIO_WEBM(DownloadKind.AUDIO, "webm"),
+    /** Opus in Ogg. The name is persisted on tasks, so it outlives the container it was named for. */
+    AUDIO_WEBM(DownloadKind.AUDIO, "opus"),
     VIDEO_WEBM(DownloadKind.VIDEO, "webm"),
     VIDEO_MP4(DownloadKind.VIDEO, "mp4"),
 }
+
+/** The container has no subtitle tracks, so captions go in as LRC lyrics. */
+val DownloadFormat.captionsAsLyrics: Boolean get() = this == DownloadFormat.MP3 || this == DownloadFormat.AUDIO_WEBM
 
 enum class DownloadKind { AUDIO, VIDEO }
 

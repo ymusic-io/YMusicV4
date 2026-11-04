@@ -60,7 +60,7 @@ suspend fun registerCompletedDownload(
 internal fun DownloadFormat.mimeType(): String = when (this) {
     DownloadFormat.MP3 -> "audio/mpeg"
     DownloadFormat.M4A -> "audio/mp4"
-    DownloadFormat.AUDIO_WEBM -> "audio/webm"
+    DownloadFormat.AUDIO_WEBM -> "audio/ogg"
     DownloadFormat.VIDEO_MP4 -> "video/mp4"
     DownloadFormat.VIDEO_WEBM -> "video/webm"
 }

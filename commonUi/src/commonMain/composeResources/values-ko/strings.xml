@@ -452,7 +452,7 @@
     <string name="download_more_qualities">+%1$d개 더보기</string>
     <string name="download_down_to">최저 %1$s까지</string>
     <string name="download_less">간략히</string>
-    <string name="download_webm_detail">WebM · 원본 스트림</string>
+    <string name="download_webm_detail">Ogg · 원본 스트림</string>
     <string name="download_m4a_detail">AAC · 원본 스트림</string>
     <string name="download_mp3_detail">어디서나 재생 가능</string>
     <string name="download_audio_track">오디오 트랙</string>

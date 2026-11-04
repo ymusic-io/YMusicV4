@@ -517,7 +517,7 @@
     <string name="download_more_qualities">+%1$d nữa</string>
     <string name="download_down_to">xuống %1$s</string>
     <string name="download_less">Thu gọn</string>
-    <string name="download_webm_detail">WebM · luồng gốc</string>
+    <string name="download_webm_detail">Ogg · luồng gốc</string>
     <string name="download_m4a_detail">AAC · luồng gốc</string>
     <string name="download_mp3_detail">Phát ở mọi nơi</string>
     <string name="download_audio_track">Bản âm thanh</string>

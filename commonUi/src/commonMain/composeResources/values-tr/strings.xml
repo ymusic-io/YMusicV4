@@ -456,7 +456,7 @@
     <string name="download_more_qualities">+%1$d daha</string>
     <string name="download_down_to">%1$s değerine kadar</string>
     <string name="download_less">Daha az</string>
-    <string name="download_webm_detail">WebM · orijinal akış</string>
+    <string name="download_webm_detail">Ogg · orijinal akış</string>
     <string name="download_m4a_detail">AAC · orijinal akış</string>
     <string name="download_mp3_detail">Her yerde çalar</string>
     <string name="download_audio_track">Ses parçası</string>

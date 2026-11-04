@@ -452,7 +452,7 @@
     <string name="download_more_qualities">+%1$d lagi</string>
     <string name="download_down_to">hingga %1$s</string>
     <string name="download_less">Kurang</string>
-    <string name="download_webm_detail">WebM · strim asal</string>
+    <string name="download_webm_detail">Ogg · strim asal</string>
     <string name="download_m4a_detail">AAC · strim asal</string>
     <string name="download_mp3_detail">Boleh dimainkan di mana-mana</string>
     <string name="download_audio_track">Trek audio</string>

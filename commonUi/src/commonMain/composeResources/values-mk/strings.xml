@@ -456,7 +456,7 @@
     <string name="download_more_qualities">Уште %1$d</string>
     <string name="download_down_to">до %1$s</string>
     <string name="download_less">Помалку</string>
-    <string name="download_webm_detail">WebM · оригинален стрим</string>
+    <string name="download_webm_detail">Ogg · оригинален стрим</string>
     <string name="download_m4a_detail">AAC · оригинален стрим</string>
     <string name="download_mp3_detail">Се пушта насекаде</string>
     <string name="download_audio_track">Аудиозапис</string>

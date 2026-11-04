@@ -6,6 +6,7 @@ import io.ymusic.ytmedia.sabr.AdaptiveFormat
 import io.ymusic.ytmedia.sabr.SabrStreamSpec
 import kmpcommon.log.Logger
 import kmphttp.KmpHttpClient
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import okio.buffer
@@ -128,8 +129,9 @@ class DownloadPipeline(
             DownloadFormat.M4A -> withCover(task) { cover ->
                 ff.toM4a(audio.path, out.path, captions = subs, cover = cover, metadata = meta, onProgressUs = onFfProgress)
             }
-            DownloadFormat.AUDIO_WEBM -> withCover(task) { cover ->
-                ff.toWebmAudio(audio.path, out.path, captions = subs, cover = cover, metadata = meta, onProgressUs = onFfProgress)
+            DownloadFormat.AUDIO_WEBM -> {
+                ff.toOpus(audio.path, out.path, meta, onFfProgress)
+                outName = withOpusTags(task, out, streams.captions)
             }
             DownloadFormat.VIDEO_WEBM -> ff.muxWebm(video!!.path, audio.path, out.path, captions = subs, metadata = meta, onProgressUs = onFfProgress)
             DownloadFormat.VIDEO_MP4 -> ff.muxMp4(video!!.path, audio.path, out.path, subs, meta, onFfProgress)
@@ -219,6 +221,34 @@ class DownloadPipeline(
             logger?.log(Logger.Level.WARN, "mp3 tag can't take lyrics; publishing without them")
         } catch (e: Exception) {
             logger?.log(Logger.Level.WARN, "embedding lyrics failed; publishing without them", e)
+        }
+        tagged.delete()
+        return OUT_SCRATCH
+    }
+
+    /** The name of the scratch holding [opus] (the [OUT_SCRATCH]) with cover art and [captions] (as LRC lyrics)
+     *  in its tags — a new scratch, or [OUT_SCRATCH] itself when there is nothing to add. Best-effort like
+     *  both of those: a failure is logged and the song still publishes without them. */
+    private suspend fun withOpusTags(task: DownloadTask, opus: DownloadScratch, captions: List<DownloadedCaption>): String {
+        val tagged = storage.scratch(task.id, OUT_LYRICS_SCRATCH)
+        try {
+            val comments = buildList {
+                coverArt.fetch(task)?.let { cover -> add(OggOpusTags.pictureComment(cover.source().buffer().use { it.readByteArray() })) }
+                captions.forEach { cc ->
+                    val lrc = cc.scratch.source().buffer().use { VttToLrc.convert(it.readUtf8()) }
+                    if (lrc.isNotEmpty()) add("LYRICS=$lrc")
+                }
+            }
+            if (comments.isEmpty()) return OUT_SCRATCH
+            tagged.delete()
+            opus.source().buffer().use { source ->
+                tagged.appendSink().use { sink -> OggOpusTags.insert(source, sink, comments) }
+            }
+            return OUT_LYRICS_SCRATCH
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            logger?.log(Logger.Level.WARN, "opus tags failed; publishing without them", e)
         }
         tagged.delete()
         return OUT_SCRATCH

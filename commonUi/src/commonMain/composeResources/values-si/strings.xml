@@ -456,7 +456,7 @@
     <string name="download_more_qualities">තව +%1$d</string>
     <string name="download_down_to">%1$s දක්වා</string>
     <string name="download_less">අඩුවෙන්</string>
-    <string name="download_webm_detail">WebM · මුල් ප්‍රවාහය</string>
+    <string name="download_webm_detail">Ogg · මුල් ප්‍රවාහය</string>
     <string name="download_m4a_detail">AAC · මුල් ප්‍රවාහය</string>
     <string name="download_mp3_detail">ඕනෑම තැනක වාදනය වේ</string>
     <string name="download_audio_track">ශ්‍රව්‍ය පථය</string>

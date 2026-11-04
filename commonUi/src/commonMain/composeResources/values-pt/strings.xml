@@ -460,7 +460,7 @@
     <string name="download_more_qualities">+%1$d outras</string>
     <string name="download_down_to">até %1$s</string>
     <string name="download_less">Menos</string>
-    <string name="download_webm_detail">WebM · stream original</string>
+    <string name="download_webm_detail">Ogg · stream original</string>
     <string name="download_m4a_detail">AAC · stream original</string>
     <string name="download_mp3_detail">Toca em qualquer lugar</string>
     <string name="download_audio_track">Faixa de áudio</string>

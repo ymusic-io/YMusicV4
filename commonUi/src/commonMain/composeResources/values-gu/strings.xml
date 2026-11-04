@@ -456,7 +456,7 @@
     <string name="download_more_qualities">+%1$d વધુ</string>
     <string name="download_down_to">%1$s સુધી</string>
     <string name="download_less">ઓછું</string>
-    <string name="download_webm_detail">WebM · મૂળ સ્ટ્રીમ</string>
+    <string name="download_webm_detail">Ogg · મૂળ સ્ટ્રીમ</string>
     <string name="download_m4a_detail">AAC · મૂળ સ્ટ્રીમ</string>
     <string name="download_mp3_detail">બધે ચાલે છે</string>
     <string name="download_audio_track">ઑડિયો ટ્રેક</string>

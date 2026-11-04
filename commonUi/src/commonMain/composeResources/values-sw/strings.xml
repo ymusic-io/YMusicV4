@@ -456,7 +456,7 @@
     <string name="download_more_qualities">+%1$d zaidi</string>
     <string name="download_down_to">hadi %1$s</string>
     <string name="download_less">Chache</string>
-    <string name="download_webm_detail">WebM · mtiririko asili</string>
+    <string name="download_webm_detail">Ogg · mtiririko asili</string>
     <string name="download_m4a_detail">AAC · mtiririko asili</string>
     <string name="download_mp3_detail">Inacheza popote</string>
     <string name="download_audio_track">Wimbo wa sauti</string>

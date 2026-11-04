@@ -452,7 +452,7 @@
     <string name="download_more_qualities">另有 %1$d 项</string>
     <string name="download_down_to">低至 %1$s</string>
     <string name="download_less">收起</string>
-    <string name="download_webm_detail">WebM · 原始流</string>
+    <string name="download_webm_detail">Ogg · 原始流</string>
     <string name="download_m4a_detail">AAC · 原始流</string>
     <string name="download_mp3_detail">到处都能播放</string>
     <string name="download_audio_track">音轨</string>

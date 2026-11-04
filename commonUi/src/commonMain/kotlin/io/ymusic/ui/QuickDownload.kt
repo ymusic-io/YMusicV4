@@ -69,7 +69,7 @@ data class QuickDownloadPreset(
         private const val KEY_CAPTION = "captionLanguage"
 
         /**
-         * Opus (YouTube's best audio, ~256 kbps in WebM) when ffmpeg can write the WebM, else M4A; the default
+         * Opus (YouTube's best audio, in Ogg) when ffmpeg can write the WebM, else M4A; the default
          * audio track; captions in the device language — until the user saves a preset.
          */
         fun default(ffmpegAvailable: Boolean): QuickDownloadPreset = QuickDownloadPreset(

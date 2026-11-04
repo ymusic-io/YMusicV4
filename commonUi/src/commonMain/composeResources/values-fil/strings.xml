@@ -456,7 +456,7 @@
     <string name="download_more_qualities">+%1$d pa</string>
     <string name="download_down_to">hanggang %1$s</string>
     <string name="download_less">Kaunti</string>
-    <string name="download_webm_detail">WebM · orihinal na stream</string>
+    <string name="download_webm_detail">Ogg · orihinal na stream</string>
     <string name="download_m4a_detail">AAC · orihinal na stream</string>
     <string name="download_mp3_detail">Nagpe-play kahit saan</string>
     <string name="download_audio_track">Audio track</string>

@@ -464,7 +464,7 @@
     <string name="download_more_qualities">+%1$d další</string>
     <string name="download_down_to">až po %1$s</string>
     <string name="download_less">Méně</string>
-    <string name="download_webm_detail">WebM · původní stream</string>
+    <string name="download_webm_detail">Ogg · původní stream</string>
     <string name="download_m4a_detail">AAC · původní stream</string>
     <string name="download_mp3_detail">Přehraje se všude</string>
     <string name="download_audio_track">Zvuková stopa</string>

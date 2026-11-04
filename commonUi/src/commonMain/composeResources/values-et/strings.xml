@@ -456,7 +456,7 @@
     <string name="download_more_qualities">+%1$d veel</string>
     <string name="download_down_to">kuni %1$s</string>
     <string name="download_less">Vähem</string>
-    <string name="download_webm_detail">WebM · algne voog</string>
+    <string name="download_webm_detail">Ogg · algne voog</string>
     <string name="download_m4a_detail">AAC · algne voog</string>
     <string name="download_mp3_detail">Mängib kõikjal</string>
     <string name="download_audio_track">Helirada</string>

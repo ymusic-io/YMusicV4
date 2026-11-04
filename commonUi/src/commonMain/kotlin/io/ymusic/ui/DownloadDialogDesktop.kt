@@ -60,6 +60,7 @@ import androidx.compose.ui.unit.sp
 import io.ymusic.download.DownloadFileNames
 import io.ymusic.download.DownloadFormat
 import io.ymusic.download.DownloadKind
+import io.ymusic.download.captionsAsLyrics
 import io.ymusic.ui.resources.Res
 import io.ymusic.ui.resources.dialog_cancel
 import io.ymusic.ui.resources.download_action
@@ -221,11 +222,11 @@ private fun TrackRows(state: DownloadOptionsState) {
         DropdownField(audioTrackLabel(state)) { close -> ChoiceMenuItems(choices, close) }
     }
     if (options.captions.isNotEmpty() && state.captionsSupported) {
-        TrackRow(Icons.Outlined.Subtitles, stringResource(Res.string.download_subtitles), alignTop = state.format == DownloadFormat.MP3) {
+        TrackRow(Icons.Outlined.Subtitles, stringResource(Res.string.download_subtitles), alignTop = state.format.captionsAsLyrics) {
             Column(verticalArrangement = Arrangement.spacedBy(DesignSpacing.Space4)) {
                 val choices = captionChoices(state)
                 DropdownField(captionSummary(state)) { close -> ChoiceMenuItems(choices, close) }
-                if (state.format == DownloadFormat.MP3) {
+                if (state.format.captionsAsLyrics) {
                     Text(stringResource(Res.string.download_lyrics_note), style = TextStyle(fontSize = 12.sp, color = DesignColors.InkSecondary))
                 }
             }

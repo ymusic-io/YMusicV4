@@ -456,7 +456,7 @@
     <string name="download_more_qualities">+%1$d meer</string>
     <string name="download_down_to">tot %1$s</string>
     <string name="download_less">Minder</string>
-    <string name="download_webm_detail">WebM · oorspronklike stroom</string>
+    <string name="download_webm_detail">Ogg · oorspronklike stroom</string>
     <string name="download_m4a_detail">AAC · oorspronklike stroom</string>
     <string name="download_mp3_detail">Speel oral</string>
     <string name="download_audio_track">Oudiosnit</string>

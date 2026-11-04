@@ -537,7 +537,7 @@
     <string name="download_more_qualities">+%1$d أخرى</string>
     <string name="download_down_to">حتى %1$s</string>
     <string name="download_less">أقل</string>
-    <string name="download_webm_detail">WebM · البث الأصلي</string>
+    <string name="download_webm_detail">Ogg · البث الأصلي</string>
     <string name="download_m4a_detail">AAC · البث الأصلي</string>
     <string name="download_mp3_detail">يعمل في كل مكان</string>
     <string name="download_audio_track">المسار الصوتي</string>

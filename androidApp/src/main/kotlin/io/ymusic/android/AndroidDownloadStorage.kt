@@ -128,6 +128,7 @@ class AndroidDownloadStorage(
         "m4a" -> "audio/mp4"
         "mp4" -> "video/mp4"
         "webm" -> "video/webm"
+        "opus" -> "audio/ogg"
         "vtt" -> "text/vtt"
         else -> "application/octet-stream"
     }

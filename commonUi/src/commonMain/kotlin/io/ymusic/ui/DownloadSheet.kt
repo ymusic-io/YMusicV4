@@ -79,6 +79,7 @@ import io.ymusic.download.DownloadFormat
 import io.ymusic.download.DownloadKind
 import io.ymusic.download.Mp3Encoding
 import io.ymusic.download.StillProcessingException
+import io.ymusic.download.captionsAsLyrics
 import io.ymusic.ui.resources.Res
 import io.ymusic.ui.resources.dialog_cancel
 import io.ymusic.ui.resources.download_action
@@ -501,7 +502,7 @@ private fun OptionRow(icon: ImageVector, title: String, value: String, onClick: 
 internal fun captionSummary(state: DownloadOptionsState): String {
     val name = state.options?.captions?.firstOrNull { it.key == state.caption }?.displayName()
         ?: return stringResource(Res.string.download_captions_off)
-    return if (state.format == DownloadFormat.MP3) stringResource(Res.string.download_captions_as_lyrics, name) else name
+    return if (state.format.captionsAsLyrics) stringResource(Res.string.download_captions_as_lyrics, name) else name
 }
 
 /** One pickable entry of an options dropdown. */
