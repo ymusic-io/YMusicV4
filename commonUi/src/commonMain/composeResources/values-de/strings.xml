@@ -456,7 +456,7 @@
     <string name="download_more_qualities">+%1$d weitere</string>
     <string name="download_down_to">bis %1$s</string>
     <string name="download_less">Weniger</string>
-    <string name="download_webm_detail">Ogg · Originalstream</string>
+    <string name="download_webm_detail">Opus · Originalstream</string>
     <string name="download_m4a_detail">AAC · Originalstream</string>
     <string name="download_mp3_detail">Läuft überall</string>
     <string name="download_audio_track">Audiospur</string>

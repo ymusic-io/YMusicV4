@@ -452,7 +452,7 @@
     <string name="download_more_qualities">+%1$d lainnya</string>
     <string name="download_down_to">hingga %1$s</string>
     <string name="download_less">Lebih sedikit</string>
-    <string name="download_webm_detail">Ogg · stream asli</string>
+    <string name="download_webm_detail">Opus · stream asli</string>
     <string name="download_m4a_detail">AAC · stream asli</string>
     <string name="download_mp3_detail">Bisa diputar di mana saja</string>
     <string name="download_audio_track">Trek audio</string>

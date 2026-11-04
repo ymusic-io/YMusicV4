@@ -456,7 +456,7 @@
     <string name="download_more_qualities">+%1$d अधिक</string>
     <string name="download_down_to">%1$s पर्यंत</string>
     <string name="download_less">कमी</string>
-    <string name="download_webm_detail">Ogg · मूळ स्ट्रीम</string>
+    <string name="download_webm_detail">Opus · मूळ स्ट्रीम</string>
     <string name="download_m4a_detail">AAC · मूळ स्ट्रीम</string>
     <string name="download_mp3_detail">सगळीकडे प्ले होते</string>
     <string name="download_audio_track">ऑडिओ ट्रॅक</string>

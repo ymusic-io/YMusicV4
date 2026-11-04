@@ -460,7 +460,7 @@
     <string name="download_more_qualities">+%1$d više</string>
     <string name="download_down_to">sve do %1$s</string>
     <string name="download_less">Manje</string>
-    <string name="download_webm_detail">Ogg · izvorni stream</string>
+    <string name="download_webm_detail">Opus · izvorni stream</string>
     <string name="download_m4a_detail">AAC · izvorni stream</string>
     <string name="download_mp3_detail">Radi svugdje</string>
     <string name="download_audio_track">Audiozapis</string>

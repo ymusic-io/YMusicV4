@@ -460,7 +460,7 @@
     <string name="download_more_qualities">+%1$d נוספות</string>
     <string name="download_down_to">עד %1$s</string>
     <string name="download_less">פחות</string>
-    <string name="download_webm_detail">Ogg · הזרם המקורי</string>
+    <string name="download_webm_detail">Opus · הזרם המקורי</string>
     <string name="download_m4a_detail">AAC · הזרם המקורי</string>
     <string name="download_mp3_detail">מתנגן בכל מקום</string>
     <string name="download_audio_track">רצועת אודיו</string>
