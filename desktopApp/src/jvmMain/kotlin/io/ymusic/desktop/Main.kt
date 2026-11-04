@@ -280,6 +280,7 @@ private var mseViewportPlayer: io.ymusic.player.mse.MsePlayer? = null
 private var mainWindow: Frame? = null
 
 fun main(args: Array<String>) {
+    if (isWindows) WindowsAppId.claim(rootLogger.fork("app-id"))
     defaultLinuxSoftwareRendering()
     // The log moved to logs.db: the text log files of older builds go.
     File(ymusicDataDir(), "logs").listFiles { file -> file.name.startsWith("ymusic.log") }?.forEach { it.delete() }

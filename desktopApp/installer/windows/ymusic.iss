@@ -10,6 +10,9 @@
 
 #define AppName "YMusic"
 #define AppExeName "YMusic.exe"
+; The app's AppUserModelID (WindowsAppId.ID): the media flyout and taskbar find the app's name and
+; icon through the shortcut carrying it, and a pin only merges with the running window when they match.
+#define AppUserModelId "io.ymusic.windows"
 ; Never change: Inno finds the previous install by AppId, so a new one would install side by side.
 #define AppId "{{6F3C2B9E-4D1A-4E8B-9A57-2C1F0D8E7B34}"
 
@@ -62,8 +65,8 @@ Type: filesandordirs; Name: "{app}\runtime"
 Source: "{#AppSourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"
-Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; Tasks: desktopicon
+Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"; AppUserModelID: "{#AppUserModelId}"
+Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; AppUserModelID: "{#AppUserModelId}"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(AppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent

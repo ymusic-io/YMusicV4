@@ -11,6 +11,7 @@ import com.sun.jna.ptr.IntByReference
 import com.sun.jna.ptr.LongByReference
 import com.sun.jna.ptr.PointerByReference
 import com.sun.jna.win32.StdCallLibrary
+import io.ymusic.desktop.WindowsAppId
 import io.ymusic.desktop.WindowsCom
 import io.ymusic.desktop.checkHresult
 import io.ymusic.desktop.comCall
@@ -139,7 +140,7 @@ internal class WindowsSmtcSession(
             arrayOf(WS_EX_TOOLWINDOW, className, WString("YMusic"), WS_POPUP, 0, 0, 0, 0, null, null, module, null),
         ) ?: error("CreateWindowExW failed")
         window = hwnd
-        setWindowAppId(hwnd, APP_ID)
+        setWindowAppId(hwnd, WindowsAppId.ID)
         val interop = activationFactory(CLASS_SMTC, IID_SMTC_INTEROP)
         try {
             smtc = own(interop.callForObject(INTEROP_GET_FOR_WINDOW, "GetForWindow", hwnd, WindowsCom.guid(IID_SMTC)))
@@ -421,7 +422,6 @@ internal class WindowsSmtcSession(
         const val TRUE: Byte = 1
         const val FALSE: Byte = 0
 
-        const val APP_ID = "io.ymusic.windows"
         const val IID_PROPERTY_STORE = "886D8EEB-8CF2-4446-8D02-CDBA1DBDCF99"
         const val PROPERTY_STORE_SET_VALUE = 6
         const val FMTID_APP_USER_MODEL = "9F4C2855-9F79-4B39-A8D0-E1D42DE1D5F3"
