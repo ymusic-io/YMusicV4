@@ -69,7 +69,6 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
-import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.ymusic.download.AudioOption
@@ -456,23 +455,21 @@ internal fun AudioOption.detail(): String = when (format) {
     DownloadFormat.VIDEO_WEBM, DownloadFormat.VIDEO_MP4 -> ""
 }
 
-/** An [OptionRow] that opens a dropdown of [choices] anchored under it. */
+/** An [OptionRow] that opens a dropdown of [choices] under its value. */
 @Composable
 private fun DropdownOptionRow(icon: ImageVector, title: String, value: String, choices: List<Choice>) {
     var open by remember { mutableStateOf(false) }
-    Box {
-        OptionRow(icon, title, value) { open = true }
+    OptionRow(icon, title, value, onClick = { open = true }) {
         DropdownMenu(
             expanded = open,
             onDismissRequest = { open = false },
-            offset = DpOffset(x = DesignSpacing.Space48, y = 0.dp),
             containerColor = DesignColors.Surface,
         ) { ChoiceMenuItems(choices) { open = false } }
     }
 }
 
 @Composable
-private fun OptionRow(icon: ImageVector, title: String, value: String, onClick: () -> Unit) {
+private fun OptionRow(icon: ImageVector, title: String, value: String, onClick: () -> Unit, menu: @Composable () -> Unit = {}) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -483,13 +480,18 @@ private fun OptionRow(icon: ImageVector, title: String, value: String, onClick: 
     ) {
         Icon(icon, null, Modifier.size(20.dp), tint = DesignColors.InkSoft)
         Text(title, style = TextStyle(fontSize = 14.sp, color = DesignColors.Ink), maxLines = 1)
-        Text(
-            value,
-            Modifier.weight(1f),
-            style = TextStyle(fontSize = 14.sp, color = DesignColors.InkSecondary, textAlign = TextAlign.End),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+        Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
+            // The inner box hugs the text, so the menu anchors to the value, not the whole row.
+            Box {
+                Text(
+                    value,
+                    style = TextStyle(fontSize = 14.sp, color = DesignColors.InkSecondary, textAlign = TextAlign.End),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                menu()
+            }
+        }
         Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, Modifier.size(16.dp), tint = DesignColors.InkFaint)
     }
 }
