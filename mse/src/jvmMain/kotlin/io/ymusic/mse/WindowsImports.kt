@@ -7,6 +7,22 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.Locale
 
+/** The JVM's text for error 126. Any other load failure carries Windows' own reason, in the system's language. */
+private const val MISSING_IMPORT = "Can't find dependent libraries"
+
+/**
+ * The message for [error], the JNI library failing to load. A DLL that failed for a reason of its own (a policy
+ * block, a file in use) is the cause, and the "dependent libraries" errors around it only follow from it.
+ */
+internal fun windowsLoadFailureMessage(
+    error: UnsatisfiedLinkError,
+    dependencyErrors: List<UnsatisfiedLinkError>,
+    dir: File,
+): String {
+    val ownReasons = (dependencyErrors + error).mapNotNull { it.message }.filterNot { it.endsWith(MISSING_IMPORT) }
+    return ownReasons.joinToString("; ").ifEmpty { "${error.message}: ${describeMissingWindowsImports(dir)}" }
+}
+
 /**
  * Names the DLLs behind a Windows "Can't find dependent libraries": LoadLibrary reports only error 126,
  * never which import was missing. Checks every DLL in [dir] one level deep against [dir] and System32.
