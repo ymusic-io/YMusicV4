@@ -31,7 +31,7 @@ object Versions {
     const val navigationEvent = "1.1.0" // the androidx.navigationevent composeMultiplatform ships with
     const val okhttp = "5.4.0"
     const val okio = "3.18.2"
-    const val sqldelight = "2.3.2"
+    const val sqldelight = "2.4.1"
 
     // :player local-file backends (per platform; Apple uses AVFoundation cinterop, no dep)
     const val media3 = "1.11.1"   // Android ExoPlayer
