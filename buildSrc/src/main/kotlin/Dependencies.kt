@@ -34,7 +34,7 @@ object Versions {
     const val sqldelight = "2.3.2"
 
     // :player local-file backends (per platform; Apple uses AVFoundation cinterop, no dep)
-    const val media3 = "1.11.0"   // Android ExoPlayer
+    const val media3 = "1.11.1"   // Android ExoPlayer
     const val jna = "5.17.0"     // JVM desktop native interop (macOS Now Playing bridge)
 
     // AndroidX
