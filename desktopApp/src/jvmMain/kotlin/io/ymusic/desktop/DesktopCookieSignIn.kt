@@ -90,6 +90,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
+import projectcommon.log.captureUnlessNetwork
 
 @Composable
 fun DesktopCookieSignIn(
@@ -138,7 +139,7 @@ fun DesktopCookieSignIn(
             } catch (c: CancellationException) {
                 throw c
             } catch (t: Throwable) {
-                log?.captureError(t, "cookie import failed")
+                log?.captureUnlessNetwork(t, "cookie import failed")
                 pasteError = getString(Res.string.device_link_error_generic)
             } finally {
                 if (!finished) importing = false
