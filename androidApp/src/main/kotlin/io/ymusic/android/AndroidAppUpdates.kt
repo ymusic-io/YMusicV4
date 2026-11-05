@@ -45,6 +45,7 @@ import okio.sink
 import okio.source
 import org.jetbrains.compose.resources.StringResource
 import projectcommon.error.DISK_FULL_CODE
+import projectcommon.error.NETWORK_CODE
 import projectcommon.error.errorCode
 import java.io.File
 
@@ -224,6 +225,9 @@ class AndroidAppUpdates(
                     // The device doesn't trust the host (stale root store, wrong clock, intercepting network).
                     log?.log(Logger.Level.WARN, "downloading update ${update.versionCode} failed: untrusted TLS", error)
                     set(release, UpdateDownload.Failed("E91014"))
+                } else if (error.errorCode() == NETWORK_CODE) {
+                    log?.log(Logger.Level.WARN, "downloading update ${update.versionCode} hit a network failure", error)
+                    set(release, UpdateDownload.Failed(NETWORK_CODE))
                 } else {
                     log?.captureError(error, "downloading update ${update.versionCode} failed")
                     set(release, UpdateDownload.Failed("E91012"))
