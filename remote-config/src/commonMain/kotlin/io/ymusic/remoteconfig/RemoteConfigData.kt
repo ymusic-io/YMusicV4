@@ -4,8 +4,12 @@ import io.ymusic.remoteconfig.AppUpdate.Companion.value
 import io.ymusic.remoteconfig.BundleVersion.Companion.value
 import io.ymusic.remoteconfig.Features.Companion.value
 import kmphttp.json.JsonWriter
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.doubleOrNull
+import kotlinx.serialization.json.longOrNull
 import projectcommon.json.arrayOrNull
 import projectcommon.json.boolOrNull
 import projectcommon.json.doubleOrNull
@@ -143,7 +147,15 @@ data class Features(
     val errorSampleRate: Double = 1.0,
     /** Regexes over an error's "Type: message"; a match keeps a non-fatal error in the local log only. */
     val errorFilters: List<String> = emptyList(),
+    /**
+     * Every other primitive of `features`, by its wire name: a flag can ship without a build that
+     * declares it, and these are what engine JS reads. A key that gets a property above leaves this map.
+     */
+    val flags: Map<String, JsonPrimitive> = emptyMap(),
 ) {
+    /** Boolean [flags] entry; false when absent or not a boolean. */
+    fun flag(name: String): Boolean = flags[name]?.booleanOrNull ?: false
+
     companion object {
         private const val KEY_VARIABLE_A = "variableA"
         private const val KEY_FEATURE_X = "featureX"
@@ -160,6 +172,23 @@ data class Features(
         private const val KEY_LOG_LINES = "logLines"
         private const val KEY_ERROR_SAMPLE_RATE = "errorSampleRate"
         private const val KEY_ERROR_FILTERS = "errorFilters"
+        private val DECLARED_KEYS = setOf(
+            KEY_VARIABLE_A,
+            KEY_FEATURE_X,
+            KEY_TELEGRAM_URL,
+            KEY_CHANGELOG_URL,
+            KEY_WEBSITE_URL,
+            KEY_FEEDBACK_EMAIL,
+            KEY_FEEDBACK_ISSUE_URL,
+            KEY_SOURCE_CODE_URL,
+            KEY_TERMS_URL,
+            KEY_DONATION_URL,
+            KEY_DOWNLOAD_PAGE_URL,
+            KEY_ERROR_LOG_LINES,
+            KEY_LOG_LINES,
+            KEY_ERROR_SAMPLE_RATE,
+            KEY_ERROR_FILTERS,
+        )
 
         fun from(json: JsonObject): Features {
             val default = Features()
@@ -180,6 +209,7 @@ data class Features(
                 errorSampleRate = json.doubleOrNull(KEY_ERROR_SAMPLE_RATE) ?: default.errorSampleRate,
                 errorFilters = json.arrayOrNull(KEY_ERROR_FILTERS).orEmpty()
                     .mapNotNull { (it as? JsonPrimitive)?.takeIf { primitive -> primitive.isString }?.content },
+                flags = json.filterKeys { it !in DECLARED_KEYS }.primitives(),
             )
         }
 
@@ -202,11 +232,22 @@ data class Features(
             name(KEY_ERROR_FILTERS).beginArray()
             data.errorFilters.forEach { value(it) }
             endArray()
+            data.flags.forEach { (key, flag) -> name(key).flag(flag) }
             endObject()
             return this
         }
+
+        private fun JsonWriter.flag(primitive: JsonPrimitive): JsonWriter {
+            if (primitive.isString) return value(primitive.content)
+            primitive.booleanOrNull?.let { return value(it) }
+            primitive.longOrNull?.let { return value(it) }
+            return value(checkNotNull(primitive.doubleOrNull) { "not a JSON primitive: $primitive" })
+        }
     }
 }
+
+private fun Map<String, *>.primitives(): Map<String, JsonPrimitive> =
+    mapNotNull { (key, element) -> (element as? JsonPrimitive)?.takeIf { it !is JsonNull }?.let { key to it } }.toMap()
 
 /**
  * The answer from `GET /v1/config`, in its wire shape.
@@ -221,6 +262,8 @@ data class RemoteConfigData(
     val appUpdate: AppUpdate? = null,
     val engineJs: BundleVersion? = null,
     val playerJs: BundleVersion? = null,
+    /** Tags this client puts on every Sentry event while the service sends them. */
+    val sentryTags: Map<String, String> = emptyMap(),
     // client populated timestamp at time data parsed from server
     val updatedAt: Long = 0L,
 ) {
@@ -229,6 +272,7 @@ data class RemoteConfigData(
         private const val KEY_APP_UPDATE = "appUpdate"
         private const val KEY_ENGINE_JS = "engineJs"
         private const val KEY_PLAYER_JS = "playerJs"
+        private const val KEY_SENTRY_TAGS = "sentryTags"
         private const val KEY_UPDATED_AT = "updatedAt"
 
         /**
@@ -244,6 +288,7 @@ data class RemoteConfigData(
             appUpdate = root.objectOrNull(KEY_APP_UPDATE)?.let(AppUpdate::from),
             engineJs = root.objectOrNull(KEY_ENGINE_JS)?.let(BundleVersion::from),
             playerJs = root.objectOrNull(KEY_PLAYER_JS)?.let(BundleVersion::from),
+            sentryTags = root.objectOrNull(KEY_SENTRY_TAGS).orEmpty().primitives().mapValues { it.value.content },
             updatedAt = root.longOrNull(KEY_UPDATED_AT) ?: now(),
         )
 
@@ -253,6 +298,9 @@ data class RemoteConfigData(
             data.appUpdate?.let { name(KEY_APP_UPDATE).value(it) }
             data.engineJs?.let { name(KEY_ENGINE_JS).value(it) }
             data.playerJs?.let { name(KEY_PLAYER_JS).value(it) }
+            name(KEY_SENTRY_TAGS).beginObject()
+            data.sentryTags.forEach { (key, tag) -> name(key).value(tag) }
+            endObject()
             // Persisted so a restart knows how old this is, rather than refetching on every launch.
             name(KEY_UPDATED_AT).value(data.updatedAt)
             endObject()

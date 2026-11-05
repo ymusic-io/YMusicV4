@@ -53,9 +53,9 @@ const val REMOTE_CONFIG_MIN_INTERVAL_MS: Long = 5 * 60 * 1000L
  * player operation — and fetches only when what is held is older than the caller accepts, so an idle
  * app in the background makes no requests and keeps no timer alive to wake the device for.
  *
- * What gets cached for the next cold start is the parsed [RemoteConfigData], re-encoded. A field
- * this build does not know is therefore not preserved across a restart; it arrives again on the
- * first refresh.
+ * What gets cached for the next cold start is the parsed [RemoteConfigData], re-encoded. Outside
+ * [Features.flags], a field this build does not know is therefore not preserved across a restart;
+ * it arrives again on the first refresh.
  */
 class RemoteConfig(
     /** Null when this build has no config service: it runs on the cache, or on the defaults. */
@@ -75,6 +75,7 @@ class RemoteConfig(
     val appUpdate: Flow<AppUpdate?> = _config.map { it.appUpdate }.distinctUntilChanged()
     val engineJs: Flow<BundleVersion?> = _config.map { it.engineJs }.distinctUntilChanged()
     val playerJs: Flow<BundleVersion?> = _config.map { it.playerJs }.distinctUntilChanged()
+    val sentryTags: Flow<Map<String, String>> = _config.map { it.sentryTags }.distinctUntilChanged()
 
     private val mutex = Mutex()
     private var initialized = false
