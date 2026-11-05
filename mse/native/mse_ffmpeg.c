@@ -172,8 +172,10 @@ struct MseAv {
     /* Failed opens in a row; the next try waits until mc_retry_us. */
     int mc_open_tries;
     int64_t mc_retry_us;
-    /* Set once MediaCodec gave up on this stream; the player fails playback on it. */
+    /* Set once MediaCodec gave up on this stream; the player fails playback on it. Never changes
+       after mc_failed, so the UI thread reads it without a->mu. */
     char mc_failure[128];
+    atomic_int mc_failed;
     int mc_hold;
     int mc_hold_ix;
     int64_t mc_hold_pts_us;
@@ -1799,10 +1801,12 @@ static int mc_try_open(MseAv *a)
             return MC_OPEN_WAIT;
         }
         a->mc_fail = 1;
-        if (!a->mc_failure[0])
+        if (!a->mc_failure[0]) {
             snprintf(a->mc_failure, sizeof(a->mc_failure), "%s %dx%d: no MediaCodec after %d tries",
                      avcodec_get_name(a->vpar->codec_id), a->vpar->width, a->vpar->height,
                      a->mc_open_tries);
+            atomic_store_explicit(&a->mc_failed, 1, memory_order_release);
+        }
         mse_critf(MSE_LOG_ERROR, "mse-v %s", a->mc_failure);
         return -1;
     }
@@ -3632,11 +3636,9 @@ int mse_av_video_failure(MseAv *a, char *out, int cap)
         return 0;
     out[0] = 0;
 #ifdef __ANDROID__
-    pthread_mutex_lock(&a->mu);
-    failed = a->mc_failure[0] != 0;
+    failed = atomic_load_explicit(&a->mc_failed, memory_order_acquire);
     if (failed)
         snprintf(out, (size_t)cap, "%s", a->mc_failure);
-    pthread_mutex_unlock(&a->mu);
 #endif
     return failed;
 }

@@ -122,7 +122,7 @@ int mse_av_video_pending(MseAv *a);
 int mse_av_video_due(MseAv *a, double clock);
 int mse_av_audio_pending(MseAv *a);
 int mse_av_has_video(MseAv *a);
-/* 1 and the reason in out when the platform decoder gave up on the video stream (Android). */
+/* 1 and the reason in out when the platform decoder gave up on the video stream (Android). Lock-free. */
 int mse_av_video_failure(MseAv *a, char *out, int cap);
 /* 1 if __mseRestVideo: decoder asleep (audio-only / product-zero). */
 int mse_av_video_rested(MseAv *a);
