@@ -530,9 +530,12 @@ class QuickJsRuntime private constructor(
                     // Deliberate fire-and-forget: cleanup must not mask the abort cause.
                     if (!weEnded && !peerReadClosed) {
                         weEnded = true
-                        runCatching {
-                            engine.closeWrite(id, "send aborted mid-stream: ${t.message ?: "cancelled"}")
-                        }.exceptionOrNull()?.let(t::addSuppressed)
+                        // Cancelled by close(), this can resume off the engine thread: JS is out of reach.
+                        if (!closed.load()) {
+                            runCatching {
+                                engine.closeWrite(id, "send aborted mid-stream: ${t.message ?: "cancelled"}")
+                            }.exceptionOrNull()?.let(t::addSuppressed)
+                        }
                         maybeReap()
                     }
                     throw t
@@ -639,7 +642,8 @@ class QuickJsRuntime private constructor(
             if (readClosed) return
             readClosed = true
             inbound.clear()
-            engine.closeRead(id) // tell the peer writer: EPIPE
+            // An aborted receive reaches here off the engine thread when close() cancelled it.
+            if (!closed.load()) engine.closeRead(id) // tell the peer writer: EPIPE
             val r = reader // an in-flight receive is now a misuse — fail it, don't quietly EOF
             if (r != null) {
                 reader = null
