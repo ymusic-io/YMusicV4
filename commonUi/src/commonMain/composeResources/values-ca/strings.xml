@@ -650,4 +650,9 @@
     <string name="download_quality_medium">Mitjana</string>
     <string name="download_quality_best">Millor</string>
     <string name="download_kbps">%1$d kbps</string>
+
+    <!-- Windows refused a native library (desktop) -->
+    <string name="native_blocked">Windows ha bloquejat una part de YMusic.</string>
+    <string name="media_engine_unavailable">La música i els vídeos no es poden reproduir aquí, però encara pots navegar i cercar.</string>
+    <string name="native_blocked_help">En un PC de la feina o de l'escola, demana a l'administrador que permeti YMusic. Al teu PC, comprova Smart App Control a Seguretat del Windows.</string>
 </resources>

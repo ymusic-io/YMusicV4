@@ -634,4 +634,9 @@
     <string name="download_quality_medium">Sedang</string>
     <string name="download_quality_best">Terbaik</string>
     <string name="download_kbps">%1$d kbps</string>
+
+    <!-- Windows refused a native library (desktop) -->
+    <string name="native_blocked">Windows memblokir sebagian YMusic.</string>
+    <string name="media_engine_unavailable">Musik dan video tidak dapat diputar di sini, tetapi Anda tetap dapat menjelajah dan mencari.</string>
+    <string name="native_blocked_help">Di PC kantor atau sekolah, minta administrator untuk mengizinkan YMusic. Di PC Anda sendiri, periksa Smart App Control di Keamanan Windows.</string>
 </resources>

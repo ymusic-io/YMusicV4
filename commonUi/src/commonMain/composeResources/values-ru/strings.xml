@@ -658,4 +658,9 @@
     <string name="download_quality_medium">Среднее</string>
     <string name="download_quality_best">Лучшее</string>
     <string name="download_kbps">%1$d kbps</string>
+
+    <!-- Windows refused a native library (desktop) -->
+    <string name="native_blocked">Windows заблокировала часть YMusic.</string>
+    <string name="media_engine_unavailable">Здесь нельзя воспроизводить музыку и видео, но вы по-прежнему можете просматривать и искать.</string>
+    <string name="native_blocked_help">На рабочем или учебном компьютере попросите администратора разрешить YMusic. На личном компьютере проверьте Smart App Control в разделе «Безопасность Windows».</string>
 </resources>

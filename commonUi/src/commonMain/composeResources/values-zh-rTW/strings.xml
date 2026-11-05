@@ -634,4 +634,9 @@
     <string name="download_quality_medium">中</string>
     <string name="download_quality_best">最佳</string>
     <string name="download_kbps">%1$d kbps</string>
+
+    <!-- Windows refused a native library (desktop) -->
+    <string name="native_blocked">Windows 已封鎖 YMusic 的部分元件。</string>
+    <string name="media_engine_unavailable">這裡無法播放音樂和影片，但你仍可瀏覽和搜尋。</string>
+    <string name="native_blocked_help">若是公司或學校的電腦，請向系統管理員要求允許 YMusic。若是個人電腦，請到 Windows 安全性查看智慧型應用程式控制。</string>
 </resources>
