@@ -13,16 +13,23 @@ function continuationToken(item: unknown): string | undefined {
   );
 }
 
-function factoidOf(node: unknown): WireFactoid | undefined {
+function factoidOf(node: unknown, publishDate: string | undefined): WireFactoid | undefined {
+  const upload = get(node, "uploadTimeFactoidRenderer", "factoid", "factoidRenderer");
   const f =
+    upload ??
     get(node, "factoidRenderer") ??
-    get(node, "viewCountFactoidRenderer", "factoid", "factoidRenderer") ??
-    get(node, "uploadTimeFactoidRenderer", "factoid", "factoidRenderer");
+    get(node, "viewCountFactoidRenderer", "factoid", "factoidRenderer");
   const value = textOf(get(f, "value"));
   const label = textOf(get(f, "label"));
-  return value !== undefined && label !== undefined
-    ? { "value": value, "label": label }
-    : undefined;
+  if (value === undefined || label === undefined) return undefined;
+  // A same-day upload's factoid is only relative ("4h" / "Ago"); the date sits on the header.
+  if (upload !== undefined && publishDate !== undefined) {
+    return {
+      "value": publishDate,
+      "label": asString(get(upload, "accessibilityText")) ?? value + " " + label,
+    };
+  }
+  return { "value": value, "label": label };
 }
 
 function setOwner(out: WireVideoDetails, owner: unknown): void {
@@ -92,11 +99,12 @@ export function videoDetailsOf(root: Record<string, unknown>): WireVideoDetails 
       return true;
     }
     if (key === "videoDescriptionHeaderRenderer") {
+      const publishDate = textOf(value["publishDate"]);
       const facts = value["factoid"];
       if (Array.isArray(facts)) {
         const list: WireFactoid[] = [];
         for (const f of facts) {
-          const factoid = factoidOf(f);
+          const factoid = factoidOf(f, publishDate);
           if (factoid !== undefined) list.push(factoid);
         }
         if (list.length > 0) out["factoids"] = list;
@@ -104,7 +112,7 @@ export function videoDetailsOf(root: Record<string, unknown>): WireVideoDetails 
       // Premieres can come without factoids; the header's localized lines stand in, label-less.
       if (out["factoids"] === undefined) {
         const lines: WireFactoid[] = [];
-        for (const line of [textOf(value["views"]), textOf(value["publishDate"])]) {
+        for (const line of [textOf(value["views"]), publishDate]) {
           if (line !== undefined) lines.push({ "value": line, "label": "" });
         }
         if (lines.length > 0) out["factoids"] = lines;
