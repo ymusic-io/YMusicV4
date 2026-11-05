@@ -789,12 +789,15 @@ class PlaybackService : MediaLibraryService() {
     /**
      * The platform session scales artwork above config_mediaMetadataBitmapMaxSize measured with the app's
      * resources; media3's limit measures it at the system density, which differs once the display size changed.
+     * Custom ROMs patched to "Limit Max album artwork bitmap size" read config_maxBitmapSizePx instead.
      */
-    @SuppressLint("DiscouragedApi") // the dimen is not public
+    @SuppressLint("DiscouragedApi") // neither resource is public
     private fun sessionArtworkLimit(): Int {
-        val id = resources.getIdentifier("config_mediaMetadataBitmapMaxSize", "dimen", "android")
-        val platform = if (id != 0) resources.getDimensionPixelSize(id) else Int.MAX_VALUE
-        return minOf(platform, MediaSession.getBitmapDimensionLimit(this))
+        val aospId = resources.getIdentifier("config_mediaMetadataBitmapMaxSize", "dimen", "android")
+        val aospLimit = if (aospId != 0) resources.getDimensionPixelSize(aospId) else Int.MAX_VALUE
+        val romId = resources.getIdentifier("config_maxBitmapSizePx", "integer", "android")
+        val romLimit = if (romId != 0) resources.getInteger(romId) else Int.MAX_VALUE
+        return minOf(aospLimit, romLimit, MediaSession.getBitmapDimensionLimit(this))
     }
 
     /** One in-flight load keyed by url; on success the notification is rebuilt with the bitmap. */
