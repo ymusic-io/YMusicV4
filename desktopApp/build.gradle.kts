@@ -352,7 +352,7 @@ compose.desktop {
         // optimization — dead-code removal is the point (material-icons-extended alone is 37MB of
         // mostly-unused icon classes). Reflection/JNI/ServiceLoader keeps: proguard-rules.pro.
         buildTypes.release.proguard {
-            version.set("7.7.0")
+            version.set("7.10.0")
             optimize.set(false)
             obfuscate.set(false)
             configurationFiles.from(project.file("proguard-rules.pro"))
