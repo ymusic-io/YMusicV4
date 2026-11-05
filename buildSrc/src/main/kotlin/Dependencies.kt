@@ -47,7 +47,7 @@ object Versions {
     const val composeBom = "2024.12.01"
 
     // JS toolchain (:engine-js, run via npx — Node required at build)
-    const val esbuild = "0.25.12"
+    const val esbuild = "0.28.2"
     const val typescript = "5.9.3"
 
     // Crash reporting (wraps sentry-java on Android/JVM, sentry-cocoa on Apple)
