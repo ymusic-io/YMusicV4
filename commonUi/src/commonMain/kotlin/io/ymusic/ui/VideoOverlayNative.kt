@@ -13,7 +13,7 @@ import kotlin.concurrent.Volatile
  * landscape / fullscreen). Desktop paints this in the layout hole over the underlay Frame.
  */
 object VideoOverlayNative {
-    /** Portrait: inline transport has scrolled off. Landscape/fullscreen: always true. */
+    /** Portrait: inline transport has scrolled off or can't fit. Landscape/fullscreen: always true. */
     var armed by mutableStateOf(false)
 
     /** User-facing chrome on the video. */
