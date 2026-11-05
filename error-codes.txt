@@ -9,6 +9,8 @@
 #         E8xxxx :mse | E91xxx app updater (desktopApp / androidApp)
 
 E10001 - (example) kmpCommon CodedErrorTest fixture
+E10002 - quickjsjni or another boot library refused by an App Control policy: known state, one event per version, full-screen message (desktopApp)
+E10003 - quickjsjni or another boot library failed to load for any other reason: full-screen message (desktopApp)
 E12345 - (example) doc placeholder in AGENTS.md minting rule
 E12375 - (example) doc placeholder in AGENTS.md / CodedError kdoc
 
@@ -163,6 +165,8 @@ E80073 D MediaSource not open / player released (mse)
 E80074 D MSE decoder playback error (mse android MediaCodec)
 E80075 D ffmpeg JNI backend missing or failed to create (mse jvm)
 E80076 D MSE append parse / byte-stream violation (mse)
+E80077 - JNI or a libav DLL refused by an App Control policy: known state, one event per version, playback off (desktopApp)
+E80078 - JNI or a libav DLL failed to load for any other reason: playback off for this launch (desktopApp)
 
 E90210 - (example) kmpCommon CodedErrorTest / HOST_PROTOCOLS.md fixture
 

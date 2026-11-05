@@ -139,6 +139,9 @@ object AppSettings {
     val lastLoadedEngineJsVer = IntSetting("telemetry.lastLoadedEngineJsVer", 0)
     val lastLoadedPlayerJsVer = IntSetting("telemetry.lastLoadedPlayerJsVer", 0)
 
+    /** The versionCode a blocked native library was last reported for: one event per version, not per launch. */
+    val nativeBlockReportedVersion = IntSetting("telemetry.nativeBlockReportedVersion", 0)
+
     /**
      * Theme: "light" | "dark" | "amoled" (dark on pure black), or empty to follow the system appearance.
      *

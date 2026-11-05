@@ -1,7 +1,11 @@
 package io.ymusic.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.text.intl.Locale
+import androidx.compose.ui.unit.LayoutDirection
 import io.ymusic.settings.AppSettings
 import io.ymusic.settings.SettingsStore
 import io.ymusic.settings.ensureUiLanguage
@@ -206,3 +210,10 @@ internal fun isRtlLanguage(languageTag: String): Boolean =
 /** The shells' boot-failure line, shown when the app graph could not be built. */
 @Composable
 fun startupFailedMessage(detail: String): String = stringResource(Res.string.startup_failed, detail)
+
+/** [content] laid out in the language's direction, for a shell's text outside [App]. */
+@Composable
+fun LanguageDirection(content: @Composable () -> Unit) {
+    val direction = if (isRtlLanguage(Locale.current.language)) LayoutDirection.Rtl else LayoutDirection.Ltr
+    CompositionLocalProvider(LocalLayoutDirection provides direction, content = content)
+}

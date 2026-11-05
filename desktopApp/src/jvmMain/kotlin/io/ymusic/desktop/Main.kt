@@ -116,10 +116,12 @@ import io.ymusic.mediastore.mediaStoreJdbcDriver
 import io.ymusic.mediastore.model.BucketDraft
 import io.ymusic.mse.DesktopVideoSurface
 import io.ymusic.mse.FileAvNative
+import io.ymusic.mse.MseLibrary
 import io.ymusic.mse.PresentMode
 import io.ymusic.player.LocalPlayerContext
 import io.ymusic.player.PlaybackStatus
 import io.ymusic.player.PlayerEngines
+import io.ymusic.player.PlayerError
 import io.ymusic.player.createLocalPlayer
 import io.ymusic.player.createPlayer
 import io.ymusic.quickjs.QuickJsRuntime
@@ -367,6 +369,11 @@ fun main(args: Array<String>) {
             shareLogTraceWithSentry()
         }
     }
+    // Before the first window needs the answer, and off the EDT: this loads every libav DLL.
+    val mediaFailure = MseLibrary.loadFailure
+    val mediaProblem = mediaFailure?.let {
+        classifyNativeLoadFailure(it, NativeComponent.Media, windowsPolicyMessages(rootLogger.fork("native-libs")))
+    }
 
     application {
         // Dock ignores Window(icon=). Vector is 192dp; Density(1024/192) makes the
@@ -400,6 +407,7 @@ fun main(args: Array<String>) {
         var graph by remember { mutableStateOf<AppGraph?>(null) }
         // Hoisted out of the window: whether the window may show at all depends on it.
         var bootError by remember { mutableStateOf<String?>(null) }
+        var bootProblem by remember { mutableStateOf<NativeLoadProblem?>(null) }
         var lockedCookies by remember { mutableStateOf<CookieStoreOpen.Locked?>(null) }
         var windowVisible by remember { mutableStateOf(true) }
         val (initialSize, initialPosition) = remember { loadWindowPrefs() }
@@ -470,7 +478,7 @@ fun main(args: Array<String>) {
             // Held back until the graph is ready: an empty window that then repaints is a flash of
             // whatever the toolkit felt like showing. Composed all along, so paintWindowGround has
             // already coloured it by the time it appears.
-            visible = windowVisible && (graph != null || bootError != null || lockedCookies != null),
+            visible = windowVisible && (graph != null || bootError != null || bootProblem != null || lockedCookies != null),
             onCloseRequest = {
                 // A non-empty queue → the close button minimizes to the system tray and playback
                 // carries on; an empty queue → quit.
@@ -516,12 +524,14 @@ fun main(args: Array<String>) {
                 DisposableEffect(window) {
                     frame.host = window
                     mainWindow = window
-                    FileAvNative.onFullScreen = { on ->
-                        SwingUtilities.invokeLater { frame.onNativeFullscreen(on) }
+                    if (mediaFailure == null) {
+                        FileAvNative.onFullScreen = { on ->
+                            SwingUtilities.invokeLater { frame.onNativeFullscreen(on) }
+                        }
+                        SwingUtilities.invokeLater { FileAvNative.prepareFullscreen(window) }
                     }
-                    SwingUtilities.invokeLater { FileAvNative.prepareFullscreen(window) }
                     onDispose {
-                        FileAvNative.onFullScreen = null
+                        if (mediaFailure == null) FileAvNative.onFullScreen = null
                         if (mainWindow === window) mainWindow = null
                     }
                 }
@@ -659,14 +669,25 @@ fun main(args: Array<String>) {
                     val bootScope = rememberCoroutineScope()
 
                     suspend fun boot(open: suspend () -> CookieSession?) {
+                        val log = rootLogger.fork("boot")
                         try {
                             val session = open() ?: return
-                            graph = buildGraph(settings, session)
+                            graph = buildGraph(settings, session, mediaProblem)
                         } catch (c: kotlinx.coroutines.CancellationException) {
                             throw c // the effect was disposed — not a boot failure
                         } catch (t: Throwable) {
-                            rootLogger.fork("boot").captureError(t)
-                            bootError = t.message ?: t.toString()
+                            val problem = classifyNativeLoadFailure(t, NativeComponent.Engine, windowsPolicyMessages(log))
+                            if (problem == null) {
+                                log.captureError(t)
+                                bootError = t.message ?: t.toString()
+                            } else {
+                                bootProblem = problem
+                                reportNativeLoadProblem(problem, NativeComponent.Engine, t, settings, APP_VERSION_CODE, log)
+                            }
+                            return
+                        }
+                        if (mediaProblem != null && mediaFailure != null) {
+                            reportNativeLoadProblem(mediaProblem, NativeComponent.Media, mediaFailure, settings, APP_VERSION_CODE, log)
                         }
                     }
                     LaunchedEffect(Unit) {
@@ -688,6 +709,7 @@ fun main(args: Array<String>) {
                                 bootError != null -> Booting {
                                     Text(startupFailedMessage("$bootError"), color = MaterialTheme.colorScheme.error)
                                 }
+                                bootProblem != null -> Booting { AppUnavailableMessage(bootProblem!!) }
                                 graph == null && lockedCookies != null -> CookieUnlockScreen(
                                     locked = lockedCookies!!,
                                     logger = rootLogger.fork("cookies"),
@@ -699,7 +721,9 @@ fun main(args: Array<String>) {
                                 // No spinner while the graph builds: the window paints the app's own ground until
                                 // the first frame has something in it.
                                 graph == null -> Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
-                                else -> App(graph!!, catalogue = if (DEBUG_BUILD) ({ CatalogueScreen() }) else null)
+                                else -> WithMediaBanner(mediaProblem) {
+                                    App(graph!!, catalogue = if (DEBUG_BUILD) ({ CatalogueScreen() }) else null)
+                                }
                             }
                         }
                     }
@@ -800,7 +824,7 @@ fun main(args: Array<String>) {
     }
 }
 
-private suspend fun buildGraph(settings: AppStoreSettings, session: CookieSession): AppGraph {
+private suspend fun buildGraph(settings: AppStoreSettings, session: CookieSession, mediaProblem: NativeLoadProblem?): AppGraph {
     val dataDir = ymusicDataDir().apply { mkdirs() }
     // File-backed jar for YouTube (engine cookie/get|set + player + proxy) and the YMusic API.
     // Desktop has no WebView cookie store: sign-in imports cookies from a phone QR or a browser paste.
@@ -973,7 +997,7 @@ private suspend fun buildGraph(settings: AppStoreSettings, session: CookieSessio
 
     var ytEngine: io.ymusic.player.YtEngine? = null
     val player = withContext(Dispatchers.Main) {
-        wireVideoOnce(backgroundScope)
+        if (mediaProblem == null) wireVideoOnce(backgroundScope)
         createPlayer(
             PlayerEngines(
                 local = { createLocalPlayer(LocalPlayerContext(videoSurface, resolveFfmpeg())) },
@@ -1009,6 +1033,9 @@ private suspend fun buildGraph(settings: AppStoreSettings, session: CookieSessio
                         mseViewportPlayer = it
                         mseViewport?.let { (w, h) -> it.setViewport(w, h) }
                     }
+                },
+                unavailable = mediaProblem?.let {
+                    PlayerError(PlayerError.PLAYBACK_UNAVAILABLE, "media library did not load", canRetry = false)
                 },
             ),
         )

@@ -71,7 +71,10 @@ internal class DesktopFrame(
 
     fun toggleFullscreen() {
         val w = host ?: return
-        if (isMac) return FileAvNative.toggleFullScreen(w)
+        if (isMac) {
+            if (mediaLibraryLoaded()) FileAvNative.toggleFullScreen(w)
+            return
+        }
         if (isLinux) return toggleWmFullscreen(w)
         if (fullscreen) return onNativeFullscreen(false)
         if (!zoomed) {
