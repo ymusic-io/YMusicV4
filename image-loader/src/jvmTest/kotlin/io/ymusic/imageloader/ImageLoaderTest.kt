@@ -1,6 +1,6 @@
 package io.ymusic.imageloader
 
-import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asComposeImageBitmap
 import kmphttp.AsyncInterceptor
 import kmphttp.Cache
 import kmphttp.CookieJar
@@ -17,6 +17,7 @@ import okhttp3.ResponseBody.Companion.toResponseBody
 import okio.IOException
 import okio.Path.Companion.toPath
 import okio.fakefilesystem.FakeFileSystem
+import org.jetbrains.skia.Bitmap
 import java.awt.Color
 import java.awt.image.BufferedImage
 import java.io.ByteArrayOutputStream
@@ -331,8 +332,8 @@ class ImageLoaderTest {
     fun diskCacheEvictsLeastRecentlyUsedWhenOverBudget() = runTest {
         val fs = FakeFileSystem()
         val warmup = DiskScaledImageCache(fs, "/img".toPath())
-        warmup.put("aa", ImageBitmap(8, 8))
-        warmup.put("bb", ImageBitmap(8, 8))
+        warmup.put("aa", Bitmap().apply { allocN32Pixels(8, 8) }.asComposeImageBitmap())
+        warmup.put("bb", Bitmap().apply { allocN32Pixels(8, 8) }.asComposeImageBitmap())
         warmup.get("aa") // refreshes "aa" — LRU, not FIFO: "bb" is now the eviction candidate
         val total = warmup.sizeBytes
         warmup.close()

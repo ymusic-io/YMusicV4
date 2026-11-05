@@ -377,34 +377,6 @@ fun main(args: Array<String>) {
     }
 
     application {
-        // Dock ignores Window(icon=). Vector is 192dp; Density(1024/192) makes the
-        // VectorPainter cache 1024px. Size must stay 192: macOS getResolutionVariants
-        // rasterizes size and size*density (Size(1024) was a 5461px / 113MB CGImage).
-        val dockTile = painterResource(io.ymusic.desktop.resources.Res.drawable.ymusic_logo_dock)
-        LaunchedEffect(dockTile) {
-            runCatching {
-                if (java.awt.Taskbar.isTaskbarSupported()) {
-                    val taskbar = java.awt.Taskbar.getTaskbar()
-                    if (taskbar.isSupported(java.awt.Taskbar.Feature.ICON_IMAGE)) {
-                        taskbar.iconImage = dockTile.toAwtImage(
-                            Density(1024f / 192f),
-                            LayoutDirection.Ltr,
-                            androidx.compose.ui.geometry.Size(192f, 192f),
-                        )
-                    }
-                }
-            }.onFailure { rootLogger.fork("dock").log(Logger.Level.WARN, "dock icon set failed", it) }
-        }
-        if (isLinux) {
-            val logo = painterResource(Res.drawable.ymusic_logo)
-            LaunchedEffect(logo) {
-                val image = if (isLinuxDebInstall) null else logo.rasterize(256, scale = 0.875f)
-                withContext(Dispatchers.IO) {
-                    runCatching { syncLinuxDesktopEntry(image) }
-                        .onFailure { rootLogger.fork("desktop-entry").log(Logger.Level.WARN, "desktop entry install failed", it) }
-                }
-            }
-        }
         var graph by remember { mutableStateOf<AppGraph?>(null) }
         // Hoisted out of the window: whether the window may show at all depends on it.
         var bootError by remember { mutableStateOf<String?>(null) }
@@ -502,9 +474,38 @@ fun main(args: Array<String>) {
         ) {
             paintWindowGround(Color.Transparent)
             LaunchedEffect(window) { window.minimumSize = minimumWindowSize() }
+            // In the window: a vector painter needs the graphics backend, which the first window registers.
+            // Dock ignores Window(icon=). Vector is 192dp; Density(1024/192) makes the
+            // VectorPainter cache 1024px. Size must stay 192: macOS getResolutionVariants
+            // rasterizes size and size*density (Size(1024) was a 5461px / 113MB CGImage).
+            val dockTile = painterResource(io.ymusic.desktop.resources.Res.drawable.ymusic_logo_dock)
+            LaunchedEffect(dockTile) {
+                runCatching {
+                    if (java.awt.Taskbar.isTaskbarSupported()) {
+                        val taskbar = java.awt.Taskbar.getTaskbar()
+                        if (taskbar.isSupported(java.awt.Taskbar.Feature.ICON_IMAGE)) {
+                            taskbar.iconImage = dockTile.toAwtImage(
+                                Density(1024f / 192f),
+                                LayoutDirection.Ltr,
+                                androidx.compose.ui.geometry.Size(192f, 192f),
+                            )
+                        }
+                    }
+                }.onFailure { rootLogger.fork("dock").log(Logger.Level.WARN, "dock icon set failed", it) }
+            }
+            if (isLinux) {
+                val logo = painterResource(Res.drawable.ymusic_logo)
+                LaunchedEffect(logo) {
+                    val image = if (isLinuxDebInstall) null else logo.rasterize(256, scale = 0.875f)
+                    withContext(Dispatchers.IO) {
+                        runCatching { syncLinuxDesktopEntry(image) }
+                            .onFailure { rootLogger.fork("desktop-entry").log(Logger.Level.WARN, "desktop entry install failed", it) }
+                    }
+                }
+            }
             // Not Window(icon=): that is one 32dp raster the OS nearest-scales into each of its
             // icon slots (Windows: 16/20/24/32/40/48/64/256 px by DPI). One exact raster per slot.
-            // macOS ignores window icons (the Dock tile is set above).
+            // macOS ignores window icons (the Dock tile is set separately).
             if (!isMac) {
                 val windowIcon = painterResource(Res.drawable.ymusic_logo)
                 LaunchedEffect(window, windowIcon) {

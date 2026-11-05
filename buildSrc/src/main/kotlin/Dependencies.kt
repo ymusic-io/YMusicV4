@@ -27,8 +27,8 @@ object Versions {
     const val atomicfu = "0.23.1" // aligned with coroutines 1.11.0
     const val kotlinxSerialization = "1.9.0"
     const val kotlinxDateTime = "0.8.0"
-    const val composeMultiplatform = "1.11.1"
-    const val navigationEvent = "1.0.1" // the androidx.navigationevent composeMultiplatform ships with
+    const val composeMultiplatform = "1.13.0-beta02"
+    const val navigationEvent = "1.1.0" // the androidx.navigationevent composeMultiplatform ships with
     const val okhttp = "5.4.0"
     const val okio = "3.17.0"
     const val sqldelight = "2.3.2"
