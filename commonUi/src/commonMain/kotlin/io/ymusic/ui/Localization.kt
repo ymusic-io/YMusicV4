@@ -1,15 +1,23 @@
 package io.ymusic.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import io.ymusic.settings.AppSettings
 import io.ymusic.settings.SettingsStore
 import io.ymusic.settings.ensureUiLanguage
 import io.ymusic.settings.flow
 import io.ymusic.ui.resources.Res
 import io.ymusic.ui.resources.startup_failed
+import kotlinx.coroutines.runBlocking
+import org.jetbrains.compose.resources.PluralStringResource
+import org.jetbrains.compose.resources.ResourceEnvironment
 import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.getPluralString
 import org.jetbrains.compose.resources.getString
+import org.jetbrains.compose.resources.getSystemResourceEnvironment
+import org.jetbrains.compose.resources.rememberResourceEnvironment
 import org.jetbrains.compose.resources.stringResource
+import kotlin.concurrent.Volatile
 
 /** A message that is final text or a string resource still to resolve — read both in composition and
  *  off it (a notification). */
@@ -27,6 +35,48 @@ internal fun UiText.resolve(): String = when (this) {
 internal suspend fun UiText.load(): String = when (this) {
     is UiText.Plain -> text
     is UiText.Resource -> getString(res, *args)
+}
+
+/** Puts the app language back over the platform locale; wired by [AppGraph]. */
+@Volatile
+internal var restoreUiLocale: ((NoSuchElementException) -> Unit)? = null
+
+/**
+ * compose-resources' `pluralStringResource`, for every plural in the UI: its lookups throw while the platform
+ * locale's language has no CLDR plural rules (xnr), and Android can put such a device locale back over
+ * [applyUiLocale] without calling onConfigurationChanged. No try/catch can wrap a composable, so this loads it.
+ */
+@Composable
+internal fun pluralText(resource: PluralStringResource, quantity: Int, vararg formatArgs: Any): String {
+    val environment = rememberResourceEnvironment()
+    val args = formatArgs.map { it.toString() }
+    return remember(resource, quantity, args, environment) {
+        runBlocking { guardedPluralText(environment, resource, quantity, args) }
+    }
+}
+
+/** compose-resources' `getPluralString`, for every plural off composition; see [pluralText]. */
+internal suspend fun loadPluralText(resource: PluralStringResource, quantity: Int, vararg formatArgs: Any): String =
+    guardedPluralText(getSystemResourceEnvironment(), resource, quantity, formatArgs.map { it.toString() })
+
+private suspend fun guardedPluralText(
+    environment: ResourceEnvironment,
+    resource: PluralStringResource,
+    quantity: Int,
+    args: List<String>,
+): String {
+    val formatArgs = args.toTypedArray()
+    return try {
+        getPluralString(environment, resource, quantity, *formatArgs)
+    } catch (noRules: NoSuchElementException) {
+        restoreUiLocale?.invoke(noRules)
+        try {
+            getPluralString(resource, quantity, *formatArgs)
+        } catch (stillNoRules: NoSuchElementException) {
+            // iOS applies a language on the next launch; the bare count is all that needs no rules.
+            quantity.toString()
+        }
+    }
 }
 
 /**

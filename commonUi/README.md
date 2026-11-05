@@ -59,6 +59,8 @@ The shared Compose Multiplatform app UI (jvm + android; iOS later).
   exempt).
   - The `AppSettings.uiLanguage` setting drives `applyUiLocale` (expect/actual; JVM/Android set the default locale,
     iOS = next launch).
+  - Plurals go through `pluralText` / `loadPluralText`, never compose-resources' own lookups: those throw while the
+    platform locale's language has no CLDR plural rules, and Android can restore such a device locale over ours.
   - `App` rebuilds under `key(tag)` with `LocalLayoutDirection` derived from the effective locale (RTL mirrors the
     whole UI).
   - `SettingsScreen` hosts the picker.

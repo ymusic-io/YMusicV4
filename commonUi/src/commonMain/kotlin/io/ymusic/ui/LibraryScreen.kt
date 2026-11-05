@@ -171,7 +171,6 @@ import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jetbrains.compose.resources.StringResource
-import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import projectcommon.error.errorCode
 
@@ -1191,7 +1190,7 @@ private fun playlistDisplay(entry: PlaylistEntry): Triple<String, String, ImageV
     is SmartEntry -> Triple(stringResource(entry.labelRes), stringResource(entry.descRes), entry.icon)
     is UserEntry -> Triple(
         entry.playlist.name,
-        pluralStringResource(Res.plurals.n_songs, entry.count, entry.count),
+        pluralText(Res.plurals.n_songs, entry.count, entry.count),
         Icons.AutoMirrored.Filled.PlaylistPlay,
     )
 }
@@ -1711,7 +1710,7 @@ private fun GroupRow(icon: ImageVector, name: String, members: List<MediaStoreIt
         Column(Modifier.weight(1f)) {
             Text(name, style = ListTitleStyle, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Text(
-                pluralStringResource(Res.plurals.n_songs, members.size, members.size),
+                pluralText(Res.plurals.n_songs, members.size, members.size),
                 style = ListSubStyle,
                 modifier = Modifier.padding(top = 4.dp),
             )
@@ -1726,7 +1725,7 @@ private fun GroupCard(icon: ImageVector, name: String, members: List<MediaStoreI
         icon = icon,
         artUrl = members.firstNotNullOfOrNull(::localArtUrl),
         title = name,
-        subtitle = pluralStringResource(Res.plurals.n_songs, members.size, members.size),
+        subtitle = pluralText(Res.plurals.n_songs, members.size, members.size),
         onClick = onOpen,
     )
 }

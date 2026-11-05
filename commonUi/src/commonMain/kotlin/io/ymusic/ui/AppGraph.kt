@@ -306,6 +306,10 @@ class AppGraph(
         // Settings reach the player, cache and locale here, not in App: the process also runs without the UI
         // (Android Auto, media buttons, the playback service).
         val bindings = processScope
+        restoreUiLocale = { noRules ->
+            logger?.fork("ui-locale")?.log(Logger.Level.WARN, "platform locale has no plural rules", noRules)
+            reapplyUiLanguage()
+        }
         bindings.launch {
             settings.flow(AppSettings.uiLanguage).map { uiLanguageTag(settings) }.distinctUntilChanged().collect { tag ->
                 applyUiLocale(tag)
