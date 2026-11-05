@@ -45,8 +45,10 @@ fun bindSentryTags(scope: CoroutineScope, remoteConfig: RemoteConfig) {
         remoteConfig.sentryTags.map { it.toSentryTags() }.collect { tags ->
             val dropped = remoteTags.keys - tags.keys
             remoteTags = tags
-            Sentry.configureScope { sentryScope -> dropped.forEach(sentryScope::removeTag) }
-            installSentryRemoteTags()
+            Sentry.configureScope { sentryScope ->
+                dropped.forEach(sentryScope::removeTag)
+                tags.forEach(sentryScope::setTag)
+            }
         }
     }
 }
