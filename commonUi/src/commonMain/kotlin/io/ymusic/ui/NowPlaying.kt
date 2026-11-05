@@ -192,6 +192,7 @@ import io.ymusic.ui.resources.error_captcha
 import io.ymusic.ui.resources.error_network
 import io.ymusic.ui.resources.error_supervised_account
 import io.ymusic.ui.resources.ic_sponsor_block
+import io.ymusic.ui.resources.media_engine_unavailable
 import io.ymusic.ui.resources.menu_add_to_playlist
 import io.ymusic.ui.resources.menu_details_comments
 import io.ymusic.ui.resources.menu_go_to_album
@@ -1133,6 +1134,7 @@ internal fun playerErrorText(error: io.ymusic.player.PlayerError): UiText = when
     error.code == SUPERVISED_ACCOUNT_CODE -> UiText.Resource(Res.string.error_supervised_account)
     error.code == io.ymusic.player.PlayerError.FILE_MISSING -> UiText.Resource(Res.string.playback_file_missing)
     error.code == io.ymusic.player.PlayerError.FOLDER_ACCESS_LOST -> UiText.Resource(Res.string.playback_folder_access_lost)
+    error.code == io.ymusic.player.PlayerError.PLAYBACK_UNAVAILABLE -> UiText.Resource(Res.string.media_engine_unavailable)
     error.code == io.ymusic.player.PlayerError.VIDEO_DECODER_FAILED -> UiText.Resource(Res.string.playback_video_unsupported)
     error.code == io.ymusic.player.PlayerError.PO_TOKEN_REJECTED -> UiText.Resource(Res.string.playback_botguard_failed)
     else -> error.userMessage?.let(UiText::Plain) ?: when (error.playability()) {

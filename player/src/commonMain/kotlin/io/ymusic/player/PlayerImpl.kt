@@ -457,7 +457,7 @@ internal class PlayerImpl(
     }
 
     override fun prepareYoutubeEngine() {
-        if (released) return
+        if (released || engines.unavailable != null) return
         val factory = engines.youtube ?: return
         val engine = ytEngine ?: factory().also { ytEngine = it }
         engine.init()
@@ -635,6 +635,11 @@ internal class PlayerImpl(
         val item = controller.state.currentItem ?: return
         loadGeneration++
         val gen = loadGeneration
+        engines.unavailable?.let { error ->
+            bind(null)
+            publishStatus(PlaybackStatus(state = PlaybackState.Error(error)))
+            return
+        }
         when (item) {
             is PlayableItem.LocalMedia -> {
                 val engine = localEngine ?: engines.local().also { localEngine = it }

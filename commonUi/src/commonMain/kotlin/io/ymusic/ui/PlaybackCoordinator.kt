@@ -73,6 +73,8 @@ class PlaybackCoordinator(
                         log.log(Logger.Level.WARN, "folder access lost id=$id: ${err.message}", err.cause)
                     } else if (err != null && err.code == "network") {
                         log.log(Logger.Level.WARN, "network id=$id: ${err.message}", err.cause)
+                    } else if (err != null && err.code == PlayerError.PLAYBACK_UNAVAILABLE) {
+                        log.log(Logger.Level.WARN, "playback unavailable id=$id: ${err.message}")
                     } else if (err != null) {
                         log.captureError(
                             TechnicalException(err.code, err.message ?: "player error", cause = err.cause),
