@@ -41,7 +41,7 @@ object Versions {
     const val annotation = "1.9.1"
     const val coreKtx = "1.15.0"
     const val lifecycleRuntimeKtx = "2.8.7"
-    const val activityCompose = "1.9.3"
+    const val activityCompose = "1.13.0"
     const val cameraX = "1.6.2"
     const val carApp = "1.7.0"
     const val composeBom = "2024.12.01"
@@ -86,7 +86,7 @@ object Libs {
 
         // biometric 1.1.0 drags in fragment 1.2.5, whose FragmentActivity rejects the request codes
         // registerForActivityResult issues ("Can only use lower 16 bits for requestCode").
-        const val fragment = "androidx.fragment:fragment:1.8.5"
+        const val fragment = "androidx.fragment:fragment:1.9.1"
         const val cameraCore = "androidx.camera:camera-core:${Versions.cameraX}"
         const val cameraCamera2 = "androidx.camera:camera-camera2:${Versions.cameraX}"
         const val cameraLifecycle = "androidx.camera:camera-lifecycle:${Versions.cameraX}"
