@@ -120,7 +120,7 @@ E60012 D ExoPlayer can't parse the file: malformed or unsupported container (pla
 E60013 D ExoPlayer audio output (AudioTrack) failure (player android AndroidLocalPlayer)
 E60014 D ExoPlayer operation timed out (player android AndroidLocalPlayer)
 E60020 D libVLC not found at construction (player jvm)
-E60021 D libVLC playback error (player jvm)
+E60021 D local playback failed in the file_av engine: open error other than a missing file, or a decoder gave up (player jvm JvmLocalPlayer)
 E60033 D YouTube playback error, no engine-supplied code (MsePlayer fallback)
 E60034 D MsePlayer download request (playerResponse/PO token) while the engine is released or in a failed session
 E60050 D queue item needs the YouTube engine but none is configured (player facade)
