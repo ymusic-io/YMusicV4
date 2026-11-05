@@ -31,7 +31,7 @@ E20052 D cache/put body sent no bytes for its idle timeout (dynamic-engine Cache
 E20053 D cache put cancelled by a newer put/delete of the same scope+key (dynamic-engine DiskCacheStore)
 E20060 D settings request has a missing/invalid field or malformed head (dynamic-engine SettingsProtocol)
 E20061 D settings store get/put threw (dynamic-engine SettingsProtocol)
-E20062 - remote-config/get head malformed or the flag read threw (dynamic-engine RemoteConfigProtocol)
+E20062 - remote-config/get head malformed or the features read threw (dynamic-engine RemoteConfigProtocol)
 E20070 D mse-player request has a missing/invalid field or malformed head (dynamic-engine MsePlayerProtocol)
 E20071 D MsePlayer threw while serving mse-player (dynamic-engine MsePlayerProtocol)
 E20072 D player/load missing videoId (engine-js logic/player.ts)

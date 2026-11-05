@@ -410,7 +410,7 @@ class YMusicApplication : Application() {
             cacheStore = cacheStore,
             cookieJar = cookies,
             settings = settings,
-            remoteFlags = { remoteConfig.awaitLoaded().features.flags },
+            remoteFeature = { remoteConfig.awaitLoaded().features.getByKey(it) },
             // Debug builds crash on an engine-thread stall (StrictMode-style); release only logs.
             strictStints = BuildConfig.DEBUG,
             // Every Sentry event and service call names the engine-js bundle that was live (start + each swap).
@@ -609,7 +609,7 @@ class YMusicApplication : Application() {
                         cacheStore = shared.cacheStore,
                         cookieJar = shared.cookies,
                         settings = shared.settings,
-                        remoteFlags = { shared.remoteConfig.awaitLoaded().features.flags },
+                        remoteFeature = { shared.remoteConfig.awaitLoaded().features.getByKey(it) },
                         videoSurface = MseVideoSurface(),
                         main = shared.engines,
                         mediaProxy = mediaProxy,

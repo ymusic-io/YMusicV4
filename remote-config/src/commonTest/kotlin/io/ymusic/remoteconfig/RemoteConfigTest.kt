@@ -6,6 +6,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import okio.FileSystem
 import okio.IOException
 import okio.Path
@@ -16,7 +18,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 private val SERVER = RemoteConfigData(
-    features = Features(variableA = 7, featureX = true),
+    features = Features(JsonObject(mapOf("variableA" to JsonPrimitive(7), "featureX" to JsonPrimitive(true)))),
     appUpdate = AppUpdate(1300, "4.1.0", "notes", "https://x/y.msi", 12, "ab", "sig-app"),
     playerJs = BundleVersion(version = 123, url = "https://x/player.js", signature = "sig-player"),
     engineJs = BundleVersion(version = 11, url = "https://x/engine.js", signature = "sig-engine"),

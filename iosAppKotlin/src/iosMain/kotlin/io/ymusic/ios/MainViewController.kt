@@ -69,7 +69,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.JsonElement
 import okio.FileSystem
 import okio.Path.Companion.toPath
 import platform.Foundation.NSApplicationSupportDirectory
@@ -170,8 +170,8 @@ private suspend fun buildIosGraph(container: UIView): AppGraph {
     val appVersionCode = (NSBundle.mainBundle.objectForInfoDictionaryKey("CFBundleVersion") as? String)?.toIntOrNull() ?: -1
     // The engine starts before the config service's client exists.
     val pendingRemoteConfig = CompletableDeferred<RemoteConfig>()
-    val remoteFlags: suspend () -> Map<String, JsonPrimitive> = {
-        pendingRemoteConfig.await().awaitLoaded().features.flags
+    val remoteFeature: suspend (String) -> JsonElement? = { key ->
+        pendingRemoteConfig.await().awaitLoaded().features.getByKey(key)
     }
     val engines = DynamicEngineManager(
         http.engine,
@@ -180,7 +180,7 @@ private suspend fun buildIosGraph(container: UIView): AppGraph {
         logger = rootLogger,
         cookieJar = cookies,
         settings = settings,
-        remoteFlags = remoteFlags,
+        remoteFeature = remoteFeature,
         cacheStore = cacheStore,
         strictStints = DEBUG_BUILD,
         onBackendVersion = { version ->
@@ -289,7 +289,7 @@ private suspend fun buildIosGraph(container: UIView): AppGraph {
         cacheStore = cacheStore,
         cookieJar = cookies,
         settings = settings,
-        remoteFlags = remoteFlags,
+        remoteFeature = remoteFeature,
         videoSurface = mseSurface,
         main = engines,
         mediaProxy = mediaProxy,

@@ -10,14 +10,14 @@ import kmpcommon.log.Logger
 import kmphttp.json.JsonReader
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import okio.Buffer
 import projectcommon.json.stringOrNull
 
 internal fun QuickJsRuntime.installRemoteConfig(
-    flags: (suspend () -> Map<String, JsonPrimitive>)?,
+    feature: (suspend (String) -> JsonElement?)?,
     parked: ParkedLoggers,
 ) {
     onAccept("remote-config/get") { pipe ->
@@ -26,7 +26,7 @@ internal fun QuickJsRuntime.installRemoteConfig(
             val head = JsonReader(BufferedAsyncSource(pipe.source.asAsyncSource())).readObject()
             val key = requireNotNull(head.stringOrNull("key")) { "remote-config request missing 'key'" }
             val out = Buffer().writeUtf8(
-                buildJsonObject { flags?.invoke()?.get(key)?.let { put("value", it) } }.toString(),
+                buildJsonObject { feature?.invoke(key)?.let { put("value", it) } }.toString(),
             )
             pipe.sink.send(out, out.size)
             pipe.sink.close()

@@ -886,7 +886,7 @@ private suspend fun buildGraph(settings: AppStoreSettings, session: CookieSessio
             cacheStore = engineCache,
             cookieJar = cookies,
             settings = settings,
-            remoteFlags = { remoteConfig.awaitLoaded().features.flags },
+            remoteFeature = { remoteConfig.awaitLoaded().features.getByKey(it) },
             strictStints = DEBUG_BUILD,
             // Every Sentry event and service call names the engine-js bundle that was live (start + each swap).
             onBackendVersion = { version ->
@@ -984,7 +984,7 @@ private suspend fun buildGraph(settings: AppStoreSettings, session: CookieSessio
                         cacheStore = engineCache,
                         cookieJar = cookies,
                         settings = settings,
-                        remoteFlags = { remoteConfig.awaitLoaded().features.flags },
+                        remoteFeature = { remoteConfig.awaitLoaded().features.getByKey(it) },
                         videoSurface = mseSurface,
                         main = engines,
                         mediaProxy = mediaProxy,

@@ -32,6 +32,7 @@ kotlin {
             implementation(project(":remote-config")) // errorLogLines, once the config has loaded
             api(Libs.Sentry.kmp)
             implementation(Libs.Kotlinx.coroutinesCore) // bindCrashReporting collects the consent flow
+            implementation(Libs.Kotlinx.serializationJson) // remote config's sentryTags are raw JSON
         }
 
         commonTest.dependencies {

@@ -26,6 +26,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.serialization.json.JsonObject
 import okio.FileSystem
 import okio.IOException
 import okio.Path
@@ -54,8 +55,8 @@ const val REMOTE_CONFIG_MIN_INTERVAL_MS: Long = 5 * 60 * 1000L
  * app in the background makes no requests and keeps no timer alive to wake the device for.
  *
  * What gets cached for the next cold start is the parsed [RemoteConfigData], re-encoded. Outside
- * [Features.flags], a field this build does not know is therefore not preserved across a restart;
- * it arrives again on the first refresh.
+ * [Features], a field this build does not know is therefore not preserved across a restart; it
+ * arrives again on the first refresh.
  */
 class RemoteConfig(
     /** Null when this build has no config service: it runs on the cache, or on the defaults. */
@@ -75,7 +76,7 @@ class RemoteConfig(
     val appUpdate: Flow<AppUpdate?> = _config.map { it.appUpdate }.distinctUntilChanged()
     val engineJs: Flow<BundleVersion?> = _config.map { it.engineJs }.distinctUntilChanged()
     val playerJs: Flow<BundleVersion?> = _config.map { it.playerJs }.distinctUntilChanged()
-    val sentryTags: Flow<Map<String, String>> = _config.map { it.sentryTags }.distinctUntilChanged()
+    val sentryTags: Flow<JsonObject> = _config.map { it.sentryTags }.distinctUntilChanged()
 
     private val mutex = Mutex()
     private var initialized = false

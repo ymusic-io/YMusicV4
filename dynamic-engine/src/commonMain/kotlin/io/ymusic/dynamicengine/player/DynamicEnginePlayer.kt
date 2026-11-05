@@ -26,8 +26,8 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
 import projectcommon.error.CodedError
 import projectcommon.json.intOrNull
 import projectcommon.json.objects
@@ -324,7 +324,7 @@ class DynamicEnginePlayer private constructor(
             cacheStore: CacheStore? = null,
             cookieJar: CookieJar = client.cookieJar,
             settings: SettingsStore? = null,
-            remoteFlags: (suspend () -> Map<String, JsonPrimitive>)? = null,
+            remoteFeature: (suspend (String) -> JsonElement?)? = null,
             videoSurface: MseVideoSurface? = null,
             main: DynamicEngineManager? = null,
             /** The health-checked player bundle's revision, once per session. */
@@ -333,7 +333,7 @@ class DynamicEnginePlayer private constructor(
             var nativeMse: NativeMseHost? = null
             val engine = try {
                 DynamicEngine.createEngine(
-                    client, appVersion, dispatcher, logger, engineJs, cacheStore, cookieJar, settings, remoteFlags,
+                    client, appVersion, dispatcher, logger, engineJs, cacheStore, cookieJar, settings, remoteFeature,
                 ) { parked ->
                     if (videoSurface != null) nativeMse = bindNativeMse(this, videoSurface)
                     installMainProxy(parked) { cmd ->

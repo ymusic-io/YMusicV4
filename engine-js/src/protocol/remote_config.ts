@@ -1,10 +1,10 @@
 import { callHost } from "./command";
 
-type FlagValue = string | boolean | number;
+type FeatureValue = string | boolean | number;
 
-// A flag that is absent, of another type than the default, or unavailable reads as the default.
+// A value that is absent, of another type than the default, or unavailable reads as the default.
 // Hosts before this command refuse it, so a failed read must not fail the job asking.
-async function get<T extends FlagValue>(key: string, defaultValue: T): Promise<T> {
+async function get<T extends FeatureValue>(key: string, defaultValue: T): Promise<T> {
   try {
     return await callHost("remote-config/get", async function (pipe) {
       let pending = pipe.sink.writeObjectAsJson({ "key": key });

@@ -116,7 +116,7 @@ internal class ErrorLogShipper(
             val serializer = Sentry.getCurrentScopes().options.serializer
             val sdkVersion = Sentry.getCurrentScopes().options.sdkVersion
             val lineAttributes = hashMapOf(VERSION_CODE to versionCode)
-            remoteConfig.config.value.sentryTags.forEach { (key, tag) ->
+            remoteConfig.config.value.sentryTags.toSentryTags().forEach { (key, tag) ->
                 lineAttributes[key] = SentryLogEventAttributeValue(SentryAttributeType.STRING, tag)
             }
             var afterSeq = 0L
