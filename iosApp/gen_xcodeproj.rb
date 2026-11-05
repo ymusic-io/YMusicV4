@@ -4,10 +4,6 @@
 # (:commonUi:embedAndSignAppleFrameworkForXcode, -PkmpTargets=all so iosArm64 is configured on this
 # Intel host); Xcode compiles iosApp/iOSApp.swift, which hosts MainViewControllerKt.MainViewController.
 #
-# REQUIRES XCODE 16+ (iOS 18 SDK): Compose Multiplatform 1.11.1's ui-uikit links against
-# UIViewLayoutRegion (iOS 18), which is absent from Xcode 15.3's iOS 17.4 SDK. The Kotlin side
-# compiles for arm64 on any Xcode; only the framework LINK needs the iOS 18 SDK.
-#
 #   ruby gen_xcodeproj.rb
 require "xcodeproj"
 
@@ -49,9 +45,7 @@ gradle_phase.shell_script = <<~SH
   SIGN_ID="${EXPANDED_CODE_SIGN_IDENTITY:-}"
   unset EXPANDED_CODE_SIGN_IDENTITY
   # -PkmpTargets=all so iosArm64 / iosSimulatorArm64 are configured even on this Intel host.
-  # -PiosAllowUndefined=true lets Compose 1.11.1's iOS 26 symbols link on an older Xcode
-  # (@available-guarded, so unused below iOS 26). Drop it once building with Xcode 26.
-  ./gradlew --no-daemon :iosAppKotlin:embedAndSignAppleFrameworkForXcode -PkmpTargets=all -PiosAllowUndefined=true
+  ./gradlew --no-daemon :iosAppKotlin:embedAndSignAppleFrameworkForXcode -PkmpTargets=all
   FW="$TARGET_BUILD_DIR/$FRAMEWORKS_FOLDER_PATH/YMusicApp.framework"
   if [ -n "$SIGN_ID" ] && [ "$SIGN_ID" != "-" ] && [ -d "$FW" ]; then
     /usr/bin/codesign --force --sign "$SIGN_ID" --timestamp=none "$FW"
