@@ -63,11 +63,13 @@ import kmphttp.KmpHttpClient
 import kmphttp.RedirectOptions
 import kmphttp.create
 import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.JsonPrimitive
 import okio.FileSystem
 import okio.Path.Companion.toPath
 import platform.Foundation.NSApplicationSupportDirectory
@@ -166,6 +168,11 @@ private suspend fun buildIosGraph(container: UIView): AppGraph {
     )
     val backgroundScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val appVersionCode = (NSBundle.mainBundle.objectForInfoDictionaryKey("CFBundleVersion") as? String)?.toIntOrNull() ?: -1
+    // The engine starts before the config service's client exists.
+    val pendingRemoteConfig = CompletableDeferred<RemoteConfig>()
+    val remoteFlags: suspend () -> Map<String, JsonPrimitive> = {
+        pendingRemoteConfig.await().awaitLoaded().features.flags
+    }
     val engines = DynamicEngineManager(
         http.engine,
         appVersion = appVersionCode,
@@ -173,6 +180,7 @@ private suspend fun buildIosGraph(container: UIView): AppGraph {
         logger = rootLogger,
         cookieJar = cookies,
         settings = settings,
+        remoteFlags = remoteFlags,
         cacheStore = cacheStore,
         strictStints = DEBUG_BUILD,
         onBackendVersion = { version ->
@@ -227,6 +235,7 @@ private suspend fun buildIosGraph(container: UIView): AppGraph {
         now = now,
         log = rootLogger.fork("remote-config"),
     ).also { it.checkUpdate() }
+    pendingRemoteConfig.complete(remoteConfig)
     backgroundScope.launch {
         // The cap waits for the loaded config: the store trims nothing until it has one.
         remoteConfig.awaitLoaded()
@@ -280,6 +289,7 @@ private suspend fun buildIosGraph(container: UIView): AppGraph {
         cacheStore = cacheStore,
         cookieJar = cookies,
         settings = settings,
+        remoteFlags = remoteFlags,
         videoSurface = mseSurface,
         main = engines,
         mediaProxy = mediaProxy,

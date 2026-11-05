@@ -65,6 +65,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import projectcommon.error.TechnicalException
 import projectcommon.error.errorCode
 import projectcommon.json.boolOrNull
@@ -835,6 +836,7 @@ class MsePlayer internal constructor(
             cacheStore: CacheStore? = null,
             cookieJar: CookieJar = client.cookieJar,
             settings: SettingsStore? = null,
+            remoteFlags: (suspend () -> Map<String, JsonPrimitive>)? = null,
             videoSurface: MseVideoSurface,
             main: DynamicEngineManager,
             mediaProxy: LocalMediaProxy? = null,
@@ -850,6 +852,7 @@ class MsePlayer internal constructor(
                     cacheStore = cacheStore,
                     cookieJar = cookieJar,
                     settings = settings,
+                    remoteFlags = remoteFlags,
                     videoSurface = videoSurface,
                     main = main,
                     onBackendVersion = onPlayerJsVersion,
