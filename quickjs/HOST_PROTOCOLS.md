@@ -383,7 +383,7 @@ remote-config/get  JS→K: {"key":"…"}
 ```
 
 It serves any key of the config's `features`, whether or not the app build declares a property for
-it. `RemoteConfig.get(key, defaultValue)` returns the default when the key is absent, has another type, or
+it. `RemoteConfig.get(key, defaultValue)` returns the default when the key is absent or null, or
 the read fails, including on hosts older than this command, which refuse the open. A failed read RESETs
 with `E20062`.
 

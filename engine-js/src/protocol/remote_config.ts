@@ -2,7 +2,7 @@ import { callHost } from "./command";
 
 type FeatureValue = string | boolean | number;
 
-// A value that is absent, of another type than the default, or unavailable reads as the default.
+// A value that is absent, null, or unavailable reads as the default.
 // Hosts before this command refuse it, so a failed read must not fail the job asking.
 async function get<T extends FeatureValue>(key: string, defaultValue: T): Promise<T> {
   try {
@@ -12,7 +12,7 @@ async function get<T extends FeatureValue>(key: string, defaultValue: T): Promis
       pending = pipe.sink.close();
       if (pending) await pending;
       const value = ((await pipe.source.readJsonObject()) as Record<string, unknown>)["value"];
-      return typeof value === typeof defaultValue ? (value as T) : defaultValue;
+      return value == null ? defaultValue : (value as T);
     });
   } catch (e) {
     console.warn("remote-config/get " + key + ": " + String(e));
