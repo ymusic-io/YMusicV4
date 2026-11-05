@@ -1,8 +1,8 @@
 object Versions {
     const val kotlin = "2.4.21"
     const val agp = "9.5.0"
-    // Floor: okhttp-android 5.4 (selected for Android consumers of :kmpHttp via Gradle metadata)
-    // requires 36 of every module that compiles against it, not just the app.
+    // Floor: okhttp-android 5.5 (selected for Android consumers of :kmpHttp via Gradle metadata)
+    // requires 37 of every module that compiles against it, not just the app.
     const val compileSdk = 37
     const val compileSdkMinor = 1 // Compose Multiplatform 1.13 requires 37.1
     const val minSdk = 24
@@ -29,7 +29,7 @@ object Versions {
     const val kotlinxDateTime = "0.8.0"
     const val composeMultiplatform = "1.13.0-beta02"
     const val navigationEvent = "1.1.0" // the androidx.navigationevent composeMultiplatform ships with
-    const val okhttp = "5.4.0"
+    const val okhttp = "5.5.1"
     const val okio = "3.18.2"
     const val sqldelight = "2.4.1"
 
