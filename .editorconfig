@@ -16,8 +16,10 @@ ij_kotlin_allow_trailing_comma_on_call_site = true
 # restructuring rules that fight IntelliJ's official-style formatting, lint rules ktlint cannot
 # auto-fix (spotlessCheck must stay green after spotlessApply), and the trailing-comma rules
 # (they hard-require the disabled wrapping rule; the ij_ flags above still steer IntelliJ).
+# blank-line-between-when-conditions also moves a branch's trailing comment onto the next branch.
 ktlint_standard_argument-list-wrapping = disabled
 ktlint_standard_backing-property-naming = disabled
+ktlint_standard_blank-line-between-when-conditions = disabled
 ktlint_standard_chain-wrapping = disabled
 ktlint_standard_class-signature = disabled
 ktlint_standard_comment-wrapping = disabled
@@ -27,10 +29,14 @@ ktlint_standard_function-expression-body = disabled
 ktlint_standard_function-literal = disabled
 ktlint_standard_function-naming = disabled
 ktlint_standard_function-signature = disabled
+ktlint_standard_kdoc = disabled
+ktlint_standard_mixed-condition-operators = disabled
 ktlint_standard_multiline-if-else = disabled
 ktlint_standard_multiline-loop = disabled
 ktlint_standard_no-empty-file = disabled
 ktlint_standard_no-multi-spaces = disabled
+# Not in ktlint's default set since 1.7.
+ktlint_standard_no-unused-imports = enabled
 ktlint_standard_no-wildcard-imports = disabled
 ktlint_standard_property-naming = disabled
 ktlint_standard_spacing-between-declarations-with-comments = disabled

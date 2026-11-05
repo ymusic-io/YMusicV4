@@ -45,11 +45,11 @@ spotless {
         targetExclude("**/build/**", "YMusicLegacy/**", "temp/**", "**/publicsuffix/PslDafsa.kt")
         // Spotless does not discover .editorconfig on its own — without the explicit path ktlint
         // runs on ktlint_official defaults and restructures code the config deliberately protects.
-        ktlint("1.5.0").setEditorConfigPath("$rootDir/.editorconfig")
+        ktlint("1.8.0").setEditorConfigPath("$rootDir/.editorconfig")
     }
     kotlinGradle {
         target("*.gradle.kts", "*/*.gradle.kts", "buildSrc/*.gradle.kts")
-        ktlint("1.5.0").setEditorConfigPath("$rootDir/.editorconfig")
+        ktlint("1.8.0").setEditorConfigPath("$rootDir/.editorconfig")
     }
 }
 
