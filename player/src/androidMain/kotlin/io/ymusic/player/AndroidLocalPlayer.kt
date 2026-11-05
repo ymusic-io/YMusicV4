@@ -243,10 +243,10 @@ internal class AndroidLocalPlayer(
 
     override fun load(source: PlayableItem.LocalMedia, startPositionMs: Long, playWhenReady: Boolean, config: PlaybackConfig) {
         if (released) return
-        val uri = source.uri
+        val uri = source.uri.toPlayableUri()
         val failedPreload = preloadError
         preloadError = null
-        if (failedPreload != null && sameUri(failedPreload.first, MediaItem.fromUri(uri.toPlayableUri()))) {
+        if (failedPreload != null && failedPreload.first.localConfiguration?.uri == uri) {
             _status.update { it.copy(state = PlaybackState.Error(failedPreload.second)) }
             return
         }
@@ -268,7 +268,7 @@ internal class AndroidLocalPlayer(
             it.copy(state = PlaybackState.Prepared(playWhenReady, buffering = true, ended = false))
         }
         _progress.value = Progress(positionMs = startPositionMs)
-        val mediaItem = MediaItem.fromUri(uri.toPlayableUri())
+        val mediaItem = MediaItem.fromUri(uri)
         var preloaded = false
         val count = player.mediaItemCount
         if (player.playbackState != Player.STATE_IDLE && count > 0) {
@@ -285,37 +285,64 @@ internal class AndroidLocalPlayer(
                 }
             }
         }
-        if (!preloaded) player.setMediaItem(mediaItem, startPositionMs)
+        if (!preloaded) {
+            try {
+                player.setMediaItem(mediaItem, startPositionMs)
+            } catch (refused: Exception) {
+                failRefusedItem(refused)
+                return
+            }
+        }
         player.repeatMode = if (config.loop) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
         player.playWhenReady = playWhenReady
         if (player.playbackState == Player.STATE_IDLE) player.prepare()
         showSurface(true)
     }
 
+    /** The player refused the new item, so it still holds the previous one, possibly playing. */
+    private fun failRefusedItem(refused: Exception) {
+        // Before the stop: syncFromPlayer keeps an Error but would publish the stop as Idle.
+        _status.update {
+            it.copy(
+                state = PlaybackState.Error(PlayerError("E60015", refused.message, canRetry = false, cause = refused)),
+            )
+        }
+        player.stop()
+        player.clearMediaItems()
+        _progress.value = Progress()
+        showSurface(false)
+    }
+
     override fun preload(source: PlayableItem.LocalMedia?) {
         if (released) return
         val mediaItem = source?.let { MediaItem.fromUri(it.uri.toPlayableUri()) }
-        when (val count = player.mediaItemCount) {
-            0 -> {
-                mediaItem ?: return
-                player.playWhenReady = false
-                player.addMediaItem(mediaItem)
-                player.prepare()
-            }
-            1 -> {
-                mediaItem ?: return
-                player.addMediaItem(mediaItem)
-            }
-            2 -> {
-                if (mediaItem == null) {
-                    player.removeMediaItem(1)
-                    return
+        val count = player.mediaItemCount
+        check(count <= 2) { "unexpected media item count $count" }
+        try {
+            when (count) {
+                0 -> {
+                    mediaItem ?: return
+                    player.playWhenReady = false
+                    player.addMediaItem(mediaItem)
+                    player.prepare()
                 }
-                if (!sameUri(player.getMediaItemAt(1), mediaItem)) {
-                    player.replaceMediaItem(1, mediaItem)
+                1 -> {
+                    mediaItem ?: return
+                    player.addMediaItem(mediaItem)
+                }
+                else -> {
+                    if (mediaItem == null) {
+                        player.removeMediaItem(1)
+                        return
+                    }
+                    if (!sameUri(player.getMediaItemAt(1), mediaItem)) {
+                        player.replaceMediaItem(1, mediaItem)
+                    }
                 }
             }
-            else -> error("unexpected media item count $count")
+        } catch (refused: Exception) {
+            // Not a preloadError, which freezes status while the current item plays: load() reports this one.
+            if (count == 2) player.removeMediaItem(1)
         }
     }
 

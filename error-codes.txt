@@ -121,6 +121,7 @@ E60011 D ExoPlayer decoder failure: init, query or decoding (player android Andr
 E60012 D ExoPlayer can't parse the file: malformed or unsupported container (player android AndroidLocalPlayer)
 E60013 D ExoPlayer audio output (AudioTrack) failure (player android AndroidLocalPlayer)
 E60014 D ExoPlayer operation timed out (player android AndroidLocalPlayer)
+E60015 - ExoPlayer refused a media item when it was set, e.g. an HLS, DASH or RTSP uri with no module in the app (player android AndroidLocalPlayer)
 E60020 D libVLC not found at construction (player jvm)
 E60021 D local playback failed in the file_av engine: open error other than a missing file, or a decoder gave up (player jvm JvmLocalPlayer)
 E60033 D YouTube playback error, no engine-supplied code (MsePlayer fallback)
