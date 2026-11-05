@@ -12,7 +12,7 @@ actual fun ResponseBody.asyncSource(): AsyncSource {
     return object : AsyncSource {
         override suspend fun read(sink: Buffer, byteCount: Long): Long {
             return runIoInterruptible {
-                source.read(sink, byteCount)
+                readingResponse { source.read(sink, byteCount) }
             }
         }
 
@@ -24,12 +24,12 @@ actual fun ResponseBody.asyncSource(): AsyncSource {
 
 actual suspend fun ResponseBody.byteString(): ByteString {
     return runIoInterruptible {
-        this.byteString()
+        readingResponse { this.byteString() }
     }
 }
 
 actual suspend fun ResponseBody.utf8String(): String {
     return runIoInterruptible {
-        this.string()
+        readingResponse { this.string() }
     }
 }
