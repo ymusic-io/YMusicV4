@@ -58,6 +58,7 @@ import io.ymusic.ui.resources.device_link_unlock_title
 import io.ymusic.ui.resources.dialog_cancel
 import io.ymusic.ui.resources.settings_link_devices
 import io.ymusic.ui.resources.settings_link_devices_hint
+import kmpcommon.log.Logger
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.getString
@@ -159,7 +160,11 @@ private fun LinkDevicesDialog(
         } catch (c: CancellationException) {
             throw c
         } catch (t: Throwable) {
-            log?.captureError(t, "device-link send failed")
+            if (t.message == "no-lock") {
+                log?.log(Logger.Level.WARN, "device-link send stopped: no screen lock", t)
+            } else {
+                log?.captureError(t, "device-link send failed")
+            }
             error = deviceLinkErrorText(t)
         } finally {
             if (!done) busy = false
