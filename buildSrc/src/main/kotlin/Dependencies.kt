@@ -42,7 +42,7 @@ object Versions {
     const val coreKtx = "1.15.0"
     const val lifecycleRuntimeKtx = "2.8.7"
     const val activityCompose = "1.9.3"
-    const val cameraX = "1.4.2"
+    const val cameraX = "1.6.2"
     const val carApp = "1.7.0"
     const val composeBom = "2024.12.01"
 
