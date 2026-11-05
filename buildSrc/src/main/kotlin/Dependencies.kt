@@ -35,7 +35,7 @@ object Versions {
 
     // :player local-file backends (per platform; Apple uses AVFoundation cinterop, no dep)
     const val media3 = "1.11.1"   // Android ExoPlayer
-    const val jna = "5.17.0"     // JVM desktop native interop (macOS Now Playing bridge)
+    const val jna = "5.19.1"     // JVM desktop native interop (macOS Now Playing bridge)
 
     // AndroidX
     const val annotation = "1.9.1"
