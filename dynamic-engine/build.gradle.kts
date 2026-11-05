@@ -25,7 +25,7 @@ kotlin {
 
     android {
         namespace = "io.ymusic.dynamicengine"
-        compileSdk = Versions.compileSdk
+        compileSdk { version = release(Versions.compileSdk) { minorApiLevel = Versions.compileSdkMinor } }
         minSdk = Versions.minSdk
         compilerOptions { jvmTarget.set(JvmTarget.JVM_17) }
     }

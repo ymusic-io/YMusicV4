@@ -86,7 +86,7 @@ jobs:
       - if: steps.cache.outputs.cache-hit != 'true' && startsWith(matrix.slug, 'android-')
         name: Install NDK
         run: |
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$NDK_VERSION" > /dev/null
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$NDK_VERSION" "platforms;android-37.1" > /dev/null
           echo "ANDROID_NDK_ROOT=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
 
       - if: steps.cache.outputs.cache-hit != 'true' && startsWith(matrix.slug, 'android-')
@@ -187,7 +187,7 @@ jobs:
       # The ffmpeg packs' NDK, for :quickjs and :mse's CMake builds (they honor ANDROID_NDK_ROOT).
       - name: Install NDK
         run: |
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$NDK_VERSION" > /dev/null
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$NDK_VERSION" "platforms;android-37.1" > /dev/null
           echo "ANDROID_NDK_ROOT=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
 
       # secrets.enc → secrets.properties + signing/. Without SECRETS_PASSPHRASE the build runs on

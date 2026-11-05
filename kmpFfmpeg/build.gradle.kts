@@ -133,7 +133,7 @@ kotlin {
     // `android {}` block + `androidTarget {}` are gone).
     android {
         namespace = "kmpffmpeg"
-        compileSdk = Versions.compileSdk
+        compileSdk { version = release(Versions.compileSdk) { minorApiLevel = Versions.compileSdkMinor } }
         minSdk = Versions.minSdk
         // The instrumented tests exec a real ffmpeg binary shipped as lib/<abi>/libffmpeg.so. exec()
         // needs a real file on disk, so force the (test) APK to extract native libs into

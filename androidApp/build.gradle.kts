@@ -46,8 +46,7 @@ val appAbis = FfmpegBuild.ANDROID_ABIS
 
 android {
     namespace = "io.ymusic.android"
-    // okhttp-android 5.4 (via :kmpHttp) demands API 36+ for apps; libraries stay on Versions.compileSdk.
-    compileSdk = 36
+    compileSdk { version = release(Versions.compileSdk) { minorApiLevel = Versions.compileSdkMinor } }
     // AGP strips the packaged .so files with this NDK and silently packs them unstripped if it's missing;
     // keep in step with NDK_VERSION in .github/workflows/release.yml.
     ndkVersion = "28.2.13676358"

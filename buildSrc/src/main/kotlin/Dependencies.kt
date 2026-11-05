@@ -1,9 +1,10 @@
 object Versions {
     const val kotlin = "2.4.0"
     const val agp = "9.2.1"
-    // 36: okhttp-android 5.4 (selected for Android consumers of :kmpHttp via Gradle metadata)
-    // requires it of every module that compiles against it, not just the app.
-    const val compileSdk = 36
+    // Floor: okhttp-android 5.4 (selected for Android consumers of :kmpHttp via Gradle metadata)
+    // requires 36 of every module that compiles against it, not just the app.
+    const val compileSdk = 37
+    const val compileSdkMinor = 1 // Compose Multiplatform 1.13 requires 37.1
     const val minSdk = 24
 
     /** The oldest macOS the desktop app runs on: Compose Desktop's floor and the first Apple-silicon release.

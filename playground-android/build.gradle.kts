@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "io.ymusic.playground.app"
-    compileSdk = 36
+    compileSdk { version = release(Versions.compileSdk) { minorApiLevel = Versions.compileSdkMinor } }
     defaultConfig {
         applicationId = "io.ymusic.playground"
         minSdk = Versions.minSdk

@@ -90,7 +90,7 @@ kotlin {
 
     android {
         namespace = "io.ymusic.quickjs"
-        compileSdk = Versions.compileSdk
+        compileSdk { version = release(Versions.compileSdk) { minorApiLevel = Versions.compileSdkMinor } }
         minSdk = Versions.minSdk
         // Extract the .so to disk so System.loadLibrary always finds a real file.
         packaging { jniLibs { useLegacyPackaging = true } }
