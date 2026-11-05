@@ -8,7 +8,7 @@ import { JsEngineErrorImpl, commandHandler } from "../../protocol/command";
 import { hostLogger } from "../../protocol/logger";
 import type { JsLogger } from "../../protocol/logger";
 import { innertubeJson, innertubeJsonOrNotFound } from "./innertube";
-import { musicBrowseUrl } from "./musicParse";
+import { musicBrowseUrl, showPlaylistId } from "./musicParse";
 import { channelUrl, playlistUrl } from "./parse";
 import { asString, get } from "./scan";
 import { videoDetailsOf } from "./watchParse";
@@ -137,7 +137,7 @@ async function resolveLink(url: string, log: JsLogger): Promise<WireLinkTarget> 
   if (first === undefined) return none;
   const list = link.query["list"];
   if ((first === "playlist" || first === "watch") && list !== undefined && list !== "") {
-    return { "kind": "playlist", "url": playlistUrl(list) };
+    return { "kind": "playlist", "url": playlistUrl(showPlaylistId(list) ?? list) };
   }
   if (first === "results" || first === "search") {
     const query = (link.query["search_query"] ?? link.query["q"] ?? "").trim();

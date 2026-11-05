@@ -14,7 +14,7 @@ import type {
   WireThumb,
 } from "./wire";
 import { asString, get, isObj, textOf, thumbVariants, walk } from "./scan";
-import { isMixPlaylist, playlistUrl, searchChipToken } from "./parse";
+import { isMixPlaylist, playlistUrl, searchChipToken, setDurationBadge } from "./parse";
 
 /** An auto-generated album playlist ("OLAK5uy_…" — YouTube's album uploads). */
 function isAlbumPlaylist(id: string): boolean {
@@ -37,6 +37,16 @@ export function musicBrowseUrl(browseId: string, params?: string): string {
     encodeURIComponent(browseId) +
     (params !== undefined ? "&params=" + encodeURIComponent(params) : "")
   );
+}
+
+/** The playlist behind a podcast show's browseId ("MPSP" + playlistId). */
+export function showPlaylistId(browseId: string | undefined): string | undefined {
+  return browseId !== undefined && browseId.indexOf("MPSP") === 0 ? browseId.slice(4) : undefined;
+}
+
+/** The video behind a podcast episode's browseId ("MPED" + videoId); that page lists nothing. */
+function episodeVideoId(browseId: string | undefined): string | undefined {
+  return browseId !== undefined && browseId.indexOf("MPED") === 0 ? browseId.slice(4) : undefined;
 }
 
 /** A music card's kind + detail link from its browse target. `video` items carry no url (they play);
@@ -172,22 +182,23 @@ function twoRowItem(r: Record<string, unknown>): WireFeedItem | null {
   if (title === undefined) return null;
   const nav = r["navigationEndpoint"];
   const thumbs = musicThumbs(r["thumbnailRenderer"]);
+  const browseId = asString(get(nav, "browseEndpoint", "browseId"));
 
-  const videoId = asString(get(nav, "watchEndpoint", "videoId"));
+  const episodeId = episodeVideoId(browseId);
+  const videoId = asString(get(nav, "watchEndpoint", "videoId")) ?? episodeId;
   if (videoId !== undefined) {
     const item: WireFeedItem = { "kind": "video", "id": videoId, "title": title };
     if (thumbs !== undefined) item["thumbs"] = thumbs;
     const sub = textOf(r["subtitle"]);
     if (sub !== undefined) item["subtitleLine1"] = sub;
     setArtist(item, r["subtitle"]);
-    item["musicVideo"] = true;
+    if (episodeId === undefined) item["musicVideo"] = true;
     return item;
   }
 
   // A radio/playlist to play (Mixes, "Start radio" cards): keep the /playlist?list=… link so the
   // existing yt/playlist flow serves it.
   const watchPlaylistId = asString(get(nav, "watchPlaylistEndpoint", "playlistId"));
-  const browseId = asString(get(nav, "browseEndpoint", "browseId"));
   const playlistId =
     watchPlaylistId ??
     (browseId !== undefined && browseId.indexOf("VL") === 0 ? browseId.slice(2) : undefined);
@@ -308,6 +319,21 @@ function responsiveItem(r: Record<string, unknown>): WireFeedItem | null {
   return item;
 }
 
+/** `musicMultiRowListItemRenderer` — a podcast episode row on a show page. */
+function episodeItem(r: Record<string, unknown>): WireFeedItem | null {
+  const title = textOf(r["title"]);
+  const videoId = asString(get(r, "onTap", "watchEndpoint", "videoId"));
+  if (title === undefined || videoId === undefined) return null;
+  const item: WireFeedItem = { "kind": "video", "id": videoId, "title": title };
+  const thumbs = musicThumbs(r["thumbnail"]);
+  if (thumbs !== undefined) item["thumbs"] = thumbs;
+  const sub = textOf(r["subtitle"]);
+  if (sub !== undefined) item["subtitleLine1"] = sub;
+  const progress = get(r, "playbackProgress", "musicPlaybackProgressRenderer");
+  setDurationBadge(item, asString(get(progress, "durationText", "runs", 1, "text")));
+  return item;
+}
+
 // The top-level feed entry points that are their OWN tabs (or the section itself) in the app — the
 // app never renders them as nav buttons, so Explore's redundant top entry grid (New releases /
 // Charts / Moods & genres, all now reachable as tabs / the tiles below) collapses to nothing.
@@ -353,6 +379,7 @@ function musicLeaf(key: string, value: unknown): WireFeedItem | null {
   if (!isObj(value)) return null;
   if (key === "musicTwoRowItemRenderer") return twoRowItem(value);
   if (key === "musicResponsiveListItemRenderer") return responsiveItem(value);
+  if (key === "musicMultiRowListItemRenderer") return episodeItem(value);
   if (key === "musicNavigationButtonRenderer") return navButtonItem(value);
   return null;
 }
