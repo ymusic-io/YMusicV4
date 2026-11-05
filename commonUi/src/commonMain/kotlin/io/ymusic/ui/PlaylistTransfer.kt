@@ -90,7 +90,9 @@ import okio.Sink
 import okio.Source
 import okio.buffer
 import okio.use
+import org.jetbrains.compose.resources.getPluralString
 import org.jetbrains.compose.resources.getString
+import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import projectcommon.error.CodedError
 import projectcommon.error.TechnicalException
@@ -277,7 +279,7 @@ internal class PlaylistTransferState(
             if (result.playlists == 0) {
                 getString(Res.string.playlist_import_none_matched)
             } else {
-                loadPluralText(Res.plurals.playlist_import_result, result.playlists, result.playlists, result.matched, result.total)
+                getPluralString(Res.plurals.playlist_import_result, result.playlists, result.playlists, result.matched, result.total)
             },
         )
     }
@@ -286,7 +288,7 @@ internal class PlaylistTransferState(
         val create = graph.createDocument ?: return@runJob
         val sink = create(backupFileName(), BACKUP_MIME_TYPE) ?: return@runJob
         val count = writePlaylistBackup(store, sink, graph.appVersionName)
-        snackbar(loadPluralText(Res.plurals.playlist_backup_result, count, count))
+        snackbar(getPluralString(Res.plurals.playlist_backup_result, count, count))
     }
 
     fun openRestore() = scope.launch {
@@ -301,7 +303,7 @@ internal class PlaylistTransferState(
         store.restorePlaylists(backup.playlists, replaceAll)
         restorePreview = null
         onChanged()
-        snackbar(loadPluralText(Res.plurals.playlist_restore_result, backup.playlists.size, backup.playlists.size))
+        snackbar(getPluralString(Res.plurals.playlist_restore_result, backup.playlists.size, backup.playlists.size))
     }
 
     fun dismissRestore() {
@@ -428,7 +430,7 @@ private fun ImportDevicePlaylistsDialog(
                     Column {
                         Text(playlist.name, style = TextStyle(fontSize = 14.sp, color = DesignColors.Ink), maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(
-                            pluralText(Res.plurals.n_songs, playlist.songCount, playlist.songCount),
+                            pluralStringResource(Res.plurals.n_songs, playlist.songCount, playlist.songCount),
                             style = TextStyle(fontSize = 12.sp, color = DesignColors.InkSecondary),
                         )
                     }
@@ -488,8 +490,8 @@ private fun RestorePlaylistsDialog(
     ) {
         Column(Modifier.padding(vertical = DesignSpacing.Space8)) {
             val summary = listOfNotNull(
-                pluralText(Res.plurals.n_playlists, backup.playlists.size, backup.playlists.size),
-                pluralText(Res.plurals.n_songs, backup.songCount, backup.songCount),
+                pluralStringResource(Res.plurals.n_playlists, backup.playlists.size, backup.playlists.size),
+                pluralStringResource(Res.plurals.n_songs, backup.songCount, backup.songCount),
                 backup.exportedAt.takeIf { it > 0 }?.let { formatShortDate(it) },
             ).joinToString(" · ")
             Text(
@@ -511,7 +513,7 @@ private fun RestorePlaylistsDialog(
                     enabled = !busy,
                     title = stringResource(Res.string.playlist_restore_replace),
                     description = if (userPlaylistCount > 0) {
-                        pluralText(Res.plurals.playlist_restore_replace_desc, userPlaylistCount, userPlaylistCount)
+                        pluralStringResource(Res.plurals.playlist_restore_replace_desc, userPlaylistCount, userPlaylistCount)
                     } else {
                         stringResource(Res.string.playlist_restore_replace_desc_none)
                     },

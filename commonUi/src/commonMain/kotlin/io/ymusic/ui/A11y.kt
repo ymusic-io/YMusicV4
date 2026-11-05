@@ -23,6 +23,7 @@ import io.ymusic.ui.resources.Res
 import io.ymusic.ui.resources.a11y_duration_hours
 import io.ymusic.ui.resources.a11y_duration_minutes
 import io.ymusic.ui.resources.a11y_duration_seconds
+import org.jetbrains.compose.resources.pluralStringResource
 import kotlin.math.roundToInt
 
 /** A length in words, "1 hour 5 minutes 3 seconds": a clock like "1:05:03" reads digit by digit. */
@@ -33,9 +34,9 @@ internal fun spokenDuration(ms: Long): String {
     val m = (total % 3600 / 60).toInt()
     val s = (total % 60).toInt()
     return listOfNotNull(
-        if (h > 0) pluralText(Res.plurals.a11y_duration_hours, h, h) else null,
-        if (m > 0) pluralText(Res.plurals.a11y_duration_minutes, m, m) else null,
-        if (s > 0 || total == 0L) pluralText(Res.plurals.a11y_duration_seconds, s, s) else null,
+        if (h > 0) pluralStringResource(Res.plurals.a11y_duration_hours, h, h) else null,
+        if (m > 0) pluralStringResource(Res.plurals.a11y_duration_minutes, m, m) else null,
+        if (s > 0 || total == 0L) pluralStringResource(Res.plurals.a11y_duration_seconds, s, s) else null,
     ).joinToString(" ")
 }
 

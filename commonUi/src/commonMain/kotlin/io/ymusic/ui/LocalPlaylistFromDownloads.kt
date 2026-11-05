@@ -48,6 +48,8 @@ import io.ymusic.ui.resources.playlist_load_more
 import io.ymusic.ui.resources.playlist_name_exists
 import io.ymusic.ui.resources.playlist_name_hint
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.getPluralString
+import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -80,7 +82,7 @@ internal fun LocalPlaylistFromDownloadsDialog(store: BetterMediaStore, title: St
                 try {
                     val playlist = store.createPlaylist(trimmed)
                     store.addCodesToPlaylist(playlist.id, codes)
-                    snackbar(loadPluralText(Res.plurals.local_playlist_created, codes.size, trimmed, codes.size))
+                    snackbar(getPluralString(Res.plurals.local_playlist_created, codes.size, trimmed, codes.size))
                     onDismiss()
                 } finally {
                     busy = false
@@ -129,7 +131,7 @@ internal fun LocalPlaylistFromDownloadsDialog(store: BetterMediaStore, title: St
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(DesignSpacing.Space8),
                 ) {
-                    FeedChip(pluralText(Res.plurals.local_playlist_downloaded, videos.size, videos.size), selected = false, onClick = null)
+                    FeedChip(pluralStringResource(Res.plurals.local_playlist_downloaded, videos.size, videos.size), selected = false, onClick = null)
                     when {
                         ready?.loadingMore == true -> CircularProgressIndicator(Modifier.size(18.dp), color = DesignColors.Accent, strokeWidth = 2.dp)
                         ready?.continuation != null -> FeedChip(stringResource(Res.string.playlist_load_more), selected = true, choice = false) { pager.loadMore() }
