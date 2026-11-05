@@ -57,7 +57,7 @@ internal var errorLogShipper: ErrorLogShipper? = null
  * and its run's lines share one trace. An event claims the unsent lines among the newest lines of
  * the launch its trace id names (Sentry restores the dead run's trace on an ANR or native crash the next
  * process reports); one worker sends every pending line, each as a Sentry Log with only body, level,
- * timestamp, its trace id, `app.version_code` and the current remote Sentry tags. Lines a dying process claimed go out on the next start.
+ * timestamp, its trace id and `app.version_code`. Lines a dying process claimed go out on the next start.
  */
 internal class ErrorLogShipper(
     private val store: LogStore,
@@ -115,16 +115,12 @@ internal class ErrorLogShipper(
             val client = Sentry.getCurrentScopes().globalScope.client
             val serializer = Sentry.getCurrentScopes().options.serializer
             val sdkVersion = Sentry.getCurrentScopes().options.sdkVersion
-            val lineAttributes = hashMapOf(VERSION_CODE to versionCode)
-            remoteConfig.config.value.sentryTags.toSentryTags().forEach { (key, tag) ->
-                lineAttributes[key] = SentryLogEventAttributeValue(SentryAttributeType.STRING, tag)
-            }
             var afterSeq = 0L
             while (true) {
                 val batch = store.pending(BATCH, afterSeq).ifEmpty { break }
                 val lines = batch.map { record ->
                     SentryLogEvent(SentryId(record.launch), record.epochMs / 1000.0, record.message, record.level.toSentry())
-                        .apply { attributes = HashMap(lineAttributes) }
+                        .apply { attributes = hashMapOf(VERSION_CODE to versionCode) }
                 }
                 val envelope = SentryEnvelope(
                     SentryEnvelopeHeader(null, sdkVersion, null),

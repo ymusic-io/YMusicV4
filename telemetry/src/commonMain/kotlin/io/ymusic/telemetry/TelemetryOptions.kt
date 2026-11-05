@@ -52,7 +52,7 @@ fun bindSentryTags(scope: CoroutineScope, remoteConfig: RemoteConfig) {
 }
 
 /** Sentry tag values are strings: a JSON string as itself, anything else as its JSON text. */
-internal fun Map<String, JsonElement>.toSentryTags(): Map<String, String> =
+private fun Map<String, JsonElement>.toSentryTags(): Map<String, String> =
     filterValues { it !is JsonNull }.mapValues { (_, tag) -> (tag as? JsonPrimitive)?.content ?: tag.toString() }
 
 /** Puts the current remote tags on the scope; call right after Sentry.init, which consent can delay past their arrival. */
