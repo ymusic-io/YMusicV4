@@ -565,17 +565,23 @@ private const val PRELOAD_INDEX = 1
 private fun sameUri(a: MediaItem, b: MediaItem): Boolean =
     a.localConfiguration?.uri == b.localConfiguration?.uri
 
-/** ExoPlayer's own not-found code, a [FileNotFoundException] anywhere in the chain, or the documents
- *  provider's IllegalArgumentException ("Failed to determine if … is child of …: java.io.FileNotFoundException")
- *  that carries it only in its message — the cause doesn't survive the binder. */
 private fun PlaybackException.isAccessDenied(): Boolean =
     generateSequence<Throwable>(this) { it.cause }.any { it is SecurityException }
 
 private fun PlaybackException.isFileMissing(): Boolean =
     errorCode == PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND ||
-        generateSequence<Throwable>(this) { it.cause }.any {
-            it is FileNotFoundException || (it is IllegalArgumentException && it.message?.contains("FileNotFoundException") == true)
-        }
+        generateSequence<Throwable>(this) { it.cause }.any { it is FileNotFoundException || it.isProviderFileNotFound() }
+
+/** A provider's not-found failure as it crosses the binder: the cause is lost, only the exception type and message
+ *  survive. Matches only the provider texts seen in reports, so an unrelated runtime failure keeps its code. */
+private fun Throwable.isProviderFileNotFound(): Boolean {
+    val text = message ?: return false
+    return when (this) {
+        is IllegalArgumentException -> "FileNotFoundException" in text
+        is IllegalStateException -> "File has no filepath" in text || "FileNotFoundException: No item at" in text
+        else -> false
+    }
+}
 
 /** ExoPlayer's error code ranges: 3xxx parsing, 4xxx decoding, 5xxx audio output. */
 private fun PlaybackException.localErrorCode(): String = when (errorCode) {
