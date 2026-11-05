@@ -194,21 +194,11 @@ val copyEngineJs by tasks.registering(Copy::class) {
     into(layout.projectDirectory.dir("src/main/assets"))
 }
 
-// :commonUi's compose resources: the compose plugin doesn't package them into an Android artifact
-// under AGP 9's com.android.kotlin.multiplatform.library, so the app ships them as assets itself
-// (the Android resource reader resolves "composeResources/<package>/…" from assets). Must copy the
-// PREPARED output, not the source dir — the runtime reads the converted strings.commonMain.cvr,
-// never raw strings.xml. Drop when the compose plugin learns the new AGP KMP plugin.
-val copyComposeResources by tasks.registering(Copy::class) {
-    dependsOn(":commonUi:prepareComposeResourcesTaskForCommonMain")
-    from(rootProject.file("commonUi/build/generated/compose/resourceGenerator/preparedResources/commonMain/composeResources"))
-    into(layout.projectDirectory.dir("src/main/assets/composeResources/io.ymusic.ui.resources"))
-}
 tasks.matching { it.name.startsWith("merge") && it.name.endsWith("Assets") }.configureEach {
-    dependsOn(copyComposeResources, copyEngineJs)
+    dependsOn(copyEngineJs)
 }
 
 // Release builds also read src/main/assets from lintVital's model writer — same staged inputs.
 tasks.matching { it.name.contains("lint", ignoreCase = true) }.configureEach {
-    dependsOn(copyComposeResources, copyEngineJs)
+    dependsOn(copyEngineJs)
 }

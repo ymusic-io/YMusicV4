@@ -23,6 +23,7 @@ kotlin {
         compileSdk { version = release(Versions.compileSdk) { minorApiLevel = Versions.compileSdkMinor } }
         minSdk = Versions.minSdk
         compilerOptions { jvmTarget.set(JvmTarget.JVM_17) }
+        androidResources { enable = true }
     }
 
     // Shared Compose UI for iOS — arm64 device + arm64 simulator only (Compose MP has no iosX64).
