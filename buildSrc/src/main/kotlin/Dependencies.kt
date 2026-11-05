@@ -51,7 +51,7 @@ object Versions {
     const val typescript = "5.9.3"
 
     // Crash reporting (wraps sentry-java on Android/JVM, sentry-cocoa on Apple)
-    const val sentry = "0.27.0"
+    const val sentry = "0.29.0"
 
     // Benchmark
     const val kotlinxBenchmark = "0.4.17"
