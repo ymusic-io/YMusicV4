@@ -9,10 +9,17 @@ import androidx.compose.ui.window.WindowPlacement
 import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.WindowState
 import io.ymusic.mse.FileAvNative
+import java.awt.Dimension
 import java.awt.GraphicsConfiguration
 import java.awt.GraphicsEnvironment
 import java.awt.Toolkit
 import java.awt.Window
+
+internal const val MIN_WINDOW_WIDTH = 320
+internal const val MIN_WINDOW_HEIGHT = 480
+
+/** Compose's undecorated resize handles have no floor of their own, and AWT cannot paint a zero-size translucent window. */
+internal fun minimumWindowSize(): Dimension = Dimension(MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT)
 
 /**
  * Floating, zoom (fit the work area), and fullscreen: native on macOS, the window manager's on Linux,
@@ -120,8 +127,8 @@ internal fun workArea(w: Window): Pair<DpSize, WindowPosition> = workArea(w.grap
 private fun workArea(gc: GraphicsConfiguration): Pair<DpSize, WindowPosition> {
     val b = gc.bounds
     val insets = Toolkit.getDefaultToolkit().getScreenInsets(gc)
-    val width = (b.width - insets.left - insets.right).coerceAtLeast(320)
-    val height = (b.height - insets.top - insets.bottom).coerceAtLeast(480)
+    val width = (b.width - insets.left - insets.right).coerceAtLeast(MIN_WINDOW_WIDTH)
+    val height = (b.height - insets.top - insets.bottom).coerceAtLeast(MIN_WINDOW_HEIGHT)
     return DpSize(width.dp, height.dp) to WindowPosition((b.x + insets.left).dp, (b.y + insets.top).dp)
 }
 

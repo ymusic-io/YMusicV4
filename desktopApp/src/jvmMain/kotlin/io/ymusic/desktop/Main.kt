@@ -492,6 +492,7 @@ fun main(args: Array<String>) {
             onKeyEvent = { event -> handleArrowShortcut(event, graph?.player, showVolume) },
         ) {
             paintWindowGround(Color.Transparent)
+            LaunchedEffect(window) { window.minimumSize = minimumWindowSize() }
             // Not Window(icon=): that is one 32dp raster the OS nearest-scales into each of its
             // icon slots (Windows: 16/20/24/32/40/48/64/256 px by DPI). One exact raster per slot.
             // macOS ignores window icons (the Dock tile is set above).
@@ -1552,7 +1553,8 @@ private fun loadWindowPrefs(): Pair<DpSize, WindowPosition> {
     val w = p.getProperty("width")?.toFloatOrNull()
     val h = p.getProperty("height")?.toFloatOrNull()
     // Sanity floor: never restore a degenerate size a bad write (or a past bug) left behind.
-    val size = if (w != null && h != null && w >= 320f && h >= 480f) DpSize(w.dp, h.dp) else defaultWindowSize
+    val fits = w != null && h != null && w >= MIN_WINDOW_WIDTH && h >= MIN_WINDOW_HEIGHT
+    val size = if (fits) DpSize(w.dp, h.dp) else defaultWindowSize
     val x = p.getProperty("x")?.toFloatOrNull()
     val y = p.getProperty("y")?.toFloatOrNull()
     val position = when {
