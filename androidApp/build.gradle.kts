@@ -164,7 +164,7 @@ dependencies {
     implementation(project(":telemetry")) // api: sentry-kotlin-multiplatform + SentryLogger
     implementation(project(":log-store")) // the app log (logs.db)
     // androidx.media.app.NotificationCompat.MediaStyle for the playback notification.
-    implementation("androidx.media:media:1.7.0")
+    implementation("androidx.media:media:1.8.0")
     implementation(compose.material3)
     implementation(compose.foundation)
     implementation(compose.components.resources)

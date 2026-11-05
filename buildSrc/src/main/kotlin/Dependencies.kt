@@ -81,7 +81,7 @@ object Libs {
         const val lifecycleRuntimeKtx = "androidx.lifecycle:lifecycle-runtime-ktx:${Versions.lifecycleRuntimeKtx}"
         const val activityCompose = "androidx.activity:activity-compose:${Versions.activityCompose}"
         const val biometric = "androidx.biometric:biometric:1.1.0"
-        const val palette = "androidx.palette:palette:1.0.0"
+        const val palette = "androidx.palette:palette:1.1.0"
         const val carApp = "androidx.car.app:app:${Versions.carApp}"
 
         // biometric 1.1.0 drags in fragment 1.2.5, whose FragmentActivity rejects the request codes
@@ -129,7 +129,7 @@ object Libs {
     }
 
     object Doist {
-        const val normalizer = "com.doist.x:normalize:1.3.3"
+        const val normalizer = "com.doist.x:normalize:1.4.0"
     }
 
     object Benchmark {
@@ -166,7 +166,7 @@ object Libs {
     }
 
     object Zxing {
-        const val core = "com.google.zxing:core:3.5.3"
+        const val core = "com.google.zxing:core:3.5.4"
     }
 
     // java.time on API < 26, which kotlinx-datetime's TimeZone needs.
