@@ -150,14 +150,8 @@ internal class AndroidLocalPlayer(
                 } else {
                     PlayerError(error.localErrorCode(), detail, cause = error)
                 }
-                // ExoPlayer raises the preloaded next item's open failure only once the current one has
-                // played to its end: that track ended, and the error waits for the next item's load.
-                val failedPreload = failedItem(error)?.takeIf { it == PRELOAD_INDEX }?.let(player::getMediaItemAt)
-                if (failedPreload != null) {
-                    preloadError = failedPreload to playerError
-                    _status.update {
-                        it.copy(state = PlaybackState.Prepared(playWhenReady = false, buffering = false, ended = true))
-                    }
+                if (failedItem(error) == PRELOAD_INDEX) {
+                    failNextItem(playerError)
                     return
                 }
                 _status.update { it.copy(state = PlaybackState.Error(playerError)) }
@@ -247,7 +241,7 @@ internal class AndroidLocalPlayer(
         val failedPreload = preloadError
         preloadError = null
         if (failedPreload != null && failedPreload.first.localConfiguration?.uri == uri) {
-            _status.update { it.copy(state = PlaybackState.Error(failedPreload.second)) }
+            failLoad(failedPreload.second)
             return
         }
         // Apply config before prepare so the first frame is already at the right settings.
@@ -289,7 +283,7 @@ internal class AndroidLocalPlayer(
             try {
                 player.setMediaItem(mediaItem, startPositionMs)
             } catch (refused: Exception) {
-                failRefusedItem(refused)
+                failLoad(refusedItemError(refused))
                 return
             }
         }
@@ -299,14 +293,13 @@ internal class AndroidLocalPlayer(
         showSurface(true)
     }
 
-    /** The player refused the new item, so it still holds the previous one, possibly playing. */
-    private fun failRefusedItem(refused: Exception) {
+    private fun refusedItemError(refused: Exception) =
+        PlayerError("E60015", refused.message, canRetry = false, cause = refused)
+
+    /** The item never loaded, so the player may still hold the previous one, possibly playing. */
+    private fun failLoad(error: PlayerError) {
         // Before the stop: syncFromPlayer keeps an Error but would publish the stop as Idle.
-        _status.update {
-            it.copy(
-                state = PlaybackState.Error(PlayerError("E60015", refused.message, canRetry = false, cause = refused)),
-            )
-        }
+        _status.update { it.copy(state = PlaybackState.Error(error)) }
         player.stop()
         player.clearMediaItems()
         _progress.value = Progress()
@@ -341,8 +334,8 @@ internal class AndroidLocalPlayer(
                 }
             }
         } catch (refused: Exception) {
-            // Not a preloadError, which freezes status while the current item plays: load() reports this one.
             if (count == 2) player.removeMediaItem(1)
+            if (mediaItem != null) preloadError = mediaItem to refusedItemError(refused)
         }
     }
 
@@ -362,6 +355,20 @@ internal class AndroidLocalPlayer(
     }
 
     /** The playlist index of the item [error] came from, when ExoPlayer names its media period. */
+    /** The next item's error waits for its load. A fatal error stops the player whichever item it belongs to, so
+     *  the current item resumes unless the player has already moved past it. */
+    private fun failNextItem(error: PlayerError) {
+        preloadError = player.getMediaItemAt(PRELOAD_INDEX) to error
+        if (player.currentMediaItemIndex == PRELOAD_INDEX) {
+            _status.update {
+                it.copy(state = PlaybackState.Prepared(playWhenReady = false, buffering = false, ended = true))
+            }
+        } else {
+            player.removeMediaItem(PRELOAD_INDEX)
+            player.prepare()
+        }
+    }
+
     private fun failedItem(error: PlaybackException): Int? {
         val periodUid = (error as? ExoPlaybackException)?.mediaPeriodId?.periodUid ?: return null
         val timeline = player.currentTimeline
@@ -528,10 +535,9 @@ internal class AndroidLocalPlayer(
             Player.STATE_ENDED -> PlaybackState.Prepared(playWhenReady = false, buffering = false, ended = true)
             else -> PlaybackState.Idle
         }
+        val holdsAfterPreloadFailure = preloadError != null && playbackState == Player.STATE_IDLE
         _status.update {
-            it.copy(
-                state = if (it.state is PlaybackState.Error || preloadError != null) it.state else mapped,
-            )
+            it.copy(state = if (it.state is PlaybackState.Error || holdsAfterPreloadFailure) it.state else mapped)
         }
         _progress.update { it.copy(durationMs = durationOrUnknown()) }
     }
