@@ -34,7 +34,7 @@ function factoidOf(node: unknown, publishDate: string | undefined): WireFactoid 
 
 function setOwner(out: WireVideoDetails, owner: unknown): void {
   if (!isObj(owner)) return;
-  const name = textOf(owner["title"]);
+  const name = textOf(owner["title"]) ?? textOf(owner["attributedTitle"]);
   if (name !== undefined) out["channelTitle"] = name;
   const id = asString(get(owner, "navigationEndpoint", "browseEndpoint", "browseId"));
   if (id !== undefined) out["channelUrl"] = channelUrl(id);
@@ -42,6 +42,22 @@ function setOwner(out: WireVideoDetails, owner: unknown): void {
   if (thumbs !== undefined) out["channelThumbs"] = thumbs;
   const subscribers = textOf(owner["subscriberCountText"]);
   if (subscribers !== undefined) out["subscribers"] = subscribers;
+}
+
+/** A collaboration's owner has no channel link or avatar; the header holds its primary channel. */
+function setHeaderChannel(out: WireVideoDetails, header: Record<string, unknown>): void {
+  if (out["channelTitle"] === undefined) {
+    const name = textOf(header["channel"]);
+    if (name !== undefined) out["channelTitle"] = name;
+  }
+  if (out["channelUrl"] === undefined) {
+    const id = asString(get(header, "channelNavigationEndpoint", "browseEndpoint", "browseId"));
+    if (id !== undefined) out["channelUrl"] = channelUrl(id);
+  }
+  if (out["channelThumbs"] === undefined) {
+    const thumbs = thumbsOf(header["channelThumbnail"]);
+    if (thumbs !== undefined) out["channelThumbs"] = thumbs;
+  }
 }
 
 // A likeEndpoint's params field by the status it sets.
@@ -99,6 +115,7 @@ export function videoDetailsOf(root: Record<string, unknown>): WireVideoDetails 
       return true;
     }
     if (key === "videoDescriptionHeaderRenderer") {
+      setHeaderChannel(out, value);
       const publishDate = textOf(value["publishDate"]);
       const facts = value["factoid"];
       if (Array.isArray(facts)) {
