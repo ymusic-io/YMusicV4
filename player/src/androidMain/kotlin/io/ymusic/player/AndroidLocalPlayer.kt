@@ -15,13 +15,11 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
-import androidx.media3.common.Timeline
 import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
 import androidx.media3.common.text.CueGroup
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DefaultRenderersFactory
-import androidx.media3.exoplayer.ExoPlaybackException
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.DefaultAudioSink
@@ -111,7 +109,7 @@ internal class AndroidLocalPlayer(
     private val surfaceView: SurfaceView? = rootView?.let { SurfaceView(it.context) }
     private val subtitleView: SubtitleView? = rootView?.let { SubtitleView(it.context) }
 
-    /** The preloaded next item that failed to open, and its error, published when that item is loaded. */
+    /** The next item that failed, and its error, published when that item is loaded. */
     private var preloadError: Pair<MediaItem, PlayerError>? = null
 
     // Audio-track id → its (group, index) for TrackSelectionOverride, refreshed on onTracksChanged.
@@ -120,10 +118,18 @@ internal class AndroidLocalPlayer(
     init {
         _audioSessionId.value = player.audioSessionId
         player.addListener(object : Player.Listener {
-            override fun onPlaybackStateChanged(playbackState: Int) = syncFromPlayer(playbackState)
-            override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
-                syncFromPlayer(player.playbackState)
-                snapshotProgress()
+            override fun onEvents(player: Player, events: Player.Events) {
+                if (events.containsAny(
+                        Player.EVENT_PLAYBACK_STATE_CHANGED,
+                        Player.EVENT_PLAY_WHEN_READY_CHANGED,
+                        Player.EVENT_PLAYER_ERROR,
+                        Player.EVENT_POSITION_DISCONTINUITY,
+                        Player.EVENT_TIMELINE_CHANGED,
+                    )
+                ) {
+                    syncFromPlayer()
+                }
+                if (events.contains(Player.EVENT_PLAY_WHEN_READY_CHANGED)) snapshotProgress()
             }
 
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
@@ -139,22 +145,6 @@ internal class AndroidLocalPlayer(
                         )
                     }
                 }
-            }
-
-            override fun onPlayerError(error: PlaybackException) {
-                val detail = error.errorCodeName + ": " + error.message
-                val playerError = if (error.isFileMissing()) {
-                    PlayerError(PlayerError.FILE_MISSING, detail, canRetry = false, cause = error)
-                } else if (error.isAccessDenied()) {
-                    PlayerError(PlayerError.FOLDER_ACCESS_LOST, detail, canRetry = false, cause = error)
-                } else {
-                    PlayerError(error.localErrorCode(), detail, cause = error)
-                }
-                if (failedItem(error) == PRELOAD_INDEX) {
-                    failNextItem(playerError)
-                    return
-                }
-                _status.update { it.copy(state = PlaybackState.Error(playerError)) }
             }
 
             override fun onAudioSessionIdChanged(audioSessionId: Int) {
@@ -298,7 +288,6 @@ internal class AndroidLocalPlayer(
 
     /** The item never loaded, so the player may still hold the previous one, possibly playing. */
     private fun failLoad(error: PlayerError) {
-        // Before the stop: syncFromPlayer keeps an Error but would publish the stop as Idle.
         _status.update { it.copy(state = PlaybackState.Error(error)) }
         player.stop()
         player.clearMediaItems()
@@ -352,29 +341,6 @@ internal class AndroidLocalPlayer(
         val clamped = positionMs.coerceAtLeast(0L)
         player.seekTo(clamped)
         _progress.update { it.copy(positionMs = clamped) }
-    }
-
-    /** The playlist index of the item [error] came from, when ExoPlayer names its media period. */
-    /** The next item's error waits for its load. A fatal error stops the player whichever item it belongs to, so
-     *  the current item resumes unless the player has already moved past it. */
-    private fun failNextItem(error: PlayerError) {
-        preloadError = player.getMediaItemAt(PRELOAD_INDEX) to error
-        if (player.currentMediaItemIndex == PRELOAD_INDEX) {
-            _status.update {
-                it.copy(state = PlaybackState.Prepared(playWhenReady = false, buffering = false, ended = true))
-            }
-        } else {
-            player.removeMediaItem(PRELOAD_INDEX)
-            player.prepare()
-        }
-    }
-
-    private fun failedItem(error: PlaybackException): Int? {
-        val periodUid = (error as? ExoPlaybackException)?.mediaPeriodId?.periodUid ?: return null
-        val timeline = player.currentTimeline
-        val periodIndex = timeline.getIndexOfPeriod(periodUid)
-        if (periodIndex == C.INDEX_UNSET) return null
-        return timeline.getPeriod(periodIndex, Timeline.Period()).windowIndex
     }
 
     override fun stop() {
@@ -526,19 +492,24 @@ internal class AndroidLocalPlayer(
         _status.update { it.copy(state = PlaybackState.Uninitialized(isInitializing = false)) }
     }
 
-    private fun syncFromPlayer(playbackState: Int) {
-        if (player.currentMediaItemIndex == 1 && playbackState != Player.STATE_IDLE) return
-        val mapped = when (playbackState) {
-            Player.STATE_IDLE -> PlaybackState.Idle
-            Player.STATE_BUFFERING -> PlaybackState.Prepared(player.playWhenReady, buffering = true, ended = false)
-            Player.STATE_READY -> PlaybackState.Prepared(player.playWhenReady, buffering = false, ended = false)
-            Player.STATE_ENDED -> PlaybackState.Prepared(playWhenReady = false, buffering = false, ended = true)
+    private fun syncFromPlayer() {
+        val failure = player.playerError?.toPlayerError()
+        if (player.currentMediaItemIndex == PRELOAD_INDEX) {
+            // Not loaded yet: the current item has ended, and a failure here waits for this item's load.
+            if (failure != null) preloadError = player.getMediaItemAt(PRELOAD_INDEX) to failure
+            return
+        }
+        val mapped = when {
+            failure != null -> PlaybackState.Error(failure)
+            player.playbackState == Player.STATE_BUFFERING ->
+                PlaybackState.Prepared(player.playWhenReady, buffering = true, ended = false)
+            player.playbackState == Player.STATE_READY ->
+                PlaybackState.Prepared(player.playWhenReady, buffering = false, ended = false)
+            player.playbackState == Player.STATE_ENDED ->
+                PlaybackState.Prepared(playWhenReady = false, buffering = false, ended = true)
             else -> PlaybackState.Idle
         }
-        val holdsAfterPreloadFailure = preloadError != null && playbackState == Player.STATE_IDLE
-        _status.update {
-            it.copy(state = if (it.state is PlaybackState.Error || holdsAfterPreloadFailure) it.state else mapped)
-        }
+        _status.update { it.copy(state = if (it.state is PlaybackState.Error) it.state else mapped) }
         _progress.update { it.copy(durationMs = durationOrUnknown()) }
     }
 
@@ -597,6 +568,15 @@ private const val PRELOAD_INDEX = 1
 
 private fun sameUri(a: MediaItem, b: MediaItem): Boolean =
     a.localConfiguration?.uri == b.localConfiguration?.uri
+
+private fun PlaybackException.toPlayerError(): PlayerError {
+    val detail = "$errorCodeName: $message"
+    return when {
+        isFileMissing() -> PlayerError(PlayerError.FILE_MISSING, detail, canRetry = false, cause = this)
+        isAccessDenied() -> PlayerError(PlayerError.FOLDER_ACCESS_LOST, detail, canRetry = false, cause = this)
+        else -> PlayerError(localErrorCode(), detail, cause = this)
+    }
+}
 
 private fun PlaybackException.isAccessDenied(): Boolean =
     generateSequence<Throwable>(this) { it.cause }.any { it is SecurityException }
