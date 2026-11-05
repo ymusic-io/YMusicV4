@@ -3,11 +3,7 @@ package io.ymusic.telemetry
 import io.sentry.kotlin.multiplatform.Sentry
 import io.ymusic.remoteconfig.RemoteConfig
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonNull
-import kotlinx.serialization.json.JsonPrimitive
 import kotlin.concurrent.Volatile
 
 private const val DEVICE_ID_TAG = "device_id"
@@ -42,7 +38,7 @@ fun installSentryPlayerVersion(version: Int) {
 /** Keeps the Sentry scope's tags equal to [remoteConfig]'s `sentryTags`, starting from the cached config. */
 fun bindSentryTags(scope: CoroutineScope, remoteConfig: RemoteConfig) {
     scope.launch {
-        remoteConfig.sentryTags.map { it.toSentryTags() }.collect { tags ->
+        remoteConfig.sentryTags.collect { tags ->
             val dropped = remoteTags.keys - tags.keys
             remoteTags = tags
             Sentry.configureScope { sentryScope ->
@@ -52,10 +48,6 @@ fun bindSentryTags(scope: CoroutineScope, remoteConfig: RemoteConfig) {
         }
     }
 }
-
-/** Sentry tag values are strings: a JSON string as itself, anything else as its JSON text. */
-private fun Map<String, JsonElement>.toSentryTags(): Map<String, String> =
-    filterValues { it !is JsonNull }.mapValues { (_, tag) -> (tag as? JsonPrimitive)?.content ?: tag.toString() }
 
 /** Puts the current remote tags on the scope; call right after Sentry.init, which consent can delay past their arrival. */
 fun installSentryRemoteTags() {

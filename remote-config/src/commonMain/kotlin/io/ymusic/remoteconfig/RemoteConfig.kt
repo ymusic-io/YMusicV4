@@ -26,7 +26,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
-import kotlinx.serialization.json.JsonObject
 import okio.FileSystem
 import okio.IOException
 import okio.Path
@@ -76,7 +75,7 @@ class RemoteConfig(
     val appUpdate: Flow<AppUpdate?> = _config.map { it.appUpdate }.distinctUntilChanged()
     val engineJs: Flow<BundleVersion?> = _config.map { it.engineJs }.distinctUntilChanged()
     val playerJs: Flow<BundleVersion?> = _config.map { it.playerJs }.distinctUntilChanged()
-    val sentryTags: Flow<JsonObject> = _config.map { it.sentryTags }.distinctUntilChanged()
+    val sentryTags: Flow<Map<String, String>> = _config.map { it.sentryTags }.distinctUntilChanged()
 
     private val mutex = Mutex()
     private var initialized = false

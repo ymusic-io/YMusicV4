@@ -222,8 +222,8 @@ data class RemoteConfigData(
     val appUpdate: AppUpdate? = null,
     val engineJs: BundleVersion? = null,
     val playerJs: BundleVersion? = null,
-    /** Tags this client puts on every Sentry event while the service sends them; values are any JSON. */
-    val sentryTags: JsonObject = EMPTY_JSON,
+    /** Tags this client puts on every Sentry event while the service sends them. */
+    val sentryTags: Map<String, String> = emptyMap(),
     // client populated timestamp at time data parsed from server
     val updatedAt: Long = 0L,
 ) {
@@ -248,7 +248,8 @@ data class RemoteConfigData(
             appUpdate = root.objectOrNull(KEY_APP_UPDATE)?.let(AppUpdate::from),
             engineJs = root.objectOrNull(KEY_ENGINE_JS)?.let(BundleVersion::from),
             playerJs = root.objectOrNull(KEY_PLAYER_JS)?.let(BundleVersion::from),
-            sentryTags = root.objectOrNull(KEY_SENTRY_TAGS) ?: EMPTY_JSON,
+            sentryTags = root.objectOrNull(KEY_SENTRY_TAGS).orEmpty().filterValues { it !is JsonNull }
+                .mapValues { (_, tag) -> (tag as? JsonPrimitive)?.content ?: tag.toString() },
             updatedAt = root.longOrNull(KEY_UPDATED_AT) ?: now(),
         )
 
@@ -258,7 +259,9 @@ data class RemoteConfigData(
             data.appUpdate?.let { name(KEY_APP_UPDATE).value(it) }
             data.engineJs?.let { name(KEY_ENGINE_JS).value(it) }
             data.playerJs?.let { name(KEY_PLAYER_JS).value(it) }
-            name(KEY_SENTRY_TAGS).element(data.sentryTags)
+            name(KEY_SENTRY_TAGS).beginObject()
+            data.sentryTags.forEach { (key, tag) -> name(key).value(tag) }
+            endObject()
             // Persisted so a restart knows how old this is, rather than refetching on every launch.
             name(KEY_UPDATED_AT).value(data.updatedAt)
             endObject()
