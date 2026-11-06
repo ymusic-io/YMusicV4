@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -347,13 +348,17 @@ internal fun RowScope.AppBarTitle(text: String, fill: Boolean = true, reserveWid
 @Composable
 internal fun DesignAppBar(
     title: String,
-    onMenu: () -> Unit,
+    onMenu: (() -> Unit)?,
     onSearch: (() -> Unit)?,
     titleReserveWidthOf: List<String> = emptyList(),
     inlineContent: (@Composable () -> Unit)? = null,
 ) {
     AppBarRow {
-        ActionIcon(Icons.Default.Menu, stringResource(Res.string.cd_menu), onClick = onMenu)
+        if (onMenu != null) {
+            ActionIcon(Icons.Default.Menu, stringResource(Res.string.cd_menu), onClick = onMenu)
+        } else {
+            Spacer(Modifier.width(DesignSpacing.Space8))
+        }
         AppBarTitle(title, fill = false, reserveWidthOf = titleReserveWidthOf)
         if (inlineContent != null) {
             Box(Modifier.weight(1f).padding(start = 16.dp)) { inlineContent() }

@@ -287,7 +287,6 @@ fun MiniPlayer(
     val queue by coordinator.player.queue.collectAsState()
     val item = queue.currentItem ?: return
 
-    val duration = progress.durationMs
     val density = LocalDensity.current
     var colH by remember { mutableIntStateOf(0) }
     val tileH = with(density) { if (colH > 0) colH.toDp() else 48.dp }
@@ -307,42 +306,13 @@ fun MiniPlayer(
                 .clickable(onClick = onExpand),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(
-                Modifier
-                    .height(tileH)
-                    .aspectRatio(16f / 9f)
-                    .then(if (desktopLayoutHole) Modifier else Modifier.background(Color.Black)),
-                contentAlignment = Alignment.Center,
-            ) {
-                val audioOnly = showsAudioOnly(coordinator.player)
-                if (surface != null) {
-                    VideoHole(coordinator.player, surface, Modifier.fillMaxSize())
-                }
-                if (audioOnly || surface == null) {
-                    AudioOnlyCover(item.displayThumbnailUrl, Modifier.fillMaxSize())
-                }
-                BufferingIndicator(status, size = 22.dp, strokeWidth = 2.dp)
-                Box(
-                    Modifier.matchParentSize()
-                        .focusProperties { canFocus = false }
-                        .a11ySilent()
-                        .clickable(onClick = onExpand),
-                )
-            }
+            MiniArtTile(coordinator, item, surface, onExpand, Modifier.height(tileH).aspectRatio(16f / 9f))
             Column(
                 Modifier.weight(1f)
                     .background(DesignColors.SurfaceDim)
                     .onSizeChanged { colH = it.height },
             ) {
-                LinearProgressIndicator(
-                    progress = { if (duration > 0) progress.positionMs.toFloat() / duration else 0f },
-                    modifier = Modifier.fillMaxWidth().height(4.dp).a11ySilent(),
-                    color = DesignColors.Accent,
-                    trackColor = Color.Transparent,
-                    strokeCap = StrokeCap.Butt,
-                    drawStopIndicator = {},
-                    gapSize = 0.dp,
-                )
+                MiniProgress(progress, Modifier.fillMaxWidth().height(4.dp))
                 Row(
                     Modifier.fillMaxWidth().padding(start = 12.dp, end = 8.dp, top = 6.dp, bottom = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -385,6 +355,51 @@ fun MiniPlayer(
             }
         }
     }
+}
+
+/** The mini player's picture: the shared video [surface] while one is passed, else the cover. */
+@Composable
+internal fun MiniArtTile(
+    coordinator: PlaybackCoordinator,
+    item: PlayableItem,
+    surface: (@Composable (Modifier) -> Unit)?,
+    onExpand: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val status by coordinator.player.status.collectAsState()
+    Box(
+        modifier.then(if (desktopLayoutHole) Modifier else Modifier.background(Color.Black)),
+        contentAlignment = Alignment.Center,
+    ) {
+        val audioOnly = showsAudioOnly(coordinator.player)
+        if (surface != null) {
+            VideoHole(coordinator.player, surface, Modifier.fillMaxSize())
+        }
+        if (audioOnly || surface == null) {
+            AudioOnlyCover(item.displayThumbnailUrl, Modifier.fillMaxSize())
+        }
+        BufferingIndicator(status, size = 22.dp, strokeWidth = 2.dp)
+        Box(
+            Modifier.matchParentSize()
+                .focusProperties { canFocus = false }
+                .a11ySilent()
+                .clickable(onClick = onExpand),
+        )
+    }
+}
+
+@Composable
+internal fun MiniProgress(progress: Progress, modifier: Modifier = Modifier) {
+    val duration = progress.durationMs
+    LinearProgressIndicator(
+        progress = { if (duration > 0) progress.positionMs.toFloat() / duration else 0f },
+        modifier = modifier.a11ySilent(),
+        color = DesignColors.Accent,
+        trackColor = Color.Transparent,
+        strokeCap = StrokeCap.Butt,
+        drawStopIndicator = {},
+        gapSize = 0.dp,
+    )
 }
 
 /**
@@ -472,7 +487,7 @@ fun NowPlayingScreen(
 }
 
 /** The item's artist, or for a YouTube video queued without one, the channel its player response names. */
-private fun artistText(current: PlayableItem?, status: PlaybackStatus): String? =
+internal fun artistText(current: PlayableItem?, status: PlaybackStatus): String? =
     current?.displaySubtitle ?: currentDetails(current as? PlayableItem.YtMedia, status)?.channelTitle
 
 private fun currentDetails(video: PlayableItem.YtMedia?, status: PlaybackStatus) =
@@ -2107,4 +2122,4 @@ private fun queueItemActions(coordinator: PlaybackCoordinator, index: Int, item:
 }
 
 /** The play button shows Pause while playback is wanted, but not once the track has ended. */
-private fun PlaybackStatus.showsPause(): Boolean = playWhenReady && !state.isEnded()
+internal fun PlaybackStatus.showsPause(): Boolean = playWhenReady && !state.isEnded()
