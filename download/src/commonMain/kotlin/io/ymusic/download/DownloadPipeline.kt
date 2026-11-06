@@ -126,14 +126,18 @@ class DownloadPipeline(
                 if (streams.captions.isNotEmpty()) outName = withLyrics(task.id, out, streams.captions)
             }
             DownloadFormat.M4A -> withCover(task) { cover ->
-                ff.toM4a(audio.path, out.path, captions = subs, cover = cover, metadata = meta, onProgressUs = onFfProgress)
+                withMuxableCaptions(subs) { captions ->
+                    ff.toM4a(audio.path, out.path, captions = captions, cover = cover, metadata = meta, onProgressUs = onFfProgress)
+                }
             }
             DownloadFormat.AUDIO_WEBM -> {
                 ff.toOpus(audio.path, out.path, meta, onFfProgress)
                 outName = withOpusTags(task, out, streams.captions)
             }
             DownloadFormat.VIDEO_WEBM -> ff.muxWebm(video!!.path, audio.path, out.path, captions = subs, metadata = meta, onProgressUs = onFfProgress)
-            DownloadFormat.VIDEO_MP4 -> ff.muxMp4(video!!.path, audio.path, out.path, subs, meta, onFfProgress)
+            DownloadFormat.VIDEO_MP4 -> withMuxableCaptions(subs) { captions ->
+                ff.muxMp4(video!!.path, audio.path, out.path, captions, meta, onFfProgress)
+            }
         }
 
         // 3. publish the final file (moved out of the scratch folder).
@@ -182,6 +186,26 @@ class DownloadPipeline(
             storage.deleteScratch(task.id)
             Result(uri, bytes, ready.durationMs, ready.width, ready.height)
         }
+
+    /** Run [mux] with [captions]; when one cue is too long for the MP4 family the file publishes without them. */
+    private suspend fun withMuxableCaptions(
+        captions: List<SubtitleInput>,
+        mux: suspend (List<SubtitleInput>) -> Unit,
+    ) {
+        try {
+            mux(captions)
+        } catch (e: TechnicalException) {
+            // movenc refuses a sample over INT_MAX microseconds, so a cue past about 35 minutes fails the mux.
+            if (captions.isEmpty() || "Application provided duration" !in e.message.orEmpty()) throw e
+            logger?.log(Logger.Level.WARN, "a caption cue is too long to mux; retrying without captions", e)
+            try {
+                mux(emptyList())
+            } catch (retryError: Throwable) {
+                retryError.addSuppressed(e)
+                throw retryError
+            }
+        }
+    }
 
     /** Run [convert] with the cover art's path; a cover ffmpeg rejects is dropped and the conversion rerun
      *  without it, so the song still publishes — cover art is best-effort like lyrics. */
