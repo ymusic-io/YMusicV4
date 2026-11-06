@@ -4358,6 +4358,28 @@
     });
   }
 
+  /* window -> Window.prototype -> WindowProperties -> EventTarget.prototype. */
+  function linkWindow() {
+    var target = globalThis.EventTarget.prototype;
+    var windowProperties = Object.create(target);
+    Object.defineProperty(windowProperties, Symbol.toStringTag, {
+      value: "WindowProperties",
+      configurable: true,
+    });
+    Object.setPrototypeOf(globalThis.Window.prototype, windowProperties);
+    finishProto(globalThis.Window, "Window");
+    defConst(globalThis.Window.prototype, "TEMPORARY", 0);
+    defConst(globalThis.Window.prototype, "PERSISTENT", 1);
+    defConst(globalThis.Window, "TEMPORARY", 0);
+    defConst(globalThis.Window, "PERSISTENT", 1);
+    ["addEventListener", "removeEventListener", "dispatchEvent"].forEach(function (name) {
+      hide(target, name, globalThis[name]);
+      delete globalThis[name];
+    });
+    delete globalThis[Symbol.toStringTag];
+    Object.setPrototypeOf(globalThis, globalThis.Window.prototype);
+  }
+
   function installIface(rec) {
     var name = rec[0],
       parent = rec[1],
@@ -4381,7 +4403,7 @@
       }
       if (!ctor.prototype || typeof ctor.prototype !== "object") ctor.prototype = {};
       linkProto(ctor, parent);
-      fillMembers(ctor.prototype, attrs, ops, consts, sops, sattrs, ctor);
+      fillMembers(ctor.prototype, [], [], consts, [], [], ctor);
       fillMembers(globalThis, attrs, ops, consts, [], [], ctor);
       return;
     }
@@ -4447,5 +4469,6 @@
       globalThis.Element.prototype,
     ]);
     adoptDocument();
+    linkWindow();
   })();
 })();
