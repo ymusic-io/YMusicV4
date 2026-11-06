@@ -2,7 +2,11 @@ package io.ymusic.ui
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.intl.Locale
 import androidx.compose.ui.unit.LayoutDirection
@@ -41,46 +45,89 @@ internal suspend fun UiText.load(): String = when (this) {
     is UiText.Resource -> getString(res, *args)
 }
 
-/** Puts the app language back over the platform locale; wired by [AppGraph]. */
+/**
+ * Puts the app language back over the platform locale, or with `alreadyRestored` reports that doing so didn't
+ * bring plural rules back; wired by [AppGraph].
+ */
 @Volatile
-internal var restoreUiLocale: ((NoSuchElementException) -> Unit)? = null
+internal var restoreUiLocale: ((noRules: NoSuchElementException, alreadyRestored: Boolean) -> Unit)? = null
+
+/** Read by every [pluralText], so one restore re-reads the locale for all of them. */
+private var uiLocaleRestores by mutableIntStateOf(0)
+
+@Volatile
+private var restoredOver: ResourceEnvironment? = null
+
+@Volatile
+private var restoredAt = 0
+
+@Volatile
+private var reportedStuckOn: ResourceEnvironment? = null
+
+/**
+ * One restore and at most one report per [environment]: a locale that can't be restored must not loop.
+ * [restoresSeen] is the [uiLocaleRestores] the lookup ran under: only one that ran after the restore proves it
+ * didn't help, not another plural failing in the same frame.
+ */
+private fun onNoPluralRules(environment: ResourceEnvironment, noRules: NoSuchElementException, restoresSeen: Int) {
+    when {
+        environment == reportedStuckOn -> return
+        environment != restoredOver -> {
+            restoredOver = environment
+            restoreUiLocale?.invoke(noRules, false)
+            restoredAt = ++uiLocaleRestores
+        }
+        restoresSeen >= restoredAt -> {
+            reportedStuckOn = environment
+            restoreUiLocale?.invoke(noRules, true)
+        }
+    }
+}
 
 /**
  * compose-resources' `pluralStringResource`, for every plural in the UI: its lookups throw while the platform
  * locale's language has no CLDR plural rules (xnr), and Android can put such a device locale back over
  * [applyUiLocale] without calling onConfigurationChanged. No try/catch can wrap a composable, so this loads it.
+ * The restore waits until after composition: it changes the process locale and logs.
  */
 @Composable
 internal fun pluralText(resource: PluralStringResource, quantity: Int, vararg formatArgs: Any): String {
+    val restores = uiLocaleRestores
     val environment = rememberResourceEnvironment()
     val args = formatArgs.map { it.toString() }
-    return remember(resource, quantity, args, environment) {
-        runBlocking { guardedPluralText(environment, resource, quantity, args) }
+    val plural = remember(resource, quantity, args, environment, restores) {
+        runBlocking { pluralOrCount(environment, resource, quantity, args) }
     }
+    plural.noRules?.let { noRules -> SideEffect { onNoPluralRules(environment, noRules, restores) } }
+    return plural.text
 }
 
 /** compose-resources' `getPluralString`, for every plural off composition; see [pluralText]. */
-internal suspend fun loadPluralText(resource: PluralStringResource, quantity: Int, vararg formatArgs: Any): String =
-    guardedPluralText(getSystemResourceEnvironment(), resource, quantity, formatArgs.map { it.toString() })
+internal suspend fun loadPluralText(resource: PluralStringResource, quantity: Int, vararg formatArgs: Any): String {
+    val args = formatArgs.map { it.toString() }
+    val restores = uiLocaleRestores
+    val environment = getSystemResourceEnvironment()
+    val plural = pluralOrCount(environment, resource, quantity, args)
+    val noRules = plural.noRules ?: return plural.text
+    onNoPluralRules(environment, noRules, restores)
+    val restored = getSystemResourceEnvironment()
+    val retried = pluralOrCount(restored, resource, quantity, args)
+    retried.noRules?.let { onNoPluralRules(restored, it, uiLocaleRestores) }
+    return retried.text
+}
 
-private suspend fun guardedPluralText(
+/** iOS applies a language on the next launch, so the bare count is all that needs no rules. */
+private class PluralOrCount(val text: String, val noRules: NoSuchElementException? = null)
+
+private suspend fun pluralOrCount(
     environment: ResourceEnvironment,
     resource: PluralStringResource,
     quantity: Int,
     args: List<String>,
-): String {
-    val formatArgs = args.toTypedArray()
-    return try {
-        getPluralString(environment, resource, quantity, *formatArgs)
-    } catch (noRules: NoSuchElementException) {
-        restoreUiLocale?.invoke(noRules)
-        try {
-            getPluralString(resource, quantity, *formatArgs)
-        } catch (stillNoRules: NoSuchElementException) {
-            // iOS applies a language on the next launch; the bare count is all that needs no rules.
-            quantity.toString()
-        }
-    }
+): PluralOrCount = try {
+    PluralOrCount(getPluralString(environment, resource, quantity, *args.toTypedArray()))
+} catch (noRules: NoSuchElementException) {
+    PluralOrCount(quantity.toString(), noRules)
 }
 
 /**
