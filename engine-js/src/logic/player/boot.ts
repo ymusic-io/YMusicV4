@@ -484,6 +484,7 @@ function enableSharedOwlFlag(): void {
   /* Bl(): server picks SABR itags; field 16/17 stay empty. Client filter instead. */
   flags["html5_enable_server_format_filter"] = false;
   flags["html5_enable_server_format_filter_for_drm"] = false;
+  flags["html5_enable_drc"] = true;
   // Player fetch gzips /youtubei/v1/player when this is on; jsonObject() then
   // sees gzip magic (0x1f) instead of `{`.
   flags["wug_networking_gzip_request"] = false;
@@ -898,6 +899,7 @@ class Player {
         "wug_networking_gzip_request": "false",
         "html5_enable_server_format_filter": "false",
         "html5_enable_server_format_filter_for_drm": "false",
+        "html5_enable_drc": "true",
       });
     }
     this.createFn = create as (r: unknown, a: unknown, b: unknown) => unknown;
