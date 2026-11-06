@@ -184,7 +184,7 @@ class DynamicEnginePlayer private constructor(
         return engine.jsonCommand("player/status", { }, logger) { it.readObject() }
     }
 
-    /** Subscribe to event groups (`progress` / `state` / `picture`) until cancelled. */
+    /** Subscribe to event groups (`progress` / `state` / `picture` / `details` / `gain`) until cancelled. */
     suspend fun collectStatus(onStatus: (JsonObject) -> Unit, logger: Logger? = null) {
         collectJsonPipe("listen/player/status", onStatus, logger)
     }

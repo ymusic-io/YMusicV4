@@ -227,6 +227,7 @@ function buildDownloadJson(e: Entry): Record<string, unknown> {
   const sd = asRec(rec["streamingData"]) || {};
   const sabr = e.sabrUrls.length ? e.sabrUrls[e.sabrUrls.length - 1]! : "";
   const streaming = streamingForHost(sd, sabr);
+  const playerConfig = asRec(rec["playerConfig"]);
   const cver = ytcfgStr("INNERTUBE_CLIENT_VERSION");
   const js = ytcfgStr("PLAYER_JS_URL");
   return {
@@ -238,6 +239,7 @@ function buildDownloadJson(e: Entry): Record<string, unknown> {
     "microformat": rec["microformat"],
     "playabilityStatus": rec["playabilityStatus"],
     "streamingData": streaming,
+    "audioConfig": playerConfig ? playerConfig["audioConfig"] : undefined,
     "captions": rec["captions"],
     "captionTracks": flattenCaptions(rec),
     "translationLanguages": flattenTranslations(rec),

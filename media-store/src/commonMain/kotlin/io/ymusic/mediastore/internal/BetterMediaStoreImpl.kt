@@ -186,6 +186,7 @@ internal class BetterMediaStoreImpl(
         lastModified = d.lastModified,
         createdAt = ts,
         updatedAt = ts,
+        loudnessGainDb = d.loudnessGainDb,
     )
 
     private fun updateItem(bucketId: Long?, d: MediaItemDraft, ts: Long, id: Long) = itemQ.updateItem(
@@ -211,6 +212,7 @@ internal class BetterMediaStoreImpl(
         fileSize = d.fileSize,
         lastModified = d.lastModified,
         updatedAt = ts,
+        loudnessGainDb = d.loudnessGainDb,
         id = id,
     )
 

@@ -17,6 +17,7 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.put
 import projectcommon.json.bool
+import projectcommon.json.doubleOrNull
 import projectcommon.json.longOrNull
 import projectcommon.json.string
 import projectcommon.json.stringOrNull
@@ -223,6 +224,7 @@ private fun encodeItems(items: List<PlayableItem>): String = buildJsonArray {
                         put("album", item.album)
                         put("thumbnailUrl", item.thumbnailUrl)
                         put("durationMs", item.durationMs)
+                        put("loudnessGainDb", item.loudnessGainDb)
                     }
                     is PlayableItem.YtMedia -> {
                         put("type", TYPE_YT)
@@ -253,6 +255,7 @@ private fun decodeItems(json: String): List<PlayableItem> =
                 album = obj.stringOrNull("album"),
                 thumbnailUrl = obj.stringOrNull("thumbnailUrl"),
                 durationMs = obj.longOrNull("durationMs"),
+                loudnessGainDb = obj.doubleOrNull("loudnessGainDb"),
             )
             TYPE_YT -> PlayableItem.YtMedia(
                 videoId = obj.string("videoId"),

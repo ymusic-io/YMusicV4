@@ -2,6 +2,7 @@ package io.ymusic.ytmedia.sabr
 
 import kotlinx.serialization.json.JsonObject
 import projectcommon.json.boolOrNull
+import projectcommon.json.doubleOrNull
 import projectcommon.json.long
 import projectcommon.json.longOrNull
 import projectcommon.json.objectOrNull
@@ -25,5 +26,7 @@ fun JsonObject.toAdaptiveFormat(): AdaptiveFormat {
         audioTrackIsDefault = audioTrack?.boolOrNull("audioIsDefault"),
         audioTrackId = audioTrack?.stringOrNull("id"),
         isDrc = boolOrNull("isDrc") ?: false,
+        loudnessLkfs = doubleOrNull("trackAbsoluteLoudnessLkfs"),
+        isVb = boolOrNull("isVb") ?: false,
     )
 }

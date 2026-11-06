@@ -57,6 +57,7 @@ class DownloadStore(driver: SqlDriver, logger: Logger? = null) {
             audio_lmt = task.audioStream?.lmt,
             video_itag = task.videoStream?.itag?.toLong(),
             video_lmt = task.videoStream?.lmt,
+            loudness_gain_db = task.loudnessGainDb,
         )
     }
 
@@ -71,9 +72,9 @@ class DownloadStore(driver: SqlDriver, logger: Logger? = null) {
     suspend fun updateProgress(id: String, downloaded: Long, total: Long, updatedAt: Long): Unit =
         withContext(downloadDbDispatcher()) { queries.updateProgress(downloaded, total, updatedAt, id) }
 
-    suspend fun updateCompleted(id: String, fileUri: String, bytes: Long, updatedAt: Long): Unit =
+    suspend fun updateCompleted(id: String, fileUri: String, bytes: Long, loudnessGainDb: Double?, updatedAt: Long): Unit =
         withContext(downloadDbDispatcher()) {
-            queries.updateCompleted(DownloadState.COMPLETED.name, fileUri, bytes, bytes, updatedAt, id)
+            queries.updateCompleted(DownloadState.COMPLETED.name, fileUri, bytes, bytes, loudnessGainDb, updatedAt, id)
         }
 
     /** Reset every in-flight or queued task to PAUSED in one statement — startup crash recovery. */
@@ -112,6 +113,7 @@ class DownloadStore(driver: SqlDriver, logger: Logger? = null) {
         audio_lmt: Long?,
         video_itag: Long?,
         video_lmt: Long?,
+        loudness_gain_db: Double?,
     ) = DownloadTask(
         id = id,
         videoId = video_id,
@@ -140,6 +142,7 @@ class DownloadStore(driver: SqlDriver, logger: Logger? = null) {
         audioQuality = AudioQuality.entries.firstOrNull { it.name == audio_quality } ?: AudioQuality.BEST,
         audioStream = streamId(audio_itag, audio_lmt),
         videoStream = streamId(video_itag, video_lmt),
+        loudnessGainDb = loudness_gain_db,
     )
 
     private fun streamId(itag: Long?, lmt: Long?): StreamId? =

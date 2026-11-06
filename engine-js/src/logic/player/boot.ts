@@ -213,6 +213,9 @@ function onHtmlPause(): void {
 function onHtmlEnded(): void {
   notifyListen("state");
 }
+function onHtmlVolumechange(): void {
+  notifyListen("gain");
+}
 
 function unbindHtmlMediaEvents(): void {
   const v = boundHtmlMedia;
@@ -223,6 +226,7 @@ function unbindHtmlMediaEvents(): void {
   v["removeEventListener"]("play", onHtmlPlay);
   v["removeEventListener"]("pause", onHtmlPause);
   v["removeEventListener"]("ended", onHtmlEnded);
+  v["removeEventListener"]("volumechange", onHtmlVolumechange);
   boundHtmlMedia = null;
 }
 
@@ -238,6 +242,7 @@ function bindHtmlMediaEvents(): void {
   v["addEventListener"]("play", onHtmlPlay);
   v["addEventListener"]("pause", onHtmlPause);
   v["addEventListener"]("ended", onHtmlEnded);
+  v["addEventListener"]("volumechange", onHtmlVolumechange);
 }
 
 let iframeListenBound = false;
@@ -479,6 +484,7 @@ function enableSharedOwlFlag(): void {
   /* Bl(): server picks SABR itags; field 16/17 stay empty. Client filter instead. */
   flags["html5_enable_server_format_filter"] = false;
   flags["html5_enable_server_format_filter_for_drm"] = false;
+  flags["html5_enable_drc"] = true;
   // Player fetch gzips /youtubei/v1/player when this is on; jsonObject() then
   // sees gzip magic (0x1f) instead of `{`.
   flags["wug_networking_gzip_request"] = false;
@@ -893,6 +899,7 @@ class Player {
         "wug_networking_gzip_request": "false",
         "html5_enable_server_format_filter": "false",
         "html5_enable_server_format_filter_for_drm": "false",
+        "html5_enable_drc": "true",
       });
     }
     this.createFn = create as (r: unknown, a: unknown, b: unknown) => unknown;
@@ -1398,6 +1405,12 @@ class Player {
     };
   }
 
+  /** base.js writes its loudness gain for the presenting format to the media element's volume. */
+  gain(): Record<string, unknown> {
+    const v = activeHtmlMedia();
+    return { "value": v ? v["volume"] : 1 };
+  }
+
   /** The presenting video's owner channel, from its player response (absent until it lands). */
   details(): Record<string, unknown> {
     const videoId = this.currentVideoId();
@@ -1642,6 +1655,10 @@ export function detailsPlayer(): Record<string, unknown> {
   return ytPlayer.details();
 }
 
+export function gainPlayer(): Record<string, unknown> {
+  return ytPlayer.gain();
+}
+
 export function catalogPlayer(): Record<string, unknown> {
   return ytPlayer.catalog();
 }
@@ -1651,7 +1668,7 @@ export function catalogReady(): boolean {
   return moviePlayer() != null;
 }
 
-export type ListenKind = "progress" | "state" | "picture" | "details";
+export type ListenKind = "progress" | "state" | "picture" | "details" | "gain";
 
 let catalogHook: (() => void) | null = null;
 let listenHook: ((kind: ListenKind) => void) | null = null;

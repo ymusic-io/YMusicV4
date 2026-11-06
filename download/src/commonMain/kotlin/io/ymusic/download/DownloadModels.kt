@@ -14,7 +14,7 @@ import projectcommon.error.CodedError
  * Only MP3 re-encodes: every source is lossy, so any other output just muxes the original streams.
  *
  * Every output goes through ffmpeg where it exists — not just to transcode/mux, but to embed the
- * metadata tags (title / artist / composer=videoId) into the container. iOS has no ffmpeg: there M4A
+ * metadata tags (title / artist / composer=videoId|gain) into the container. iOS has no ffmpeg: there M4A
  * degrades to the raw best-AAC stream written straight to the file, its metadata living in the download
  * DB row instead (video would need an AVFoundation muxer — separate). So on iOS only M4A is offered;
  * MP3/video are hidden — the picker gates on [DownloadService.ffmpegAvailable].
@@ -143,6 +143,8 @@ class DownloadTask(
     /** The streams the scratches hold, kept across runs: their bytes can only continue those streams. */
     val audioStream: StreamId? = null,
     val videoStream: StreamId? = null,
+    /** dB from the file's measured loudness to its target; null until completed, or when unmeasured. */
+    val loudnessGainDb: Double? = null,
 ) {
     /** 0f..1f, or null when the total isn't known yet (before the first MEDIA_HEADER). */
     val progress: Float?

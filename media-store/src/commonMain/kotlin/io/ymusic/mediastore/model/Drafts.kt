@@ -39,4 +39,5 @@ data class MediaItemDraft(
     val thumbnailStreamIndex: Int? = null,
     val youtubeVid: String? = null,
     val youtubeItags: String? = null,
+    val loudnessGainDb: Double? = null,
 )
