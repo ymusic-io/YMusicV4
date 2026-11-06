@@ -266,13 +266,7 @@
         ["wholeText", "s", 1],
         ["assignedSlot", "u", 1],
       ],
-      [
-        ["splitText", "u"],
-        ["getBoxQuads", "a"],
-        ["convertQuadFromNode", "u"],
-        ["convertRectFromNode", "u"],
-        ["convertPointFromNode", "u"],
-      ],
+      [["splitText", "u"]],
       [],
       [],
       [],
@@ -995,10 +989,6 @@
         ["clear", "u"],
         ["captureEvents", "u"],
         ["releaseEvents", "u"],
-        ["getBoxQuads", "a"],
-        ["convertQuadFromNode", "u"],
-        ["convertRectFromNode", "u"],
-        ["convertPointFromNode", "u"],
         ["getElementById", "u"],
         ["prepend", "u"],
         ["append", "u"],
@@ -1135,10 +1125,6 @@
         ["setHTMLUnsafe", "u"],
         ["getHTML", "s"],
         ["insertAdjacentHTML", "u"],
-        ["getBoxQuads", "a"],
-        ["convertQuadFromNode", "u"],
-        ["convertRectFromNode", "u"],
-        ["convertPointFromNode", "u"],
         ["prepend", "u"],
         ["append", "u"],
         ["replaceChildren", "u"],
@@ -1253,7 +1239,6 @@
       0,
       "",
       [
-        ["scrollParent", "u", 1],
         ["offsetParent", "u", 1],
         ["offsetTop", "n", 1],
         ["offsetLeft", "n", 1],
@@ -1266,7 +1251,6 @@
         ["hidden", "u", 0],
         ["inert", "b", 0],
         ["accessKey", "s", 0],
-        ["accessKeyLabel", "s", 1],
         ["draggable", "b", 0],
         ["spellcheck", "b", 0],
         ["writingSuggestions", "s", 0],
@@ -1275,8 +1259,6 @@
         ["innerText", "s", 0],
         ["outerText", "s", 0],
         ["popover", "u", 0],
-        ["headingOffset", "n", 0],
-        ["headingReset", "b", 0],
         ["style", "u", 1],
         ["onabort", "u", 0],
         ["onauxclick", "u", 0],
@@ -4199,6 +4181,8 @@
     ["Option", "option"],
   ];
 
+  var hasOwn = Object.prototype.hasOwnProperty;
+
   function hide(obj, key, val) {
     Object.defineProperty(obj, key, {
       configurable: true,
@@ -4207,6 +4191,9 @@
       value: val,
     });
   }
+
+  /* What the env assigned to an attribute: never an own property, as on a Chrome object. */
+  var attrValues = new WeakMap();
 
   function defaultVal(code) {
     if (code === "s") return "";
@@ -4230,22 +4217,23 @@
       configurable: true,
       enumerable: true,
       get: native("get " + name, function () {
-        var k = "_bbd_" + name;
-        if (this && Object.prototype.hasOwnProperty.call(this, k)) return this[k];
+        var values = attrValues.get(this);
+        if (values && name in values) return values[name];
         if (code === "a") return [];
         return defaultVal(code);
       }),
       /* Always stash: a readonly accessor without a setter blocks later
        * env.js assignments (iframe.contentWindow = ...). */
       set: native("set " + name, function (v) {
-        try {
-          Object.defineProperty(this, "_bbd_" + name, {
-            configurable: true,
-            enumerable: false,
-            writable: true,
-            value: v,
-          });
-        } catch (e) {}
+        var values = attrValues.get(this);
+        if (!values) {
+          try {
+            attrValues.set(this, (values = Object.create(null)));
+          } catch (e) {
+            return;
+          }
+        }
+        values[name] = v;
       }),
     };
     Object.defineProperty(obj, name, desc);
@@ -4308,6 +4296,7 @@
     try {
       cur = Object.getPrototypeOf(ctor.prototype);
       if (cur !== P.prototype) Object.setPrototypeOf(ctor.prototype, P.prototype);
+      Object.setPrototypeOf(ctor, P);
     } catch (e) {}
   }
 
@@ -4326,6 +4315,27 @@
     if (name === "Screen" && typeof screen === "object" && screen) return screen;
     if (name === "Crypto" && typeof crypto === "object" && crypto) return crypto;
     return null;
+  }
+
+  function finishProto(ctor, name) {
+    var proto = ctor.prototype;
+    if (!hasOwn.call(proto, Symbol.toStringTag))
+      Object.defineProperty(proto, Symbol.toStringTag, { value: name, configurable: true });
+    if (!hasOwn.call(proto, "constructor")) hide(proto, "constructor", ctor);
+  }
+
+  /* Moves what the env implemented on [from] to the interface in [owners] that declares it. */
+  function hoist(from, owners) {
+    Object.getOwnPropertyNames(from).forEach(function (name) {
+      var owner = owners.filter(function (proto) {
+        return hasOwn.call(proto, name);
+      })[0];
+      var desc;
+      if (!owner || name === "constructor") return;
+      desc = Object.getOwnPropertyDescriptor(from, name);
+      delete from[name];
+      Object.defineProperty(owner, name, desc);
+    });
   }
 
   function installIface(rec) {
@@ -4388,6 +4398,7 @@
       } catch (e) {}
     }
     fillMembers(ctor.prototype, attrs, ops, consts, sops, sattrs, ctor);
+    finishProto(ctor, name);
     live = liveHost(name);
     if (live && live !== ctor.prototype) fillMembers(live, attrs, ops, consts, [], [], ctor);
   }
@@ -4410,5 +4421,10 @@
     var i;
     for (i = 0; i < DATA.length; i++) installIface(DATA[i]);
     for (i = 0; i < FACTORIES.length; i++) installFactory(FACTORIES[i]);
+    hoist(globalThis.HTMLElement.prototype, [
+      globalThis.EventTarget.prototype,
+      globalThis.Node.prototype,
+      globalThis.Element.prototype,
+    ]);
   })();
 })();

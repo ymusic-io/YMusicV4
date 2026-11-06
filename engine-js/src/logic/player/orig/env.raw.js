@@ -1759,7 +1759,10 @@
     };
   });
 
-  var htmlElProto = {};
+  /* Members land on htmlElProto; idl_stubs.raw.js moves them to the interface that declares them. */
+  var nodeProto = {};
+  var elementProto = Object.create(nodeProto);
+  var htmlElProto = Object.create(elementProto);
   function ensureCtor(name) {
     if (typeof globalThis[name] !== "function")
       globalThis[name] = native(name, function () {
@@ -1771,8 +1774,8 @@
   ensureCtor("Node");
   ensureCtor("HTMLIFrameElement");
   globalThis.HTMLElement.prototype = htmlElProto;
-  globalThis.Element.prototype = htmlElProto;
-  globalThis.Node.prototype = htmlElProto;
+  globalThis.Element.prototype = elementProto;
+  globalThis.Node.prototype = nodeProto;
   var iframeProto = Object.create(htmlElProto);
   globalThis.HTMLIFrameElement.prototype = iframeProto;
 
