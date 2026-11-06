@@ -78,10 +78,16 @@ open class DefaultDownloadStorage(
                     fileSystem.delete(src, mustExist = false)
                 } catch (copyError: Exception) {
                     copyError.addSuppressed(moveError)
+                    // No destination file means the copy never reached a write: space isn't why it failed.
+                    val reachedDestination = fileSystem.exists(dest)
+                    deletePartial(dest, copyError)
+                    if (reachedDestination && destinationFull(dir, src, copyError)) throw DiskFullException(copyError)
                     throw copyError
                 }
             }
         } catch (e: TechnicalException) {
+            throw e
+        } catch (e: DiskFullException) {
             throw e
         } catch (e: Exception) {
             throw TechnicalException("E70030", "could not publish $fileName into $dir", cause = e)
@@ -101,6 +107,26 @@ open class DefaultDownloadStorage(
             "E70031",
             "destination scheme '${destinationFolder.scheme}' unsupported by ${this::class.simpleName}",
         )
+
+    /** A retry publishes under the next free name, so a partial copy left here would stay, eating the disk. */
+    private fun deletePartial(dest: Path, failure: Exception) {
+        try {
+            fileSystem.delete(dest, mustExist = false)
+        } catch (e: IOException) {
+            failure.addSuppressed(e)
+        }
+    }
+
+    /** Whether [dir]'s volume lacks room for [src]: Windows words a full disk in the system language, so
+     *  [failure]'s text can't tell. A failed measure (the drive is gone) leaves [failure] uncategorized. */
+    private fun destinationFull(dir: Path, src: Path, failure: Exception): Boolean = try {
+        val free = fileSystem.usableSpaceNear(dir)
+        val needed = fileSystem.metadataOrNull(src)?.size
+        free != null && needed != null && free < maxOf(needed, MIN_FREE_BYTES)
+    } catch (e: IOException) {
+        failure.addSuppressed(e)
+        false
+    }
 
     /** fsync on the JVM/Android; okio's native FileHandle.flush() is only fflush. */
     private fun sync(file: Path) {
@@ -124,7 +150,7 @@ private class DefaultDownloadScratch(
                 fileSystem.createDirectories(dir)
             } catch (e: IOException) {
                 // okio's mkdir failure carries no errno; a full volume is the common cause.
-                val free = generateSequence(dir) { it.parent }.firstOrNull { fileSystem.exists(it) }?.let(::usableSpaceBytes)
+                val free = fileSystem.usableSpaceNear(dir)
                 if (free != null && free < MIN_FREE_BYTES) throw DiskFullException(e)
                 throw TechnicalException("E70060", "could not create the download scratch directory $dir", cause = e)
             }
@@ -145,5 +171,9 @@ private class DefaultDownloadScratch(
     override fun close() {}
 }
 
-/** Below this, a failed scratch mkdir counts as a full volume. */
+/** Usable bytes on the volume of [dir], or of its nearest existing ancestor. */
+private fun FileSystem.usableSpaceNear(dir: Path): Long? =
+    generateSequence(dir) { it.parent }.firstOrNull { exists(it) }?.let(::usableSpaceBytes)
+
+/** Below this, a failed mkdir or write counts as a full volume. */
 private const val MIN_FREE_BYTES = 1L shl 20

@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -143,8 +144,9 @@ class SearchSession(
 
 /**
  * YouTube search (design/final/search.html), two app-bar modes:
- * - **input** — back · pill text field; below it the saved history (empty field) or live
- *   suggestions (typing). Rows submit on tap; the ↖ arrow only inserts the text into the field.
+ * - **input** — back · pill text field; below it the saved history (empty field) or, while typing,
+ *   the history entries containing the text above the live suggestions. Rows submit on tap; the ↖
+ *   arrow only inserts the text into the field.
  * - **results** — back · query title · filter · search; below it the paged result feed. The filter
  *   icon opens the centered dialog of server-provided filter groups; picking an option re-runs the
  *   search with that option's params (the server composes the combinations).
@@ -205,6 +207,18 @@ fun SearchScreen(
         s.pager.refresh()
     }
 
+    fun LazyListScope.historyRows(entries: List<String>, label: (String) -> AnnotatedString) {
+        items(entries) { entry ->
+            QueryRow(
+                icon = Icons.Outlined.Schedule,
+                text = label(entry),
+                onClick = { submit(entry) },
+                onInsert = { setField(entry) },
+                onRemove = { saveHistory(history - entry) },
+            )
+        }
+    }
+
     Column(Modifier.fillMaxSize()) {
         if (s.editing) {
             SearchInputBar(
@@ -219,25 +233,25 @@ fun SearchScreen(
                     Text(stringResource(Res.string.search_type_to_search), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 s.field.text.isBlank() -> LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = LocalMiniPlayerInset.current)) {
-                    items(history) { entry ->
-                        QueryRow(
-                            icon = Icons.Outlined.Schedule,
-                            text = AnnotatedString(entry),
-                            onClick = { submit(entry) },
-                            onInsert = { setField(entry) },
-                            onRemove = { saveHistory(history - entry) },
-                        )
-                    }
+                    historyRows(history) { entry -> AnnotatedString(entry) }
                     item { ClearHistoryRow { saveHistory(emptyList()) } }
                 }
-                else -> LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = LocalMiniPlayerInset.current)) {
-                    items(suggestions) { sug ->
-                        QueryRow(
-                            icon = Icons.Default.Search,
-                            text = suggestionText(sug, s.field.text),
-                            onClick = { submit(sug) },
-                            onInsert = { setField(sug) },
-                        )
+                else -> {
+                    val typed = s.field.text.trim()
+                    val historyMatches = history.filter { it.contains(typed, ignoreCase = true) }
+                    val newSuggestions = suggestions.filter { suggestion ->
+                        historyMatches.none { it.equals(suggestion, ignoreCase = true) }
+                    }
+                    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = LocalMiniPlayerInset.current)) {
+                        historyRows(historyMatches) { entry -> suggestionText(entry, typed) }
+                        items(newSuggestions) { sug ->
+                            QueryRow(
+                                icon = Icons.Default.Search,
+                                text = suggestionText(sug, s.field.text),
+                                onClick = { submit(sug) },
+                                onInsert = { setField(sug) },
+                            )
+                        }
                     }
                 }
             }

@@ -3,8 +3,7 @@ package io.ymusic.dynamicengine.yt
 /**
  * A feed entry scraped by the engine bundle — the Kotlin mirror of the `WireFeedItem` shape
  * (engine-js `logic/yt/wire.ts`). A **generic display component**, not a typed record: the UI renders
- * [title] + [subtitleLine1]/[subtitleLine2] + an optional [ctaText] verbatim and decides nothing about
- * what text they hold — the engine composes those lines (it alone knows whether line 1 should be the
+ * [title] + [subtitleLine1]/[subtitleLine2] verbatim and decides nothing about what text they hold — the engine composes those lines (it alone knows whether line 1 should be the
  * channel, the view count, the subscriber total…). [kind] is an open string (see [KIND_VIDEO]…) that
  * picks the thumbnail shape + which structural badge overlays; a newer remote bundle can introduce
  * kinds an older app ignores gracefully.
@@ -28,8 +27,6 @@ data class YtFeedItem(
     /** Engine-composed subtitle lines, rendered verbatim (no app-side field selection). */
     val subtitleLine1: String? = null,
     val subtitleLine2: String? = null,
-    /** Optional action label (e.g. "Subscribe" on a channel); null = no CTA. */
-    val ctaText: String? = null,
     /** Channel-link target: tapping the byline/avatar navigates here. */
     val channelId: String? = null,
     /** A video's owner channel / credited artists — the player's artist line (mini player, Now

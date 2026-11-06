@@ -3,8 +3,6 @@ package io.ymusic.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -277,9 +275,8 @@ fun FeedListItem(
             else -> RectThumb(item, width = 92.dp, height = 92.dp, Modifier.clearAndSetSemantics {})
         }
         Spacer(Modifier.width(DesignSpacing.Space16))
-        // A row with no trailing control (playlist/channel rows: no ⋮, no pill) has nothing to
-        // absorb that inset, so the text restores the full 16dp itself.
-        val bare = item.ctaText == null && actions.entries.isEmpty()
+        // A row with no ⋮ has nothing to absorb that inset, so the text restores the full 16dp itself.
+        val bare = actions.entries.isEmpty()
         Column(Modifier.weight(1f).padding(end = if (bare) 12.dp else 0.dp).clearAndSetSemantics {}) {
             Text(
                 item.title,
@@ -292,12 +289,7 @@ fun FeedListItem(
                 Text(sub, style = ListSubStyle, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 4.dp))
             }
         }
-        when {
-            // A pill has no touch padding to absorb the gap or the row's trailing inset, so it carries both;
-            // the ⋮'s own hit padding is its gap from the title.
-            item.ctaText != null -> CtaPill(item.ctaText!!, modifier = Modifier.padding(start = DesignSpacing.Space16, end = 12.dp))
-            actions.entries.isNotEmpty() -> MoreMenu(actions, Modifier.align(Alignment.Top).padding(top = 2.dp))
-        }
+        if (actions.entries.isNotEmpty()) MoreMenu(actions, Modifier.align(Alignment.Top).padding(top = 2.dp))
     }
 }
 
@@ -311,7 +303,7 @@ fun FeedGridCard(
     inset: Dp = GRID_CARD_INSET,
 ) {
     if (item.kind == YtFeedItem.KIND_CHANNEL) {
-        ChannelGridCard(item, onClick, modifier, inset)
+        ChannelGridCard(item, actions, onClick, modifier, inset)
         return
     }
     // clip → clickable → padding: the hover/ripple gets rounded corners and a breathing inset
@@ -369,40 +361,42 @@ fun FeedGridCard(
     }
 }
 
-/** channel — grid card: centered circle avatar + name + subtitle + CTA pill. */
+/** channel — grid card: centered circle avatar + name + subtitle, the ⋮ in the corner. */
 @Composable
 private fun ChannelGridCard(
     item: YtFeedItem,
+    actions: ItemActions,
     onClick: (() -> Unit)?,
     modifier: Modifier = Modifier,
     inset: Dp = GRID_CARD_INSET,
 ) {
-    Column(
+    Box(
         modifier
             .clip(RoundedCornerShape(12.dp))
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
             .a11yActionLabel(feedItemLabel(item))
             .padding(inset),
-        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        CircleThumb(item, 76.dp, Modifier.clearAndSetSemantics {})
-        Text(
-            item.title,
-            style = GridTitleStyle,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(top = 8.dp).clearAndSetSemantics {},
-        )
-        item.subtitleLine1?.let {
+        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+            CircleThumb(item, 76.dp, Modifier.clearAndSetSemantics {})
             Text(
-                it,
-                style = GridSubStyle,
+                item.title,
+                style = GridTitleStyle,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(top = 4.dp).clearAndSetSemantics {},
+                modifier = Modifier.padding(top = 8.dp).clearAndSetSemantics {},
             )
+            item.subtitleLine1?.let {
+                Text(
+                    it,
+                    style = GridSubStyle,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 4.dp).clearAndSetSemantics {},
+                )
+            }
         }
-        item.ctaText?.let { Box(Modifier.padding(top = 8.dp)) { CtaPill(it) } }
+        if (actions.entries.isNotEmpty()) MoreMenu(actions, Modifier.align(Alignment.TopEnd))
     }
 }
 
@@ -427,26 +421,6 @@ fun ShowMoreButton(label: String, expanded: Boolean, onClick: () -> Unit, modifi
                 tint = DesignColors.InkMuted,
             )
         }
-    }
-}
-
-/** The outlined pill CTA on channel items ("Subscribe"); hover turns it accent. Real action lands
- *  with accounts. */
-@Composable
-internal fun CtaPill(text: String, onClick: () -> Unit = {}, modifier: Modifier = Modifier) {
-    val interaction = remember { MutableInteractionSource() }
-    val hovered by interaction.collectIsHoveredAsState()
-    val color = if (hovered) DesignColors.Accent else DesignColors.Ink
-    ChipTapArea(onClick, modifier, interactionSource = interaction) { indication ->
-        Text(
-            text,
-            style = TextStyle(fontSize = ChipTextSize, fontWeight = FontWeight.SemiBold, color = color),
-            modifier = Modifier
-                .clip(RoundedCornerShape(999.dp))
-                .then(indication)
-                .border(1.4.dp, color, RoundedCornerShape(999.dp))
-                .chipPadding(),
-        )
     }
 }
 

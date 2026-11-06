@@ -901,8 +901,6 @@ int audio_fx_stretch(AudioFx *fx, const int16_t *in, int in_frames, int16_t *out
     pthread_mutex_lock(&fx->mu);
     speed = fx->speed;
     pitch = fx->pitch;
-    if (speed < 0.26f)
-        speed = 0.26f;
     if (pitch < 0.5f)
         pitch = 0.5f;
     if (pitch > 2.f)

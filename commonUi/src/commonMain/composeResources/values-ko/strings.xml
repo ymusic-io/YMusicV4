@@ -634,4 +634,9 @@
     <string name="download_quality_medium">중간</string>
     <string name="download_quality_best">최고</string>
     <string name="download_kbps">%1$d kbps</string>
+
+    <!-- Windows refused a native library (desktop) -->
+    <string name="native_blocked">Windows에서 YMusic의 일부를 차단했습니다.</string>
+    <string name="media_engine_unavailable">여기서는 음악과 동영상을 재생할 수 없지만 둘러보기와 검색은 계속할 수 있습니다.</string>
+    <string name="native_blocked_help">회사 또는 학교 PC에서는 관리자에게 YMusic 허용을 요청하세요. 개인 PC에서는 Windows 보안의 스마트 앱 컨트롤을 확인하세요.</string>
 </resources>

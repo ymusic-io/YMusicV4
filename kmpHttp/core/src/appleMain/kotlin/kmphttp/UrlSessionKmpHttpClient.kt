@@ -46,6 +46,10 @@ import platform.Foundation.NSURLErrorInternationalRoamingOff
 import platform.Foundation.NSURLErrorNetworkConnectionLost
 import platform.Foundation.NSURLErrorNotConnectedToInternet
 import platform.Foundation.NSURLErrorSecureConnectionFailed
+import platform.Foundation.NSURLErrorServerCertificateHasBadDate
+import platform.Foundation.NSURLErrorServerCertificateHasUnknownRoot
+import platform.Foundation.NSURLErrorServerCertificateNotYetValid
+import platform.Foundation.NSURLErrorServerCertificateUntrusted
 import platform.Foundation.NSURLErrorTimedOut
 import platform.Foundation.NSURLRequest
 import platform.Foundation.NSURLRequestReloadIgnoringLocalCacheData
@@ -583,13 +587,18 @@ private val RECOVERABLE_NSURL_ERRORS: Set<Long> = setOf(
     NSURLErrorSecureConnectionFailed,
 ).map { it.toLong() }.toSet()
 
-/** Connectivity failures NOT retried: the device is offline or barred from data. */
+/** Connectivity failures NOT retried: the device is offline or barred from data, or a certificate the
+ *  network put in the way or the device's clock or trust store refuses. */
 @OptIn(UnsafeNumber::class)
-private val OFFLINE_NSURL_ERRORS: Set<Long> = setOf(
+private val TRANSPORT_NSURL_ERRORS: Set<Long> = setOf(
     NSURLErrorNotConnectedToInternet,
     NSURLErrorInternationalRoamingOff,
     NSURLErrorDataNotAllowed,
     NSURLErrorCallIsActive,
+    NSURLErrorServerCertificateHasBadDate,
+    NSURLErrorServerCertificateUntrusted,
+    NSURLErrorServerCertificateHasUnknownRoot,
+    NSURLErrorServerCertificateNotYetValid,
 ).map { it.toLong() }.toSet()
 
 @OptIn(UnsafeNumber::class)
@@ -605,7 +614,7 @@ private fun NSError.toIOException(): IOException {
     }
     return if (domain == NSURLErrorDomain && code.toLong() in RECOVERABLE_NSURL_ERRORS) {
         RecoverableIOException(message, cause)
-    } else if (domain == NSURLErrorDomain && code.toLong() in OFFLINE_NSURL_ERRORS) {
+    } else if (domain == NSURLErrorDomain && code.toLong() in TRANSPORT_NSURL_ERRORS) {
         TransportIOException(message, cause)
     } else {
         IOException(message, cause)

@@ -442,7 +442,8 @@ private fun DetailsHeader(state: VideoDetailsState, details: YtVideoDetails, onO
         if (details.factoids.isNotEmpty()) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(DesignSpacing.Space8)) {
                 details.factoids.forEach { factoid ->
-                    Column(Modifier.weight(1f).semantics(mergeDescendants = true) {}, horizontalAlignment = Alignment.CenterHorizontally) {
+                    val width = maxOf(factoid.value.length, factoid.label.length).coerceAtLeast(4).toFloat()
+                    Column(Modifier.weight(width).semantics(mergeDescendants = true) {}, horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
                             factoid.value,
                             style = androidx.compose.ui.text.TextStyle(fontSize = 16.sp, fontWeight = FontWeight.Bold, color = DesignColors.Ink, textAlign = TextAlign.Center),
@@ -461,40 +462,33 @@ private fun DetailsHeader(state: VideoDetailsState, details: YtVideoDetails, onO
                 }
             }
         }
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(DesignSpacing.Space16),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            val name = details.channelTitle
+        details.channelTitle?.let { name ->
             val url = details.channelUrl
             Row(
                 Modifier
-                    .weight(1f)
+                    .fillMaxWidth()
                     .clip(RoundedCornerShape(8.dp))
-                    .then(if (name != null && url != null) Modifier.clickable { onOpenChannel(url, name) } else Modifier),
+                    .then(if (url != null) Modifier.clickable { onOpenChannel(url, name) } else Modifier),
                 horizontalArrangement = Arrangement.spacedBy(DesignSpacing.Space16),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                if (name != null) {
-                    Avatar(details.channelThumbs, 40.dp)
-                    Column {
-                        Text(
-                            name,
-                            style = androidx.compose.ui.text.TextStyle(fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = DesignColors.Ink),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        details.subscribers?.let {
-                            Text(it, style = androidx.compose.ui.text.TextStyle(fontSize = 12.sp, color = DesignColors.InkSecondary), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        }
+                Avatar(details.channelThumbs, 40.dp)
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        name,
+                        style = androidx.compose.ui.text.TextStyle(fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = DesignColors.Ink),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    details.subscribers?.let {
+                        Text(it, style = androidx.compose.ui.text.TextStyle(fontSize = 12.sp, color = DesignColors.InkSecondary), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(DesignSpacing.Space8)) {
-                RatingPill(state, details)
-                LocalShareYoutube.current?.let { share -> SharePill { share(YtFeedItem.KIND_VIDEO, state.videoId) } }
-            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(DesignSpacing.Space8)) {
+            RatingPill(state, details)
+            LocalShareYoutube.current?.let { share -> SharePill { share(YtFeedItem.KIND_VIDEO, state.videoId) } }
         }
         details.description?.takeIf { it.isNotBlank() }?.let { Description(it) }
         HorizontalDivider(color = DesignColors.Divider)

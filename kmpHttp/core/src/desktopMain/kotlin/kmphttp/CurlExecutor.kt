@@ -65,9 +65,11 @@ import libcurl.CURLE_HTTP2_STREAM
 import libcurl.CURLE_OK
 import libcurl.CURLE_OPERATION_TIMEDOUT
 import libcurl.CURLE_PARTIAL_FILE
+import libcurl.CURLE_PEER_FAILED_VERIFICATION
 import libcurl.CURLE_RECV_ERROR
 import libcurl.CURLE_SEND_ERROR
 import libcurl.CURLE_SSL_CONNECT_ERROR
+import libcurl.CURLE_SSL_PINNEDPUBKEYNOTMATCH
 import libcurl.CURL_READFUNC_ABORT
 import libcurl.CURL_READFUNC_PAUSE
 import libcurl.CURL_WRITEFUNC_ERROR
@@ -100,11 +102,14 @@ private val RECOVERABLE_CURL_ERRORS: Set<UInt> = setOf(
     CURLE_RECV_ERROR,
 )
 
-/** Connectivity failures mid-transfer, after the request may have been delivered — not retried. */
+/** Connectivity failures not retried: mid-transfer, after the request may have been delivered, or a
+ *  certificate the network put in the way or the device's clock or trust store refuses. */
 @OptIn(ExperimentalForeignApi::class)
 private val TRANSPORT_CURL_ERRORS: Set<UInt> = setOf(
     CURLE_PARTIAL_FILE,
     CURLE_HTTP2_STREAM,
+    CURLE_PEER_FAILED_VERIFICATION,
+    CURLE_SSL_PINNEDPUBKEYNOTMATCH,
 )
 
 /**
@@ -562,7 +567,7 @@ private class StreamingResponseHandler(
                     // Connection-establishment failures (handshake reset, connect/DNS, etc.) are
                     // transient and safe to retry on a fresh connection; tag them so
                     // RetryOnConnectionFailureInterceptor picks them up. Cert/pin verification
-                    // failures stay a plain IOException and surface immediately.
+                    // failures are never retried: they surface immediately.
                     completeError = if (result in RECOVERABLE_CURL_ERRORS) {
                         RecoverableIOException(message)
                     } else if (result in TRANSPORT_CURL_ERRORS) {

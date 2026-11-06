@@ -36,8 +36,8 @@ class ImageLoaderBitmapLoader(
     /** The largest artwork the platform session keeps unscaled. */
     sessionBitmapLimit: Int,
 ) : BitmapLoader {
-    // Artwork over the session limit is rescaled by the platform on every metadata update
-    // (MediaMetadata.Builder.scaleBitmap), which crashes when that bitmap was recycled meanwhile.
+    // Never over the session limit: some custom ROMs' MediaMetadata.Builder.scaleBitmap recycles its source,
+    // and media3 publishes one bitmap under two keys, so the second key's rescale throws on the recycled bitmap.
     private val maxPx = minOf(ARTWORK_MAX_PX, sessionBitmapLimit)
 
     override fun supportsMimeType(mimeType: String): Boolean = mimeType.startsWith("image/")

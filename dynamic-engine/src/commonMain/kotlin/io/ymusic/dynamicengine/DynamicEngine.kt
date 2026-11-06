@@ -6,6 +6,7 @@ import io.ymusic.dynamicengine.internal.installCache
 import io.ymusic.dynamicengine.internal.installCapture
 import io.ymusic.dynamicengine.internal.installCookies
 import io.ymusic.dynamicengine.internal.installHttp
+import io.ymusic.dynamicengine.internal.installRemoteConfig
 import io.ymusic.dynamicengine.internal.installSettings
 import io.ymusic.quickjs.Pipe
 import io.ymusic.quickjs.PipeResetException
@@ -19,6 +20,7 @@ import kmphttp.KmpHttpClient
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
 import okio.Buffer
 
 /**
@@ -156,8 +158,9 @@ class DynamicEngine internal constructor(
             cacheStore: CacheStore? = null,
             cookieJar: CookieJar = client.cookieJar,
             settings: SettingsStore? = null,
+            remoteFeature: (suspend (String) -> JsonElement?)? = null,
         ): DynamicEngine = createEngine(
-            client, appVersion, dispatcher, logger, engineJs, cacheStore, cookieJar, settings,
+            client, appVersion, dispatcher, logger, engineJs, cacheStore, cookieJar, settings, remoteFeature,
         )
 
         /** Create from [compile]d bytecode of a bundle — `versions.app` is only known here, so it
@@ -172,8 +175,9 @@ class DynamicEngine internal constructor(
             cacheStore: CacheStore? = null,
             cookieJar: CookieJar = client.cookieJar,
             settings: SettingsStore? = null,
+            remoteFeature: (suspend (String) -> JsonElement?)? = null,
         ): DynamicEngine = createEngineFromBytecode(
-            client, appVersion, engineBytecode, dispatcher, logger, cacheStore, cookieJar, settings,
+            client, appVersion, engineBytecode, dispatcher, logger, cacheStore, cookieJar, settings, remoteFeature,
         )
 
         internal fun createEngineFromBytecode(
@@ -185,10 +189,11 @@ class DynamicEngine internal constructor(
             cacheStore: CacheStore? = null,
             cookieJar: CookieJar = client.cookieJar,
             settings: SettingsStore? = null,
+            remoteFeature: (suspend (String) -> JsonElement?)? = null,
             extraInstall: QuickJsRuntime.(ParkedLoggers) -> Unit = {},
         ): DynamicEngine = boot(logger, ParkedLoggers(logger)) { parked ->
             QuickJsRuntime.create(engineBytecode, appVersion, dispatcher, onLog = logger?.let(::jsLog)) {
-                installHost(it, client, parked, cacheStore, cookieJar, settings)
+                installHost(it, client, parked, cacheStore, cookieJar, settings, remoteFeature)
                 it.extraInstall(parked)
             }
         }
@@ -202,10 +207,11 @@ class DynamicEngine internal constructor(
             cacheStore: CacheStore? = null,
             cookieJar: CookieJar = client.cookieJar,
             settings: SettingsStore? = null,
+            remoteFeature: (suspend (String) -> JsonElement?)? = null,
             extraInstall: QuickJsRuntime.(ParkedLoggers) -> Unit = {},
         ): DynamicEngine = boot(logger, ParkedLoggers(logger)) { parked ->
             QuickJsRuntime.create(engineJs, appVersion, dispatcher, onLog = logger?.let(::jsLog)) {
-                installHost(it, client, parked, cacheStore, cookieJar, settings)
+                installHost(it, client, parked, cacheStore, cookieJar, settings, remoteFeature)
                 it.extraInstall(parked)
             }
         }
@@ -217,12 +223,14 @@ class DynamicEngine internal constructor(
             cacheStore: CacheStore?,
             cookieJar: CookieJar,
             settings: SettingsStore?,
+            remoteFeature: (suspend (String) -> JsonElement?)?,
         ) {
             runtime.installHttp(client, parked)
             runtime.installCookies(cookieJar, parked)
             runtime.installCapture(cacheStore, parked)
             if (cacheStore != null) runtime.installCache(cacheStore, parked)
             if (settings != null) runtime.installSettings(settings, parked)
+            runtime.installRemoteConfig(remoteFeature, parked)
         }
 
         /** Compile a bundle to QuickJS bytecode for [create] — per-function source text is

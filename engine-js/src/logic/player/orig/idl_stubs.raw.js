@@ -212,44 +212,6 @@
       [],
     ],
     ["BarProp", "", 0, "", [["visible", "b", 1]], [], [], [], []],
-    [
-      "Event",
-      "",
-      2,
-      "",
-      [
-        ["pageY", "n", 1],
-        ["pageX", "n", 1],
-        ["type", "s", 1],
-        ["target", "u", 1],
-        ["srcElement", "u", 1],
-        ["currentTarget", "u", 1],
-        ["eventPhase", "n", 1],
-        ["cancelBubble", "b", 0],
-        ["bubbles", "b", 1],
-        ["cancelable", "b", 1],
-        ["returnValue", "b", 0],
-        ["defaultPrevented", "b", 1],
-        ["composed", "b", 1],
-        ["isTrusted", "b", 1],
-        ["timeStamp", "n", 1],
-      ],
-      [
-        ["composedPath", "a"],
-        ["stopPropagation", "u"],
-        ["stopImmediatePropagation", "u"],
-        ["preventDefault", "u"],
-        ["initEvent", "u"],
-      ],
-      [
-        ["NONE", 0],
-        ["CAPTURING_PHASE", 1],
-        ["AT_TARGET", 2],
-        ["BUBBLING_PHASE", 3],
-      ],
-      [],
-      [],
-    ],
     ["BeforeUnloadEvent", "Event", 0, "", [["returnValue", "s", 0]], [], [], [], []],
     [
       "BroadcastChannel",
@@ -304,13 +266,7 @@
         ["wholeText", "s", 1],
         ["assignedSlot", "u", 1],
       ],
-      [
-        ["splitText", "u"],
-        ["getBoxQuads", "a"],
-        ["convertQuadFromNode", "u"],
-        ["convertRectFromNode", "u"],
-        ["convertPointFromNode", "u"],
-      ],
+      [["splitText", "u"]],
       [],
       [],
       [],
@@ -736,32 +692,6 @@
     ],
     ["Comment", "CharacterData", 2, "", [], [], [], [], []],
     [
-      "UIEvent",
-      "Event",
-      2,
-      "",
-      [
-        ["view", "u", 1],
-        ["detail", "n", 1],
-        ["which", "n", 1],
-      ],
-      [["initUIEvent", "u"]],
-      [],
-      [],
-      [],
-    ],
-    [
-      "CompositionEvent",
-      "UIEvent",
-      2,
-      "",
-      [["data", "s", 1]],
-      [["initCompositionEvent", "u"]],
-      [],
-      [],
-      [],
-    ],
-    [
       "CustomElementRegistry",
       "",
       2,
@@ -1059,10 +989,6 @@
         ["clear", "u"],
         ["captureEvents", "u"],
         ["releaseEvents", "u"],
-        ["getBoxQuads", "a"],
-        ["convertQuadFromNode", "u"],
-        ["convertRectFromNode", "u"],
-        ["convertPointFromNode", "u"],
         ["getElementById", "u"],
         ["prepend", "u"],
         ["append", "u"],
@@ -1120,42 +1046,6 @@
         ["after", "u"],
         ["replaceWith", "u"],
         ["remove", "u"],
-      ],
-      [],
-      [],
-      [],
-    ],
-    [
-      "MouseEvent",
-      "UIEvent",
-      2,
-      "",
-      [
-        ["pageX", "n", 1],
-        ["pageY", "n", 1],
-        ["x", "n", 1],
-        ["y", "n", 1],
-        ["offsetX", "n", 1],
-        ["offsetY", "n", 1],
-        ["screenX", "n", 1],
-        ["screenY", "n", 1],
-        ["clientX", "n", 1],
-        ["clientY", "n", 1],
-        ["layerX", "n", 1],
-        ["layerY", "n", 1],
-        ["ctrlKey", "b", 1],
-        ["shiftKey", "b", 1],
-        ["altKey", "b", 1],
-        ["metaKey", "b", 1],
-        ["button", "n", 1],
-        ["buttons", "n", 1],
-        ["relatedTarget", "u", 1],
-        ["movementX", "n", 1],
-        ["movementY", "n", 1],
-      ],
-      [
-        ["getModifierState", "b"],
-        ["initMouseEvent", "u"],
       ],
       [],
       [],
@@ -1235,10 +1125,6 @@
         ["setHTMLUnsafe", "u"],
         ["getHTML", "s"],
         ["insertAdjacentHTML", "u"],
-        ["getBoxQuads", "a"],
-        ["convertQuadFromNode", "u"],
-        ["convertRectFromNode", "u"],
-        ["convertPointFromNode", "u"],
         ["prepend", "u"],
         ["append", "u"],
         ["replaceChildren", "u"],
@@ -1353,7 +1239,6 @@
       0,
       "",
       [
-        ["scrollParent", "u", 1],
         ["offsetParent", "u", 1],
         ["offsetTop", "n", 1],
         ["offsetLeft", "n", 1],
@@ -1366,7 +1251,6 @@
         ["hidden", "u", 0],
         ["inert", "b", 0],
         ["accessKey", "s", 0],
-        ["accessKeyLabel", "s", 1],
         ["draggable", "b", 0],
         ["spellcheck", "b", 0],
         ["writingSuggestions", "s", 0],
@@ -1375,8 +1259,6 @@
         ["innerText", "s", 0],
         ["outerText", "s", 0],
         ["popover", "u", 0],
-        ["headingOffset", "n", 0],
-        ["headingReset", "b", 0],
         ["style", "u", 1],
         ["onabort", "u", 0],
         ["onauxclick", "u", 0],
@@ -2767,20 +2649,6 @@
       [],
     ],
     [
-      "HashChangeEvent",
-      "Event",
-      2,
-      "",
-      [
-        ["oldURL", "s", 1],
-        ["newURL", "s", 1],
-      ],
-      [],
-      [],
-      [],
-      [],
-    ],
-    [
       "History",
       "",
       0,
@@ -2855,37 +2723,6 @@
       ],
       [],
       [],
-      [],
-      [],
-    ],
-    [
-      "KeyboardEvent",
-      "UIEvent",
-      2,
-      "",
-      [
-        ["key", "s", 1],
-        ["code", "s", 1],
-        ["location", "n", 1],
-        ["ctrlKey", "b", 1],
-        ["shiftKey", "b", 1],
-        ["altKey", "b", 1],
-        ["metaKey", "b", 1],
-        ["repeat", "b", 1],
-        ["isComposing", "b", 1],
-        ["charCode", "n", 1],
-        ["keyCode", "n", 1],
-      ],
-      [
-        ["getModifierState", "b"],
-        ["initKeyboardEvent", "u"],
-      ],
-      [
-        ["DOM_KEY_LOCATION_STANDARD", 0],
-        ["DOM_KEY_LOCATION_LEFT", 1],
-        ["DOM_KEY_LOCATION_RIGHT", 2],
-        ["DOM_KEY_LOCATION_NUMPAD", 3],
-      ],
       [],
       [],
     ],
@@ -2994,23 +2831,6 @@
         ["port2", "u", 1],
       ],
       [],
-      [],
-      [],
-      [],
-    ],
-    [
-      "MessageEvent",
-      "Event",
-      2,
-      "",
-      [
-        ["data", "u", 1],
-        ["origin", "s", 1],
-        ["lastEventId", "s", 1],
-        ["source", "u", 1],
-        ["ports", "a", 1],
-      ],
-      [["initMessageEvent", "u"]],
       [],
       [],
       [],
@@ -3772,23 +3592,6 @@
       [],
       [],
     ],
-    [
-      "StorageEvent",
-      "Event",
-      2,
-      "",
-      [
-        ["key", "u", 1],
-        ["oldValue", "u", 1],
-        ["newValue", "u", 1],
-        ["url", "s", 1],
-        ["storageArea", "u", 1],
-      ],
-      [["initStorageEvent", "u"]],
-      [],
-      [],
-      [],
-    ],
     ["StyleSheetList", "", 0, "", [["length", "n", 1]], [["item", "u"]], [], [], []],
     ["SubmitEvent", "Event", 2, "", [["submitter", "u", 1]], [], [], [], []],
     ["TextEvent", "UIEvent", 0, "", [["data", "s", 1]], [["initTextEvent", "u"]], [], [], []],
@@ -4378,6 +4181,8 @@
     ["Option", "option"],
   ];
 
+  var hasOwn = Object.prototype.hasOwnProperty;
+
   function hide(obj, key, val) {
     Object.defineProperty(obj, key, {
       configurable: true,
@@ -4386,6 +4191,9 @@
       value: val,
     });
   }
+
+  /* What the env assigned to an attribute: never an own property, as on a Chrome object. */
+  var attrValues = new WeakMap();
 
   function defaultVal(code) {
     if (code === "s") return "";
@@ -4409,22 +4217,23 @@
       configurable: true,
       enumerable: true,
       get: native("get " + name, function () {
-        var k = "_bbd_" + name;
-        if (this && Object.prototype.hasOwnProperty.call(this, k)) return this[k];
+        var values = attrValues.get(this);
+        if (values && name in values) return values[name];
         if (code === "a") return [];
         return defaultVal(code);
       }),
       /* Always stash: a readonly accessor without a setter blocks later
        * env.js assignments (iframe.contentWindow = ...). */
       set: native("set " + name, function (v) {
-        try {
-          Object.defineProperty(this, "_bbd_" + name, {
-            configurable: true,
-            enumerable: false,
-            writable: true,
-            value: v,
-          });
-        } catch (e) {}
+        var values = attrValues.get(this);
+        if (!values) {
+          try {
+            attrValues.set(this, (values = Object.create(null)));
+          } catch (e) {
+            return;
+          }
+        }
+        values[name] = v;
       }),
     };
     Object.defineProperty(obj, name, desc);
@@ -4487,6 +4296,7 @@
     try {
       cur = Object.getPrototypeOf(ctor.prototype);
       if (cur !== P.prototype) Object.setPrototypeOf(ctor.prototype, P.prototype);
+      Object.setPrototypeOf(ctor, P);
     } catch (e) {}
   }
 
@@ -4497,14 +4307,77 @@
   }
 
   function liveHost(name) {
-    if (name === "Document" && typeof document === "object" && document) return document;
-    if (name === "HTMLDocument" && typeof document === "object" && document) return document;
     if (name === "History" && typeof history === "object" && history) return history;
     if (name === "Location" && typeof location === "object" && location) return location;
     if (name === "Navigator" && typeof navigator === "object" && navigator) return navigator;
     if (name === "Screen" && typeof screen === "object" && screen) return screen;
     if (name === "Crypto" && typeof crypto === "object" && crypto) return crypto;
     return null;
+  }
+
+  function finishProto(ctor, name) {
+    var proto = ctor.prototype;
+    if (!hasOwn.call(proto, Symbol.toStringTag))
+      Object.defineProperty(proto, Symbol.toStringTag, { value: name, configurable: true });
+    if (!hasOwn.call(proto, "constructor")) hide(proto, "constructor", ctor);
+  }
+
+  /* Moves what the env implemented on [from] to the interface in [owners] that declares it. */
+  function hoist(from, owners) {
+    Object.getOwnPropertyNames(from).forEach(function (name) {
+      var owner = owners.filter(function (proto) {
+        return hasOwn.call(proto, name);
+      })[0];
+      var desc;
+      if (!owner || name === "constructor") return;
+      desc = Object.getOwnPropertyDescriptor(from, name);
+      delete from[name];
+      Object.defineProperty(owner, name, desc);
+    });
+  }
+
+  /* The live document keeps only location, as in Chrome: what it was built with moves to the
+   * interfaces, and plain values go through the attribute setters. */
+  function adoptDocument() {
+    var proto = globalThis.HTMLDocument.prototype;
+    linkProto(globalThis.HTMLDocument, "Document");
+    finishProto(globalThis.HTMLDocument, "HTMLDocument");
+    delete globalThis.Document.prototype.location;
+    Object.setPrototypeOf(document, proto);
+    Object.getOwnPropertyNames(document).forEach(function (name) {
+      var desc = Object.getOwnPropertyDescriptor(document, name);
+      var owner = proto;
+      if (name === "location" || !(name in proto)) return;
+      delete document[name];
+      if (!desc.get && typeof desc.value !== "function") {
+        document[name] = desc.value;
+        return;
+      }
+      while (!hasOwn.call(owner, name)) owner = Object.getPrototypeOf(owner);
+      Object.defineProperty(owner, name, desc);
+    });
+  }
+
+  /* window -> Window.prototype -> WindowProperties -> EventTarget.prototype. */
+  function linkWindow() {
+    var target = globalThis.EventTarget.prototype;
+    var windowProperties = Object.create(target);
+    Object.defineProperty(windowProperties, Symbol.toStringTag, {
+      value: "WindowProperties",
+      configurable: true,
+    });
+    Object.setPrototypeOf(globalThis.Window.prototype, windowProperties);
+    finishProto(globalThis.Window, "Window");
+    defConst(globalThis.Window.prototype, "TEMPORARY", 0);
+    defConst(globalThis.Window.prototype, "PERSISTENT", 1);
+    defConst(globalThis.Window, "TEMPORARY", 0);
+    defConst(globalThis.Window, "PERSISTENT", 1);
+    ["addEventListener", "removeEventListener", "dispatchEvent"].forEach(function (name) {
+      hide(target, name, globalThis[name]);
+      delete globalThis[name];
+    });
+    delete globalThis[Symbol.toStringTag];
+    Object.setPrototypeOf(globalThis, globalThis.Window.prototype);
   }
 
   function installIface(rec) {
@@ -4530,7 +4403,7 @@
       }
       if (!ctor.prototype || typeof ctor.prototype !== "object") ctor.prototype = {};
       linkProto(ctor, parent);
-      fillMembers(ctor.prototype, attrs, ops, consts, sops, sattrs, ctor);
+      fillMembers(ctor.prototype, [], [], consts, [], [], ctor);
       fillMembers(globalThis, attrs, ops, consts, [], [], ctor);
       return;
     }
@@ -4544,10 +4417,11 @@
           throw new TypeError("Illegal constructor");
         };
       } else if (kind === 2) {
-        impl = function () {
+        impl = function (type, init) {
           var C = globalThis[name];
-          var o = Object.create((C && C.prototype) || Object.prototype);
-          return o;
+          if (C && C.prototype instanceof globalThis.Event)
+            return Reflect.construct(globalThis.Event, [type === undefined ? "" : type, init], C);
+          return Object.create((C && C.prototype) || Object.prototype);
         };
       } else {
         impl = function () {
@@ -4566,6 +4440,7 @@
       } catch (e) {}
     }
     fillMembers(ctor.prototype, attrs, ops, consts, sops, sattrs, ctor);
+    finishProto(ctor, name);
     live = liveHost(name);
     if (live && live !== ctor.prototype) fillMembers(live, attrs, ops, consts, [], [], ctor);
   }
@@ -4588,5 +4463,12 @@
     var i;
     for (i = 0; i < DATA.length; i++) installIface(DATA[i]);
     for (i = 0; i < FACTORIES.length; i++) installFactory(FACTORIES[i]);
+    hoist(globalThis.HTMLElement.prototype, [
+      globalThis.EventTarget.prototype,
+      globalThis.Node.prototype,
+      globalThis.Element.prototype,
+    ]);
+    adoptDocument();
+    linkWindow();
   })();
 })();

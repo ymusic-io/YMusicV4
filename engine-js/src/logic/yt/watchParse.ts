@@ -13,21 +13,28 @@ function continuationToken(item: unknown): string | undefined {
   );
 }
 
-function factoidOf(node: unknown): WireFactoid | undefined {
+function factoidOf(node: unknown, publishDate: string | undefined): WireFactoid | undefined {
+  const upload = get(node, "uploadTimeFactoidRenderer", "factoid", "factoidRenderer");
   const f =
+    upload ??
     get(node, "factoidRenderer") ??
-    get(node, "viewCountFactoidRenderer", "factoid", "factoidRenderer") ??
-    get(node, "uploadTimeFactoidRenderer", "factoid", "factoidRenderer");
+    get(node, "viewCountFactoidRenderer", "factoid", "factoidRenderer");
   const value = textOf(get(f, "value"));
   const label = textOf(get(f, "label"));
-  return value !== undefined && label !== undefined
-    ? { "value": value, "label": label }
-    : undefined;
+  if (value === undefined || label === undefined) return undefined;
+  // A same-day upload's factoid is only relative ("4h" / "Ago"); the date sits on the header.
+  if (upload !== undefined && publishDate !== undefined) {
+    return {
+      "value": publishDate,
+      "label": asString(get(upload, "accessibilityText")) ?? value + " " + label,
+    };
+  }
+  return { "value": value, "label": label };
 }
 
 function setOwner(out: WireVideoDetails, owner: unknown): void {
   if (!isObj(owner)) return;
-  const name = textOf(owner["title"]);
+  const name = textOf(owner["title"]) ?? textOf(owner["attributedTitle"]);
   if (name !== undefined) out["channelTitle"] = name;
   const id = asString(get(owner, "navigationEndpoint", "browseEndpoint", "browseId"));
   if (id !== undefined) out["channelUrl"] = channelUrl(id);
@@ -35,6 +42,22 @@ function setOwner(out: WireVideoDetails, owner: unknown): void {
   if (thumbs !== undefined) out["channelThumbs"] = thumbs;
   const subscribers = textOf(owner["subscriberCountText"]);
   if (subscribers !== undefined) out["subscribers"] = subscribers;
+}
+
+/** A collaboration's owner has no channel link or avatar; the header holds its primary channel. */
+function setHeaderChannel(out: WireVideoDetails, header: Record<string, unknown>): void {
+  if (out["channelTitle"] === undefined) {
+    const name = textOf(header["channel"]);
+    if (name !== undefined) out["channelTitle"] = name;
+  }
+  if (out["channelUrl"] === undefined) {
+    const id = asString(get(header, "channelNavigationEndpoint", "browseEndpoint", "browseId"));
+    if (id !== undefined) out["channelUrl"] = channelUrl(id);
+  }
+  if (out["channelThumbs"] === undefined) {
+    const thumbs = thumbsOf(header["channelThumbnail"]);
+    if (thumbs !== undefined) out["channelThumbs"] = thumbs;
+  }
 }
 
 // A likeEndpoint's params field by the status it sets.
@@ -92,11 +115,13 @@ export function videoDetailsOf(root: Record<string, unknown>): WireVideoDetails 
       return true;
     }
     if (key === "videoDescriptionHeaderRenderer") {
+      setHeaderChannel(out, value);
+      const publishDate = textOf(value["publishDate"]);
       const facts = value["factoid"];
       if (Array.isArray(facts)) {
         const list: WireFactoid[] = [];
         for (const f of facts) {
-          const factoid = factoidOf(f);
+          const factoid = factoidOf(f, publishDate);
           if (factoid !== undefined) list.push(factoid);
         }
         if (list.length > 0) out["factoids"] = list;
@@ -104,7 +129,7 @@ export function videoDetailsOf(root: Record<string, unknown>): WireVideoDetails 
       // Premieres can come without factoids; the header's localized lines stand in, label-less.
       if (out["factoids"] === undefined) {
         const lines: WireFactoid[] = [];
-        for (const line of [textOf(value["views"]), textOf(value["publishDate"])]) {
+        for (const line of [textOf(value["views"]), publishDate]) {
           if (line !== undefined) lines.push({ "value": line, "label": "" });
         }
         if (lines.length > 0) out["factoids"] = lines;

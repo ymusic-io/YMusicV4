@@ -37,7 +37,7 @@ import {
   onCaptionsChanged,
   selectedCaptionVss,
 } from "./captions";
-import { playerStorageReady } from "./storage";
+import { clearPlayerStorage, isBadStoredValue, playerStorageReady } from "./storage";
 import { applyViewport, viewportHeight, viewportWidth } from "./viewport";
 
 const ORIGIN = "https://www.youtube.com";
@@ -934,7 +934,14 @@ class Player {
     sizePlayerEl(root);
     out["step"] = "create";
     try {
-      this.player = create(root, param2, this.createCtx) as YtApp;
+      try {
+        this.player = create(root, param2, this.createCtx) as YtApp;
+      } catch (e) {
+        if (!isBadStoredValue(e)) throw e;
+        console.warn("player storage held a value base.js rejects; clearing it");
+        clearPlayerStorage();
+        this.player = create(root, param2, this.createCtx) as YtApp;
+      }
       (globalThis as unknown as Record<string, unknown>)["__ymPlayer"] = this.player;
       sizePlayerTree();
       fireWindowResize();

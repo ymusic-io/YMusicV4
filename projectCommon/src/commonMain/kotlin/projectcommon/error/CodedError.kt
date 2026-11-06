@@ -33,6 +33,10 @@ class TechnicalException(
     cause: Throwable? = null,
 ) : Exception("[$code] $message", cause), CodedError
 
+/** The well-known category for a host whose media library didn't load: nothing can play or download,
+ *  and the shell reports it once, so it is never a crash record. */
+const val PLAYBACK_UNAVAILABLE_CODE = "playback_unavailable"
+
 /** The well-known category for a connectivity failure — the UI's "check your connection". */
 const val NETWORK_CODE = "network"
 

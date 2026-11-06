@@ -12,6 +12,7 @@ import kotlinx.coroutines.withContext
 import okhttp3.Dns
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
+import java.io.EOFException
 import java.net.Inet4Address
 import java.net.InetAddress
 import java.net.SocketTimeoutException
@@ -126,11 +127,13 @@ class OkKmpHttpClient : KmpHttpClient {
                             val resp = call.execute()                  // blocks THIS thread
                             cont.resume(resp) { _, _, _ -> resp.close() }
                         } catch (e: Throwable) {
-                            // ReadTimeoutBridge's timeout fires just before the execute timeout: same contract.
-                            val failure = if (timeout != null && e is SocketTimeoutException) {
-                                HttpTimeoutException("no response within $timeout").apply { initCause(e) }
-                            } else {
-                                e
+                            val failure = when {
+                                // ReadTimeoutBridge's timeout fires just before the execute timeout: same contract.
+                                timeout != null && e is SocketTimeoutException ->
+                                    HttpTimeoutException("no response within $timeout").apply { initCause(e) }
+                                // HTTP/2 gives every stream waiting on a dying connection the reader's EOFException.
+                                e is EOFException -> cutOffResponse(e)
+                                else -> e
                             }
                             if (cont.isActive) cont.resumeWithException(failure)
                         }

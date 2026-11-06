@@ -55,6 +55,7 @@ import io.ymusic.ui.resources.update_up_to_date
 import io.ymusic.ui.resources.update_version
 import org.jetbrains.compose.resources.stringResource
 import projectcommon.error.DISK_FULL_CODE
+import projectcommon.error.NETWORK_CODE
 
 /**
  * The update prompt, one shape for every state of the release: the version, its brief notes, the
@@ -175,17 +176,11 @@ fun UpdateDialog(graph: AppGraph, recheck: Int = 0) {
                 browserLink?.let { LinkText(stringResource(Res.string.update_download_in_browser), it) }
             }
             if (requested && download is UpdateDownload.Failed) {
-                Text(
-                    if (download.code == DISK_FULL_CODE) errorMessage(download.code) else stringResource(Res.string.update_failed, download.code),
-                    style = TextStyle(fontSize = 13.sp, color = DesignColors.InkSecondary),
-                )
+                Text(updateFailureMessage(download.code), style = TextStyle(fontSize = 13.sp, color = DesignColors.InkSecondary))
                 openDownloadPage?.let { LinkText(stringResource(Res.string.update_official_site), it) }
             }
             if (download is UpdateDownload.InstallFailed) {
-                Text(
-                    if (download.code == DISK_FULL_CODE) errorMessage(download.code) else stringResource(Res.string.update_failed, download.code),
-                    style = TextStyle(fontSize = 13.sp, color = DesignColors.InkSecondary),
-                )
+                Text(updateFailureMessage(download.code), style = TextStyle(fontSize = 13.sp, color = DesignColors.InkSecondary))
                 openDownloadPage?.let { LinkText(stringResource(Res.string.update_official_site), it) }
             }
             if (blocked != null) {
@@ -197,6 +192,11 @@ fun UpdateDialog(graph: AppGraph, recheck: Int = 0) {
         }
     }
 }
+
+/** A failure the user can act on as its own message, any other as the code to report. */
+@Composable
+private fun updateFailureMessage(code: String): String =
+    if (code == DISK_FULL_CODE || code == NETWORK_CODE) errorMessage(code) else stringResource(Res.string.update_failed, code)
 
 @Composable
 private fun LinkText(text: String, onClick: () -> Unit) {

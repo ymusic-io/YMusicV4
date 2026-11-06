@@ -1,6 +1,7 @@
 package io.ymusic.player
 
 import projectcommon.error.CodedError
+import projectcommon.error.PLAYBACK_UNAVAILABLE_CODE
 
 /**
  * Engine + media lifecycle, preserving the legacy player contract. [readyToLoad] means an ordinary
@@ -111,6 +112,9 @@ data class PlayerError(
 
         /** The app no longer holds the storage grant for a local item's folder (Android SAF) — re-adding the folder fixes it. */
         const val FOLDER_ACCESS_LOST = "folder_access_lost"
+
+        /** This host cannot play anything at all ([PlayerEngines.unavailable]); the shell has reported why. */
+        const val PLAYBACK_UNAVAILABLE = PLAYBACK_UNAVAILABLE_CODE
 
         /** The platform video decoder refused the stream (size or profile beyond the device). */
         const val VIDEO_DECODER_FAILED = "E60064"

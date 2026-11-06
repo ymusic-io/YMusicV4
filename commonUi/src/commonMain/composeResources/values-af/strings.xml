@@ -642,4 +642,9 @@
     <string name="download_quality_medium">Medium</string>
     <string name="download_quality_best">Beste</string>
     <string name="download_kbps">%1$d kbps</string>
+
+    <!-- Windows refused a native library (desktop) -->
+    <string name="native_blocked">Windows het 'n deel van YMusic geblokkeer.</string>
+    <string name="media_engine_unavailable">Musiek en video's kan nie hier speel nie, maar jy kan steeds blaai en soek.</string>
+    <string name="native_blocked_help">Op 'n werk- of skoolrekenaar, vra jou administrateur om YMusic toe te laat. Op jou eie rekenaar, gaan Smart App Control in Windows Security na.</string>
 </resources>

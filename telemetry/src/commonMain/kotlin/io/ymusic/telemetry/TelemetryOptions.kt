@@ -1,8 +1,15 @@
 package io.ymusic.telemetry
 
 import io.sentry.kotlin.multiplatform.Sentry
+import io.ymusic.remoteconfig.RemoteConfig
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
+import kotlin.concurrent.Volatile
 
 private const val DEVICE_ID_TAG = "device_id"
+
+@Volatile
+private var remoteTags: Map<String, String> = emptyMap()
 
 /** Attach the anonymous stable device id to every event this process sends (crash grouping across
  *  sessions, "how many devices" triage). No-op until Sentry.init ran. */
@@ -26,4 +33,23 @@ fun installSentryEngineVersion(version: Int) {
  *  time a session's bundle passes its health check, so playback reports name the player that ran. */
 fun installSentryPlayerVersion(version: Int) {
     Sentry.configureScope { scope -> scope.setTag("player.version", version.toString()) }
+}
+
+/** Keeps the Sentry scope's tags equal to [remoteConfig]'s `sentryTags`, starting from the cached config. */
+fun bindSentryTags(scope: CoroutineScope, remoteConfig: RemoteConfig) {
+    scope.launch {
+        remoteConfig.sentryTags.collect { tags ->
+            val dropped = remoteTags.keys - tags.keys
+            remoteTags = tags
+            Sentry.configureScope { sentryScope ->
+                dropped.forEach(sentryScope::removeTag)
+                tags.forEach(sentryScope::setTag)
+            }
+        }
+    }
+}
+
+/** Puts the current remote tags on the scope; call right after Sentry.init, which consent can delay past their arrival. */
+fun installSentryRemoteTags() {
+    Sentry.configureScope { scope -> remoteTags.forEach(scope::setTag) }
 }

@@ -62,6 +62,7 @@ typedef struct {
 
 typedef struct {
     JSContext *ctx;
+    JSRuntime *rt;       /* the frees use this: a finalizer can run after ctx is gone */
     int expect;
 
     JSFrame *stack;
@@ -94,13 +95,13 @@ static int is_ws(uint8_t c) { return c == ' ' || c == '\t' || c == '\n' || c == 
 
 static void jstream_free(JStream *s) {
     if (s == NULL) return;
-    JSContext *ctx = s->ctx;
+    JSRuntime *rt = s->rt;
     for (int i = 0; i < s->sp; i++) {
-        JS_FreeValue(ctx, s->stack[i].container);
-        if (s->stack[i].pending_key != JS_ATOM_NULL) JS_FreeAtom(ctx, s->stack[i].pending_key);
+        JS_FreeValueRT(rt, s->stack[i].container);
+        if (s->stack[i].pending_key != JS_ATOM_NULL) JS_FreeAtomRT(rt, s->stack[i].pending_key);
     }
     free(s->stack);
-    if (s->have_result) JS_FreeValue(ctx, s->result);
+    if (s->have_result) JS_FreeValueRT(rt, s->result);
     dbuf_free(&s->tok);
     free(s);
 }
@@ -109,6 +110,7 @@ static JStream *jstream_alloc(JSContext *ctx, int expect) {
     JStream *s = (JStream *)calloc(1, sizeof(JStream));
     if (s == NULL) { JS_ThrowOutOfMemory(ctx); return NULL; }
     s->ctx = ctx;
+    s->rt = JS_GetRuntime(ctx);
     s->expect = expect;
     s->result = JS_UNDEFINED;
     s->lit_val = JS_UNDEFINED;
@@ -614,6 +616,7 @@ typedef struct {
 
 typedef struct {
     JSContext *ctx;
+    JSRuntime *rt;        /* the frees use this: a finalizer can run after ctx is gone */
     EncFrame *stack;
     int sp, scap;
     JSValue pending;      /* the next VALUE to emit */
@@ -637,15 +640,19 @@ int JS_GetFlatStringStorage(JSValueConst v, const void **pdata, uint32_t *plen);
 
 static void jenc_free(JEnc *e) {
     if (e == NULL) return;
-    JSContext *ctx = e->ctx;
+    JSRuntime *rt = e->rt;
     for (int i = 0; i < e->sp; i++) {
-        JS_FreeValue(ctx, e->stack[i].container);
-        if (e->stack[i].tab) JS_FreePropertyEnum(ctx, e->stack[i].tab, e->stack[i].tab_len);
+        EncFrame *f = &e->stack[i];
+        JS_FreeValueRT(rt, f->container);
+        if (f->tab) {
+            for (uint32_t k = 0; k < f->tab_len; k++) JS_FreeAtomRT(rt, f->tab[k].atom);
+            js_free_rt(rt, f->tab);
+        }
     }
     free(e->stack);
-    if (e->has_pending) JS_FreeValue(ctx, e->pending);
-    JS_FreeAtom(ctx, e->atom_tojson);
-    JS_FreeAtom(ctx, e->atom_length);
+    if (e->has_pending) JS_FreeValueRT(rt, e->pending);
+    JS_FreeAtomRT(rt, e->atom_tojson);
+    JS_FreeAtomRT(rt, e->atom_length);
     dbuf_free(&e->tok);
     free(e);
 }
@@ -954,6 +961,7 @@ static JSValue js_json_enc_new(JSContext *ctx, JSValueConst this_val, int argc, 
     JEnc *e = (JEnc *)calloc(1, sizeof(JEnc));
     if (e == NULL) return JS_ThrowOutOfMemory(ctx);
     e->ctx = ctx;
+    e->rt = JS_GetRuntime(ctx);
     e->pending = JS_DupValue(ctx, argc >= 1 ? argv[0] : JS_UNDEFINED);
     e->has_pending = 1;
     e->root_raw = 1;

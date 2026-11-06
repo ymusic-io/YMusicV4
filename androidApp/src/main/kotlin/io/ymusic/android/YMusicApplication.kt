@@ -79,11 +79,13 @@ import io.ymusic.telemetry.SentryLogger
 import io.ymusic.telemetry.applyYMusicTelemetry
 import io.ymusic.telemetry.bindCrashReporting
 import io.ymusic.telemetry.bindErrorPolicy
+import io.ymusic.telemetry.bindSentryTags
 import io.ymusic.telemetry.captureFeedbackReport
 import io.ymusic.telemetry.installErrorLogs
 import io.ymusic.telemetry.installSentryDeviceId
 import io.ymusic.telemetry.installSentryEngineVersion
 import io.ymusic.telemetry.installSentryPlayerVersion
+import io.ymusic.telemetry.installSentryRemoteTags
 import io.ymusic.telemetry.shareLogTraceWithSentry
 import io.ymusic.ui.APP_HTTP_TIMEOUT
 import io.ymusic.ui.AppGraph
@@ -323,6 +325,7 @@ class YMusicApplication : Application() {
                     it.isEnableUserInteractionBreadcrumbs = false
                 }
                 installSentryDeviceId(deviceId)
+                installSentryRemoteTags()
                 shareLogTraceWithSentry()
             }
         }
@@ -363,6 +366,7 @@ class YMusicApplication : Application() {
         ).also { it.checkUpdate() } // app open is itself a hotpoint
         installErrorLogs(logStore, remoteConfig, BuildConfig.VERSION_CODE)
         bindErrorPolicy(appScope, remoteConfig, rootLogger.fork("error-policy"))
+        bindSentryTags(appScope, remoteConfig)
         appScope.launch {
             // The cap waits for the loaded config: the store trims nothing until it has one.
             remoteConfig.awaitLoaded()
@@ -406,6 +410,7 @@ class YMusicApplication : Application() {
             cacheStore = cacheStore,
             cookieJar = cookies,
             settings = settings,
+            remoteFeature = { remoteConfig.awaitLoaded().features.getByKey(it) },
             // Debug builds crash on an engine-thread stall (StrictMode-style); release only logs.
             strictStints = BuildConfig.DEBUG,
             // Every Sentry event and service call names the engine-js bundle that was live (start + each swap).
@@ -589,6 +594,7 @@ class YMusicApplication : Application() {
             logger = rootLogger,
             // Per-request media-path logging — debug builds only, it narrates the hot path.
             verbose = BuildConfig.DEBUG,
+            cacheEnabled = { shared.remoteConfig.config.value.features.playerCacheEnabled },
         )
 
         var ytEngine: io.ymusic.player.YtEngine? = null
@@ -604,6 +610,7 @@ class YMusicApplication : Application() {
                         cacheStore = shared.cacheStore,
                         cookieJar = shared.cookies,
                         settings = shared.settings,
+                        remoteFeature = { shared.remoteConfig.awaitLoaded().features.getByKey(it) },
                         videoSurface = MseVideoSurface(),
                         main = shared.engines,
                         mediaProxy = mediaProxy,

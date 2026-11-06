@@ -642,4 +642,9 @@
     <string name="download_quality_medium">متوسط</string>
     <string name="download_quality_best">بهترین</string>
     <string name="download_kbps">%1$d kbps</string>
+
+    <!-- Windows refused a native library (desktop) -->
+    <string name="native_blocked">ویندوز بخشی از YMusic را مسدود کرده است.</string>
+    <string name="media_engine_unavailable">موسیقی و ویدیوها اینجا پخش نمی‌شوند، اما همچنان می‌توانید مرور و جستجو کنید.</string>
+    <string name="native_blocked_help">در رایانهٔ محل کار یا مدرسه، از سرپرست سیستم بخواهید YMusic را مجاز کند. در رایانهٔ شخصی خود، Smart App Control را در Windows Security بررسی کنید.</string>
 </resources>

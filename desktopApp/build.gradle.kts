@@ -30,7 +30,7 @@ compose.resources {
 val desktopVersion = appVersionName()
 // BUMP ON EVERY RELEASE. The update check compares this and nothing else — desktopVersion is a
 // display string. Every platform shares one versionCode (androidApp, iosApp's CFBundleVersion): bump them together.
-val desktopVersionCode = 21
+val desktopVersionCode = 22
 version = desktopVersion
 
 /** The first candidate JDK that carries jpackage — the marker for "full JDK, not a JBR/JRE". */
@@ -141,7 +141,7 @@ val stagePackedFfmpeg by tasks.registering(Copy::class) {
 }
 
 // jpackage copies app resources without their mode bits, so the bundled CLI arrives unexecutable and
-// the app falls back to whatever ffmpeg is on PATH. Installers are made from this image.
+// the app falls back to whatever ffmpeg is on PATH.
 tasks.matching { it.name == "createDistributable" || it.name == "createReleaseDistributable" }.configureEach {
     val imageDir = layout.buildDirectory.dir("compose/binaries")
     doLast {
@@ -150,6 +150,32 @@ tasks.matching { it.name == "createDistributable" || it.name == "createReleaseDi
             .forEach { check(it.setExecutable(true, false)) { "could not mark $it executable" } }
     }
 }
+
+// The .deb task never runs the image task above, so the CLI's mode is restored inside the package.
+tasks.withType<AbstractJPackageTask>()
+    .matching { it.name == "packageDeb" || it.name == "packageReleaseDeb" }
+    .configureEach {
+        val debDir = destinationDir
+        val unpackDir = layout.buildDirectory.dir("tmp/$name/unpacked")
+        doLast {
+            fun dpkgDeb(vararg args: String) {
+                val process = ProcessBuilder("dpkg-deb", *args).redirectErrorStream(true).start()
+                val output = process.inputStream.readBytes().decodeToString()
+                check(process.waitFor() == 0) { "dpkg-deb ${args.joinToString(" ")} failed: $output" }
+            }
+            val deb = debDir.get().asFile.listFiles { file -> file.extension == "deb" }.orEmpty().single()
+            val root = unpackDir.get().asFile.apply {
+                deleteRecursively()
+                mkdirs()
+            }
+            dpkgDeb("--raw-extract", deb.path, root.path)
+            val cli = root.walkTopDown()
+                .single { it.isFile && it.name == ffmpegPackedName && it.parentFile.name == "resources" }
+            check(cli.setExecutable(true, false)) { "could not mark $cli executable" }
+            dpkgDeb("--root-owner-group", "--build", root.path, deb.path)
+            root.deleteRecursively()
+        }
+    }
 
 /**
  * Point the MSE JNI at the libav sonames staged beside it (it was linked against the full-version

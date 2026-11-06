@@ -157,6 +157,7 @@ import io.ymusic.settings.flow
 import io.ymusic.settings.put
 import io.ymusic.ui.resources.Res
 import io.ymusic.ui.resources.a11y_behind_live
+import io.ymusic.ui.resources.a11y_downloaded
 import io.ymusic.ui.resources.a11y_now_playing
 import io.ymusic.ui.resources.a11y_playback_position
 import io.ymusic.ui.resources.a11y_x_of_y
@@ -192,6 +193,7 @@ import io.ymusic.ui.resources.error_captcha
 import io.ymusic.ui.resources.error_network
 import io.ymusic.ui.resources.error_supervised_account
 import io.ymusic.ui.resources.ic_sponsor_block
+import io.ymusic.ui.resources.media_engine_unavailable
 import io.ymusic.ui.resources.menu_add_to_playlist
 import io.ymusic.ui.resources.menu_details_comments
 import io.ymusic.ui.resources.menu_go_to_album
@@ -257,6 +259,13 @@ private fun inlineControlsOffscreen(listState: LazyListState): Boolean {
     if (listState.firstVisibleItemIndex >= 1) return true
     val item0 = visible.find { it.index == 0 }
     return item0 == null || item0.offset + item0.size <= 0
+}
+
+/** True when list item 0 is taller than the list itself: in a window this short the inline transport never shows whole. */
+private fun inlineControlsClipped(listState: LazyListState): Boolean {
+    val layoutInfo = listState.layoutInfo
+    val item0 = layoutInfo.visibleItemsInfo.find { it.index == 0 } ?: return false
+    return item0.size > layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset
 }
 
 /**
@@ -379,11 +388,11 @@ fun MiniPlayer(
 }
 
 /**
- * Full Now Playing (design/final/now-playing.html). Layout follows the window's orientation:
+ * Full Now Playing (design/final/now-playing.html). Layout follows the window's shape:
  * portrait/tablet = the top-bar · video · meta · seek · transport · queue column; landscape
- * (width > height) = the split — video fills the left with the controls overlaid on it, and a fixed
- * right pane carries the top bar and the queue. Full screen overrides both: video only, edge to
- * edge, with the auto-hiding overlay.
+ * (width > height, from [SideBySideMinWidth]) = the split — video fills the left with the controls
+ * overlaid on it, and a fixed right pane carries the top bar and the queue. Full screen overrides
+ * both: video only, edge to edge, with the auto-hiding overlay.
  */
 private val LocalOpenChannel = staticCompositionLocalOf<(url: String, title: String) -> Unit> { { _, _ -> } }
 
@@ -427,10 +436,17 @@ fun NowPlayingScreen(
     }
     val shell = @Composable {
         BoxWithConstraints {
+            val wide = maxWidth > maxHeight
             when {
                 fullscreen -> FullscreenVideo(graph, coordinator, onExit = { fullscreen = false })
-                maxWidth > maxHeight -> LandscapeNowPlaying(graph, coordinator, onClose, onFullscreen = { fullscreen = true })
-                else -> PortraitNowPlaying(graph, coordinator, onClose, onFullscreen = { fullscreen = true })
+                wide && maxWidth >= SideBySideMinWidth -> LandscapeNowPlaying(graph, coordinator, onClose, onFullscreen = { fullscreen = true })
+                else -> PortraitNowPlaying(
+                    graph,
+                    coordinator,
+                    onClose,
+                    onFullscreen = { fullscreen = true },
+                    videoHeight = if (wide) minOf(maxWidth * 9f / 16f, maxHeight * WideStackedVideoShare) else null,
+                )
             }
         }
     }
@@ -533,6 +549,7 @@ private fun PortraitNowPlaying(
     coordinator: PlaybackCoordinator,
     onClose: () -> Unit,
     onFullscreen: () -> Unit,
+    videoHeight: Dp? = null,
 ) {
     val player = coordinator.player
     val status by player.status.collectAsState()
@@ -550,7 +567,7 @@ private fun PortraitNowPlaying(
     // Do not onDispose armed=false here: Compose disposes Portrait after Landscape
     // has set armed=true, which left clicks ignored (poke requires armed).
     LaunchedEffect(listState) {
-        snapshotFlow { inlineControlsOffscreen(listState) }.collect { off ->
+        snapshotFlow { inlineControlsOffscreen(listState) || inlineControlsClipped(listState) }.collect { off ->
             val becameArmed = off && !VideoOverlayNative.armed
             VideoOverlayNative.armed = off
             // Only when item 0 first leaves the viewport — not on later queue scrolls.
@@ -573,7 +590,8 @@ private fun PortraitNowPlaying(
         // Video surface — the shell's shared container; each engine shows/hides its own picture.
         // Black: HW overlay letterbox is transparent, so this fill is the bars.
         Box(
-            Modifier.fillMaxWidth().aspectRatio(16f / 9f)
+            Modifier.fillMaxWidth()
+                .then(if (videoHeight != null) Modifier.height(videoHeight) else Modifier.aspectRatio(16f / 9f))
                 .then(if (desktopLayoutHole) Modifier else Modifier.background(Color.Black)),
         ) {
             PlayerSurfaceHole(
@@ -806,8 +824,17 @@ private fun rememberLocateCurrent(listState: LazyListState, currentIndex: Int, i
     }
 }
 
+private val QueuePaneMinWidth = 320.dp
+
 /** The landscape queue pane: 30% of the window, kept between 320dp (phones) and 480dp (desktops). */
-private fun queuePaneWidth(windowWidth: Dp): Dp = (windowWidth * 0.3f).coerceIn(320.dp, 480.dp)
+private fun queuePaneWidth(windowWidth: Dp): Dp = (windowWidth * 0.3f).coerceIn(QueuePaneMinWidth, 480.dp)
+
+/** Below this the queue pane would out-size the video, as on a phone's split-screen half, so video and
+ *  queue stack. A full-screen 360×640dp phone in landscape still fits side by side. */
+private val SideBySideMinWidth = QueuePaneMinWidth * 2
+
+/** Most of a wider-than-tall window's height the stacked video may take, so the list below stays usable. */
+private const val WideStackedVideoShare = 0.6f
 
 /** Pane width from which queue rows take the larger thumb and text. */
 private val QueueLargeRowsFrom = 380.dp
@@ -865,7 +892,7 @@ private fun BoxScope.BufferingIndicator(
     )
 }
 
-/** The controls drawn over the video: landscape always, portrait once the inline controls scroll away. */
+/** The controls drawn over the video: landscape always, portrait once the inline controls scroll away or can't fit. */
 @Composable
 private fun BoxScope.VideoOverlayControls(
     coordinator: PlaybackCoordinator,
@@ -1133,6 +1160,7 @@ internal fun playerErrorText(error: io.ymusic.player.PlayerError): UiText = when
     error.code == SUPERVISED_ACCOUNT_CODE -> UiText.Resource(Res.string.error_supervised_account)
     error.code == io.ymusic.player.PlayerError.FILE_MISSING -> UiText.Resource(Res.string.playback_file_missing)
     error.code == io.ymusic.player.PlayerError.FOLDER_ACCESS_LOST -> UiText.Resource(Res.string.playback_folder_access_lost)
+    error.code == io.ymusic.player.PlayerError.PLAYBACK_UNAVAILABLE -> UiText.Resource(Res.string.media_engine_unavailable)
     error.code == io.ymusic.player.PlayerError.VIDEO_DECODER_FAILED -> UiText.Resource(Res.string.playback_video_unsupported)
     error.code == io.ymusic.player.PlayerError.PO_TOKEN_REJECTED -> UiText.Resource(Res.string.playback_botguard_failed)
     else -> error.userMessage?.let(UiText::Plain) ?: when (error.playability()) {
@@ -1931,11 +1959,14 @@ private fun QueueRowContent(
     var menuOpen by remember { mutableStateOf(false) }
     val sub = listOfNotNull(item.displayDuration, item.displaySubtitle).joinToString(" · ")
     val playLabel = stringResource(Res.string.cd_play)
+    val videoId = (item as? PlayableItem.YtMedia)?.videoId
+    val offline = videoId != null && videoId in LocalAvailableOffline.current
     val label = listOfNotNull(
         if (current) stringResource(Res.string.a11y_now_playing) else null,
         item.displayTitle,
         item.displayDuration?.let { spokenLength(item.durationMs, it) },
         item.displaySubtitle,
+        if (offline) stringResource(Res.string.a11y_downloaded) else null,
     ).joinToString(", ")
     Row(
         Modifier
@@ -1980,6 +2011,7 @@ private fun QueueRowContent(
             ArtImage(item.displayThumbnailUrl, RoundedCornerShape(6.dp)) {
                 ThumbPlaceholder(Icons.Outlined.Image, 18.dp)
             }
+            if (offline) AvailableOfflineMark(Modifier.align(Alignment.TopStart))
         }
         Column(Modifier.weight(1f).a11ySilent()) {
             Text(

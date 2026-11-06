@@ -50,7 +50,6 @@ import io.ymusic.ui.resources.unknown_album
 import io.ymusic.ui.resources.unknown_artist
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.onStart
-import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -219,7 +218,7 @@ private fun LazyGridScope.groupSection(
             Column(Modifier.weight(1f)) {
                 Text(name, style = ListTitleStyle, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text(
-                    pluralStringResource(Res.plurals.n_songs, members.size, members.size),
+                    pluralText(Res.plurals.n_songs, members.size, members.size),
                     style = ListSubStyle,
                     modifier = Modifier.padding(top = 4.dp),
                 )

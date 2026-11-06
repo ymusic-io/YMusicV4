@@ -74,6 +74,7 @@ add_executable(pipe_stress EXCLUDE_FROM_ALL
   quickjs_pipe.c
   quickjs_hostfn.c
   quickjs_web.c
+  quickjs_mse.c
   ${QJS_DIR}/quickjs.c
   ${QJS_DIR}/cutils.c
   ${QJS_DIR}/libregexp.c

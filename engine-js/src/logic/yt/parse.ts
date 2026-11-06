@@ -383,7 +383,6 @@ function channelItem(r: Record<string, unknown>): WireFeedItem | null {
   const thumbs = thumbsOf(r["thumbnail"]);
   if (thumbs !== undefined) item["thumbs"] = thumbs;
   setLines(item, [subscribers]);
-  item["ctaText"] = "Subscribe";
   return item;
 }
 
@@ -529,7 +528,6 @@ function lockupItem(lv: Record<string, unknown>): WireFeedItem | null {
     return true;
   });
   setLines(item, [byline, line2]);
-  if (kind === "channel") item["ctaText"] = "Subscribe";
   return item;
 }
 
@@ -725,7 +723,6 @@ function universalCardSections(card: Record<string, unknown>): WireSection[] {
     const style = asString(get(header, "titleBadge", "metadataBadgeRenderer", "style")) ?? "";
     if (style.indexOf("VERIFIED_ARTIST") >= 0) artist["ownerBadge"] = "artist";
     else if (style.indexOf("VERIFIED") >= 0) artist["ownerBadge"] = "verified";
-    artist["ctaText"] = "Subscribe";
     lead.push(artist);
   }
   // The hero call-to-action starts the artist radio — surface it as the Mix playlist it plays

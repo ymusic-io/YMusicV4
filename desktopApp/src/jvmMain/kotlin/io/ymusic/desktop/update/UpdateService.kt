@@ -25,6 +25,8 @@ import kotlinx.coroutines.withContext
 import okio.FileSystem
 import okio.Path.Companion.toOkioPath
 import org.jetbrains.compose.resources.StringResource
+import projectcommon.error.NETWORK_CODE
+import projectcommon.error.errorCode
 import java.io.File
 
 /** What the UI shows. A verified download survives a restart, so [Ready] can be the first state. */
@@ -231,6 +233,9 @@ class UpdateService internal constructor(
                 } else if (error is DownloadMismatchException) {
                     log?.captureError(error, "update ${update.versionCode} failed verification")
                     set(release, Step.Failed("E91002"))
+                } else if (error.errorCode() == NETWORK_CODE) {
+                    log?.log(Logger.Level.WARN, "downloading update ${update.versionCode} hit a network failure", error)
+                    set(release, Step.Failed(NETWORK_CODE))
                 } else {
                     log?.captureError(error, "downloading update ${update.versionCode} failed")
                     set(release, Step.Failed("E91003"))

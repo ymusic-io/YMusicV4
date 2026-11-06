@@ -43,15 +43,16 @@ int mse_host_ended(MseHost *h);
 void mse_host_end_of_stream(MseHost *h);
 int mse_host_video_size(MseHost *h, int *w, int *ht);
 int mse_host_frames(MseHost *h);
-/* 1 and the reason in out when video cannot be decoded; the player fails playback. */
+/* 1 and the reason in out when video cannot be decoded; the player fails playback. Never blocks:
+   0 while the host is busy, and the failure stays for the next call. */
 int mse_host_video_failure(MseHost *h, char *out, int cap);
 int64_t mse_host_samples_played(MseHost *h);
 /* HTMLVideoElement.getVideoPlaybackQuality since the last load: pictures shown + dropped, and those
    dropped for missing their time. */
 void mse_host_video_quality(MseHost *h, int *total, int *dropped);
-/* The dropped half of mse_host_video_quality. */
+/* The dropped half of mse_host_video_quality. Never blocks: a busy host repeats the last count. */
 int mse_host_dropped_frames(MseHost *h);
-/* "hw vp9", "sw av1"; "" while no video decoder is open. */
+/* "hw vp9", "sw av1"; "" while no video decoder is open or the host is busy. Never blocks. */
 void mse_host_video_decoder(MseHost *h, char *out, int cap);
 #ifdef __ANDROID__
 /* Android plays the PCM ring through a Kotlin AudioSink thread (MseAudioOutput) driving these. */

@@ -756,4 +756,9 @@
     <string name="download_quality_medium">Trung bình</string>
     <string name="download_quality_best">Tốt nhất</string>
     <string name="download_kbps">%1$d kbps</string>
+
+    <!-- Windows refused a native library (desktop) -->
+    <string name="native_blocked">Windows đã chặn một phần của YMusic.</string>
+    <string name="media_engine_unavailable">Không thể phát nhạc và video tại đây, nhưng bạn vẫn có thể duyệt và tìm kiếm.</string>
+    <string name="native_blocked_help">Trên máy tính cơ quan hoặc trường học, hãy nhờ quản trị viên cho phép YMusic. Trên máy tính của bạn, hãy kiểm tra Smart App Control trong Bảo mật Windows.</string>
 </resources>

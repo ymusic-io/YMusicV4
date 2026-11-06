@@ -642,4 +642,9 @@
     <string name="download_quality_medium">Orta</string>
     <string name="download_quality_best">En iyi</string>
     <string name="download_kbps">%1$d kbps</string>
+
+    <!-- Windows refused a native library (desktop) -->
+    <string name="native_blocked">Windows, YMusic'in bir bölümünü engelledi.</string>
+    <string name="media_engine_unavailable">Müzik ve videolar burada oynatılamıyor ancak göz atmaya ve aramaya devam edebilirsiniz.</string>
+    <string name="native_blocked_help">İş veya okul bilgisayarında yöneticinizden YMusic'e izin vermesini isteyin. Kendi bilgisayarınızda Windows Güvenliği'ndeki Akıllı Uygulama Denetimi'ni kontrol edin.</string>
 </resources>

@@ -16,7 +16,6 @@ import io.ymusic.ui.resources.playlist_skip_downloaded
 import io.ymusic.ui.resources.redownload_confirm
 import io.ymusic.ui.resources.redownload_message
 import io.ymusic.ui.resources.redownload_title
-import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
 /** Asks before downloading a video the Library already holds; a confirmed re-download is saved as a
@@ -31,7 +30,7 @@ internal fun RedownloadDialog(title: String, onConfirm: () -> Unit, onDismiss: (
 /** The playlist form: [count] of the picked videos are already downloaded — skip them or take all. */
 @Composable
 internal fun PlaylistRedownloadDialog(count: Int, onSkip: () -> Unit, onAll: () -> Unit, onDismiss: () -> Unit) {
-    ConfirmDialog(pluralStringResource(Res.plurals.playlist_redownload_message, count, count), onDismiss) {
+    ConfirmDialog(pluralText(Res.plurals.playlist_redownload_message, count, count), onDismiss) {
         TextButton(onClick = onAll) { Text(stringResource(Res.string.playlist_download_all), color = DesignColors.InkSoft) }
         TextButton(onClick = onSkip) { Text(stringResource(Res.string.playlist_skip_downloaded), color = DesignColors.Accent) }
     }

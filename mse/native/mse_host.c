@@ -71,7 +71,8 @@ void mse_host_set_js_event(void (*fn)(const char *name))
 
 struct MseHost {
     pthread_mutex_t mu;
-    /* Guards the av pointer for callers off the JS thread (reset frees and replaces it), and vp. */
+    /* Guards the av pointer for callers off the JS thread (reset frees and replaces it), and vp.
+       Reset holds it across MediaCodec teardown, which can take seconds: UI readouts only try-lock it. */
     pthread_mutex_t av_mu;
     pthread_cond_t cv;
     pthread_t dec;
@@ -102,6 +103,8 @@ struct MseHost {
     int vh;
     /* Atomic, not under mu: the UI thread polls it and must never wait on the decode lock. */
     atomic_int frames;
+    /* The last mse_host_dropped_frames answer, repeated while av_mu is busy. */
+    atomic_int dropped_seen;
     double vpts;
     int rate;
     int ch;
@@ -1654,6 +1657,7 @@ static void seek_common(MseHost *h, double seconds)
 
 void mse_host_reset(MseHost *h)
 {
+    MseAv *old_av;
     if (!h)
         return;
 #ifdef MSE_DAC
@@ -1685,7 +1689,7 @@ void mse_host_reset(MseHost *h)
 #endif
     h->vpts = -1;
     pthread_mutex_lock(&h->av_mu);
-    mse_av_destroy(h->av);
+    old_av = h->av;
     h->av = mse_av_create();
     /* The new MseAv keeps the window (Android: MediaCodec opens after load) and the presenter. */
 #ifdef __ANDROID__
@@ -1695,6 +1699,9 @@ void mse_host_reset(MseHost *h)
     pthread_mutex_unlock(&h->av_mu);
     pthread_cond_broadcast(&h->cv);
     pthread_mutex_unlock(&h->mu);
+    /* Outside the locks: MediaCodec can take seconds to stop, and the UI thread's surface calls wait on them.
+       Still on this thread, so the next load can't race the old codec for the surface. */
+    mse_av_destroy(old_av);
 }
 
 int mse_host_paused(MseHost *h)
@@ -1862,7 +1869,8 @@ int mse_host_video_failure(MseHost *h, char *out, int cap)
     int failed;
     if (!h)
         return 0;
-    pthread_mutex_lock(&h->av_mu);
+    if (pthread_mutex_trylock(&h->av_mu) != 0)
+        return 0;
     failed = mse_av_video_failure(h->av, out, cap);
     pthread_mutex_unlock(&h->av_mu);
     return failed;
@@ -1889,8 +1897,15 @@ void mse_host_video_quality(MseHost *h, int *total, int *dropped)
 
 int mse_host_dropped_frames(MseHost *h)
 {
-    int total, dropped;
-    mse_host_video_quality(h, &total, &dropped);
+    int shown, dropped;
+    if (!h)
+        return 0;
+    /* Callers sum the deltas, and a count going down reads as a new load: busy repeats, never 0. */
+    if (pthread_mutex_trylock(&h->av_mu) != 0)
+        return atomic_load_explicit(&h->dropped_seen, memory_order_relaxed);
+    mse_av_video_quality(h->av, &shown, &dropped);
+    pthread_mutex_unlock(&h->av_mu);
+    atomic_store_explicit(&h->dropped_seen, dropped, memory_order_relaxed);
     return dropped;
 }
 
@@ -1899,7 +1914,8 @@ void mse_host_video_decoder(MseHost *h, char *out, int cap)
     out[0] = 0;
     if (!h)
         return;
-    pthread_mutex_lock(&h->av_mu);
+    if (pthread_mutex_trylock(&h->av_mu) != 0)
+        return;
     mse_av_video_decoder(h->av, out, cap);
     pthread_mutex_unlock(&h->av_mu);
 }

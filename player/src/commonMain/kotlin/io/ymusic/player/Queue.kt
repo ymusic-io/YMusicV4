@@ -82,7 +82,7 @@ internal class QueueController(private val random: Random = Random.Default) {
     /** Indices into [QueueState.items] in the order they played; last element is the current item. */
     private val played = mutableListOf<Int>()
 
-    /** Indices queued by [addNext], played in order before any shuffle pick; a jump, move or remove clears it. */
+    /** Indices queued by [addNext], played in order before any shuffle pick; a jump, previous, move or remove clears it. */
     private val upNext = mutableListOf<Int>()
 
     val hasUpNext: Boolean get() = upNext.isNotEmpty()
@@ -156,6 +156,7 @@ internal class QueueController(private val random: Random = Random.Default) {
         if (items.isEmpty()) return null
         if (state.shuffle) {
             if (played.size < 2) return null
+            upNext.clear()
             played.removeAt(played.lastIndex)
             val target = played.last()
             state = state.copy(currentIndex = target)
@@ -166,6 +167,7 @@ internal class QueueController(private val random: Random = Random.Default) {
             state.loopMode == LoopMode.All -> items.lastIndex
             else -> return null
         }
+        upNext.clear()
         advanceTo(prev)
         return prev
     }

@@ -372,6 +372,23 @@ store failure RESETs with `E20061` (or preserves the store's own `CodedError`).
 
 ---
 
+## 3.5.1 Remote config features (`command = "remote-config/get"`) — *implemented in `:dynamic-engine`*
+
+Read-only and live: every call answers from the config the app holds now, so a value can change
+between two reads. One-shot.
+
+```
+remote-config/get  JS→K: {"key":"…"}
+                   K→JS: {"value":…} then EOF; {} when the key is absent
+```
+
+It serves any key of the config's `features`, whether or not the app build declares a property for
+it. `RemoteConfig.get(key, defaultValue)` returns the default when the key is absent or null, or
+the read fails, including on hosts older than this command, which refuse the open. A failed read RESETs
+with `E20062`.
+
+---
+
 ## 3.6 MSE player — native C host, not a pipe protocol
 
 The bundle's JS `MediaSource` / `SourceBuffer` / `HTMLMediaElement` stubs (engine-js `protocol/mse.ts`)
@@ -619,6 +636,7 @@ whatever module wires the host handlers (the engine host, not the binding).
 | Cookies    | `cookie/get`, `cookie/set` | one-shot, EOF-framed | on `client.cookieJar`; get → name→value object, set → `Set-Cookie[]`, no body; `E20040`/`E20041` |
 | Cache      | `cache/get\|put\|delete\|list` | one-shot, **streamed** values | **scoped** keyed blob store; host-stamped size/updatedAt/lastUsed + custom `meta`; JS owns eviction (scopedCache + evictors); `E20050`/`E20051` |
 | Settings   | `settings/get`, `settings/set` | one-shot, EOF-framed | app's shared typed string/boolean/int store; `E20060`/`E20061` |
+| Remote config | `remote-config/get` | one-shot, EOF-framed | live read-only `features` values; `E20062` |
 | File I/O   | `file`   | **session**, length-framed     | open(path, r\|w\|a) — read-only *or* write-only → read/seek/size *or* write/flush → close; chunks stream |
 | FS meta    | `fs`     | one-shot, EOF-framed           | list/stat/delete/mkdir/rename/exists; list streams JSONL |
 | SQLite     | `sqlite` | **session**, length-framed     | open(name,version,migrations) → query/exec/begin/commit/close; rows stream JSONL |

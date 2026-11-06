@@ -22,6 +22,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.serialization.json.JsonElement
 import kotlin.concurrent.atomics.AtomicBoolean
 import kotlin.concurrent.atomics.AtomicInt
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
@@ -57,6 +58,8 @@ class DynamicEngineManager(
     /** The app-owned cookie store the cookie protocol serves (see [DynamicEngine.create]). */
     private val cookieJar: CookieJar = client.cookieJar,
     private val settings: SettingsStore? = null,
+    /** `remote-config/get`'s answers; null = every read gets its default. */
+    private val remoteFeature: (suspend (String) -> JsonElement?)? = null,
     /** Debug builds: a task that held the engine thread past [BOOT_STINT_MS] THROWS on it
      *  (StrictMode's penaltyDeath — unmissable in development), and slow-stint logs carry a live
      *  stack, minus any time an OS freezer stopped the whole process. Otherwise the watchdog only
@@ -165,7 +168,7 @@ class DynamicEngineManager(
         val thread = EngineThread()
         try {
             return withContext(thread.dispatcher) {
-                val engine = DynamicEngine.create(client, appVersion, thread.dispatcher, logger, js, cacheStore, cookieJar, settings)
+                val engine = DynamicEngine.create(client, appVersion, thread.dispatcher, logger, js, cacheStore, cookieJar, settings, remoteFeature)
                 try {
                     engine.healthCheck()
                 } catch (t: Throwable) {

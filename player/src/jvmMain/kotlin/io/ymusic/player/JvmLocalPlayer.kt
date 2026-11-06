@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import java.io.File
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
@@ -197,12 +198,12 @@ internal class JvmLocalPlayer(
             FileAvNative.setBass(handle, config.bassBoostDb)
             FileAvNative.setVirtualizer(handle, config.virtualizer)
             FileAvNative.setPreamp(handle, config.preampDb)
-            if (FileAvNative.open(handle, path) != 0) {
-                val err = FileAvNative.lastError(handle).ifBlank { "open failed" }
-                fail(err)
+            val opened = FileAvNative.open(handle, path) == 0
+            if (gen != loadGen.get()) return@dispatch
+            if (!opened) {
+                failOpen(path)
                 return@dispatch
             }
-            if (gen != loadGen.get()) return@dispatch
             loadedPath = path
             streams = FileAvNative.streams(handle).mapNotNull(::parseAvStream)
             sidecarTracks = LocalSidecarCaptions.find(path)
@@ -505,7 +506,7 @@ internal class JvmLocalPlayer(
         if (handle == 0L) return
         val pos = FileAvNative.position(handle)
         if (FileAvNative.open(handle, file) != 0) {
-            fail(FileAvNative.lastError(handle).ifBlank { "open failed" })
+            failOpen(file)
             return
         }
         loadedPath = file
@@ -655,12 +656,24 @@ internal class JvmLocalPlayer(
         if (lines != _captionLines.value) _captionLines.value = lines
     }
 
-    private fun fail(message: String) {
+    private fun fail(message: String) = fail(PlayerError("E60021", message))
+
+    private fun fail(error: PlayerError) {
         pumping = false
         onApp {
-            _status.update { it.copy(state = PlaybackState.Error(PlayerError("E60021", message))) }
+            _status.update { it.copy(state = PlaybackState.Error(error)) }
         }
         dispatch { if (handle != 0L) FileAvNative.pause(handle) }
+    }
+
+    /** ffmpeg's error is the OS's strerror, in the system language: only the file itself tells it is gone. */
+    private fun failOpen(path: String) {
+        val detail = FileAvNative.lastError(handle).ifBlank { "open failed" }
+        if (!path.contains("://") && !File(path).exists()) {
+            fail(PlayerError(PlayerError.FILE_MISSING, detail, canRetry = false))
+        } else {
+            fail(detail)
+        }
     }
 }
 

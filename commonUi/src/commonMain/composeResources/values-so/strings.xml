@@ -642,4 +642,9 @@
     <string name="download_quality_medium">Dhexdhexaad</string>
     <string name="download_quality_best">Ugu fiican</string>
     <string name="download_kbps">%1$d kbps</string>
+
+    <!-- Windows refused a native library (desktop) -->
+    <string name="native_blocked">Windows wuxuu xannibay qayb ka mid ah YMusic.</string>
+    <string name="media_engine_unavailable">Muusikada iyo fiidiyowyada halkan lagama shidi karo, laakiin weli waad baadhi kartaa oo raadin kartaa.</string>
+    <string name="native_blocked_help">Kombiyuutarka shaqada ama dugsiga, ka codso maamulahaaga inuu oggolaado YMusic. Kombiyuutarkaaga, hubi Smart App Control oo ku jira Windows Security.</string>
 </resources>

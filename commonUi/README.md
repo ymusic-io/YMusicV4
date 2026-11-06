@@ -8,6 +8,10 @@ The shared Compose Multiplatform app UI (jvm + android; iOS later).
   (live suggestions, paged results) over `:dynamic-engine`'s `yt` task methods; LibraryScreen over `:media-store`
   flows; the persistent mini-player + full Now Playing (transport, sleep timer, capability selectors, queue).
 
+- **Now Playing layouts** — a tall window stacks video, controls and queue; a wide one puts the queue in a side
+  pane, but only from `SideBySideMinWidth`, below which the pane would out-size the video and the layout stacks
+  (video height capped so the list stays usable).
+
 - **SponsorBlock seam** — `ymusic.ui.sponsorblock`: `SponsorBlockApi` + `MockSponsorBlockApi` +
   SQLite cache/whitelist (`SponsorBlockStore`) + `SponsorBlockService` + `SponsorBlockCoordinator`
   (queue videoId → `Player.setSkipSegments`). The mock returns a 0–10s intro and a 60–75s mid-roll;
@@ -59,6 +63,8 @@ The shared Compose Multiplatform app UI (jvm + android; iOS later).
   exempt).
   - The `AppSettings.uiLanguage` setting drives `applyUiLocale` (expect/actual; JVM/Android set the default locale,
     iOS = next launch).
+  - Plurals go through `pluralText` / `loadPluralText`, never compose-resources' own lookups: those throw while the
+    platform locale's language has no CLDR plural rules, and Android can restore such a device locale over ours.
   - `App` rebuilds under `key(tag)` with `LocalLayoutDirection` derived from the effective locale (RTL mirrors the
     whole UI).
   - `SettingsScreen` hosts the picker.
