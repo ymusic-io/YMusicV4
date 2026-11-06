@@ -594,6 +594,7 @@ class YMusicApplication : Application() {
             logger = rootLogger,
             // Per-request media-path logging — debug builds only, it narrates the hot path.
             verbose = BuildConfig.DEBUG,
+            cacheEnabled = { shared.remoteConfig.config.value.features.playerCacheEnabled },
         )
 
         var ytEngine: io.ymusic.player.YtEngine? = null

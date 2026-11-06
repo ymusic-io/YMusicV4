@@ -278,6 +278,7 @@ private suspend fun buildIosGraph(container: UIView): AppGraph {
             defaultRedirectOptions = RedirectOptions(followRedirects = true, followSslRedirects = true)
         },
         userAgent = MSE_CHROME_UA,
+        cacheEnabled = { remoteConfig.config.value.features.playerCacheEnabled },
     )
 
     val mseHole = IosMseHole()

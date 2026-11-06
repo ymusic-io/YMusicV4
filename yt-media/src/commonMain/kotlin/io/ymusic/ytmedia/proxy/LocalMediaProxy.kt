@@ -70,6 +70,8 @@ class LocalMediaProxy(
      *  (the blank-video hack relies on the native format-switch path). Set false to fill-only (always
      *  forward SABR; the tee still caches) until the hit builder replays those control parts. */
     var serveSabrHits: Boolean = true,
+    /** Asked per request; false sends the request straight to the network, neither reading nor filling the cache. */
+    private val cacheEnabled: () -> Boolean = { true },
 ) {
     private val log = logger?.fork("mediaproxy")
 
@@ -118,7 +120,9 @@ class LocalMediaProxy(
         body: Buffer?,
         extraHeaders: List<Pair<String, String>> = emptyList(),
     ): ProxyResponse {
-        if (bypassCache.value || cache.blobs.maxSize <= 0) return forward(url, method, body, extraHeaders, fill = false)
+        if (!cacheEnabled() || bypassCache.value || cache.blobs.maxSize <= 0) {
+            return forward(url, method, body, extraHeaders, fill = false)
+        }
         val sabrReq = body?.let { parseSabrRequest(url, method, it.peek(), it.size) }
             ?.withAdaptiveFormatsHeader(extraHeaders)
         // A cache-serve fault must never fail the request — fall through to the network — but it's a real

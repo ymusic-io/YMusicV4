@@ -992,6 +992,7 @@ private suspend fun buildGraph(settings: AppStoreSettings, session: CookieSessio
             verbose = System.getProperty("io.ymusic.player.verbose")?.toBoolean() ?: DEBUG_BUILD,
             // -Dymusic.player.serveSabrHits=false → fill-only, to test whether synthesized hits wedge switches.
             serveSabrHits = System.getProperty("io.ymusic.player.serveSabrHits", "true").toBoolean(),
+            cacheEnabled = { remoteConfig.config.value.features.playerCacheEnabled },
         )
     }
 

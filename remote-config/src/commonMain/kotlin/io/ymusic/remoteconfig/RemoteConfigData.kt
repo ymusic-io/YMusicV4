@@ -171,6 +171,9 @@ class Features(private val flags: JsonObject = EMPTY_JSON) {
         get() = flags.arrayOrNull("errorFilters").orEmpty()
             .mapNotNull { (it as? JsonPrimitive)?.takeIf { primitive -> primitive.isString }?.content }
 
+    /** Whether playback reads and fills the player cache; downloads still reuse what it holds. */
+    val playerCacheEnabled: Boolean get() = flags.boolOrNull("playerCacheEnabled") ?: true
+
     fun getByKey(key: String): JsonElement? = flags[key]
 
     override fun equals(other: Any?): Boolean = other is Features && flags == other.flags
