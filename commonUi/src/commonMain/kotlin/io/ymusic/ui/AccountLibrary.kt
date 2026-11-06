@@ -112,7 +112,7 @@ private fun AccountLibraryHeader(
             add(NavTarget(Icons.Outlined.Subscriptions, stringResource(Res.string.account_subscriptions), "/feed/subscriptions", null))
         }
         BoxWithConstraints {
-            if (maxWidth >= 600.dp) {
+            if (railStableWidth(maxWidth) >= 600.dp) {
                 val chipScroll = rememberScrollState()
                 Row(
                     Modifier

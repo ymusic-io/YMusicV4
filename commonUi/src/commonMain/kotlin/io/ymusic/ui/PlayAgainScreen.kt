@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
@@ -118,7 +117,7 @@ fun PlayAgainScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
         list == null -> CenteredBox { CircularProgressIndicator() }
         list.isEmpty() -> EmptyState(stringResource(Res.string.play_again_empty), onReload = { reloads++ })
         else -> LazyVerticalGrid(
-            columns = GridCells.Adaptive(minSize = PlayAgainCardMinWidth),
+            columns = railStableAdaptive(PlayAgainCardMinWidth),
             modifier = Modifier.fillMaxSize(),
             state = gridState,
             contentPadding = PaddingValues(
