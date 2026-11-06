@@ -63,7 +63,6 @@ import kmphttp.KmpHttpClient
 import kmphttp.RedirectOptions
 import kmphttp.create
 import kotlinx.cinterop.ExperimentalForeignApi
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -168,39 +167,6 @@ private suspend fun buildIosGraph(container: UIView): AppGraph {
     )
     val backgroundScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val appVersionCode = (NSBundle.mainBundle.objectForInfoDictionaryKey("CFBundleVersion") as? String)?.toIntOrNull() ?: -1
-    // The engine starts before the config service's client exists.
-    val pendingRemoteConfig = CompletableDeferred<RemoteConfig>()
-    val remoteFeature: suspend (String) -> JsonElement? = { key ->
-        pendingRemoteConfig.await().awaitLoaded().features.getByKey(key)
-    }
-    val engines = DynamicEngineManager(
-        http.engine,
-        appVersion = appVersionCode,
-        jsSource = embeddedEngineJsSource(),
-        logger = rootLogger,
-        cookieJar = cookies,
-        settings = settings,
-        remoteFeature = remoteFeature,
-        cacheStore = cacheStore,
-        strictStints = DEBUG_BUILD,
-        onBackendVersion = { version ->
-            runningBundles.engine = version
-            backgroundScope.launch { settings.put(AppSettings.lastLoadedEngineJsVer, version) }
-        },
-    )
-    engines.start()
-
-    val cacheRoot = (NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, true).first() as String)
-        .toPath()
-        .resolve("ymusic-images")
-    val imageLoader = ImageLoader(
-        fetchers = listOf(
-            networkFetcher(http.image, FileSystem.SYSTEM, cacheRoot.resolve("source")),
-            fileFetcher(),
-        ),
-        scaledCache = DiskScaledImageCache(FileSystem.SYSTEM, cacheRoot.resolve("scaled")),
-    )
-
     // The one client of the YMusic service; null when this build has no service url. Versions come
     // from Info.plist, the same values the App Store sees.
     val now = { (NSDate().timeIntervalSince1970 * 1000).toLong() }
@@ -235,7 +201,37 @@ private suspend fun buildIosGraph(container: UIView): AppGraph {
         now = now,
         log = rootLogger.fork("remote-config"),
     ).also { it.checkUpdate() }
-    pendingRemoteConfig.complete(remoteConfig)
+    val remoteFeature: suspend (String) -> JsonElement? = { key ->
+        remoteConfig.awaitLoaded().features.getByKey(key)
+    }
+    val engines = DynamicEngineManager(
+        http.engine,
+        appVersion = appVersionCode,
+        jsSource = embeddedEngineJsSource(),
+        logger = rootLogger,
+        cookieJar = cookies,
+        settings = settings,
+        remoteFeature = remoteFeature,
+        cacheStore = cacheStore,
+        strictStints = DEBUG_BUILD,
+        onBackendVersion = { version ->
+            runningBundles.engine = version
+            backgroundScope.launch { settings.put(AppSettings.lastLoadedEngineJsVer, version) }
+        },
+    )
+    engines.start()
+
+    val cacheRoot = (NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, true).first() as String)
+        .toPath()
+        .resolve("ymusic-images")
+    val imageLoader = ImageLoader(
+        fetchers = listOf(
+            networkFetcher(http.image, FileSystem.SYSTEM, cacheRoot.resolve("source")),
+            fileFetcher(),
+        ),
+        scaledCache = DiskScaledImageCache(FileSystem.SYSTEM, cacheRoot.resolve("scaled")),
+    )
+
     backgroundScope.launch {
         // The cap waits for the loaded config: the store trims nothing until it has one.
         remoteConfig.awaitLoaded()
