@@ -493,7 +493,8 @@ internal class AndroidLocalPlayer(
     }
 
     private fun syncFromPlayer() {
-        val failure = player.playerError?.toPlayerError()
+        // playerError outlives stop() and clearMediaItems(): only prepare() clears it.
+        val failure = player.playerError.takeIf { player.mediaItemCount > 0 }?.toPlayerError()
         if (player.currentMediaItemIndex == PRELOAD_INDEX) {
             // Not loaded yet: the current item has ended, and a failure here waits for this item's load.
             if (failure != null) preloadError = player.getMediaItemAt(PRELOAD_INDEX) to failure
