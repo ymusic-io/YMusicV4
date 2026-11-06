@@ -294,19 +294,22 @@ private fun RailHeader(rail: RailContent, onToggle: () -> Unit) {
     ) {
         RailToggle(rail, expanded = true, onToggle)
         AppLogo(DesignSpacing.Space24)
-        Text(
-            stringResource(Res.string.app_name),
-            style = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = DesignColors.InkStrong),
-        )
-        if (rail.premium) PremiumBadge()
-        Spacer(Modifier.weight(1f))
-        rail.appVersion?.let {
-            Text(
-                it,
-                style = TextStyle(fontSize = 11.sp, color = DesignColors.InkFaint),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+        Column {
+            Row(horizontalArrangement = Arrangement.spacedBy(DesignSpacing.Space8), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    stringResource(Res.string.app_name),
+                    style = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = DesignColors.InkStrong),
+                )
+                if (rail.premium) PremiumBadge()
+            }
+            rail.appVersion?.let {
+                Text(
+                    it,
+                    style = TextStyle(fontSize = 11.sp, color = DesignColors.InkFaint),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
     }
 }
