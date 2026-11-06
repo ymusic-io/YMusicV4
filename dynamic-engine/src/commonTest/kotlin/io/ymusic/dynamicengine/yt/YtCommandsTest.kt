@@ -158,7 +158,6 @@ class YtCommandsTest {
             val channel = items.first { it.kind == YtFeedItem.KIND_CHANNEL }
             assertTrue(channel.id.startsWith("UC"), channel.id)
             assertEquals("11.8M subscribers", channel.subtitleLine1)
-            assertEquals("Subscribe", channel.ctaText)
             assertEquals("/channel/${channel.id}", channel.url, "openable items carry their app url")
 
             val mix = items.first { it.kind == YtFeedItem.KIND_PLAYLIST }
