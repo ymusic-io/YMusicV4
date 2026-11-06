@@ -327,15 +327,18 @@ compose.desktop {
         fullJdkHome?.let { javaHome = it }
         // Compose SwingPanel (MSE blit) needs AWT internals opened on the JBR/JDK.
         // Heap: without these, packaged HotSpot picks ~1/4 RAM (16g here) and
-        // InitialHeapSize=Xmx. Live use was ~50–97m objects / ~38m JIT code.
+        // InitialHeapSize=Xmx. Live use peaks ~31m browsing + video; Xmx keeps room for big libraries.
+        // GC threads: HotSpot sizes them by core count, and each parallel one costs ~2MB of queues.
         // Skia GPU cache default is 256m.
         jvmArgs(
             "--add-opens=java.desktop/sun.awt=ALL-UNNAMED",
             "--add-opens=java.desktop/sun.lwawt=ALL-UNNAMED",
             "--add-opens=java.desktop/sun.lwawt.macosx=ALL-UNNAMED",
             "--add-opens=java.desktop/sun.awt.X11=ALL-UNNAMED",
-            "-Xms96m",
-            "-Xmx256m",
+            "-Xms32m",
+            "-Xmx128m",
+            "-XX:ParallelGCThreads=4",
+            "-XX:ConcGCThreads=1",
             "-XX:ReservedCodeCacheSize=64m",
             "-Dskiko.gpu.resourceCacheLimit=64M",
             // POSIX_SPAWN execs the runtime's jspawnhelper, which an update replaces under the running
