@@ -27,5 +27,6 @@ fun JsonObject.toAdaptiveFormat(): AdaptiveFormat {
         audioTrackId = audioTrack?.stringOrNull("id"),
         isDrc = boolOrNull("isDrc") ?: false,
         loudnessLkfs = doubleOrNull("trackAbsoluteLoudnessLkfs"),
+        isVb = boolOrNull("isVb") ?: false,
     )
 }

@@ -62,6 +62,7 @@ data class AdaptiveFormat(
     val isDrc: Boolean,
     /** This stream's own measured loudness: DRC and other variants of one video differ. */
     val loudnessLkfs: Double? = null,
+    val isVb: Boolean = false,
 ) {
     companion object {
         fun from(fields: List<ProtoField>) = AdaptiveFormat(
