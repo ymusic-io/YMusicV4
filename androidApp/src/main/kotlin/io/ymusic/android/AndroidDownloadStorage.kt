@@ -17,6 +17,7 @@ import okio.Path
 import java.io.File
 import java.io.FileNotFoundException
 import java.io.FileOutputStream
+import java.io.SyncFailedException
 
 /**
  * Android [DefaultDownloadStorage]: `file://` destinations (app dirs) go through okio as usual; a
@@ -72,7 +73,14 @@ class AndroidDownloadStorage(
                 // On disk before the task is marked complete; see DefaultDownloadStorage.publish.
                 // A provider that streams through a pipe (cloud storage) has nothing here to sync.
                 val fd = (out as? FileOutputStream)?.fd
-                if (fd != null && OsConstants.S_ISREG(Os.fstat(fd).st_mode)) fd.sync()
+                if (fd != null && OsConstants.S_ISREG(Os.fstat(fd).st_mode)) {
+                    try {
+                        fd.sync()
+                    } catch (e: SyncFailedException) {
+                        // Some SD cards refuse fsync after taking every byte: keep the download.
+                        logger?.log(Logger.Level.WARN, "fsync refused while publishing a download", e)
+                    }
+                }
             } ?: error("SAF openOutputStream failed for $child")
         } catch (e: Exception) {
             // Drop the partial document so a retry doesn't leave a truncated "name.ext" beside "name_1.ext".
