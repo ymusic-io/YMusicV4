@@ -220,6 +220,7 @@ import okio.Path.Companion.toPath
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import projectcommon.error.PLAYBACK_UNAVAILABLE_CODE
 import projectcommon.error.TechnicalException
 import java.awt.BorderLayout
 import java.awt.Canvas
@@ -1075,7 +1076,11 @@ private suspend fun buildGraph(settings: AppStoreSettings, session: CookieSessio
         }
         val resolver = YtEngineSabrSpecResolver {
             withContext(Dispatchers.Main) { player.prepareYoutubeEngine() }
-            ytEngine ?: error("youtube engine missing")
+            ytEngine ?: if (mediaProblem != null) {
+                throw TechnicalException(PLAYBACK_UNAVAILABLE_CODE, "media library did not load")
+            } else {
+                error("youtube engine missing")
+            }
         }
         // Own segment index (byte range per segment) → SABR resume across pause/re-attest. Separate from
         // the player cache DB: downloads store bytes in their own file, not the player blob cache.

@@ -76,6 +76,7 @@ import io.ymusic.ui.resources.error_playlist_backup_invalid
 import io.ymusic.ui.resources.error_playlist_backup_newer
 import io.ymusic.ui.resources.error_supervised_account
 import io.ymusic.ui.resources.feed_empty
+import io.ymusic.ui.resources.media_engine_unavailable
 import io.ymusic.ui.resources.menu_add_to_playlist
 import io.ymusic.ui.resources.menu_play_single
 import io.ymusic.ui.resources.menu_remove
@@ -108,6 +109,7 @@ import kotlinx.coroutines.withTimeout
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
 import projectcommon.error.DISK_FULL_CODE
+import projectcommon.error.PLAYBACK_UNAVAILABLE_CODE
 import projectcommon.error.errorCode
 import projectcommon.log.captureUnlessNetwork
 
@@ -506,6 +508,7 @@ internal fun errorMessage(code: String): String = errorText(code).resolve()
 internal fun errorText(code: String): UiText = when (code) {
     "network" -> UiText.Resource(Res.string.error_network)
     DISK_FULL_CODE -> UiText.Resource(Res.string.error_disk_full)
+    PLAYBACK_UNAVAILABLE_CODE -> UiText.Resource(Res.string.media_engine_unavailable)
     StillProcessingException.CODE -> UiText.Resource(Res.string.error_live_still_processing)
     CAPTCHA_CODE -> UiText.Resource(Res.string.error_captcha)
     SUPERVISED_ACCOUNT_CODE -> UiText.Resource(Res.string.error_supervised_account)
