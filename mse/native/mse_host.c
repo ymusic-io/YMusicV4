@@ -1657,6 +1657,7 @@ static void seek_common(MseHost *h, double seconds)
 
 void mse_host_reset(MseHost *h)
 {
+    MseAv *old_av;
     if (!h)
         return;
 #ifdef MSE_DAC
@@ -1688,7 +1689,7 @@ void mse_host_reset(MseHost *h)
 #endif
     h->vpts = -1;
     pthread_mutex_lock(&h->av_mu);
-    mse_av_destroy(h->av);
+    old_av = h->av;
     h->av = mse_av_create();
     /* The new MseAv keeps the window (Android: MediaCodec opens after load) and the presenter. */
 #ifdef __ANDROID__
@@ -1698,6 +1699,9 @@ void mse_host_reset(MseHost *h)
     pthread_mutex_unlock(&h->av_mu);
     pthread_cond_broadcast(&h->cv);
     pthread_mutex_unlock(&h->mu);
+    /* Outside the locks: MediaCodec can take seconds to stop, and the UI thread's surface calls wait on them.
+       Still on this thread, so the next load can't race the old codec for the surface. */
+    mse_av_destroy(old_av);
 }
 
 int mse_host_paused(MseHost *h)
