@@ -55,6 +55,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
@@ -353,6 +354,9 @@ private fun AppRoot(
         // App-level so a scan started in Library keeps running (and still notifies) across sections.
         val scanController = graph.scans
         val drawer = rememberDrawerState(DrawerValue.Closed)
+        var railPinnedOpen by rememberSaveable { mutableStateOf(true) }
+        var railOverlayOpen by remember { mutableStateOf(false) }
+        var usesRail by remember { mutableStateOf(false) }
         if (catalogue == null) {
             LaunchedEffect(section) {
                 if (section == AppSection.Catalogue) onSection(AppSection.Discover)
@@ -843,11 +847,12 @@ private fun AppRoot(
         // layer of the CURRENT section's stack pops. A lateral section with nothing left to unwind
         // steps back to Discover — which restores its own retained stack — and only from Discover's
         // root is back left to the OS to exit the app.
-        val backEnabled = drawer.isOpen || nowPlayingOpen || layers.isNotEmpty() || section != AppSection.Discover
+        val backEnabled = drawer.isOpen || railOverlayOpen || nowPlayingOpen || layers.isNotEmpty() || section != AppSection.Discover
         val onBack: () -> Unit = {
             val top = layers.lastOrNull()
             when {
                 drawer.isOpen -> scope.launch { drawer.close() }
+                railOverlayOpen -> railOverlayOpen = false
                 nowPlayingOpen -> graph.pip.nowPlayingOpen.value = false
                 top is AppLayer.Search && top.session.editing && top.session.submitted != null ->
                     top.session.editing = false
@@ -880,13 +885,19 @@ private fun AppRoot(
             Modifier.fillMaxSize()
                 .then(if (desktopLayoutHole) Modifier else Modifier.background(DesignColors.Surface))
                 // Every screen that shows the drawer's Menu button (nothing pushed) takes the edge swipe.
-                .drawerEdgeGestureExclusion(!drawer.isOpen && !nowPlayingOpen && layers.isEmpty()),
+                .drawerEdgeGestureExclusion(!usesRail && !drawer.isOpen && !nowPlayingOpen && layers.isEmpty()),
         ) {
             BoxWithConstraints(
                 Modifier.fillMaxSize().safeDrawingPadding(),
             ) {
+                val railWindow = windowUsesRail(maxWidth, maxHeight)
+                val railPinned = windowPinsRail(maxWidth)
+                val railExpanded = if (railPinned) railPinnedOpen else railOverlayOpen
+                SideEffect { usesRail = railWindow }
+                LaunchedEffect(railWindow, railPinned) { railOverlayOpen = false }
                 // design/final/home.html: landscape (or any window this wide) puts the tab row inline in the app bar.
-                val wide = maxWidth > maxHeight && maxWidth >= 600.dp || maxWidth >= 650.dp
+                val shellWidth = if (railWindow) maxWidth - railReserve(railPinned, railExpanded) else maxWidth
+                val wide = shellWidth > maxHeight && shellWidth >= 600.dp || shellWidth >= 650.dp
                 // Fully covering Now Playing is opaque: skip drawing the feed/mini-player under it
                 // (4× GPU overdraw). Draw them again as soon as the sheet peeks so dismiss reveals.
                 val drawShell = !nowPlayingOpen || nowPlayingPeeking
@@ -898,37 +909,74 @@ private fun AppRoot(
                         // cleared node here would shadow Now Playing.
                         .then(if (nowPlayingOpen && !holeOpen) Modifier.clearAndSetSemantics {} else Modifier),
                 ) {
-                    if (!holeOpen) AppNavigationDrawer(
-                        drawerState = drawer,
-                        drawerContent = {
-                            AppDrawer(
-                                section = section,
-                                appVersion = graph.appVersion,
-                                guest = graph.guest,
-                                showCatalogue = catalogue != null,
-                                onSelect = { s ->
-                                    // Donate and Telegram are actions, not screens.
-                                    when (s) {
-                                        AppSection.Donate -> graph.openDonation?.invoke()
-                                        AppSection.Telegram -> uriHandler.openUri(AppLinks(config).telegram)
-                                        else -> openSection(s)
-                                    }
-                                    scope.launch { drawer.close() }
+                    val selectSection: (AppSection) -> Unit = { selected ->
+                        // Donate and Telegram are actions, not screens.
+                        when (selected) {
+                            AppSection.Donate -> graph.openDonation?.invoke()
+                            AppSection.Telegram -> uriHandler.openUri(AppLinks(config).telegram)
+                            else -> openSection(selected)
+                        }
+                        railOverlayOpen = false
+                        scope.launch { drawer.close() }
+                    }
+                    val onCheckUpdate: (() -> Unit)? = graph.updates?.let {
+                        {
+                            checkingUpdate = true
+                            railOverlayOpen = false
+                            scope.launch { drawer.close() }
+                        }
+                    }
+                    val shellFrame: @Composable (@Composable () -> Unit) -> Unit = if (railWindow) {
+                        { shell ->
+                            AppRail(
+                                rail = RailContent(
+                                    section = section,
+                                    sections = listedSections(catalogue != null, graph.guest, graph.openDonation != null),
+                                    appVersion = graph.appVersion,
+                                    premium = premium,
+                                    updateWaiting = graph.updates?.status?.collectAsState()?.value is AppUpdateStatus.Offered,
+                                    onCheckUpdate = onCheckUpdate,
+                                    websiteUrl = AppLinks(config).website,
+                                    onSelect = selectSection,
+                                ),
+                                pinned = railPinned,
+                                expanded = railExpanded,
+                                onToggle = {
+                                    if (railPinned) railPinnedOpen = !railPinnedOpen else railOverlayOpen = !railOverlayOpen
                                 },
-                                premium = premium,
-                                showDonate = graph.openDonation != null,
-                                websiteUrl = AppLinks(config).website,
-                                updates = graph.updates,
-                                onCheckUpdate = graph.updates?.let {
-                                    {
-                                        checkingUpdate = true
-                                        scope.launch { drawer.close() }
-                                    }
+                                coordinator = coordinator,
+                                surface = if (needsSurface && !nowPlayingOpen) graph.playerSurface else null,
+                                onExpandPlayer = {
+                                    railOverlayOpen = false
+                                    graph.pip.nowPlayingOpen.value = true
                                 },
-                                open = drawer.isOpen,
+                                content = shell,
                             )
-                        },
-                    ) {
+                        }
+                    } else {
+                        { shell ->
+                            AppNavigationDrawer(
+                                drawerState = drawer,
+                                drawerContent = {
+                                    AppDrawer(
+                                        section = section,
+                                        appVersion = graph.appVersion,
+                                        guest = graph.guest,
+                                        showCatalogue = catalogue != null,
+                                        onSelect = selectSection,
+                                        premium = premium,
+                                        showDonate = graph.openDonation != null,
+                                        websiteUrl = AppLinks(config).website,
+                                        updates = graph.updates,
+                                        onCheckUpdate = onCheckUpdate,
+                                        open = drawer.isOpen,
+                                    )
+                                },
+                                content = shell,
+                            )
+                        }
+                    }
+                    if (!holeOpen) shellFrame {
                         // The shell owns app-bar elevation: content reports its scroll via TrackScroll into
                         // this host, and the bar reads it. (Content never touches the bar directly.)
                         val scrollHost = remember { ScrollHost() }
@@ -957,7 +1005,7 @@ private fun AppRoot(
                             LocalScrollHost provides scrollHost,
                             LocalSnackbar provides showSnackbar,
                             LocalScanController provides scanController,
-                            LocalOpenNavDrawer provides { scope.launch { drawer.open() } },
+                            LocalOpenNavDrawer provides if (railWindow) null else { { scope.launch { drawer.open() } } },
                             LocalDownloadLauncher provides downloadLauncher,
                             LocalYtPlaylistActions provides ytPlaylistActions,
                             LocalAvailableOffline provides availableOffline,
@@ -995,7 +1043,7 @@ private fun AppRoot(
                                                     title = stringResource(
                                                         if (section == AppSection.Discover) discoverTab.label else section.label,
                                                     ),
-                                                    onMenu = { scope.launch { drawer.open() } },
+                                                    onMenu = if (railWindow) null else { { scope.launch { drawer.open() } } },
                                                     onSearch = sectionSearch,
                                                     // Inline tabs sit right after the title, so the slot
                                                     // reserves the widest tab label — the tabs must not
@@ -1114,7 +1162,7 @@ private fun AppRoot(
                                                     onSelect = { discoverTab = it },
                                                     onDragProgress = { discoverDrag = it },
                                                     leadingEdgeReserve = NavDrawerEdgeReserve,
-                                                    onLeadingEdgeSwipe = { scope.launch { drawer.open() } },
+                                                    onLeadingEdgeSwipe = if (railWindow) null else { { scope.launch { drawer.open() } } },
                                                 ) { current ->
                                                     DiscoverFeed(
                                                         graph,
@@ -1177,16 +1225,16 @@ private fun AppRoot(
                                             Modifier.weight(1f).fillMaxWidth().padding(padding)
                                                 .background(DesignColors.Surface),
                                         ) { screens() }
-                                        mini(Modifier.fillMaxWidth())
+                                        if (!railWindow) mini(Modifier.fillMaxWidth())
                                     }
                                 } else {
-                                    val miniVisible = coordinator.player.queue.collectAsState().value.currentItem != null
+                                    val miniVisible = !railWindow && coordinator.player.queue.collectAsState().value.currentItem != null
                                     val miniInset = if (miniVisible) with(LocalDensity.current) { miniHeightPx.toDp() } else 0.dp
                                     Box(Modifier.fillMaxSize()) {
                                         Column(Modifier.fillMaxSize().padding(padding)) {
                                             CompositionLocalProvider(LocalMiniPlayerInset provides miniInset) { screens() }
                                         }
-                                        mini(
+                                        if (!railWindow) mini(
                                             Modifier.align(Alignment.BottomCenter)
                                                 .fillMaxWidth()
                                                 .navigationBarsPadding(),
