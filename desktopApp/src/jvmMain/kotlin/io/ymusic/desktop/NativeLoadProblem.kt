@@ -60,11 +60,24 @@ internal fun classifyNativeLoadFailure(
 ): NativeLoadProblem? {
     val linked = error.linkedThrowables()
     if (linked.none { it is LinkageError }) return null
-    val blocked = linked.any { link -> policyMessages.any { link.message?.contains(it) == true } }
+    val blocked = linked.any { link -> policyMessages.any { link.message?.containsSystemText(it) == true } }
     return if (blocked) NativeLoadProblem.Blocked else NativeLoadProblem.Failed(component.failedCode)
 }
 
-/** The block's wording in the language of the load error, read from Windows: the JVM passes the OS text through. */
+/**
+ * Whether this load error holds [text], read with FormatMessageW. HotSpot reads the same message through the
+ * ANSI code page, so a display language outside it arrives with `?` for every character the page lacks.
+ */
+internal fun String.containsSystemText(text: String): Boolean =
+    indices.any { start ->
+        start + text.length <= length &&
+            text.indices.all { offset ->
+                val seen = this[start + offset]
+                seen == text[offset] || (seen == '?' && text[offset].code > ASCII_MAX)
+            }
+    }
+
+/** The block's wording in the language of the load error, read from Windows. */
 internal fun windowsPolicyMessages(log: Logger): List<String> {
     if (!isWindows) return emptyList()
     val translated = try {
@@ -174,6 +187,8 @@ private val POLICY_ERRORS = listOf(4551, 4556, 4557, 4558, 4559, 4580, 4581, 458
 
 /** Still catches the common case if the system text can't be read. */
 private const val ENGLISH_POLICY_MESSAGE = "Application Control policy"
+
+private const val ASCII_MAX = 127
 
 private const val FORMAT_MESSAGE_IGNORE_INSERTS = 0x200
 private const val FORMAT_MESSAGE_FROM_SYSTEM = 0x1000
