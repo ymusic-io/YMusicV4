@@ -157,6 +157,7 @@ import io.ymusic.settings.flow
 import io.ymusic.settings.put
 import io.ymusic.ui.resources.Res
 import io.ymusic.ui.resources.a11y_behind_live
+import io.ymusic.ui.resources.a11y_downloaded
 import io.ymusic.ui.resources.a11y_now_playing
 import io.ymusic.ui.resources.a11y_playback_position
 import io.ymusic.ui.resources.a11y_x_of_y
@@ -1958,11 +1959,14 @@ private fun QueueRowContent(
     var menuOpen by remember { mutableStateOf(false) }
     val sub = listOfNotNull(item.displayDuration, item.displaySubtitle).joinToString(" · ")
     val playLabel = stringResource(Res.string.cd_play)
+    val videoId = (item as? PlayableItem.YtMedia)?.videoId
+    val offline = videoId != null && videoId in LocalAvailableOffline.current
     val label = listOfNotNull(
         if (current) stringResource(Res.string.a11y_now_playing) else null,
         item.displayTitle,
         item.displayDuration?.let { spokenLength(item.durationMs, it) },
         item.displaySubtitle,
+        if (offline) stringResource(Res.string.a11y_downloaded) else null,
     ).joinToString(", ")
     Row(
         Modifier
@@ -2007,6 +2011,7 @@ private fun QueueRowContent(
             ArtImage(item.displayThumbnailUrl, RoundedCornerShape(6.dp)) {
                 ThumbPlaceholder(Icons.Outlined.Image, 18.dp)
             }
+            if (offline) AvailableOfflineMark(Modifier.align(Alignment.TopStart))
         }
         Column(Modifier.weight(1f).a11ySilent()) {
             Text(
