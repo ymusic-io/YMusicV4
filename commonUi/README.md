@@ -12,7 +12,7 @@ The shared Compose Multiplatform app UI (jvm + android; iOS later).
   pane, but only from `SideBySideMinWidth`, below which the pane would out-size the video and the layout stacks
   (video height capped so the list stays usable).
 
-- **Navigation shell** — phones use the drawer and the bottom mini-player. Windows at least 600dp wide and 480dp tall
+- **Navigation shell** — phones use the drawer and the bottom mini-player. Windows at least 750dp wide and 480dp tall
   use `AppRail` (`Rail.kt`) instead: a left rail carrying the same sections and the mini-player, which hosts the shared
   video surface in its art tile. On desktop the expanded rail sits beside the content and starts open from 1200dp; on
   touch windows it starts collapsed and opens over the content. Now Playing and Search are the same screens on every size.

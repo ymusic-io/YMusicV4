@@ -90,7 +90,7 @@ import io.ymusic.ui.resources.cd_play
 import io.ymusic.ui.resources.cd_stop_dismiss
 import org.jetbrains.compose.resources.stringResource
 
-private val RailMinWindowWidth = 600.dp
+private val RailMinWindowWidth = 750.dp
 private val RailMinWindowHeight = 480.dp
 private val RailOpenWindowWidth = 1200.dp
 
