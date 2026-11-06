@@ -213,6 +213,9 @@ function onHtmlPause(): void {
 function onHtmlEnded(): void {
   notifyListen("state");
 }
+function onHtmlVolumechange(): void {
+  notifyListen("gain");
+}
 
 function unbindHtmlMediaEvents(): void {
   const v = boundHtmlMedia;
@@ -223,6 +226,7 @@ function unbindHtmlMediaEvents(): void {
   v["removeEventListener"]("play", onHtmlPlay);
   v["removeEventListener"]("pause", onHtmlPause);
   v["removeEventListener"]("ended", onHtmlEnded);
+  v["removeEventListener"]("volumechange", onHtmlVolumechange);
   boundHtmlMedia = null;
 }
 
@@ -238,6 +242,7 @@ function bindHtmlMediaEvents(): void {
   v["addEventListener"]("play", onHtmlPlay);
   v["addEventListener"]("pause", onHtmlPause);
   v["addEventListener"]("ended", onHtmlEnded);
+  v["addEventListener"]("volumechange", onHtmlVolumechange);
 }
 
 let iframeListenBound = false;
@@ -1398,6 +1403,12 @@ class Player {
     };
   }
 
+  /** base.js writes its loudness gain for the presenting format to the media element's volume. */
+  gain(): Record<string, unknown> {
+    const v = activeHtmlMedia();
+    return { "value": v ? v["volume"] : 1 };
+  }
+
   /** The presenting video's owner channel, from its player response (absent until it lands). */
   details(): Record<string, unknown> {
     const videoId = this.currentVideoId();
@@ -1642,6 +1653,10 @@ export function detailsPlayer(): Record<string, unknown> {
   return ytPlayer.details();
 }
 
+export function gainPlayer(): Record<string, unknown> {
+  return ytPlayer.gain();
+}
+
 export function catalogPlayer(): Record<string, unknown> {
   return ytPlayer.catalog();
 }
@@ -1651,7 +1666,7 @@ export function catalogReady(): boolean {
   return moviePlayer() != null;
 }
 
-export type ListenKind = "progress" | "state" | "picture" | "details";
+export type ListenKind = "progress" | "state" | "picture" | "details" | "gain";
 
 let catalogHook: (() => void) | null = null;
 let listenHook: ((kind: ListenKind) => void) | null = null;
