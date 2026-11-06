@@ -39,13 +39,14 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.ymusic.ui.resources.Res
 import io.ymusic.ui.resources.app_name
 import io.ymusic.ui.resources.badge_premium
 import io.ymusic.ui.resources.update_check
-import io.ymusic.ui.resources.ymusic_logo
+import io.ymusic.ui.resources.ymusic_logo_square
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -53,6 +54,16 @@ import org.jetbrains.compose.resources.stringResource
 private val BrandGreenInk: Color @Composable get() = if (DesignColors.isDark) Color(0xFF4ADE80) else Color(0xFF15803D)
 private val BrandGreenBg: Color @Composable get() = if (DesignColors.isDark) Color(0xFF11301C) else Color(0xFFEAFAF0)
 private val BrandGreenBorder: Color @Composable get() = if (DesignColors.isDark) Color(0xFF1D4A2C) else Color(0xFFCDEED9)
+
+/** The logo, clipped to its disc here: clipped layer by layer, the rim's antialiasing compounds into a hard step. */
+@Composable
+internal fun AppLogo(size: Dp, modifier: Modifier = Modifier) {
+    Image(
+        painterResource(Res.drawable.ymusic_logo_square),
+        contentDescription = null,
+        modifier = modifier.size(size).clip(CircleShape),
+    )
+}
 
 /** The sections the app's navigation lists, on both the drawer and the rail. */
 internal fun listedSections(showCatalogue: Boolean, guest: Boolean, showDonate: Boolean): List<AppSection> =
@@ -119,11 +130,7 @@ fun AppDrawer(
 private fun DrawerHeader(appVersion: String?, premium: Boolean, onCheckUpdate: (() -> Unit)?, updateWaiting: Boolean, websiteUrl: String) {
     Column(Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, top = 16.dp, bottom = 13.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Image(
-                painterResource(Res.drawable.ymusic_logo),
-                contentDescription = null,
-                modifier = Modifier.size(46.dp).clip(RoundedCornerShape(13.dp)),
-            )
+            AppLogo(46.dp)
             Column {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(

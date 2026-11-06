@@ -1,7 +1,6 @@
 package io.ymusic.ui
 
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -89,8 +88,6 @@ import io.ymusic.ui.resources.cd_next
 import io.ymusic.ui.resources.cd_pause
 import io.ymusic.ui.resources.cd_play
 import io.ymusic.ui.resources.cd_stop_dismiss
-import io.ymusic.ui.resources.ymusic_logo
-import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 private val RailMinWindowWidth = 600.dp
@@ -296,16 +293,21 @@ private fun RailHeader(rail: RailContent, onToggle: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         RailToggle(rail, expanded = true, onToggle)
-        Image(
-            painterResource(Res.drawable.ymusic_logo),
-            contentDescription = null,
-            modifier = Modifier.size(DesignSpacing.Space24).clip(RailItemShape),
-        )
+        AppLogo(DesignSpacing.Space24)
         Text(
             stringResource(Res.string.app_name),
             style = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = DesignColors.InkStrong),
         )
         if (rail.premium) PremiumBadge()
+        Spacer(Modifier.weight(1f))
+        rail.appVersion?.let {
+            Text(
+                it,
+                style = TextStyle(fontSize = 11.sp, color = DesignColors.InkFaint),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 
