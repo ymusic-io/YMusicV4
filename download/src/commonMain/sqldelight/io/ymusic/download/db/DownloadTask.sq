@@ -31,7 +31,9 @@ CREATE TABLE downloadTask (
     audio_itag        INTEGER,
     audio_lmt         INTEGER,
     video_itag        INTEGER,
-    video_lmt         INTEGER
+    video_lmt         INTEGER,
+    -- dB from the file's measured loudness to its target, for the files the Library never indexes.
+    loudness_gain_db  REAL
 );
 
 CREATE INDEX downloadTask_created ON downloadTask(created_at);
@@ -41,8 +43,8 @@ INSERT OR REPLACE INTO downloadTask(
     id, video_id, title, artist, thumbnail_url, format, requested_height,
     state, downloaded_bytes, total_bytes, file_path, error_message, created_at, updated_at,
     file_name, audio_track_id, caption_langs, audio_language, caption_language, error_code, audio_quality,
-    audio_itag, audio_lmt, video_itag, video_lmt
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    audio_itag, audio_lmt, video_itag, video_lmt, loudness_gain_db
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 updateState:
 UPDATE downloadTask SET state = ?, error_message = ?, error_code = ?, updated_at = ? WHERE id = ?;
@@ -54,7 +56,7 @@ updateProgress:
 UPDATE downloadTask SET downloaded_bytes = ?, total_bytes = ?, updated_at = ? WHERE id = ?;
 
 updateCompleted:
-UPDATE downloadTask SET state = ?, file_path = ?, downloaded_bytes = ?, total_bytes = ?, error_message = NULL, error_code = NULL, updated_at = ? WHERE id = ?;
+UPDATE downloadTask SET state = ?, file_path = ?, downloaded_bytes = ?, total_bytes = ?, loudness_gain_db = ?, error_message = NULL, error_code = NULL, updated_at = ? WHERE id = ?;
 
 -- Startup recovery: hold everything that was running or waiting (states passed in) as :paused.
 pauseActiveAndQueued:

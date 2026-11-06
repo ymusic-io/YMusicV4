@@ -237,7 +237,7 @@ fun DownloadsScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
                     },
                     onPlay = {
                         task.fileUri?.let { uri ->
-                            scope.launch { coordinator.playDownloaded(uri, task.videoId, task.title, task.artist) }
+                            scope.launch { coordinator.playDownloaded(uri, task.videoId, task.title, task.artist, task.loudnessGainDb) }
                         }
                     },
                     onRevealLibrary = if (store != null) ({

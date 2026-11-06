@@ -21,8 +21,12 @@ fun interface SabrSpecResolver {
     suspend fun resolve(videoId: String): ResolvedVideo
 }
 
-/** A resolved video: the SABR [spec], plus the file tags read from the same player response. */
-class ResolvedVideo(val spec: SabrStreamSpec, val artist: String? = null)
+/** A resolved video: the SABR [spec], plus what its file takes from the same player response. */
+class ResolvedVideo(
+    val spec: SabrStreamSpec,
+    val artist: String? = null,
+    val loudnessTargetLkfs: Double? = null,
+)
 
 /**
  * Executes one [DownloadTask] end to end, over a [DownloadStorage] (no direct FileSystem — so the same
@@ -56,7 +60,14 @@ class DownloadPipeline(
     private val coverArt = CoverArt(client, userAgent, storage, logger)
 
     /** A completed run: the published file's uri + byte size, and the media facts library ingest uses. */
-    class Result(val uri: String, val bytes: Long, val durationMs: Long?, val width: Int?, val height: Int?)
+    class Result(
+        val uri: String,
+        val bytes: Long,
+        val durationMs: Long?,
+        val width: Int?,
+        val height: Int?,
+        val loudnessGainDb: Double? = null,
+    )
 
     suspend fun run(
         task: DownloadTask,
@@ -96,7 +107,7 @@ class DownloadPipeline(
         // No-ffmpeg M4A (iOS): the raw best-AAC stream IS a playable .m4a — publish it as-is, no step 2
         // (metadata lives in the DB task row). Captions can't be muxed without ffmpeg here, so drop them.
         if (task.format == DownloadFormat.M4A && ffmpeg == null) {
-            return publish(task, markReady(task.id, AUDIO_SCRATCH, audioFmt, null), destinationFolder)
+            return publish(task, markReady(task.id, AUDIO_SCRATCH, audioFmt, null, streams.loudnessGainDb), destinationFolder)
         }
 
         // 2. mux/convert + metadata into the final scratch, reporting ffmpeg's output-time progress. The
@@ -117,7 +128,7 @@ class DownloadPipeline(
         val video = streams.video?.scratch
         val out = storage.scratch(task.id, OUT_SCRATCH)
         var outName = OUT_SCRATCH
-        val meta = task.tags(streams.artist)
+        val meta = task.tags(streams.artist, streams.loudnessGainDb)
         val subs = streams.captions.map { SubtitleInput(it.scratch.path, it.languageCode, it.name) }
         when (task.format) {
             DownloadFormat.MP3 -> {
@@ -137,19 +148,34 @@ class DownloadPipeline(
         }
 
         // 3. publish the final file (moved out of the scratch folder).
-        return publish(task, markReady(task.id, outName, audioFmt, videoFmt), destinationFolder)
+        return publish(task, markReady(task.id, outName, audioFmt, videoFmt, streams.loudnessGainDb), destinationFolder)
     }
 
     /** The finished scratch [scratchName] plus the media facts the [Result] carries — persisted as the
      *  task's [READY_SCRATCH] marker so a run that failed at publish can be retried from publish alone. */
-    private class ReadyOutput(val scratchName: String, val durationMs: Long?, val width: Int?, val height: Int?)
+    private class ReadyOutput(
+        val scratchName: String,
+        val durationMs: Long?,
+        val width: Int?,
+        val height: Int?,
+        val loudnessGainDb: Double?,
+    )
 
-    private fun markReady(taskId: String, scratchName: String, audio: AdaptiveFormat, video: AdaptiveFormat?): ReadyOutput {
-        val ready = ReadyOutput(scratchName, audio.approxDurationMs.toLong().takeIf { it > 0 }, video?.width, video?.height)
+    private fun markReady(
+        taskId: String,
+        scratchName: String,
+        audio: AdaptiveFormat,
+        video: AdaptiveFormat?,
+        loudnessGainDb: Double?,
+    ): ReadyOutput {
+        val ready = ReadyOutput(scratchName, audio.approxDurationMs.toLong().takeIf { it > 0 }, video?.width, video?.height, loudnessGainDb)
         val marker = storage.scratch(taskId, READY_SCRATCH)
         marker.delete()
         marker.appendSink().use { sink ->
-            sink.writeUtf8(listOf(ready.scratchName, ready.durationMs ?: "", ready.width ?: "", ready.height ?: "").joinToString("\n"))
+            sink.writeUtf8(
+                listOf(ready.scratchName, ready.durationMs ?: "", ready.width ?: "", ready.height ?: "", ready.loudnessGainDb ?: "")
+                    .joinToString("\n"),
+            )
         }
         return ready
     }
@@ -164,6 +190,7 @@ class DownloadPipeline(
             durationMs = fields.getOrNull(1)?.toLongOrNull(),
             width = fields.getOrNull(2)?.toIntOrNull(),
             height = fields.getOrNull(3)?.toIntOrNull(),
+            loudnessGainDb = fields.getOrNull(4)?.toDoubleOrNull(),
         )
         if (storage.scratch(taskId, ready.scratchName).length() > 0) return ready
         marker.delete()
@@ -180,7 +207,7 @@ class DownloadPipeline(
             val bytes = scratch.length()
             val uri = storage.publish(scratch, "${baseName(task)}.${task.format.fileExtension}", destinationFolder)
             storage.deleteScratch(task.id)
-            Result(uri, bytes, ready.durationMs, ready.width, ready.height)
+            Result(uri, bytes, ready.durationMs, ready.width, ready.height, ready.loudnessGainDb)
         }
 
     /** Run [convert] with the cover art's path; a cover ffmpeg rejects is dropped and the conversion rerun
@@ -267,12 +294,13 @@ class DownloadPipeline(
 
     /** Container tags embedded into the finished file. The videoId goes in the standard `composer` field
      *  — it survives in both ID3 (TCOM) and MP4 (©wrt), and the app's ffmpeg metadata parser reads it
-     *  (`MetadataMap.composer`), unlike a custom atom MP4 hides. Title always; artist from the request,
-     *  else [resolvedArtist] from the player response (album is not modelled yet). */
-    private fun DownloadTask.tags(resolvedArtist: String?): List<Pair<String, String>> = buildList {
+     *  (`MetadataMap.composer`), unlike a custom atom MP4 hides; [loudnessGainDb] follows it there for the
+     *  same reason, as `videoId|gain=-6.69`. Title always; artist from the request, else [resolvedArtist]
+     *  from the player response (album is not modelled yet). */
+    private fun DownloadTask.tags(resolvedArtist: String?, loudnessGainDb: Double?): List<Pair<String, String>> = buildList {
         add("title" to title)
         (artist ?: resolvedArtist)?.let { add("artist" to it) }
-        add("composer" to videoId)
+        add("composer" to listOfNotNull(videoId, loudnessGainDb?.let { "gain=$it" }).joinToString("|"))
     }
 
     /** The media file's stem: the user's [DownloadTask.fileName] when set
