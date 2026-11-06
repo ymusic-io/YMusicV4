@@ -142,8 +142,7 @@ onShutdown(function () {
   return finishing;
 });
 
-function captureReject(sps: number): Promise<void> {
-  const key = sessionKey;
+function captureReject(sps: number, key: string): Promise<void> {
   return callHost("log/capture", async function (pipe) {
     let p = pipe.sink.writeObjectAsJson({
       "code": "E20088",
@@ -330,9 +329,13 @@ export function noteSps(sps: number, media: number): void {
   }
   lastSabrUrl = "";
   lastSabrBody = null;
-  if (sps === 1) finishDump();
-  else
+  if (sps === 1) {
+    finishDump();
+  } else {
+    // The report waits on the put, and a later mint or entropy read opens the next session's dump.
+    const key = sessionKey;
     finishDump(function () {
-      return captureReject(sps);
+      return captureReject(sps, key);
     });
+  }
 }
