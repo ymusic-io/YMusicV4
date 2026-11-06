@@ -198,11 +198,12 @@ internal class JvmLocalPlayer(
             FileAvNative.setBass(handle, config.bassBoostDb)
             FileAvNative.setVirtualizer(handle, config.virtualizer)
             FileAvNative.setPreamp(handle, config.preampDb)
-            if (FileAvNative.open(handle, path) != 0) {
+            val opened = FileAvNative.open(handle, path) == 0
+            if (gen != loadGen.get()) return@dispatch
+            if (!opened) {
                 failOpen(path)
                 return@dispatch
             }
-            if (gen != loadGen.get()) return@dispatch
             loadedPath = path
             streams = FileAvNative.streams(handle).mapNotNull(::parseAvStream)
             sidecarTracks = LocalSidecarCaptions.find(path)
