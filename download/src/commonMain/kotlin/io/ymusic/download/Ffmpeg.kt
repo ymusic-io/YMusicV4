@@ -4,7 +4,9 @@ import kmpffmpeg.KmpProcessBuilder
 import kotlinx.coroutines.async
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import okio.IOException
 import okio.buffer
+import projectcommon.error.DiskFullException
 import projectcommon.error.TechnicalException
 
 /** One subtitle track to mux into a video container: its local [path], BCP-47/ISO-639-1 [language]
@@ -121,7 +123,12 @@ class Ffmpeg(
         val log = if (stderrError != null) "stderr collector failed: $stderrError" else stderrText
         process.close()
         if (code != 0) {
-            val failure = TechnicalException("E70021", "ffmpeg exited $code:\n$log")
+            val detail = "ffmpeg exited $code:\n$log"
+            val failure = if ("No space left on device" in log) {
+                DiskFullException(IOException(detail))
+            } else {
+                TechnicalException("E70021", detail)
+            }
             progressError?.let(failure::addSuppressed)
             stderrError?.let(failure::addSuppressed)
             throw failure
