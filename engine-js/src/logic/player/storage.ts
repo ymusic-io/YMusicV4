@@ -94,6 +94,21 @@ async function hydrate(): Promise<void> {
   g["sessionStorage"] = ss;
 }
 
+/** True when base.js's Storage rejected a saved value: it throws on every load until the value is gone. */
+export function isBadStoredValue(e: unknown): boolean {
+  return (e instanceof Error ? e.message : String(e)).indexOf("Storage: Invalid value") >= 0;
+}
+
+export function clearPlayerStorage(): void {
+  const ls = (globalThis as unknown as Record<string, unknown>)["localStorage"] as Record<
+    string,
+    unknown
+  >;
+  const key = ls["key"] as (i: number) => string | null;
+  const remove = ls["removeItem"] as (k: string) => void;
+  for (let k = key(0); k !== null; k = key(0)) remove(k);
+}
+
 let ready: Promise<void> | undefined;
 
 export function playerStorageReady(): Promise<void> {
