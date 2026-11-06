@@ -365,6 +365,8 @@ internal fun MiniArtTile(
     surface: (@Composable (Modifier) -> Unit)?,
     onExpand: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Shows the cover over the [surface], which stays mounted so playback keeps going. */
+    coverOnly: Boolean = false,
 ) {
     val status by coordinator.player.status.collectAsState()
     Box(
@@ -375,7 +377,7 @@ internal fun MiniArtTile(
         if (surface != null) {
             VideoHole(coordinator.player, surface, Modifier.fillMaxSize())
         }
-        if (audioOnly || surface == null) {
+        if (coverOnly || audioOnly || surface == null) {
             AudioOnlyCover(item.displayThumbnailUrl, Modifier.fillMaxSize())
         }
         BufferingIndicator(status, size = 22.dp, strokeWidth = 2.dp)

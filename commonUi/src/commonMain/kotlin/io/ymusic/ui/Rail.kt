@@ -19,11 +19,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowOutward
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Pause
@@ -86,11 +88,14 @@ private val RailMinWindowHeight = 480.dp
 private val RailPinnedWindowWidth = 1200.dp
 
 private val RailItemShape = RoundedCornerShape(DesignSpacing.Space8)
+private val RailThumbnailShape = RoundedCornerShape(DesignSpacing.Space8)
 
 /** Square on desktop: the native frame behind the window fills the whole tile, so round corners would show it. */
-private val RailTileShape: Shape = if (desktopLayoutHole) RectangleShape else RoundedCornerShape(DesignSpacing.Space8)
+private val RailVideoShape: Shape = if (desktopLayoutHole) RectangleShape else RailThumbnailShape
 private val RailCollapsedTile = DesignSpacing.RailCollapsedWidth - DesignSpacing.Space16
 private val RailItemTarget = DesignSpacing.Space48
+private val RailOpenHintSize = DesignSpacing.Space24 + DesignSpacing.Space4
+private val RailOpenHintFill = Color.Black.copy(alpha = 0.6f)
 
 /** Landscape phones stay on the drawer: the rail's items would not fit their height. */
 internal fun windowUsesRail(width: Dp, height: Dp): Boolean = width >= RailMinWindowWidth && height >= RailMinWindowHeight
@@ -166,7 +171,7 @@ private fun RailPanel(
     val placeTile: (LayoutCoordinates) -> Unit = { tile ->
         panel?.takeIf { it.isAttached }?.let { tileBounds = it.localBoundingBoxOf(tile) }
     }
-    Column(
+    Box(
         Modifier.width(width).fillMaxHeight().clipToBounds()
             .onGloballyPositioned { panel = it }
             // On desktop the picture is a native frame behind the window: the tile stays glass.
@@ -176,25 +181,31 @@ private fun RailPanel(
                 }
             },
     ) {
-        val queue by coordinator.player.queue.collectAsState()
-        val item = queue.currentItem
-        if (expanded) {
-            RailHeader(rail, onToggle)
-        } else {
-            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { RailToggle(rail, expanded, onToggle) }
-        }
-        if (item != null) {
-            val holePunched = desktopLayoutHole && surface != null
-            DisposableEffect(holePunched) { onDispose { tileBounds = Rect.Zero } }
-            val tile = if (holePunched) Modifier.onGloballyPositioned(placeTile) else Modifier
+        // Laid out at the final width and clipped by the animated panel: the labels must not reflow on the way.
+        Column(
+            Modifier.wrapContentWidth(Alignment.Start, unbounded = true).fillMaxHeight()
+                .width(if (expanded) DesignSpacing.RailExpandedWidth else DesignSpacing.RailCollapsedWidth),
+        ) {
+            val queue by coordinator.player.queue.collectAsState()
+            val item = queue.currentItem
             if (expanded) {
-                RailMiniExpanded(coordinator, item, surface, onExpandPlayer, tile)
+                RailHeader(rail, onToggle)
             } else {
-                RailMiniCollapsed(coordinator, item, surface, onExpandPlayer, tile)
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { RailToggle(rail, expanded, onToggle) }
             }
-            HorizontalDivider(color = DesignColors.Divider, modifier = Modifier.padding(vertical = DesignSpacing.Space4))
+            if (item != null) {
+                val holePunched = desktopLayoutHole && surface != null && expanded
+                DisposableEffect(holePunched) { onDispose { tileBounds = Rect.Zero } }
+                if (expanded) {
+                    val tile = if (holePunched) Modifier.onGloballyPositioned(placeTile) else Modifier
+                    RailMiniExpanded(coordinator, item, surface, onExpandPlayer, tile)
+                } else {
+                    RailMiniCollapsed(coordinator, item, surface, onExpandPlayer)
+                }
+                HorizontalDivider(color = DesignColors.Divider, modifier = Modifier.padding(vertical = DesignSpacing.Space4))
+            }
+            RailSections(rail, expanded)
         }
-        RailSections(rail, expanded)
     }
 }
 
@@ -243,7 +254,6 @@ private fun ColumnScope.RailMiniCollapsed(
     item: PlayableItem,
     surface: (@Composable (Modifier) -> Unit)?,
     onExpand: () -> Unit,
-    tileModifier: Modifier,
 ) {
     val status by coordinator.player.status.collectAsState()
     val progress by coordinator.player.progress.collectAsState()
@@ -258,7 +268,8 @@ private fun ColumnScope.RailMiniCollapsed(
             item,
             surface,
             onExpand,
-            tileModifier.size(RailCollapsedTile).clip(RailTileShape),
+            Modifier.size(RailCollapsedTile).clip(RailThumbnailShape),
+            coverOnly = true,
         )
         MiniProgress(progress, Modifier.fillMaxWidth().padding(top = DesignSpacing.Space4).height(DesignSpacing.Space2))
     }
@@ -277,13 +288,16 @@ private fun RailMiniExpanded(
     val progress by coordinator.player.progress.collectAsState()
     Column(Modifier.fillMaxWidth().padding(horizontal = DesignSpacing.Space8)) {
         Column(Modifier.fillMaxWidth().clickable(onClick = onExpand)) {
-            MiniArtTile(
-                coordinator,
-                item,
-                surface,
-                onExpand,
-                tileModifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RailTileShape),
-            )
+            Box(tileModifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RailVideoShape)) {
+                MiniArtTile(coordinator, item, surface, onExpand, Modifier.fillMaxSize())
+                Icon(
+                    Icons.Default.ArrowOutward,
+                    null,
+                    Modifier.align(Alignment.TopEnd).padding(DesignSpacing.Space4).size(RailOpenHintSize)
+                        .background(RailOpenHintFill, CircleShape).padding(DesignSpacing.Space4),
+                    tint = Color.White,
+                )
+            }
             MiniProgress(progress, Modifier.fillMaxWidth().padding(top = DesignSpacing.Space4).height(DesignSpacing.Space2))
             Text(
                 item.displayTitle,
