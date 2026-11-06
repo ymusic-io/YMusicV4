@@ -78,14 +78,18 @@ open class DefaultDownloadStorage(
                     fileSystem.delete(src, mustExist = false)
                 } catch (copyError: Exception) {
                     copyError.addSuppressed(moveError)
+                    // No destination file means the copy never reached a write: space isn't why it failed.
+                    val reachedDestination = fileSystem.exists(dest)
                     deletePartial(dest, copyError)
+                    if (reachedDestination && destinationFull(dir, src, copyError)) throw DiskFullException(copyError)
                     throw copyError
                 }
             }
         } catch (e: TechnicalException) {
             throw e
+        } catch (e: DiskFullException) {
+            throw e
         } catch (e: Exception) {
-            if (destinationFull(dir, src, e)) throw DiskFullException(e)
             throw TechnicalException("E70030", "could not publish $fileName into $dir", cause = e)
         }
         // Build the uri (percent-encoding the path) rather than "file://$dest" — a name with a space or
