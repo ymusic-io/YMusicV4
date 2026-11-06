@@ -7648,6 +7648,7 @@ static void build_backtrace(JSContext *ctx, JSValueConst error_val,
         str = JS_NewString(ctx, filename);
         if (JS_IsException(str)) {
             JS_FreeCString(ctx, page);
+            dbuf_free(&dbuf);
             goto done;
         }
         /* Note: SpiderMonkey does that, could update once there is a standard */
@@ -7658,6 +7659,7 @@ static void build_backtrace(JSContext *ctx, JSValueConst error_val,
             JS_DefinePropertyValue(ctx, error_obj, JS_ATOM_columnNumber, JS_NewInt32(ctx, col_num),
                                    JS_PROP_WRITABLE | JS_PROP_CONFIGURABLE) < 0) {
             JS_FreeCString(ctx, page);
+            dbuf_free(&dbuf);
             goto done;
         }
     }
