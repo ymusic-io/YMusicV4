@@ -16,6 +16,20 @@
     if (!map[type] && create) map[type] = [];
     return map[type] || null;
   }
+  /* Event state lives here for the same reason: isTrusted is a Chrome event's only own property. */
+  var eventData = new WeakMap();
+  function eventOf(ev) {
+    var d = ev !== null && typeof ev === "object" ? eventData.get(ev) : undefined;
+    if (!d) throw new TypeError("Illegal invocation");
+    return d;
+  }
+  function domError(name, code, message) {
+    var e = Object.create(globalThis.DOMException.prototype);
+    hide(e, "name", name);
+    hide(e, "message", message);
+    hide(e, "code", code);
+    return e;
+  }
   function hrtime() {
     var p = globalThis.performance;
     if (p && typeof p.now === "function")
@@ -195,27 +209,43 @@
     i = list.indexOf(fn);
     if (i >= 0) list.splice(i, 1);
   });
-  globalThis.dispatchEvent = native("dispatchEvent", function (ev) {
-    var type, fn, list, i, target;
-    if (ev == null || typeof ev !== "object") ev = { type: String(ev == null ? "" : ev) };
-    type = String(ev.type || "");
-    target = this;
-    if (ev.target == null) ev.target = target;
-    ev.currentTarget = target;
-    fn = target["on" + type];
-    if (typeof fn === "function") {
-      try {
-        fn.call(target, ev);
-      } catch (e) {}
-    }
-    list = listenersOf(target, type, false) || [];
-    for (i = 0; i < list.length; i++) {
-      try {
-        list[i].call(target, ev);
-      } catch (e2) {}
-    }
-    return !ev.defaultPrevented;
-  });
+  globalThis.dispatchEvent = __nativeFn(
+    "dispatchEvent",
+    function (ev) {
+      var prefix = "Failed to execute 'dispatchEvent' on 'EventTarget': ";
+      var target = this == null ? globalThis : this;
+      var d, fn, list, i;
+      if (!arguments.length)
+        throw new TypeError(prefix + "1 argument required, but only 0 present.");
+      d = ev !== null && typeof ev === "object" ? eventData.get(ev) : undefined;
+      if (!d) throw new TypeError(prefix + "parameter 1 is not of type 'Event'.");
+      if (!d.init)
+        throw domError("InvalidStateError", 11, prefix + "The event provided is uninitialized.");
+      if (d.dispatching)
+        throw domError("InvalidStateError", 11, prefix + "The event is already being dispatched.");
+      d.dispatching = true;
+      d.target = d.currentTarget = target;
+      d.eventPhase = 2;
+      d.path = [target];
+      fn = target["on" + d.type];
+      if (typeof fn === "function") {
+        try {
+          fn.call(target, ev);
+        } catch (e) {}
+      }
+      list = (listenersOf(target, d.type, false) || []).slice();
+      for (i = 0; i < list.length && !d.stopNow; i++) {
+        try {
+          list[i].call(target, ev);
+        } catch (e2) {}
+      }
+      d.dispatching = d.stopNow = d.cancelBubble = false;
+      d.currentTarget = d.path = null;
+      d.eventPhase = 0;
+      return !d.defaultPrevented;
+    },
+    1,
+  );
   globalThis.getComputedStyle = native("getComputedStyle", function getComputedStyle(el) {
     if (el && el.style) return el.style;
     return cssStyle();
@@ -1456,62 +1486,261 @@
       return "";
     });
   }
-  /* Chrome Event is constructable; illegalCtor would throw on new Event("x"). */
-  globalThis.Event = native("Event", function Event(type, init) {
-    var o = this && this !== globalThis ? this : {};
-    o.type = String(type == null ? "" : type);
-    o.bubbles = !!(init && init.bubbles);
-    o.cancelable = !!(init && init.cancelable);
-    o.defaultPrevented = false;
-    o.target = null;
-    o.currentTarget = null;
-    o.eventPhase = 0;
-    o.timeStamp = hrtime();
-    o.cancelBubble = false;
-    o.returnValue = true;
-    o.srcElement = null;
-    o.ctrlKey = false;
-    o.altKey = false;
-    o.shiftKey = false;
-    o.metaKey = false;
-    o.button = 0;
-    o.buttons = 0;
-    o.clientX = 0;
-    o.clientY = 0;
-    o.screenX = 0;
-    o.screenY = 0;
-    o.pageX = 0;
-    o.pageY = 0;
-    o.offsetX = 0;
-    o.offsetY = 0;
-    o.which = 0;
-    o.x = 0;
-    o.y = 0;
-    o.movementX = 0;
-    o.movementY = 0;
-    o.relatedTarget = null;
-    return o;
-  });
-  if (!globalThis.Event.prototype || typeof globalThis.Event.prototype !== "object")
-    globalThis.Event.prototype = {};
-  if (typeof globalThis.Event.prototype.preventDefault !== "function") {
-    globalThis.Event.prototype.preventDefault = native("preventDefault", function () {
-      this.defaultPrevented = true;
-    });
-    globalThis.Event.prototype.stopPropagation = native("stopPropagation", function () {});
-    globalThis.Event.prototype.stopImmediatePropagation = native(
-      "stopImmediatePropagation",
-      function () {},
+  /* Chrome's event interfaces: parent, constructor length (0 is not constructable), and own
+   * prototype members in Chrome's order. "x" is an attribute defaulting to null, "x:s" to "",
+   * "x:0" to 0, "x:f" to false, "x:a" to []; "x=n" is a constant, "x()" an operation. */
+  var EVENT_CLASSES = {
+    Event: [
+      "",
+      1,
+      "type:s target currentTarget eventPhase:0 bubbles:f cancelable:f defaultPrevented:f composed:f timeStamp:0 srcElement returnValue:f cancelBubble:f NONE=0 CAPTURING_PHASE=1 AT_TARGET=2 BUBBLING_PHASE=3 composedPath() initEvent() preventDefault() stopImmediatePropagation() stopPropagation()",
+    ],
+    UIEvent: ["Event", 1, "view detail:0 sourceCapabilities which:0 initUIEvent() pseudoTarget"],
+    MouseEvent: [
+      "UIEvent",
+      1,
+      "screenX:0 screenY:0 clientX:0 clientY:0 ctrlKey:f shiftKey:f altKey:f metaKey:f button:0 buttons:0 relatedTarget pageX:0 pageY:0 x:0 y:0 offsetX:0 offsetY:0 movementX:0 movementY:0 fromElement toElement layerX:0 layerY:0 getModifierState() initMouseEvent()",
+    ],
+    KeyboardEvent: [
+      "UIEvent",
+      1,
+      "key:s code:s location:0 ctrlKey:f shiftKey:f altKey:f metaKey:f repeat:f isComposing:f charCode:0 keyCode:0 DOM_KEY_LOCATION_STANDARD=0 DOM_KEY_LOCATION_LEFT=1 DOM_KEY_LOCATION_RIGHT=2 DOM_KEY_LOCATION_NUMPAD=3 getModifierState() initKeyboardEvent()",
+    ],
+    CustomEvent: ["Event", 1, "detail initCustomEvent()"],
+    CompositionEvent: ["UIEvent", 1, "data:s initCompositionEvent()"],
+    TextEvent: ["UIEvent", 0, "data:s initTextEvent()"],
+    FocusEvent: ["UIEvent", 1, "relatedTarget"],
+    MessageEvent: [
+      "Event",
+      1,
+      "data origin:s lastEventId:s source ports:a userActivation initMessageEvent()",
+    ],
+    StorageEvent: ["Event", 1, "key oldValue newValue url:s storageArea initStorageEvent()"],
+    HashChangeEvent: ["Event", 1, "oldURL:s newURL:s"],
+    BeforeUnloadEvent: ["Event", 0, "returnValue:s"],
+    DeviceMotionEvent: [
+      "Event",
+      1,
+      "acceleration accelerationIncludingGravity rotationRate interval:0",
+    ],
+    DeviceOrientationEvent: ["Event", 1, "alpha beta gamma absolute:f"],
+    DragEvent: ["MouseEvent", 1, "dataTransfer"],
+  };
+  /* The arguments after (type, bubbles, cancelable); "-" is one Chrome ignores. */
+  var EVENT_INIT_ARGS = {
+    initEvent: "",
+    initUIEvent: "view detail",
+    initMouseEvent:
+      "view detail screenX screenY clientX clientY ctrlKey altKey shiftKey metaKey button relatedTarget",
+    initKeyboardEvent: "view - location ctrlKey altKey shiftKey metaKey",
+    initCustomEvent: "detail",
+    initCompositionEvent: "view data",
+    initTextEvent: "view data",
+    initMessageEvent: "data origin lastEventId source ports",
+    initStorageEvent: "key oldValue newValue url storageArea",
+  };
+  var EVENT_ALIASES = {
+    srcElement: "target",
+    x: "clientX",
+    y: "clientY",
+    pageX: "clientX",
+    pageY: "clientY",
+    offsetX: "clientX",
+    offsetY: "clientY",
+    layerX: "clientX",
+    layerY: "clientY",
+  };
+  var EVENT_MODIFIERS = { Control: "ctrlKey", Shift: "shiftKey", Alt: "altKey", Meta: "metaKey" };
+  var EVENT_GETTERS = {
+    "Event.returnValue": function (d) {
+      return !d.defaultPrevented;
+    },
+    "BeforeUnloadEvent.returnValue": function (d) {
+      return d.unloadMessage === undefined ? "" : d.unloadMessage;
+    },
+    "UIEvent.which": function (d, ev) {
+      return ev instanceof globalThis.MouseEvent ? (d.button || 0) + 1 : 0;
+    },
+  };
+  var EVENT_SETTERS = {
+    "Event.returnValue": function (d, v) {
+      if (!v && d.cancelable) d.defaultPrevented = true;
+    },
+    "Event.cancelBubble": function (d, v) {
+      if (v) d.cancelBubble = true;
+    },
+    "BeforeUnloadEvent.returnValue": function (d, v) {
+      d.unloadMessage = String(v);
+    },
+  };
+  var EVENT_OPS = {
+    composedPath: function (d) {
+      return d.path ? d.path.slice() : [];
+    },
+    preventDefault: function (d) {
+      if (d.cancelable) d.defaultPrevented = true;
+    },
+    stopImmediatePropagation: function (d) {
+      d.stopNow = true;
+    },
+    stopPropagation: function (d) {
+      d.cancelBubble = true;
+    },
+    getModifierState: function (d, key) {
+      return !!d[EVENT_MODIFIERS[key]];
+    },
+  };
+  var eventDefaults = {};
+  /* createEvent's names, lowercased: every class but the aliases below takes its own name. */
+  var eventProtoByName = Object.create(null);
+  var isTrustedGetter = __nativeFn(
+    "get isTrusted",
+    function () {
+      eventOf(this);
+      return false;
+    },
+    0,
+  );
+  function newEvent(proto, data) {
+    var ev = Object.create(proto);
+    var perf = globalThis.performance;
+    Object.defineProperty(ev, "isTrusted", { get: isTrustedGetter, enumerable: true });
+    data.timeStamp = perf && typeof perf.now === "function" ? perf.now() : 0;
+    eventData.set(ev, data);
+    return ev;
+  }
+  function eventCoerce(dflt, v) {
+    if (dflt === 0) return +v || 0;
+    if (dflt === false) return !!v;
+    return dflt === "" ? String(v) : v;
+  }
+  function eventCtor(name, length) {
+    var prefix = "Failed to construct '" + name + "': ";
+    return __nativeFn(
+      name,
+      function (type, init) {
+        var data, key;
+        if (!length) throw new TypeError(prefix + "Illegal constructor");
+        if (typeof this !== "function")
+          throw new TypeError(
+            prefix +
+              "Please use the 'new' operator, this DOM object constructor cannot be called as a function.",
+          );
+        if (!arguments.length)
+          throw new TypeError(prefix + "1 argument required, but only 0 present.");
+        data = { type: String(type), init: true };
+        if (init !== null && init !== undefined) {
+          for (key in eventDefaults[name]) {
+            if (key !== "type" && !EVENT_ALIASES[key] && init[key] !== undefined)
+              data[key] = eventCoerce(eventDefaults[name][key], init[key]);
+          }
+        }
+        return newEvent(this.prototype, data);
+      },
+      length,
     );
   }
-  if (typeof globalThis.CustomEvent !== "function") {
-    globalThis.CustomEvent = native("CustomEvent", function CustomEvent(type, init) {
-      var o = globalThis.Event(type, init);
-      o.detail = init && init.detail !== undefined ? init.detail : null;
-      return o;
-    });
-    globalThis.CustomEvent.prototype = globalThis.Event.prototype;
+  function eventInitOp(name, owner) {
+    var fields = EVENT_INIT_ARGS[name] ? EVENT_INIT_ARGS[name].split(" ") : [];
+    return function (d, type, bubbles, cancelable) {
+      var i, v;
+      if (d.dispatching) return;
+      d.init = true;
+      d.type = String(type);
+      d.bubbles = !!bubbles;
+      d.cancelable = !!cancelable;
+      d.defaultPrevented = d.cancelBubble = d.stopNow = false;
+      d.target = null;
+      for (i = 0; i < fields.length; i++) {
+        v = arguments[i + 4];
+        if (fields[i] !== "-" && v !== undefined)
+          d[fields[i]] = eventCoerce(eventDefaults[owner][fields[i]], v);
+      }
+    };
   }
+  function defineEventClass(name) {
+    var spec = EVENT_CLASSES[name];
+    var parent = spec[0] ? globalThis[spec[0]] : null;
+    var C = eventCtor(name, spec[1]);
+    var proto = Object.create(parent ? parent.prototype : Object.prototype);
+    var defaults = (eventDefaults[name] = Object.create(parent ? eventDefaults[spec[0]] : null));
+    spec[2].split(" ").forEach(function (member) {
+      var m = /^(\w+)(?::(\w)|=(\d)|(\(\)))?$/.exec(member);
+      var key = m[1];
+      var dflt, fn, takesArg;
+      if (m[3] !== undefined) {
+        var constant = { value: +m[3], enumerable: true };
+        Object.defineProperty(proto, key, constant);
+        Object.defineProperty(C, key, constant);
+      } else if (m[4]) {
+        fn = EVENT_OPS[key] || eventInitOp(key, name);
+        takesArg = !EVENT_OPS[key] || key === "getModifierState";
+        hide(
+          proto,
+          key,
+          __nativeFn(
+            key,
+            function () {
+              var args = [eventOf(this)];
+              if (takesArg && !arguments.length)
+                throw new TypeError(
+                  "Failed to execute '" +
+                    key +
+                    "' on '" +
+                    name +
+                    "': 1 argument required, but only 0 present.",
+                );
+              args.push.apply(args, arguments);
+              return fn.apply(this, args);
+            },
+            takesArg ? 1 : 0,
+          ),
+        );
+      } else {
+        dflt = { s: "", 0: 0, f: false, a: [] }[m[2]];
+        if (dflt === undefined) dflt = null;
+        defaults[key] = dflt;
+        Object.defineProperty(proto, key, {
+          configurable: true,
+          enumerable: true,
+          get: __nativeFn(
+            "get " + key,
+            function () {
+              var d = eventOf(this);
+              var getter = EVENT_GETTERS[name + "." + key];
+              var field = EVENT_ALIASES[key] || key;
+              if (getter) return getter(d, this);
+              return field in d ? d[field] : Array.isArray(dflt) ? [] : dflt;
+            },
+            0,
+          ),
+          set: EVENT_SETTERS[name + "." + key]
+            ? __nativeFn(
+                "set " + key,
+                function (v) {
+                  EVENT_SETTERS[name + "." + key](eventOf(this), v);
+                },
+                1,
+              )
+            : undefined,
+        });
+      }
+    });
+    hide(proto, "constructor", C);
+    Object.defineProperty(proto, Symbol.toStringTag, { value: name, configurable: true });
+    Object.defineProperty(C, "prototype", { value: proto });
+    if (parent) Object.setPrototypeOf(C, parent);
+    hide(globalThis, name, C);
+    eventProtoByName[name.toLowerCase()] = proto;
+  }
+  Object.keys(EVENT_CLASSES).forEach(defineEventClass);
+  eventProtoByName.events =
+    eventProtoByName.htmlevents =
+    eventProtoByName.svgevents =
+      eventProtoByName.event;
+  eventProtoByName.uievents = eventProtoByName.uievent;
+  eventProtoByName.mouseevents = eventProtoByName.mouseevent;
+  eventProtoByName.keyboardevents = eventProtoByName.keyboardevent;
   for (ci = 0; ci < WINDOW_FUNCS.length; ci++) {
     if (typeof globalThis[WINDOW_FUNCS[ci]] !== "function") {
       globalThis[WINDOW_FUNCS[ci]] = native(WINDOW_FUNCS[ci], function () {
@@ -3046,131 +3275,27 @@
     if (src != null) el.src = String(src);
     return el;
   });
-  hide(
-    document,
+  var createEvent = __nativeFn(
     "createEvent",
-    native("createEvent", function (type) {
-      var t = String(type == null ? "" : type);
-      var ev = {
-        type: t,
-        bubbles: false,
-        cancelable: false,
-        defaultPrevented: false,
-        target: null,
-        currentTarget: null,
-        eventPhase: 0,
-        timeStamp: hrtime(),
-      };
-      ev.cancelBubble = false;
-      ev.returnValue = true;
-      ev.srcElement = null;
-      ev.ctrlKey = false;
-      ev.altKey = false;
-      ev.shiftKey = false;
-      ev.metaKey = false;
-      ev.button = 0;
-      ev.clientX = 0;
-      ev.clientY = 0;
-      ev.screenX = 0;
-      ev.screenY = 0;
-      ev.pageX = 0;
-      ev.pageY = 0;
-      ev.offsetX = 0;
-      ev.offsetY = 0;
-      ev.which = 0;
-      ev.x = 0;
-      ev.y = 0;
-      ev.movementX = 0;
-      ev.movementY = 0;
-      ev.buttons = 0;
-      ev.relatedTarget = null;
-      ev.view = null;
-      ev.detail = 0;
-      hide(
-        ev,
-        "initEvent",
-        native("initEvent", function (ty, b, c) {
-          this.type = String(ty == null ? "" : ty);
-          this.bubbles = !!b;
-          this.cancelable = !!c;
-        }),
-      );
-      hide(
-        ev,
-        "initMouseEvent",
-        native(
-          "initMouseEvent",
-          function (
-            ty,
-            bubbles,
-            cancelable,
-            view,
-            detail,
-            screenX,
-            screenY,
-            clientX,
-            clientY,
-            ctrlKey,
-            altKey,
-            shiftKey,
-            metaKey,
-            button,
-            relatedTarget,
-          ) {
-            this.type = String(ty == null ? this.type : ty);
-            this.bubbles = !!bubbles;
-            this.cancelable = !!cancelable;
-            this.view = view || null;
-            this.detail = detail || 0;
-            this.screenX = screenX || 0;
-            this.screenY = screenY || 0;
-            this.clientX = clientX || 0;
-            this.clientY = clientY || 0;
-            this.pageX = this.clientX;
-            this.pageY = this.clientY;
-            this.which = this.button + 1;
-            this.x = this.clientX;
-            this.y = this.clientY;
-            this.ctrlKey = !!ctrlKey;
-            this.altKey = !!altKey;
-            this.shiftKey = !!shiftKey;
-            this.metaKey = !!metaKey;
-            this.button = button || 0;
-            this.relatedTarget = relatedTarget || null;
-          },
-        ),
-      );
-      hide(
-        ev,
-        "initUIEvent",
-        native("initUIEvent", function (ty, b, c, view, detail) {
-          this.type = String(ty == null ? this.type : ty);
-          this.bubbles = !!b;
-          this.cancelable = !!c;
-          this.view = view || null;
-          this.detail = detail || 0;
-        }),
-      );
-      hide(
-        ev,
-        "preventDefault",
-        native("preventDefault", function () {
-          this.defaultPrevented = true;
-        }),
-      );
-      hide(
-        ev,
-        "stopPropagation",
-        native("stopPropagation", function () {}),
-      );
-      hide(
-        ev,
-        "stopImmediatePropagation",
-        native("stopImmediatePropagation", function () {}),
-      );
-      return ev;
-    }),
+    function (type) {
+      var prefix = "Failed to execute 'createEvent' on 'Document': ";
+      var name, proto;
+      if (!arguments.length)
+        throw new TypeError(prefix + "1 argument required, but only 0 present.");
+      name = String(type);
+      proto = eventProtoByName[name.toLowerCase()];
+      if (!proto)
+        throw domError(
+          "NotSupportedError",
+          9,
+          prefix + "The provided event type ('" + name + "') is invalid.",
+        );
+      return newEvent(proto, {});
+    },
+    1,
   );
+  hide(document, "createEvent", createEvent);
+  hide(globalThis.Document.prototype, "createEvent", createEvent);
   hide(
     document,
     "createElementNS",

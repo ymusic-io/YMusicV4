@@ -111,8 +111,8 @@
     "AudioDecoder:EventTarget:1,AudioEncoder:EventTarget:1,AudioWorklet:Worklet," +
     "BatteryManager:EventTarget,Cache,Clipboard:EventTarget,ClipboardChangeEvent:Event," +
     "ClipboardItem::1,CookieChangeEvent:Event:1,CookieStore:EventTarget,CookieStoreManager," +
-    "CreateMonitor:EventTarget,Credential,CredentialsContainer,CryptoKey,DeviceMotionEvent:Event:1," +
-    "DeviceMotionEventAcceleration,DeviceMotionEventRotationRate,DeviceOrientationEvent:Event:1," +
+    "CreateMonitor:EventTarget,Credential,CredentialsContainer,CryptoKey," +
+    "DeviceMotionEventAcceleration,DeviceMotionEventRotationRate," +
     "FederatedCredential:Credential:1,GPUAdapterInfo,GPUCommandBuffer,GPUCompilationInfo," +
     "GPUCompilationMessage,GPUComputePassEncoder,GPUDeviceLostInfo,GPUError,GPUExternalTexture," +
     "GPUInternalError:GPUError:1,GPUOutOfMemoryError:GPUError:1,GPUPipelineError:DOMException:1," +
