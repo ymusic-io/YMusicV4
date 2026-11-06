@@ -354,7 +354,7 @@ private fun AppRoot(
         // App-level so a scan started in Library keeps running (and still notifies) across sections.
         val scanController = graph.scans
         val drawer = rememberDrawerState(DrawerValue.Closed)
-        var railPinnedOpen by rememberSaveable { mutableStateOf(true) }
+        var railToggled by rememberSaveable { mutableStateOf<Boolean?>(null) }
         var railOverlayOpen by remember { mutableStateOf(false) }
         var usesRail by remember { mutableStateOf(false) }
         if (catalogue == null) {
@@ -891,12 +891,19 @@ private fun AppRoot(
                 Modifier.fillMaxSize().safeDrawingPadding(),
             ) {
                 val railWindow = windowUsesRail(maxWidth, maxHeight)
-                val railPinned = windowPinsRail(maxWidth)
-                val railExpanded = if (railPinned) railPinnedOpen else railOverlayOpen
+                val railStartsOpen = windowStartsRailOpen(maxWidth)
+                val railExpanded = if (railBesideContent) railToggled ?: railStartsOpen else railOverlayOpen
                 SideEffect { usesRail = railWindow }
-                LaunchedEffect(railWindow, railPinned) { railOverlayOpen = false }
+                LaunchedEffect(railWindow, railStartsOpen) {
+                    railOverlayOpen = false
+                    railToggled = null
+                }
                 // design/final/home.html: landscape (or any window this wide) puts the tab row inline in the app bar.
-                val shellWidth = if (railWindow) maxWidth - railReserve(railPinned, railExpanded) else maxWidth
+                val shellWidth = when {
+                    !railWindow -> maxWidth
+                    railBesideContent -> maxWidth - DesignSpacing.RailExpandedWidth
+                    else -> maxWidth - DesignSpacing.RailCollapsedWidth
+                }
                 val wide = shellWidth > maxHeight && shellWidth >= 600.dp || shellWidth >= 650.dp
                 // Fully covering Now Playing is opaque: skip drawing the feed/mini-player under it
                 // (4× GPU overdraw). Draw them again as soon as the sheet peeks so dismiss reveals.
@@ -939,10 +946,10 @@ private fun AppRoot(
                                     websiteUrl = AppLinks(config).website,
                                     onSelect = selectSection,
                                 ),
-                                pinned = railPinned,
+                                besideContent = railBesideContent,
                                 expanded = railExpanded,
                                 onToggle = {
-                                    if (railPinned) railPinnedOpen = !railPinnedOpen else railOverlayOpen = !railOverlayOpen
+                                    if (railBesideContent) railToggled = !railExpanded else railOverlayOpen = !railOverlayOpen
                                 },
                                 coordinator = coordinator,
                                 surface = if (needsSurface && !nowPlayingOpen) graph.playerSurface else null,

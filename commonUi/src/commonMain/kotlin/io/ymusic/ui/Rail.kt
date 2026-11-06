@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -37,13 +38,16 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -59,6 +63,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -67,6 +72,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -85,7 +91,7 @@ import org.jetbrains.compose.resources.stringResource
 
 private val RailMinWindowWidth = 600.dp
 private val RailMinWindowHeight = 480.dp
-private val RailPinnedWindowWidth = 1200.dp
+private val RailOpenWindowWidth = 1200.dp
 
 private val RailItemShape = RoundedCornerShape(DesignSpacing.Space8)
 private val RailThumbnailShape = RoundedCornerShape(DesignSpacing.Space8)
@@ -100,8 +106,44 @@ private val RailOpenHintFill = Color.Black.copy(alpha = 0.6f)
 /** Landscape phones stay on the drawer: the rail's items would not fit their height. */
 internal fun windowUsesRail(width: Dp, height: Dp): Boolean = width >= RailMinWindowWidth && height >= RailMinWindowHeight
 
-/** Wide desktop windows keep the expanded rail beside the content; elsewhere it opens over the content. */
-internal fun windowPinsRail(width: Dp): Boolean = !platformUsesTouch && width >= RailPinnedWindowWidth
+/**
+ * Width the rail can still take from the content by expanding. Deliberately not snapshot state: it is written in the
+ * layout pass right before the content is measured, so a width and its slack are always read as a matching pair.
+ */
+internal class RailSlack {
+    var width: Dp = 0.dp
+}
+
+internal val LocalRailSlack = staticCompositionLocalOf { RailSlack() }
+
+/** The content [width] with the rail expanded: size-based layout reads this so expanding never changes a column count. */
+@Composable
+@ReadOnlyComposable
+internal fun railStableWidth(width: Dp): Dp = (width - LocalRailSlack.current.width).coerceAtLeast(0.dp)
+
+/** [GridCells.Adaptive] over [railStableWidth]. */
+@Composable
+internal fun railStableAdaptive(minSize: Dp): GridCells {
+    val slack = LocalRailSlack.current
+    return remember(minSize) {
+        object : GridCells {
+            override fun Density.calculateCrossAxisCellSizes(availableSize: Int, spacing: Int): List<Int> {
+                val stable = (availableSize - slack.width.roundToPx()).coerceAtLeast(0)
+                val columns = ((stable + spacing) / (minSize.roundToPx() + spacing)).coerceAtLeast(1)
+                return with(GridCells.Fixed(columns)) { calculateCrossAxisCellSizes(availableSize, spacing) }
+            }
+        }
+    }
+}
+
+/** Desktop windows this wide start with the rail expanded. */
+internal fun windowStartsRailOpen(width: Dp): Boolean = !platformUsesTouch && width >= RailOpenWindowWidth
+
+/**
+ * Desktop keeps the expanded rail beside the content: its picture tile is glass over a native frame behind the
+ * window, so content under the rail would show through. Touch windows open it over the content instead.
+ */
+internal val railBesideContent: Boolean get() = !platformUsesTouch
 
 /** What the rail lists; the same choices the drawer offers. */
 internal class RailContent(
@@ -117,12 +159,12 @@ internal class RailContent(
 
 /**
  * The navigation shell of tablet and desktop windows: a left rail that replaces the drawer and carries the
- * mini player. [pinned] keeps the [expanded] rail beside [content]; otherwise it opens over it.
+ * mini player. [besideContent] keeps the [expanded] rail beside [content]; otherwise it opens over it.
  */
 @Composable
 internal fun AppRail(
     rail: RailContent,
-    pinned: Boolean,
+    besideContent: Boolean,
     expanded: Boolean,
     onToggle: () -> Unit,
     coordinator: PlaybackCoordinator,
@@ -130,14 +172,24 @@ internal fun AppRail(
     onExpandPlayer: () -> Unit,
     content: @Composable () -> Unit,
 ) {
-    val overlay = expanded && !pinned
+    val overlay = expanded && !besideContent
+    val reserve = animateDpAsState(railReserve(besideContent, expanded))
+    val slack = remember { RailSlack() }
     Box(Modifier.fillMaxSize()) {
         Box(
             Modifier.fillMaxSize()
-                .padding(start = railReserve(pinned, expanded))
-                // Desktop screen readers hit-test by point: a cleared node here would shadow the rail.
-                .then(if (overlay && platformUsesTouch) Modifier.clearAndSetSemantics {} else Modifier),
-        ) { content() }
+                .layout { measurable, constraints ->
+                    val reservePx = reserve.value.roundToPx()
+                    val expandedPx = DesignSpacing.RailExpandedWidth.roundToPx()
+                    slack.width = if (besideContent) (expandedPx - reservePx).toDp() else 0.dp
+                    val width = (constraints.maxWidth - reservePx).coerceAtLeast(0)
+                    val placeable = measurable.measure(constraints.copy(minWidth = width, maxWidth = width))
+                    layout(constraints.maxWidth, constraints.maxHeight) { placeable.placeRelative(reservePx, 0) }
+                }
+                .then(if (overlay) Modifier.clearAndSetSemantics {} else Modifier),
+        ) {
+            CompositionLocalProvider(LocalRailSlack provides slack) { content() }
+        }
         if (overlay) {
             Box(
                 Modifier.fillMaxSize()
@@ -152,8 +204,8 @@ internal fun AppRail(
 private const val RailScrimAlpha = 0.5f
 
 /** The width the rail takes from the content; an overlay rail keeps only its collapsed width. */
-internal fun railReserve(pinned: Boolean, expanded: Boolean): Dp =
-    if (pinned && expanded) DesignSpacing.RailExpandedWidth else DesignSpacing.RailCollapsedWidth
+internal fun railReserve(besideContent: Boolean, expanded: Boolean): Dp =
+    if (besideContent && expanded) DesignSpacing.RailExpandedWidth else DesignSpacing.RailCollapsedWidth
 
 @Composable
 private fun RailPanel(

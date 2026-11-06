@@ -14,8 +14,9 @@ The shared Compose Multiplatform app UI (jvm + android; iOS later).
 
 - **Navigation shell** — phones use the drawer and the bottom mini-player. Windows at least 600dp wide and 480dp tall
   use `AppRail` (`Rail.kt`) instead: a left rail carrying the same sections and the mini-player, which hosts the shared
-  video surface in its art tile. Non-touch windows from 1200dp keep the expanded rail beside the content; elsewhere it
-  opens over the content. Now Playing and Search are the same screens on every size.
+  video surface in its art tile. On desktop the expanded rail sits beside the content and starts open from 1200dp; on
+  touch windows it starts collapsed and opens over the content. Now Playing and Search are the same screens on every size.
+  Width-based layout reads `railStableWidth`, so expanding resizes cards without changing a column count.
 
 - **SponsorBlock seam** — `ymusic.ui.sponsorblock`: `SponsorBlockApi` + `MockSponsorBlockApi` +
   SQLite cache/whitelist (`SponsorBlockStore`) + `SponsorBlockService` + `SponsorBlockCoordinator`
