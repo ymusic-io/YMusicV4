@@ -1,0 +1,2 @@
+-- v5 -> v6: the gain that levels a file's loudness, read from the tag downloads write.
+ALTER TABLE mediaItem ADD COLUMN loudnessGainDb REAL;
