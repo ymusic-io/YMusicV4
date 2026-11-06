@@ -916,6 +916,9 @@ private fun AppRoot(
                         // cleared node here would shadow Now Playing.
                         .then(if (nowPlayingOpen && !holeOpen) Modifier.clearAndSetSemantics {} else Modifier),
                 ) {
+                    // The shell owns app-bar elevation: content reports its scroll via TrackScroll into
+                    // this host, and the bar and rail read it. (Content never touches them directly.)
+                    val scrollHost = remember { ScrollHost() }
                     val selectSection: (AppSection) -> Unit = { selected ->
                         // Donate and Telegram are actions, not screens.
                         when (selected) {
@@ -957,6 +960,7 @@ private fun AppRoot(
                                     railOverlayOpen = false
                                     graph.pip.nowPlayingOpen.value = true
                                 },
+                                chromeElevated = scrollHost.scrolled,
                                 content = shell,
                             )
                         }
@@ -984,9 +988,6 @@ private fun AppRoot(
                         }
                     }
                     if (!holeOpen) shellFrame {
-                        // The shell owns app-bar elevation: content reports its scroll via TrackScroll into
-                        // this host, and the bar reads it. (Content never touches the bar directly.)
-                        val scrollHost = remember { ScrollHost() }
                         // Touch platforms scroll the toolbar row away (enter-always) while the tab row
                         // stays pinned; with the tabs inline (wide) the bar carries them, so it stays put.
                         // Only the tabbed sections collapse: without a tab row below, a vanishing toolbar

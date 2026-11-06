@@ -37,6 +37,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -56,6 +57,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.ClipOp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
@@ -65,6 +67,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
@@ -74,6 +77,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.ymusic.player.PlayableItem
@@ -170,6 +174,8 @@ internal fun AppRail(
     coordinator: PlaybackCoordinator,
     surface: (@Composable (Modifier) -> Unit)?,
     onExpandPlayer: () -> Unit,
+    /** Whether the app bar is lifted: the rail is the same layer, so it lifts with it. */
+    chromeElevated: Boolean,
     content: @Composable () -> Unit,
 ) {
     val overlay = expanded && !besideContent
@@ -197,11 +203,32 @@ internal fun AppRail(
                     .pointerInput(Unit) { detectTapGestures { onToggle() } },
             )
         }
-        RailPanel(rail, expanded, onToggle, coordinator, surface, onExpandPlayer)
+        Row(Modifier.fillMaxHeight()) {
+            // Over the content the rail floats and casts a shadow; beside it, it shares the app bar's plane.
+            RailPanel(rail, expanded, chromeTone(chromeElevated || overlay), onToggle, coordinator, surface, onExpandPlayer)
+            if (overlay) RailShadow() else VerticalDivider(color = DesignColors.Divider)
+        }
     }
 }
 
+@Composable
+private fun RailShadow() {
+    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+    Box(
+        Modifier.width(RailShadowReach).fillMaxHeight().drawBehind {
+            drawRect(
+                Brush.horizontalGradient(
+                    *elevationShadowStops(1f),
+                    startX = if (rtl) size.width else 0f,
+                    endX = if (rtl) 0f else size.width,
+                ),
+            )
+        },
+    )
+}
+
 private const val RailScrimAlpha = 0.5f
+private val RailShadowReach = 12.dp
 
 /** The width the rail takes from the content; an overlay rail keeps only its collapsed width. */
 internal fun railReserve(besideContent: Boolean, expanded: Boolean): Dp =
@@ -211,13 +238,13 @@ internal fun railReserve(besideContent: Boolean, expanded: Boolean): Dp =
 private fun RailPanel(
     rail: RailContent,
     expanded: Boolean,
+    background: Color,
     onToggle: () -> Unit,
     coordinator: PlaybackCoordinator,
     surface: (@Composable (Modifier) -> Unit)?,
     onExpandPlayer: () -> Unit,
 ) {
     val width by animateDpAsState(if (expanded) DesignSpacing.RailExpandedWidth else DesignSpacing.RailCollapsedWidth)
-    val background = DesignColors.SurfaceDim
     var panel by remember { mutableStateOf<LayoutCoordinates?>(null) }
     var tileBounds by remember { mutableStateOf(Rect.Zero) }
     val placeTile: (LayoutCoordinates) -> Unit = { tile ->

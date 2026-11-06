@@ -177,6 +177,18 @@ internal fun TrackScroll(scrolled: () -> Boolean) {
     LaunchedEffect(host, token) { snapshotFlow(scrolled).collect { host.report(token, it) } }
 }
 
+/** The app chrome's tone, shared by the app bars and the rail so they read as one layer. */
+@Composable
+internal fun chromeTone(elevated: Boolean): Color =
+    animateColorAsState(if (elevated) DesignColors.SurfaceElevated else DesignColors.Surface).value
+
+/** The painted elevation falloff, nearest the surface first. Approximates the 6dp blur of [ElevatedBarDialog]'s bars. */
+internal fun elevationShadowStops(alpha: Float): Array<Pair<Float, Color>> = arrayOf(
+    0f to Color.Black.copy(alpha = 0.20f * alpha),
+    0.4f to Color.Black.copy(alpha = 0.07f * alpha),
+    1f to Color.Transparent,
+)
+
 /** An app-bar surface that lifts while the screen under it is scrolled: shadow + the elevated
  *  tone (elevated white ≠ white). Drawn above siblings so the shadow is never painted over.
  *  [bottomShadow] = false keeps the tone but drops the shadow, for when another elevated surface
@@ -190,7 +202,7 @@ internal fun ElevatedBarColumn(bottomShadow: Boolean = true, content: @Composabl
     // ElevatedBarDialog bars cast (soft peak, gaussian-ish falloff), so every lifted bar in the
     // app reads identically.
     val shadowAlpha by animateFloatAsState(if (elevated && bottomShadow) 1f else 0f)
-    val tone by animateColorAsState(if (elevated) DesignColors.SurfaceElevated else DesignColors.Surface)
+    val tone = chromeTone(elevated)
     Column(
         Modifier
             .zIndex(1f)
@@ -199,9 +211,7 @@ internal fun ElevatedBarColumn(bottomShadow: Boolean = true, content: @Composabl
                     val reach = 12.dp.toPx()
                     drawRect(
                         brush = Brush.verticalGradient(
-                            0f to Color.Black.copy(alpha = 0.20f * shadowAlpha),
-                            0.4f to Color.Black.copy(alpha = 0.07f * shadowAlpha),
-                            1f to Color.Transparent,
+                            *elevationShadowStops(shadowAlpha),
                             startY = size.height,
                             endY = size.height + reach,
                         ),
