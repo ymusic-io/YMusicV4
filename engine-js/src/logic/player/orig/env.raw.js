@@ -3231,6 +3231,7 @@
 
   var document = {
     nodeType: 9,
+    nodeName: "#document",
     readyState: "complete",
     hidden: false,
     visibilityState: "visible",

@@ -4307,8 +4307,6 @@
   }
 
   function liveHost(name) {
-    if (name === "Document" && typeof document === "object" && document) return document;
-    if (name === "HTMLDocument" && typeof document === "object" && document) return document;
     if (name === "History" && typeof history === "object" && history) return history;
     if (name === "Location" && typeof location === "object" && location) return location;
     if (name === "Navigator" && typeof navigator === "object" && navigator) return navigator;
@@ -4334,6 +4332,28 @@
       if (!owner || name === "constructor") return;
       desc = Object.getOwnPropertyDescriptor(from, name);
       delete from[name];
+      Object.defineProperty(owner, name, desc);
+    });
+  }
+
+  /* The live document keeps only location, as in Chrome: what it was built with moves to the
+   * interfaces, and plain values go through the attribute setters. */
+  function adoptDocument() {
+    var proto = globalThis.HTMLDocument.prototype;
+    linkProto(globalThis.HTMLDocument, "Document");
+    finishProto(globalThis.HTMLDocument, "HTMLDocument");
+    delete globalThis.Document.prototype.location;
+    Object.setPrototypeOf(document, proto);
+    Object.getOwnPropertyNames(document).forEach(function (name) {
+      var desc = Object.getOwnPropertyDescriptor(document, name);
+      var owner = proto;
+      if (name === "location" || !(name in proto)) return;
+      delete document[name];
+      if (!desc.get && typeof desc.value !== "function") {
+        document[name] = desc.value;
+        return;
+      }
+      while (!hasOwn.call(owner, name)) owner = Object.getPrototypeOf(owner);
       Object.defineProperty(owner, name, desc);
     });
   }
@@ -4426,5 +4446,6 @@
       globalThis.Node.prototype,
       globalThis.Element.prototype,
     ]);
+    adoptDocument();
   })();
 })();
