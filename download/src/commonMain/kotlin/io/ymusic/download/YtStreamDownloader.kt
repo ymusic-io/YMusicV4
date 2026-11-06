@@ -202,8 +202,9 @@ class YtStreamDownloader(
         try {
             if (!response.isSuccessful) throw IOException("caption ${track.languageCode} HTTP ${response.code}")
             val bytes = response.body.byteString()
-            if (!bytes.utf8().contains("-->")) throw IOException("caption ${track.languageCode} has no cues (${bytes.size} bytes)")
-            scratch.appendSink().use { sink -> sink.write(bytes); sink.flush() }
+            val vtt = bytes.utf8()
+            if (!vtt.contains("-->")) throw IOException("caption ${track.languageCode} has no cues (${bytes.size} bytes)")
+            scratch.appendSink().use { sink -> sink.writeUtf8(capCueDuration(vtt)); sink.flush() }
         } finally {
             response.close()
         }
