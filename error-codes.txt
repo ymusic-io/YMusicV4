@@ -9,8 +9,8 @@
 #         E8xxxx :mse | E91xxx app updater (desktopApp / androidApp)
 
 E10001 - (example) kmpCommon CodedErrorTest fixture
-E10002 - quickjsjni or another boot library refused by an App Control policy: known state, one event per version, full-screen message (desktopApp)
-E10003 - quickjsjni or another boot library failed to load for any other reason: full-screen message (desktopApp)
+E10002 D quickjsjni or another boot library refused by an App Control policy: known state, one event per version, full-screen message (desktopApp)
+E10003 D quickjsjni or another boot library failed to load for any other reason: full-screen message (desktopApp)
 E12345 - (example) doc placeholder in AGENTS.md minting rule
 E12375 - (example) doc placeholder in AGENTS.md / CodedError kdoc
 
@@ -33,7 +33,7 @@ E20052 D cache/put body sent no bytes for its idle timeout (dynamic-engine Cache
 E20053 D cache put cancelled by a newer put/delete of the same scope+key (dynamic-engine DiskCacheStore)
 E20060 D settings request has a missing/invalid field or malformed head (dynamic-engine SettingsProtocol)
 E20061 D settings store get/put threw (dynamic-engine SettingsProtocol)
-E20062 - remote-config/get head malformed or the features read threw (dynamic-engine RemoteConfigProtocol)
+E20062 D remote-config/get head malformed or the features read threw (dynamic-engine RemoteConfigProtocol)
 E20070 D mse-player request has a missing/invalid field or malformed head (dynamic-engine MsePlayerProtocol)
 E20071 D MsePlayer threw while serving mse-player (dynamic-engine MsePlayerProtocol)
 E20072 D player/load missing videoId (engine-js logic/player.ts)
@@ -121,7 +121,7 @@ E60011 D ExoPlayer decoder failure: init, query or decoding (player android Andr
 E60012 D ExoPlayer can't parse the file: malformed or unsupported container (player android AndroidLocalPlayer)
 E60013 D ExoPlayer audio output (AudioTrack) failure (player android AndroidLocalPlayer)
 E60014 D ExoPlayer operation timed out (player android AndroidLocalPlayer)
-E60015 - ExoPlayer refused a media item when it was set, e.g. an HLS, DASH or RTSP uri with no module in the app (player android AndroidLocalPlayer)
+E60015 D ExoPlayer refused a media item when it was set, e.g. an HLS, DASH or RTSP uri with no module in the app (player android AndroidLocalPlayer)
 E60020 D libVLC not found at construction (player jvm)
 E60021 D local playback failed in the file_av engine: open error other than a missing file, or a decoder gave up (player jvm JvmLocalPlayer)
 E60033 D YouTube playback error, no engine-supplied code (MsePlayer fallback)
@@ -166,8 +166,8 @@ E80073 D MediaSource not open / player released (mse)
 E80074 D MSE decoder playback error (mse android MediaCodec)
 E80075 D ffmpeg JNI backend missing or failed to create (mse jvm)
 E80076 D MSE append parse / byte-stream violation (mse)
-E80077 - JNI or a libav DLL refused by an App Control policy: known state, one event per version, playback off (desktopApp)
-E80078 - JNI or a libav DLL failed to load for any other reason: playback off for this launch (desktopApp)
+E80077 D JNI or a libav DLL refused by an App Control policy: known state, one event per version, playback off (desktopApp)
+E80078 D JNI or a libav DLL failed to load for any other reason: playback off for this launch (desktopApp)
 
 E90210 - (example) kmpCommon CodedErrorTest / HOST_PROTOCOLS.md fixture
 
@@ -180,4 +180,4 @@ E91012 D android update APK download failed (AndroidAppUpdates.download)
 E91013 D android update APK could not be handed to PackageInstaller (AndroidAppUpdates.installAndRestart)
 E91014 D android update APK download failed: the device doesn't trust the host's TLS chain (AndroidAppUpdates.download)
 E91015 D android update install refused by the device: SD-card install it can't move, policy/FRP restriction, or no installer session (AndroidAppUpdates.installAndRestart)
-E91016 - android update install failed after the hand-off: PackageInstaller reported a failure, or no screen could confirm it (AndroidAppUpdates.onInstallEnded)
+E91016 D android update install failed after the hand-off: PackageInstaller reported a failure, or no screen could confirm it (AndroidAppUpdates.onInstallEnded)

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 4.0.17
 
 ### NEW
 - Search: history entries that match what you type stay on screen above the live suggestions, with their remove button ([#227](https://github.com/ymusic-io/YMusicV4/issues/227), [0f703d3bd](https://github.com/ymusic-io/YMusicV4/commit/0f703d3bd6ca529c4762e529cce65717a35f40d5))
