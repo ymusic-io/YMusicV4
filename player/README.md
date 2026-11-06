@@ -95,6 +95,12 @@ The cross-platform playback layer.
     platform backend takes it) onto the shared `DesktopVideoSurface`. One `player` thread makes every native
     call; audio-only stops video decode.
 
+- **Loudness** — YouTube's rule on every path: loud tracks come down to `audioConfig.loudnessTargetLkfs`, quiet ones
+  are never raised, and `Player.volume` stays the user's value. Streams: base.js computes the gain for the presenting
+  format (a DRC variant measures differently from the normal one), and `MsePlayer` multiplies its pushed `gain` status
+  into the host volume. Downloads: the same dB figure is stored as `composer=videoId|gain=-6.69` in the file and on
+  the task row, reaches `PlayableItem.LocalMedia.loudnessGainDb`, and `PlayerImpl` scales the local engine's volume.
+
 - **Targets** — jvm/android/ios/macos (`withIosTargets()`+`withMacosTargets()`).
 
 - **Verification** — verified end-to-end on macOS (`:player:macosX64Test` loads/plays/seeks a generated WAV);
