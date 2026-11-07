@@ -52,11 +52,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -196,9 +198,34 @@ internal fun AppRail(
     @Suppress("NAME_SHADOWING")
     val expanded = if (platformIsTelevision) railFocused else expanded
 
+    // A TV whose focus falls out of the shell (the focused card left with its page, the app just started) puts it
+    // back in the content. Left alone, the next key would land on the first focusable, the rail, and open it.
+    val contentFocus = remember { FocusRequester() }
+    var shellHasFocus by remember { mutableStateOf(false) }
+    var focusLost by remember { mutableStateOf(0) }
+    LaunchedEffect(focusLost) {
+        if (focusLost == 0) return@LaunchedEffect
+        repeat(CONTENT_FOCUS_FRAMES) {
+            withFrameNanos { }
+            if (shellHasFocus || contentFocus.requestFocus(FocusDirection.Enter)) return@LaunchedEffect
+        }
+    }
     val reserve = animateDpAsState(railReserve(expanded))
     val slack = remember { RailSlack() }
-    Box(Modifier.fillMaxSize()) {
+    Box(
+        Modifier.fillMaxSize().then(
+            if (platformIsTelevision) {
+                Modifier
+                    .onFocusChanged { state ->
+                        shellHasFocus = state.hasFocus
+                        if (!state.hasFocus) focusLost++
+                    }
+                    .focusGroup()
+            } else {
+                Modifier
+            },
+        ),
+    ) {
         Box(
             Modifier.fillMaxSize()
                 .layout { measurable, constraints ->
@@ -210,6 +237,7 @@ internal fun AppRail(
                     layout(constraints.maxWidth, constraints.maxHeight) { placeable.placeRelative(reservePx, 0) }
                 }
                 .onFocusChanged { if (it.hasFocus) railFocused = false }
+                .focusRequester(contentFocus)
                 .focusGroup(),
         ) {
             CompositionLocalProvider(LocalRailSlack provides slack) { content() }
@@ -223,6 +251,9 @@ internal fun AppRail(
 }
 
 private const val RailLiveBadgeTextSize = 10
+
+/** How long a TV keeps trying to hand lost focus to the content while its new page composes (frames). */
+private const val CONTENT_FOCUS_FRAMES = 30
 
 /** The width the rail takes from the content. */
 internal fun railReserve(expanded: Boolean): Dp =
