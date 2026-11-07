@@ -12,6 +12,8 @@ import platform.UIKit.UIApplication
 
 internal actual val platformUsesTouch: Boolean = true
 
+internal actual val platformIsTelevision: Boolean = false
+
 internal actual val desktopLayoutHole: Boolean = false
 
 actual fun Modifier.a11yActionLabel(label: String?): Modifier =

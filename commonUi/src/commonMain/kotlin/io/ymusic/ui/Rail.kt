@@ -3,6 +3,7 @@ package io.ymusic.ui
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -55,6 +56,7 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.ClipOp
@@ -175,6 +177,12 @@ internal fun AppRail(
     chromeElevated: Boolean,
     content: @Composable () -> Unit,
 ) {
+    // A TV opens the rail while it holds focus. It closes only once focus reaches the content: expanding swaps the
+    // focused item for its expanded twin, and that momentary loss must not collapse it again.
+    var railFocused by remember { mutableStateOf(false) }
+
+    @Suppress("NAME_SHADOWING")
+    val expanded = if (platformIsTelevision) railFocused else expanded
     val overlay = expanded && !besideContent
     val reserve = animateDpAsState(railReserve(besideContent, expanded))
     val slack = remember { RailSlack() }
@@ -189,7 +197,9 @@ internal fun AppRail(
                     val placeable = measurable.measure(constraints.copy(minWidth = width, maxWidth = width))
                     layout(constraints.maxWidth, constraints.maxHeight) { placeable.placeRelative(reservePx, 0) }
                 }
-                .then(if (overlay) Modifier.clearAndSetSemantics {} else Modifier),
+                .then(if (overlay) Modifier.clearAndSetSemantics {} else Modifier)
+                .onFocusChanged { if (it.hasFocus) railFocused = false }
+                .focusGroup(),
         ) {
             CompositionLocalProvider(LocalRailSlack provides slack) { content() }
         }
@@ -200,7 +210,7 @@ internal fun AppRail(
                     .pointerInput(Unit) { detectTapGestures { onToggle() } },
             )
         }
-        Row(Modifier.fillMaxHeight()) {
+        Row(Modifier.fillMaxHeight().onFocusChanged { if (it.hasFocus) railFocused = true }.focusGroup()) {
             // Over the content the rail floats and casts a shadow; beside it, it shares the app bar's plane.
             RailPanel(rail, expanded, chromeTone(chromeElevated || overlay), onToggle, coordinator, surface, onExpandPlayer)
             if (overlay) RailShadow() else VerticalDivider(color = DesignColors.Divider)
@@ -266,8 +276,10 @@ private fun RailPanel(
             val item = queue.currentItem
             if (expanded) {
                 RailHeader(rail, onToggle)
-            } else {
+            } else if (!platformIsTelevision) {
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { RailToggle(rail, expanded, onToggle) }
+            } else {
+                Spacer(Modifier.height(DesignSpacing.Space8))
             }
             if (item != null) {
                 val holePunched = desktopLayoutHole && surface != null && expanded
@@ -292,7 +304,7 @@ private fun RailHeader(rail: RailContent, onToggle: () -> Unit) {
         horizontalArrangement = Arrangement.spacedBy(DesignSpacing.Space8),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        RailToggle(rail, expanded = true, onToggle)
+        if (platformIsTelevision) Spacer(Modifier.width(DesignSpacing.Space8)) else RailToggle(rail, expanded = true, onToggle)
         AppLogo(DesignSpacing.Space24)
         Column {
             Row(horizontalArrangement = Arrangement.spacedBy(DesignSpacing.Space8), verticalAlignment = Alignment.CenterVertically) {

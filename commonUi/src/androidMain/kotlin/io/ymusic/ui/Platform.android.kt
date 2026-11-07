@@ -32,6 +32,8 @@ import androidx.core.view.WindowInsetsControllerCompat
 
 internal actual val platformUsesTouch: Boolean get() = !AndroidInputMode.television
 
+internal actual val platformIsTelevision: Boolean get() = AndroidInputMode.television
+
 /** How the device is driven, recorded by the app shell before any UI composes. */
 object AndroidInputMode {
     /** A TV is driven by a D-pad, whatever touchscreen it reports: the emulator image claims one. */
