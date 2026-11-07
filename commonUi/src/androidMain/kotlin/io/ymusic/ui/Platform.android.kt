@@ -104,7 +104,7 @@ internal actual fun SyncSensorRotation(locked: Boolean) {
     }
 }
 
-internal actual val rotationLockSupported: Boolean = true
+internal actual val rotationLockSupported: Boolean get() = !AndroidInputMode.television
 
 @Composable
 internal actual fun SyncImmersiveSystemBars(immersive: Boolean) {
