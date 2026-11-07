@@ -1480,8 +1480,8 @@
       "audio/flac": "probably",
     };
     globalThis.HTMLMediaElement.prototype.canPlayType = native("canPlayType", function (type) {
-      if (Object.prototype.hasOwnProperty.call(this, "constructor"))
-        throw new TypeError("Illegal invocation");
+      var tag = this && this.tagName;
+      if (tag !== "VIDEO" && tag !== "AUDIO") throw new TypeError("Illegal invocation");
       type = String(type == null ? "" : type).toLowerCase();
       if (!type) return "";
       if (type.indexOf("codecs=") < 0) {
@@ -3578,6 +3578,17 @@
     if (self !== owner) throw new TypeError("Illegal invocation");
   }
 
+  /* ES class names don't survive Closure, and Chrome keeps constructor last on these. */
+  function nameClasses() {
+    ["HTMLMediaElement", "MediaSource", "SourceBuffer"].forEach(function (n) {
+      Object.defineProperty(globalThis[n], "name", { value: n, configurable: true });
+    });
+    ["HTMLVideoElement", "SpeechSynthesis", "SpeechSynthesisEvent"].forEach(function (n) {
+      var proto = globalThis[n].prototype;
+      delete proto.constructor;
+      hide(proto, "constructor", globalThis[n]);
+    });
+  }
   function readOnlyAttributes(proto, owner, values) {
     Object.keys(values).forEach(function (key) {
       Object.defineProperty(proto, key, {
@@ -3776,6 +3787,7 @@
     },
     /* The interfaces these fill only exist once chrome_globals.raw.js has run. */
     installChromeBackedApis: function () {
+      nameClasses();
       installNavigationEntry();
       installKeyboardLayoutMap();
       tagInterfacePrototypes();

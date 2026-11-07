@@ -1526,8 +1526,6 @@ export function installMseGlobals(): void {
   glob["MediaSource"] = MediaSource;
   glob["SourceBuffer"] = SourceBuffer;
   glob["HTMLMediaElement"] = HTMLMediaElement;
-  glob["HTMLVideoElement"] = HTMLMediaElement;
-  glob["HTMLAudioElement"] = HTMLMediaElement;
   (HTMLMediaElement as unknown as Record<string, unknown>)["attach"] = attachHtmlMedia;
   (HTMLMediaElement as unknown as Record<string, unknown>)["main"] = null;
   const Url = glob["URL"];
