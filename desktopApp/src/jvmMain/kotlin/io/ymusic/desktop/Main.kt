@@ -362,7 +362,7 @@ fun main(args: Array<String>) {
                 it.dsn = SENTRY_DSN
                 // The commit in the release traces an event to git history (no source upload).
                 it.release = SENTRY_RELEASE
-                it.environment = if (DEBUG_BUILD) "debug" else "production"
+                it.environment = if (DEBUG_BUILD) "debug" else SENTRY_ENVIRONMENT
             }
             installSentryDeviceId(telemetryDeviceId)
             installSentryDesktopOsContext()

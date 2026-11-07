@@ -318,7 +318,7 @@ class YMusicApplication : Application() {
                     // Explicit and persisted: without it, ANR/tombstone events replayed by the next
                     // process take dist from the text after '+' in the release (the commit).
                     it.dist = BuildConfig.VERSION_CODE.toString()
-                    it.environment = if (BuildConfig.DEBUG) "debug" else "production"
+                    it.environment = if (BuildConfig.DEBUG) "debug" else BuildConfig.SENTRY_ENVIRONMENT
                     // One trace per app open: no new trace per Activity, and no gesture listener on
                     // every window (it cannot resolve Compose elements, so it only costs hooks).
                     it.isEnableAutoTraceIdGeneration = false

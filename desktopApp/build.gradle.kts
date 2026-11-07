@@ -202,9 +202,11 @@ fun relinkMacJni(jni: File) {
 val generateBuildConfig by tasks.registering {
     val dsn = sentryDsn()
     val release = "ymusic-desktop@$desktopVersion+${gitCommit()}"
+    val environment = sentryEnvironment()
     val outDir = layout.buildDirectory.dir("generated/buildconfig/kotlin")
     inputs.property("dsn", dsn)
     inputs.property("release", release)
+    inputs.property("environment", environment)
     inputs.property("engineJsVersion", Versions.engineJsVersion)
     inputs.property("versionCode", desktopVersionCode)
     inputs.property("updatePublicKey", updatePublicKeyValue)
@@ -221,6 +223,7 @@ val generateBuildConfig by tasks.registering {
 
             internal const val SENTRY_DSN = "$dsn"
             internal const val SENTRY_RELEASE = "$release"
+            internal const val SENTRY_ENVIRONMENT = "$environment"
 
             // The jar's engine_ymusic.js resource revision (Versions.engineJsVersion).
             internal const val ENGINE_JS_VERSION: Long = ${Versions.engineJsVersion}L

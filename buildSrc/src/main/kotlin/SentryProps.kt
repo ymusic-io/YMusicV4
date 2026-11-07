@@ -6,6 +6,10 @@ import org.gradle.api.Project
 fun Project.sentryDsn(): String =
     System.getenv("SENTRY_DSN") ?: localProp("sentry.dsn") ?: ""
 
+/** The Sentry environment of a non-debug build: -PsentryEnvironment (beta for a prerelease tag), else production. */
+fun Project.sentryEnvironment(): String =
+    providers.gradleProperty("sentryEnvironment").orNull?.takeIf { it.isNotBlank() } ?: "production"
+
 /** Sentry org auth token for the build-time R8 mapping upload: the SENTRY_AUTH_TOKEN env var, else
  *  sentry.auth.token in local/secrets.properties. Empty skips the upload — release events
  *  then stay obfuscated in Sentry. */

@@ -59,6 +59,7 @@ android {
         versionCode = 22
         versionName = appVersionName
         buildConfigField("String", "SENTRY_DSN", "\"${sentryDsn()}\"")
+        buildConfigField("String", "SENTRY_ENVIRONMENT", "\"${sentryEnvironment()}\"")
         buildConfigField("String", "GIT_COMMIT", "\"${gitCommit()}\"")
         // Base url of the remote config service. Empty = no request, compiled-in defaults.
         val configUrl = remoteConfigUrl()
