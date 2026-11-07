@@ -7,7 +7,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.gestures.BringIntoViewSpec
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -53,28 +52,26 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.ClipOp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.clipRect
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -83,7 +80,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.ymusic.player.PlayableItem
@@ -167,12 +163,6 @@ internal fun railStableAdaptive(minSize: Dp): GridCells {
 /** Desktop windows this wide start with the rail expanded. */
 internal fun windowStartsRailOpen(width: Dp): Boolean = !platformUsesTouch && width >= RailOpenWindowWidth
 
-/**
- * Desktop keeps the expanded rail beside the content: its picture tile is glass over a native frame behind the
- * window, so content under the rail would show through. Touch windows open it over the content instead.
- */
-internal val railBesideContent: Boolean get() = !platformUsesTouch
-
 /** What the rail lists; the same choices the drawer offers. */
 internal class RailContent(
     val section: AppSection,
@@ -187,12 +177,11 @@ internal class RailContent(
 
 /**
  * The navigation shell of tablet and desktop windows: a left rail that replaces the drawer and carries the
- * mini player. [besideContent] keeps the [expanded] rail beside [content]; otherwise it opens over it.
+ * mini player. The rail always sits beside [content]: expanding moves the content over.
  */
 @Composable
 internal fun AppRail(
     rail: RailContent,
-    besideContent: Boolean,
     expanded: Boolean,
     onToggle: () -> Unit,
     coordinator: PlaybackCoordinator,
@@ -208,8 +197,32 @@ internal fun AppRail(
 
     @Suppress("NAME_SHADOWING")
     val expanded = if (platformIsTelevision) railFocused else expanded
-    val overlay = expanded && !besideContent
-    val reserve = animateDpAsState(railReserve(besideContent, expanded))
+
+    // Picking a section on a TV sends focus to its content, which closes the rail; the content may still be loading.
+    val contentFocus = remember { FocusRequester() }
+    var focusContent by remember { mutableStateOf(0) }
+    LaunchedEffect(focusContent) {
+        if (focusContent == 0) return@LaunchedEffect
+        repeat(CONTENT_FOCUS_FRAMES) {
+            withFrameNanos { }
+            if (contentFocus.requestFocus(FocusDirection.Enter)) return@LaunchedEffect
+        }
+        railFocused = false
+    }
+
+    @Suppress("NAME_SHADOWING")
+    val rail = if (!platformIsTelevision) {
+        rail
+    } else {
+        RailContent(
+            rail.section, rail.sections, rail.appVersion, rail.premium, rail.updateWaiting, rail.onCheckUpdate, rail.websiteUrl,
+            onSelect = { section ->
+                rail.onSelect(section)
+                focusContent++
+            },
+        )
+    }
+    val reserve = animateDpAsState(railReserve(expanded))
     val slack = remember { RailSlack() }
     Box(Modifier.fillMaxSize()) {
         Box(
@@ -217,54 +230,30 @@ internal fun AppRail(
                 .layout { measurable, constraints ->
                     val reservePx = reserve.value.roundToPx()
                     val expandedPx = DesignSpacing.RailExpandedWidth.roundToPx()
-                    slack.width = if (besideContent) (expandedPx - reservePx).toDp() else 0.dp
+                    slack.width = (expandedPx - reservePx).toDp()
                     val width = (constraints.maxWidth - reservePx).coerceAtLeast(0)
                     val placeable = measurable.measure(constraints.copy(minWidth = width, maxWidth = width))
                     layout(constraints.maxWidth, constraints.maxHeight) { placeable.placeRelative(reservePx, 0) }
                 }
-                .then(if (overlay) Modifier.clearAndSetSemantics {} else Modifier)
                 .onFocusChanged { if (it.hasFocus) railFocused = false }
+                .focusRequester(contentFocus)
                 .focusGroup(),
         ) {
             CompositionLocalProvider(LocalRailSlack provides slack) { content() }
         }
-        if (overlay) {
-            Box(
-                Modifier.fillMaxSize()
-                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = RailScrimAlpha))
-                    .pointerInput(Unit) { detectTapGestures { onToggle() } },
-            )
-        }
         Row(Modifier.fillMaxHeight().onFocusChanged { if (it.hasFocus) railFocused = true }.focusGroup()) {
-            // Over the content the rail floats and casts a shadow; beside it, it shares the app bar's plane.
-            RailPanel(rail, expanded, chromeTone(chromeElevated || overlay), onToggle, coordinator, surface, onExpandPlayer)
-            if (overlay) RailShadow() else VerticalDivider(color = DesignColors.Divider)
+            // Beside the content the rail shares the app bar's plane: same tone, a divider instead of a shadow.
+            RailPanel(rail, expanded, chromeTone(chromeElevated), onToggle, coordinator, surface, onExpandPlayer)
+            VerticalDivider(color = DesignColors.Divider)
         }
     }
 }
 
-@Composable
-private fun RailShadow() {
-    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
-    Box(
-        Modifier.width(RailShadowReach).fillMaxHeight().drawBehind {
-            drawRect(
-                Brush.horizontalGradient(
-                    *elevationShadowStops(1f),
-                    startX = if (rtl) size.width else 0f,
-                    endX = if (rtl) 0f else size.width,
-                ),
-            )
-        },
-    )
-}
+private const val CONTENT_FOCUS_FRAMES = 30
 
-private const val RailScrimAlpha = 0.5f
-private val RailShadowReach = 12.dp
-
-/** The width the rail takes from the content; an overlay rail keeps only its collapsed width. */
-internal fun railReserve(besideContent: Boolean, expanded: Boolean): Dp =
-    if (besideContent && expanded) DesignSpacing.RailExpandedWidth else DesignSpacing.RailCollapsedWidth
+/** The width the rail takes from the content. */
+internal fun railReserve(expanded: Boolean): Dp =
+    if (expanded) DesignSpacing.RailExpandedWidth else DesignSpacing.RailCollapsedWidth
 
 @Composable
 private fun RailPanel(

@@ -355,7 +355,6 @@ private fun AppRoot(
         val scanController = graph.scans
         val drawer = rememberDrawerState(DrawerValue.Closed)
         var railToggled by rememberSaveable { mutableStateOf<Boolean?>(null) }
-        var railOverlayOpen by remember { mutableStateOf(false) }
         var usesRail by remember { mutableStateOf(false) }
         if (catalogue == null) {
             LaunchedEffect(section) {
@@ -847,12 +846,11 @@ private fun AppRoot(
         // layer of the CURRENT section's stack pops. A lateral section with nothing left to unwind
         // steps back to Discover — which restores its own retained stack — and only from Discover's
         // root is back left to the OS to exit the app.
-        val backEnabled = drawer.isOpen || railOverlayOpen || nowPlayingOpen || layers.isNotEmpty() || section != AppSection.Discover
+        val backEnabled = drawer.isOpen || nowPlayingOpen || layers.isNotEmpty() || section != AppSection.Discover
         val onBack: () -> Unit = {
             val top = layers.lastOrNull()
             when {
                 drawer.isOpen -> scope.launch { drawer.close() }
-                railOverlayOpen -> railOverlayOpen = false
                 nowPlayingOpen -> graph.pip.nowPlayingOpen.value = false
                 top is AppLayer.Search && top.session.editing && top.session.submitted != null ->
                     top.session.editing = false
@@ -893,18 +891,13 @@ private fun AppRoot(
             ) {
                 val railWindow = windowUsesRail(maxWidth, maxHeight)
                 val railStartsOpen = windowStartsRailOpen(maxWidth)
-                val railExpanded = if (railBesideContent) railToggled ?: railStartsOpen else railOverlayOpen
+                val railExpanded = railToggled ?: railStartsOpen
                 SideEffect { usesRail = railWindow }
                 LaunchedEffect(railWindow, railStartsOpen) {
-                    railOverlayOpen = false
                     railToggled = null
                 }
                 // design/final/home.html: landscape (or any window this wide) puts the tab row inline in the app bar.
-                val shellWidth = when {
-                    !railWindow -> maxWidth
-                    railBesideContent -> maxWidth - DesignSpacing.RailExpandedWidth
-                    else -> maxWidth - DesignSpacing.RailCollapsedWidth
-                }
+                val shellWidth = if (railWindow) maxWidth - DesignSpacing.RailExpandedWidth else maxWidth
                 val wide = shellWidth > maxHeight && shellWidth >= 600.dp || shellWidth >= 650.dp
                 // Fully covering Now Playing is opaque: skip drawing the feed/mini-player under it
                 // (4× GPU overdraw). Draw them again as soon as the sheet peeks so dismiss reveals.
@@ -927,13 +920,11 @@ private fun AppRoot(
                             AppSection.Telegram -> uriHandler.openUri(AppLinks(config).telegram)
                             else -> openSection(selected)
                         }
-                        railOverlayOpen = false
                         scope.launch { drawer.close() }
                     }
                     val onCheckUpdate: (() -> Unit)? = graph.updates?.let {
                         {
                             checkingUpdate = true
-                            railOverlayOpen = false
                             scope.launch { drawer.close() }
                         }
                     }
@@ -950,15 +941,13 @@ private fun AppRoot(
                                     websiteUrl = AppLinks(config).website,
                                     onSelect = selectSection,
                                 ),
-                                besideContent = railBesideContent,
                                 expanded = railExpanded,
                                 onToggle = {
-                                    if (railBesideContent) railToggled = !railExpanded else railOverlayOpen = !railOverlayOpen
+                                    railToggled = !railExpanded
                                 },
                                 coordinator = coordinator,
                                 surface = if (needsSurface && !nowPlayingOpen) graph.playerSurface else null,
                                 onExpandPlayer = {
-                                    railOverlayOpen = false
                                     graph.pip.nowPlayingOpen.value = true
                                 },
                                 chromeElevated = scrollHost.scrolled,
