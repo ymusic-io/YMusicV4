@@ -530,7 +530,9 @@
 
   /* Desktop Chrome on youtube.com. */
   globalThis.chrome = {
-    app: { isInstalled: false },
+    loadTimes: native("loadTimes", function loadTimes() {
+      return {};
+    }),
     csi: native("csi", function csi() {
       return {
         startE: origin,
@@ -539,16 +541,7 @@
         tran: 15,
       };
     }),
-    loadTimes: native("loadTimes", function loadTimes() {
-      return {};
-    }),
-    runtime: {
-      connect: native("connect", function connect() {
-        return {};
-      }),
-      sendMessage: native("sendMessage", function sendMessage() {}),
-    },
-    cast: {},
+    app: { isInstalled: false },
   };
 
   var nav = {
@@ -747,7 +740,7 @@
   })();
   /* Chrome window.history; live Create 9959 read it as undefined. */
   globalThis.history = {
-    length: 1,
+    length: 2,
     state: null,
     scrollRestoration: "auto",
     pushState: native("pushState", function () {}),
@@ -1221,6 +1214,7 @@
     "WebSocket",
     "Blob",
     "File",
+    "fetchLater",
     "FileReader",
     "FormData",
     "URLSearchParams",
@@ -2310,6 +2304,13 @@
     });
   }
 
+  function attachFrame(c) {
+    if (!c || c.tagName !== "IFRAME" || c.contentWindow) return;
+    c.contentWindow = makeIframeWindow();
+    c.contentDocument = c.contentWindow.document;
+    globalThis[0] = c.contentWindow;
+    globalThis.length = 1;
+  }
   (function installElementProto() {
     var n, impl;
     impl = {
@@ -2317,10 +2318,7 @@
         ownChildNodes(this).push(c);
         syncElementChildren(this);
         if (c) c.parentNode = this;
-        if (c && c.tagName === "IFRAME" && c.contentWindow && c.contentWindow !== globalThis) {
-          globalThis[0] = c.contentWindow;
-          globalThis.length = 1;
-        }
+        attachFrame(c);
         runScript(c);
         return c;
       },
@@ -2333,6 +2331,7 @@
         else nodes.splice(i, 0, c);
         syncElementChildren(this);
         c.parentNode = this;
+        attachFrame(c);
         runScript(c);
         return c;
       },
@@ -3238,10 +3237,9 @@
       });
     }
     if (t === "IFRAME") {
-      var cw = makeIframeWindow();
       el.src = "about:blank";
-      el.contentWindow = cw;
-      el.contentDocument = cw.document;
+      el.contentWindow = null;
+      el.contentDocument = null;
       hide(el, "longDesc", "");
       hide(el, "vspace", 0);
       hide(el, "hspace", 0);
