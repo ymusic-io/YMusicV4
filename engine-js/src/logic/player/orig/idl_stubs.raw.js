@@ -1364,6 +1364,7 @@
       0,
       "",
       [
+        ["hrefTranslate", "s", 0],
         ["download", "s", 0],
         ["ping", "s", 0],
         ["rel", "s", 0],
@@ -4204,6 +4205,20 @@
     return null;
   }
 
+  /* Chrome's bindings reject a prototype as receiver; BotGuard reads through prototypes to test it. */
+  function rejectPrototype(self, owner) {
+    var ctor = owner.constructor;
+    var host = typeof ctor === "function" ? liveHost(ctor.name) : null;
+    if (
+      (host && self !== host) ||
+      (self &&
+        Object.prototype.hasOwnProperty.call(self, "constructor") &&
+        typeof self.constructor === "function" &&
+        self.constructor.prototype === self)
+    )
+      throw new TypeError("Illegal invocation");
+  }
+
   function blocked(obj, name) {
     if (name === "trayride" || name === "prototype" || name === "__proto__") return true;
     if (SKIP[name] && obj === globalThis) return true;
@@ -4217,6 +4232,7 @@
       configurable: true,
       enumerable: true,
       get: native("get " + name, function () {
+        rejectPrototype(this, obj);
         var values = attrValues.get(this);
         if (values && name in values) return values[name];
         if (code === "a") return [];
@@ -4243,6 +4259,7 @@
     if (!obj || !name || blocked(obj, name)) return;
     if (name in obj) return;
     var fn = native(name, function () {
+      rejectPrototype(this, obj);
       if (code === "a") return [];
       return defaultVal(code);
     });

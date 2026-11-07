@@ -571,6 +571,7 @@
     cookieEnabled: true,
     onLine: true,
     pdfViewerEnabled: true,
+    doNotTrack: null,
     userAgentData: {
       brands: [
         { brand: "Chromium", version: "151" },
@@ -1487,6 +1488,8 @@
       "audio/flac": "probably",
     };
     globalThis.HTMLMediaElement.prototype.canPlayType = native("canPlayType", function (type) {
+      if (Object.prototype.hasOwnProperty.call(this, "constructor"))
+        throw new TypeError("Illegal invocation");
       type = String(type == null ? "" : type).toLowerCase();
       if (!type) return "";
       if (type.indexOf("codecs=") < 0) {
@@ -1774,9 +1777,12 @@
     }
   }
   globalThis.matchMedia = native("matchMedia", function matchMedia(q) {
+    var media = String(q == null ? "" : q);
     return {
-      matches: false,
-      media: String(q == null ? "" : q),
+      matches: /^\((any-)?(pointer:fine|hover:hover)\)$/.test(
+        media.replace(/\s/g, "").toLowerCase(),
+      ),
+      media: media,
       addListener: native("addListener", function () {}),
       removeListener: native("removeListener", function () {}),
       addEventListener: globalThis.addEventListener,
@@ -2457,6 +2463,11 @@
       dispatchEvent: globalThis.dispatchEvent,
     };
     for (n in impl) hide(htmlElProto, n, native(n, impl[n]));
+    hide(
+      htmlElProto,
+      "click",
+      native("click", function () {}),
+    );
     hide(htmlElProto, "constructor", globalThis.HTMLElement);
     Object.defineProperty(htmlElProto, "dataset", {
       configurable: true,
@@ -3083,6 +3094,37 @@
     return inner;
   }
 
+  var ELEMENT_INTERFACES = {
+    A: "Anchor",
+    AUDIO: "Audio",
+    BODY: "Body",
+    BR: "BR",
+    BUTTON: "Button",
+    CANVAS: "Canvas",
+    DIV: "Div",
+    FORM: "Form",
+    HEAD: "Head",
+    HTML: "Html",
+    IFRAME: "IFrame",
+    IMG: "Image",
+    INPUT: "Input",
+    LABEL: "Label",
+    LI: "LI",
+    LINK: "Link",
+    META: "Meta",
+    OPTION: "Option",
+    P: "Paragraph",
+    PRE: "Pre",
+    SCRIPT: "Script",
+    SELECT: "Select",
+    SPAN: "Span",
+    STYLE: "Style",
+    TEXTAREA: "TextArea",
+    TITLE: "Title",
+    UL: "UList",
+    VIDEO: "Video",
+  };
+
   function element(tagName) {
     var t = String(tagName || "div").toUpperCase();
     if (t === "VIDEO") {
@@ -3090,22 +3132,7 @@
       if (H && H.main) return H.main;
     }
     var kids = [];
-    var hostName =
-      t === "IFRAME"
-        ? "HTMLIFrameElement"
-        : t === "IMG"
-          ? "HTMLImageElement"
-          : t === "INPUT"
-            ? "HTMLInputElement"
-            : t === "TEXTAREA"
-              ? "HTMLTextAreaElement"
-              : t === "VIDEO"
-                ? "HTMLVideoElement"
-                : t === "AUDIO"
-                  ? "HTMLAudioElement"
-                  : t === "CANVAS"
-                    ? "HTMLCanvasElement"
-                    : "Element";
+    var hostName = "HTML" + (ELEMENT_INTERFACES[t] || "") + "Element";
     var el = Object.create(t === "IFRAME" ? iframeProto : htmlElProto);
     el.tagName = t;
     el.nodeName = t;
