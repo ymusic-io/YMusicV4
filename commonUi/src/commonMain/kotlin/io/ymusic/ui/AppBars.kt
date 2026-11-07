@@ -51,6 +51,7 @@ import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.FilterAlt
 import androidx.compose.material3.Icon
@@ -119,6 +120,7 @@ import io.ymusic.ui.resources.cd_filter
 import io.ymusic.ui.resources.cd_menu
 import io.ymusic.ui.resources.cd_more_tabs
 import io.ymusic.ui.resources.cd_search
+import io.ymusic.ui.resources.cd_voice_search
 import io.ymusic.ui.resources.search_youtube
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -382,7 +384,7 @@ internal fun DesignAppBar(
 }
 
 /** The search input bar: back · pill field (`.sfield`: 40dp gray pill, 15sp text, clear ✕ while
- *  non-empty). [autoFocus] off for showcase hosting (the catalogue). */
+ *  non-empty, else the [onVoice] mic). [autoFocus] off for showcase hosting (the catalogue). */
 @Composable
 internal fun SearchInputBar(
     value: TextFieldValue,
@@ -391,6 +393,7 @@ internal fun SearchInputBar(
     onBack: () -> Unit,
     autoFocus: Boolean = true,
     placeholder: String = stringResource(Res.string.search_youtube),
+    onVoice: (() -> Unit)? = null,
 ) = ElevatedBarColumn {
     val focusRequester = remember { FocusRequester() }
     AppBarRow {
@@ -401,8 +404,8 @@ internal fun SearchInputBar(
                 .height(40.dp)
                 .clip(RoundedCornerShape(999.dp))
                 .background(DesignColors.FieldPill)
-                // The ✕'s own 8dp inset is the trailing padding while it shows.
-                .padding(start = 16.dp, end = if (value.text.isEmpty()) 16.dp else 0.dp),
+                // The trailing icon's own 8dp inset is the trailing padding while it shows.
+                .padding(start = 16.dp, end = if (value.text.isEmpty() && onVoice == null) 16.dp else 0.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             BasicTextField(
@@ -433,6 +436,13 @@ internal fun SearchInputBar(
                     stringResource(Res.string.cd_clear),
                     tint = DesignColors.InkSecondary,
                     onClick = { onValue(TextFieldValue("")) },
+                )
+            } else if (onVoice != null) {
+                ActionIcon(
+                    Icons.Default.Mic,
+                    stringResource(Res.string.cd_voice_search),
+                    tint = DesignColors.InkSecondary,
+                    onClick = onVoice,
                 )
             }
         }

@@ -291,6 +291,7 @@
     <string name="cd_search">খুঁজুন</string>
     <string name="cd_back">পেছনে</string>
     <string name="cd_clear">মুছুন</string>
+    <string name="cd_voice_search">ভয়েস দিয়ে সার্চ করুন</string>
     <string name="cd_close">বন্ধ করুন</string>
     <string name="cd_more">আরও</string>
     <string name="cd_collapse">ছোট করুন</string>

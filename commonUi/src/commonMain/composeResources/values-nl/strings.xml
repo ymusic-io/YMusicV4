@@ -291,6 +291,7 @@
     <string name="cd_search">Zoeken</string>
     <string name="cd_back">Terug</string>
     <string name="cd_clear">Wissen</string>
+    <string name="cd_voice_search">Zoeken met spraak</string>
     <string name="cd_close">Sluiten</string>
     <string name="cd_more">Meer</string>
     <string name="cd_collapse">Samenvouwen</string>

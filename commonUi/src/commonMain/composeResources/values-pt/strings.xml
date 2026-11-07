@@ -295,6 +295,7 @@
     <string name="cd_search">Pesquisar</string>
     <string name="cd_back">Voltar</string>
     <string name="cd_clear">Limpar</string>
+    <string name="cd_voice_search">Pesquisar por voz</string>
     <string name="cd_close">Fechar</string>
     <string name="cd_more">Mais</string>
     <string name="cd_collapse">Recolher</string>

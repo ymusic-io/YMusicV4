@@ -227,6 +227,21 @@ fun SearchScreen(
                 onSubmit = ::submit,
                 onBack = { if (s.submitted != null) s.editing = false else onBack() },
                 placeholder = stringResource(s.hint),
+                onVoice = graph.speechToText?.let { listen ->
+                    {
+                        scope.launch {
+                            val spoken = try {
+                                listen()
+                            } catch (c: kotlinx.coroutines.CancellationException) {
+                                throw c
+                            } catch (e: Exception) {
+                                s.log?.log(Logger.Level.WARN, "speech to text failed", e)
+                                null
+                            }
+                            if (!spoken.isNullOrBlank()) submit(spoken)
+                        }
+                    }
+                },
             )
             when {
                 s.field.text.isBlank() && history.isEmpty() -> CenteredBox {

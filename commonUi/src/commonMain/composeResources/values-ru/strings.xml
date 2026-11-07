@@ -299,6 +299,7 @@
     <string name="cd_search">Поиск</string>
     <string name="cd_back">Назад</string>
     <string name="cd_clear">Очистить</string>
+    <string name="cd_voice_search">Голосовой поиск</string>
     <string name="cd_close">Закрыть</string>
     <string name="cd_more">Ещё</string>
     <string name="cd_collapse">Свернуть</string>

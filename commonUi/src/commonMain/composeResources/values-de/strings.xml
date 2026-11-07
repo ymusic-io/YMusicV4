@@ -291,6 +291,7 @@
     <string name="cd_search">Suchen</string>
     <string name="cd_back">Zurück</string>
     <string name="cd_clear">Löschen</string>
+    <string name="cd_voice_search">Sprachsuche</string>
     <string name="cd_close">Schließen</string>
     <string name="cd_more">Mehr</string>
     <string name="cd_collapse">Einklappen</string>

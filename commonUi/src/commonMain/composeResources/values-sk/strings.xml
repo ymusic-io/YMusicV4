@@ -299,6 +299,7 @@
     <string name="cd_search">Hľadať</string>
     <string name="cd_back">Späť</string>
     <string name="cd_clear">Vymazať</string>
+    <string name="cd_voice_search">Hľadať hlasom</string>
     <string name="cd_close">Zavrieť</string>
     <string name="cd_more">Viac</string>
     <string name="cd_collapse">Zbaliť</string>

@@ -291,6 +291,7 @@
     <string name="cd_search">தேடு</string>
     <string name="cd_back">பின்செல்</string>
     <string name="cd_clear">அழி</string>
+    <string name="cd_voice_search">குரல் மூலம் தேடு</string>
     <string name="cd_close">மூடு</string>
     <string name="cd_more">மேலும்</string>
     <string name="cd_collapse">சுருக்கு</string>

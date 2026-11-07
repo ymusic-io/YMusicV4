@@ -352,6 +352,7 @@
     <string name="cd_search">Пошук</string>
     <string name="cd_back">Назад</string>
     <string name="cd_clear">Очистити</string>
+    <string name="cd_voice_search">Голосовий пошук</string>
     <string name="cd_close">Закрити</string>
     <string name="cd_more">Більше</string>
     <string name="cd_collapse">Згорнути</string>

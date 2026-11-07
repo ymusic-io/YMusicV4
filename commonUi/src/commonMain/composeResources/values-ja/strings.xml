@@ -287,6 +287,7 @@
     <string name="cd_search">検索</string>
     <string name="cd_back">戻る</string>
     <string name="cd_clear">消去</string>
+    <string name="cd_voice_search">音声で検索</string>
     <string name="cd_close">閉じる</string>
     <string name="cd_more">その他</string>
     <string name="cd_collapse">折りたたむ</string>

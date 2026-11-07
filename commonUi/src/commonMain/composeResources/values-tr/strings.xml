@@ -291,6 +291,7 @@
     <string name="cd_search">Ara</string>
     <string name="cd_back">Geri</string>
     <string name="cd_clear">Temizle</string>
+    <string name="cd_voice_search">Sesle ara</string>
     <string name="cd_close">Kapat</string>
     <string name="cd_more">Diğer</string>
     <string name="cd_collapse">Daralt</string>

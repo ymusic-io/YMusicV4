@@ -295,6 +295,7 @@
     <string name="cd_search">Caută</string>
     <string name="cd_back">Înapoi</string>
     <string name="cd_clear">Șterge</string>
+    <string name="cd_voice_search">Caută vocal</string>
     <string name="cd_close">Închide</string>
     <string name="cd_more">Mai multe</string>
     <string name="cd_collapse">Restrânge</string>

@@ -291,6 +291,7 @@
     <string name="cd_search">Keresés</string>
     <string name="cd_back">Vissza</string>
     <string name="cd_clear">Törlés</string>
+    <string name="cd_voice_search">Hangalapú keresés</string>
     <string name="cd_close">Bezárás</string>
     <string name="cd_more">Továbbiak</string>
     <string name="cd_collapse">Összecsukás</string>

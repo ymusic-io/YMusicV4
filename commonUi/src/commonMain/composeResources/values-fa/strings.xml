@@ -291,6 +291,7 @@
     <string name="cd_search">جستجو</string>
     <string name="cd_back">بازگشت</string>
     <string name="cd_clear">پاک کردن</string>
+    <string name="cd_voice_search">جستجوی صوتی</string>
     <string name="cd_close">بستن</string>
     <string name="cd_more">بیشتر</string>
     <string name="cd_collapse">جمع کردن</string>

@@ -328,6 +328,7 @@
     <string name="cd_search">Tìm kiếm</string>
     <string name="cd_back">Quay lại</string>
     <string name="cd_clear">Xóa</string>
+    <string name="cd_voice_search">Tìm kiếm bằng giọng nói</string>
     <string name="cd_close">Đóng</string>
     <string name="cd_more">Thêm</string>
     <string name="cd_collapse">Thu gọn</string>

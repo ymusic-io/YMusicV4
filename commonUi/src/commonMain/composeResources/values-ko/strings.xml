@@ -287,6 +287,7 @@
     <string name="cd_search">검색</string>
     <string name="cd_back">뒤로</string>
     <string name="cd_clear">지우기</string>
+    <string name="cd_voice_search">음성으로 검색</string>
     <string name="cd_close">닫기</string>
     <string name="cd_more">더보기</string>
     <string name="cd_collapse">접기</string>

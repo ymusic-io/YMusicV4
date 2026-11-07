@@ -348,6 +348,7 @@
     <string name="cd_search">بحث</string>
     <string name="cd_back">رجوع</string>
     <string name="cd_clear">مسح</string>
+    <string name="cd_voice_search">البحث بالصوت</string>
     <string name="cd_close">إغلاق</string>
     <string name="cd_more">المزيد</string>
     <string name="cd_collapse">طي</string>

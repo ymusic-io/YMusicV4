@@ -295,6 +295,7 @@
     <string name="cd_search">Претрага</string>
     <string name="cd_back">Назад</string>
     <string name="cd_clear">Обриши</string>
+    <string name="cd_voice_search">Претражујте гласом</string>
     <string name="cd_close">Затвори</string>
     <string name="cd_more">Још</string>
     <string name="cd_collapse">Скупи</string>

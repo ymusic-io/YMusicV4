@@ -287,6 +287,7 @@
     <string name="cd_search">ค้นหา</string>
     <string name="cd_back">กลับ</string>
     <string name="cd_clear">ล้าง</string>
+    <string name="cd_voice_search">ค้นหาด้วยเสียง</string>
     <string name="cd_close">ปิด</string>
     <string name="cd_more">เพิ่มเติม</string>
     <string name="cd_collapse">ยุบ</string>
