@@ -53,6 +53,8 @@ class HttpApiService(
     private val arch: String? = null,
     /** The JS bundle revisions to report; a header is omitted while its revision is unknown. */
     private val bundles: RunningBundles? = null,
+    /** "tv" on an Android TV, which shares [os] with phones (same APK, same updates) but is counted apart. */
+    private val formFactor: String? = null,
 ) : ApiService {
 
     override suspend fun getConfig(): RemoteConfigData {
@@ -149,6 +151,7 @@ class HttpApiService(
             .header(HEADER_APP_VER_NAME, appVersionName)
             .header(HEADER_DEVICE_ID, deviceId)
         arch?.let { request.header(HEADER_ARCH, it) }
+        formFactor?.let { request.header(HEADER_FORM_FACTOR, it) }
         apiKey?.let { request.header(HEADER_API_KEY, it) }
         bundles?.reportedEngine?.let { request.header(HEADER_ENGINE_JS_VER, it.toString()) }
         bundles?.reportedPlayer?.let { request.header(HEADER_PLAYER_JS_VER, it.toString()) }
@@ -158,6 +161,7 @@ class HttpApiService(
     companion object {
         const val HEADER_OS = "x-os"
         const val HEADER_OS_VER = "x-os-ver"
+        const val HEADER_FORM_FACTOR = "x-form-factor"
         const val HEADER_APP_VER = "x-app-ver"
         const val HEADER_APP_VER_NAME = "x-app-ver-name"
         const val HEADER_DEVICE_ID = "x-device-id"
