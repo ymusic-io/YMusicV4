@@ -953,11 +953,10 @@ private fun BoxScope.AutoHidingOverlay(
                 },
         )
     }
-    var focusWithin by remember { mutableStateOf(false) }
-    LaunchedEffect(show) { if (!show) focusWithin = false }
-    HoldVideoOverlay(show && focusWithin)
+    // Focus inside does not hold the controls: every key restarts the hide timer, and once they hide the
+    // FocusCatcher keeps focus in Now Playing until the next key brings them back.
     if (show) {
-        Box(Modifier.fillMaxSize().onFocusChanged { focusWithin = it.hasFocus }, content = content)
+        Box(Modifier.fillMaxSize(), content = content)
     }
 }
 
