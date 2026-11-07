@@ -265,10 +265,7 @@
   if (typeof globalThis.requestAnimationFrame !== "function") {
     globalThis.requestAnimationFrame = native("requestAnimationFrame", function (fn) {
       return setTimeout(function () {
-        var ts = 0;
-        if (globalThis.performance && typeof globalThis.performance.now === "function")
-          ts = globalThis.performance.now();
-        fn(ts);
+        fn(platformNow.call(globalThis.performance));
       }, 16);
     });
   }
@@ -535,7 +532,12 @@
   globalThis.chrome = {
     app: { isInstalled: false },
     csi: native("csi", function csi() {
-      return { startE: origin, onloadT: origin + 80, pageT: hrtime() - origin, tran: 15 };
+      return {
+        startE: origin,
+        onloadT: origin + 80,
+        pageT: platformNow.call(globalThis.performance),
+        tran: 15,
+      };
     }),
     loadTimes: native("loadTimes", function loadTimes() {
       return {};
@@ -784,10 +786,6 @@
     function isElement(v) {
       return isNode(v) && v.nodeType === 1;
     }
-    function now() {
-      var p = globalThis.performance;
-      return p && typeof p.now === "function" ? p.now() : 0;
-    }
     function defineProto(C, name, members) {
       var proto = {};
       var key;
@@ -916,7 +914,7 @@
       var inter = hit ? rect(left, top, right - left, bottom - top) : rect(0, 0, 0, 0);
       var entry = Object.create(ioEntryProto);
       entryData.set(entry, {
-        time: now(),
+        time: platformNow.call(globalThis.performance),
         rootBounds: s.root == null ? rect(0, 0, vw, vh) : rectOf(s.root),
         boundingClientRect: box,
         intersectionRect: inter,
