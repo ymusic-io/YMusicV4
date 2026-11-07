@@ -50,6 +50,10 @@ export function installOrigEnv(): void {
   if (typeof setImageRequest === "function") (setImageRequest as Function)(requestImage);
   (0, eval)(origIdlStubsJs);
   (0, eval)(chromeGlobalsJs);
+  const installChromeBackedApis = origEnvHandle
+    ? origEnvHandle["installChromeBackedApis"]
+    : undefined;
+  if (typeof installChromeBackedApis === "function") (installChromeBackedApis as Function)();
 }
 
 /** Layout getters answer 0 from now on: BotGuard only measures before its snapshot, and the player

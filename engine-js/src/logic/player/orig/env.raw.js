@@ -347,6 +347,35 @@
       usedJSHeapSize: 10200000,
     };
   }
+  /* Stamps internal to the browser, which page script can't observe as a read. */
+  var platformNow = globalThis.performance.now;
+
+  /* Milliseconds after navigation start, rolled once per session at Chrome's 0.1 ms resolution. */
+  var navTiming = (function () {
+    var at = 0;
+    function after(min, max) {
+      at += min + Math.random() * (max - min);
+      at = Math.round(at * 10) / 10;
+      return at;
+    }
+    var t = { fetchStart: after(0.5, 3) };
+    t.domainLookupStart = t.fetchStart;
+    t.domainLookupEnd = after(1, 30);
+    t.connectStart = t.domainLookupEnd;
+    t.secureConnectionStart = after(4, 20);
+    t.connectEnd = after(4, 20);
+    t.requestStart = after(0.2, 2);
+    t.responseStart = after(80, 400);
+    t.responseEnd = after(20, 120);
+    t.domInteractive = after(300, 900);
+    t.domContentLoadedEventStart = after(0, 3);
+    t.domContentLoadedEventEnd = after(0.1, 2);
+    t.domComplete = after(100, 500);
+    t.loadEventStart = t.domComplete;
+    t.loadEventEnd = after(0.1, 1);
+    return t;
+  })();
+
   (function attachTiming(perf, navStart) {
     if (!perf.timing) {
       perf.timing = {
@@ -355,22 +384,22 @@
         unloadEventEnd: 0,
         redirectStart: 0,
         redirectEnd: 0,
-        fetchStart: navStart + 1,
-        domainLookupStart: navStart + 2,
-        domainLookupEnd: navStart + 3,
-        connectStart: navStart + 4,
-        connectEnd: navStart + 5,
-        secureConnectionStart: navStart + 5,
-        requestStart: navStart + 10,
-        responseStart: navStart + 40,
-        responseEnd: navStart + 80,
-        domLoading: navStart + 81,
-        domInteractive: navStart + 100,
-        domContentLoadedEventStart: navStart + 110,
-        domContentLoadedEventEnd: navStart + 111,
-        domComplete: navStart + 120,
-        loadEventStart: navStart + 121,
-        loadEventEnd: navStart + 122,
+        fetchStart: navStart + Math.round(navTiming.fetchStart),
+        domainLookupStart: navStart + Math.round(navTiming.domainLookupStart),
+        domainLookupEnd: navStart + Math.round(navTiming.domainLookupEnd),
+        connectStart: navStart + Math.round(navTiming.connectStart),
+        connectEnd: navStart + Math.round(navTiming.connectEnd),
+        secureConnectionStart: navStart + Math.round(navTiming.secureConnectionStart),
+        requestStart: navStart + Math.round(navTiming.requestStart),
+        responseStart: navStart + Math.round(navTiming.responseStart),
+        responseEnd: navStart + Math.round(navTiming.responseEnd),
+        domLoading: navStart + Math.round(navTiming.responseEnd) + 1,
+        domInteractive: navStart + Math.round(navTiming.domInteractive),
+        domContentLoadedEventStart: navStart + Math.round(navTiming.domContentLoadedEventStart),
+        domContentLoadedEventEnd: navStart + Math.round(navTiming.domContentLoadedEventEnd),
+        domComplete: navStart + Math.round(navTiming.domComplete),
+        loadEventStart: navStart + Math.round(navTiming.loadEventStart),
+        loadEventEnd: navStart + Math.round(navTiming.loadEventEnd),
       };
     }
     if (!perf.navigation) {
@@ -637,18 +666,14 @@
       return Promise.reject(e);
     }),
   };
+  var keyboardLayoutMap;
   nav.keyboard = {
     lock: native("lock", function () {
       return Promise.resolve();
     }),
     unlock: native("unlock", function () {}),
     getLayoutMap: native("getLayoutMap", function () {
-      return Promise.resolve({
-        size: 0,
-        get: function () {
-          return undefined;
-        },
-      });
+      return Promise.resolve(keyboardLayoutMap);
     }),
   };
   nav.gpu = {
@@ -1605,7 +1630,7 @@
     var ev = Object.create(proto);
     var perf = globalThis.performance;
     Object.defineProperty(ev, "isTrusted", { get: isTrustedGetter, enumerable: true });
-    data.timeStamp = perf && typeof perf.now === "function" ? perf.now() : 0;
+    data.timeStamp = perf && typeof perf.now === "function" ? platformNow.call(perf) : 0;
     eventData.set(ev, data);
     return ev;
   }
@@ -3461,9 +3486,230 @@
   globalThis.MessageChannel = native("MessageChannel", MessageChannel);
   globalThis.MessageChannel.prototype = MessageChannel.prototype;
 
+  /* The ES prototypes Chrome leaves as [object Object]. */
+  var UNTAGGED_PROTOS =
+    /^(Object|Date|RegExp|(Aggregate|Eval|Range|Reference|Syntax|Type|URI)?Error|(Big)?U?[Ii]nt\d+(Clamped)?Array|Float\d+Array)$/;
+
+  function tagInterfacePrototypes() {
+    Object.getOwnPropertyNames(globalThis).forEach(function (n) {
+      var ctor = globalThis[n];
+      var proto = typeof ctor === "function" && /^[A-Z]/.test(n) ? ctor.prototype : null;
+      if (!proto || UNTAGGED_PROTOS.test(n) || Symbol.toStringTag in proto) return;
+      if (Object.prototype.toString.call(proto) !== "[object Object]") return;
+      Object.defineProperty(proto, Symbol.toStringTag, { value: n, configurable: true });
+    });
+  }
+
+  function illegalUnless(self, owner) {
+    if (self !== owner) throw new TypeError("Illegal invocation");
+  }
+
+  function readOnlyAttributes(proto, owner, values) {
+    Object.keys(values).forEach(function (key) {
+      Object.defineProperty(proto, key, {
+        get: native("get " + key, function () {
+          illegalUnless(this, owner);
+          return values[key];
+        }),
+        enumerable: true,
+        configurable: true,
+      });
+    });
+  }
+
+  function installNavigationEntry() {
+    var perf = globalThis.performance;
+    var navProto = globalThis.PerformanceNavigationTiming.prototype;
+    var resourceProto = globalThis.PerformanceResourceTiming.prototype;
+    var entryProto = globalThis.PerformanceEntry.prototype;
+    var entry = Object.create(navProto);
+    var all = {
+      name: String(globalThis.location.href),
+      entryType: "navigation",
+      startTime: 0,
+      duration: navTiming.loadEventEnd,
+      navigationId: 1,
+    };
+    readOnlyAttributes(entryProto, entry, all);
+    var resource = {
+      initiatorType: "navigation",
+      nextHopProtocol: "h2",
+      deliveryType: "",
+      workerStart: 0,
+      redirectStart: 0,
+      redirectEnd: 0,
+      fetchStart: navTiming.fetchStart,
+      domainLookupStart: navTiming.domainLookupStart,
+      domainLookupEnd: navTiming.domainLookupEnd,
+      connectStart: navTiming.connectStart,
+      connectEnd: navTiming.connectEnd,
+      secureConnectionStart: navTiming.secureConnectionStart,
+      requestStart: navTiming.requestStart,
+      responseStart: navTiming.responseStart,
+      responseEnd: navTiming.responseEnd,
+      transferSize: 300 + Math.floor(Math.random() * 200000),
+      serverTiming: [],
+      renderBlockingStatus: "non-blocking",
+      responseStatus: 200,
+      contentType: "text/html",
+      contentEncoding: "br",
+      finalResponseHeadersStart: 0,
+      firstInterimResponseStart: 0,
+    };
+    resource.encodedBodySize = resource.transferSize - 300;
+    resource.decodedBodySize = resource.encodedBodySize * 6;
+    readOnlyAttributes(resourceProto, entry, resource);
+    var navigation = {
+      unloadEventStart: 0,
+      unloadEventEnd: 0,
+      domInteractive: navTiming.domInteractive,
+      domContentLoadedEventStart: navTiming.domContentLoadedEventStart,
+      domContentLoadedEventEnd: navTiming.domContentLoadedEventEnd,
+      domComplete: navTiming.domComplete,
+      loadEventStart: navTiming.loadEventStart,
+      loadEventEnd: navTiming.loadEventEnd,
+      type: "navigate",
+      redirectCount: 0,
+      criticalCHRestart: 0,
+      activationStart: 0,
+      notRestoredReasons: null,
+    };
+    readOnlyAttributes(navProto, entry, navigation);
+    hide(
+      navProto,
+      "toJSON",
+      native("toJSON", function () {
+        illegalUnless(this, entry);
+        return Object.assign({}, all, resource, navigation);
+      }),
+    );
+    hide(
+      perf,
+      "getEntriesByType",
+      native("getEntriesByType", function (type) {
+        return String(type) === "navigation" ? [entry] : [];
+      }),
+    );
+    hide(
+      perf,
+      "getEntries",
+      native("getEntries", function () {
+        return [entry];
+      }),
+    );
+    hide(
+      perf,
+      "getEntriesByName",
+      native("getEntriesByName", function (name) {
+        return String(name) === all.name ? [entry] : [];
+      }),
+    );
+  }
+
+  function installPermissions() {
+    var permissions = Object.create(globalThis.Permissions.prototype);
+    hide(
+      globalThis.Permissions.prototype,
+      "query",
+      native("query", function (descriptor) {
+        if (this !== permissions)
+          return Promise.reject(
+            new TypeError("Failed to execute 'query' on 'Permissions': Illegal invocation"),
+          );
+        var status = Object.create(globalThis.PermissionStatus.prototype);
+        status.name = String(descriptor && descriptor.name);
+        status.state = "prompt";
+        status.onchange = null;
+        return Promise.resolve(status);
+      }),
+    );
+    readOnlyAttributes(globalThis.Navigator.prototype, globalThis.navigator, {
+      permissions: permissions,
+    });
+  }
+
+  /* macOS US layout, in the order Chrome enumerates it. */
+  var US_LAYOUT =
+    "KeyK k KeyG g Digit2 2 Digit0 0 KeyV v KeyA a Backquote ` KeyL l IntlBackslash \u00a7 Quote ' " +
+    "KeyW w Digit8 8 KeyM m KeyH h Period . Digit7 7 Digit1 1 KeyP p KeyD d KeyF f KeyO o KeyQ q " +
+    "KeyC c KeyN n BracketLeft [ KeyZ z KeyY y Digit3 3 Digit6 6 Digit5 5 KeyX x Slash / " +
+    "Backslash \\ Comma , Minus - Digit4 4 KeyB b KeyT t Digit9 9 KeyS s KeyI i KeyU u Equal = " +
+    "KeyJ j Semicolon ; KeyR r BracketRight ] KeyE e";
+
+  function installKeyboardLayoutMap() {
+    var proto = globalThis.KeyboardLayoutMap.prototype;
+    var layout = US_LAYOUT.split(" ");
+    var keys = new Map();
+    for (var i = 0; i < layout.length; i += 2) keys.set(layout[i], layout[i + 1]);
+    keyboardLayoutMap = Object.create(proto);
+    readOnlyAttributes(proto, keyboardLayoutMap, { size: keys.size });
+    var iteratorProto = Object.create(Object.getPrototypeOf(Object.getPrototypeOf([].keys())));
+    Object.defineProperty(iteratorProto, Symbol.toStringTag, {
+      value: "KeyboardLayoutMap Iterator",
+      configurable: true,
+    });
+    hide(
+      iteratorProto,
+      "next",
+      native("next", function () {
+        return iterators.get(this).next();
+      }),
+    );
+    var iterators = new WeakMap();
+    function iterating(method) {
+      return native(method, function () {
+        illegalUnless(this, keyboardLayoutMap);
+        var iterator = Object.create(iteratorProto);
+        iterators.set(iterator, keys[method]());
+        return iterator;
+      });
+    }
+    hide(proto, "entries", iterating("entries"));
+    hide(proto, "keys", iterating("keys"));
+    hide(proto, "values", iterating("values"));
+    hide(proto, Symbol.iterator, proto.entries);
+    hide(
+      proto,
+      "get",
+      native("get", function (key) {
+        illegalUnless(this, keyboardLayoutMap);
+        return keys.get(String(key));
+      }),
+    );
+    hide(
+      proto,
+      "has",
+      native("has", function (key) {
+        illegalUnless(this, keyboardLayoutMap);
+        return keys.has(String(key));
+      }),
+    );
+    hide(
+      proto,
+      "forEach",
+      native("forEach", function (callback, thisArg) {
+        illegalUnless(this, keyboardLayoutMap);
+        keys.forEach(function (value, key) {
+          callback.call(thisArg, value, key, keyboardLayoutMap);
+        });
+      }),
+    );
+  }
+
   return {
     setImageRequest: function (fn) {
       imageRequest = fn;
+    },
+    /* The interfaces these fill only exist once chrome_globals.raw.js has run. */
+    installChromeBackedApis: function () {
+      installNavigationEntry();
+      installKeyboardLayoutMap();
+      tagInterfacePrototypes();
+      installPermissions();
+      delete globalThis.navigator.webdriver;
+      readOnlyAttributes(globalThis.Navigator.prototype, globalThis.navigator, {
+        webdriver: false,
+      });
     },
     endLayoutProbes: function () {
       layoutProbes = false;
