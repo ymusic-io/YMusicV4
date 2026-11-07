@@ -515,6 +515,7 @@ internal fun LoginPreface(onSignIn: () -> Unit) {
                     Modifier
                         .fillMaxWidth()
                         .background(DesignColors.Accent, RoundedCornerShape(8.dp))
+                        .focusRing(RoundedCornerShape(8.dp))
                         .clickable(onClick = onSignIn)
                         .padding(vertical = 14.dp),
                     contentAlignment = Alignment.Center,

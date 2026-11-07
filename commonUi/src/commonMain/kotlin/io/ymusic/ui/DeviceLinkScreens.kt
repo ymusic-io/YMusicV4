@@ -274,6 +274,7 @@ internal fun AccentButton(text: String, enabled: Boolean, onClick: () -> Unit) {
                 if (enabled) DesignColors.Accent else DesignColors.Accent.copy(alpha = 0.4f),
                 RoundedCornerShape(8.dp),
             )
+            .focusRing(RoundedCornerShape(8.dp))
             .clickable(enabled = enabled, onClick = onClick)
             .padding(vertical = 14.dp),
         contentAlignment = Alignment.Center,
