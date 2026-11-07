@@ -23,6 +23,7 @@
     if (!d) throw new TypeError("Illegal invocation");
     return d;
   }
+  var imageRequest = null;
   function domError(name, code, message) {
     var e = Object.create(globalThis.DOMException.prototype);
     hide(e, "name", name);
@@ -209,7 +210,7 @@
     i = list.indexOf(fn);
     if (i >= 0) list.splice(i, 1);
   });
-  globalThis.dispatchEvent = __nativeFn(
+  var dispatchNative = (globalThis.dispatchEvent = __nativeFn(
     "dispatchEvent",
     function (ev) {
       var prefix = "Failed to execute 'dispatchEvent' on 'EventTarget': ";
@@ -245,7 +246,7 @@
       return !d.defaultPrevented;
     },
     1,
-  );
+  ));
   globalThis.getComputedStyle = native("getComputedStyle", function getComputedStyle(el) {
     if (el && el.style) return el.style;
     return cssStyle();
@@ -1596,8 +1597,7 @@
   var isTrustedGetter = __nativeFn(
     "get isTrusted",
     function () {
-      eventOf(this);
-      return false;
+      return eventOf(this).trusted === true;
     },
     0,
   );
@@ -3113,6 +3113,29 @@
         },
       });
     }
+    if (t === "IMG") {
+      var imgSrc;
+      Object.defineProperty(el, "src", {
+        configurable: true,
+        enumerable: true,
+        get: function () {
+          return imgSrc;
+        },
+        set: function (v) {
+          var url = absScriptUrl(v);
+          imgSrc = v;
+          /* BotGuard's ping, nothing else: a 204 is never an image, so Chrome fires error. */
+          if (!imageRequest || url.indexOf("https://www.youtube.com/generate_204") !== 0) return;
+          imgSrc = url;
+          imageRequest(url, function () {
+            dispatchNative.call(
+              el,
+              newEvent(globalThis.Event.prototype, { type: "error", init: true, trusted: true }),
+            );
+          });
+        },
+      });
+    }
     if (t === "IFRAME") {
       var cw = makeIframeWindow();
       el.src = "about:blank";
@@ -3439,6 +3462,9 @@
   globalThis.MessageChannel.prototype = MessageChannel.prototype;
 
   return {
+    setImageRequest: function (fn) {
+      imageRequest = fn;
+    },
     endLayoutProbes: function () {
       layoutProbes = false;
     },
