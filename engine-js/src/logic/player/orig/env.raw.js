@@ -731,6 +731,54 @@
   globalThis.name = "";
   globalThis.status = "";
   globalThis.defaultStatus = "";
+  (function installZoneName() {
+    /* QuickJS Date strings stop at GMT+0700. Standard name, daylight name, by standard offset. */
+    var ZONES = {
+      "-480": ["Pacific Standard Time", "Pacific Daylight Time"],
+      "-420": ["Mountain Standard Time", "Mountain Daylight Time"],
+      "-360": ["Central Standard Time", "Central Daylight Time"],
+      "-300": ["Eastern Standard Time", "Eastern Daylight Time"],
+      "-180": ["Brasilia Standard Time"],
+      0: ["Greenwich Mean Time", "British Summer Time"],
+      60: ["Central European Standard Time", "Central European Summer Time"],
+      120: ["Eastern European Standard Time", "Eastern European Summer Time"],
+      180: ["Moscow Standard Time"],
+      240: ["Gulf Standard Time"],
+      300: ["Pakistan Standard Time"],
+      330: ["India Standard Time"],
+      420: ["Indochina Time"],
+      480: ["China Standard Time"],
+      540: ["Japan Standard Time"],
+      600: ["Australian Eastern Standard Time", "Australian Eastern Daylight Time"],
+    };
+    var proto = Date.prototype;
+    function zoneName(date) {
+      var at = date.getTimezoneOffset();
+      var year = date.getFullYear();
+      var standard = -Math.max(
+        new Date(year, 0, 1).getTimezoneOffset(),
+        new Date(year, 6, 1).getTimezoneOffset(),
+      );
+      var names = ZONES[standard];
+      if (names) return names[-at !== standard && names[1] ? 1 : 0];
+      var abs = Math.abs(at);
+      var pad = function (n) {
+        return (n < 10 ? "0" : "") + n;
+      };
+      return "GMT" + (at > 0 ? "-" : "+") + pad(Math.floor(abs / 60)) + ":" + pad(abs % 60);
+    }
+    ["toString", "toTimeString"].forEach(function (key) {
+      var plain = proto[key];
+      hide(
+        proto,
+        key,
+        native(key, function () {
+          var text = plain.call(this);
+          return isNaN(this.getTime()) ? text : text + " (" + zoneName(this) + ")";
+        }),
+      );
+    });
+  })();
   globalThis.origin = globalThis.location.origin;
   globalThis.closed = false;
   globalThis.isSecureContext = true;
