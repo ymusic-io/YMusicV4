@@ -341,6 +341,7 @@ class YMusicApplication : Application() {
             engineFloor = maxOf(BuildConfig.ENGINE_JS_VERSION.toInt(), settings.flow(AppSettings.lastLoadedEngineJsVer).value),
             playerFloor = maxOf(EMBEDDED_PLAYER_JS_VERSION.toInt(), settings.flow(AppSettings.lastLoadedPlayerJsVer).value),
         )
+        AndroidInputMode.init(this)
         val api = BuildConfig.REMOTE_CONFIG_URL.takeIf { it.isNotBlank() }?.let { baseUrl ->
             HttpApiService(
                 client = http.engine.newBuilder().apply {
@@ -356,6 +357,7 @@ class YMusicApplication : Application() {
                 // The device's preferred ABI, so the service can offer its split APK.
                 arch = android.os.Build.SUPPORTED_ABIS.firstOrNull(),
                 bundles = runningBundles,
+                formFactor = if (AndroidInputMode.isTelevision) "tv" else null,
             )
         }
         // Flags, the newest JS bundle revisions, and update availability. Started here so the first
