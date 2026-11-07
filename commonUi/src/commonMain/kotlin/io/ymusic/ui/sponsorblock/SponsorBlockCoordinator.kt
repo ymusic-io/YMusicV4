@@ -1,6 +1,5 @@
 package io.ymusic.ui.sponsorblock
 
-import io.ymusic.player.PlayableItem
 import io.ymusic.player.SkipSegment
 import io.ymusic.settings.AppSettings
 import io.ymusic.settings.flow
@@ -16,8 +15,8 @@ import kotlinx.coroutines.launch
 
 /**
  * Watches the current queue item and arms [io.ymusic.player.Player.setSkipSegments] from
- * [AppGraph.sponsorBlock]. Local items have no video id, so they clear. Reloads when the
- * enable setting or per-video whitelist changes.
+ * [AppGraph.sponsorBlock], keyed by [io.ymusic.player.PlayableItem.videoId] so downloaded files skip too.
+ * Reloads when the enable setting or per-video whitelist changes.
  */
 class SponsorBlockCoordinator(
     private val graph: AppGraph,
@@ -35,22 +34,21 @@ class SponsorBlockCoordinator(
             ) { item, _, _ -> item }
                 .collect { item ->
                     fetchJob?.cancel()
-                    val videoId = (item as? PlayableItem.YtMedia)?.videoId
-                    if (item == null || videoId == null) {
+                    if (item == null) {
                         graph.player.clearSkipSegments()
-                    } else {
-                        fetchJob = launch {
-                            val snapshot = try {
-                                graph.sponsorBlock.load(videoId)
-                            } catch (c: CancellationException) {
-                                throw c
-                            } catch (e: Exception) {
-                                log?.log(Logger.Level.WARN, "getSkipSegments failed", e)
-                                SponsorBlockSnapshot(emptyList(), SponsorBlockState.Unavailable)
-                            }
-                            if (graph.player.queue.value.currentItem == item) {
-                                graph.player.setSkipSegments(item, snapshot.segments.toPlayerSkipSegments())
-                            }
+                        return@collect
+                    }
+                    fetchJob = launch {
+                        val segments = try {
+                            item.videoId?.let { graph.sponsorBlock.load(it).segments }.orEmpty()
+                        } catch (c: CancellationException) {
+                            throw c
+                        } catch (e: Exception) {
+                            log?.log(Logger.Level.WARN, "getSkipSegments failed", e)
+                            emptyList()
+                        }
+                        if (graph.player.queue.value.currentItem == item) {
+                            graph.player.setSkipSegments(item, segments.toPlayerSkipSegments())
                         }
                     }
                 }

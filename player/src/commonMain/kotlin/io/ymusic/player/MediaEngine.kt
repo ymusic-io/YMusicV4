@@ -22,6 +22,9 @@ sealed interface PlayableItem {
      *  durations for every queue row, not just the loaded one. */
     val durationMs: Long?
 
+    /** The YouTube video this item plays: always set for [YtMedia]; for [LocalMedia], the video a download came from. */
+    val videoId: String?
+
     /** What the facade multiplies into the volume for this item; 1 when its engine levels it. */
     val loudnessScale: Float get() = 1f
 
@@ -41,6 +44,7 @@ sealed interface PlayableItem {
         override val durationMs: Long? = null,
         /** dB from the file's measured loudness to its target; null when unmeasured. */
         val loudnessGainDb: Double? = null,
+        override val videoId: String? = null,
     ) : PlayableItem {
         /** YouTube's rule: loud files come down to the target, quiet ones are never raised. */
         override val loudnessScale: Float
@@ -59,7 +63,7 @@ sealed interface PlayableItem {
      * [Progress.seekable] — DVR live is seekable, head-only live is not.
      */
     data class YtMedia(
-        val videoId: String,
+        override val videoId: String,
         val title: String? = null,
         val artist: String? = null,
         val thumbnailUrl: String? = null,
