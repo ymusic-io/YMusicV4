@@ -6,6 +6,8 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusGroup
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -103,10 +105,12 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
@@ -116,6 +120,8 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
@@ -482,11 +488,81 @@ fun NowPlayingScreen(
                     if (event.type == KeyEventType.KeyDown && VideoOverlayNative.armed) VideoOverlayNative.show()
                     false
                 },
-                content = { shell() },
-            )
+            ) {
+                if (platformUsesTouch) shell() else FocusCatcher { shell() }
+            }
         }
     }
 }
+
+/**
+ * Without touch, focus must never fall out of Now Playing: when the focused control goes away (Full screen swaps the
+ * layout, auto-hidden controls leave composition), a catcher takes focus so keys cannot reach anything else composed.
+ * It can take focus only while armed, so it is never a D-pad target otherwise; any key on it brings the controls back
+ * and moves focus to the first one.
+ */
+/** The overlay control a [FocusCatcher] hands focus to: play/pause. */
+private val LocalOverlayEntryFocus = staticCompositionLocalOf<FocusRequester?> { null }
+
+@Composable
+private fun FocusCatcher(content: @Composable () -> Unit) {
+    val catcher = remember { FocusRequester() }
+    val entry = remember { FocusRequester() }
+    val scope = rememberCoroutineScope()
+    var armed by remember { mutableStateOf(false) }
+    var held by remember { mutableStateOf(false) }
+    var rootHasFocus by remember { mutableStateOf(false) }
+    var enterControls by remember { mutableStateOf(0) }
+    LaunchedEffect(enterControls) {
+        if (enterControls == 0) return@LaunchedEffect
+        // The controls compose a frame or two after show(); hand focus over once play/pause exists.
+        repeat(ENTRY_FOCUS_FRAMES) {
+            withFrameNanos { }
+            if (entry.requestFocus(FocusDirection.Enter)) return@LaunchedEffect
+        }
+    }
+    Box(
+        Modifier.fillMaxSize()
+            .onFocusChanged { state ->
+                rootHasFocus = state.hasFocus
+                if (state.hasFocus) return@onFocusChanged
+                // A frame later, in case focus was only moving between controls.
+                scope.launch {
+                    withFrameNanos { }
+                    if (rootHasFocus) return@launch
+                    armed = true
+                    withFrameNanos { }
+                    catcher.requestFocus(FocusDirection.Enter)
+                }
+            }
+            .focusGroup(),
+    ) {
+        Box(
+            Modifier.size(1.dp)
+                .focusProperties { canFocus = armed }
+                .focusRequester(catcher)
+                .onFocusChanged { state ->
+                    if (state.isFocused) {
+                        held = true
+                    } else if (held) {
+                        held = false
+                        armed = false
+                    }
+                }
+                .onKeyEvent { event ->
+                    if (event.type == KeyEventType.KeyDown) {
+                        VideoOverlayNative.show()
+                        enterControls++
+                    }
+                    true
+                }
+                .focusable(),
+        )
+        CompositionLocalProvider(LocalOverlayEntryFocus provides entry) { content() }
+    }
+}
+
+private const val ENTRY_FOCUS_FRAMES = 10
 
 /** The item's artist, or for a YouTube video queued without one, the channel its player response names. */
 internal fun artistText(current: PlayableItem?, status: PlaybackStatus): String? =
@@ -1764,6 +1840,7 @@ private fun TransportButtons(
         )
         Box(
             Modifier.size(circle).clip(CircleShape).background(playBackground)
+                .then(LocalOverlayEntryFocus.current?.let { Modifier.focusRequester(it) } ?: Modifier)
                 .clickable(role = Role.Button) { player.togglePlay() }
                 .a11yActionLabel(stringResource(if (playing) Res.string.cd_pause else Res.string.cd_play)),
             contentAlignment = Alignment.Center,
