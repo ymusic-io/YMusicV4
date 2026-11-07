@@ -52,13 +52,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -198,30 +196,6 @@ internal fun AppRail(
     @Suppress("NAME_SHADOWING")
     val expanded = if (platformIsTelevision) railFocused else expanded
 
-    // Picking a section on a TV sends focus to its content, which closes the rail; the content may still be loading.
-    val contentFocus = remember { FocusRequester() }
-    var focusContent by remember { mutableStateOf(0) }
-    LaunchedEffect(focusContent) {
-        if (focusContent == 0) return@LaunchedEffect
-        repeat(CONTENT_FOCUS_FRAMES) {
-            withFrameNanos { }
-            if (contentFocus.requestFocus(FocusDirection.Enter)) return@LaunchedEffect
-        }
-        railFocused = false
-    }
-
-    @Suppress("NAME_SHADOWING")
-    val rail = if (!platformIsTelevision) {
-        rail
-    } else {
-        RailContent(
-            rail.section, rail.sections, rail.appVersion, rail.premium, rail.updateWaiting, rail.onCheckUpdate, rail.websiteUrl,
-            onSelect = { section ->
-                rail.onSelect(section)
-                focusContent++
-            },
-        )
-    }
     val reserve = animateDpAsState(railReserve(expanded))
     val slack = remember { RailSlack() }
     Box(Modifier.fillMaxSize()) {
@@ -236,7 +210,6 @@ internal fun AppRail(
                     layout(constraints.maxWidth, constraints.maxHeight) { placeable.placeRelative(reservePx, 0) }
                 }
                 .onFocusChanged { if (it.hasFocus) railFocused = false }
-                .focusRequester(contentFocus)
                 .focusGroup(),
         ) {
             CompositionLocalProvider(LocalRailSlack provides slack) { content() }
@@ -249,7 +222,6 @@ internal fun AppRail(
     }
 }
 
-private const val CONTENT_FOCUS_FRAMES = 30
 private const val RailLiveBadgeTextSize = 10
 
 /** The width the rail takes from the content. */
