@@ -285,13 +285,16 @@ private fun RailPanel(
             } else {
                 Spacer(Modifier.height(DesignSpacing.Space8))
             }
-            RailSections(rail, expanded) {
+            // A TV entering the rail lands on the player's play/pause, the thing it most often wants there.
+            val playerFocus = remember { FocusRequester() }
+            val entryFocus = if (platformIsTelevision && item != null) playerFocus else null
+            RailSections(rail, expanded, entryFocus) {
                 if (item != null) {
                     val holePunched = desktopLayoutHole && surface != null && expanded
                     DisposableEffect(holePunched) { onDispose { tileBounds = Rect.Zero } }
                     if (expanded) {
                         val tile = if (holePunched) Modifier.onGloballyPositioned(placeTile) else Modifier
-                        RailMiniExpanded(coordinator, item, surface, onExpandPlayer, tile)
+                        RailMiniExpanded(coordinator, item, surface, onExpandPlayer, tile, playerFocus)
                     } else {
                         RailMiniCollapsed(coordinator, item, surface, onExpandPlayer)
                     }
@@ -385,6 +388,7 @@ private fun RailMiniExpanded(
     surface: (@Composable (Modifier) -> Unit)?,
     onExpand: () -> Unit,
     tileModifier: Modifier,
+    focusRequester: FocusRequester,
 ) {
     val status by coordinator.player.status.collectAsState()
     val progress by coordinator.player.progress.collectAsState()
@@ -418,7 +422,7 @@ private fun RailMiniExpanded(
             }
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
-            RailPlayPause(coordinator, status.showsPause())
+            RailPlayPause(coordinator, status.showsPause(), Modifier.focusRequester(focusRequester))
             IconButton(
                 onClick = { coordinator.player.skipNext() },
                 modifier = Modifier.a11yActionLabel(stringResource(Res.string.cd_next)),
@@ -440,21 +444,30 @@ private fun RailMiniExpanded(
 }
 
 @Composable
-private fun RailPlayPause(coordinator: PlaybackCoordinator, showsPause: Boolean) {
+private fun RailPlayPause(coordinator: PlaybackCoordinator, showsPause: Boolean, modifier: Modifier = Modifier) {
     IconButton(
         onClick = { coordinator.player.togglePlay() },
-        modifier = Modifier.a11yActionLabel(stringResource(if (showsPause) Res.string.cd_pause else Res.string.cd_play)),
+        modifier = modifier.a11yActionLabel(stringResource(if (showsPause) Res.string.cd_pause else Res.string.cd_play)),
     ) {
         Icon(if (showsPause) Icons.Default.Pause else Icons.Default.PlayArrow, null, tint = DesignColors.InkMuted)
     }
 }
 
 @Composable
-private fun ColumnScope.RailSections(rail: RailContent, expanded: Boolean, header: @Composable ColumnScope.() -> Unit) {
-    // An opened rail lands keyboard focus on the current section, as the drawer does.
+private fun ColumnScope.RailSections(
+    rail: RailContent,
+    expanded: Boolean,
+    entryFocus: FocusRequester?,
+    header: @Composable ColumnScope.() -> Unit,
+) {
+    // An opened rail lands keyboard focus on [entryFocus], else on the current section as the drawer does.
     val activeItemFocus = remember { FocusRequester() }
     LaunchedEffect(expanded) {
-        if (expanded && rail.section in rail.sections) activeItemFocus.requestFocus()
+        if (!expanded) return@LaunchedEffect
+        when {
+            entryFocus != null -> entryFocus.requestFocus()
+            rail.section in rail.sections -> activeItemFocus.requestFocus()
+        }
     }
     Column(
         Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()).listKeyboardNavigation()
