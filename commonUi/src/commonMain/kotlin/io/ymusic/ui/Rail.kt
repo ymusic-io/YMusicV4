@@ -210,7 +210,8 @@ internal fun AppRail(
         if (focusLost == 0) return@LaunchedEffect
         repeat(CONTENT_FOCUS_FRAMES) {
             withFrameNanos { }
-            if (shellHasFocus || contentFocus.requestFocus(FocusDirection.Enter)) return@LaunchedEffect
+            // An open rail loses focus for a moment while expanding swaps its items, and re-takes it itself.
+            if (shellHasFocus || railFocused || contentFocus.requestFocus(FocusDirection.Enter)) return@LaunchedEffect
         }
     }
     val reserve = animateDpAsState(railReserve(expanded))
@@ -254,10 +255,20 @@ internal fun AppRail(
                     if (platformIsTelevision) {
                         Modifier.focusProperties {
                             onEnter = {
-                                // An open rail re-takes focus itself after expanding swaps out the focused item.
-                                if (requestedFocusDirection != towardsRail && !railFocused) {
-                                    cancelFocusChange()
-                                    contentFocus.requestFocus(FocusDirection.Enter)
+                                when {
+                                    // A press towards it only opens it; focus stays put until it has expanded, since
+                                    // expanding swaps the collapsed items for new ones and a focused one would be lost.
+                                    // The same press may try several of its items: each is turned away.
+                                    requestedFocusDirection == towardsRail -> {
+                                        cancelFocusChange()
+                                        railFocused = true
+                                    }
+                                    // An open rail takes focus through its own entry request, once it has expanded.
+                                    railFocused -> Unit
+                                    else -> {
+                                        cancelFocusChange()
+                                        contentFocus.requestFocus(FocusDirection.Enter)
+                                    }
                                 }
                             }
                         }
@@ -269,7 +280,10 @@ internal fun AppRail(
                 .focusGroup(),
         ) {
             // Beside the content the rail shares the app bar's plane: same tone, a divider instead of a shadow.
-            RailPanel(rail, expanded, chromeTone(chromeElevated), onToggle, coordinator, surface, onExpandPlayer)
+            RailPanel(rail, expanded, chromeTone(chromeElevated), onToggle, coordinator, surface, onExpandPlayer) {
+                // An opened TV rail that cannot take focus closes again rather than stay open around the content.
+                railFocused = false
+            }
             VerticalDivider(color = DesignColors.Divider)
         }
     }
@@ -293,6 +307,7 @@ private fun RailPanel(
     coordinator: PlaybackCoordinator,
     surface: (@Composable (Modifier) -> Unit)?,
     onExpandPlayer: () -> Unit,
+    onEntryFailed: () -> Unit,
 ) {
     val width by animateDpAsState(if (expanded) DesignSpacing.RailExpandedWidth else DesignSpacing.RailCollapsedWidth)
     var panel by remember { mutableStateOf<LayoutCoordinates?>(null) }
@@ -327,7 +342,7 @@ private fun RailPanel(
             // A TV entering the rail lands on the player's play/pause, the thing it most often wants there.
             val playerFocus = remember { FocusRequester() }
             val entryFocus = if (platformIsTelevision && item != null) playerFocus else null
-            RailSections(rail, expanded, entryFocus) {
+            RailSections(rail, expanded, entryFocus, onEntryFailed) {
                 if (item != null) {
                     val holePunched = desktopLayoutHole && surface != null && expanded
                     DisposableEffect(holePunched) { onDispose { tileBounds = Rect.Zero } }
@@ -504,6 +519,7 @@ private fun ColumnScope.RailSections(
     rail: RailContent,
     expanded: Boolean,
     entryFocus: FocusRequester?,
+    onEntryFailed: () -> Unit,
     header: @Composable ColumnScope.() -> Unit,
 ) {
     // An opened rail lands keyboard focus on [entryFocus], else on the current section as the drawer does.
@@ -515,10 +531,12 @@ private fun ColumnScope.RailSections(
             scroll.scrollTo(0)
             return@LaunchedEffect
         }
-        when {
-            entryFocus != null -> entryFocus.requestFocus()
-            rail.section in rail.sections -> activeItemFocus.requestFocus()
+        val entered = when {
+            entryFocus != null -> entryFocus.requestFocus(FocusDirection.Enter)
+            rail.section in rail.sections -> activeItemFocus.requestFocus(FocusDirection.Enter)
+            else -> false
         }
+        if (!entered) onEntryFailed()
     }
     // Android TVs default to pulling a focused item 30% down its list; the rail moves only near its edges.
     val marginPx = with(LocalDensity.current) { RailScrollMargin.toPx() }
