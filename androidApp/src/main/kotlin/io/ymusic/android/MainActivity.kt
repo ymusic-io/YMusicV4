@@ -45,6 +45,7 @@ import io.ymusic.player.PlayableItem
 import io.ymusic.player.VideoSize
 import io.ymusic.settings.AppSettings
 import io.ymusic.settings.flow
+import io.ymusic.ui.AndroidInputMode
 import io.ymusic.ui.App
 import io.ymusic.ui.AppGraph
 import io.ymusic.ui.AppSection
@@ -327,6 +328,7 @@ class MainActivity : FragmentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        AndroidInputMode.init(this)
         // The app is light-only (commonUi LightScheme paints white behind the bars), so the bar
         // icon color must not follow the SYSTEM dark-mode setting — that yields white-on-white.
         val light = SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT)
