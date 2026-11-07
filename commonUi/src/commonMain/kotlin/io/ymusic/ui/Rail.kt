@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -103,6 +104,9 @@ private val RailThumbnailShape = RoundedCornerShape(DesignSpacing.Space8)
 private val RailVideoShape: Shape = if (desktopLayoutHole) RectangleShape else RailThumbnailShape
 private val RailCollapsedTile = DesignSpacing.RailCollapsedWidth - DesignSpacing.Space16
 private val RailItemTarget = DesignSpacing.Space48
+
+/** The section icons sit 28dp in (8dp list inset + the drawer row's 20dp); less the 8dp gap before the logo. */
+private val RailTvLogoInset = 20.dp
 private val RailOpenHintSize = DesignSpacing.Space24 + DesignSpacing.Space4
 private val RailOpenHintFill = Color.Black.copy(alpha = 0.6f)
 
@@ -255,7 +259,7 @@ private fun RailPanel(
     var panel by remember { mutableStateOf<LayoutCoordinates?>(null) }
     var tileBounds by remember { mutableStateOf(Rect.Zero) }
     val placeTile: (LayoutCoordinates) -> Unit = { tile ->
-        panel?.takeIf { it.isAttached }?.let { tileBounds = it.localBoundingBoxOf(tile) }
+        panel?.takeIf { it.isAttached }?.let { tileBounds = it.localBoundingBoxOf(tile, clipBounds = true) }
     }
     Box(
         Modifier.width(width).fillMaxHeight().clipToBounds()
@@ -281,18 +285,19 @@ private fun RailPanel(
             } else {
                 Spacer(Modifier.height(DesignSpacing.Space8))
             }
-            if (item != null) {
-                val holePunched = desktopLayoutHole && surface != null && expanded
-                DisposableEffect(holePunched) { onDispose { tileBounds = Rect.Zero } }
-                if (expanded) {
-                    val tile = if (holePunched) Modifier.onGloballyPositioned(placeTile) else Modifier
-                    RailMiniExpanded(coordinator, item, surface, onExpandPlayer, tile)
-                } else {
-                    RailMiniCollapsed(coordinator, item, surface, onExpandPlayer)
+            RailSections(rail, expanded) {
+                if (item != null) {
+                    val holePunched = desktopLayoutHole && surface != null && expanded
+                    DisposableEffect(holePunched) { onDispose { tileBounds = Rect.Zero } }
+                    if (expanded) {
+                        val tile = if (holePunched) Modifier.onGloballyPositioned(placeTile) else Modifier
+                        RailMiniExpanded(coordinator, item, surface, onExpandPlayer, tile)
+                    } else {
+                        RailMiniCollapsed(coordinator, item, surface, onExpandPlayer)
+                    }
+                    HorizontalDivider(color = DesignColors.Divider, modifier = Modifier.padding(vertical = DesignSpacing.Space4))
                 }
-                HorizontalDivider(color = DesignColors.Divider, modifier = Modifier.padding(vertical = DesignSpacing.Space4))
             }
-            RailSections(rail, expanded)
         }
     }
 }
@@ -300,11 +305,12 @@ private fun RailPanel(
 @Composable
 private fun RailHeader(rail: RailContent, onToggle: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().padding(end = DesignSpacing.Space16),
+        Modifier.fillMaxWidth().heightIn(min = RailItemTarget).padding(end = DesignSpacing.Space16),
         horizontalArrangement = Arrangement.spacedBy(DesignSpacing.Space8),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (platformIsTelevision) Spacer(Modifier.width(DesignSpacing.Space8)) else RailToggle(rail, expanded = true, onToggle)
+        // Without the toggle, the logo lines up with the section icons below.
+        if (platformIsTelevision) Spacer(Modifier.width(RailTvLogoInset)) else RailToggle(rail, expanded = true, onToggle)
         AppLogo(DesignSpacing.Space24)
         Column {
             Row(horizontalArrangement = Arrangement.spacedBy(DesignSpacing.Space8), verticalAlignment = Alignment.CenterVertically) {
@@ -382,7 +388,7 @@ private fun RailMiniExpanded(
 ) {
     val status by coordinator.player.status.collectAsState()
     val progress by coordinator.player.progress.collectAsState()
-    Column(Modifier.fillMaxWidth().padding(horizontal = DesignSpacing.Space8)) {
+    Column(Modifier.fillMaxWidth()) {
         Column(Modifier.fillMaxWidth().clickable(onClick = onExpand)) {
             Box(tileModifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RailVideoShape)) {
                 MiniArtTile(coordinator, item, surface, onExpand, Modifier.fillMaxSize())
@@ -444,7 +450,7 @@ private fun RailPlayPause(coordinator: PlaybackCoordinator, showsPause: Boolean)
 }
 
 @Composable
-private fun ColumnScope.RailSections(rail: RailContent, expanded: Boolean) {
+private fun ColumnScope.RailSections(rail: RailContent, expanded: Boolean, header: @Composable ColumnScope.() -> Unit) {
     // An opened rail lands keyboard focus on the current section, as the drawer does.
     val activeItemFocus = remember { FocusRequester() }
     LaunchedEffect(expanded) {
@@ -455,6 +461,7 @@ private fun ColumnScope.RailSections(rail: RailContent, expanded: Boolean) {
             .padding(horizontal = DesignSpacing.Space8, vertical = DesignSpacing.Space4),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        header()
         rail.sections.groupBy { it.group }.entries.forEachIndexed { index, (_, sections) ->
             if (index > 0) {
                 HorizontalDivider(color = DesignColors.Divider, modifier = Modifier.padding(vertical = DesignSpacing.Space4))
