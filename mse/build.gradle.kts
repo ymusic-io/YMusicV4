@@ -235,7 +235,7 @@ val mseCmakeBuild by tasks.registering(Exec::class) {
     doLast {
         // Siblings of libmseffmpegjni so @loader_path / $ORIGIN resolves in tests (mse.native.dir).
         // Windows: ffmpeg's `make install` puts the shared libs in bin/ (next to ffmpeg.exe); the
-        // sibling MinGW runtime DLLs (zlib1, libwinpthread-1) also live there.
+        // sibling MinGW runtime DLL libwinpthread-1 also lives there.
         val prefix = ffmpegDesktopPrefix ?: return@doLast
         val sources = listOf("lib", "bin").map { File(prefix, it) }.filter { it.isDirectory }
         for (src in sources) {
@@ -244,7 +244,7 @@ val mseCmakeBuild by tasks.registering(Exec::class) {
                 if (n.endsWith(".a") || n.endsWith(".pc") || n.endsWith(".la")) return@forEach
                 val sharedAv = n.startsWith("libav") || n.startsWith("libsw")
                 val winAvDll = (n.startsWith("av") || n.startsWith("sw")) && n.endsWith(".dll")
-                val winRuntimeDll = (n == "zlib1.dll" || n == "libwinpthread-1.dll")
+                val winRuntimeDll = n == "libwinpthread-1.dll"
                 if (sharedAv || winAvDll || winRuntimeDll) {
                     f.copyTo(File(mseJniDir.get().asFile, n), overwrite = true)
                 }
@@ -278,9 +278,9 @@ val bundleMseJniLib by tasks.registering(Copy::class) {
     from(mseJniDir) {
         include(System.mapLibraryName("mseffmpegjni"))
         include("libav*", "libsw*", "av*.dll", "sw*.dll")
-        // MinGW runtime DLLs ffmpeg-build packs on Windows (zlib1, libwinpthread-1) — avcodec and
-        // mseffmpegjni import them, so they must sit next to the JNI at load time.
-        include("zlib*.dll", "libwinpthread*.dll")
+        // MinGW's libwinpthread-1, which ffmpeg-build packs on Windows: avcodec and mseffmpegjni
+        // import it, so it must sit next to the JNI at load time.
+        include("libwinpthread*.dll")
         exclude("*.a", "*.pc", "*.la")
     }
     into(mseJniResourcesDir.map { it.dir("jni/$mseHostJniFolder") })
