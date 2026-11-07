@@ -1053,6 +1053,10 @@ private fun BoxScope.VideoOverlayControls(
             }
             DurationLabel(player, progress, overlayStyle)
             Box(Modifier.weight(1f))
+            // Full screen has no top bar, so its quality, details and speed come here.
+            if (isFullscreen) {
+                OverlayPlayerActions(coordinator, tint = Color(0xFFEEEEEE), iconSize = iconSize, hitSize = hitSize, scale = scale)
+            }
             CaptionToggle(player, offTint = Color(0xFFEEEEEE), iconSize = iconSize, hitSize = hitSize)
             if (onToggleRotationLock != null) {
                 ActionIcon(
@@ -1343,15 +1347,6 @@ private fun BoxScope.PlaybackErrorText(
 @Composable
 private fun PlayerTopBar(coordinator: PlaybackCoordinator, sleepMs: Long?, onClose: () -> Unit) {
     val player = coordinator.player
-    val quality by player.videoQuality.collectAsState()
-    val audioOnlyLabel = stringResource(Res.string.audio_only)
-    val autoQualityLabel = stringResource(Res.string.video_quality_auto)
-    fun qualityLabel(option: VideoQualityOption): String = when (option.quality) {
-        VideoQualityState.AUDIO_ONLY -> audioOnlyLabel
-        VideoQualityState.AUTO -> autoQualityLabel
-        else -> option.label
-    }
-
     val queue by player.queue.collectAsState()
     val downloadLauncher = LocalDownloadLauncher.current
     val downloadable = coordinator.downloadable(queue.currentItem)
@@ -1424,18 +1419,8 @@ private fun PlayerTopBar(coordinator: PlaybackCoordinator, sleepMs: Long?, onClo
                 SleepChoice.Off -> player.setSleepTimer(null)
             }
         }
-        if (quality.options.isNotEmpty()) {
-            QualityChip(
-                label = quality.options.firstOrNull { it.quality == quality.actualQuality }?.let(::qualityLabel)
-                    ?: when (quality.actualQuality) {
-                        VideoQualityState.AUTO -> autoQualityLabel
-                        VideoQualityState.AUDIO_ONLY -> audioOnlyLabel
-                        else -> quality.actualQuality
-                    },
-                options = quality.options.map { it.quality to qualityLabel(it) },
-                selectedId = quality.preferredQuality,
-                onSelect = { player.selectVideoQuality(it) },
-            )
+        qualityChoices(player)?.let { choices ->
+            QualityChip(choices.label, choices.options, choices.selectedId) { player.selectVideoQuality(it) }
         }
         PlayerMoreMenu(coordinator)
     }
@@ -1446,6 +1431,9 @@ internal fun QualityChip(
     label: String,
     options: List<Pair<String, String>>,
     selectedId: String? = null,
+    ink: Color = DesignColors.InkMuted,
+    outline: Color = DesignColors.OutlineSoft,
+    scale: Float = 1f,
     onSelect: (String) -> Unit,
 ) {
     var open by remember { mutableStateOf(false) }
@@ -1454,33 +1442,128 @@ internal fun QualityChip(
     Box {
         Text(
             label,
-            style = TextStyle(fontSize = 11.sp, fontWeight = FontWeight.Bold, color = DesignColors.InkMuted),
+            style = TextStyle(fontSize = 11.sp * scale, fontWeight = FontWeight.Bold, color = ink),
             modifier = Modifier
                 .clip(RoundedCornerShape(6.dp))
-                .border(1.dp, DesignColors.OutlineSoft, RoundedCornerShape(6.dp))
+                .border(1.dp, outline, RoundedCornerShape(6.dp))
                 .clickable { open = true }
                 .a11yActionLabel("$qualityDescription, $label")
                 .clearAndSetSemantics { role = Role.DropdownList }
                 .padding(horizontal = 8.dp, vertical = 2.dp),
         )
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            options.forEach { (id, text) ->
-                val selected = id == selectedId
-                DropdownMenuItem(
-                    text = {
-                        Text(
-                            text,
-                            color = if (selected) DesignColors.Accent else DesignColors.Ink,
-                            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-                        )
-                    },
-                    trailingIcon = selectedCheck(selected),
-                    onClick = { onSelect(id); open = false },
-                    modifier = Modifier.menuChoice(selected),
-                )
-            }
+        QualityMenu(open, options, selectedId, onSelect = { onSelect(it); open = false }, onDismiss = { open = false })
+    }
+}
+
+/** The current quality's label, the choices, and the preferred one; null while the item offers no choice. */
+private class QualityChoices(val label: String, val options: List<Pair<String, String>>, val selectedId: String?)
+
+@Composable
+private fun qualityChoices(player: io.ymusic.player.Player): QualityChoices? {
+    val quality by player.videoQuality.collectAsState()
+    val audioOnlyLabel = stringResource(Res.string.audio_only)
+    val autoQualityLabel = stringResource(Res.string.video_quality_auto)
+    fun qualityLabel(option: VideoQualityOption): String = when (option.quality) {
+        VideoQualityState.AUDIO_ONLY -> audioOnlyLabel
+        VideoQualityState.AUTO -> autoQualityLabel
+        else -> option.label
+    }
+    if (quality.options.isEmpty()) return null
+    val label = quality.options.firstOrNull { it.quality == quality.actualQuality }?.let(::qualityLabel)
+        ?: when (quality.actualQuality) {
+            VideoQualityState.AUTO -> autoQualityLabel
+            VideoQualityState.AUDIO_ONLY -> audioOnlyLabel
+            else -> quality.actualQuality
+        }
+    return QualityChoices(label, quality.options.map { it.quality to qualityLabel(it) }, quality.preferredQuality)
+}
+
+@Composable
+private fun QualityMenu(
+    expanded: Boolean,
+    options: List<Pair<String, String>>,
+    selectedId: String?,
+    onSelect: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
+        options.forEach { (id, text) ->
+            val selected = id == selectedId
+            DropdownMenuItem(
+                text = {
+                    Text(
+                        text,
+                        color = if (selected) DesignColors.Accent else DesignColors.Ink,
+                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                    )
+                },
+                trailingIcon = selectedCheck(selected),
+                onClick = { onSelect(id) },
+                modifier = Modifier.menuChoice(selected),
+            )
         }
     }
+}
+
+/** Quality (as the top bar's chip), details and speed on the full-screen controls, opening the same menu, dialog and sheet as the top bar. */
+@Composable
+private fun OverlayPlayerActions(coordinator: PlaybackCoordinator, tint: Color, iconSize: Dp, hitSize: Dp, scale: Float) {
+    val player = coordinator.player
+    qualityChoices(player)?.let { choices ->
+        QualityChip(
+            choices.label,
+            choices.options,
+            choices.selectedId,
+            ink = tint,
+            outline = tint.copy(alpha = 0.6f),
+            scale = scale,
+        ) { player.selectVideoQuality(it) }
+    }
+    val video = player.queue.collectAsState().value.currentItem as? PlayableItem.YtMedia
+    if (video != null) {
+        var detailsOpen by remember { mutableStateOf(false) }
+        HoldVideoOverlay(detailsOpen)
+        ActionIcon(
+            Icons.Outlined.Info,
+            stringResource(Res.string.menu_details_comments),
+            iconSize = iconSize,
+            hitSize = hitSize,
+            tint = tint,
+            onClick = { detailsOpen = true },
+        )
+        if (detailsOpen) VideoDetails(coordinator, video.videoId) { detailsOpen = false }
+    }
+    var speedOpen by remember { mutableStateOf(false) }
+    HoldVideoOverlay(speedOpen)
+    val speed = player.config.collectAsState().value.speed
+    val speedValue = if (speed != 1f) "${trimFloat(speed)}×" else null
+    ActionIcon(
+        Icons.Outlined.Speed,
+        listOfNotNull(stringResource(Res.string.menu_speed_pitch), speedValue).joinToString(", "),
+        iconSize = iconSize,
+        hitSize = hitSize,
+        tint = tint,
+        onClick = { speedOpen = true },
+    )
+    speedValue?.let {
+        Text(
+            it,
+            style = TextStyle(fontSize = 10.sp * scale, fontWeight = FontWeight.Bold, color = tint),
+            modifier = Modifier.a11ySilent(),
+        )
+    }
+    if (speedOpen) PlaybackFxSheet(player, onDismiss = { speedOpen = false })
+}
+
+@Composable
+private fun VideoDetails(coordinator: PlaybackCoordinator, videoId: String, onDismiss: () -> Unit) {
+    val openChannel = LocalOpenChannel.current
+    VideoDetailsDialog(
+        coordinator.graph,
+        videoId,
+        onOpenChannel = { url, title -> onDismiss(); openChannel(url, title) },
+        onDismiss = onDismiss,
+    )
 }
 
 private fun Modifier.menuChoice(selected: Boolean) = semantics {
@@ -1660,13 +1743,7 @@ private fun PlayerMoreMenu(coordinator: PlaybackCoordinator) {
         PlaybackFxSheet(player, onDismiss = { playbackOpen = false })
     }
     if (detailsOpen && video != null) {
-        val openChannel = LocalOpenChannel.current
-        VideoDetailsDialog(
-            coordinator.graph,
-            video.videoId,
-            onOpenChannel = { url, title -> detailsOpen = false; openChannel(url, title) },
-            onDismiss = { detailsOpen = false },
-        )
+        VideoDetails(coordinator, video.videoId) { detailsOpen = false }
     }
     if (eqOpen) {
         EqualizerFxSheet(coordinator.graph, onDismiss = { eqOpen = false })
