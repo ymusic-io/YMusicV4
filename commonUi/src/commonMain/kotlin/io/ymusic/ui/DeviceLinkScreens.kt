@@ -266,7 +266,7 @@ private fun DeviceLinkNeedLogin(onLogin: () -> Unit) {
 }
 
 @Composable
-private fun AccentButton(text: String, enabled: Boolean, onClick: () -> Unit) {
+internal fun AccentButton(text: String, enabled: Boolean, onClick: () -> Unit) {
     Box(
         Modifier
             .fillMaxWidth()
