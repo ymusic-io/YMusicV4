@@ -3780,6 +3780,7 @@
       installKeyboardLayoutMap();
       tagInterfacePrototypes();
       installPermissions();
+      Object.setPrototypeOf(globalThis.navigator, globalThis.Navigator.prototype);
       delete globalThis.navigator.webdriver;
       readOnlyAttributes(globalThis.Navigator.prototype, globalThis.navigator, {
         webdriver: false,
