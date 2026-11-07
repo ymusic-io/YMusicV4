@@ -1266,7 +1266,6 @@
     "WebSocket",
     "Blob",
     "File",
-    "fetchLater",
     "FileReader",
     "FormData",
     "URLSearchParams",
@@ -1463,6 +1462,7 @@
     "SVGComponentTransferFunctionElement",
   ];
   var WINDOW_FUNCS = [
+    "fetchLater",
     "alert",
     "confirm",
     "prompt",
