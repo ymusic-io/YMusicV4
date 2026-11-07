@@ -23,8 +23,14 @@ class WebViewCookieJar : CookieJar {
     override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
         val u = url.toString()
         // Each cookie's Set-Cookie string (name=value; expires=…; domain=…; path=…; secure; httponly)
-        // is what CookieManager.setCookie expects — the same shape the browser stores.
-        for (cookie in cookies) manager.setCookie(u, cookie.toString())
+        // is what CookieManager.setCookie expects — the same shape the browser stores. CookieManager drops a
+        // cookie whose domain does not match the url it is set against (an imported google.com cookie set
+        // under youtube.com), so a foreign-domain cookie is set against its own domain.
+        for (cookie in cookies) {
+            val host = url.host
+            val ownDomain = host == cookie.domain || host.endsWith(".${cookie.domain}")
+            manager.setCookie(if (ownDomain) u else "https://${cookie.domain}${cookie.path}", cookie.toString())
+        }
         manager.flush()
     }
 

@@ -1,8 +1,11 @@
 package io.ymusic.ui
 
 import android.app.Activity
+import android.app.UiModeManager
+import android.content.Context
 import android.content.ContextWrapper
 import android.content.pm.ActivityInfo
+import android.content.res.Configuration
 import android.os.Build
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.WindowInsets
@@ -27,7 +30,24 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 
-internal actual val platformUsesTouch: Boolean = true
+internal actual val platformUsesTouch: Boolean get() = !AndroidInputMode.television
+
+internal actual val platformIsTelevision: Boolean get() = AndroidInputMode.television
+
+/** How the device is driven, recorded by the app shell before any UI composes. */
+object AndroidInputMode {
+    /** A TV is driven by a D-pad, whatever touchscreen it reports: the emulator image claims one. */
+    @Volatile
+    internal var television = false
+        private set
+
+    val isTelevision: Boolean get() = television
+
+    fun init(context: Context) {
+        val uiMode = context.getSystemService(UiModeManager::class.java)
+        television = uiMode?.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION
+    }
+}
 
 internal actual val desktopLayoutHole: Boolean = false
 
@@ -86,7 +106,7 @@ internal actual fun SyncSensorRotation(locked: Boolean) {
     }
 }
 
-internal actual val rotationLockSupported: Boolean = true
+internal actual val rotationLockSupported: Boolean get() = !AndroidInputMode.television
 
 @Composable
 internal actual fun SyncImmersiveSystemBars(immersive: Boolean) {

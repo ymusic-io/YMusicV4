@@ -8,6 +8,9 @@ import androidx.compose.ui.Modifier
  *  gesture would steal any click whose press wanders a pixel. */
 internal expect val platformUsesTouch: Boolean
 
+/** A TV: driven by a D-pad from across the room. */
+internal expect val platformIsTelevision: Boolean
+
 /** Desktop Compose UI uses a transparent window with a layout hole over a video-only Frame. */
 internal expect val desktopLayoutHole: Boolean
 

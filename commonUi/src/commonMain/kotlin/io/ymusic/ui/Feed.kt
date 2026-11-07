@@ -578,11 +578,12 @@ private fun FeedSections(
     // Collapsible sections start collapsed; the map survives recomposition, keyed by section slot.
     val expanded = remember { mutableStateMapOf<Int, Boolean>() }
     BoxWithConstraints(modifier.fillMaxSize()) {
-        val metrics = gridMetricsFor(maxWidth)
-        val layout = feedLayoutFor(maxWidth)
-        val columns = if (layout != FeedLayout.Grid) 1 else gridColumnsFor(maxWidth)
+        val layoutWidth = railStableWidth(maxWidth)
+        val metrics = gridMetricsFor(layoutWidth)
+        val layout = feedLayoutFor(layoutWidth)
+        val columns = if (layout != FeedLayout.Grid) 1 else gridColumnsFor(layoutWidth)
         val wide = layout == FeedLayout.WideList
-        val compactTitle = feedCompactTitleFor(maxWidth)
+        val compactTitle = feedCompactTitleFor(layoutWidth)
         val listState = hoistedListState ?: rememberLazyListState()
         // Report scroll to the shell (which lifts the app bar); the feed doesn't touch the bar itself.
         TrackScroll { listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0 }

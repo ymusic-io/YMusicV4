@@ -565,9 +565,10 @@ private fun FoldersTab(
                 // as a wider list below them (see design/final/library.html). Songs are min-width
                 // sized — full-width when tight, splitting as the screen grows — and rendered as
                 // full-width weighted rows so they stay gap-free whatever the folder column count.
-                if (maxWidth >= LibraryGridMinWidth) {
-                    val columns = libraryGridColumns(maxWidth)
-                    val songsPerRow = librarySongColumns(maxWidth)
+                val layoutWidth = railStableWidth(maxWidth)
+                if (layoutWidth >= LibraryGridMinWidth) {
+                    val columns = libraryGridColumns(layoutWidth)
+                    val songsPerRow = librarySongColumns(layoutWidth)
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(columns),
                         modifier = Modifier.fillMaxSize(),
@@ -1088,9 +1089,10 @@ private fun PlaylistsTab(
         LocalRemoveFromPlayHistory provides removeFromPlayHistory,
     ) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
-            if (maxWidth >= LibraryGridMinWidth) {
+            val layoutWidth = railStableWidth(maxWidth)
+            if (layoutWidth >= LibraryGridMinWidth) {
                 LazyVerticalGrid(
-                    columns = GridCells.Fixed(libraryGridColumns(maxWidth)),
+                    columns = GridCells.Fixed(libraryGridColumns(layoutWidth)),
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(start = LibraryGridPadding, end = LibraryGridPadding, top = 4.dp, bottom = 4.dp + LocalMiniPlayerInset.current),
                     state = gridState,
@@ -1102,7 +1104,7 @@ private fun PlaylistsTab(
                         }
                         if (showEmptyHint) item("empty", span = { GridItemSpan(maxLineSpan) }) { NoPlaylistsHint(transfer) }
                     } else {
-                        val perRow = librarySongColumns(maxWidth)
+                        val perRow = librarySongColumns(layoutWidth)
                         items(
                             songs.indices.chunked(perRow),
                             key = { songs[it.first()].id },
@@ -1493,9 +1495,10 @@ internal fun SongList(
     BoxWithConstraints(modifier.fillMaxSize()) {
         // Same min-width sizing as the Folders tab's songs: as many columns as keep each song
         // ≥ LibrarySongMinWidth, dropping to a single full-width column when that's all that fits.
-        if (maxWidth >= LibraryGridMinWidth) {
+        val layoutWidth = railStableWidth(maxWidth)
+        if (layoutWidth >= LibraryGridMinWidth) {
             LazyVerticalGrid(
-                columns = GridCells.Fixed(librarySongColumns(maxWidth)),
+                columns = GridCells.Fixed(librarySongColumns(layoutWidth)),
                 modifier = Modifier.fillMaxSize(),
                 state = gridState,
                 contentPadding = PaddingValues(bottom = LocalMiniPlayerInset.current),
@@ -1656,9 +1659,10 @@ private fun GroupedList(
 
     TrackScroll { listState.canScrollBackward || gridState.canScrollBackward }
     BoxWithConstraints(Modifier.fillMaxSize()) {
-        if (maxWidth >= LibraryGridMinWidth) {
+        val layoutWidth = railStableWidth(maxWidth)
+        if (layoutWidth >= LibraryGridMinWidth) {
             LazyVerticalGrid(
-                columns = GridCells.Fixed(libraryGridColumns(maxWidth)),
+                columns = GridCells.Fixed(libraryGridColumns(layoutWidth)),
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(start = 10.dp, end = 10.dp, top = 4.dp, bottom = 4.dp + LocalMiniPlayerInset.current),
                 state = gridState,
@@ -1667,7 +1671,7 @@ private fun GroupedList(
                 if (selected == null) {
                     items(entries, key = { it.first }) { (name, members) -> GroupCard(icon, name, members) { group = name } }
                 } else {
-                    val perRow = librarySongColumns(maxWidth)
+                    val perRow = librarySongColumns(layoutWidth)
                     items(
                         groupSongs.indices.chunked(perRow),
                         key = { groupSongs[it.first()].id },

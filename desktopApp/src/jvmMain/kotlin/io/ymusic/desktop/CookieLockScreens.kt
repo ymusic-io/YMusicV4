@@ -1,6 +1,9 @@
 package io.ymusic.desktop
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -13,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -316,5 +320,45 @@ private fun BusyOr(busy: Boolean, button: @Composable () -> Unit) {
         }
     } else {
         button()
+    }
+}
+
+@Composable
+internal fun AccentButton(text: String, enabled: Boolean, onClick: () -> Unit) {
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .background(
+                if (enabled) DesignColors.Accent else DesignColors.Accent.copy(alpha = 0.4f),
+                RoundedCornerShape(8.dp),
+            )
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(vertical = 14.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text.uppercase(),
+            style = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Bold, color = DesignColors.OnInk),
+        )
+    }
+}
+
+/** Neutral secondary peer for [AccentButton] — same footprint, outlined instead of filled. */
+@Composable
+internal fun OutlinedActionButton(text: String, enabled: Boolean, onClick: () -> Unit) {
+    val stroke = if (enabled) DesignColors.Outline else DesignColors.Outline.copy(alpha = 0.4f)
+    val textColor = if (enabled) DesignColors.Ink else DesignColors.Ink.copy(alpha = 0.4f)
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .border(BorderStroke(1.25.dp, stroke), RoundedCornerShape(8.dp))
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(vertical = 14.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text.uppercase(),
+            style = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Bold, color = textColor),
+        )
     }
 }

@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -176,6 +177,18 @@ internal fun TrackScroll(scrolled: () -> Boolean) {
     LaunchedEffect(host, token) { snapshotFlow(scrolled).collect { host.report(token, it) } }
 }
 
+/** The app chrome's tone, shared by the app bars and the rail so they read as one layer. */
+@Composable
+internal fun chromeTone(elevated: Boolean): Color =
+    animateColorAsState(if (elevated) DesignColors.SurfaceElevated else DesignColors.Surface).value
+
+/** The painted elevation falloff, nearest the surface first. Approximates the 6dp blur of [ElevatedBarDialog]'s bars. */
+internal fun elevationShadowStops(alpha: Float): Array<Pair<Float, Color>> = arrayOf(
+    0f to Color.Black.copy(alpha = 0.20f * alpha),
+    0.4f to Color.Black.copy(alpha = 0.07f * alpha),
+    1f to Color.Transparent,
+)
+
 /** An app-bar surface that lifts while the screen under it is scrolled: shadow + the elevated
  *  tone (elevated white ≠ white). Drawn above siblings so the shadow is never painted over.
  *  [bottomShadow] = false keeps the tone but drops the shadow, for when another elevated surface
@@ -189,7 +202,7 @@ internal fun ElevatedBarColumn(bottomShadow: Boolean = true, content: @Composabl
     // ElevatedBarDialog bars cast (soft peak, gaussian-ish falloff), so every lifted bar in the
     // app reads identically.
     val shadowAlpha by animateFloatAsState(if (elevated && bottomShadow) 1f else 0f)
-    val tone by animateColorAsState(if (elevated) DesignColors.SurfaceElevated else DesignColors.Surface)
+    val tone = chromeTone(elevated)
     Column(
         Modifier
             .zIndex(1f)
@@ -198,9 +211,7 @@ internal fun ElevatedBarColumn(bottomShadow: Boolean = true, content: @Composabl
                     val reach = 12.dp.toPx()
                     drawRect(
                         brush = Brush.verticalGradient(
-                            0f to Color.Black.copy(alpha = 0.20f * shadowAlpha),
-                            0.4f to Color.Black.copy(alpha = 0.07f * shadowAlpha),
-                            1f to Color.Transparent,
+                            *elevationShadowStops(shadowAlpha),
                             startY = size.height,
                             endY = size.height + reach,
                         ),
@@ -347,13 +358,17 @@ internal fun RowScope.AppBarTitle(text: String, fill: Boolean = true, reserveWid
 @Composable
 internal fun DesignAppBar(
     title: String,
-    onMenu: () -> Unit,
+    onMenu: (() -> Unit)?,
     onSearch: (() -> Unit)?,
     titleReserveWidthOf: List<String> = emptyList(),
     inlineContent: (@Composable () -> Unit)? = null,
 ) {
     AppBarRow {
-        ActionIcon(Icons.Default.Menu, stringResource(Res.string.cd_menu), onClick = onMenu)
+        if (onMenu != null) {
+            ActionIcon(Icons.Default.Menu, stringResource(Res.string.cd_menu), onClick = onMenu)
+        } else {
+            Spacer(Modifier.width(DesignSpacing.Space8))
+        }
         AppBarTitle(title, fill = false, reserveWidthOf = titleReserveWidthOf)
         if (inlineContent != null) {
             Box(Modifier.weight(1f).padding(start = 16.dp)) { inlineContent() }
@@ -713,7 +728,7 @@ internal fun SwipeDownDismissBox(
     restingShadow: Boolean = false,
     /** Visual translation in px; parent uses this to draw the shell only while the sheet is peeking. */
     onPeek: (Float) -> Unit = {},
-    /** Off on desktop: a peek would show the transparent video hole, not the shell. */
+    /** Off without touch (nothing to swipe with) and on desktop, where a peek would show the transparent video hole. */
     enabled: Boolean = true,
     content: @Composable () -> Unit,
 ) {

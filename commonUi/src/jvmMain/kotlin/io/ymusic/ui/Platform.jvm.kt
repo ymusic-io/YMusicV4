@@ -12,6 +12,8 @@ import javax.accessibility.AccessibleRole
 
 internal actual val platformUsesTouch: Boolean = false
 
+internal actual val platformIsTelevision: Boolean = false
+
 internal actual val desktopLayoutHole: Boolean = true
 
 actual fun Modifier.a11yActionLabel(label: String?): Modifier =

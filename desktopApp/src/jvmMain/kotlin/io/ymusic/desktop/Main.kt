@@ -152,6 +152,7 @@ import io.ymusic.ui.App
 import io.ymusic.ui.AppGraph
 import io.ymusic.ui.AppHttpClients
 import io.ymusic.ui.CatalogueScreen
+import io.ymusic.ui.CookieSignInScreen
 import io.ymusic.ui.FolderWriteProblem
 import io.ymusic.ui.IncomingLinks
 import io.ymusic.ui.ScanResult
@@ -1183,14 +1184,19 @@ private suspend fun buildGraph(settings: AppStoreSettings, session: CookieSessio
         loginBrowser = null,
         guest = session.isGuest,
         cookieSignIn = if (session.isGuest) null else { onComplete, onBack ->
-            DesktopCookieSignIn(
+            CookieSignInScreen(
                 api = api,
                 importCookies = { cookies.importSessionCookies(it) },
                 loginStatus = { engines.ytLoginStatus() },
-                protectWithPassword = if (session.canProtect) session::protect else null,
                 logger = rootLogger,
                 onComplete = onComplete,
                 onBack = onBack,
+                pasteGuide = { CookieCopyGuide() },
+                afterSignIn = if (session.canProtect) {
+                    { done -> CookieProtectStep(protect = session::protect, logger = rootLogger.fork("cookies"), onDone = done) }
+                } else {
+                    null
+                },
             )
         },
         downloads = downloadService,

@@ -36,6 +36,7 @@ import io.ymusic.dynamicengine.JsSourceProvider
 import io.ymusic.dynamicengine.androidEngineCacheStore
 import io.ymusic.dynamicengine.player.bindMseNativeLogs
 import io.ymusic.dynamicengine.playerJsSource
+import io.ymusic.dynamicengine.yt.ytLoginStatus
 import io.ymusic.imageloader.DiskScaledImageCache
 import io.ymusic.imageloader.DiskVariantIndex
 import io.ymusic.imageloader.ImageLoader
@@ -88,14 +89,17 @@ import io.ymusic.telemetry.installSentryPlayerVersion
 import io.ymusic.telemetry.installSentryRemoteTags
 import io.ymusic.telemetry.shareLogTraceWithSentry
 import io.ymusic.ui.APP_HTTP_TIMEOUT
+import io.ymusic.ui.AndroidInputMode
 import io.ymusic.ui.AppGraph
 import io.ymusic.ui.AppHttpClients
+import io.ymusic.ui.CookieSignInScreen
 import io.ymusic.ui.FolderWriteProblem
 import io.ymusic.ui.ScanResult
 import io.ymusic.ui.YtEngineSabrSpecResolver
 import io.ymusic.ui.bundleConfig
 import io.ymusic.ui.downloadLocationFolder
 import io.ymusic.ui.ensureAppLanguage
+import io.ymusic.ui.importSessionCookies
 import io.ymusic.ui.loaderYoutubeArt
 import io.ymusic.ui.mediaStoreArtFetcher
 import io.ymusic.ui.playhistory.PlayHistoryStore
@@ -337,6 +341,7 @@ class YMusicApplication : Application() {
             engineFloor = maxOf(BuildConfig.ENGINE_JS_VERSION.toInt(), settings.flow(AppSettings.lastLoadedEngineJsVer).value),
             playerFloor = maxOf(EMBEDDED_PLAYER_JS_VERSION.toInt(), settings.flow(AppSettings.lastLoadedPlayerJsVer).value),
         )
+        AndroidInputMode.init(this)
         val api = BuildConfig.REMOTE_CONFIG_URL.takeIf { it.isNotBlank() }?.let { baseUrl ->
             HttpApiService(
                 client = http.engine.newBuilder().apply {
@@ -352,6 +357,7 @@ class YMusicApplication : Application() {
                 // The device's preferred ABI, so the service can offer its split APK.
                 arch = android.os.Build.SUPPORTED_ABIS.firstOrNull(),
                 bundles = runningBundles,
+                formFactor = if (AndroidInputMode.isTelevision) "tv" else null,
             )
         }
         // Flags, the newest JS bundle revisions, and update availability. Started here so the first
@@ -693,6 +699,9 @@ class YMusicApplication : Application() {
         }
 
         val versionName = packageManager.getPackageInfo(packageName, 0).versionName
+        // Decided before the graph: a TV signs in through the phone (QR) rather than a WebView it cannot type into.
+        AndroidInputMode.init(this)
+        val television = AndroidInputMode.isTelevision
         return AppGraph(
             shared.engines,
             player,
@@ -759,6 +768,20 @@ class YMusicApplication : Application() {
             settings = shared.settings,
             loginBrowser = { url, userAgent, state, onPageChanged, modifier ->
                 AndroidLoginBrowser(url, userAgent, state, onPageChanged, modifier)
+            },
+            cookieSignIn = if (!television) {
+                null
+            } else {
+                { onComplete, onBack ->
+                    CookieSignInScreen(
+                        api = shared.api,
+                        importCookies = { shared.cookies.importSessionCookies(it) },
+                        loginStatus = { shared.engines.ytLoginStatus() },
+                        logger = rootLogger,
+                        onComplete = onComplete,
+                        onBack = onBack,
+                    )
+                }
             },
             exportSessionCookies = { shared.cookies.exportSessionCookies() },
             scanQrCode = { qrScanner?.invoke() },

@@ -607,17 +607,23 @@ internal fun WatchedBar(item: YtFeedItem, modifier: Modifier) {
     }
 }
 
+/** YouTube's red LIVE pill. */
+@Composable
+internal fun LiveBadge(textSize: Int, modifier: Modifier = Modifier) {
+    Text(
+        stringResource(Res.string.badge_live),
+        style = TextStyle(fontSize = textSize.sp, fontWeight = FontWeight.Bold, color = Color.White),
+        modifier = modifier.background(Color(0xFFCC0000), RoundedCornerShape(3.dp)).padding(horizontal = 5.dp, vertical = 2.dp),
+    )
+}
+
 /** Duration / item-count / LIVE badge in the thumbnail's bottom-right corner. A Mix (RD… id, the
  *  endless YouTube radio) swaps the playlist glyph for the infinity mark. */
 @Composable
 internal fun Badges(item: YtFeedItem, modifier: Modifier, textSize: Int, iconSize: androidx.compose.ui.unit.Dp) {
     val badgeText = TextStyle(fontSize = textSize.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
     when {
-        item.live -> Text(
-            stringResource(Res.string.badge_live),
-            style = badgeText.copy(fontWeight = FontWeight.Bold),
-            modifier = modifier.background(Color(0xFFCC0000), RoundedCornerShape(3.dp)).padding(horizontal = 5.dp, vertical = 2.dp),
-        )
+        item.live -> LiveBadge(textSize, modifier)
         // Any playlist-kind item gets the corner glyph — a count when the source gave one (WEB),
         // just the icon when it didn't (YouTube Music cards). The glyph names the kind: an endless
         // Mix (RD… id) → infinity, an album → the record, anything else → the playlist mark.
