@@ -2340,6 +2340,12 @@
           syncElementChildren(this);
         }
         if (c) c.parentNode = null;
+        if (c && c.tagName === "IFRAME") {
+          c.contentWindow = null;
+          c.contentDocument = null;
+          delete globalThis[0];
+          globalThis.length = 0;
+        }
         return c;
       },
       contains: function (n) {
@@ -2574,6 +2580,36 @@
         ),
       );
     }
+  }
+
+  /* Chrome window names the page itself must not gain: base.js feature-tests several of them. */
+  var IFRAME_ONLY_NAMES =
+    "CSS WebAssembly SuppressedError DisposableStack AsyncDisposableStack webkitURL webkitRTCPeerConnection " +
+    "webkitMediaStream offscreenBuffering styleMedia onsearch onappinstalled onbeforeinstallprompt " +
+    "oncontentvisibilityautostatechange onmousewheel ongotpointercapture onlostpointercapture " +
+    "onpointerdown onpointermove onpointerup onpointercancel onpointerover onpointerout " +
+    "onpointerenter onpointerleave onselectstart onselectionchange onanimationcancel onanimationend " +
+    "onanimationiteration onanimationstart ontransitionrun ontransitionstart ontransitionend " +
+    "ontransitioncancel onbeforexrselect scheduler indexedDB find Temporal crashReport cookieStore " +
+    "ondevicemotion ondeviceorientation ondeviceorientationabsolute onpointerrawupdate caches " +
+    "documentPictureInPicture GPUBufferUsage GPUColorWrite GPUMapMode GPUShaderStage GPUTextureUsage " +
+    "fetchLater getScreenDetails queryLocalFonts showDirectoryPicker showOpenFilePicker " +
+    "showSaveFilePicker viewport credentialless fence launchQueue speechSynthesis onscrollsnapchange " +
+    "onscrollsnapchanging ongamepadconnected ongamepaddisconnected webkitSpeechGrammar " +
+    "webkitSpeechGrammarList webkitSpeechRecognitionError webkitSpeechRecognitionEvent requestResize " +
+    "webkitRequestFileSystem webkitResolveLocalFileSystemURL";
+  var iframeGlobalNames = [];
+
+  /* Each realm owns its namespace objects. Their constructors can't be wrapped: native() has no `new`. */
+  function ownNamespace(name) {
+    var src = globalThis[name];
+    var own = {};
+    ownNativeStatic(own, src);
+    Object.getOwnPropertyNames(src).forEach(function (n) {
+      if (typeof src[n] !== "function" || /^[A-Z]/.test(n)) hide(own, n, src[n]);
+    });
+    Object.defineProperty(own, Symbol.toStringTag, { value: name, configurable: true });
+    return own;
   }
 
   /* Unset camelCase / vendor CSS is "" and `in` is true (Chrome CSSOM). join/push stay absent. */
@@ -2910,6 +2946,7 @@
     var innerDoc;
     inner.window = inner;
     inner.self = inner;
+    inner.globalThis = inner;
     inner.parent = globalThis;
     inner.top = globalThis;
     inner.frames = inner;
@@ -2929,7 +2966,6 @@
     inner.scrollY = 0;
     inner.name = "";
     inner.status = "";
-    inner.defaultStatus = "";
     inner.closed = false;
     inner.opener = null;
     inner.menubar = globalThis.menubar;
@@ -2963,24 +2999,35 @@
     inner.Array.prototype = ownNativeProto(Array.prototype);
     inner.Array.prototype.constructor = inner.Array;
     ownNativeStatic(inner.Array, Array);
-    inner.Object = native("Object", function Object() {
-      return {};
+    inner.Object = native("Object", function () {
+      return arguments[0] == null ? {} : Object(arguments[0]);
     });
+    inner.Object.prototype = ownNativeProto(Object.prototype);
+    inner.Object.prototype.constructor = inner.Object;
+    ownNativeStatic(inner.Object, Object);
     inner.String = native("String", function String(v) {
       return "" + v;
     });
     inner.String.prototype = ownNativeProto(String.prototype);
     inner.String.prototype.constructor = inner.String;
     ownNativeStatic(inner.String, String);
-    inner.Number = native("Number", function Number(v) {
-      return +v;
+    inner.Number = native("Number", function (v) {
+      return arguments.length ? +v : 0;
     });
-    inner.Boolean = native("Boolean", function Boolean(v) {
+    inner.Number.prototype = ownNativeProto(Number.prototype);
+    inner.Number.prototype.constructor = inner.Number;
+    ownNativeStatic(inner.Number, Number);
+    inner.Boolean = native("Boolean", function (v) {
       return !!v;
     });
-    inner.Error = native("Error", function Error(m) {
+    inner.Boolean.prototype = ownNativeProto(Boolean.prototype);
+    inner.Boolean.prototype.constructor = inner.Boolean;
+    inner.Error = native("Error", function (m) {
       return new Error(m);
     });
+    inner.Error.prototype = ownNativeProto(Error.prototype);
+    inner.Error.prototype.constructor = inner.Error;
+    ownNativeStatic(inner.Error, Error);
     inner.Function = native("Function", function Function() {
       throw new EvalError(
         "Evaluating a string as JavaScript violates this document's Trusted Type assignment requirements.",
@@ -3006,13 +3053,6 @@
     inner.addEventListener = globalThis.addEventListener;
     inner.removeEventListener = globalThis.removeEventListener;
     inner.dispatchEvent = globalThis.dispatchEvent;
-    inner.setTimeout = globalThis.setTimeout;
-    inner.clearTimeout = globalThis.clearTimeout;
-    inner.requestIdleCallback = globalThis.requestIdleCallback;
-    inner.performance = globalThis.performance;
-    inner.trustedTypes = globalThis.trustedTypes;
-    inner.btoa = globalThis.btoa;
-    inner.atob = globalThis.atob;
     innerDoc = {
       nodeType: 9,
       readyState: "complete",
@@ -3027,20 +3067,19 @@
     };
     inner.document = innerDoc;
     innerDoc.defaultView = inner;
-    /* Same-origin about:blank iframe: Web IDL constructors exist (typeof
-     * function). Identity may match the parent; Array/eval stay separate. */
-    (function copyIdl(dst) {
-      var names = Object.getOwnPropertyNames(globalThis);
-      var i, n, ch;
-      for (i = 0; i < names.length; i++) {
-        n = names[i];
-        if (!n) continue;
-        ch = n.charCodeAt(0);
-        if (ch < 65 || ch > 90) continue;
-        if (dst[n] != null) continue;
-        if (typeof globalThis[n] === "function") dst[n] = globalThis[n];
-      }
-    })(inner);
+    /* Same-origin about:blank iframe: BotGuard lists these names. Identity may match the parent;
+     * Array/eval stay separate. */
+    iframeGlobalNames.forEach(function (n) {
+      if (!(n in inner)) inner[n] = globalThis[n];
+    });
+    IFRAME_ONLY_NAMES.split(" ").forEach(function (n) {
+      if (n in inner) return;
+      if (n.indexOf("on") === 0) inner[n] = null;
+      else inner[n] = /^(CSS|GPU|Temporal|WebAssembly)/.test(n) ? {} : native(n, function () {});
+    });
+    ["JSON", "Math", "Intl", "Atomics", "Reflect", "CSS", "WebAssembly"].forEach(function (n) {
+      if (globalThis[n] != null) inner[n] = ownNamespace(n);
+    });
     return inner;
   }
 
@@ -3709,6 +3748,11 @@
       delete globalThis.navigator.webdriver;
       readOnlyAttributes(globalThis.Navigator.prototype, globalThis.navigator, {
         webdriver: false,
+      });
+      iframeGlobalNames = Object.getOwnPropertyNames(globalThis).filter(function (n) {
+        return !/^(__|\d|versions$|ymix$|yt$|ytcfg$|CLOSURE_FLAGS$|webkitAudioContext$|on(copy|cut|paste)$)/.test(
+          n,
+        );
       });
     },
     endLayoutProbes: function () {
