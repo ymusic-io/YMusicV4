@@ -12,6 +12,7 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.OpenableColumns
 import android.provider.Settings
+import android.speech.RecognizerIntent
 import android.util.Rational
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
@@ -236,6 +237,32 @@ class MainActivity : FragmentActivity() {
         deferred.await()
     }
 
+    private var pendingSpeech: CompletableDeferred<String?>? = null
+    private val speechLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            val spoken = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
+            pendingSpeech?.complete(spoken.takeIf { result.resultCode == RESULT_OK })
+            pendingSpeech = null
+        }
+
+    private val recognizeSpeech: suspend () -> String? = {
+        pendingSpeech?.complete(null)
+        val deferred = CompletableDeferred<String?>()
+        pendingSpeech = deferred
+        withContext(Dispatchers.Main) {
+            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+                .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_WEB_SEARCH)
+                .putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+            try {
+                speechLauncher.launch(intent)
+            } catch (e: android.content.ActivityNotFoundException) {
+                pendingSpeech = null
+                throw e
+            }
+        }
+        deferred.await()
+    }
+
     private var pendingScan: CompletableDeferred<String?>? = null
     private val scanQr: suspend () -> String? = {
         pendingScan?.complete(null)
@@ -310,6 +337,9 @@ class MainActivity : FragmentActivity() {
         pendingPick?.complete(null)
         pendingPick = null
         if (app.qrScanner === scanQr) app.qrScanner = null
+        if (app.speechRecognizer === recognizeSpeech) app.speechRecognizer = null
+        pendingSpeech?.complete(null)
+        pendingSpeech = null
         pendingScan?.complete(null)
         pendingScan = null
         if (app.deviceOwnerAuth === confirmOwner) app.deviceOwnerAuth = null
@@ -349,6 +379,7 @@ class MainActivity : FragmentActivity() {
         }
         (application as YMusicApplication).folderPicker = pickFolder
         (application as YMusicApplication).qrScanner = scanQr
+        (application as YMusicApplication).speechRecognizer = recognizeSpeech
         (application as YMusicApplication).deviceOwnerAuth = confirmOwner
         (application as YMusicApplication).documentCreator = createDocument
         (application as YMusicApplication).documentOpener = openDocument
