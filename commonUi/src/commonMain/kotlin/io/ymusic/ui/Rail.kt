@@ -250,6 +250,7 @@ internal fun AppRail(
 }
 
 private const val CONTENT_FOCUS_FRAMES = 30
+private const val RailLiveBadgeTextSize = 10
 
 /** The width the rail takes from the content. */
 internal fun railReserve(expanded: Boolean): Dp =
@@ -415,13 +416,19 @@ private fun RailMiniExpanded(
                 )
             }
             MiniProgress(progress, Modifier.fillMaxWidth().padding(top = DesignSpacing.Space4).height(DesignSpacing.Space2))
-            Text(
-                item.displayTitle,
-                style = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = DesignColors.Ink),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(top = DesignSpacing.Space8),
-            )
+            Row(
+                Modifier.padding(top = DesignSpacing.Space8),
+                horizontalArrangement = Arrangement.spacedBy(DesignSpacing.Space8),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (progress.isLive) LiveBadge(RailLiveBadgeTextSize)
+                Text(
+                    item.displayTitle,
+                    style = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = DesignColors.Ink),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
             artistText(item, status)?.let {
                 Text(
                     it,
