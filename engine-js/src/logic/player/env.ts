@@ -4,12 +4,37 @@
 import origEnvJs from "./orig/env.raw.js";
 import origIdlStubsJs from "./orig/idl_stubs.raw.js";
 import chromeGlobalsJs from "./orig/chrome_globals.raw.js";
+import { HttpRequest } from "../../protocol/http";
+import { executeWithCookies } from "../yt/cookies";
+import { DESKTOP_UA } from "../yt/session";
 
 function native(nameOrFn: string | Function, impl?: Function): Function {
   const name = typeof nameOrFn === "string" ? nameOrFn : nameOrFn.name || "";
   const fn = typeof nameOrFn === "string" ? (impl as Function) : nameOrFn;
   if (typeof __nativeFn === "function") return __nativeFn(name, fn);
   return fn;
+}
+
+const IMAGE_ACCEPT = "image/jxl,image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8";
+
+function requestImage(url: string, done: () => void): void {
+  const location = (globalThis as unknown as Record<string, unknown>)["location"] as
+    Record<string, unknown> | undefined;
+  const request = HttpRequest.get(url)
+    .setHeader("User-Agent", DESKTOP_UA)
+    .setHeader("Accept", IMAGE_ACCEPT)
+    .timeout(30000);
+  if (location && location["href"] != null) request.setHeader("Referer", String(location["href"]));
+  executeWithCookies(url, request).then(
+    function (res) {
+      res.close();
+      done();
+    },
+    function (error: unknown) {
+      console.warn("image " + url + " failed:", error);
+      done();
+    },
+  );
 }
 
 let origEnvInstalled = false;
@@ -21,8 +46,14 @@ export function installOrigEnv(): void {
   if (origEnvInstalled) return;
   origEnvInstalled = true;
   origEnvHandle = (0, eval)(origEnvJs) as Record<string, unknown> | null;
+  const setImageRequest = origEnvHandle ? origEnvHandle["setImageRequest"] : undefined;
+  if (typeof setImageRequest === "function") (setImageRequest as Function)(requestImage);
   (0, eval)(origIdlStubsJs);
   (0, eval)(chromeGlobalsJs);
+  const installChromeBackedApis = origEnvHandle
+    ? origEnvHandle["installChromeBackedApis"]
+    : undefined;
+  if (typeof installChromeBackedApis === "function") (installChromeBackedApis as Function)();
 }
 
 /** Layout getters answer 0 from now on: BotGuard only measures before its snapshot, and the player

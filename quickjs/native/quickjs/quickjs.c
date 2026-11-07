@@ -7929,8 +7929,10 @@ static JSValue JS_ThrowTypeErrorNotASymbol(JSContext *ctx)
 static JSValue JS_ThrowReferenceErrorNotDefined(JSContext *ctx, JSAtom name)
 {
     char buf[ATOM_GET_STR_BUF_SIZE];
-    return JS_ThrowReferenceError(ctx, "'%s' is not defined",
+    /* BEGIN patch: V8 error text, BotGuard hashes it. */
+    return JS_ThrowReferenceError(ctx, "%s is not defined",
                                   JS_AtomGetStr(ctx, buf, sizeof(buf), name));
+    /* END patch */
 }
 
 static JSValue JS_ThrowReferenceErrorUninitialized(JSContext *ctx, JSAtom name)
@@ -8328,10 +8330,12 @@ JSValue JS_GetPropertyInternal(JSContext *ctx, JSValueConst obj,
     tag = JS_VALUE_GET_TAG(obj);
     if (unlikely(tag != JS_TAG_OBJECT)) {
         switch(tag) {
+        /* BEGIN patch: V8 error text, BotGuard hashes it. */
         case JS_TAG_NULL:
-            return JS_ThrowTypeErrorAtom(ctx, "cannot read property '%s' of null", prop);
+            return JS_ThrowTypeErrorAtom(ctx, "Cannot read properties of null (reading '%s')", prop);
         case JS_TAG_UNDEFINED:
-            return JS_ThrowTypeErrorAtom(ctx, "cannot read property '%s' of undefined", prop);
+            return JS_ThrowTypeErrorAtom(ctx, "Cannot read properties of undefined (reading '%s')", prop);
+        /* END patch */
         case JS_TAG_EXCEPTION:
             return JS_EXCEPTION;
         case JS_TAG_STRING:
@@ -9197,8 +9201,21 @@ static JSValue JS_GetPropertyValue(JSContext *ctx, JSValueConst this_obj,
     slow_path:
         /* ToObject() must be done before ToPropertyKey() */
         if (JS_IsNull(this_obj) || JS_IsUndefined(this_obj)) {
+            /* BEGIN patch: V8 error text, BotGuard hashes it. */
+            const char *of = JS_IsNull(this_obj) ? "Cannot read properties of null (reading '%s')"
+                                                 : "Cannot read properties of undefined (reading '%s')";
+            if (JS_IsString(prop) || JS_IsNumber(prop)) {
+                atom = JS_ValueToAtom(ctx, prop);
+                JS_FreeValue(ctx, prop);
+                if (atom == JS_ATOM_NULL)
+                    return JS_EXCEPTION;
+                JS_ThrowTypeErrorAtom(ctx, of, atom);
+                JS_FreeAtom(ctx, atom);
+                return JS_EXCEPTION;
+            }
             JS_FreeValue(ctx, prop);
-            return JS_ThrowTypeError(ctx, "cannot read property of %s", JS_IsNull(this_obj) ? "null" : "undefined");
+            return JS_ThrowTypeError(ctx, "Cannot read properties of %s", JS_IsNull(this_obj) ? "null" : "undefined");
+            /* END patch */
         }
         atom = JS_ValueToAtom(ctx, prop);
         JS_FreeValue(ctx, prop);
@@ -9688,7 +9705,9 @@ static JSValue js_allocate_fast_array(JSContext *ctx, int64_t len)
     int i;
     
     if (len > INT32_MAX)
-        return JS_ThrowRangeError(ctx, "invalid array length");
+        /* BEGIN patch: V8 error text, BotGuard hashes it. */
+        return JS_ThrowRangeError(ctx, "Invalid array length");
+        /* END patch */
     arr = JS_NewArray(ctx);
     if (JS_IsException(arr))
         return arr;
@@ -9791,11 +9810,15 @@ int JS_SetPropertyInternal(JSContext *ctx, JSValueConst obj,
             switch(tag) {
             case JS_TAG_NULL:
                 JS_FreeValue(ctx, val);
-                JS_ThrowTypeErrorAtom(ctx, "cannot set property '%s' of null", prop);
+                /* BEGIN patch: V8 error text, BotGuard hashes it. */
+                JS_ThrowTypeErrorAtom(ctx, "Cannot set properties of null (setting '%s')", prop);
+                /* END patch */
                 return -1;
             case JS_TAG_UNDEFINED:
                 JS_FreeValue(ctx, val);
-                JS_ThrowTypeErrorAtom(ctx, "cannot set property '%s' of undefined", prop);
+                /* BEGIN patch: V8 error text, BotGuard hashes it. */
+                JS_ThrowTypeErrorAtom(ctx, "Cannot set properties of undefined (setting '%s')", prop);
+                /* END patch */
                 return -1;
             default:
                 /* even on a primitive type we can have setters on the prototype */
@@ -13580,7 +13603,9 @@ static __exception int JS_ToArrayLengthFree(JSContext *ctx, uint32_t *plen,
                     return -1;
                 if (len1 != len) {
                 fail:
-                    JS_ThrowRangeError(ctx, "invalid array length");
+                    /* BEGIN patch: V8 error text, BotGuard hashes it. */
+                    JS_ThrowRangeError(ctx, "Invalid array length");
+                    /* END patch */
                     return -1;
                 }
             }
@@ -22570,7 +22595,9 @@ static __exception int js_parse_template_part(JSParseState *s, const uint8_t *p)
     return 0;
 
  unexpected_eof:
-    js_parse_error(s, "unexpected end of string");
+    /* BEGIN patch: V8 error text, BotGuard hashes it. */
+    js_parse_error(s, "Unterminated template literal");
+    /* END patch */
  fail:
     string_buffer_free(b);
     return -1;
@@ -22707,7 +22734,9 @@ static __exception int js_parse_string(JSParseState *s, int sep,
     goto fail;
  invalid_char:
     if (do_throw)
-        js_parse_error(s, "unexpected end of string");
+        /* BEGIN patch: V8 error text, BotGuard hashes it. */
+        js_parse_error(s, "Invalid or unexpected token");
+        /* END patch */
  fail:
     string_buffer_free(b);
     return -1;
@@ -41480,8 +41509,10 @@ static JSValue js_function_toString(JSContext *ctx, JSValueConst this_val,
     JSObject *p;
     JSFunctionKindEnum func_kind = JS_FUNC_NORMAL;
 
-    if (check_function(ctx, this_val))
-        return JS_EXCEPTION;
+    /* BEGIN patch: V8 error text, BotGuard hashes it. */
+    if (!JS_IsFunction(ctx, this_val))
+        return JS_ThrowTypeError(ctx, "Function.prototype.toString requires that 'this' be a Function");
+    /* END patch */
 
     p = JS_VALUE_GET_OBJ(this_val);
     if (js_class_has_bytecode(p->class_id)) {
@@ -43328,7 +43359,9 @@ static JSValue js_array_toSpliced(JSContext *ctx, JSValueConst this_val,
 
     newlen = len + add - del;
     if (newlen > MAX_SAFE_INTEGER) {
-        JS_ThrowTypeError(ctx, "invalid array length");
+        /* BEGIN patch: V8 error text, BotGuard hashes it. */
+        JS_ThrowTypeError(ctx, "Invalid array length");
+        /* END patch */
         goto exception;
     }
 
@@ -45123,7 +45156,9 @@ static int js_get_radix(JSContext *ctx, JSValueConst val)
     if (JS_ToInt32Sat(ctx, &radix, val))
         return -1;
     if (radix < 2 || radix > 36) {
-        JS_ThrowRangeError(ctx, "radix must be between 2 and 36");
+        /* BEGIN patch: V8 error text, BotGuard hashes it. */
+        JS_ThrowRangeError(ctx, "toString() radix argument must be between 2 and 36");
+        /* END patch */
         return -1;
     }
     return radix;
@@ -57782,7 +57817,9 @@ static JSValue js_typed_array_set_internal(JSContext *ctx,
             goto fail;
         if (offset > dst_len - src_len) {
         range_error:
-            JS_ThrowRangeError(ctx, "invalid array length");
+            /* BEGIN patch: V8 error text, BotGuard hashes it. */
+            JS_ThrowRangeError(ctx, "Invalid array length");
+            /* END patch */
             goto fail;
         }
     }
