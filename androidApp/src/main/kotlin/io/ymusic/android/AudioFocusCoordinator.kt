@@ -44,6 +44,9 @@ class AudioFocusCoordinator(
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     private var focusRequest: AudioFocusRequest? = null
     private var hasFocus = false
+
+    /** Still in the system focus stack: true through a transient loss, so the queue emptying abandons it. */
+    private var inFocusStack = false
     private var resumeOnGain = false
     private var ducked = false
     private var noisyRegistered = false
@@ -56,18 +59,24 @@ class AudioFocusCoordinator(
         when (change) {
             AudioManager.AUDIOFOCUS_LOSS -> {
                 hasFocus = false
+                inFocusStack = false
                 resumeOnGain = false
                 restoreDuck()
                 if (playing()) player.pause()
             }
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+                hasFocus = false
                 if (playing()) {
                     resumeOnGain = true
                     player.pause()
                 }
             }
-            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> duck()
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+                hasFocus = false
+                duck()
+            }
             AudioManager.AUDIOFOCUS_GAIN -> {
+                hasFocus = true
                 restoreDuck()
                 if (resumeOnGain) {
                     resumeOnGain = false
@@ -192,11 +201,16 @@ class AudioFocusCoordinator(
             audioManager.requestAudioFocus(focusListener, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN)
         }
         hasFocus = result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        if (hasFocus) {
+            inFocusStack = true
+            resumeOnGain = false
+            restoreDuck()
+        }
         log.info("focus request result=$result")
     }
 
     private fun abandonFocus() {
-        if (!hasFocus) return
+        if (!inFocusStack) return
         if (Build.VERSION.SDK_INT >= 26) {
             focusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
         } else {
@@ -204,6 +218,7 @@ class AudioFocusCoordinator(
             audioManager.abandonAudioFocus(focusListener)
         }
         hasFocus = false
+        inFocusStack = false
         resumeOnGain = false
         log.info("focus abandoned")
     }
