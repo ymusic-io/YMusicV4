@@ -41,6 +41,8 @@ object AndroidInputMode {
     internal var television = false
         private set
 
+    val isTelevision: Boolean get() = television
+
     fun init(context: Context) {
         val uiMode = context.getSystemService(UiModeManager::class.java)
         television = uiMode?.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION
