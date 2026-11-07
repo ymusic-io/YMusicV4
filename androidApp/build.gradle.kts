@@ -170,6 +170,7 @@ dependencies {
     implementation(compose.components.resources)
     implementation(Libs.AndroidX.biometric)
     implementation(Libs.AndroidX.palette) // widget colours from the cover
+    implementation(Libs.AndroidX.carApp) // CarConnection: Android Auto is projecting
     implementation(Libs.AndroidX.fragment)
     implementation(Libs.AndroidX.cameraCore)
     implementation(Libs.AndroidX.cameraCamera2)

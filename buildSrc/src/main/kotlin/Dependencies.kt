@@ -42,6 +42,7 @@ object Versions {
     const val lifecycleRuntimeKtx = "2.8.7"
     const val activityCompose = "1.9.3"
     const val cameraX = "1.4.2"
+    const val carApp = "1.7.0"
     const val composeBom = "2024.12.01"
 
     // JS toolchain (:engine-js, run via npx — Node required at build)
@@ -80,6 +81,7 @@ object Libs {
         const val activityCompose = "androidx.activity:activity-compose:${Versions.activityCompose}"
         const val biometric = "androidx.biometric:biometric:1.1.0"
         const val palette = "androidx.palette:palette:1.0.0"
+        const val carApp = "androidx.car.app:app:${Versions.carApp}"
 
         // biometric 1.1.0 drags in fragment 1.2.5, whose FragmentActivity rejects the request codes
         // registerForActivityResult issues ("Can only use lower 16 bits for requestCode").
