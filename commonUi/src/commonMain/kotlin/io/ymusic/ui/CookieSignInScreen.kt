@@ -34,6 +34,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -157,6 +159,9 @@ fun CookieSignInScreen(
         return
     }
 
+    // Without touch the button that opened this screen is gone, so focus would fall to whatever comes first (the rail).
+    val backFocus = remember { FocusRequester() }
+    if (!platformUsesTouch) LaunchedEffect(Unit) { backFocus.requestFocus() }
     Column(Modifier.fillMaxSize().background(DesignColors.Surface)) {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = DesignSpacing.Space8, vertical = DesignSpacing.Space4),
@@ -165,6 +170,7 @@ fun CookieSignInScreen(
             ActionIcon(
                 Icons.AutoMirrored.Filled.ArrowBack,
                 stringResource(Res.string.cd_back),
+                modifier = Modifier.focusRequester(backFocus),
                 onClick = {
                     if (pasteFlow) pasteFlow = false else onBack()
                 },
