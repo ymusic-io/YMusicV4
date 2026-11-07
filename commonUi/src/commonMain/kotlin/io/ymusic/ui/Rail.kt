@@ -254,7 +254,8 @@ internal fun AppRail(
                     if (platformIsTelevision) {
                         Modifier.focusProperties {
                             onEnter = {
-                                if (requestedFocusDirection != towardsRail) {
+                                // An open rail re-takes focus itself after expanding swaps out the focused item.
+                                if (requestedFocusDirection != towardsRail && !railFocused) {
                                     cancelFocusChange()
                                     contentFocus.requestFocus(FocusDirection.Enter)
                                 }
