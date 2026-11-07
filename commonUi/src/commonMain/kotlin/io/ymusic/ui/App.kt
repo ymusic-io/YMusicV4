@@ -15,9 +15,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Chat
@@ -880,12 +882,22 @@ private fun AppRoot(
 
         // Without touch, nothing peeks at the shell under Now Playing: drop it so focus can't land behind.
         val shellHidden = nowPlayingOpen && (desktopLayoutHole || !platformUsesTouch)
+        // The shell owns app-bar elevation: content reports its scroll via TrackScroll into this host, and the
+        // bar, the rail and the status-bar strip read it. (Content never touches them directly.)
+        val scrollHost = remember { ScrollHost() }
         Box(
             Modifier.fillMaxSize()
                 .then(if (desktopLayoutHole) Modifier else Modifier.background(DesignColors.Surface))
                 // Every screen that shows the drawer's Menu button (nothing pushed) takes the edge swipe.
                 .drawerEdgeGestureExclusion(!usesRail && !drawer.isOpen && !nowPlayingOpen && layers.isEmpty()),
         ) {
+            // The strip under the status bar is chrome too: it lifts with the app bar and rail beneath it.
+            if (!desktopLayoutHole) {
+                Box(
+                    Modifier.fillMaxWidth().windowInsetsTopHeight(WindowInsets.safeDrawing)
+                        .background(chromeTone(scrollHost.scrolled)),
+                )
+            }
             BoxWithConstraints(
                 Modifier.fillMaxSize().safeDrawingPadding(),
             ) {
@@ -910,9 +922,6 @@ private fun AppRoot(
                         // cleared node here would shadow Now Playing.
                         .then(if (nowPlayingOpen && !shellHidden) Modifier.clearAndSetSemantics {} else Modifier),
                 ) {
-                    // The shell owns app-bar elevation: content reports its scroll via TrackScroll into
-                    // this host, and the bar and rail read it. (Content never touches them directly.)
-                    val scrollHost = remember { ScrollHost() }
                     val selectSection: (AppSection) -> Unit = { selected ->
                         // Donate and Telegram are actions, not screens.
                         when (selected) {
