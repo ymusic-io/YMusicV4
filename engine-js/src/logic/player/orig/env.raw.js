@@ -1514,6 +1514,445 @@
     }
     return fn;
   }
+  /* QuickJS has no URL; mse.ts leaves a plain object carrying the blob URL statics. */
+  (function installUrl() {
+    if (typeof globalThis.URL === "function") return;
+    var blob = globalThis.URL || {};
+    var urls = new WeakMap();
+    var params = new WeakMap();
+    var PORTS = {
+      "http:": "80",
+      "https:": "443",
+      "ws:": "80",
+      "wss:": "443",
+      "ftp:": "21",
+      "file:": "",
+    };
+    var ABS =
+      /^([a-zA-Z][a-zA-Z0-9+.-]*:)(?:\/\/(?:([^:@\/?#]*)(?::([^@\/?#]*))?@)?(\[[^\]]*\]|[^:\/?#]*)(?::(\d*))?)?([^?#]*)(\?[^#]*)?(#.*)?$/;
+    var REL = /^([^?#]*)(\?[^#]*)?(#.*)?$/;
+    function special(r) {
+      return Object.prototype.hasOwnProperty.call(PORTS, r.protocol);
+    }
+    function removeDots(path) {
+      var out = [];
+      var segs = path.split("/");
+      segs.forEach(function (seg, i) {
+        var last = i === segs.length - 1;
+        if (seg === ".." || seg === ".") {
+          if (seg === ".." && out.length > 1) out.pop();
+          if (last) out.push("");
+        } else out.push(seg);
+      });
+      return out.join("/");
+    }
+    function finish(r) {
+      r.protocol = r.protocol.toLowerCase();
+      if (special(r)) {
+        r.hostname = r.hostname.toLowerCase();
+        if (r.port === PORTS[r.protocol]) r.port = "";
+        r.pathname = removeDots(r.pathname || "/");
+        if (r.pathname.charAt(0) !== "/") r.pathname = "/" + r.pathname;
+      } else if (r.pathname.charAt(0) === "/") r.pathname = removeDots(r.pathname);
+      r.pathname = r.pathname.replace(/ /g, "%20");
+      r.search = r.search === "?" ? "" : r.search.replace(/ /g, "%20");
+      r.hash = r.hash === "#" ? "" : r.hash.replace(/ /g, "%20");
+      return r;
+    }
+    function parse(input, base) {
+      var s = String(input)
+        .replace(/^[\u0000- ]+|[\u0000- ]+$/g, "")
+        .replace(/[\t\n\r]/g, "");
+      var m = ABS.exec(s);
+      var r, rel, b;
+      if (m && (m[4] !== undefined || !PORTS.hasOwnProperty(m[1].toLowerCase()))) {
+        r = {
+          protocol: m[1],
+          username: m[2] || "",
+          password: m[3] || "",
+          hostname: m[4] || "",
+          port: m[5] || "",
+          pathname: m[6] || "",
+          search: m[7] || "",
+          hash: m[8] || "",
+          authority: m[4] !== undefined,
+        };
+        if (special(r) && !r.hostname && r.protocol !== "file:") return null;
+        return finish(r);
+      }
+      if (base === undefined) return null;
+      b = base instanceof Object && urls.get(base) ? urls.get(base) : parse(base);
+      if (!b) return null;
+      if (s.slice(0, 2) === "//") return parse(b.protocol + s);
+      rel = REL.exec(s);
+      r = Object.assign({}, b, { hash: rel[3] || "" });
+      if (rel[1]) {
+        r.pathname = rel[1].charAt(0) === "/" ? rel[1] : b.pathname.replace(/[^\/]*$/, "") + rel[1];
+        r.search = rel[2] || "";
+      } else if (rel[2] !== undefined) r.search = rel[2];
+      return finish(r);
+    }
+    function host(r) {
+      return r.hostname + (r.port ? ":" + r.port : "");
+    }
+    function href(r) {
+      var auth = "";
+      if (r.authority || special(r)) {
+        auth = "//";
+        if (r.username || r.password)
+          auth += r.username + (r.password ? ":" + r.password : "") + "@";
+        auth += host(r);
+      }
+      return r.protocol + auth + r.pathname + r.search + r.hash;
+    }
+    function own(self, what) {
+      var r = (what === "url" ? urls : params).get(self);
+      if (!r) throw new TypeError("Illegal invocation");
+      return r;
+    }
+    function invalid(what, s) {
+      return new TypeError("Failed to " + what + ": Invalid URL" + (s ? " '" + s + "'" : ""));
+    }
+    function encodeForm(v) {
+      return encodeURIComponent(v)
+        .replace(/[!'()~]/g, function (c) {
+          return "%" + c.charCodeAt(0).toString(16).toUpperCase();
+        })
+        .replace(/%20/g, "+");
+    }
+    function decodeForm(v) {
+      try {
+        return decodeURIComponent(v.replace(/\+/g, " "));
+      } catch (e) {
+        return v;
+      }
+    }
+    function parseQuery(q) {
+      var list = [];
+      String(q)
+        .replace(/^\?/, "")
+        .split("&")
+        .forEach(function (pair) {
+          if (!pair) return;
+          var i = pair.indexOf("=");
+          list.push(
+            i < 0
+              ? [decodeForm(pair), ""]
+              : [decodeForm(pair.slice(0, i)), decodeForm(pair.slice(i + 1))],
+          );
+        });
+      return list;
+    }
+    function serialize(list) {
+      return list
+        .map(function (kv) {
+          return encodeForm(kv[0]) + "=" + encodeForm(kv[1]);
+        })
+        .join("&");
+    }
+    function method(proto, name, length, fn) {
+      hide(proto, name, __nativeFn(name, fn, length));
+      Object.defineProperty(proto, name, { enumerable: true });
+    }
+    function accessor(proto, name, get, set) {
+      Object.defineProperty(proto, name, {
+        configurable: true,
+        enumerable: true,
+        get: __nativeFn("get " + name, get, 0),
+        set: set ? __nativeFn("set " + name, set, 1) : undefined,
+      });
+    }
+    function ctor(name, length, make) {
+      var C = __nativeFn(
+        name,
+        function () {
+          if (typeof this !== "function")
+            throw new TypeError(
+              "Failed to construct '" +
+                name +
+                "': Please use the 'new' operator, this DOM object constructor cannot be called as a function.",
+            );
+          return make.apply(null, arguments);
+        },
+        length,
+      );
+      Object.defineProperty(C, "prototype", { value: {} });
+      return C;
+    }
+
+    var Params = ctor("URLSearchParams", 0, function (init) {
+      var self = Object.create(Params.prototype);
+      var list = [];
+      if (init instanceof Object && params.get(init)) list = params.get(init).list.slice();
+      else if (Array.isArray(init))
+        list = init.map(function (kv) {
+          return [String(kv[0]), String(kv[1])];
+        });
+      else if (init !== null && typeof init === "object")
+        list = Object.keys(init).map(function (k) {
+          return [k, String(init[k])];
+        });
+      else if (init !== undefined) list = parseQuery(init);
+      params.set(self, { list: list, url: null });
+      return self;
+    });
+    var pp = Params.prototype;
+    function update(p) {
+      if (p.url) {
+        var q = serialize(p.list);
+        urls.get(p.url).search = q ? "?" + q : "";
+      }
+    }
+    accessor(pp, "size", function () {
+      return own(this).list.length;
+    });
+    method(pp, "append", 2, function (k, v) {
+      var p = own(this);
+      p.list.push([String(k), String(v)]);
+      update(p);
+    });
+    method(pp, "delete", 1, function (k) {
+      var p = own(this);
+      p.list = p.list.filter(function (kv) {
+        return kv[0] !== String(k);
+      });
+      update(p);
+    });
+    method(pp, "get", 1, function (k) {
+      var hit = own(this).list.filter(function (kv) {
+        return kv[0] === String(k);
+      })[0];
+      return hit ? hit[1] : null;
+    });
+    method(pp, "getAll", 1, function (k) {
+      return own(this)
+        .list.filter(function (kv) {
+          return kv[0] === String(k);
+        })
+        .map(function (kv) {
+          return kv[1];
+        });
+    });
+    method(pp, "has", 1, function (k) {
+      return own(this).list.some(function (kv) {
+        return kv[0] === String(k);
+      });
+    });
+    method(pp, "set", 2, function (k, v) {
+      var p = own(this);
+      var seen = false;
+      p.list = p.list.filter(function (kv) {
+        if (kv[0] !== String(k)) return true;
+        if (seen) return false;
+        kv[1] = String(v);
+        return (seen = true);
+      });
+      if (!seen) p.list.push([String(k), String(v)]);
+      update(p);
+    });
+    method(pp, "sort", 0, function () {
+      var p = own(this);
+      p.list = p.list
+        .map(function (kv, i) {
+          return [kv, i];
+        })
+        .sort(function (a, b) {
+          return a[0][0] < b[0][0] ? -1 : a[0][0] > b[0][0] ? 1 : a[1] - b[1];
+        })
+        .map(function (e) {
+          return e[0];
+        });
+      update(p);
+    });
+    method(pp, "toString", 0, function () {
+      return serialize(own(this).list);
+    });
+    method(pp, "entries", 0, function () {
+      return own(this)
+        .list.map(function (kv) {
+          return [kv[0], kv[1]];
+        })
+        [Symbol.iterator]();
+    });
+    method(pp, "forEach", 1, function (fn, that) {
+      var self = this;
+      own(this).list.forEach(function (kv) {
+        fn.call(that, kv[1], kv[0], self);
+      });
+    });
+    method(pp, "keys", 0, function () {
+      return own(this)
+        .list.map(function (kv) {
+          return kv[0];
+        })
+        [Symbol.iterator]();
+    });
+    method(pp, "values", 0, function () {
+      return own(this)
+        .list.map(function (kv) {
+          return kv[1];
+        })
+        [Symbol.iterator]();
+    });
+    hide(pp, "constructor", Params);
+    hide(pp, Symbol.iterator, pp.entries);
+    Object.defineProperty(pp, Symbol.toStringTag, { value: "URLSearchParams", configurable: true });
+
+    var Url = ctor("URL", 1, function (input, base) {
+      var r = parse(input, base);
+      if (!r) throw invalid("construct 'URL'");
+      var self = Object.create(Url.prototype);
+      urls.set(self, r);
+      return self;
+    });
+    var up = Url.prototype;
+    function searchParamsOf(self) {
+      var r = own(self, "url");
+      if (!r.params) {
+        r.params = new Params(r.search);
+        params.get(r.params).url = self;
+      }
+      return r.params;
+    }
+    function setSearch(self, v) {
+      var r = own(self, "url");
+      v = String(v);
+      r.search = !v || v === "?" ? "" : (v.charAt(0) === "?" ? "" : "?") + v;
+      if (r.params) params.get(r.params).list = parseQuery(r.search);
+    }
+    accessor(up, "origin", function () {
+      var r = own(this, "url");
+      return special(r) && r.protocol !== "file:" ? r.protocol + "//" + host(r) : "null";
+    });
+    [
+      [
+        "protocol",
+        function (r, v) {
+          if (/^[a-zA-Z][a-zA-Z0-9+.-]*:?$/.test(v))
+            r.protocol = v.replace(/:?$/, ":").toLowerCase();
+        },
+      ],
+      [
+        "username",
+        function (r, v) {
+          r.username = v;
+        },
+      ],
+      [
+        "password",
+        function (r, v) {
+          r.password = v;
+        },
+      ],
+      [
+        "host",
+        function (r, v) {
+          var m = /^([^:\/?#]*)(?::(\d*))?/.exec(v);
+          r.hostname = m[1];
+          if (m[2] !== undefined) r.port = m[2];
+          finish(r);
+        },
+      ],
+      [
+        "hostname",
+        function (r, v) {
+          r.hostname = v;
+          finish(r);
+        },
+      ],
+      [
+        "port",
+        function (r, v) {
+          r.port = String(parseInt(v, 10) >= 0 ? parseInt(v, 10) : "");
+          finish(r);
+        },
+      ],
+      [
+        "pathname",
+        function (r, v) {
+          r.pathname = v;
+          finish(r);
+        },
+      ],
+    ].forEach(function (entry) {
+      var key = entry[0];
+      accessor(
+        up,
+        key,
+        function () {
+          var r = own(this, "url");
+          return key === "host" ? host(r) : r[key];
+        },
+        function (v) {
+          entry[1](own(this, "url"), String(v));
+        },
+      );
+    });
+    accessor(
+      up,
+      "search",
+      function () {
+        return own(this, "url").search;
+      },
+      function (v) {
+        setSearch(this, v);
+      },
+    );
+    accessor(up, "searchParams", function () {
+      return searchParamsOf(this);
+    });
+    accessor(
+      up,
+      "hash",
+      function () {
+        return own(this, "url").hash;
+      },
+      function (v) {
+        v = String(v);
+        own(this, "url").hash = !v || v === "#" ? "" : (v.charAt(0) === "#" ? "" : "#") + v;
+      },
+    );
+    accessor(
+      up,
+      "href",
+      function () {
+        return href(own(this, "url"));
+      },
+      function (v) {
+        var old = own(this, "url");
+        var r = parse(v);
+        if (!r) throw invalid("set the 'href' property on 'URL'", String(v));
+        urls.set(this, r);
+        if (old.params) {
+          r.params = old.params;
+          params.get(r.params).list = parseQuery(r.search);
+        }
+      },
+    );
+    method(up, "toJSON", 0, function () {
+      return href(own(this, "url"));
+    });
+    method(up, "toString", 0, function () {
+      return href(own(this, "url"));
+    });
+    hide(up, "constructor", Url);
+    Object.defineProperty(up, Symbol.toStringTag, { value: "URL", configurable: true });
+    method(Url, "canParse", 1, function (input, base) {
+      return !!parse(input, base);
+    });
+    method(Url, "parse", 1, function (input, base) {
+      try {
+        return Url.apply(Url, arguments);
+      } catch (e) {
+        return null;
+      }
+    });
+    ["createObjectURL", "revokeObjectURL"].forEach(function (k) {
+      if (typeof blob[k] === "function") method(Url, k, 1, blob[k]);
+    });
+    globalThis.URL = Url;
+    globalThis.URLSearchParams = Params;
+  })();
   var ci;
   for (ci = 0; ci < WINDOW_CTORS.length; ci++) illegalCtor(WINDOW_CTORS[ci]);
   if (globalThis.HTMLMediaElement && globalThis.HTMLMediaElement.prototype) {

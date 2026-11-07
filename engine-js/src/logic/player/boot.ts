@@ -7,8 +7,6 @@ import {
   installMseGlobals,
   installPlaybackQuality,
   isLiveDuration,
-  mseCreateObjectURL,
-  mseRevokeObjectURL,
   dumpDrain,
   onLoopAtEnd,
   resetDrainCounts,
@@ -358,82 +356,6 @@ function setLocation(href: string, pathname: string, search: string): void {
 function asNative<T extends Function>(name: string, impl: T): T {
   if (typeof __nativeFn === "function") return __nativeFn(name, impl) as unknown as T;
   return impl;
-}
-
-/** e2e C URL is a constructor with createObjectURL. Engine URL is `{createObjectURL}` only. */
-function installNativeUrl(): void {
-  const g = globalThis as unknown as Record<string, unknown>;
-  function urlCtor(this: Record<string, unknown>, url: unknown, base?: unknown) {
-    const o: Record<string, unknown> = this && this !== globalThis ? this : {};
-    let href = String(url == null ? "" : url);
-    let b = "";
-    if (base != null) {
-      b = typeof base === "string" ? base : String((base as Record<string, unknown>)["href"] || "");
-    }
-    if (href.indexOf("://") < 0) {
-      if (href.indexOf("//") === 0) href = "https:" + href;
-      else if (href.charAt(0) === "/") href = "https://www.youtube.com" + href;
-      else href = (b || "https://www.youtube.com/") + href;
-    }
-    let protocol = "https:";
-    let hostname = "www.youtube.com";
-    let pathname = "/";
-    let search = "";
-    let hash = "";
-    const proto = href.indexOf("://");
-    if (proto >= 0) {
-      protocol = href.slice(0, proto + 1);
-      const rest = href.slice(proto + 3);
-      const slash = rest.indexOf("/");
-      const q = rest.indexOf("?");
-      const h = rest.indexOf("#");
-      let hostEnd = rest.length;
-      if (slash >= 0 && slash < hostEnd) hostEnd = slash;
-      if (q >= 0 && q < hostEnd) hostEnd = q;
-      if (h >= 0 && h < hostEnd) hostEnd = h;
-      hostname = rest.slice(0, hostEnd);
-      pathname = slash >= 0 ? rest.slice(slash) : "/";
-    } else {
-      pathname = href.charAt(0) === "/" ? href : "/" + href;
-    }
-    const qi = pathname.indexOf("?");
-    const hi = pathname.indexOf("#");
-    if (hi >= 0) {
-      hash = pathname.slice(hi);
-      pathname = pathname.slice(0, hi);
-    }
-    if (qi >= 0) {
-      search = pathname.slice(qi);
-      pathname = pathname.slice(0, qi);
-    }
-    o["href"] = href;
-    o["protocol"] = protocol;
-    o["host"] = hostname;
-    o["hostname"] = hostname;
-    o["port"] = "";
-    o["pathname"] = pathname || "/";
-    o["search"] = search;
-    o["hash"] = hash;
-    o["origin"] = protocol + "//" + hostname;
-    o["username"] = "";
-    o["password"] = "";
-    o["toString"] = function () {
-      return String(o["href"]);
-    };
-    o["toJSON"] = function () {
-      return String(o["href"]);
-    };
-    return o;
-  }
-  const ctor = asNative("URL", urlCtor) as unknown as Function & Record<string, unknown>;
-  ctor.prototype = urlCtor.prototype || {};
-  ctor["createObjectURL"] = asNative("createObjectURL", function (obj: unknown) {
-    return mseCreateObjectURL(obj as { __id?: number });
-  });
-  ctor["revokeObjectURL"] = asNative("revokeObjectURL", function (url: unknown) {
-    mseRevokeObjectURL(String(url == null ? "" : url));
-  });
-  g["URL"] = ctor;
 }
 
 function installPlayerTree(): void {
@@ -800,7 +722,6 @@ class Player {
   private async doConfig(): Promise<Record<string, unknown>> {
     await initStep(playerStorageReady(), "player storage", "E20158");
     installOrigEnv();
-    installNativeUrl();
     setLocation(ORIGIN + "/", "/", "");
     const cfg = await initStep(fetchPlayerConfig(), "session scrape", "E20155");
     applyNavigatorLanguages(cfg["acceptLanguage"]);
