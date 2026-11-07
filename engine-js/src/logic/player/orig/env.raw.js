@@ -2304,6 +2304,16 @@
     });
   }
 
+  /* Chrome elements are instances of their interface. Before idl_stubs runs the interfaces
+   * don't exist yet; installChromeBackedApis adopts those early elements. */
+  function adoptInterface(el) {
+    var C = globalThis["HTML" + (ELEMENT_INTERFACES[el.tagName] || "") + "Element"];
+    var proto = typeof C === "function" ? C.prototype : null;
+    var target = el.tagName === "IFRAME" ? iframeProto : el;
+    if (!proto || proto === target || proto.isPrototypeOf(target) || target.isPrototypeOf(proto))
+      return;
+    Object.setPrototypeOf(target, proto);
+  }
   function attachFrame(c) {
     if (!c || c.tagName !== "IFRAME" || c.contentWindow) return;
     c.contentWindow = makeIframeWindow();
@@ -3342,6 +3352,7 @@
         return "data:image/png;base64,";
       });
     }
+    adoptInterface(el);
     return el;
   }
 
@@ -3788,6 +3799,9 @@
     /* The interfaces these fill only exist once chrome_globals.raw.js has run. */
     installChromeBackedApis: function () {
       nameClasses();
+      [document.documentElement, document.head, document.body].forEach(function (el) {
+        if (el) adoptInterface(el);
+      });
       installNavigationEntry();
       installKeyboardLayoutMap();
       tagInterfacePrototypes();

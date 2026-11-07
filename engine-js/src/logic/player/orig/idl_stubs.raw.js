@@ -4219,14 +4219,14 @@
   function rejectPrototype(self, owner) {
     var ctor = owner.constructor;
     var host = typeof ctor === "function" ? liveHost(ctor.name) : null;
-    if (
-      (host && self !== host) ||
-      (self &&
-        Object.prototype.hasOwnProperty.call(self, "constructor") &&
-        typeof self.constructor === "function" &&
-        self.constructor.prototype === self)
-    )
-      throw new TypeError("Illegal invocation");
+    var isProto =
+      Object.prototype.hasOwnProperty.call(owner, "constructor") &&
+      typeof owner.constructor === "function" &&
+      owner.constructor.prototype === owner;
+    var foreign = isProto
+      ? !Object.prototype.isPrototypeOf.call(owner, self)
+      : self !== owner && !Object.prototype.isPrototypeOf.call(owner, self);
+    if (host ? self !== host : foreign) throw new TypeError("Illegal invocation");
   }
 
   function blocked(obj, name) {
@@ -4250,17 +4250,21 @@
       }),
       /* Always stash: a readonly accessor without a setter blocks later
        * env.js assignments (iframe.contentWindow = ...). */
-      set: native("set " + name, function (v) {
-        var values = attrValues.get(this);
-        if (!values) {
-          try {
-            attrValues.set(this, (values = Object.create(null)));
-          } catch (e) {
-            return;
+      set: __nativeFn(
+        "set " + name,
+        function (v) {
+          var values = attrValues.get(this);
+          if (!values) {
+            try {
+              attrValues.set(this, (values = Object.create(null)));
+            } catch (e) {
+              return;
+            }
           }
-        }
-        values[name] = v;
-      }),
+          values[name] = v;
+        },
+        1,
+      ),
     };
     Object.defineProperty(obj, name, desc);
   }
