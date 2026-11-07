@@ -1,9 +1,12 @@
 package io.ymusic.ui
 
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusGroup
+import androidx.compose.foundation.gestures.BringIntoViewSpec
+import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -104,6 +107,10 @@ private val RailThumbnailShape = RoundedCornerShape(DesignSpacing.Space8)
 private val RailVideoShape: Shape = if (desktopLayoutHole) RectangleShape else RailThumbnailShape
 private val RailCollapsedTile = DesignSpacing.RailCollapsedWidth - DesignSpacing.Space16
 private val RailItemTarget = DesignSpacing.Space48
+
+/** Scrolls only as far as needed to show the focused item. */
+@OptIn(ExperimentalFoundationApi::class)
+private val RailBringIntoView = object : BringIntoViewSpec {}
 
 /** The section icons sit 28dp in (8dp list inset + the drawer row's 20dp); less the 8dp gap before the logo. */
 private val RailTvLogoInset = 20.dp
@@ -453,6 +460,7 @@ private fun RailPlayPause(coordinator: PlaybackCoordinator, showsPause: Boolean,
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ColumnScope.RailSections(
     rail: RailContent,
@@ -462,36 +470,44 @@ private fun ColumnScope.RailSections(
 ) {
     // An opened rail lands keyboard focus on [entryFocus], else on the current section as the drawer does.
     val activeItemFocus = remember { FocusRequester() }
+    val scroll = rememberScrollState()
     LaunchedEffect(expanded) {
-        if (!expanded) return@LaunchedEffect
+        // The collapsed rail opens at its top, with the player in view.
+        if (!expanded) {
+            scroll.scrollTo(0)
+            return@LaunchedEffect
+        }
         when {
             entryFocus != null -> entryFocus.requestFocus()
             rail.section in rail.sections -> activeItemFocus.requestFocus()
         }
     }
-    Column(
-        Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()).listKeyboardNavigation()
-            .padding(horizontal = DesignSpacing.Space8, vertical = DesignSpacing.Space4),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        header()
-        rail.sections.groupBy { it.group }.entries.forEachIndexed { index, (_, sections) ->
-            if (index > 0) {
-                HorizontalDivider(color = DesignColors.Divider, modifier = Modifier.padding(vertical = DesignSpacing.Space4))
-            }
-            sections.forEach { section ->
-                val active = section == rail.section
-                val focus = if (active) activeItemFocus else null
-                if (expanded) {
-                    DrawerItem(section, active, focus, RailItemShape) { rail.onSelect(section) }
-                } else {
-                    RailIconItem(section, active, focus) { rail.onSelect(section) }
+    // Android TVs default to pulling a focused item 30% down its list; a rail short enough to fit should not move.
+    CompositionLocalProvider(LocalBringIntoViewSpec provides RailBringIntoView) {
+        Column(
+            Modifier.fillMaxWidth().weight(1f).verticalScroll(scroll).listKeyboardNavigation()
+                .padding(horizontal = DesignSpacing.Space8, vertical = DesignSpacing.Space4),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            header()
+            rail.sections.groupBy { it.group }.entries.forEachIndexed { index, (_, sections) ->
+                if (index > 0) {
+                    HorizontalDivider(color = DesignColors.Divider, modifier = Modifier.padding(vertical = DesignSpacing.Space4))
+                }
+                sections.forEach { section ->
+                    val active = section == rail.section
+                    val focus = if (active) activeItemFocus else null
+                    if (expanded) {
+                        DrawerItem(section, active, focus, RailItemShape) { rail.onSelect(section) }
+                    } else {
+                        RailIconItem(section, active, focus) { rail.onSelect(section) }
+                    }
                 }
             }
-        }
-        if (expanded) {
-            Box(Modifier.fillMaxWidth().padding(start = DesignSpacing.Space8)) {
-                DrawerLinks(rail.onCheckUpdate, rail.updateWaiting, rail.websiteUrl)
+            if (expanded) {
+                Box(Modifier.fillMaxWidth().padding(start = DesignSpacing.Space8)) {
+                    DrawerLinks(rail.onCheckUpdate, rail.updateWaiting, rail.websiteUrl)
+                }
             }
         }
     }
