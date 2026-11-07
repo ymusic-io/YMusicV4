@@ -72,6 +72,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -108,9 +109,22 @@ private val RailVideoShape: Shape = if (desktopLayoutHole) RectangleShape else R
 private val RailCollapsedTile = DesignSpacing.RailCollapsedWidth - DesignSpacing.Space16
 private val RailItemTarget = DesignSpacing.Space48
 
-/** Scrolls only as far as needed to show the focused item. */
+/** Keeps a focused rail item this far from the list's edges, so the next one is in view before focus reaches it. */
+private val RailScrollMargin = DesignSpacing.Space48 + DesignSpacing.Space16
+
+/** Scrolls only once the focused item comes within [margin] of an edge, and only far enough to restore it. */
 @OptIn(ExperimentalFoundationApi::class)
-private val RailBringIntoView = object : BringIntoViewSpec {}
+private class RailBringIntoView(private val margin: Float) : BringIntoViewSpec {
+    override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float {
+        val edge = margin.coerceAtMost(((containerSize - size) / 2).coerceAtLeast(0f))
+        val trailing = offset + size
+        return when {
+            offset < edge -> offset - edge
+            trailing > containerSize - edge -> trailing - (containerSize - edge)
+            else -> 0f
+        }
+    }
+}
 
 /** The section icons sit 28dp in (8dp list inset + the drawer row's 20dp); less the 8dp gap before the logo. */
 private val RailTvLogoInset = 20.dp
@@ -482,8 +496,10 @@ private fun ColumnScope.RailSections(
             rail.section in rail.sections -> activeItemFocus.requestFocus()
         }
     }
-    // Android TVs default to pulling a focused item 30% down its list; a rail short enough to fit should not move.
-    CompositionLocalProvider(LocalBringIntoViewSpec provides RailBringIntoView) {
+    // Android TVs default to pulling a focused item 30% down its list; the rail moves only near its edges.
+    val marginPx = with(LocalDensity.current) { RailScrollMargin.toPx() }
+    val bringIntoView = remember(marginPx) { RailBringIntoView(marginPx) }
+    CompositionLocalProvider(LocalBringIntoViewSpec provides bringIntoView) {
         Column(
             Modifier.fillMaxWidth().weight(1f).verticalScroll(scroll).listKeyboardNavigation()
                 .padding(horizontal = DesignSpacing.Space8, vertical = DesignSpacing.Space4),
