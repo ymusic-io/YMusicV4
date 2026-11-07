@@ -41509,8 +41509,10 @@ static JSValue js_function_toString(JSContext *ctx, JSValueConst this_val,
     JSObject *p;
     JSFunctionKindEnum func_kind = JS_FUNC_NORMAL;
 
-    if (check_function(ctx, this_val))
-        return JS_EXCEPTION;
+    /* BEGIN patch: V8 error text, BotGuard hashes it. */
+    if (!JS_IsFunction(ctx, this_val))
+        return JS_ThrowTypeError(ctx, "Function.prototype.toString requires that 'this' be a Function");
+    /* END patch */
 
     p = JS_VALUE_GET_OBJ(this_val);
     if (js_class_has_bytecode(p->class_id)) {
