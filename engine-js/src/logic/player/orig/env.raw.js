@@ -2464,7 +2464,19 @@
     hide(
       htmlElProto,
       "click",
-      native("click", function () {}),
+      native("click", function () {
+        dispatchNative.call(
+          this,
+          newEvent(globalThis.PointerEvent.prototype, {
+            type: "click",
+            init: true,
+            bubbles: true,
+            cancelable: true,
+            composed: true,
+            view: globalThis,
+          }),
+        );
+      }),
     );
     hide(htmlElProto, "constructor", globalThis.HTMLElement);
     Object.defineProperty(htmlElProto, "dataset", {
