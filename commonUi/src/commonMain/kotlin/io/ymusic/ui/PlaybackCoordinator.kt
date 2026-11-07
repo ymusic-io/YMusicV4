@@ -340,6 +340,7 @@ fun MediaStoreItem.toLocalMedia() = PlayableItem.LocalMedia(
     thumbnailUrl = localArtUrl(this),
     durationMs = durationMs,
     loudnessGainDb = loudnessGainDb,
+    videoId = youtubeVid,
 )
 
 /** A scraped video as a self-describing queue item — keeps just what the UI + downloads need. */

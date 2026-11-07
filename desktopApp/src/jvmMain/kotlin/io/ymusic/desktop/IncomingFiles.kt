@@ -60,5 +60,6 @@ private suspend fun AppGraph.looseFile(uri: String, metadata: MediaMetadataExtra
         album = draft?.album,
         thumbnailUrl = draft?.let { fileArtUrl(uri, it.thumbnailStreamIndex != null, it.youtubeVid, it.videoCodec != null) },
         durationMs = draft?.durationMs,
+        videoId = draft?.youtubeVid,
     )
 }

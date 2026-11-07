@@ -1262,7 +1262,7 @@ private fun PlayerTopBar(coordinator: PlaybackCoordinator, sleepMs: Long?, onClo
     val queue by player.queue.collectAsState()
     val downloadLauncher = LocalDownloadLauncher.current
     val downloadable = coordinator.downloadable(queue.currentItem)
-    val videoId = (queue.currentItem as? PlayableItem.YtMedia)?.videoId
+    val videoId = queue.currentItem?.videoId
     val sponsorBlock = coordinator.graph.sponsorBlock
     val sbChanges by sponsorBlock.changes.collectAsState()
     val sbEnabled by remember(coordinator.graph) {
@@ -1270,11 +1270,7 @@ private fun PlayerTopBar(coordinator: PlaybackCoordinator, sleepMs: Long?, onClo
     }.collectAsState()
     var sbState by remember { mutableStateOf(SponsorBlockState.Unavailable) }
     LaunchedEffect(videoId, sbChanges, sbEnabled) {
-        sbState = if (videoId == null) {
-            SponsorBlockState.Unavailable
-        } else {
-            sponsorBlock.load(videoId).state
-        }
+        sbState = videoId?.let { sponsorBlock.load(it).state } ?: SponsorBlockState.Unavailable
     }
     val scope = rememberCoroutineScope()
     val showSnackbar = LocalSnackbar.current
@@ -1461,9 +1457,7 @@ private fun PlayerMoreMenu(coordinator: PlaybackCoordinator) {
     var detailsOpen by remember { mutableStateOf(false) }
     val current = player.queue.collectAsState().value.currentItem
     val video = current as? PlayableItem.YtMedia
-    val shareVideoId by produceState<String?>(null, current) {
-        value = current?.let { queueVideoIds(coordinator.graph, listOf(it)).firstOrNull() }
-    }
+    val shareVideoId = current?.videoId
     val uriHandler = LocalUriHandler.current
     val ytPlaylists = LocalYtPlaylistActions.current
     val shareYoutube = LocalShareYoutube.current
@@ -1500,7 +1494,7 @@ private fun PlayerMoreMenu(coordinator: PlaybackCoordinator) {
                 MoreMenuItem(Icons.AutoMirrored.Outlined.QueueMusic, stringResource(Res.string.queue_save_as_yt_playlist)) {
                     open = false
                     scope.launch {
-                        val videoIds = queueVideoIds(coordinator.graph, player.queue.value.items)
+                        val videoIds = player.queue.value.items.mapNotNull { it.videoId }.distinct()
                         if (videoIds.isEmpty()) snackbar(noVideos) else ytPlaylists.saveAsPlaylist(videoIds)
                     }
                 }
@@ -1886,18 +1880,6 @@ private fun QueueHeader(
             onCheckedChange = { player.setShuffle(it) },
         )
     }
-}
-
-/** The queue's YouTube video ids in order, deduplicated: YouTube items, plus local files the library
- *  knows came from a YouTube video (downloads). */
-private suspend fun queueVideoIds(graph: AppGraph, items: List<PlayableItem>): List<String> {
-    val store = graph.mediaStore
-    return items.mapNotNull { item ->
-        when (item) {
-            is PlayableItem.YtMedia -> item.videoId
-            is PlayableItem.LocalMedia -> item.mediaId?.let { store?.findItem(it)?.youtubeVid }
-        }
-    }.distinct()
 }
 
 @Composable

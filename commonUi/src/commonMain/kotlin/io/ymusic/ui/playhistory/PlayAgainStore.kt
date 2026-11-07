@@ -219,6 +219,7 @@ private fun encodeItems(items: List<PlayableItem>): String = buildJsonArray {
                         put("type", TYPE_LOCAL)
                         put("uri", item.uri)
                         put("mediaId", item.mediaId)
+                        put("videoId", item.videoId)
                         put("title", item.title)
                         put("artist", item.artist)
                         put("album", item.album)
@@ -256,6 +257,7 @@ private fun decodeItems(json: String): List<PlayableItem> =
                 thumbnailUrl = obj.stringOrNull("thumbnailUrl"),
                 durationMs = obj.longOrNull("durationMs"),
                 loudnessGainDb = obj.doubleOrNull("loudnessGainDb"),
+                videoId = obj.stringOrNull("videoId"),
             )
             TYPE_YT -> PlayableItem.YtMedia(
                 videoId = obj.string("videoId"),
