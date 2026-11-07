@@ -298,7 +298,7 @@ fun MiniPlayer(
         modifier = modifier.fillMaxWidth(),
         commitFractionOfHeight = 1f / 3f,
         restingShadow = true,
-        enabled = !desktopLayoutHole,
+        enabled = platformUsesTouch && !desktopLayoutHole,
     ) {
         Row(
             modifier = Modifier
@@ -471,7 +471,7 @@ fun NowPlayingScreen(
         onDismiss = onClose,
         modifier = Modifier.then(if (fullscreen) Modifier else Modifier.statusBarsPadding()).fillMaxSize(),
         onPeek = onPeek,
-        enabled = !desktopLayoutHole,
+        enabled = platformUsesTouch && !desktopLayoutHole,
     ) {
         // No full-screen fill: the video hole is opaque (TextureView) and the chrome paints
         // Surface itself. A wrapping Surface under the picture is 1× overdraw on every pixel.

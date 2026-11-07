@@ -728,7 +728,7 @@ internal fun SwipeDownDismissBox(
     restingShadow: Boolean = false,
     /** Visual translation in px; parent uses this to draw the shell only while the sheet is peeking. */
     onPeek: (Float) -> Unit = {},
-    /** Off on desktop: a peek would show the transparent video hole, not the shell. */
+    /** Off without touch (nothing to swipe with) and on desktop, where a peek would show the transparent video hole. */
     enabled: Boolean = true,
     content: @Composable () -> Unit,
 ) {

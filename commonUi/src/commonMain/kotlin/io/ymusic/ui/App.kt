@@ -880,7 +880,8 @@ private fun AppRoot(
         val needsSurface = queue.currentItem is PlayableItem.YtMedia ||
             (queue.currentItem != null && showsVideo(playbackConfig, quality))
 
-        val holeOpen = desktopLayoutHole && nowPlayingOpen
+        // Without touch, nothing peeks at the shell under Now Playing: drop it so focus can't land behind.
+        val shellHidden = nowPlayingOpen && (desktopLayoutHole || !platformUsesTouch)
         Box(
             Modifier.fillMaxSize()
                 .then(if (desktopLayoutHole) Modifier else Modifier.background(DesignColors.Surface))
@@ -914,7 +915,7 @@ private fun AppRoot(
                         // Not with the hole open (the box is empty then): desktop's a11y point
                         // hit-test returns the first child containing the point, so even an empty
                         // cleared node here would shadow Now Playing.
-                        .then(if (nowPlayingOpen && !holeOpen) Modifier.clearAndSetSemantics {} else Modifier),
+                        .then(if (nowPlayingOpen && !shellHidden) Modifier.clearAndSetSemantics {} else Modifier),
                 ) {
                     // The shell owns app-bar elevation: content reports its scroll via TrackScroll into
                     // this host, and the bar and rail read it. (Content never touches them directly.)
@@ -987,7 +988,7 @@ private fun AppRoot(
                             )
                         }
                     }
-                    if (!holeOpen) shellFrame {
+                    if (!shellHidden) shellFrame {
                         // Touch platforms scroll the toolbar row away (enter-always) while the tab row
                         // stays pinned; with the tabs inline (wide) the bar carries them, so it stays put.
                         // Only the tabbed sections collapse: without a tab row below, a vanishing toolbar
