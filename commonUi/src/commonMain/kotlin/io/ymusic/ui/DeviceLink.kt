@@ -473,6 +473,9 @@ private const val PERSIST_MS = 400L * 24 * 60 * 60 * 1000
 private const val LINK_TTL_SEC = 600
 
 internal const val DEVICE_LINK_POLL_MS = 2_000L
+
+/** Consecutive network failures (each up to the 10s request timeout, plus the poll gap) before the wait gives up. */
+internal const val DEVICE_LINK_MAX_FAILED_POLLS = 3
 internal const val DEVICE_LINK_TIMEOUT_MS = LINK_TTL_SEC * 1000L
 
 internal val ESSENTIAL_COOKIE_NAMES = setOf(
@@ -495,8 +498,15 @@ suspend fun awaitDeviceLinkCookies(
 ): List<SessionCookie> {
     val deadline = DEVICE_LINK_TIMEOUT_MS
     var waited = 0L
+    // The wait spans minutes of short polls: one stalled poll must not end it, only a sustained outage.
+    var failedPolls = 0
     while (waited <= deadline) {
-        val cookies = pollDeviceLinkCookies(api, offer)
+        val cookies = try {
+            pollDeviceLinkCookies(api, offer).also { failedPolls = 0 }
+        } catch (e: IllegalStateException) {
+            if (e.message != "network" || ++failedPolls >= DEVICE_LINK_MAX_FAILED_POLLS) throw e
+            null
+        }
         if (cookies != null) return cookies
         delay(DEVICE_LINK_POLL_MS)
         waited += DEVICE_LINK_POLL_MS
