@@ -649,7 +649,11 @@
   })();
   nav.mediaDevices = {
     enumerateDevices: native("enumerateDevices", function () {
-      return Promise.resolve([]);
+      return Promise.resolve(
+        ["audioinput", "videoinput", "audiooutput"].map(function (kind) {
+          return { deviceId: "", kind: kind, label: "", groupId: "" };
+        }),
+      );
     }),
     getUserMedia: native("getUserMedia", function () {
       var e = new Error("Requested device not found");
