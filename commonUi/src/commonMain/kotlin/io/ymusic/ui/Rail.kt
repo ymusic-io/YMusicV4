@@ -60,6 +60,7 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Rect
@@ -72,6 +73,7 @@ import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -80,6 +82,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.ymusic.player.PlayableItem
@@ -242,7 +245,28 @@ internal fun AppRail(
         ) {
             CompositionLocalProvider(LocalRailSlack provides slack) { content() }
         }
-        Row(Modifier.fillMaxHeight().onFocusChanged { if (it.hasFocus) railFocused = true }.focusGroup()) {
+        // The rail takes focus only from a press towards it. Android hands a focus that fell out to the first focusable
+        // on screen, which is the rail; that would open it, so any other way in goes to the content instead.
+        val towardsRail = if (LocalLayoutDirection.current == LayoutDirection.Rtl) FocusDirection.Right else FocusDirection.Left
+        Row(
+            Modifier.fillMaxHeight()
+                .then(
+                    if (platformIsTelevision) {
+                        Modifier.focusProperties {
+                            onEnter = {
+                                if (requestedFocusDirection != towardsRail) {
+                                    cancelFocusChange()
+                                    contentFocus.requestFocus(FocusDirection.Enter)
+                                }
+                            }
+                        }
+                    } else {
+                        Modifier
+                    },
+                )
+                .onFocusChanged { if (it.hasFocus) railFocused = true }
+                .focusGroup(),
+        ) {
             // Beside the content the rail shares the app bar's plane: same tone, a divider instead of a shadow.
             RailPanel(rail, expanded, chromeTone(chromeElevated), onToggle, coordinator, surface, onExpandPlayer)
             VerticalDivider(color = DesignColors.Divider)
