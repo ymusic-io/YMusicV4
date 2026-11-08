@@ -114,11 +114,11 @@ internal fun DownloadDialogDesktop(
             }
         },
     ) {
-        Row(Modifier.height(IntrinsicSize.Min).heightIn(min = 360.dp)) {
+        Row(Modifier.verticalScroll(scroll).height(IntrinsicSize.Min).heightIn(min = 360.dp)) {
             LeftPane(state, locationName, onPickLocation)
             Box(Modifier.width(1.dp).fillMaxHeight().background(DesignColors.Divider))
             Column(
-                Modifier.weight(1f).verticalScroll(scroll).padding(horizontal = DesignSpacing.Space24, vertical = DesignSpacing.Space8),
+                Modifier.weight(1f).padding(horizontal = DesignSpacing.Space24, vertical = DesignSpacing.Space8),
             ) {
                 val options = state.options
                 when {
