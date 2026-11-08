@@ -538,6 +538,8 @@
     <string name="folder_picker_use_folder">Користи ја оваа папка</string>
     <string name="folder_picker_empty">Тука нема папки</string>
     <string name="folder_picker_storage_denied">За да изберете папка, дозволете пристап до музичките датотеки во поставките.</string>
+    <string name="folder_picker_companion_message">Овој уред нема алатка за избор на папки. Инсталирајте YMusic Files, мала помошна апликација што доаѓа со YMusic, за да избирате папки.</string>
+    <string name="folder_picker_companion_install">Инсталирај</string>
     <string name="error_supervised_account">Оваа Google сметка е под надзор, па YouTube не може да се користи овде. Одјавете се или префрлете се на друга сметка.</string>
     <string name="settings_player_cache">Кеш на плеерот</string>
     <string name="settings_player_cache_summary">Макс. %1$s · Искористено %2$s · Заштедено %3$s</string>

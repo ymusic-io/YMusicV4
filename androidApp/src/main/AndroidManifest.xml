@@ -9,10 +9,11 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
-    <!-- Import from device: reads the playlists other music apps registered in MediaStore. Also the folder
-         pick by path on devices without the system folder picker (MainActivity.pickFolderByPath). -->
+    <!-- Import from device: reads the playlists other music apps registered in MediaStore. -->
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <!-- With READ_EXTERNAL_STORAGE: the folder pick by path up to Android 10 on devices without the system
+         folder picker (MainActivity.pickFolderByPath). -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
     <!-- In-app updates: the downloaded APK is handed to PackageInstaller. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
@@ -39,6 +40,11 @@
         <intent>
             <action android:name="android.speech.RecognitionService" />
         </intent>
+    </queries>
+
+    <!-- YMusic Files, the folder picker on Android 11+ devices without one (StorageCompanion). -->
+    <queries>
+        <package android:name="io.ymusic.files" />
     </queries>
 
     <application
@@ -291,6 +297,9 @@
             android:resource="@xml/automotive_app_desc" />
         <receiver
             android:name=".UpdateInstallReceiver"
+            android:exported="false" />
+        <receiver
+            android:name=".CompanionInstallReceiver"
             android:exported="false" />
     </application>
 

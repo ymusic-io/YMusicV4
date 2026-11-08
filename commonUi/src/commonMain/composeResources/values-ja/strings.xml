@@ -530,6 +530,8 @@
     <string name="folder_picker_use_folder">このフォルダを使用</string>
     <string name="folder_picker_empty">フォルダがありません</string>
     <string name="folder_picker_storage_denied">フォルダを選択するには、設定で音楽ファイルへのアクセスを許可してください。</string>
+    <string name="folder_picker_companion_message">この端末にはフォルダ選択機能がありません。フォルダを選ぶには、YMusic に付属する小さな補助アプリ YMusic Files をインストールしてください。</string>
+    <string name="folder_picker_companion_install">インストール</string>
     <string name="error_supervised_account">この Google アカウントは保護者による管理の対象のため、ここでは YouTube を使用できません。ログアウトするか、別のアカウントに切り替えてください。</string>
     <string name="settings_player_cache">プレーヤーキャッシュ</string>
     <string name="settings_player_cache_summary">最大 %1$s · 使用 %2$s · 節約 %3$s</string>

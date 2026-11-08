@@ -538,6 +538,8 @@
     <string name="folder_picker_use_folder">Deze map gebruiken</string>
     <string name="folder_picker_empty">Geen mappen hier</string>
     <string name="folder_picker_storage_denied">Sta in de instellingen toegang tot je muziekbestanden toe om een map te kiezen.</string>
+    <string name="folder_picker_companion_message">Dit apparaat heeft geen mapkiezer. Installeer YMusic Files, een kleine hulp-app die bij YMusic hoort, om mappen te kiezen.</string>
+    <string name="folder_picker_companion_install">Installeren</string>
     <string name="error_supervised_account">Dit Google-account staat onder toezicht, dus YouTube kan hier niet worden gebruikt. Log uit of schakel over naar een ander account.</string>
     <string name="settings_player_cache">Spelercache</string>
     <string name="settings_player_cache_summary">Max. %1$s · Gebruikt %2$s · Bespaard %3$s</string>

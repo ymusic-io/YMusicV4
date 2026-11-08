@@ -538,6 +538,8 @@
     <string name="folder_picker_use_folder">Tumia folda hii</string>
     <string name="folder_picker_empty">Hakuna folda hapa</string>
     <string name="folder_picker_storage_denied">Ruhusu ufikiaji wa faili zako za muziki katika mipangilio ili kuchagua folda.</string>
+    <string name="folder_picker_companion_message">Kifaa hiki hakina kichaguzi cha folda. Sakinisha YMusic Files, programu ndogo saidizi inayokuja na YMusic, ili kuchagua folda.</string>
+    <string name="folder_picker_companion_install">Sakinisha</string>
     <string name="error_supervised_account">Akaunti hii ya Google inasimamiwa, kwa hiyo YouTube haiwezi kutumika hapa. Toka au badilisha utumie akaunti nyingine.</string>
     <string name="settings_player_cache">Akiba ya kicheza</string>
     <string name="settings_player_cache_summary">Kikomo %1$s · Imetumika %2$s · Imeokolewa %3$s</string>

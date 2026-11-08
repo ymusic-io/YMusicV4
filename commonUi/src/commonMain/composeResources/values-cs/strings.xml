@@ -554,6 +554,8 @@
     <string name="folder_picker_use_folder">Použít tuto složku</string>
     <string name="folder_picker_empty">Žádné složky</string>
     <string name="folder_picker_storage_denied">Chcete-li vybrat složku, povolte v nastavení přístup k hudebním souborům.</string>
+    <string name="folder_picker_companion_message">Toto zařízení nemá výběr složek. Chcete-li vybírat složky, nainstalujte YMusic Files, malého pomocníka, který je součástí YMusic.</string>
+    <string name="folder_picker_companion_install">Instalovat</string>
     <string name="error_supervised_account">Tento účet Google je pod dohledem, takže zde YouTube nelze používat. Odhlaste se nebo přepněte na jiný účet.</string>
     <string name="settings_player_cache">Mezipaměť přehrávače</string>
     <string name="settings_player_cache_summary">Max. %1$s · Využito %2$s · Ušetřeno %3$s</string>

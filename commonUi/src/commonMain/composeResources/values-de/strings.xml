@@ -538,6 +538,8 @@
     <string name="folder_picker_use_folder">Diesen Ordner verwenden</string>
     <string name="folder_picker_empty">Keine Ordner vorhanden</string>
     <string name="folder_picker_storage_denied">Erlaube in den Einstellungen den Zugriff auf deine Musikdateien, um einen Ordner auszuwählen.</string>
+    <string name="folder_picker_companion_message">Dieses Gerät hat keine Ordnerauswahl. Installiere YMusic Files, eine kleine Hilfs-App, die zu YMusic gehört, um Ordner auszuwählen.</string>
+    <string name="folder_picker_companion_install">Installieren</string>
     <string name="error_supervised_account">Dieses Google-Konto wird beaufsichtigt, daher kann YouTube hier nicht verwendet werden. Melde dich ab oder wechsle zu einem anderen Konto.</string>
     <string name="settings_player_cache">Player-Cache</string>
     <string name="settings_player_cache_summary">Max. %1$s · Belegt %2$s · Gespart %3$s</string>

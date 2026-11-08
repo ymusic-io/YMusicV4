@@ -546,6 +546,8 @@
     <string name="folder_picker_use_folder">Usa questa cartella</string>
     <string name="folder_picker_empty">Nessuna cartella qui</string>
     <string name="folder_picker_storage_denied">Consenti l’accesso ai tuoi file musicali nelle impostazioni per scegliere una cartella.</string>
+    <string name="folder_picker_companion_message">Questo dispositivo non ha un selettore di cartelle. Installa YMusic Files, una piccola app di supporto inclusa in YMusic, per scegliere le cartelle.</string>
+    <string name="folder_picker_companion_install">Installa</string>
     <string name="error_supervised_account">Questo account Google è supervisionato, quindi YouTube non può essere usato qui. Esci o passa a un altro account.</string>
     <string name="settings_player_cache">Cache del player</string>
     <string name="settings_player_cache_summary">Max %1$s · Usata %2$s · Risparmiata %3$s</string>

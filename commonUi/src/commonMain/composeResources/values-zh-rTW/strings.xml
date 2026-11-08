@@ -530,6 +530,8 @@
     <string name="folder_picker_use_folder">使用這個資料夾</string>
     <string name="folder_picker_empty">這裡沒有資料夾</string>
     <string name="folder_picker_storage_denied">請在設定中允許存取你的音樂檔案，才能選擇資料夾。</string>
+    <string name="folder_picker_companion_message">這部裝置沒有資料夾選擇器。請安裝 YMusic 隨附的小型輔助應用程式 YMusic Files 來選擇資料夾。</string>
+    <string name="folder_picker_companion_install">安裝</string>
     <string name="error_supervised_account">這個 Google 帳戶受到監管，因此無法在這裡使用 YouTube。請登出或切換至其他帳戶。</string>
     <string name="settings_player_cache">播放器快取</string>
     <string name="settings_player_cache_summary">上限 %1$s · 已使用 %2$s · 已節省 %3$s</string>

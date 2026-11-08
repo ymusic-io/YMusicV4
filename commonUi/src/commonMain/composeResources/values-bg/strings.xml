@@ -538,6 +538,8 @@
     <string name="folder_picker_use_folder">Използване на тази папка</string>
     <string name="folder_picker_empty">Тук няма папки</string>
     <string name="folder_picker_storage_denied">Разрешете достъп до музикалните си файлове в настройките, за да изберете папка.</string>
+    <string name="folder_picker_companion_message">Това устройство няма инструмент за избор на папки. Инсталирайте YMusic Files – малко помощно приложение към YMusic, за да избирате папки.</string>
+    <string name="folder_picker_companion_install">Инсталиране</string>
     <string name="error_supervised_account">Този профил в Google е под надзор, затова YouTube не може да се използва тук. Излезте или превключете към друг профил.</string>
     <string name="settings_player_cache">Кеш на плейъра</string>
     <string name="settings_player_cache_summary">Макс. %1$s · Използвани %2$s · Спестени %3$s</string>

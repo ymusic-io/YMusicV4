@@ -546,6 +546,8 @@
     <string name="folder_picker_use_folder">שימוש בתיקייה הזו</string>
     <string name="folder_picker_empty">אין כאן תיקיות</string>
     <string name="folder_picker_storage_denied">כדי לבחור תיקייה, יש לאפשר בהגדרות גישה לקובצי המוזיקה.</string>
+    <string name="folder_picker_companion_message">אין במכשיר הזה בורר תיקיות. כדי לבחור תיקיות, יש להתקין את YMusic Files, אפליקציית עזר קטנה שמגיעה עם YMusic.</string>
+    <string name="folder_picker_companion_install">התקנה</string>
     <string name="error_supervised_account">חשבון Google זה נמצא בפיקוח, ולכן לא ניתן להשתמש כאן ב-YouTube. צא מהחשבון או עבור לחשבון אחר.</string>
     <string name="settings_player_cache">מטמון הנגן</string>
     <string name="settings_player_cache_summary">מקסימום %1$s · בשימוש %2$s · נחסך %3$s</string>

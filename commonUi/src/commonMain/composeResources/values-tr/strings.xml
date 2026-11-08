@@ -538,6 +538,8 @@
     <string name="folder_picker_use_folder">Bu klasörü kullan</string>
     <string name="folder_picker_empty">Burada klasör yok</string>
     <string name="folder_picker_storage_denied">Klasör seçmek için ayarlardan müzik dosyalarınıza erişime izin verin.</string>
+    <string name="folder_picker_companion_message">Bu cihazda klasör seçici yok. Klasör seçmek için YMusic ile gelen küçük yardımcı uygulama YMusic Files'ı yükleyin.</string>
+    <string name="folder_picker_companion_install">Yükle</string>
     <string name="error_supervised_account">Bu Google hesabı denetimli olduğu için YouTube burada kullanılamaz. Oturumu kapatın veya başka bir hesaba geçin.</string>
     <string name="settings_player_cache">Oynatıcı önbelleği</string>
     <string name="settings_player_cache_summary">En fazla %1$s · Kullanılan %2$s · Tasarruf %3$s</string>

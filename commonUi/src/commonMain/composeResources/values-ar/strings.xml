@@ -633,6 +633,8 @@
     <string name="folder_picker_use_folder">استخدام هذا المجلد</string>
     <string name="folder_picker_empty">لا توجد مجلدات هنا</string>
     <string name="folder_picker_storage_denied">اسمح بالوصول إلى ملفات الموسيقى من الإعدادات لاختيار مجلد.</string>
+    <string name="folder_picker_companion_message">لا يتوفر في هذا الجهاز أداة لاختيار المجلدات. ثبّت YMusic Files، وهو تطبيق مساعد صغير مرفق مع YMusic، لاختيار المجلدات.</string>
+    <string name="folder_picker_companion_install">تثبيت</string>
     <string name="error_supervised_account">حساب Google هذا خاضع للإشراف، لذا لا يمكن استخدام YouTube هنا. سجّل الخروج أو بدّل إلى حساب آخر.</string>
     <string name="captcha_verify">تحقّق</string>
     <string name="captcha_verify_hint">حُلّ أي اختبار captcha تراه على الشاشة، ثم انقر على تم</string>
