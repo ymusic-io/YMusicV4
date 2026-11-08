@@ -526,7 +526,9 @@
     <string name="dialog_ok">OK</string>
     <string name="folder_picker_disabled">システムの「ファイル」アプリがオフになっています。フォルダを選択するにはオンにしてください。</string>
     <string name="folder_picker_open_settings">設定を開く</string>
-    <string name="folder_picker_missing">このデバイスにはフォルダ選択機能がないため、フォルダを選択できません。</string>
+    <string name="folder_picker_use_folder">このフォルダを使用</string>
+    <string name="folder_picker_empty">フォルダがありません</string>
+    <string name="folder_picker_storage_denied">フォルダを選択するには、設定で音楽ファイルへのアクセスを許可してください。</string>
     <string name="error_supervised_account">この Google アカウントは保護者による管理の対象のため、ここでは YouTube を使用できません。ログアウトするか、別のアカウントに切り替えてください。</string>
     <string name="settings_player_cache">プレーヤーキャッシュ</string>
     <string name="settings_player_cache_summary">最大 %1$s · 使用 %2$s · 節約 %3$s</string>

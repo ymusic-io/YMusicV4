@@ -526,7 +526,9 @@
     <string name="dialog_ok">确定</string>
     <string name="folder_picker_disabled">系统“文件”应用已停用。请启用它以选择文件夹。</string>
     <string name="folder_picker_open_settings">打开设置</string>
-    <string name="folder_picker_missing">此设备没有文件夹选择器，无法选择文件夹。</string>
+    <string name="folder_picker_use_folder">使用此文件夹</string>
+    <string name="folder_picker_empty">此处没有文件夹</string>
+    <string name="folder_picker_storage_denied">请在设置中允许访问您的音乐文件，以便选择文件夹。</string>
     <string name="error_supervised_account">此 Google 帐号受监管，因此无法在此使用 YouTube。请退出登录或切换到其他帐号。</string>
     <string name="settings_player_cache">播放器缓存</string>
     <string name="settings_player_cache_summary">上限 %1$s · 已用 %2$s · 已节省 %3$s</string>

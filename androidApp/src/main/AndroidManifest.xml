@@ -9,9 +9,11 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
-    <!-- Import from device: reads the playlists other music apps registered in MediaStore. -->
+    <!-- Import from device: reads the playlists other music apps registered in MediaStore. Also the folder
+         pick by path on devices without the system folder picker (MainActivity.pickFolderByPath). -->
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
     <!-- In-app updates: the downloaded APK is handed to PackageInstaller. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
@@ -43,6 +45,7 @@
         android:name=".YMusicApplication"
         android:allowBackup="true"
         android:largeHeap="true"
+        android:requestLegacyExternalStorage="true"
         android:usesCleartextTraffic="${usesCleartextTraffic}"
         android:banner="@drawable/tv_banner"
         android:icon="@mipmap/ic_launcher"

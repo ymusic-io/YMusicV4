@@ -534,7 +534,9 @@
     <string name="dialog_ok">හරි</string>
     <string name="folder_picker_disabled">පද්ධතියේ Files යෙදුම ක්‍රියාවිරහිතයි. ෆෝල්ඩරයක් තේරීමට එය ක්‍රියාත්මක කරන්න.</string>
     <string name="folder_picker_open_settings">සැකසීම් විවෘත කරන්න</string>
-    <string name="folder_picker_missing">මෙම උපාංගයේ ෆෝල්ඩර තෝරනයක් නැති නිසා ෆෝල්ඩරයක් තේරිය නොහැක.</string>
+    <string name="folder_picker_use_folder">මෙම ෆෝල්ඩරය භාවිත කරන්න</string>
+    <string name="folder_picker_empty">මෙහි ෆෝල්ඩර නැත</string>
+    <string name="folder_picker_storage_denied">ෆෝල්ඩරයක් තේරීමට සැකසීම් තුළ ඔබේ සංගීත ගොනු වෙත ප්‍රවේශය ඉඩ දෙන්න.</string>
     <string name="error_supervised_account">මෙම Google ගිණුම අධීක්ෂණය යටතේ ඇති බැවින් මෙහි YouTube භාවිත කළ නොහැක. වරන්න හෝ වෙනත් ගිණුමකට මාරු වන්න.</string>
     <string name="settings_player_cache">ප්ලේයර් හැඹිලිය</string>
     <string name="settings_player_cache_summary">උපරිම %1$s · භාවිත %2$s · ඉතිරි කළ %3$s</string>

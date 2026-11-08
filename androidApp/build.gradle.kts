@@ -168,6 +168,7 @@ dependencies {
     implementation("androidx.media:media:1.7.0")
     implementation(compose.material3)
     implementation(compose.foundation)
+    implementation(compose.materialIconsExtended)
     implementation(compose.components.resources)
     implementation(Libs.AndroidX.biometric)
     implementation(Libs.AndroidX.palette) // widget colours from the cover

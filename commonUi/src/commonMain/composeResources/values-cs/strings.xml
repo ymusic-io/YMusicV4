@@ -550,7 +550,9 @@
     <string name="dialog_ok">OK</string>
     <string name="folder_picker_disabled">Systémová aplikace Soubory je vypnutá. Zapněte ji, abyste mohli vybrat složku.</string>
     <string name="folder_picker_open_settings">Otevřít nastavení</string>
-    <string name="folder_picker_missing">Toto zařízení nemá výběr složek, takže složku nelze vybrat.</string>
+    <string name="folder_picker_use_folder">Použít tuto složku</string>
+    <string name="folder_picker_empty">Žádné složky</string>
+    <string name="folder_picker_storage_denied">Chcete-li vybrat složku, povolte v nastavení přístup k hudebním souborům.</string>
     <string name="error_supervised_account">Tento účet Google je pod dohledem, takže zde YouTube nelze používat. Odhlaste se nebo přepněte na jiný účet.</string>
     <string name="settings_player_cache">Mezipaměť přehrávače</string>
     <string name="settings_player_cache_summary">Max. %1$s · Využito %2$s · Ušetřeno %3$s</string>

@@ -534,7 +534,9 @@
     <string name="dialog_ok">تأیید</string>
     <string name="folder_picker_disabled">برنامه «فایل‌ها»ی سیستم خاموش است. برای انتخاب پوشه آن را روشن کنید.</string>
     <string name="folder_picker_open_settings">باز کردن تنظیمات</string>
-    <string name="folder_picker_missing">این دستگاه انتخابگر پوشه ندارد، بنابراین نمی‌توان پوشه‌ای انتخاب کرد.</string>
+    <string name="folder_picker_use_folder">استفاده از این پوشه</string>
+    <string name="folder_picker_empty">پوشه‌ای اینجا نیست</string>
+    <string name="folder_picker_storage_denied">برای انتخاب پوشه، در تنظیمات اجازه دسترسی به فایل‌های موسیقی را بدهید.</string>
     <string name="error_supervised_account">این حساب Google تحت نظارت است، بنابراین YouTube در اینجا قابل استفاده نیست. از سیستم خارج شوید یا به حساب دیگری بروید.</string>
     <string name="settings_player_cache">حافظه پنهان پخش‌کننده</string>
     <string name="settings_player_cache_summary">حداکثر %1$s · استفاده‌شده %2$s · صرفه‌جویی %3$s</string>

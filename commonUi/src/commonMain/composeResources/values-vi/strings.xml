@@ -604,7 +604,9 @@
     <string name="dialog_ok">OK</string>
     <string name="folder_picker_disabled">Ứng dụng Tệp của hệ thống đang bị tắt. Hãy bật nó lên để chọn thư mục.</string>
     <string name="folder_picker_open_settings">Mở cài đặt</string>
-    <string name="folder_picker_missing">Thiết bị này không có trình chọn thư mục nên không thể chọn thư mục.</string>
+    <string name="folder_picker_use_folder">Dùng thư mục này</string>
+    <string name="folder_picker_empty">Không có thư mục nào</string>
+    <string name="folder_picker_storage_denied">Hãy cho phép truy cập tệp nhạc trong phần cài đặt để chọn thư mục.</string>
     <string name="error_supervised_account">Tài khoản Google này đang được giám sát nên không thể dùng YouTube ở đây. Hãy đăng xuất hoặc chuyển sang tài khoản khác.</string>
     <string name="captcha_verify">Xác minh</string>
     <string name="captcha_verify_hint">Giải captcha nếu bạn thấy trên màn hình, rồi nhấn Xong</string>

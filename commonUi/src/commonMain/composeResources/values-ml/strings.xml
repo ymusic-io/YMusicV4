@@ -534,7 +534,9 @@
     <string name="dialog_ok">ശരി</string>
     <string name="folder_picker_disabled">സിസ്റ്റത്തിലെ Files ആപ്പ് ഓഫാണ്. ഫോൾഡർ തിരഞ്ഞെടുക്കാൻ അത് ഓണാക്കുക.</string>
     <string name="folder_picker_open_settings">ക്രമീകരണം തുറക്കുക</string>
-    <string name="folder_picker_missing">ഈ ഉപകരണത്തിൽ ഫോൾഡർ പിക്കർ ഇല്ല, അതിനാൽ ഫോൾഡർ തിരഞ്ഞെടുക്കാനാകില്ല.</string>
+    <string name="folder_picker_use_folder">ഈ ഫോൾഡർ ഉപയോഗിക്കുക</string>
+    <string name="folder_picker_empty">ഇവിടെ ഫോൾഡറുകളൊന്നുമില്ല</string>
+    <string name="folder_picker_storage_denied">ഫോൾഡർ തിരഞ്ഞെടുക്കാൻ ക്രമീകരണത്തിൽ നിങ്ങളുടെ സംഗീത ഫയലുകളിലേക്കുള്ള ആക്‌സസ് അനുവദിക്കുക.</string>
     <string name="error_supervised_account">ഈ Google അക്കൗണ്ട് മേൽനോട്ടത്തിലാണ്, അതിനാൽ ഇവിടെ YouTube ഉപയോഗിക്കാനാകില്ല. സൈൻ ഔട്ട് ചെയ്യുക അല്ലെങ്കിൽ മറ്റൊരു അക്കൗണ്ടിലേക്ക് മാറുക.</string>
     <string name="settings_player_cache">പ്ലേയർ കാഷെ</string>
     <string name="settings_player_cache_summary">പരമാവധി %1$s · ഉപയോഗിച്ചത് %2$s · ലാഭിച്ചത് %3$s</string>

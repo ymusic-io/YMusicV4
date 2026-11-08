@@ -542,7 +542,9 @@
     <string name="dialog_ok">Aceptar</string>
     <string name="folder_picker_disabled">La app Archivos del sistema está desactivada. Actívala para elegir una carpeta.</string>
     <string name="folder_picker_open_settings">Abrir ajustes</string>
-    <string name="folder_picker_missing">Este dispositivo no tiene selector de carpetas, así que no se puede elegir una carpeta.</string>
+    <string name="folder_picker_use_folder">Usar esta carpeta</string>
+    <string name="folder_picker_empty">No hay carpetas aquí</string>
+    <string name="folder_picker_storage_denied">Permite el acceso a tus archivos de música en los ajustes para elegir una carpeta.</string>
     <string name="error_supervised_account">Esta cuenta de Google está supervisada, así que no se puede usar YouTube aquí. Cierra sesión o cambia a otra cuenta.</string>
     <string name="settings_player_cache">Caché del reproductor</string>
     <string name="settings_player_cache_summary">Máx. %1$s · Usado %2$s · Ahorrado %3$s</string>

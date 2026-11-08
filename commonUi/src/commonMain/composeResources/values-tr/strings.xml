@@ -534,7 +534,9 @@
     <string name="dialog_ok">Tamam</string>
     <string name="folder_picker_disabled">Sistemin Dosyalar uygulaması kapalı. Klasör seçmek için açın.</string>
     <string name="folder_picker_open_settings">Ayarları aç</string>
-    <string name="folder_picker_missing">Bu cihazda klasör seçici yok, bu nedenle klasör seçilemiyor.</string>
+    <string name="folder_picker_use_folder">Bu klasörü kullan</string>
+    <string name="folder_picker_empty">Burada klasör yok</string>
+    <string name="folder_picker_storage_denied">Klasör seçmek için ayarlardan müzik dosyalarınıza erişime izin verin.</string>
     <string name="error_supervised_account">Bu Google hesabı denetimli olduğu için YouTube burada kullanılamaz. Oturumu kapatın veya başka bir hesaba geçin.</string>
     <string name="settings_player_cache">Oynatıcı önbelleği</string>
     <string name="settings_player_cache_summary">En fazla %1$s · Kullanılan %2$s · Tasarruf %3$s</string>

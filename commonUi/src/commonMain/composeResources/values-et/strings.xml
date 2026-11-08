@@ -534,7 +534,9 @@
     <string name="dialog_ok">OK</string>
     <string name="folder_picker_disabled">Süsteemi rakendus Failid on välja lülitatud. Kausta valimiseks lülitage see sisse.</string>
     <string name="folder_picker_open_settings">Ava seaded</string>
-    <string name="folder_picker_missing">Selles seadmes pole kaustavalijat, seega ei saa kausta valida.</string>
+    <string name="folder_picker_use_folder">Kasuta seda kausta</string>
+    <string name="folder_picker_empty">Siin pole kaustu</string>
+    <string name="folder_picker_storage_denied">Kausta valimiseks luba seadetes juurdepääs oma muusikafailidele.</string>
     <string name="error_supervised_account">See Google'i konto on järelevalve all, seega ei saa YouTube'i siin kasutada. Logi välja või vaheta teise konto vastu.</string>
     <string name="settings_player_cache">Pleieri vahemälu</string>
     <string name="settings_player_cache_summary">Max %1$s · Kasutusel %2$s · Säästetud %3$s</string>

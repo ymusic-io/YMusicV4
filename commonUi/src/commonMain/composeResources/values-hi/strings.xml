@@ -534,7 +534,9 @@
     <string name="dialog_ok">ठीक है</string>
     <string name="folder_picker_disabled">सिस्टम का Files ऐप बंद है। फ़ोल्डर चुनने के लिए इसे चालू करें।</string>
     <string name="folder_picker_open_settings">सेटिंग खोलें</string>
-    <string name="folder_picker_missing">इस डिवाइस में फ़ोल्डर पिकर नहीं है, इसलिए फ़ोल्डर नहीं चुना जा सकता।</string>
+    <string name="folder_picker_use_folder">इस फ़ोल्डर का इस्तेमाल करें</string>
+    <string name="folder_picker_empty">यहाँ कोई फ़ोल्डर नहीं है</string>
+    <string name="folder_picker_storage_denied">फ़ोल्डर चुनने के लिए सेटिंग में अपनी संगीत फ़ाइलों का ऐक्सेस दें।</string>
     <string name="error_supervised_account">यह Google खाता निगरानी में है, इसलिए यहाँ YouTube का उपयोग नहीं किया जा सकता। साइन आउट करें या किसी दूसरे खाते पर जाएँ।</string>
     <string name="settings_player_cache">प्लेयर कैश</string>
     <string name="settings_player_cache_summary">अधिकतम %1$s · इस्तेमाल %2$s · बचत %3$s</string>

@@ -534,7 +534,9 @@
     <string name="dialog_ok">OK</string>
     <string name="folder_picker_disabled">De systeem-app Bestanden staat uit. Zet deze aan om een map te kiezen.</string>
     <string name="folder_picker_open_settings">Instellingen openen</string>
-    <string name="folder_picker_missing">Dit apparaat heeft geen mapkiezer, dus er kan geen map worden gekozen.</string>
+    <string name="folder_picker_use_folder">Deze map gebruiken</string>
+    <string name="folder_picker_empty">Geen mappen hier</string>
+    <string name="folder_picker_storage_denied">Sta in de instellingen toegang tot je muziekbestanden toe om een map te kiezen.</string>
     <string name="error_supervised_account">Dit Google-account staat onder toezicht, dus YouTube kan hier niet worden gebruikt. Log uit of schakel over naar een ander account.</string>
     <string name="settings_player_cache">Spelercache</string>
     <string name="settings_player_cache_summary">Max. %1$s · Gebruikt %2$s · Bespaard %3$s</string>

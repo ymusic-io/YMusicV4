@@ -542,7 +542,9 @@
     <string name="dialog_ok">D'acord</string>
     <string name="folder_picker_disabled">L'aplicació Fitxers del sistema està desactivada. Activa-la per triar una carpeta.</string>
     <string name="folder_picker_open_settings">Obre la configuració</string>
-    <string name="folder_picker_missing">Aquest dispositiu no té selector de carpetes, així que no es pot triar cap carpeta.</string>
+    <string name="folder_picker_use_folder">Utilitza aquesta carpeta</string>
+    <string name="folder_picker_empty">Aquí no hi ha cap carpeta</string>
+    <string name="folder_picker_storage_denied">Permet l’accés als fitxers de música a la configuració per triar una carpeta.</string>
     <string name="error_supervised_account">Aquest compte de Google està supervisat, de manera que YouTube no es pot fer servir aquí. Tanca la sessió o canvia a un altre compte.</string>
     <string name="settings_player_cache">Memòria cau del reproductor</string>
     <string name="settings_player_cache_summary">Màx. %1$s · Usat %2$s · Estalviat %3$s</string>

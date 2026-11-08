@@ -542,7 +542,9 @@
     <string name="dialog_ok">OK</string>
     <string name="folder_picker_disabled">L'application Fichiers du système est désactivée. Activez-la pour choisir un dossier.</string>
     <string name="folder_picker_open_settings">Ouvrir les paramètres</string>
-    <string name="folder_picker_missing">Cet appareil n'a pas de sélecteur de dossier, impossible de choisir un dossier.</string>
+    <string name="folder_picker_use_folder">Utiliser ce dossier</string>
+    <string name="folder_picker_empty">Aucun dossier ici</string>
+    <string name="folder_picker_storage_denied">Autorisez l’accès à vos fichiers musicaux dans les paramètres pour choisir un dossier.</string>
     <string name="error_supervised_account">Ce compte Google est supervisé, YouTube ne peut donc pas être utilisé ici. Déconnectez-vous ou changez de compte.</string>
     <string name="settings_player_cache">Cache du lecteur</string>
     <string name="settings_player_cache_summary">Max %1$s · Utilisé %2$s · Économisé %3$s</string>

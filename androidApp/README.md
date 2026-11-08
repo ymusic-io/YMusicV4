@@ -7,6 +7,8 @@ Module detail for the one-line summary in the root [`AGENTS.md`](../AGENTS.md) �
 
 - **Home-screen widgets** — `PlayerWidgets` (Small / Compact / Large / Square, plain `RemoteViews`): live from `player.status × queue` once the graph is up; with an empty queue they show the newest "Play again" session and Play resumes it (`PlaybackService.playOrResume`); the play button sends the explicit Play/Pause its icon shows, never a toggle. Blur, palette and rounded crops are baked into bitmaps (RemoteViews can't), and the last track + its art are snapshotted to `filesDir/widget` so a refresh in a dead process still renders. Buttons are foreground-service starts of `PlaybackService` (a tap may revive the process).
 
+- **Folder pick** — the system tree picker (SAF `content://`); where there is none (Android TV resolves it to `frameworkpackagestubs`, which only toasts), `MainActivity.pickFolderByPath` asks for storage read access and browses volume paths in `PathFolderPickerDialog`, yielding a `file://` folder that the scan, downloads, write probe and delete all handle.
+
 - **compileSdk** — 36 (okhttp 5.4 demands it for app modules).
 
 - **Not wired yet** — media store/SAF scanner.

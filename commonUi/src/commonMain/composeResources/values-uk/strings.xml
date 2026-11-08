@@ -647,7 +647,9 @@
     <string name="dialog_ok">OK</string>
     <string name="folder_picker_disabled">Системний додаток «Файли» вимкнено. Увімкніть його, щоб вибрати папку.</string>
     <string name="folder_picker_open_settings">Відкрити налаштування</string>
-    <string name="folder_picker_missing">На цьому пристрої немає засобу вибору папок, тому вибрати папку неможливо.</string>
+    <string name="folder_picker_use_folder">Вибрати цю папку</string>
+    <string name="folder_picker_empty">Тут немає папок</string>
+    <string name="folder_picker_storage_denied">Щоб вибрати папку, дозвольте в налаштуваннях доступ до музичних файлів.</string>
     <string name="error_supervised_account">Цей акаунт Google перебуває під наглядом, тому YouTube тут використовувати не можна. Вийдіть або перейдіть на інший акаунт.</string>
     <string name="captcha_verify">Підтвердити</string>
     <string name="captcha_verify_hint">Пройдіть капчу, яку бачите на екрані, а потім натисніть «Готово»</string>

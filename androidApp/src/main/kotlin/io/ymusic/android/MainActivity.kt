@@ -29,6 +29,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,14 +53,14 @@ import io.ymusic.ui.AppGraph
 import io.ymusic.ui.AppSection
 import io.ymusic.ui.IncomingLinks
 import io.ymusic.ui.LinkAction
+import io.ymusic.ui.YMusicTheme
 import io.ymusic.ui.designPaletteFor
 import io.ymusic.ui.rememberStartSection
 import io.ymusic.ui.resources.Res
 import io.ymusic.ui.resources.dialog_cancel
-import io.ymusic.ui.resources.dialog_ok
 import io.ymusic.ui.resources.folder_picker_disabled
-import io.ymusic.ui.resources.folder_picker_missing
 import io.ymusic.ui.resources.folder_picker_open_settings
+import io.ymusic.ui.resources.folder_picker_storage_denied
 import io.ymusic.ui.startupFailedMessage
 import kmpcommon.log.Logger
 import kmpcommon.uri.Uri
@@ -128,27 +129,30 @@ class MainActivity : FragmentActivity() {
             pendingPick = null
         }
 
-    /** Launches the SAF folder picker and suspends until the user picks a tree (or cancels → null). */
+    /** Launches the SAF folder picker and suspends until the user picks a tree (or cancels → null). Without
+     *  one, falls back to browsing storage paths, which returns a `file://` uri. */
     private val pickFolder: suspend () -> Uri? = {
         pendingPick?.complete(null) // a prior pick still open → abandon it
         val deferred = CompletableDeferred<Uri?>()
         pendingPick = deferred
         withContext(Dispatchers.Main) {
-            val problem = folderPickerProblem()
-            if (problem == null) {
-                try {
+            val log = (application as YMusicApplication).rootLogger.fork("folder-pick")
+            when (val problem = folderPickerProblem()) {
+                null -> try {
                     openFolder.launch(null)
                 } catch (e: ActivityNotFoundException) {
-                    (application as YMusicApplication).rootLogger.fork("folder-pick")
-                        .log(kmpcommon.log.Logger.Level.WARN, "OPEN_DOCUMENT_TREE resolved but failed to launch", e)
-                    folderPickerIssue.value = FolderPickerIssue.Missing
+                    log.log(kmpcommon.log.Logger.Level.WARN, "OPEN_DOCUMENT_TREE resolved but failed to launch; picking by path", e)
+                    deferred.complete(pickFolderByPath())
+                }
+                FolderPickerIssue.Missing -> {
+                    log.log(kmpcommon.log.Logger.Level.INFO, "no system folder picker; picking by path")
+                    deferred.complete(pickFolderByPath())
+                }
+                else -> {
+                    log.log(kmpcommon.log.Logger.Level.WARN, "no folder picker: $problem")
+                    folderPickerIssue.value = problem
                     deferred.complete(null)
                 }
-            } else {
-                (application as YMusicApplication).rootLogger.fork("folder-pick")
-                    .log(kmpcommon.log.Logger.Level.WARN, "no folder picker: $problem")
-                folderPickerIssue.value = problem
-                deferred.complete(null)
             }
         }
         deferred.await()
@@ -156,10 +160,48 @@ class MainActivity : FragmentActivity() {
 
     private val folderPickerIssue = mutableStateOf<FolderPickerIssue?>(null)
 
+    private var pendingStorageAccess: CompletableDeferred<Boolean>? = null
+    private val storageAccessLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { results ->
+            pendingStorageAccess?.complete(results.isNotEmpty() && results.values.all { it })
+            pendingStorageAccess = null
+        }
+
+    /** The open path pick: [PathFolderPickerDialog] shows while this is set, and completes it. */
+    private val pathPick = mutableStateOf<PathPick?>(null)
+
+    /** The storage-permission + path-browsing folder pick: a `file://` folder uri, or null when canceled. */
+    private suspend fun pickFolderByPath(): Uri? {
+        if (!hasStorageAccess()) {
+            pendingStorageAccess?.complete(false)
+            val access = CompletableDeferred<Boolean>()
+            pendingStorageAccess = access
+            storageAccessLauncher.launch(STORAGE_PERMISSIONS)
+            if (!access.await()) {
+                // Denied for good: the system dialog won't show again, only the app's settings screen can grant it.
+                if (STORAGE_PERMISSIONS.none { shouldShowRequestPermissionRationale(it) }) {
+                    folderPickerIssue.value = FolderPickerIssue.StorageAccessDenied
+                }
+                return null
+            }
+        }
+        val roots = withContext(Dispatchers.IO) { io.ymusic.mediascanner.storageRoots(this@MainActivity) }
+        val result = CompletableDeferred<java.io.File?>()
+        pathPick.value?.result?.complete(null)
+        pathPick.value = PathPick(roots, result)
+        val dir = result.await() ?: return null
+        return Uri.parse(android.net.Uri.fromFile(dir).toString())
+    }
+
+    private fun hasStorageAccess(): Boolean =
+        STORAGE_PERMISSIONS.all { ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED }
+
     /** Null when the system tree picker can launch; else whether its app is disabled or absent. */
     private fun folderPickerProblem(): FolderPickerIssue? {
         val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
-        if (intent.resolveActivity(packageManager) != null) return null
+        val resolved = intent.resolveActivity(packageManager)
+        // Android TV resolves the intent to a stub that only toasts "not supported".
+        if (resolved != null) return if (resolved.packageName in TV_FRAMEWORK_STUBS) FolderPickerIssue.Missing else null
         val disabled = packageManager.queryIntentActivities(intent, PackageManager.MATCH_DISABLED_COMPONENTS)
             .map { it.activityInfo.packageName }
             .plus(DOCUMENTS_UI_PACKAGES)
@@ -337,6 +379,10 @@ class MainActivity : FragmentActivity() {
         if (app.folderPicker === pickFolder) app.folderPicker = null
         pendingPick?.complete(null)
         pendingPick = null
+        pathPick.value?.result?.complete(null)
+        pathPick.value = null
+        pendingStorageAccess?.complete(false)
+        pendingStorageAccess = null
         if (app.qrScanner === scanQr) app.qrScanner = null
         if (app.speechInput === speechInput) app.speechInput = null
         pendingSpeech?.complete(null)
@@ -433,10 +479,28 @@ class MainActivity : FragmentActivity() {
                     issue = issue,
                     onOpenSettings = { pkg ->
                         folderPickerIssue.value = null
-                        openAppDetails(pkg)
+                        openAppDetails(pkg ?: packageName)
                     },
                     onDismiss = { folderPickerIssue.value = null },
                 )
+            }
+            pathPick.value?.let { pick ->
+                val settings = remember { PrefsSettingsStore.open(this) }
+                val theme by settings.flow(AppSettings.theme).collectAsState()
+                val accent by settings.flow(AppSettings.themeAccent).collectAsState()
+                YMusicTheme(designPaletteFor(theme, androidx.compose.foundation.isSystemInDarkTheme(), accent)) {
+                    PathFolderPickerDialog(
+                        roots = pick.roots,
+                        onPick = { dir ->
+                            pathPick.value = null
+                            pick.result.complete(dir)
+                        },
+                        onDismiss = {
+                            pathPick.value = null
+                            pick.result.complete(null)
+                        },
+                    )
+                }
             }
         }
     }
@@ -672,35 +736,46 @@ private fun NotificationRequiredDialog(onAllow: () -> Unit) {
 
 private val DOCUMENTS_UI_PACKAGES = listOf("com.google.android.documentsui", "com.android.documentsui")
 
+private val TV_FRAMEWORK_STUBS = setOf("com.android.tv.frameworkpackagestubs", "com.google.android.tv.frameworkpackagestubs")
+
+/** What browsing storage by path needs: audio is all the scanner reads; write is only a permission below API 30. */
+private val STORAGE_PERMISSIONS = when {
+    Build.VERSION.SDK_INT >= 33 -> arrayOf(Manifest.permission.READ_MEDIA_AUDIO)
+    Build.VERSION.SDK_INT >= 30 -> arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+    else -> arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+}
+
+private class PathPick(val roots: List<io.ymusic.mediascanner.StorageRoot>, val result: CompletableDeferred<java.io.File?>)
+
 private sealed interface FolderPickerIssue {
     data class Disabled(val packageName: String) : FolderPickerIssue
 
+    /** No system tree picker: the folder is picked by path instead. */
     data object Missing : FolderPickerIssue
+
+    data object StorageAccessDenied : FolderPickerIssue
 }
 
+/** [onOpenSettings] gets the app whose details screen fixes the issue, null for this app. */
 @androidx.compose.runtime.Composable
-private fun FolderPickerIssueDialog(issue: FolderPickerIssue, onOpenSettings: (String) -> Unit, onDismiss: () -> Unit) {
-    when (issue) {
-        is FolderPickerIssue.Disabled -> AlertDialog(
-            onDismissRequest = onDismiss,
-            text = { Text(resString(Res.string.folder_picker_disabled)) },
-            confirmButton = {
-                TextButton(onClick = { onOpenSettings(issue.packageName) }) {
-                    Text(resString(Res.string.folder_picker_open_settings))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = onDismiss) { Text(resString(Res.string.dialog_cancel)) }
-            },
-        )
-        FolderPickerIssue.Missing -> AlertDialog(
-            onDismissRequest = onDismiss,
-            text = { Text(resString(Res.string.folder_picker_missing)) },
-            confirmButton = {
-                TextButton(onClick = onDismiss) { Text(resString(Res.string.dialog_ok)) }
-            },
-        )
+private fun FolderPickerIssueDialog(issue: FolderPickerIssue, onOpenSettings: (String?) -> Unit, onDismiss: () -> Unit) {
+    val (message, settingsPackage) = when (issue) {
+        is FolderPickerIssue.Disabled -> Res.string.folder_picker_disabled to issue.packageName
+        FolderPickerIssue.StorageAccessDenied -> Res.string.folder_picker_storage_denied to null
+        FolderPickerIssue.Missing -> return
     }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        text = { Text(resString(message)) },
+        confirmButton = {
+            TextButton(onClick = { onOpenSettings(settingsPackage) }) {
+                Text(resString(Res.string.folder_picker_open_settings))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(resString(Res.string.dialog_cancel)) }
+        },
+    )
 }
 
 @androidx.compose.runtime.Composable

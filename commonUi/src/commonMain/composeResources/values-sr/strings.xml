@@ -542,7 +542,9 @@
     <string name="dialog_ok">Потврди</string>
     <string name="folder_picker_disabled">Системска апликација „Датотеке“ је искључена. Укључите је да бисте изабрали фолдер.</string>
     <string name="folder_picker_open_settings">Отвори подешавања</string>
-    <string name="folder_picker_missing">Овај уређај нема алатку за избор фолдера, па фолдер не може да се изабере.</string>
+    <string name="folder_picker_use_folder">Користи ову фасциклу</string>
+    <string name="folder_picker_empty">Овде нема фасцикли</string>
+    <string name="folder_picker_storage_denied">Да бисте изабрали фасциклу, дозволите у подешавањима приступ музичким фајловима.</string>
     <string name="error_supervised_account">Овај Google налог је под надзором, па се YouTube овде не може користити. Одјавите се или пређите на други налог.</string>
     <string name="settings_player_cache">Кеш плејера</string>
     <string name="settings_player_cache_summary">Макс. %1$s · Заузето %2$s · Уштеђено %3$s</string>

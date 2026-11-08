@@ -4,6 +4,7 @@ import android.app.Activity
 import android.app.Application
 import android.app.UiModeManager
 import android.content.ComponentCallbacks2
+import android.content.ContentResolver
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
@@ -13,6 +14,7 @@ import android.os.Build
 import android.os.SystemClock
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
+import android.system.OsConstants
 import android.util.DisplayMetrics
 import android.view.Display
 import android.view.Surface
@@ -116,6 +118,7 @@ import io.ymusic.ytmedia.cache.SqlDelightCacheStats
 import io.ymusic.ytmedia.cache.SqlDelightSegmentIndex
 import io.ymusic.ytmedia.cache.androidSegmentDatabaseDriver
 import io.ymusic.ytmedia.proxy.LocalMediaProxy
+import kmpcommon.WorkerThread
 import kmpcommon.log.Logger
 import kmpcommon.log.TeeLogger
 import kmpcommon.uri.Uri
@@ -228,8 +231,9 @@ class YMusicApplication : Application() {
     /** The home-screen player widgets; live once the graph is built. */
     val widgets: PlayerWidgets by lazy { PlayerWidgets(this, appScope, rootLogger.fork("widgets")) }
 
-    /** The current Activity's SAF folder pick, registered while it lives. The graph is app-scoped
-     *  but a pick needs an Activity; a scan is always user-driven, so one is up when this runs. */
+    /** The current Activity's folder pick (a SAF tree, or a `file://` folder where the device has no tree
+     *  picker), registered while it lives. The graph is app-scoped but a pick needs an Activity; a scan is
+     *  always user-driven, so one is up when this runs. */
     @Volatile var folderPicker: (suspend () -> Uri?)? = null
 
     /** The current Activity's QR scan — same lifecycle as [folderPicker]. */
@@ -739,8 +743,12 @@ class YMusicApplication : Application() {
             scanLibraryFolder = { onProgress -> scanPickedFolder(shared.mediaStore, onProgress) },
             libraryFolderPicker = { pickAndRegisterFolder(shared.mediaStore) },
             canWriteFolder = { uri ->
-                checkCallingOrSelfUriPermission(android.net.Uri.parse(uri), Intent.FLAG_GRANT_WRITE_URI_PERMISSION) ==
-                    PackageManager.PERMISSION_GRANTED
+                val parsed = android.net.Uri.parse(uri)
+                if (parsed.scheme == ContentResolver.SCHEME_FILE) {
+                    File(checkNotNull(parsed.path) { "file uri without a path: $uri" }).canWrite()
+                } else {
+                    checkCallingOrSelfUriPermission(parsed, Intent.FLAG_GRANT_WRITE_URI_PERMISSION) == PackageManager.PERMISSION_GRANTED
+                }
             },
             probeDownloadFolder = { uri -> probeDownloadFolder(android.net.Uri.parse(uri)) },
             rescanLibrary = { folderUri, onProgress -> rescanKnownRoots(shared.mediaStore, folderUri, onProgress) },
@@ -748,6 +756,11 @@ class YMusicApplication : Application() {
             deleteFromDisk = { item ->
                 withContext(Dispatchers.IO) {
                     val uri = android.net.Uri.parse(item.uri.toString())
+                    if (uri.scheme == ContentResolver.SCHEME_FILE) {
+                        val file = File(checkNotNull(uri.path) { "file uri without a path: $uri" })
+                        if (!file.delete() && file.exists()) throw TechnicalException("E50009", "could not delete $file")
+                        return@withContext
+                    }
                     // Rides the persisted tree permission from the folder pick. A file that is already gone
                     // (or whose folder is) needs no delete: the caller still clears its library row.
                     if (!documentExists(uri)) return@withContext
@@ -895,6 +908,9 @@ class YMusicApplication : Application() {
     /** Creates, writes and deletes a scratch file in [folder] — the steps a finished download takes. */
     private suspend fun probeDownloadFolder(folder: android.net.Uri): FolderWriteProblem? = withContext(Dispatchers.IO) {
         val log = rootLogger.fork("download-folder-probe", mapOf("folder" to folder.toString()))
+        if (folder.scheme == ContentResolver.SCHEME_FILE) {
+            return@withContext probeFileFolder(File(checkNotNull(folder.path) { "file uri without a path: $folder" }), log)
+        }
         if (checkCallingOrSelfUriPermission(folder, Intent.FLAG_GRANT_WRITE_URI_PERMISSION) != PackageManager.PERMISSION_GRANTED) {
             return@withContext FolderWriteProblem.NoPermission
         }
@@ -930,6 +946,27 @@ class YMusicApplication : Application() {
             } catch (e: Exception) {
                 log.log(Logger.Level.WARN, "test file left behind", e)
             }
+        }
+    }
+
+    @WorkerThread
+    private fun probeFileFolder(folder: File, log: Logger): FolderWriteProblem? {
+        if (!folder.isDirectory) return FolderWriteProblem.Missing
+        // Named as audio: on scoped storage the folder decides which file types it accepts.
+        val probe = File(folder, ".ymusic-write-test.m4a")
+        return try {
+            java.io.FileOutputStream(probe).use { it.write(0) }
+            null
+        } catch (e: java.io.IOException) {
+            log.log(Logger.Level.WARN, "test file not writable", e)
+            val errno = (e.cause as? android.system.ErrnoException)?.errno
+            if (errno == OsConstants.EACCES || errno == OsConstants.EPERM || errno == OsConstants.EROFS) {
+                FolderWriteProblem.NoPermission
+            } else {
+                FolderWriteProblem.CannotCreateFiles
+            }
+        } finally {
+            if (probe.exists() && !probe.delete()) log.log(Logger.Level.WARN, "test file left behind")
         }
     }
 
