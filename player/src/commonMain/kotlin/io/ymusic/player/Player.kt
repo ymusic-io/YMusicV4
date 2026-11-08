@@ -135,6 +135,9 @@ interface Player {
     /** Audio-focus ducking: lowers what the engine plays without touching [volume] or [config]. */
     fun setDucked(ducked: Boolean)
 
+    /** Lowers playback further while voice input is listening, independent of [setDucked]. */
+    fun setVoiceDucked(ducked: Boolean)
+
     /** Last applied playback speed. Write pushes [PlaybackConfig]; not a flow. */
     var speed: Float
 
