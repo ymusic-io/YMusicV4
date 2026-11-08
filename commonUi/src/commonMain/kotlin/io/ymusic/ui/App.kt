@@ -1241,10 +1241,16 @@ private fun AppRoot(
                                 } else {
                                     val miniVisible = !railWindow && coordinator.player.queue.collectAsState().value.currentItem != null
                                     val miniInset = if (miniVisible) with(LocalDensity.current) { miniHeightPx.toDp() } else 0.dp
+                                    // A screen reader takes a row painted over by the bar as visible, focusing it without
+                                    // scrolling and skipping its ⋮; with one on, the content ends above the bar instead.
+                                    val contentEndsAboveMini = rememberTouchExplorationEnabled()
                                     Box(Modifier.fillMaxSize()) {
-                                        Column(Modifier.fillMaxSize().padding(padding)) {
+                                        Column(
+                                            Modifier.fillMaxSize().padding(padding)
+                                                .padding(bottom = if (contentEndsAboveMini) miniInset else 0.dp),
+                                        ) {
                                             CompositionLocalProvider(
-                                                LocalMiniPlayerInset provides miniInset,
+                                                LocalMiniPlayerInset provides if (contentEndsAboveMini) 0.dp else miniInset,
                                                 LocalNestedBack provides nestedBack,
                                             ) { screens() }
                                         }

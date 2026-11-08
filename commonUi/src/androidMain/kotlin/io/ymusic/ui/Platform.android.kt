@@ -7,6 +7,7 @@ import android.content.ContextWrapper
 import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.os.Build
+import android.view.accessibility.AccessibilityManager
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
@@ -16,9 +17,13 @@ import androidx.compose.foundation.systemGestureExclusion
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalView
@@ -66,6 +71,21 @@ internal actual fun Modifier.a11ySlider(
 @Composable
 internal actual fun PlatformBackHandler(enabled: Boolean, onBack: () -> Unit) {
     androidx.activity.compose.BackHandler(enabled, onBack)
+}
+
+@Composable
+internal actual fun rememberTouchExplorationEnabled(): Boolean {
+    val context = LocalContext.current
+    val manager = remember(context) { context.getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager }
+    var enabled by remember(manager) { mutableStateOf(manager?.isTouchExplorationEnabled == true) }
+    DisposableEffect(manager) {
+        if (manager == null) return@DisposableEffect onDispose {}
+        val listener = AccessibilityManager.TouchExplorationStateChangeListener { enabled = it }
+        manager.addTouchExplorationStateChangeListener(listener)
+        enabled = manager.isTouchExplorationEnabled
+        onDispose { manager.removeTouchExplorationStateChangeListener(listener) }
+    }
+    return enabled
 }
 
 @Composable
