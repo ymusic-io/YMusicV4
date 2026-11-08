@@ -110,5 +110,12 @@ internal fun Modifier.adjustable(
 /** A non-interactive node read as [spoken] instead of its visible text and children. */
 internal fun Modifier.spokenAs(spoken: String): Modifier = clearAndSetSemantics { text = AnnotatedString(spoken) }
 
+/**
+ * [label] for a clickable row that merges its children; those must be [a11ySilent]. Never
+ * contentDescription here: Android moves a merging node's description onto a separate unclickable
+ * node with the row's unclipped bounds, which TalkBack reads as plain text once the row is partly hidden.
+ */
+internal fun Modifier.a11yRowLabel(label: String): Modifier = semantics { text = AnnotatedString(label) }
+
 /** A node a screen reader skips: its text and children are already in an ancestor's label. */
 internal fun Modifier.a11ySilent(): Modifier = clearAndSetSemantics {}

@@ -379,7 +379,7 @@ private fun VideoCheckRow(video: YtFeedItem, position: Int?, checked: Boolean, d
             .widthIn(max = CONTENT_MAX_WIDTH)
             .fillMaxWidth()
             .toggleable(value = checked, enabled = !video.live, role = Role.Checkbox, onValueChange = onToggle)
-            .a11yActionLabel(label)
+            .a11yRowLabel(label)
             .padding(horizontal = DesignSpacing.Space8, vertical = DesignSpacing.Space4),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(DesignSpacing.Space8),

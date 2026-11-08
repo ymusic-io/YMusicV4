@@ -1524,7 +1524,7 @@ internal fun SongRow(song: MediaStoreItem, coordinator: PlaybackCoordinator? = n
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onPlay)
-            .a11yActionLabel(listOfNotNull(song.title, length, sub.ifEmpty { null }).joinToString(", "))
+            .a11yRowLabel(listOfNotNull(song.title, length, sub.ifEmpty { null }).joinToString(", "))
             .padding(start = 16.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalAlignment = Alignment.Top,
