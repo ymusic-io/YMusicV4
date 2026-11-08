@@ -245,7 +245,7 @@ class MainActivity : FragmentActivity() {
             pendingSpeech = null
         }
 
-    private val recognizeSpeech: suspend () -> String? = {
+    private val speechDialog: suspend () -> String? = {
         pendingSpeech?.complete(null)
         val deferred = CompletableDeferred<String?>()
         pendingSpeech = deferred
@@ -261,6 +261,10 @@ class MainActivity : FragmentActivity() {
             }
         }
         deferred.await()
+    }
+
+    private val speechInput by lazy {
+        AndroidSpeechInput(this, AndroidInputMode.isTelevision, requestPermission, speechDialog)
     }
 
     private var pendingScan: CompletableDeferred<String?>? = null
@@ -337,7 +341,7 @@ class MainActivity : FragmentActivity() {
         pendingPick?.complete(null)
         pendingPick = null
         if (app.qrScanner === scanQr) app.qrScanner = null
-        if (app.speechRecognizer === recognizeSpeech) app.speechRecognizer = null
+        if (app.speechInput === speechInput) app.speechInput = null
         pendingSpeech?.complete(null)
         pendingSpeech = null
         pendingScan?.complete(null)
@@ -379,7 +383,7 @@ class MainActivity : FragmentActivity() {
         }
         (application as YMusicApplication).folderPicker = pickFolder
         (application as YMusicApplication).qrScanner = scanQr
-        (application as YMusicApplication).speechRecognizer = recognizeSpeech
+        (application as YMusicApplication).speechInput = speechInput
         (application as YMusicApplication).deviceOwnerAuth = confirmOwner
         (application as YMusicApplication).documentCreator = createDocument
         (application as YMusicApplication).documentOpener = openDocument

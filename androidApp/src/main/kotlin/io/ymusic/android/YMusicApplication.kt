@@ -12,6 +12,7 @@ import android.hardware.display.DisplayManager
 import android.os.Build
 import android.os.SystemClock
 import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
 import android.util.DisplayMetrics
 import android.view.Display
 import android.view.Surface
@@ -135,6 +136,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.last
 import kotlinx.coroutines.flow.map
@@ -233,11 +235,12 @@ class YMusicApplication : Application() {
     /** The current Activity's QR scan — same lifecycle as [folderPicker]. */
     @Volatile var qrScanner: (suspend () -> String?)? = null
 
-    /** The current Activity's speech recognizer prompt — same lifecycle as [folderPicker]. */
-    @Volatile var speechRecognizer: (suspend () -> String?)? = null
+    /** The current Activity's voice search — same lifecycle as [folderPicker]. */
+    @Volatile internal var speechInput: AndroidSpeechInput? = null
 
     private fun speechRecognitionAvailable(): Boolean =
-        packageManager.queryIntentActivities(Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH), 0).isNotEmpty()
+        packageManager.queryIntentActivities(Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH), 0).isNotEmpty() ||
+            SpeechRecognizer.isRecognitionAvailable(this)
 
     /** The current Activity's PIN / biometric prompt — same lifecycle as [folderPicker]. */
     @Volatile var deviceOwnerAuth: (suspend (String, String) -> Boolean)? = null
@@ -793,7 +796,7 @@ class YMusicApplication : Application() {
             exportSessionCookies = { shared.cookies.exportSessionCookies() },
             scanQrCode = { qrScanner?.invoke() },
             speechToText = if (speechRecognitionAvailable()) {
-                { speechRecognizer?.invoke() }
+                { speechInput?.listen() ?: emptyFlow() }
             } else {
                 null
             },
