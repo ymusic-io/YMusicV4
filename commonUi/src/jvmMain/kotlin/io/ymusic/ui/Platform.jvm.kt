@@ -40,6 +40,9 @@ internal actual fun PlatformBackHandler(enabled: Boolean, onBack: () -> Unit) {
 }
 
 @Composable
+internal actual fun rememberTouchExplorationEnabled(): Boolean = false
+
+@Composable
 internal actual fun SyncSystemBars(dark: Boolean) {
     // Desktop windows carry no app-tinted OS chrome.
 }

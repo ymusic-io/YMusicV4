@@ -19,6 +19,10 @@ internal expect val desktopLayoutHole: Boolean
 @Composable
 internal expect fun PlatformBackHandler(enabled: Boolean, onBack: () -> Unit)
 
+/** Whether a touch screen reader (Android TalkBack) is exploring the screen; false where none is tracked. */
+@Composable
+internal expect fun rememberTouchExplorationEnabled(): Boolean
+
 /** Keeps OS chrome legible against the active theme — on Android, flips the status/navigation
  *  bar icon appearance to contrast the edge-to-edge app background. No-op elsewhere. */
 @Composable
