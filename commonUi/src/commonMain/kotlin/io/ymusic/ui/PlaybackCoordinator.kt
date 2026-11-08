@@ -217,7 +217,7 @@ class PlaybackCoordinator(
     suspend fun playDownloaded(uri: String, videoId: String, title: String, artist: String?, loudnessGainDb: Double?) {
         val item = mediaStore?.findItemByUri(Uri.parse(uri))?.toLocalMedia() ?: run {
             val art = if (mediaStore != null) youtubeArtUrl(videoId) else youtubeThumbUrl(videoId)
-            PlayableItem.LocalMedia(uri = uri, title = title, artist = artist, thumbnailUrl = art, loudnessGainDb = loudnessGainDb)
+            PlayableItem.LocalMedia(uri = uri, title = title, artist = artist, thumbnailUrl = art, loudnessGainDb = loudnessGainDb, videoId = videoId)
         }
         player.setQueue(listOf(item), origin = QueueOrigin.Downloads)
     }
