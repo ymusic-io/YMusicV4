@@ -534,6 +534,7 @@
     <string name="dialog_ok">ठीक आहे</string>
     <string name="folder_picker_disabled">सिस्टमचे Files ॲप बंद आहे. फोल्डर निवडण्यासाठी ते सुरू करा.</string>
     <string name="folder_picker_open_settings">सेटिंग्ज उघडा</string>
+    <string name="folder_picker_title">संगीत फोल्डर निवडा</string>
     <string name="folder_picker_use_folder">हे फोल्डर वापरा</string>
     <string name="folder_picker_empty">येथे कोणतेही फोल्डर नाहीत</string>
     <string name="folder_picker_storage_denied">फोल्डर निवडण्यासाठी सेटिंग्जमध्ये तुमच्या संगीत फाइलचा ॲक्सेस द्या.</string>

@@ -550,6 +550,7 @@
     <string name="dialog_ok">OK</string>
     <string name="folder_picker_disabled">Systémová aplikácia Súbory je vypnutá. Zapnite ju, aby ste mohli vybrať priečinok.</string>
     <string name="folder_picker_open_settings">Otvoriť nastavenia</string>
+    <string name="folder_picker_title">Vyberte priečinok s hudbou</string>
     <string name="folder_picker_use_folder">Použiť tento priečinok</string>
     <string name="folder_picker_empty">Žiadne priečinky</string>
     <string name="folder_picker_storage_denied">Ak chcete vybrať priečinok, povoľte v nastaveniach prístup k hudobným súborom.</string>

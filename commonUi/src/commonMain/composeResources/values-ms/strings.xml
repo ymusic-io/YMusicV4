@@ -526,6 +526,7 @@
     <string name="dialog_ok">OK</string>
     <string name="folder_picker_disabled">Apl Fail sistem dimatikan. Hidupkannya untuk memilih folder.</string>
     <string name="folder_picker_open_settings">Buka tetapan</string>
+    <string name="folder_picker_title">Pilih folder muzik</string>
     <string name="folder_picker_use_folder">Gunakan folder ini</string>
     <string name="folder_picker_empty">Tiada folder di sini</string>
     <string name="folder_picker_storage_denied">Benarkan akses kepada fail muzik anda dalam tetapan untuk memilih folder.</string>

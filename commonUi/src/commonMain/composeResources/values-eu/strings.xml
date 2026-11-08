@@ -534,6 +534,7 @@
     <string name="dialog_ok">Ados</string>
     <string name="folder_picker_disabled">Sistemaren Fitxategiak aplikazioa desaktibatuta dago. Aktibatu karpeta bat aukeratzeko.</string>
     <string name="folder_picker_open_settings">Ireki ezarpenak</string>
+    <string name="folder_picker_title">Aukeratu musika-karpeta bat</string>
     <string name="folder_picker_use_folder">Erabili karpeta hau</string>
     <string name="folder_picker_empty">Ez dago karpetarik hemen</string>
     <string name="folder_picker_storage_denied">Karpeta bat aukeratzeko, eman musika-fitxategietarako sarbidea ezarpenetan.</string>

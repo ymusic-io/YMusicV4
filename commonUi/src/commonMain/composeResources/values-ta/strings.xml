@@ -534,6 +534,7 @@
     <string name="dialog_ok">சரி</string>
     <string name="folder_picker_disabled">சிஸ்டத்தின் Files ஆப்ஸ் முடக்கப்பட்டுள்ளது. கோப்புறையைத் தேர்வுசெய்ய அதை இயக்கவும்.</string>
     <string name="folder_picker_open_settings">அமைப்புகளைத் திற</string>
+    <string name="folder_picker_title">இசைக் கோப்புறையைத் தேர்வுசெய்யவும்</string>
     <string name="folder_picker_use_folder">இந்தக் கோப்புறையைப் பயன்படுத்து</string>
     <string name="folder_picker_empty">இங்கே கோப்புறைகள் இல்லை</string>
     <string name="folder_picker_storage_denied">கோப்புறையைத் தேர்வுசெய்ய அமைப்புகளில் உங்கள் இசைக் கோப்புகளுக்கான அணுகலை அனுமதிக்கவும்.</string>

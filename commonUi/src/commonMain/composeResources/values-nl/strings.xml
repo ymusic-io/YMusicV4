@@ -534,6 +534,7 @@
     <string name="dialog_ok">OK</string>
     <string name="folder_picker_disabled">De systeem-app Bestanden staat uit. Zet deze aan om een map te kiezen.</string>
     <string name="folder_picker_open_settings">Instellingen openen</string>
+    <string name="folder_picker_title">Kies een muziekmap</string>
     <string name="folder_picker_use_folder">Deze map gebruiken</string>
     <string name="folder_picker_empty">Geen mappen hier</string>
     <string name="folder_picker_storage_denied">Sta in de instellingen toegang tot je muziekbestanden toe om een map te kiezen.</string>

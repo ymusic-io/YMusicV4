@@ -542,6 +542,7 @@
     <string name="dialog_ok">אישור</string>
     <string name="folder_picker_disabled">אפליקציית הקבצים של המערכת כבויה. יש להפעיל אותה כדי לבחור תיקייה.</string>
     <string name="folder_picker_open_settings">פתיחת ההגדרות</string>
+    <string name="folder_picker_title">בחירת תיקיית מוזיקה</string>
     <string name="folder_picker_use_folder">שימוש בתיקייה הזו</string>
     <string name="folder_picker_empty">אין כאן תיקיות</string>
     <string name="folder_picker_storage_denied">כדי לבחור תיקייה, יש לאפשר בהגדרות גישה לקובצי המוזיקה.</string>

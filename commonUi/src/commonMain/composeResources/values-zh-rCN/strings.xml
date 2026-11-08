@@ -526,6 +526,7 @@
     <string name="dialog_ok">确定</string>
     <string name="folder_picker_disabled">系统“文件”应用已停用。请启用它以选择文件夹。</string>
     <string name="folder_picker_open_settings">打开设置</string>
+    <string name="folder_picker_title">选择音乐文件夹</string>
     <string name="folder_picker_use_folder">使用此文件夹</string>
     <string name="folder_picker_empty">此处没有文件夹</string>
     <string name="folder_picker_storage_denied">请在设置中允许访问您的音乐文件，以便选择文件夹。</string>

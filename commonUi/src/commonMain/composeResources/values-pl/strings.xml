@@ -550,6 +550,7 @@
     <string name="dialog_ok">OK</string>
     <string name="folder_picker_disabled">Systemowa aplikacja Pliki jest wyłączona. Włącz ją, aby wybrać folder.</string>
     <string name="folder_picker_open_settings">Otwórz ustawienia</string>
+    <string name="folder_picker_title">Wybierz folder z muzyką</string>
     <string name="folder_picker_use_folder">Użyj tego folderu</string>
     <string name="folder_picker_empty">Brak folderów</string>
     <string name="folder_picker_storage_denied">Aby wybrać folder, zezwól w ustawieniach na dostęp do plików muzycznych.</string>

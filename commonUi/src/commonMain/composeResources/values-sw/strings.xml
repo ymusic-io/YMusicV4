@@ -534,6 +534,7 @@
     <string name="dialog_ok">Sawa</string>
     <string name="folder_picker_disabled">Programu ya Faili ya mfumo imezimwa. Iwashe ili uchague folda.</string>
     <string name="folder_picker_open_settings">Fungua mipangilio</string>
+    <string name="folder_picker_title">Chagua folda ya muziki</string>
     <string name="folder_picker_use_folder">Tumia folda hii</string>
     <string name="folder_picker_empty">Hakuna folda hapa</string>
     <string name="folder_picker_storage_denied">Ruhusu ufikiaji wa faili zako za muziki katika mipangilio ili kuchagua folda.</string>

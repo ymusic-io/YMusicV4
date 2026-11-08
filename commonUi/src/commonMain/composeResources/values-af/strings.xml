@@ -534,6 +534,7 @@
     <string name="dialog_ok">OK</string>
     <string name="folder_picker_disabled">Die stelsel se Lêers-app is afgeskakel. Skakel dit aan om ’n vouer te kies.</string>
     <string name="folder_picker_open_settings">Maak instellings oop</string>
+    <string name="folder_picker_title">Kies ’n musiekvouer</string>
     <string name="folder_picker_use_folder">Gebruik hierdie vouer</string>
     <string name="folder_picker_empty">Geen vouers hier nie</string>
     <string name="folder_picker_storage_denied">Gee in instellings toegang tot jou musieklêers om ’n vouer te kies.</string>

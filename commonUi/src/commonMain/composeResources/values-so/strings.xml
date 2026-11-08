@@ -534,6 +534,7 @@
     <string name="dialog_ok">Hagaag</string>
     <string name="folder_picker_disabled">Abka Faylasha ee nidaamka waa la damiyay. Daar si aad u doorato gal.</string>
     <string name="folder_picker_open_settings">Fur dejinta</string>
+    <string name="folder_picker_title">Dooro gal muusig</string>
     <string name="folder_picker_use_folder">Isticmaal galkan</string>
     <string name="folder_picker_empty">Gal halkan kuma jiro</string>
     <string name="folder_picker_storage_denied">U oggolow gelitaanka faylasha muusiggaaga dejinta si aad gal u doorato.</string>

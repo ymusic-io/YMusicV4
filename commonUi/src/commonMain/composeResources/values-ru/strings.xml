@@ -550,6 +550,7 @@
     <string name="dialog_ok">ОК</string>
     <string name="folder_picker_disabled">Системное приложение «Файлы» отключено. Включите его, чтобы выбрать папку.</string>
     <string name="folder_picker_open_settings">Открыть настройки</string>
+    <string name="folder_picker_title">Выберите папку с музыкой</string>
     <string name="folder_picker_use_folder">Выбрать эту папку</string>
     <string name="folder_picker_empty">Здесь нет папок</string>
     <string name="folder_picker_storage_denied">Чтобы выбрать папку, разрешите в настройках доступ к музыкальным файлам.</string>

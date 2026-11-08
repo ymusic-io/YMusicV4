@@ -534,6 +534,7 @@
     <string name="dialog_ok">ठिक छ</string>
     <string name="folder_picker_disabled">सिस्टमको Files एप बन्द छ। फोल्डर छान्न यसलाई सक्रिय गर्नुहोस्।</string>
     <string name="folder_picker_open_settings">सेटिङ खोल्नुहोस्</string>
+    <string name="folder_picker_title">सङ्गीत फोल्डर छान्नुहोस्</string>
     <string name="folder_picker_use_folder">यो फोल्डर प्रयोग गर्नुहोस्</string>
     <string name="folder_picker_empty">यहाँ कुनै फोल्डर छैन</string>
     <string name="folder_picker_storage_denied">फोल्डर छान्न सेटिङमा आफ्ना सङ्गीत फाइलहरूको पहुँच दिनुहोस्।</string>

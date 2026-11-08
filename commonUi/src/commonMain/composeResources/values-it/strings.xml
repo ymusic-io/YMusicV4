@@ -542,6 +542,7 @@
     <string name="dialog_ok">OK</string>
     <string name="folder_picker_disabled">L'app File di sistema è disattivata. Attivala per scegliere una cartella.</string>
     <string name="folder_picker_open_settings">Apri impostazioni</string>
+    <string name="folder_picker_title">Scegli una cartella musicale</string>
     <string name="folder_picker_use_folder">Usa questa cartella</string>
     <string name="folder_picker_empty">Nessuna cartella qui</string>
     <string name="folder_picker_storage_denied">Consenti l’accesso ai tuoi file musicali nelle impostazioni per scegliere una cartella.</string>

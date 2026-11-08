@@ -526,6 +526,7 @@
     <string name="dialog_ok">OK</string>
     <string name="folder_picker_disabled">システムの「ファイル」アプリがオフになっています。フォルダを選択するにはオンにしてください。</string>
     <string name="folder_picker_open_settings">設定を開く</string>
+    <string name="folder_picker_title">音楽フォルダを選択</string>
     <string name="folder_picker_use_folder">このフォルダを使用</string>
     <string name="folder_picker_empty">フォルダがありません</string>
     <string name="folder_picker_storage_denied">フォルダを選択するには、設定で音楽ファイルへのアクセスを許可してください。</string>

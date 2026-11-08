@@ -526,6 +526,7 @@
     <string name="dialog_ok">ตกลง</string>
     <string name="folder_picker_disabled">แอปไฟล์ของระบบถูกปิดอยู่ เปิดแอปนี้เพื่อเลือกโฟลเดอร์</string>
     <string name="folder_picker_open_settings">เปิดการตั้งค่า</string>
+    <string name="folder_picker_title">เลือกโฟลเดอร์เพลง</string>
     <string name="folder_picker_use_folder">ใช้โฟลเดอร์นี้</string>
     <string name="folder_picker_empty">ไม่มีโฟลเดอร์ที่นี่</string>
     <string name="folder_picker_storage_denied">อนุญาตให้เข้าถึงไฟล์เพลงของคุณในการตั้งค่าเพื่อเลือกโฟลเดอร์</string>

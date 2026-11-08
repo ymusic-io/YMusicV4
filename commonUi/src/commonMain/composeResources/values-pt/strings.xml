@@ -542,6 +542,7 @@
     <string name="dialog_ok">OK</string>
     <string name="folder_picker_disabled">O app Arquivos do sistema está desativado. Ative-o para escolher uma pasta.</string>
     <string name="folder_picker_open_settings">Abrir configurações</string>
+    <string name="folder_picker_title">Escolha uma pasta de música</string>
     <string name="folder_picker_use_folder">Usar esta pasta</string>
     <string name="folder_picker_empty">Nenhuma pasta aqui</string>
     <string name="folder_picker_storage_denied">Permita o acesso aos seus arquivos de música nas configurações para escolher uma pasta.</string>

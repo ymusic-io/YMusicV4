@@ -534,6 +534,7 @@
     <string name="dialog_ok">OK</string>
     <string name="folder_picker_disabled">Η εφαρμογή Αρχεία του συστήματος είναι απενεργοποιημένη. Ενεργοποιήστε την για να επιλέξετε φάκελο.</string>
     <string name="folder_picker_open_settings">Άνοιγμα ρυθμίσεων</string>
+    <string name="folder_picker_title">Επιλέξτε φάκελο μουσικής</string>
     <string name="folder_picker_use_folder">Χρήση αυτού του φακέλου</string>
     <string name="folder_picker_empty">Δεν υπάρχουν φάκελοι εδώ</string>
     <string name="folder_picker_storage_denied">Επιτρέψτε την πρόσβαση στα αρχεία μουσικής από τις ρυθμίσεις για να επιλέξετε φάκελο.</string>

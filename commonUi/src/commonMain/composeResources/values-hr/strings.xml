@@ -542,6 +542,7 @@
     <string name="dialog_ok">U redu</string>
     <string name="folder_picker_disabled">Sustavna aplikacija Datoteke je isključena. Uključite je da biste odabrali mapu.</string>
     <string name="folder_picker_open_settings">Otvori postavke</string>
+    <string name="folder_picker_title">Odaberite mapu s glazbom</string>
     <string name="folder_picker_use_folder">Koristi ovu mapu</string>
     <string name="folder_picker_empty">Ovdje nema mapa</string>
     <string name="folder_picker_storage_denied">Da biste odabrali mapu, u postavkama dopustite pristup glazbenim datotekama.</string>

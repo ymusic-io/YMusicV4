@@ -534,6 +534,7 @@
     <string name="dialog_ok">OK</string>
     <string name="folder_picker_disabled">Naka-off ang Files app ng system. I-on ito para pumili ng folder.</string>
     <string name="folder_picker_open_settings">Buksan ang settings</string>
+    <string name="folder_picker_title">Pumili ng folder ng musika</string>
     <string name="folder_picker_use_folder">Gamitin ang folder na ito</string>
     <string name="folder_picker_empty">Walang folder dito</string>
     <string name="folder_picker_storage_denied">Payagan ang access sa iyong mga music file sa mga setting para makapili ng folder.</string>

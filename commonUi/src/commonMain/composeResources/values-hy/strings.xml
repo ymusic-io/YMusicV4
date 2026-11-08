@@ -534,6 +534,7 @@
     <string name="dialog_ok">Լավ</string>
     <string name="folder_picker_disabled">Համակարգի Ֆայլեր հավելվածն անջատված է։ Միացրեք այն՝ թղթապանակ ընտրելու համար։</string>
     <string name="folder_picker_open_settings">Բացել կարգավորումները</string>
+    <string name="folder_picker_title">Ընտրեք երաժշտության թղթապանակ</string>
     <string name="folder_picker_use_folder">Օգտագործել այս թղթապանակը</string>
     <string name="folder_picker_empty">Այստեղ թղթապանակներ չկան</string>
     <string name="folder_picker_storage_denied">Թղթապանակ ընտրելու համար կարգավորումներում թույլատրեք մուտքը ձեր երաժշտական ֆայլեր։</string>

@@ -534,6 +534,7 @@
     <string name="dialog_ok">OK</string>
     <string name="folder_picker_disabled">Süsteemi rakendus Failid on välja lülitatud. Kausta valimiseks lülitage see sisse.</string>
     <string name="folder_picker_open_settings">Ava seaded</string>
+    <string name="folder_picker_title">Vali muusikakaust</string>
     <string name="folder_picker_use_folder">Kasuta seda kausta</string>
     <string name="folder_picker_empty">Siin pole kaustu</string>
     <string name="folder_picker_storage_denied">Kausta valimiseks luba seadetes juurdepääs oma muusikafailidele.</string>

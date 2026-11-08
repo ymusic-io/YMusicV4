@@ -534,6 +534,7 @@
     <string name="dialog_ok">ಸರಿ</string>
     <string name="folder_picker_disabled">ಸಿಸ್ಟಂನ Files ಆ್ಯಪ್ ಆಫ್ ಆಗಿದೆ. ಫೋಲ್ಡರ್ ಆಯ್ಕೆ ಮಾಡಲು ಅದನ್ನು ಆನ್ ಮಾಡಿ.</string>
     <string name="folder_picker_open_settings">ಸೆಟ್ಟಿಂಗ್‌ಗಳನ್ನು ತೆರೆಯಿರಿ</string>
+    <string name="folder_picker_title">ಸಂಗೀತ ಫೋಲ್ಡರ್ ಆಯ್ಕೆಮಾಡಿ</string>
     <string name="folder_picker_use_folder">ಈ ಫೋಲ್ಡರ್ ಬಳಸಿ</string>
     <string name="folder_picker_empty">ಇಲ್ಲಿ ಯಾವುದೇ ಫೋಲ್ಡರ್‌ಗಳಿಲ್ಲ</string>
     <string name="folder_picker_storage_denied">ಫೋಲ್ಡರ್ ಆಯ್ಕೆ ಮಾಡಲು ಸೆಟ್ಟಿಂಗ್‌ಗಳಲ್ಲಿ ನಿಮ್ಮ ಸಂಗೀತ ಫೈಲ್‌ಗಳಿಗೆ ಪ್ರವೇಶ ನೀಡಿ.</string>

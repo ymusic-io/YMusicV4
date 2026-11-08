@@ -542,6 +542,7 @@
     <string name="dialog_ok">Потврди</string>
     <string name="folder_picker_disabled">Системска апликација „Датотеке“ је искључена. Укључите је да бисте изабрали фолдер.</string>
     <string name="folder_picker_open_settings">Отвори подешавања</string>
+    <string name="folder_picker_title">Изаберите фасциклу са музиком</string>
     <string name="folder_picker_use_folder">Користи ову фасциклу</string>
     <string name="folder_picker_empty">Овде нема фасцикли</string>
     <string name="folder_picker_storage_denied">Да бисте изабрали фасциклу, дозволите у подешавањима приступ музичким фајловима.</string>

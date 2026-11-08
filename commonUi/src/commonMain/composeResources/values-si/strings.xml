@@ -534,6 +534,7 @@
     <string name="dialog_ok">හරි</string>
     <string name="folder_picker_disabled">පද්ධතියේ Files යෙදුම ක්‍රියාවිරහිතයි. ෆෝල්ඩරයක් තේරීමට එය ක්‍රියාත්මක කරන්න.</string>
     <string name="folder_picker_open_settings">සැකසීම් විවෘත කරන්න</string>
+    <string name="folder_picker_title">සංගීත ෆෝල්ඩරයක් තෝරන්න</string>
     <string name="folder_picker_use_folder">මෙම ෆෝල්ඩරය භාවිත කරන්න</string>
     <string name="folder_picker_empty">මෙහි ෆෝල්ඩර නැත</string>
     <string name="folder_picker_storage_denied">ෆෝල්ඩරයක් තේරීමට සැකසීම් තුළ ඔබේ සංගීත ගොනු වෙත ප්‍රවේශය ඉඩ දෙන්න.</string>

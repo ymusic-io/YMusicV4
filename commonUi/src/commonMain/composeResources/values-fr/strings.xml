@@ -542,6 +542,7 @@
     <string name="dialog_ok">OK</string>
     <string name="folder_picker_disabled">L'application Fichiers du système est désactivée. Activez-la pour choisir un dossier.</string>
     <string name="folder_picker_open_settings">Ouvrir les paramètres</string>
+    <string name="folder_picker_title">Choisir un dossier de musique</string>
     <string name="folder_picker_use_folder">Utiliser ce dossier</string>
     <string name="folder_picker_empty">Aucun dossier ici</string>
     <string name="folder_picker_storage_denied">Autorisez l’accès à vos fichiers musicaux dans les paramètres pour choisir un dossier.</string>

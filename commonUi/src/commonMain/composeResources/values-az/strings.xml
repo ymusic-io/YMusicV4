@@ -534,6 +534,7 @@
     <string name="dialog_ok">OK</string>
     <string name="folder_picker_disabled">Sistemin Fayllar tətbiqi deaktivdir. Qovluq seçmək üçün onu aktivləşdirin.</string>
     <string name="folder_picker_open_settings">Ayarları aç</string>
+    <string name="folder_picker_title">Musiqi qovluğu seçin</string>
     <string name="folder_picker_use_folder">Bu qovluqdan istifadə et</string>
     <string name="folder_picker_empty">Burada qovluq yoxdur</string>
     <string name="folder_picker_storage_denied">Qovluq seçmək üçün ayarlarda musiqi fayllarınıza giriş icazəsi verin.</string>

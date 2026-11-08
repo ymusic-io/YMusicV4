@@ -526,6 +526,7 @@
     <string name="dialog_ok">OK</string>
     <string name="folder_picker_disabled">Aplikasi File sistem dinonaktifkan. Aktifkan untuk memilih folder.</string>
     <string name="folder_picker_open_settings">Buka setelan</string>
+    <string name="folder_picker_title">Pilih folder musik</string>
     <string name="folder_picker_use_folder">Gunakan folder ini</string>
     <string name="folder_picker_empty">Tidak ada folder di sini</string>
     <string name="folder_picker_storage_denied">Izinkan akses ke file musik Anda di setelan untuk memilih folder.</string>

@@ -550,6 +550,7 @@
     <string name="dialog_ok">OK</string>
     <string name="folder_picker_disabled">Systémová aplikace Soubory je vypnutá. Zapněte ji, abyste mohli vybrat složku.</string>
     <string name="folder_picker_open_settings">Otevřít nastavení</string>
+    <string name="folder_picker_title">Vyberte hudební složku</string>
     <string name="folder_picker_use_folder">Použít tuto složku</string>
     <string name="folder_picker_empty">Žádné složky</string>
     <string name="folder_picker_storage_denied">Chcete-li vybrat složku, povolte v nastavení přístup k hudebním souborům.</string>

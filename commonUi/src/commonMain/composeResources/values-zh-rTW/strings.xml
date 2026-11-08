@@ -526,6 +526,7 @@
     <string name="dialog_ok">確定</string>
     <string name="folder_picker_disabled">系統「檔案」應用程式已停用。請啟用後再選擇資料夾。</string>
     <string name="folder_picker_open_settings">開啟設定</string>
+    <string name="folder_picker_title">選擇音樂資料夾</string>
     <string name="folder_picker_use_folder">使用這個資料夾</string>
     <string name="folder_picker_empty">這裡沒有資料夾</string>
     <string name="folder_picker_storage_denied">請在設定中允許存取你的音樂檔案，才能選擇資料夾。</string>

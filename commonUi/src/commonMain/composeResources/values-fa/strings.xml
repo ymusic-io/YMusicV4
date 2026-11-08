@@ -534,6 +534,7 @@
     <string name="dialog_ok">تأیید</string>
     <string name="folder_picker_disabled">برنامه «فایل‌ها»ی سیستم خاموش است. برای انتخاب پوشه آن را روشن کنید.</string>
     <string name="folder_picker_open_settings">باز کردن تنظیمات</string>
+    <string name="folder_picker_title">یک پوشه موسیقی انتخاب کنید</string>
     <string name="folder_picker_use_folder">استفاده از این پوشه</string>
     <string name="folder_picker_empty">پوشه‌ای اینجا نیست</string>
     <string name="folder_picker_storage_denied">برای انتخاب پوشه، در تنظیمات اجازه دسترسی به فایل‌های موسیقی را بدهید.</string>

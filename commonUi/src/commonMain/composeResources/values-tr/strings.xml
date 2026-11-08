@@ -534,6 +534,7 @@
     <string name="dialog_ok">Tamam</string>
     <string name="folder_picker_disabled">Sistemin Dosyalar uygulaması kapalı. Klasör seçmek için açın.</string>
     <string name="folder_picker_open_settings">Ayarları aç</string>
+    <string name="folder_picker_title">Müzik klasörü seçin</string>
     <string name="folder_picker_use_folder">Bu klasörü kullan</string>
     <string name="folder_picker_empty">Burada klasör yok</string>
     <string name="folder_picker_storage_denied">Klasör seçmek için ayarlardan müzik dosyalarınıza erişime izin verin.</string>
