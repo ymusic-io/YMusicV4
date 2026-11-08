@@ -78,10 +78,8 @@ class AudioFocusCoordinator(
                     player.pause()
                 }
             }
-            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
-                hasFocus = false
-                duck()
-            }
+            // Still the focus holder while ducked: a request now would take GAIN back from the ducking app.
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> duck()
             AudioManager.AUDIOFOCUS_GAIN -> {
                 hasFocus = true
                 restoreDuck()
