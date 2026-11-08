@@ -302,14 +302,15 @@ class MainActivity : FragmentActivity() {
         val handlers = packageManager.queryIntentActivities(Intent(Intent.ACTION_OPEN_DOCUMENT_TREE), 0)
             .map { it.activityInfo.packageName }
             .distinct()
+        val picker = trusted.firstOrNull { it in handlers }
         val untrusted = handlers - trusted.toSet()
-        if (untrusted.isNotEmpty()) {
+        if (picker == null && untrusted.isNotEmpty()) {
             log.captureError(
                 IllegalStateException("untrusted OPEN_DOCUMENT_TREE handlers: $untrusted (trusted: $trusted)"),
                 prop = mapOf("handlers" to untrusted.joinToString(",")),
             )
         }
-        return trusted.firstOrNull { it in handlers }
+        return picker
     }
 
     /** Why no trusted picker can launch: one of [trusted] is installed but disabled, or none is there. */
