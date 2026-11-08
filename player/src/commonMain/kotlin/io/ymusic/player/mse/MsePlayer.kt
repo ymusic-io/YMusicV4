@@ -218,6 +218,11 @@ class MsePlayer internal constructor(
         loadingVideoId = source.videoId
         _progress.value = Progress(positionMs = startPositionMs)
         _status.update { it.copy(details = null) }
+        // base.js pushes the new video's gain once it picks a format; until then play at the user's volume.
+        if (source.videoId != loadedVideoId && loudnessGain != 1f) {
+            loudnessGain = 1f
+            if (hostLive()) videoSurface.setVolume(config.volume.coerceIn(0f, 1f))
+        }
         applySurfaceAudio(previous, config)
         val width = viewportW
         val height = viewportH
