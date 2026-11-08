@@ -796,7 +796,10 @@ class YMusicApplication : Application() {
             exportSessionCookies = { shared.cookies.exportSessionCookies() },
             scanQrCode = { qrScanner?.invoke() },
             speechToText = if (speechRecognitionAvailable()) {
-                { speechInput?.listen() ?: emptyFlow() }
+                {
+                    val appLanguage = shared.settings.string(AppSettings.uiLanguage.key, "").value
+                    speechInput?.listen(appLanguage) ?: emptyFlow()
+                }
             } else {
                 null
             },

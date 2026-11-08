@@ -245,14 +245,11 @@ class MainActivity : FragmentActivity() {
             pendingSpeech = null
         }
 
-    private val speechDialog: suspend () -> String? = {
+    private val speechDialog: suspend (Intent) -> String? = { intent ->
         pendingSpeech?.complete(null)
         val deferred = CompletableDeferred<String?>()
         pendingSpeech = deferred
         withContext(Dispatchers.Main) {
-            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
-                .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_WEB_SEARCH)
-                .putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
             try {
                 speechLauncher.launch(intent)
             } catch (e: android.content.ActivityNotFoundException) {
