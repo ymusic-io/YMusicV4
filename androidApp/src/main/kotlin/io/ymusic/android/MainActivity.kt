@@ -126,8 +126,16 @@ class MainActivity : FragmentActivity() {
     // Bridges the callback-based SAF folder pick to the shell's suspend ScanAction: launch() fires the
     // system ACTION_OPEN_DOCUMENT_TREE, the result callback completes the pending deferred.
     private var pendingPick: CompletableDeferred<Uri?>? = null
+
+    /** The trusted picker app the next [openFolder] launch goes to, so no other handler of the intent can take it. */
+    private var folderPickerPackage: String? = null
     private val openFolder =
-        registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { treeUri ->
+        registerForActivityResult(
+            object : ActivityResultContracts.OpenDocumentTree() {
+                override fun createIntent(context: android.content.Context, input: android.net.Uri?): Intent =
+                    super.createIntent(context, input).setPackage(folderPickerPackage)
+            },
+        ) { treeUri ->
             treeUri?.let(::persistTreeGrant)
             pendingPick?.complete(treeUri?.let { Uri.parse(it.toString()) })
             pendingPick = null
@@ -155,23 +163,29 @@ class MainActivity : FragmentActivity() {
         pendingPick?.complete(null) // a prior pick still open → abandon it
         val deferred = CompletableDeferred<Uri?>()
         pendingPick = deferred
+        val trusted = (application as YMusicApplication).services.await().remoteConfig.awaitLoaded().features.safPickerPackages
         withContext(Dispatchers.Main) {
             val log = (application as YMusicApplication).rootLogger.fork("folder-pick")
-            when (val problem = folderPickerProblem()) {
-                null -> try {
+            val picker = trustedFolderPicker(trusted, log)
+            if (picker != null) {
+                try {
+                    folderPickerPackage = picker
                     openFolder.launch(null)
                 } catch (e: ActivityNotFoundException) {
-                    log.log(kmpcommon.log.Logger.Level.WARN, "OPEN_DOCUMENT_TREE resolved but failed to launch", e)
+                    log.log(kmpcommon.log.Logger.Level.WARN, "$picker handles OPEN_DOCUMENT_TREE but failed to launch", e)
                     deferred.complete(pickFolderWithoutSystemPicker())
                 }
-                FolderPickerIssue.Missing -> {
-                    log.log(kmpcommon.log.Logger.Level.INFO, "no system folder picker")
-                    deferred.complete(pickFolderWithoutSystemPicker())
-                }
-                else -> {
-                    log.log(kmpcommon.log.Logger.Level.WARN, "no folder picker: $problem")
-                    folderPickerIssue.value = problem
-                    deferred.complete(null)
+            } else {
+                when (val problem = folderPickerProblem(trusted)) {
+                    FolderPickerIssue.Missing -> {
+                        log.log(kmpcommon.log.Logger.Level.INFO, "no trusted system folder picker")
+                        deferred.complete(pickFolderWithoutSystemPicker())
+                    }
+                    else -> {
+                        log.log(kmpcommon.log.Logger.Level.WARN, "no folder picker: $problem")
+                        folderPickerIssue.value = problem
+                        deferred.complete(null)
+                    }
                 }
             }
         }
@@ -281,15 +295,26 @@ class MainActivity : FragmentActivity() {
     private fun hasStorageAccess(): Boolean =
         STORAGE_PERMISSIONS.all { ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED }
 
-    /** Null when the system tree picker can launch; else whether its app is disabled or absent. */
-    private fun folderPickerProblem(): FolderPickerIssue? {
-        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
-        val resolved = intent.resolveActivity(packageManager)
-        // Android TV resolves the intent to a stub that only toasts "not supported".
-        if (resolved != null) return if (resolved.packageName in TV_FRAMEWORK_STUBS) FolderPickerIssue.Missing else null
-        val disabled = packageManager.queryIntentActivities(intent, PackageManager.MATCH_DISABLED_COMPONENTS)
+    /** The first of [trusted] that handles the folder-pick intent. Other handlers (a dummy that shows nothing on
+     *  some builds, or a real picker we don't know yet) are never used, but reported, so the list can grow without
+     *  waiting for user feedback. */
+    private fun trustedFolderPicker(trusted: List<String>, log: Logger): String? {
+        val handlers = packageManager.queryIntentActivities(Intent(Intent.ACTION_OPEN_DOCUMENT_TREE), 0)
             .map { it.activityInfo.packageName }
-            .plus(DOCUMENTS_UI_PACKAGES)
+            .distinct()
+        val untrusted = handlers - trusted.toSet()
+        if (untrusted.isNotEmpty()) {
+            log.captureError(
+                IllegalStateException("untrusted OPEN_DOCUMENT_TREE handlers: $untrusted (trusted: $trusted)"),
+                prop = mapOf("handlers" to untrusted.joinToString(",")),
+            )
+        }
+        return trusted.firstOrNull { it in handlers }
+    }
+
+    /** Why no trusted picker can launch: one of [trusted] is installed but disabled, or none is there. */
+    private fun folderPickerProblem(trusted: List<String>): FolderPickerIssue {
+        val disabled = trusted
             .firstOrNull { pkg ->
                 try {
                     !packageManager.getApplicationInfo(pkg, PackageManager.MATCH_DISABLED_COMPONENTS).enabled
@@ -837,10 +862,6 @@ private fun NotificationRequiredDialog(onAllow: () -> Unit) {
         },
     )
 }
-
-private val DOCUMENTS_UI_PACKAGES = listOf("com.google.android.documentsui", "com.android.documentsui")
-
-private val TV_FRAMEWORK_STUBS = setOf("com.android.tv.frameworkpackagestubs", "com.google.android.tv.frameworkpackagestubs")
 
 /** What browsing storage by path needs; only used up to Android 10, where these still cover all shared storage. */
 private val STORAGE_PERMISSIONS = arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE)

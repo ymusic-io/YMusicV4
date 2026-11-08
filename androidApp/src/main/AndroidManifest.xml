@@ -46,6 +46,10 @@
          config, so it is found by its action), the screens that grant it All files access, and a browser for its
          download link (StorageCompanion). -->
     <queries>
+        <!-- Every handler of the system folder pick, to launch only a trusted one (MainActivity.trustedFolderPicker). -->
+        <intent>
+            <action android:name="android.intent.action.OPEN_DOCUMENT_TREE" />
+        </intent>
         <intent>
             <action android:name="io.ymusic.android.saf.action.PICK_FOLDER" />
         </intent>
