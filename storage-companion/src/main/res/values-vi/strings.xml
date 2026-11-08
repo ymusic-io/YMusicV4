@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pick_title">Chọn thư mục nhạc</string>
+    <string name="use_folder">Dùng thư mục này</string>
+    <string name="empty">Không có thư mục nào</string>
+    <string name="open_settings">Mở cài đặt</string>
+    <string name="access_message">Hãy cho phép YMusic Files truy cập mọi tệp để YMusic dùng được các thư mục bạn chọn.</string>
+</resources>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pick_title">Aukeratu musika-karpeta bat</string>
+    <string name="use_folder">Erabili karpeta hau</string>
+    <string name="empty">Ez dago karpetarik hemen</string>
+    <string name="open_settings">Ireki ezarpenak</string>
+    <string name="access_message">Eman fitxategi guztietarako sarbidea YMusic Files-i, YMusic-ek zuk aukeratutako karpetak erabil ditzan.</string>
+</resources>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pick_title">ഒരു സംഗീത ഫോൾഡർ തിരഞ്ഞെടുക്കുക</string>
+    <string name="use_folder">ഈ ഫോൾഡർ ഉപയോഗിക്കുക</string>
+    <string name="empty">ഇവിടെ ഫോൾഡറുകളൊന്നുമില്ല</string>
+    <string name="open_settings">ക്രമീകരണം തുറക്കുക</string>
+    <string name="access_message">നിങ്ങൾ തിരഞ്ഞെടുക്കുന്ന ഫോൾഡറുകൾ YMusic-ന് ഉപയോഗിക്കാൻ, YMusic Files-ന് എല്ലാ ഫയലുകളിലേക്കും ആക്‌സസ് അനുവദിക്കുക.</string>
+</resources>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pick_title">Odaberite mapu s glazbom</string>
+    <string name="use_folder">Koristi ovu mapu</string>
+    <string name="empty">Ovdje nema mapa</string>
+    <string name="open_settings">Otvori postavke</string>
+    <string name="access_message">Dopustite aplikaciji YMusic Files pristup svim datotekama kako bi YMusic mogao koristiti mape koje odaberete.</string>
+</resources>

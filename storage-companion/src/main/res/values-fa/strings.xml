@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pick_title">یک پوشه موسیقی انتخاب کنید</string>
+    <string name="use_folder">استفاده از این پوشه</string>
+    <string name="empty">پوشه‌ای اینجا نیست</string>
+    <string name="open_settings">باز کردن تنظیمات</string>
+    <string name="access_message">به YMusic Files اجازه دسترسی به همه فایل‌ها را بدهید تا YMusic بتواند از پوشه‌هایی که انتخاب می‌کنید استفاده کند.</string>
+</resources>

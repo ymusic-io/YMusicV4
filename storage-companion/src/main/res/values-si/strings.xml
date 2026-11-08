@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pick_title">සංගීත ෆෝල්ඩරයක් තෝරන්න</string>
+    <string name="use_folder">මෙම ෆෝල්ඩරය භාවිත කරන්න</string>
+    <string name="empty">මෙහි ෆෝල්ඩර නැත</string>
+    <string name="open_settings">සැකසීම් විවෘත කරන්න</string>
+    <string name="access_message">ඔබ තෝරන ෆෝල්ඩර YMusic හට භාවිත කිරීමට, YMusic Files හට සියලු ගොනු වෙත ප්‍රවේශය ඉඩ දෙන්න.</string>
+</resources>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pick_title">இசைக் கோப்புறையைத் தேர்வுசெய்யவும்</string>
+    <string name="use_folder">இந்தக் கோப்புறையைப் பயன்படுத்து</string>
+    <string name="empty">இங்கே கோப்புறைகள் இல்லை</string>
+    <string name="open_settings">அமைப்புகளைத் திற</string>
+    <string name="access_message">நீங்கள் தேர்வுசெய்யும் கோப்புறைகளை YMusic பயன்படுத்த, YMusic Files-க்கு எல்லா கோப்புகளுக்குமான அணுகலை அனுமதிக்கவும்.</string>
+</resources>

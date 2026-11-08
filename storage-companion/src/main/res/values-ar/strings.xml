@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pick_title">اختر مجلد موسيقى</string>
+    <string name="use_folder">استخدام هذا المجلد</string>
+    <string name="empty">لا توجد مجلدات هنا</string>
+    <string name="open_settings">فتح الإعدادات</string>
+    <string name="access_message">اسمح لتطبيق YMusic Files بالوصول إلى كل الملفات حتى يتمكن YMusic من استخدام المجلدات التي تختارها.</string>
+</resources>

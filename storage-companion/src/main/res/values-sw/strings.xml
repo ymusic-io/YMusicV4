@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pick_title">Chagua folda ya muziki</string>
+    <string name="use_folder">Tumia folda hii</string>
+    <string name="empty">Hakuna folda hapa</string>
+    <string name="open_settings">Fungua mipangilio</string>
+    <string name="access_message">Ruhusu YMusic Files kufikia faili zote ili YMusic iweze kutumia folda unazochagua.</string>
+</resources>

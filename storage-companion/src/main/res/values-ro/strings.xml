@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pick_title">Alege un dosar cu muzică</string>
+    <string name="use_folder">Folosește acest dosar</string>
+    <string name="empty">Niciun dosar aici</string>
+    <string name="open_settings">Deschide setările</string>
+    <string name="access_message">Permite aplicației YMusic Files accesul la toate fișierele, ca YMusic să poată folosi dosarele pe care le alegi.</string>
+</resources>

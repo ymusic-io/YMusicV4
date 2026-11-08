@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pick_title">Scegli una cartella musicale</string>
+    <string name="use_folder">Usa questa cartella</string>
+    <string name="empty">Nessuna cartella qui</string>
+    <string name="open_settings">Apri impostazioni</string>
+    <string name="access_message">Consenti a YMusic Files di accedere a tutti i file, così YMusic potrà usare le cartelle che scegli.</string>
+</resources>

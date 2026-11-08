@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pick_title">Kies een muziekmap</string>
+    <string name="use_folder">Deze map gebruiken</string>
+    <string name="empty">Geen mappen hier</string>
+    <string name="open_settings">Instellingen openen</string>
+    <string name="access_message">Geef YMusic Files toegang tot alle bestanden, zodat YMusic de mappen kan gebruiken die je kiest.</string>
+</resources>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pick_title">Müzik klasörü seçin</string>
+    <string name="use_folder">Bu klasörü kullan</string>
+    <string name="empty">Burada klasör yok</string>
+    <string name="open_settings">Ayarları aç</string>
+    <string name="access_message">YMusic\'in seçtiğiniz klasörleri kullanabilmesi için YMusic Files\'a tüm dosyalara erişim izni verin.</string>
+</resources>

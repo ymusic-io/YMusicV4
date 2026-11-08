@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pick_title">Vyberte hudební složku</string>
+    <string name="use_folder">Použít tuto složku</string>
+    <string name="empty">Žádné složky</string>
+    <string name="open_settings">Otevřít nastavení</string>
+    <string name="access_message">Povolte aplikaci YMusic Files přístup ke všem souborům, aby YMusic mohl používat složky, které vyberete.</string>
+</resources>

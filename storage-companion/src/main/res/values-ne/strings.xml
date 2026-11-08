@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pick_title">सङ्गीत फोल्डर छान्नुहोस्</string>
+    <string name="use_folder">यो फोल्डर प्रयोग गर्नुहोस्</string>
+    <string name="empty">यहाँ कुनै फोल्डर छैन</string>
+    <string name="open_settings">सेटिङ खोल्नुहोस्</string>
+    <string name="access_message">तपाईंले छान्नुभएका फोल्डरहरू YMusic ले प्रयोग गर्न सकोस् भनेर YMusic Files लाई सबै फाइलहरूको पहुँच दिनुहोस्।</string>
+</resources>

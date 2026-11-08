@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pick_title">בחירת תיקיית מוזיקה</string>
+    <string name="use_folder">שימוש בתיקייה הזו</string>
+    <string name="empty">אין כאן תיקיות</string>
+    <string name="open_settings">פתיחת ההגדרות</string>
+    <string name="access_message">יש לאפשר ל-YMusic Files גישה לכל הקבצים, כדי ש-YMusic יוכל להשתמש בתיקיות שבחרת.</string>
+</resources>

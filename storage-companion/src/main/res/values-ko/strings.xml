@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pick_title">음악 폴더 선택</string>
+    <string name="use_folder">이 폴더 사용</string>
+    <string name="empty">폴더가 없습니다</string>
+    <string name="open_settings">설정 열기</string>
+    <string name="access_message">YMusic이 선택한 폴더를 사용할 수 있도록 YMusic Files에 모든 파일 액세스를 허용하세요.</string>
+</resources>

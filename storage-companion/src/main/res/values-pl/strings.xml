@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pick_title">Wybierz folder z muzyką</string>
+    <string name="use_folder">Użyj tego folderu</string>
+    <string name="empty">Brak folderów</string>
+    <string name="open_settings">Otwórz ustawienia</string>
+    <string name="access_message">Zezwól aplikacji YMusic Files na dostęp do wszystkich plików, aby YMusic mógł używać wybranych folderów.</string>
+</resources>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pick_title">Zenemappa kiválasztása</string>
+    <string name="use_folder">Ennek a mappának a használata</string>
+    <string name="empty">Itt nincsenek mappák</string>
+    <string name="open_settings">Beállítások megnyitása</string>
+    <string name="access_message">Engedélyezd a YMusic Files számára az összes fájlhoz való hozzáférést, hogy a YMusic használhassa a kiválasztott mappákat.</string>
+</resources>
