@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="pick_title">Escolha uma pasta de música</string>
-    <string name="use_folder">Usar esta pasta</string>
-    <string name="empty">Nenhuma pasta aqui</string>
-    <string name="open_settings">Abrir configurações</string>
-    <string name="access_message">Permita que o YMusic Files acesse todos os arquivos para que o YMusic possa usar as pastas que você escolher.</string>
-</resources>

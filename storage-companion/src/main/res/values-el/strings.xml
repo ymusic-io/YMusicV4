@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="pick_title">Επιλέξτε φάκελο μουσικής</string>
-    <string name="use_folder">Χρήση αυτού του φακέλου</string>
-    <string name="empty">Δεν υπάρχουν φάκελοι εδώ</string>
-    <string name="open_settings">Άνοιγμα ρυθμίσεων</string>
-    <string name="access_message">Επιτρέψτε στο YMusic Files την πρόσβαση σε όλα τα αρχεία, ώστε το YMusic να χρησιμοποιεί τους φακέλους που επιλέγετε.</string>
-</resources>

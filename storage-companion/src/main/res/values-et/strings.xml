@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="pick_title">Vali muusikakaust</string>
-    <string name="use_folder">Kasuta seda kausta</string>
-    <string name="empty">Siin pole kaustu</string>
-    <string name="open_settings">Ava seaded</string>
-    <string name="access_message">Luba YMusic Filesil kõigile failidele juurde pääseda, et YMusic saaks kasutada sinu valitud kaustu.</string>
-</resources>

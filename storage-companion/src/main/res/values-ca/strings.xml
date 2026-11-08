@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="pick_title">Tria una carpeta de música</string>
-    <string name="use_folder">Utilitza aquesta carpeta</string>
-    <string name="empty">Aquí no hi ha cap carpeta</string>
-    <string name="open_settings">Obre la configuració</string>
-    <string name="access_message">Permet que YMusic Files accedeixi a tots els fitxers perquè YMusic pugui fer servir les carpetes que triïs.</string>
-</resources>

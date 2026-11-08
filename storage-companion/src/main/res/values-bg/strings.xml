@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="pick_title">Изберете папка с музика</string>
-    <string name="use_folder">Използване на тази папка</string>
-    <string name="empty">Тук няма папки</string>
-    <string name="open_settings">Отвори настройките</string>
-    <string name="access_message">Разрешете на YMusic Files достъп до всички файлове, за да може YMusic да използва избраните от вас папки.</string>
-</resources>

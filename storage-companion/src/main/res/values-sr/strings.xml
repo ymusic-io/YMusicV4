@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="pick_title">Изаберите фасциклу са музиком</string>
-    <string name="use_folder">Користи ову фасциклу</string>
-    <string name="empty">Овде нема фасцикли</string>
-    <string name="open_settings">Отвори подешавања</string>
-    <string name="access_message">Дозволите апликацији YMusic Files приступ свим фајловима да би YMusic могао да користи фасцикле које изаберете.</string>
-</resources>

@@ -16,13 +16,13 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 /**
- * YMusic Files (`storage-companion/`): on Android 11+ without a system folder picker it holds all-files access
+ * YMusic Files (the `android-saf/` submodule): on Android 11+ without a system folder picker it holds all-files access
  * and hands YMusic the folders the user picks as writable SAF trees. Ships inside this APK as an asset.
  */
 internal object StorageCompanion {
-    const val PACKAGE = "io.ymusic.files"
-    private const val ACTION_PICK_FOLDER = "io.ymusic.files.action.PICK_FOLDER"
-    private const val ASSET = "storage-companion.apk"
+    const val PACKAGE = "io.ymusic.android.saf"
+    private const val ACTION_PICK_FOLDER = "io.ymusic.android.saf.action.PICK_FOLDER"
+    private const val ASSET = "android-saf.apk"
 
     class InstallResult(val status: Int, val message: String?)
 

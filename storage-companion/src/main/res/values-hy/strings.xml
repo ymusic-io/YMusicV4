@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="pick_title">Ընտրեք երաժշտության թղթապանակ</string>
-    <string name="use_folder">Օգտագործել այս թղթապանակը</string>
-    <string name="empty">Այստեղ թղթապանակներ չկան</string>
-    <string name="open_settings">Բացել կարգավորումները</string>
-    <string name="access_message">Թույլատրեք YMusic Files-ին մուտք գործել բոլոր ֆայլեր, որպեսզի YMusic-ը կարողանա օգտագործել ձեր ընտրած թղթապանակները։</string>
-</resources>

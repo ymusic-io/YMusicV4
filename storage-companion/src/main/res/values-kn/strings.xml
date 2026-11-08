@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="pick_title">ಸಂಗೀತ ಫೋಲ್ಡರ್ ಆಯ್ಕೆಮಾಡಿ</string>
-    <string name="use_folder">ಈ ಫೋಲ್ಡರ್ ಬಳಸಿ</string>
-    <string name="empty">ಇಲ್ಲಿ ಯಾವುದೇ ಫೋಲ್ಡರ್‌ಗಳಿಲ್ಲ</string>
-    <string name="open_settings">ಸೆಟ್ಟಿಂಗ್‌ಗಳನ್ನು ತೆರೆಯಿರಿ</string>
-    <string name="access_message">ನೀವು ಆಯ್ಕೆಮಾಡುವ ಫೋಲ್ಡರ್‌ಗಳನ್ನು YMusic ಬಳಸಲು, YMusic Files ಗೆ ಎಲ್ಲಾ ಫೈಲ್‌ಗಳ ಪ್ರವೇಶ ನೀಡಿ.</string>
-</resources>

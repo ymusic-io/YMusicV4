@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="pick_title">Musikordner auswählen</string>
-    <string name="use_folder">Diesen Ordner verwenden</string>
-    <string name="empty">Keine Ordner vorhanden</string>
-    <string name="open_settings">Einstellungen öffnen</string>
-    <string name="access_message">Erlaube YMusic Files den Zugriff auf alle Dateien, damit YMusic die von dir gewählten Ordner nutzen kann.</string>
-</resources>

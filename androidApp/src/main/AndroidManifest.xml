@@ -45,7 +45,7 @@
     <!-- YMusic Files, the folder picker on Android 11+ devices without one, and the screens that grant it
          All files access (StorageCompanion). -->
     <queries>
-        <package android:name="io.ymusic.files" />
+        <package android:name="io.ymusic.android.saf" />
         <intent>
             <action android:name="android.settings.MANAGE_APP_ALL_FILES_ACCESS_PERMISSION" />
             <data android:scheme="package" />

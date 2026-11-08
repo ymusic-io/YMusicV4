@@ -213,8 +213,8 @@ tasks.matching { it.name.startsWith("merge") && it.name.endsWith("Assets") }.con
     dependsOn(copyComposeResources, copyEngineJs)
 }
 
-/** Builds the storage companion (`storage-companion/`, its own Gradle project) and stages its APK as an asset,
- *  signed like the variant: the companion grants folders only to apps signed with its own key. */
+/** Builds the YMusic Files helper (the `android-saf/` submodule, its own Gradle project) and stages its APK as an
+ *  asset, signed like the variant: the helper grants folders only to apps signed with its own key. */
 abstract class StorageCompanionApk @Inject constructor(private val exec: ExecOperations) : DefaultTask() {
     @get:InputFiles
     @get:PathSensitive(PathSensitivity.RELATIVE)
@@ -230,9 +230,6 @@ abstract class StorageCompanionApk @Inject constructor(private val exec: ExecOpe
     abstract val companionDir: DirectoryProperty
 
     @get:Internal
-    abstract val gradlew: RegularFileProperty
-
-    @get:Internal
     abstract val sdkDir: DirectoryProperty
 
     @get:OutputDirectory
@@ -242,8 +239,12 @@ abstract class StorageCompanionApk @Inject constructor(private val exec: ExecOpe
     fun build() {
         val type = buildType.get()
         val companion = companionDir.get().asFile
+        val windows = System.getProperty("os.name").startsWith("Windows")
+        val gradlew = File(companion, if (windows) "gradlew.bat" else "gradlew")
+        if (!gradlew.isFile) throw GradleException("the android-saf submodule is missing: run git submodule update --init")
         exec.exec {
-            commandLine(gradlew.get().asFile.absolutePath, "-p", companion.absolutePath, "--quiet", "assemble${type.replaceFirstChar { it.uppercase() }}")
+            workingDir = companion
+            commandLine(gradlew.absolutePath, "--quiet", "assemble${type.replaceFirstChar { it.uppercase() }}")
             environment("ANDROID_HOME", sdkDir.get().asFile.absolutePath)
             SIGNING_ENV_KEYS.forEach { environment.remove(it) }
             environment(signingEnv.get())
@@ -251,7 +252,7 @@ abstract class StorageCompanionApk @Inject constructor(private val exec: ExecOpe
         val out = outputDir.get().asFile
         out.deleteRecursively()
         out.mkdirs()
-        File(companion, "build/outputs/apk/$type/storage-companion-$type.apk").copyTo(File(out, "storage-companion.apk"))
+        File(companion, "build/outputs/apk/$type/android-saf-$type.apk").copyTo(File(out, "android-saf.apk"))
     }
 
     companion object {
@@ -264,9 +265,9 @@ androidComponents {
         val type = variant.buildType ?: "release"
         val signing = if (type == "release") androidReleaseSigning() else null
         val task = tasks.register<StorageCompanionApk>("storageCompanion${variant.name.replaceFirstChar { it.uppercase() }}") {
-            val dir = rootProject.layout.projectDirectory.dir("storage-companion")
+            val dir = rootProject.layout.projectDirectory.dir("android-saf")
             companionDir.set(dir)
-            sources.from(fileTree(dir) { exclude("build/**", ".gradle/**") })
+            sources.from(fileTree(dir) { exclude("build/**", ".gradle/**", ".git") })
             buildType.set(type)
             signingEnv.set(
                 signing?.let {
@@ -278,8 +279,6 @@ androidComponents {
                     )
                 } ?: emptyMap(),
             )
-            val windows = System.getProperty("os.name").startsWith("Windows")
-            gradlew.set(rootProject.layout.projectDirectory.file(if (windows) "gradlew.bat" else "gradlew"))
             sdkDir.set(androidComponents.sdkComponents.sdkDirectory)
         }
         variant.sources.assets?.addGeneratedSourceDirectory(task, StorageCompanionApk::outputDir)

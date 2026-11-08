@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="pick_title">選擇音樂資料夾</string>
-    <string name="use_folder">使用這個資料夾</string>
-    <string name="empty">這裡沒有資料夾</string>
-    <string name="open_settings">開啟設定</string>
-    <string name="access_message">請允許 YMusic Files 存取所有檔案，YMusic 才能使用你選擇的資料夾。</string>
-</resources>

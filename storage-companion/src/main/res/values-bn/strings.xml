@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="pick_title">একটি মিউজিক ফোল্ডার বেছে নিন</string>
-    <string name="use_folder">এই ফোল্ডার ব্যবহার করুন</string>
-    <string name="empty">এখানে কোনো ফোল্ডার নেই</string>
-    <string name="open_settings">সেটিংস খুলুন</string>
-    <string name="access_message">YMusic Files-কে সব ফাইলের অ্যাক্সেস দিন, যাতে YMusic আপনার বেছে নেওয়া ফোল্ডারগুলো ব্যবহার করতে পারে।</string>
-</resources>

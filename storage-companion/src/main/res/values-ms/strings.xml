@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="pick_title">Pilih folder muzik</string>
-    <string name="use_folder">Gunakan folder ini</string>
-    <string name="empty">Tiada folder di sini</string>
-    <string name="open_settings">Buka tetapan</string>
-    <string name="access_message">Benarkan YMusic Files mengakses semua fail supaya YMusic boleh menggunakan folder yang anda pilih.</string>
-</resources>

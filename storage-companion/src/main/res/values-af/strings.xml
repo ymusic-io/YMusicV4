@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="pick_title">Kies ’n musiekvouer</string>
-    <string name="use_folder">Gebruik hierdie vouer</string>
-    <string name="empty">Geen vouers hier nie</string>
-    <string name="open_settings">Maak instellings oop</string>
-    <string name="access_message">Gee YMusic Files toegang tot alle lêers sodat YMusic die vouers kan gebruik wat jy kies.</string>
-</resources>

@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="pick_title">Musiqi qovluğu seçin</string>
-    <string name="use_folder">Bu qovluqdan istifadə et</string>
-    <string name="empty">Burada qovluq yoxdur</string>
-    <string name="open_settings">Ayarları aç</string>
-    <string name="access_message">YMusic-in seçdiyiniz qovluqlardan istifadə edə bilməsi üçün YMusic Files-a bütün fayllara giriş icazəsi verin.</string>
-</resources>

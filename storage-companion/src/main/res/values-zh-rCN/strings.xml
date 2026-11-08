@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="pick_title">选择音乐文件夹</string>
-    <string name="use_folder">使用此文件夹</string>
-    <string name="empty">此处没有文件夹</string>
-    <string name="open_settings">打开设置</string>
-    <string name="access_message">请允许 YMusic Files 访问所有文件，以便 YMusic 使用您选择的文件夹。</string>
-</resources>

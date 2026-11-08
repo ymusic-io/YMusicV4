@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="pick_title">Vyberte priečinok s hudbou</string>
-    <string name="use_folder">Použiť tento priečinok</string>
-    <string name="empty">Žiadne priečinky</string>
-    <string name="open_settings">Otvoriť nastavenia</string>
-    <string name="access_message">Povoľte aplikácii YMusic Files prístup ku všetkým súborom, aby YMusic mohol používať priečinky, ktoré vyberiete.</string>
-</resources>

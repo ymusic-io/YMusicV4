@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="pick_title">音楽フォルダを選択</string>
-    <string name="use_folder">このフォルダを使用</string>
-    <string name="empty">フォルダがありません</string>
-    <string name="open_settings">設定を開く</string>
-    <string name="access_message">YMusic で選んだフォルダを使えるように、YMusic Files にすべてのファイルへのアクセスを許可してください。</string>
-</resources>

@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="app_name" translatable="false">YMusic Files</string>
-    <string name="pick_title">Choose a music folder</string>
-    <string name="use_folder">Use this folder</string>
-    <string name="empty">No folders here</string>
-    <string name="open_settings">Open settings</string>
-    <string name="access_message">Allow YMusic Files to access all files, so YMusic can use the folders you choose.</string>
-</resources>
