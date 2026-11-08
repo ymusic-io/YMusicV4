@@ -1364,6 +1364,7 @@
       0,
       "",
       [
+        ["hrefTranslate", "s", 0],
         ["download", "s", 0],
         ["ping", "s", 0],
         ["rel", "s", 0],
@@ -2641,9 +2642,19 @@
         ["videoWidth", "n", 1],
         ["videoHeight", "n", 1],
         ["poster", "s", 0],
+        ["webkitDecodedFrameCount", "n", 1],
+        ["webkitDroppedFrameCount", "n", 1],
         ["playsInline", "b", 0],
+        ["onenterpictureinpicture", "u", 0],
+        ["onleavepictureinpicture", "u", 0],
+        ["disablePictureInPicture", "b", 0],
       ],
-      [],
+      [
+        ["cancelVideoFrameCallback", "u"],
+        ["getVideoPlaybackQuality", "u"],
+        ["requestPictureInPicture", "u"],
+        ["requestVideoFrameCallback", "n"],
+      ],
       [],
       [],
       [],
@@ -4204,6 +4215,20 @@
     return null;
   }
 
+  /* Chrome's bindings reject a prototype as receiver; BotGuard reads through prototypes to test it. */
+  function rejectPrototype(self, owner) {
+    var ctor = owner.constructor;
+    var host = typeof ctor === "function" ? liveHost(ctor.name) : null;
+    var isProto =
+      Object.prototype.hasOwnProperty.call(owner, "constructor") &&
+      typeof owner.constructor === "function" &&
+      owner.constructor.prototype === owner;
+    var foreign = isProto
+      ? !Object.prototype.isPrototypeOf.call(owner, self)
+      : self !== owner && !Object.prototype.isPrototypeOf.call(owner, self);
+    if (host ? self !== host : foreign) throw new TypeError("Illegal invocation");
+  }
+
   function blocked(obj, name) {
     if (name === "trayride" || name === "prototype" || name === "__proto__") return true;
     if (SKIP[name] && obj === globalThis) return true;
@@ -4217,6 +4242,7 @@
       configurable: true,
       enumerable: true,
       get: native("get " + name, function () {
+        rejectPrototype(this, obj);
         var values = attrValues.get(this);
         if (values && name in values) return values[name];
         if (code === "a") return [];
@@ -4224,17 +4250,21 @@
       }),
       /* Always stash: a readonly accessor without a setter blocks later
        * env.js assignments (iframe.contentWindow = ...). */
-      set: native("set " + name, function (v) {
-        var values = attrValues.get(this);
-        if (!values) {
-          try {
-            attrValues.set(this, (values = Object.create(null)));
-          } catch (e) {
-            return;
+      set: __nativeFn(
+        "set " + name,
+        function (v) {
+          var values = attrValues.get(this);
+          if (!values) {
+            try {
+              attrValues.set(this, (values = Object.create(null)));
+            } catch (e) {
+              return;
+            }
           }
-        }
-        values[name] = v;
-      }),
+          values[name] = v;
+        },
+        1,
+      ),
     };
     Object.defineProperty(obj, name, desc);
   }
@@ -4243,6 +4273,7 @@
     if (!obj || !name || blocked(obj, name)) return;
     if (name in obj) return;
     var fn = native(name, function () {
+      rejectPrototype(this, obj);
       if (code === "a") return [];
       return defaultVal(code);
     });

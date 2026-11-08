@@ -291,6 +291,10 @@
     <string name="cd_search">Bilatu</string>
     <string name="cd_back">Atzera</string>
     <string name="cd_clear">Garbitu</string>
+    <string name="cd_voice_search">Bilatu ahotsez</string>
+    <string name="voice_search_press_ok">Sakatu Ados ahotsez bilatzeko</string>
+    <string name="voice_search_listening">Entzuten…</string>
+    <string name="voice_search_missed">Ez da ulertu. Sakatu Ados berriro saiatzeko</string>
     <string name="cd_close">Itxi</string>
     <string name="cd_more">Gehiago</string>
     <string name="cd_collapse">Tolestu</string>
@@ -530,6 +534,13 @@
     <string name="dialog_ok">Ados</string>
     <string name="folder_picker_disabled">Sistemaren Fitxategiak aplikazioa desaktibatuta dago. Aktibatu karpeta bat aukeratzeko.</string>
     <string name="folder_picker_open_settings">Ireki ezarpenak</string>
+    <string name="folder_picker_title">Aukeratu musika-karpeta bat</string>
+    <string name="folder_picker_use_folder">Erabili karpeta hau</string>
+    <string name="folder_picker_empty">Ez dago karpetarik hemen</string>
+    <string name="folder_picker_storage_denied">Karpeta bat aukeratzeko, eman musika-fitxategietarako sarbidea ezarpenetan.</string>
+    <string name="folder_picker_companion_message">Gailu honek ez du karpeta-hautatzailerik. Karpetak aukeratzeko, deskargatu eta instalatu YMusic Files, YMusic-en laguntzaile txiki bat, esteka honetatik, eta saiatu berriro.</string>
+    <string name="folder_picker_companion_update">YMusic Files eguneratu egin behar da YMusic-en bertsio honekin funtziona dezan. Deskargatu eta instalatu azken bertsioa esteka honetatik, eta saiatu berriro.</string>
+    <string name="folder_picker_companion_open">Ireki esteka</string>
     <string name="folder_picker_missing">Gailu honek ez du karpeta-hautatzailerik; beraz, ezin da karpetarik aukeratu.</string>
     <string name="error_supervised_account">Google kontu hau gainbegiratuta dago; beraz, ezin da YouTube hemen erabili. Amaitu saioa edo aldatu beste kontu batera.</string>
     <string name="settings_player_cache">Erreproduzigailuaren cachea</string>

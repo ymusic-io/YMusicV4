@@ -57,7 +57,8 @@ Module detail for the one-line summary in the root [`AGENTS.md`](../AGENTS.md) �
   plus native `:mse` (or pipe MSE in tests). App commands are
   `player/init|load|play|pause|seek|stop|setSpeed|status|mintPo`. Host opens `listen/player/status` and
   `listen/player/catalog` to subscribe (JS pushes; host close unsubscribes), same as
-  `player/caption`. Native MSE events: C/JNI `MseJsEventBridge.fire` → `DynamicEngine.fire` →
+  `player/caption`. The status `gain` group is base.js's loudness normalization: the value it writes to
+  the media element's `volume`, which the host multiplies into the app volume. Native MSE events: C/JNI `MseJsEventBridge.fire` → `DynamicEngine.fire` →
   `"event"` pipe → JS `ymix.onEvent`. Pass the scraping [DynamicEngineManager] as
   `main` so player JS `open("host/main/"+command)` is a one-way host proxy (homepage
   `get_player_config` for minter EVENT_ID + `ytAtN` program). Content PO is homepage minter

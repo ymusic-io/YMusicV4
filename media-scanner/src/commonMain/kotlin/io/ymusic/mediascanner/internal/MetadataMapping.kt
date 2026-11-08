@@ -7,6 +7,7 @@ import kmpffmpeg.metadata.StreamMetadata
 import kmpffmpeg.metadata.isAttachedThumbnail
 
 private val videoIdFromComposer = Regex("^([a-zA-Z0-9-_]{11})(\\||$)")
+private val loudnessGainFromComposer = Regex("^[a-zA-Z0-9-_]{11}\\|gain=(-?\\d+(?:\\.\\d+)?)$")
 private val videoIdFromFileName =
     Regex("\\s*\\[([a-zA-Z0-9-_]{11})]\\s*([-_()\\[\\]\\d]+)?\\s*(\\.\\w+)?$")
 private val yearRegex = Regex("[12][0-9]{3}")
@@ -46,6 +47,9 @@ internal fun MediaFileMetadata.toMediaItemDraft(file: DocumentInfo.File): MediaI
     val videoId = tagBags.firstNotNullOfOrNull { bag ->
         bag.composer?.let { videoIdFromComposer.find(it)?.groupValues?.get(1) }
     } ?: videoIdFromFileName.find(file.name)?.groupValues?.get(1)
+    val loudnessGainDb = tagBags.firstNotNullOfOrNull { bag ->
+        bag.composer?.let { loudnessGainFromComposer.find(it)?.groupValues?.get(1)?.toDoubleOrNull() }
+    }
 
     val mimeType = getMimeType().takeIf { it.isNotBlank() }
         ?: file.mimeType.takeIf { it.isNotBlank() }
@@ -72,5 +76,6 @@ internal fun MediaFileMetadata.toMediaItemDraft(file: DocumentInfo.File): MediaI
         thumbnailStreamIndex = thumbnailStreamIndex,
         youtubeVid = videoId,
         youtubeItags = null,
+        loudnessGainDb = loudnessGainDb,
     )
 }

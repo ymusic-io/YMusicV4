@@ -1,9 +1,16 @@
 package io.ymusic.ui
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -110,5 +117,22 @@ internal fun Modifier.adjustable(
 /** A non-interactive node read as [spoken] instead of its visible text and children. */
 internal fun Modifier.spokenAs(spoken: String): Modifier = clearAndSetSemantics { text = AnnotatedString(spoken) }
 
+/**
+ * [label] for a clickable row that merges its children; those must be [a11ySilent]. Never
+ * contentDescription here: Android moves a merging node's description onto a separate unclickable
+ * node with the row's unclipped bounds, which TalkBack reads as plain text once the row is partly hidden.
+ */
+internal fun Modifier.a11yRowLabel(label: String): Modifier = semantics { text = AnnotatedString(label) }
+
 /** A node a screen reader skips: its text and children are already in an ancestor's label. */
 internal fun Modifier.a11ySilent(): Modifier = clearAndSetSemantics {}
+
+/** A white ring while the next focusable (a clickable after this) holds focus: D-pad and keyboard users must see it. */
+@Composable
+internal fun Modifier.focusRing(shape: Shape): Modifier {
+    var focused by remember { mutableStateOf(false) }
+    return onFocusChanged { focused = it.isFocused }
+        .then(if (focused) Modifier.border(FocusRingWidth, DesignColors.InkStrong, shape) else Modifier)
+}
+
+private val FocusRingWidth = DesignSpacing.Space2 + DesignSpacing.Space2 / 2

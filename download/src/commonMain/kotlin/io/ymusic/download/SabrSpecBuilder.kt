@@ -9,6 +9,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 import okio.ByteString.Companion.decodeBase64
 import projectcommon.json.boolOrNull
+import projectcommon.json.doubleOrNull
 import projectcommon.json.intOrNull
 import projectcommon.json.objectOrNull
 import projectcommon.json.objects
@@ -47,13 +48,16 @@ object SabrSpecBuilder {
         )
     }
 
-    /** [build], plus the artist tag: `videoDetails.author`, which the engine already resolved to the track artist. */
-    fun resolve(videoId: String, playerResponseJson: String, poTokenBase64: String?): ResolvedVideo =
-        ResolvedVideo(
+    /** [build], plus the artist tag (`videoDetails.author`, which the engine already resolved to the track
+     *  artist) and the video's loudness target. */
+    fun resolve(videoId: String, playerResponseJson: String, poTokenBase64: String?): ResolvedVideo {
+        val data = json.parseToJsonElement(playerResponseJson).jsonObject
+        return ResolvedVideo(
             spec = build(videoId, playerResponseJson, poTokenBase64),
-            artist = json.parseToJsonElement(playerResponseJson).jsonObject
-                .objectOrNull("videoDetails")?.stringOrNull("author")?.takeIf { it.isNotBlank() },
+            artist = data.objectOrNull("videoDetails")?.stringOrNull("author")?.takeIf { it.isNotBlank() },
+            loudnessTargetLkfs = data.objectOrNull("audioConfig")?.doubleOrNull("loudnessTargetLkfs"),
         )
+    }
 
     /** @throws LiveVideoException for a stream that is live now.
      *  @throws StillProcessingException when formats lack `lastModified` (a replay or upload YouTube hasn't finished processing). */

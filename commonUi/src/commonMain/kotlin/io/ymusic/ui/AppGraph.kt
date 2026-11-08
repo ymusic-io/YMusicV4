@@ -188,6 +188,9 @@ class AppGraph(
      * Null hides Settings → Link devices together with [exportSessionCookies].
      */
     val scanQrCode: (suspend () -> String?)? = null,
+    /** Listens for one spoken query (see [SpeechEvent]); canceling the collection stops listening.
+     *  Null hides the search field's mic. */
+    val speechToText: (() -> kotlinx.coroutines.flow.Flow<SpeechEvent>)? = null,
     /**
      * OS PIN / biometric / passcode prompt. True if the user unlocked, false if they canceled.
      * Throws with message `no-lock` when the phone has no screen lock. Null hides Settings →

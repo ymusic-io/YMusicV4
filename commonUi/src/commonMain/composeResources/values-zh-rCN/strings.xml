@@ -287,6 +287,10 @@
     <string name="cd_search">搜索</string>
     <string name="cd_back">返回</string>
     <string name="cd_clear">清除</string>
+    <string name="cd_voice_search">语音搜索</string>
+    <string name="voice_search_press_ok">按“确定”即可语音搜索</string>
+    <string name="voice_search_listening">正在聆听…</string>
+    <string name="voice_search_missed">没听清。按“确定”重试</string>
     <string name="cd_close">关闭</string>
     <string name="cd_more">更多</string>
     <string name="cd_collapse">收起</string>
@@ -522,6 +526,13 @@
     <string name="dialog_ok">确定</string>
     <string name="folder_picker_disabled">系统“文件”应用已停用。请启用它以选择文件夹。</string>
     <string name="folder_picker_open_settings">打开设置</string>
+    <string name="folder_picker_title">选择音乐文件夹</string>
+    <string name="folder_picker_use_folder">使用此文件夹</string>
+    <string name="folder_picker_empty">此处没有文件夹</string>
+    <string name="folder_picker_storage_denied">请在设置中允许访问您的音乐文件，以便选择文件夹。</string>
+    <string name="folder_picker_companion_message">此设备没有文件夹选择器。如需选择文件夹，请通过此链接下载并安装 YMusic 的小型辅助应用 YMusic Files，然后重试。</string>
+    <string name="folder_picker_companion_update">YMusic Files 需要更新才能与此版本的 YMusic 配合使用。请通过此链接下载并安装最新版本，然后重试。</string>
+    <string name="folder_picker_companion_open">打开链接</string>
     <string name="folder_picker_missing">此设备没有文件夹选择器，无法选择文件夹。</string>
     <string name="error_supervised_account">此 Google 帐号受监管，因此无法在此使用 YouTube。请退出登录或切换到其他帐号。</string>
     <string name="settings_player_cache">播放器缓存</string>

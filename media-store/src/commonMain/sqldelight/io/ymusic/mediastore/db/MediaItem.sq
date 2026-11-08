@@ -28,7 +28,9 @@ CREATE TABLE mediaItem (
     lastModified         INTEGER NOT NULL,
     deleted              INTEGER NOT NULL DEFAULT 0,
     createdAt            INTEGER NOT NULL,
-    updatedAt            INTEGER NOT NULL
+    updatedAt            INTEGER NOT NULL,
+    -- dB from the file's measured loudness to its target; NULL when unmeasured.
+    loudnessGainDb       REAL
 );
 
 CREATE INDEX mediaItem_bucketId     ON mediaItem(bucketId);
@@ -43,8 +45,8 @@ insertItem:
 INSERT INTO mediaItem(
     bucketId, uri, title, mimeType, artist, album, genre, trackNumber, year, durationMs,
     audioCodec, videoCodec, subtitleCodec, bitrate, width, height, thumbnailStreamIndex,
-    youtubeVid, youtubeItags, fileSize, lastModified, deleted, createdAt, updatedAt
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?);
+    youtubeVid, youtubeItags, fileSize, lastModified, deleted, createdAt, updatedAt, loudnessGainDb
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?);
 
 lastInsertRowId:
 SELECT last_insert_rowid();
@@ -59,7 +61,7 @@ UPDATE mediaItem SET
     bucketId = COALESCE(:bucketId, bucketId), uri = ?, title = ?, mimeType = ?, artist = ?, album = ?, genre = ?, trackNumber = ?,
     year = ?, durationMs = ?, audioCodec = ?, videoCodec = ?, subtitleCodec = ?, bitrate = ?,
     width = ?, height = ?, thumbnailStreamIndex = ?, youtubeVid = ?, youtubeItags = ?,
-    fileSize = ?, lastModified = ?, deleted = 0, updatedAt = ?
+    fileSize = ?, lastModified = ?, deleted = 0, updatedAt = ?, loudnessGainDb = ?
 WHERE id = ?;
 
 -- The file was renamed/moved by the app: same row (playlist links, metadata), new location.

@@ -4,6 +4,7 @@
 //   state    — onStateChange: newState, playWhenReady, live, error extras
 //   picture  — onVideoDataChange: videoWidth, videoHeight
 //   details  — onVideoDataChange: videoId, channelTitle, channelUrl
+//   gain     — base.js wrote the element's volume: value, its loudness gain for the presenting format
 //   watchNext — a music video's related items: videoId, contents (JSON text; see watch_next.ts)
 //   poRejected — true: googlevideo rejected the session's PO token (StreamProtectionStatus 3), or kept
 //                withholding media while attestation stayed pending (2)
@@ -13,6 +14,7 @@ import {
   catalogPlayer,
   catalogReady,
   detailsPlayer,
+  gainPlayer,
   ListenKind,
   picturePlayer,
   playerStatePlayer,
@@ -46,6 +48,7 @@ function snapshot(kind: ListenKind): Record<string, unknown> {
   if (kind === "progress") return progressClockPlayer();
   if (kind === "state") return playerStatePlayer();
   if (kind === "details") return detailsPlayer();
+  if (kind === "gain") return gainPlayer();
   return picturePlayer();
 }
 
@@ -129,6 +132,7 @@ function sameListen(
   if (kind === "progress") return sameProgress(a, b);
   if (kind === "state") return sameState(a, b);
   if (kind === "details") return sameDetails(a, b);
+  if (kind === "gain") return a["value"] === b["value"];
   return samePicture(a, b);
 }
 
@@ -189,7 +193,7 @@ export async function listenPlayerStatus(pipe: Pipe): Promise<void> {
       // The player response can land after the first onVideoDataChange; a state change re-checks.
       push(kind === "state" ? ["state", "details"] : [kind]);
     });
-    push(["state", "progress", "picture", "details"]);
+    push(["state", "progress", "picture", "details", "gain"]);
     setWatchNextHook(function (watchNext: Record<string, unknown>) {
       enqueue({ "watchNext": watchNext });
     });

@@ -291,6 +291,10 @@
     <string name="cd_search">Ara</string>
     <string name="cd_back">Geri</string>
     <string name="cd_clear">Temizle</string>
+    <string name="cd_voice_search">Sesle ara</string>
+    <string name="voice_search_press_ok">Sesle aramak için Tamam'a basın</string>
+    <string name="voice_search_listening">Dinleniyor…</string>
+    <string name="voice_search_missed">Anlaşılamadı. Tekrar denemek için Tamam'a basın</string>
     <string name="cd_close">Kapat</string>
     <string name="cd_more">Diğer</string>
     <string name="cd_collapse">Daralt</string>
@@ -530,6 +534,13 @@
     <string name="dialog_ok">Tamam</string>
     <string name="folder_picker_disabled">Sistemin Dosyalar uygulaması kapalı. Klasör seçmek için açın.</string>
     <string name="folder_picker_open_settings">Ayarları aç</string>
+    <string name="folder_picker_title">Müzik klasörü seçin</string>
+    <string name="folder_picker_use_folder">Bu klasörü kullan</string>
+    <string name="folder_picker_empty">Burada klasör yok</string>
+    <string name="folder_picker_storage_denied">Klasör seçmek için ayarlardan müzik dosyalarınıza erişime izin verin.</string>
+    <string name="folder_picker_companion_message">Bu cihazda klasör seçici yok. Klasör seçmek için YMusic'in küçük yardımcı uygulaması YMusic Files'ı bu bağlantıdan indirip yükleyin, ardından tekrar deneyin.</string>
+    <string name="folder_picker_companion_update">YMusic Files'ın YMusic'in bu sürümüyle çalışması için güncellenmesi gerekiyor. En son sürümü bu bağlantıdan indirip yükleyin, ardından tekrar deneyin.</string>
+    <string name="folder_picker_companion_open">Bağlantıyı aç</string>
     <string name="folder_picker_missing">Bu cihazda klasör seçici yok, bu nedenle klasör seçilemiyor.</string>
     <string name="error_supervised_account">Bu Google hesabı denetimli olduğu için YouTube burada kullanılamaz. Oturumu kapatın veya başka bir hesaba geçin.</string>
     <string name="settings_player_cache">Oynatıcı önbelleği</string>

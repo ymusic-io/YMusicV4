@@ -291,6 +291,10 @@
     <string name="cd_search">Tafuta</string>
     <string name="cd_back">Rudi nyuma</string>
     <string name="cd_clear">Futa</string>
+    <string name="cd_voice_search">Tafuta kwa kutamka</string>
+    <string name="voice_search_press_ok">Bonyeza OK ili utafute kwa kutamka</string>
+    <string name="voice_search_listening">Inasikiliza…</string>
+    <string name="voice_search_missed">Haikueleweka. Bonyeza OK ili ujaribu tena</string>
     <string name="cd_close">Funga</string>
     <string name="cd_more">Zaidi</string>
     <string name="cd_collapse">Kunja</string>
@@ -530,6 +534,13 @@
     <string name="dialog_ok">Sawa</string>
     <string name="folder_picker_disabled">Programu ya Faili ya mfumo imezimwa. Iwashe ili uchague folda.</string>
     <string name="folder_picker_open_settings">Fungua mipangilio</string>
+    <string name="folder_picker_title">Chagua folda ya muziki</string>
+    <string name="folder_picker_use_folder">Tumia folda hii</string>
+    <string name="folder_picker_empty">Hakuna folda hapa</string>
+    <string name="folder_picker_storage_denied">Ruhusu ufikiaji wa faili zako za muziki katika mipangilio ili kuchagua folda.</string>
+    <string name="folder_picker_companion_message">Kifaa hiki hakina kichaguzi cha folda. Ili kuchagua folda, pakua na usakinishe YMusic Files, programu ndogo saidizi ya YMusic, kutoka kiungo hiki, kisha ujaribu tena.</string>
+    <string name="folder_picker_companion_update">YMusic Files inahitaji kusasishwa ili ifanye kazi na toleo hili la YMusic. Pakua na usakinishe toleo jipya zaidi kutoka kiungo hiki, kisha ujaribu tena.</string>
+    <string name="folder_picker_companion_open">Fungua kiungo</string>
     <string name="folder_picker_missing">Kifaa hiki hakina kichagua folda, kwa hivyo folda haiwezi kuchaguliwa.</string>
     <string name="error_supervised_account">Akaunti hii ya Google inasimamiwa, kwa hiyo YouTube haiwezi kutumika hapa. Toka au badilisha utumie akaunti nyingine.</string>
     <string name="settings_player_cache">Akiba ya kicheza</string>

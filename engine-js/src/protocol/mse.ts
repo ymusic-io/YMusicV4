@@ -1055,7 +1055,7 @@ function initHtmlMedia(self: HTMLMediaElement): void {
   self._stalled = false;
   self._looped = false;
   self["muted"] = false;
-  self["volume"] = 1;
+  self._volume = 1;
   self._rate = 1;
   self._tempo = 1;
   self._pitch = 1;
@@ -1078,7 +1078,7 @@ class HTMLMediaElement {
   _stalled!: boolean;
   _looped!: boolean;
   ["muted"]!: boolean;
-  ["volume"]!: number;
+  _volume!: number;
   _rate!: number;
   _tempo!: number;
   _pitch!: number;
@@ -1103,6 +1103,15 @@ class HTMLMediaElement {
     if (!list) return;
     const i = list.indexOf(fn);
     if (i >= 0) list.splice(i, 1);
+  }
+
+  get ["volume"](): number {
+    return this._volume;
+  }
+  // Fires even when unchanged: a swapped-in element keeps its own value but the host's gain is stale.
+  set ["volume"](v: number) {
+    this._volume = v;
+    fire(this, "volumechange");
   }
 
   get ["videoWidth"](): number {
@@ -1517,8 +1526,6 @@ export function installMseGlobals(): void {
   glob["MediaSource"] = MediaSource;
   glob["SourceBuffer"] = SourceBuffer;
   glob["HTMLMediaElement"] = HTMLMediaElement;
-  glob["HTMLVideoElement"] = HTMLMediaElement;
-  glob["HTMLAudioElement"] = HTMLMediaElement;
   (HTMLMediaElement as unknown as Record<string, unknown>)["attach"] = attachHtmlMedia;
   (HTMLMediaElement as unknown as Record<string, unknown>)["main"] = null;
   const Url = glob["URL"];

@@ -295,6 +295,10 @@
     <string name="cd_search">Caută</string>
     <string name="cd_back">Înapoi</string>
     <string name="cd_clear">Șterge</string>
+    <string name="cd_voice_search">Caută vocal</string>
+    <string name="voice_search_press_ok">Apasă OK pentru a căuta vocal</string>
+    <string name="voice_search_listening">Se ascultă…</string>
+    <string name="voice_search_missed">Nu s-a înțeles. Apasă OK pentru a încerca din nou</string>
     <string name="cd_close">Închide</string>
     <string name="cd_more">Mai multe</string>
     <string name="cd_collapse">Restrânge</string>
@@ -538,6 +542,13 @@
     <string name="dialog_ok">OK</string>
     <string name="folder_picker_disabled">Aplicația Fișiere a sistemului este dezactivată. Activează-o pentru a alege un dosar.</string>
     <string name="folder_picker_open_settings">Deschide setările</string>
+    <string name="folder_picker_title">Alege un dosar cu muzică</string>
+    <string name="folder_picker_use_folder">Folosește acest dosar</string>
+    <string name="folder_picker_empty">Niciun dosar aici</string>
+    <string name="folder_picker_storage_denied">Permite accesul la fișierele de muzică din setări pentru a alege un dosar.</string>
+    <string name="folder_picker_companion_message">Acest dispozitiv nu are selector de dosare. Ca să alegi dosare, descarcă și instalează de la acest link YMusic Files, o mică aplicație ajutătoare pentru YMusic, apoi încearcă din nou.</string>
+    <string name="folder_picker_companion_update">YMusic Files trebuie actualizat ca să funcționeze cu această versiune de YMusic. Descarcă și instalează cea mai nouă versiune de la acest link, apoi încearcă din nou.</string>
+    <string name="folder_picker_companion_open">Deschide linkul</string>
     <string name="folder_picker_missing">Acest dispozitiv nu are selector de dosare, deci nu se poate alege un dosar.</string>
     <string name="error_supervised_account">Acest cont Google este supravegheat, așa că YouTube nu poate fi folosit aici. Deconectează-te sau comută la alt cont.</string>
     <string name="settings_player_cache">Cache player</string>

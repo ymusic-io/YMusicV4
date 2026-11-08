@@ -291,6 +291,10 @@
     <string name="cd_search">Zoeken</string>
     <string name="cd_back">Terug</string>
     <string name="cd_clear">Wissen</string>
+    <string name="cd_voice_search">Zoeken met spraak</string>
+    <string name="voice_search_press_ok">Druk op OK om te zoeken met spraak</string>
+    <string name="voice_search_listening">Luisteren…</string>
+    <string name="voice_search_missed">Niet verstaan. Druk op OK om het opnieuw te proberen</string>
     <string name="cd_close">Sluiten</string>
     <string name="cd_more">Meer</string>
     <string name="cd_collapse">Samenvouwen</string>
@@ -530,6 +534,13 @@
     <string name="dialog_ok">OK</string>
     <string name="folder_picker_disabled">De systeem-app Bestanden staat uit. Zet deze aan om een map te kiezen.</string>
     <string name="folder_picker_open_settings">Instellingen openen</string>
+    <string name="folder_picker_title">Kies een muziekmap</string>
+    <string name="folder_picker_use_folder">Deze map gebruiken</string>
+    <string name="folder_picker_empty">Geen mappen hier</string>
+    <string name="folder_picker_storage_denied">Sta in de instellingen toegang tot je muziekbestanden toe om een map te kiezen.</string>
+    <string name="folder_picker_companion_message">Dit apparaat heeft geen mapkiezer. Download en installeer YMusic Files, een kleine hulp-app voor YMusic, via deze link om mappen te kiezen en probeer het daarna opnieuw.</string>
+    <string name="folder_picker_companion_update">YMusic Files moet worden bijgewerkt om met deze versie van YMusic te werken. Download en installeer de nieuwste versie via deze link en probeer het daarna opnieuw.</string>
+    <string name="folder_picker_companion_open">Link openen</string>
     <string name="folder_picker_missing">Dit apparaat heeft geen mapkiezer, dus er kan geen map worden gekozen.</string>
     <string name="error_supervised_account">Dit Google-account staat onder toezicht, dus YouTube kan hier niet worden gebruikt. Log uit of schakel over naar een ander account.</string>
     <string name="settings_player_cache">Spelercache</string>

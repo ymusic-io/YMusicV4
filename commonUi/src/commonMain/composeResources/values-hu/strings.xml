@@ -291,6 +291,10 @@
     <string name="cd_search">Keresés</string>
     <string name="cd_back">Vissza</string>
     <string name="cd_clear">Törlés</string>
+    <string name="cd_voice_search">Hangalapú keresés</string>
+    <string name="voice_search_press_ok">Nyomja meg az OK gombot a hangalapú kereséshez</string>
+    <string name="voice_search_listening">Figyelés…</string>
+    <string name="voice_search_missed">Nem sikerült értelmezni. Nyomja meg az OK gombot az újrapróbálkozáshoz</string>
     <string name="cd_close">Bezárás</string>
     <string name="cd_more">Továbbiak</string>
     <string name="cd_collapse">Összecsukás</string>
@@ -530,6 +534,13 @@
     <string name="dialog_ok">OK</string>
     <string name="folder_picker_disabled">A rendszer Fájlok alkalmazása ki van kapcsolva. Kapcsolja be mappa kiválasztásához.</string>
     <string name="folder_picker_open_settings">Beállítások megnyitása</string>
+    <string name="folder_picker_title">Zenemappa kiválasztása</string>
+    <string name="folder_picker_use_folder">Ennek a mappának a használata</string>
+    <string name="folder_picker_empty">Itt nincsenek mappák</string>
+    <string name="folder_picker_storage_denied">Mappa kiválasztásához engedélyezd a zenefájlokhoz való hozzáférést a beállításokban.</string>
+    <string name="folder_picker_companion_message">Ezen az eszközön nincs mappaválasztó. Mappák kiválasztásához töltsd le és telepítsd erről a linkről a YMusic Files-t, a YMusic kis segédalkalmazását, majd próbáld újra.</string>
+    <string name="folder_picker_companion_update">A YMusic Files frissítésre szorul, hogy működjön a YMusic ezen verziójával. Töltsd le és telepítsd a legújabb verziót erről a linkről, majd próbáld újra.</string>
+    <string name="folder_picker_companion_open">Link megnyitása</string>
     <string name="folder_picker_missing">Ezen az eszközön nincs mappaválasztó, ezért nem lehet mappát választani.</string>
     <string name="error_supervised_account">Ez a Google-fiók felügyelt, ezért a YouTube itt nem használható. Jelentkezz ki, vagy válts másik fiókra.</string>
     <string name="settings_player_cache">Lejátszó gyorsítótára</string>

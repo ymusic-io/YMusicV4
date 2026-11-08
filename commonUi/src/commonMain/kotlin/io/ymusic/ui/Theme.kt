@@ -221,6 +221,11 @@ object DesignSpacing {
     /** Window edge margin, expanded (`≥840dp`) windows. */
     val MarginExpanded = Space24
 
+    /** Navigation rail widths. Off the step scale: collapsed fits a 48dp target plus 12dp each side,
+     *  expanded is wide enough for a 16:9 picture over the section labels. */
+    val RailCollapsedWidth = 72.dp
+    val RailExpandedWidth = 280.dp
+
     /** Between grid cards (expanded windows; mobile-class uses [Space8]). */
     val Gutter = Space16
 

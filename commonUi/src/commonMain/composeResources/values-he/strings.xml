@@ -295,6 +295,10 @@
     <string name="cd_search">חיפוש</string>
     <string name="cd_back">חזרה</string>
     <string name="cd_clear">ניקוי</string>
+    <string name="cd_voice_search">חיפוש קולי</string>
+    <string name="voice_search_press_ok">יש ללחוץ על OK כדי לחפש בקול</string>
+    <string name="voice_search_listening">מאזין…</string>
+    <string name="voice_search_missed">לא הבנו. יש ללחוץ על OK כדי לנסות שוב</string>
     <string name="cd_close">סגירה</string>
     <string name="cd_more">עוד</string>
     <string name="cd_collapse">כיווץ</string>
@@ -538,6 +542,13 @@
     <string name="dialog_ok">אישור</string>
     <string name="folder_picker_disabled">אפליקציית הקבצים של המערכת כבויה. יש להפעיל אותה כדי לבחור תיקייה.</string>
     <string name="folder_picker_open_settings">פתיחת ההגדרות</string>
+    <string name="folder_picker_title">בחירת תיקיית מוזיקה</string>
+    <string name="folder_picker_use_folder">שימוש בתיקייה הזו</string>
+    <string name="folder_picker_empty">אין כאן תיקיות</string>
+    <string name="folder_picker_storage_denied">כדי לבחור תיקייה, יש לאפשר בהגדרות גישה לקובצי המוזיקה.</string>
+    <string name="folder_picker_companion_message">אין במכשיר הזה בורר תיקיות. כדי לבחור תיקיות, יש להוריד ולהתקין מהקישור הזה את YMusic Files, אפליקציית עזר קטנה ל-YMusic, ולנסות שוב.</string>
+    <string name="folder_picker_companion_update">צריך לעדכן את YMusic Files כדי שיעבוד עם הגרסה הזו של YMusic. יש להוריד ולהתקין את הגרסה העדכנית מהקישור הזה ולנסות שוב.</string>
+    <string name="folder_picker_companion_open">פתיחת הקישור</string>
     <string name="folder_picker_missing">אין במכשיר הזה בורר תיקיות, ולכן אי אפשר לבחור תיקייה.</string>
     <string name="error_supervised_account">חשבון Google זה נמצא בפיקוח, ולכן לא ניתן להשתמש כאן ב-YouTube. צא מהחשבון או עבור לחשבון אחר.</string>
     <string name="settings_player_cache">מטמון הנגן</string>

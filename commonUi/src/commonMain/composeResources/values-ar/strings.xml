@@ -348,6 +348,10 @@
     <string name="cd_search">بحث</string>
     <string name="cd_back">رجوع</string>
     <string name="cd_clear">مسح</string>
+    <string name="cd_voice_search">البحث بالصوت</string>
+    <string name="voice_search_press_ok">اضغط على "حسنًا" للبحث بالصوت</string>
+    <string name="voice_search_listening">جارٍ الاستماع…</string>
+    <string name="voice_search_missed">لم يتم التعرّف على ما قلته. اضغط على "حسنًا" للمحاولة مرة أخرى</string>
     <string name="cd_close">إغلاق</string>
     <string name="cd_more">المزيد</string>
     <string name="cd_collapse">طي</string>
@@ -626,6 +630,12 @@
     <string name="dialog_ok">حسنًا</string>
     <string name="folder_picker_disabled">تطبيق الملفات الخاص بالنظام متوقف. فعّله لاختيار مجلد.</string>
     <string name="folder_picker_open_settings">فتح الإعدادات</string>
+    <string name="folder_picker_use_folder">استخدام هذا المجلد</string>
+    <string name="folder_picker_empty">لا توجد مجلدات هنا</string>
+    <string name="folder_picker_storage_denied">اسمح بالوصول إلى ملفات الموسيقى من الإعدادات لاختيار مجلد.</string>
+    <string name="folder_picker_companion_message">لا يتوفر في هذا الجهاز أداة لاختيار المجلدات. لاختيار المجلدات، نزّل YMusic Files، وهو تطبيق مساعد صغير لـ YMusic، من هذا الرابط وثبّته، ثم حاول مرة أخرى.</string>
+    <string name="folder_picker_companion_update">يحتاج YMusic Files إلى تحديث ليعمل مع هذا الإصدار من YMusic. نزّل أحدث إصدار من هذا الرابط وثبّته، ثم حاول مرة أخرى.</string>
+    <string name="folder_picker_companion_open">فتح الرابط</string>
     <string name="folder_picker_missing">لا يحتوي هذا الجهاز على أداة لاختيار المجلدات، لذا لا يمكن اختيار مجلد.</string>
     <string name="error_supervised_account">حساب Google هذا خاضع للإشراف، لذا لا يمكن استخدام YouTube هنا. سجّل الخروج أو بدّل إلى حساب آخر.</string>
     <string name="captcha_verify">تحقّق</string>

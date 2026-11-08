@@ -3,6 +3,7 @@
 
 import { debug } from "../../debug";
 import { JsEngineErrorImpl } from "../../protocol/command";
+import { playingVideoId } from "./live";
 
 const CACHE_MS = 3 * 60 * 1000;
 const WAIT_MS = 20_000;
@@ -32,11 +33,17 @@ function now(): number {
   return Date.now();
 }
 
+/** The presenting video never expires: base.js won't refetch it for a preload of itself. */
+function expired(id: string, cached: Entry, time: number, playing: string): boolean {
+  return cached.expires < time && id !== playing;
+}
+
 function prune(): void {
   const t = now();
+  const playing = playingVideoId();
   for (const id in cache) {
     const e = cache[id];
-    if (e && e.expires < t && !e.waiters.length) delete cache[id];
+    if (e && expired(id, e, t, playing) && !e.waiters.length) delete cache[id];
   }
 }
 
@@ -227,6 +234,7 @@ function buildDownloadJson(e: Entry): Record<string, unknown> {
   const sd = asRec(rec["streamingData"]) || {};
   const sabr = e.sabrUrls.length ? e.sabrUrls[e.sabrUrls.length - 1]! : "";
   const streaming = streamingForHost(sd, sabr);
+  const playerConfig = asRec(rec["playerConfig"]);
   const cver = ytcfgStr("INNERTUBE_CLIENT_VERSION");
   const js = ytcfgStr("PLAYER_JS_URL");
   return {
@@ -238,6 +246,7 @@ function buildDownloadJson(e: Entry): Record<string, unknown> {
     "microformat": rec["microformat"],
     "playabilityStatus": rec["playabilityStatus"],
     "streamingData": streaming,
+    "audioConfig": playerConfig ? playerConfig["audioConfig"] : undefined,
     "captions": rec["captions"],
     "captionTracks": flattenCaptions(rec),
     "translationLanguages": flattenTranslations(rec),
@@ -248,7 +257,7 @@ function buildDownloadJson(e: Entry): Record<string, unknown> {
 export function peekDownloadJson(videoId: string): Record<string, unknown> | null {
   prune();
   const e = cache[videoId];
-  if (!e || !complete(e) || e.expires < now()) return null;
+  if (!e || !complete(e) || expired(videoId, e, now(), playingVideoId())) return null;
   e.expires = now() + CACHE_MS;
   return buildDownloadJson(e);
 }

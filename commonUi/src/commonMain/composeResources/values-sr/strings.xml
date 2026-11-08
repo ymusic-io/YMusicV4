@@ -295,6 +295,10 @@
     <string name="cd_search">Претрага</string>
     <string name="cd_back">Назад</string>
     <string name="cd_clear">Обриши</string>
+    <string name="cd_voice_search">Претражујте гласом</string>
+    <string name="voice_search_press_ok">Притисните OK за претрагу гласом</string>
+    <string name="voice_search_listening">Слуша се…</string>
+    <string name="voice_search_missed">Није разумљиво. Притисните OK да бисте пробали поново</string>
     <string name="cd_close">Затвори</string>
     <string name="cd_more">Још</string>
     <string name="cd_collapse">Скупи</string>
@@ -538,6 +542,13 @@
     <string name="dialog_ok">Потврди</string>
     <string name="folder_picker_disabled">Системска апликација „Датотеке“ је искључена. Укључите је да бисте изабрали фолдер.</string>
     <string name="folder_picker_open_settings">Отвори подешавања</string>
+    <string name="folder_picker_title">Изаберите фасциклу са музиком</string>
+    <string name="folder_picker_use_folder">Користи ову фасциклу</string>
+    <string name="folder_picker_empty">Овде нема фасцикли</string>
+    <string name="folder_picker_storage_denied">Да бисте изабрали фасциклу, дозволите у подешавањима приступ музичким фајловима.</string>
+    <string name="folder_picker_companion_message">Овај уређај нема алатку за избор фасцикли. Да бисте бирали фасцикле, преузмите и инсталирајте са овог линка YMusic Files, малу помоћну апликацију за YMusic, па покушајте поново.</string>
+    <string name="folder_picker_companion_update">YMusic Files треба ажурирати да би радио са овом верзијом YMusic-а. Преузмите и инсталирајте најновију верзију са овог линка, па покушајте поново.</string>
+    <string name="folder_picker_companion_open">Отвори линк</string>
     <string name="folder_picker_missing">Овај уређај нема алатку за избор фолдера, па фолдер не може да се изабере.</string>
     <string name="error_supervised_account">Овај Google налог је под надзором, па се YouTube овде не може користити. Одјавите се или пређите на други налог.</string>
     <string name="settings_player_cache">Кеш плејера</string>

@@ -291,6 +291,10 @@
     <string name="cd_search">Otsi</string>
     <string name="cd_back">Tagasi</string>
     <string name="cd_clear">Tühjenda</string>
+    <string name="cd_voice_search">Otsi häälega</string>
+    <string name="voice_search_press_ok">Häälega otsimiseks vajutage OK</string>
+    <string name="voice_search_listening">Kuulan…</string>
+    <string name="voice_search_missed">Ei saanud aru. Uuesti proovimiseks vajutage OK</string>
     <string name="cd_close">Sulge</string>
     <string name="cd_more">Rohkem</string>
     <string name="cd_collapse">Ahenda</string>
@@ -530,6 +534,13 @@
     <string name="dialog_ok">OK</string>
     <string name="folder_picker_disabled">Süsteemi rakendus Failid on välja lülitatud. Kausta valimiseks lülitage see sisse.</string>
     <string name="folder_picker_open_settings">Ava seaded</string>
+    <string name="folder_picker_title">Vali muusikakaust</string>
+    <string name="folder_picker_use_folder">Kasuta seda kausta</string>
+    <string name="folder_picker_empty">Siin pole kaustu</string>
+    <string name="folder_picker_storage_denied">Kausta valimiseks luba seadetes juurdepääs oma muusikafailidele.</string>
+    <string name="folder_picker_companion_message">Sellel seadmel pole kaustavalijat. Kaustade valimiseks laadi sellelt lingilt alla ja installi YMusic Files – väike YMusicu abirakendus – ning proovi uuesti.</string>
+    <string name="folder_picker_companion_update">YMusic Files vajab selle YMusicu versiooniga töötamiseks värskendust. Laadi sellelt lingilt alla ja installi uusim versioon ning proovi uuesti.</string>
+    <string name="folder_picker_companion_open">Ava link</string>
     <string name="folder_picker_missing">Selles seadmes pole kaustavalijat, seega ei saa kausta valida.</string>
     <string name="error_supervised_account">See Google'i konto on järelevalve all, seega ei saa YouTube'i siin kasutada. Logi välja või vaheta teise konto vastu.</string>
     <string name="settings_player_cache">Pleieri vahemälu</string>

@@ -299,6 +299,10 @@
     <string name="cd_search">Hľadať</string>
     <string name="cd_back">Späť</string>
     <string name="cd_clear">Vymazať</string>
+    <string name="cd_voice_search">Hľadať hlasom</string>
+    <string name="voice_search_press_ok">Stlačením OK vyhľadáte hlasom</string>
+    <string name="voice_search_listening">Počúvam…</string>
+    <string name="voice_search_missed">Nerozumel som. Stlačením OK to skúste znova</string>
     <string name="cd_close">Zavrieť</string>
     <string name="cd_more">Viac</string>
     <string name="cd_collapse">Zbaliť</string>
@@ -546,6 +550,13 @@
     <string name="dialog_ok">OK</string>
     <string name="folder_picker_disabled">Systémová aplikácia Súbory je vypnutá. Zapnite ju, aby ste mohli vybrať priečinok.</string>
     <string name="folder_picker_open_settings">Otvoriť nastavenia</string>
+    <string name="folder_picker_title">Vyberte priečinok s hudbou</string>
+    <string name="folder_picker_use_folder">Použiť tento priečinok</string>
+    <string name="folder_picker_empty">Žiadne priečinky</string>
+    <string name="folder_picker_storage_denied">Ak chcete vybrať priečinok, povoľte v nastaveniach prístup k hudobným súborom.</string>
+    <string name="folder_picker_companion_message">Toto zariadenie nemá výber priečinkov. Ak chcete vyberať priečinky, stiahnite si z tohto odkazu a nainštalujte YMusic Files, malého pomocníka pre YMusic, a skúste to znova.</string>
+    <string name="folder_picker_companion_update">YMusic Files je potrebné aktualizovať, aby fungoval s touto verziou YMusic. Stiahnite si a nainštalujte najnovšiu verziu z tohto odkazu a skúste to znova.</string>
+    <string name="folder_picker_companion_open">Otvoriť odkaz</string>
     <string name="folder_picker_missing">Toto zariadenie nemá výber priečinkov, takže priečinok nie je možné vybrať.</string>
     <string name="error_supervised_account">Tento účet Google je pod dohľadom, takže tu nie je možné používať YouTube. Odhláste sa alebo prepnite na iný účet.</string>
     <string name="settings_player_cache">Vyrovnávacia pamäť prehrávača</string>

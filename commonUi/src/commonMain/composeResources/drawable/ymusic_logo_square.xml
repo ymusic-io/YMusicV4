@@ -1,0 +1,26 @@
+<!-- ymusic_logo without its disc clip, for in-app use: AppLogo clips it once, because per-layer clips compound the
+     rim's antialiasing into a hard step. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="192dp"
+    android:height="192dp"
+    android:viewportWidth="1024"
+    android:viewportHeight="1024">
+    <path
+        android:pathData="M-358.46,-896.36 L2458.27,512 L-358.46,1920.36 Z"
+        android:fillColor="#267C4E" />
+    <path
+        android:pathData="M-213.39,-661.64 L2133.89,512 L-213.39,1685.64 Z"
+        android:fillColor="#2C8E5A" />
+    <path
+        android:pathData="M-68.31,-426.91 L1809.51,512 L-68.31,1450.91 Z"
+        android:fillColor="#32A065" />
+    <path
+        android:pathData="M76.77,-192.18 L1485.13,512 L76.77,1216.18 Z"
+        android:fillColor="#39B170" />
+    <path
+        android:pathData="M221.85,42.55 L1160.76,512 L221.85,981.45 Z"
+        android:fillColor="#3FC37C" />
+    <path
+        android:pathData="M366.92,382.68 Q366.92,277.28 461.19,324.4 L742.11,464.86 Q836.38,512 742.11,559.14 L461.19,699.6 Q366.92,746.72 366.92,641.32 Z"
+        android:fillColor="#FFFFFF" />
+</vector>

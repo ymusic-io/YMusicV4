@@ -68,6 +68,7 @@ import kotlinx.serialization.json.JsonObject
 import projectcommon.error.TechnicalException
 import projectcommon.error.errorCode
 import projectcommon.json.boolOrNull
+import projectcommon.json.doubleOrNull
 import projectcommon.json.intOrNull
 import projectcommon.json.longOrNull
 import projectcommon.json.objectOrNull
@@ -158,6 +159,9 @@ class MsePlayer internal constructor(
     /** Latest config from the caller. */
     private var config = PlaybackConfig()
 
+    /** base.js's loudness gain for the presenting format; scales [config]'s volume at the host. */
+    private var loudnessGain = 1f
+
     private var loadingVideoId: String? = null
     private var loadedVideoId: String? = null
     private var loadTimeoutJob: Job? = null
@@ -214,6 +218,11 @@ class MsePlayer internal constructor(
         loadingVideoId = source.videoId
         _progress.value = Progress(positionMs = startPositionMs)
         _status.update { it.copy(details = null) }
+        // base.js pushes the new video's gain once it picks a format; until then play at the user's volume.
+        if (source.videoId != loadedVideoId && loudnessGain != 1f) {
+            loudnessGain = 1f
+            if (hostLive()) videoSurface.setVolume(config.volume.coerceIn(0f, 1f))
+        }
         applySurfaceAudio(previous, config)
         val width = viewportW
         val height = viewportH
@@ -610,7 +619,7 @@ class MsePlayer internal constructor(
     private fun applySurfaceAudio(previous: PlaybackConfig?, config: PlaybackConfig) {
         if (!hostLive()) return
         if (previous == null || config.volume != previous.volume) {
-            videoSurface.setVolume(config.volume.coerceIn(0f, 1f))
+            videoSurface.setVolume(config.volume.coerceIn(0f, 1f) * loudnessGain)
         }
         if (previous == null ||
             config.eqBands != previous.eqBands ||
@@ -706,7 +715,15 @@ class MsePlayer internal constructor(
         json.objectOrNull("state")?.let { applyState(it) }
         json.objectOrNull("picture")?.let { applyPicture(it) }
         json.objectOrNull("details")?.let { applyDetails(it) }
+        json.objectOrNull("gain")?.let { applyLoudnessGain(it) }
         json.objectOrNull("watchNext")?.let { applyWatchNext(it) }
+    }
+
+    private fun applyLoudnessGain(json: JsonObject) {
+        val gain = json.doubleOrNull("value")?.toFloat()?.coerceIn(0f, 1f) ?: return
+        if (gain == loudnessGain) return
+        loudnessGain = gain
+        if (hostLive()) videoSurface.setVolume(config.volume.coerceIn(0f, 1f) * gain)
     }
 
     private fun applyWatchNext(json: JsonObject) {

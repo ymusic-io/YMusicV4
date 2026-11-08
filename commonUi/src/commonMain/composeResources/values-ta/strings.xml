@@ -291,6 +291,10 @@
     <string name="cd_search">தேடு</string>
     <string name="cd_back">பின்செல்</string>
     <string name="cd_clear">அழி</string>
+    <string name="cd_voice_search">குரல் மூலம் தேடு</string>
+    <string name="voice_search_press_ok">குரல் மூலம் தேட OK அழுத்தவும்</string>
+    <string name="voice_search_listening">கேட்கிறது…</string>
+    <string name="voice_search_missed">புரியவில்லை. மீண்டும் முயல OK அழுத்தவும்</string>
     <string name="cd_close">மூடு</string>
     <string name="cd_more">மேலும்</string>
     <string name="cd_collapse">சுருக்கு</string>
@@ -530,6 +534,13 @@
     <string name="dialog_ok">சரி</string>
     <string name="folder_picker_disabled">சிஸ்டத்தின் Files ஆப்ஸ் முடக்கப்பட்டுள்ளது. கோப்புறையைத் தேர்வுசெய்ய அதை இயக்கவும்.</string>
     <string name="folder_picker_open_settings">அமைப்புகளைத் திற</string>
+    <string name="folder_picker_title">இசைக் கோப்புறையைத் தேர்வுசெய்யவும்</string>
+    <string name="folder_picker_use_folder">இந்தக் கோப்புறையைப் பயன்படுத்து</string>
+    <string name="folder_picker_empty">இங்கே கோப்புறைகள் இல்லை</string>
+    <string name="folder_picker_storage_denied">கோப்புறையைத் தேர்வுசெய்ய அமைப்புகளில் உங்கள் இசைக் கோப்புகளுக்கான அணுகலை அனுமதிக்கவும்.</string>
+    <string name="folder_picker_companion_message">இந்தச் சாதனத்தில் கோப்புறைத் தேர்வுக் கருவி இல்லை. கோப்புறைகளைத் தேர்வுசெய்ய இந்த இணைப்பிலிருந்து YMusic-க்கான சிறிய உதவி ஆப்ஸான YMusic Files-ஐப் பதிவிறக்கி நிறுவிய பின் மீண்டும் முயலவும்.</string>
+    <string name="folder_picker_companion_update">YMusic-இன் இந்தப் பதிப்புடன் இயங்க YMusic Files-ஐப் புதுப்பிக்க வேண்டும். இந்த இணைப்பிலிருந்து சமீபத்திய பதிப்பைப் பதிவிறக்கி நிறுவிய பின் மீண்டும் முயலவும்.</string>
+    <string name="folder_picker_companion_open">இணைப்பைத் திற</string>
     <string name="folder_picker_missing">இந்தச் சாதனத்தில் கோப்புறைத் தேர்வி இல்லை, எனவே கோப்புறையைத் தேர்வுசெய்ய முடியாது.</string>
     <string name="error_supervised_account">இந்த Google கணக்கு மேற்பார்வையில் உள்ளதால் இங்கே YouTube-ஐப் பயன்படுத்த முடியாது. வெளியேறவும் அல்லது வேறு கணக்கிற்கு மாறவும்.</string>
     <string name="settings_player_cache">பிளேயர் தற்காலிகச் சேமிப்பு</string>

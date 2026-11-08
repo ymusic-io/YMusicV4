@@ -233,7 +233,7 @@ class DownloadService(
     suspend fun relocate(id: String, fileUri: String) {
         val task = store.get(id)?.takeIf { it.state == DownloadState.COMPLETED } ?: return
         val bytes = task.totalBytes ?: task.downloadedBytes
-        store.updateCompleted(id, fileUri, bytes, now())
+        store.updateCompleted(id, fileUri, bytes, task.loudnessGainDb, now())
         _changes.emit(DownloadChange.Completed(id, fileUri, bytes))
     }
 
@@ -398,7 +398,7 @@ class DownloadService(
         withContext(NonCancellable) {
             updates.close()
             writer.join()
-            store.updateCompleted(task.id, result.uri, result.bytes, now())
+            store.updateCompleted(task.id, result.uri, result.bytes, result.loudnessGainDb, now())
             _changes.emit(DownloadChange.Completed(task.id, result.uri, result.bytes))
             try {
                 store.get(task.id)?.let { onCompleted?.invoke(it, result) }

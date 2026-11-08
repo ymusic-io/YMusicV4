@@ -7,8 +7,6 @@ import {
   installMseGlobals,
   installPlaybackQuality,
   isLiveDuration,
-  mseCreateObjectURL,
-  mseRevokeObjectURL,
   dumpDrain,
   onLoopAtEnd,
   resetDrainCounts,
@@ -213,6 +211,9 @@ function onHtmlPause(): void {
 function onHtmlEnded(): void {
   notifyListen("state");
 }
+function onHtmlVolumechange(): void {
+  notifyListen("gain");
+}
 
 function unbindHtmlMediaEvents(): void {
   const v = boundHtmlMedia;
@@ -223,6 +224,7 @@ function unbindHtmlMediaEvents(): void {
   v["removeEventListener"]("play", onHtmlPlay);
   v["removeEventListener"]("pause", onHtmlPause);
   v["removeEventListener"]("ended", onHtmlEnded);
+  v["removeEventListener"]("volumechange", onHtmlVolumechange);
   boundHtmlMedia = null;
 }
 
@@ -238,6 +240,7 @@ function bindHtmlMediaEvents(): void {
   v["addEventListener"]("play", onHtmlPlay);
   v["addEventListener"]("pause", onHtmlPause);
   v["addEventListener"]("ended", onHtmlEnded);
+  v["addEventListener"]("volumechange", onHtmlVolumechange);
 }
 
 let iframeListenBound = false;
@@ -355,82 +358,6 @@ function asNative<T extends Function>(name: string, impl: T): T {
   return impl;
 }
 
-/** e2e C URL is a constructor with createObjectURL. Engine URL is `{createObjectURL}` only. */
-function installNativeUrl(): void {
-  const g = globalThis as unknown as Record<string, unknown>;
-  function urlCtor(this: Record<string, unknown>, url: unknown, base?: unknown) {
-    const o: Record<string, unknown> = this && this !== globalThis ? this : {};
-    let href = String(url == null ? "" : url);
-    let b = "";
-    if (base != null) {
-      b = typeof base === "string" ? base : String((base as Record<string, unknown>)["href"] || "");
-    }
-    if (href.indexOf("://") < 0) {
-      if (href.indexOf("//") === 0) href = "https:" + href;
-      else if (href.charAt(0) === "/") href = "https://www.youtube.com" + href;
-      else href = (b || "https://www.youtube.com/") + href;
-    }
-    let protocol = "https:";
-    let hostname = "www.youtube.com";
-    let pathname = "/";
-    let search = "";
-    let hash = "";
-    const proto = href.indexOf("://");
-    if (proto >= 0) {
-      protocol = href.slice(0, proto + 1);
-      const rest = href.slice(proto + 3);
-      const slash = rest.indexOf("/");
-      const q = rest.indexOf("?");
-      const h = rest.indexOf("#");
-      let hostEnd = rest.length;
-      if (slash >= 0 && slash < hostEnd) hostEnd = slash;
-      if (q >= 0 && q < hostEnd) hostEnd = q;
-      if (h >= 0 && h < hostEnd) hostEnd = h;
-      hostname = rest.slice(0, hostEnd);
-      pathname = slash >= 0 ? rest.slice(slash) : "/";
-    } else {
-      pathname = href.charAt(0) === "/" ? href : "/" + href;
-    }
-    const qi = pathname.indexOf("?");
-    const hi = pathname.indexOf("#");
-    if (hi >= 0) {
-      hash = pathname.slice(hi);
-      pathname = pathname.slice(0, hi);
-    }
-    if (qi >= 0) {
-      search = pathname.slice(qi);
-      pathname = pathname.slice(0, qi);
-    }
-    o["href"] = href;
-    o["protocol"] = protocol;
-    o["host"] = hostname;
-    o["hostname"] = hostname;
-    o["port"] = "";
-    o["pathname"] = pathname || "/";
-    o["search"] = search;
-    o["hash"] = hash;
-    o["origin"] = protocol + "//" + hostname;
-    o["username"] = "";
-    o["password"] = "";
-    o["toString"] = function () {
-      return String(o["href"]);
-    };
-    o["toJSON"] = function () {
-      return String(o["href"]);
-    };
-    return o;
-  }
-  const ctor = asNative("URL", urlCtor) as unknown as Function & Record<string, unknown>;
-  ctor.prototype = urlCtor.prototype || {};
-  ctor["createObjectURL"] = asNative("createObjectURL", function (obj: unknown) {
-    return mseCreateObjectURL(obj as { __id?: number });
-  });
-  ctor["revokeObjectURL"] = asNative("revokeObjectURL", function (url: unknown) {
-    mseRevokeObjectURL(String(url == null ? "" : url));
-  });
-  g["URL"] = ctor;
-}
-
 function installPlayerTree(): void {
   if (document.getElementById("player")) return;
   const player = document.createElement("div");
@@ -479,6 +406,7 @@ function enableSharedOwlFlag(): void {
   /* Bl(): server picks SABR itags; field 16/17 stay empty. Client filter instead. */
   flags["html5_enable_server_format_filter"] = false;
   flags["html5_enable_server_format_filter_for_drm"] = false;
+  flags["html5_enable_drc"] = true;
   // Player fetch gzips /youtubei/v1/player when this is on; jsonObject() then
   // sees gzip magic (0x1f) instead of `{`.
   flags["wug_networking_gzip_request"] = false;
@@ -794,7 +722,6 @@ class Player {
   private async doConfig(): Promise<Record<string, unknown>> {
     await initStep(playerStorageReady(), "player storage", "E20158");
     installOrigEnv();
-    installNativeUrl();
     setLocation(ORIGIN + "/", "/", "");
     const cfg = await initStep(fetchPlayerConfig(), "session scrape", "E20155");
     applyNavigatorLanguages(cfg["acceptLanguage"]);
@@ -893,6 +820,7 @@ class Player {
         "wug_networking_gzip_request": "false",
         "html5_enable_server_format_filter": "false",
         "html5_enable_server_format_filter_for_drm": "false",
+        "html5_enable_drc": "true",
       });
     }
     this.createFn = create as (r: unknown, a: unknown, b: unknown) => unknown;
@@ -1398,6 +1326,12 @@ class Player {
     };
   }
 
+  /** base.js writes its loudness gain for the presenting format to the media element's volume. */
+  gain(): Record<string, unknown> {
+    const v = activeHtmlMedia();
+    return { "value": v ? v["volume"] : 1 };
+  }
+
   /** The presenting video's owner channel, from its player response (absent until it lands). */
   details(): Record<string, unknown> {
     const videoId = this.currentVideoId();
@@ -1642,6 +1576,10 @@ export function detailsPlayer(): Record<string, unknown> {
   return ytPlayer.details();
 }
 
+export function gainPlayer(): Record<string, unknown> {
+  return ytPlayer.gain();
+}
+
 export function catalogPlayer(): Record<string, unknown> {
   return ytPlayer.catalog();
 }
@@ -1651,7 +1589,7 @@ export function catalogReady(): boolean {
   return moviePlayer() != null;
 }
 
-export type ListenKind = "progress" | "state" | "picture" | "details";
+export type ListenKind = "progress" | "state" | "picture" | "details" | "gain";
 
 let catalogHook: (() => void) | null = null;
 let listenHook: ((kind: ListenKind) => void) | null = null;

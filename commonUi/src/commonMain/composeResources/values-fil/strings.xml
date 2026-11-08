@@ -291,6 +291,10 @@
     <string name="cd_search">Maghanap</string>
     <string name="cd_back">Bumalik</string>
     <string name="cd_clear">I-clear</string>
+    <string name="cd_voice_search">Maghanap gamit ang boses</string>
+    <string name="voice_search_press_ok">Pindutin ang OK para maghanap gamit ang boses</string>
+    <string name="voice_search_listening">Nakikinig…</string>
+    <string name="voice_search_missed">Hindi naintindihan. Pindutin ang OK para subukan ulit</string>
     <string name="cd_close">Isara</string>
     <string name="cd_more">Higit pa</string>
     <string name="cd_collapse">I-collapse</string>
@@ -530,6 +534,13 @@
     <string name="dialog_ok">OK</string>
     <string name="folder_picker_disabled">Naka-off ang Files app ng system. I-on ito para pumili ng folder.</string>
     <string name="folder_picker_open_settings">Buksan ang settings</string>
+    <string name="folder_picker_title">Pumili ng folder ng musika</string>
+    <string name="folder_picker_use_folder">Gamitin ang folder na ito</string>
+    <string name="folder_picker_empty">Walang folder dito</string>
+    <string name="folder_picker_storage_denied">Payagan ang access sa iyong mga music file sa mga setting para makapili ng folder.</string>
+    <string name="folder_picker_companion_message">Walang folder picker ang device na ito. Para makapili ng mga folder, i-download at i-install ang YMusic Files, isang maliit na helper para sa YMusic, mula sa link na ito, saka subukan ulit.</string>
+    <string name="folder_picker_companion_update">Kailangang i-update ang YMusic Files para gumana sa bersyong ito ng YMusic. I-download at i-install ang pinakabagong bersyon mula sa link na ito, saka subukan ulit.</string>
+    <string name="folder_picker_companion_open">Buksan ang link</string>
     <string name="folder_picker_missing">Walang folder picker ang device na ito, kaya hindi makakapili ng folder.</string>
     <string name="error_supervised_account">Pinangangasiwaan ang Google account na ito, kaya hindi magagamit dito ang YouTube. Mag-sign out o lumipat sa ibang account.</string>
     <string name="settings_player_cache">Cache ng player</string>

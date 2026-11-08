@@ -291,6 +291,10 @@
     <string name="cd_search">Пребарај</string>
     <string name="cd_back">Назад</string>
     <string name="cd_clear">Исчисти</string>
+    <string name="cd_voice_search">Пребарување со глас</string>
+    <string name="voice_search_press_ok">Притиснете OK за пребарување со глас</string>
+    <string name="voice_search_listening">Слуша…</string>
+    <string name="voice_search_missed">Не беше разбрано. Притиснете OK за да се обидете повторно</string>
     <string name="cd_close">Затвори</string>
     <string name="cd_more">Повеќе</string>
     <string name="cd_collapse">Собери</string>
@@ -530,6 +534,13 @@
     <string name="dialog_ok">Во ред</string>
     <string name="folder_picker_disabled">Системската апликација „Датотеки“ е исклучена. Вклучете ја за да изберете папка.</string>
     <string name="folder_picker_open_settings">Отвори поставки</string>
+    <string name="folder_picker_title">Изберете папка со музика</string>
+    <string name="folder_picker_use_folder">Користи ја оваа папка</string>
+    <string name="folder_picker_empty">Тука нема папки</string>
+    <string name="folder_picker_storage_denied">За да изберете папка, дозволете пристап до музичките датотеки во поставките.</string>
+    <string name="folder_picker_companion_message">Овој уред нема алатка за избор на папки. За да избирате папки, преземете ја и инсталирајте ја YMusic Files, мала помошна апликација за YMusic, од оваа врска и обидете се повторно.</string>
+    <string name="folder_picker_companion_update">YMusic Files треба да се ажурира за да работи со оваа верзија на YMusic. Преземете ја и инсталирајте ја најновата верзија од оваа врска и обидете се повторно.</string>
+    <string name="folder_picker_companion_open">Отвори врска</string>
     <string name="folder_picker_missing">Овој уред нема алатка за избор на папка, па не може да се избере папка.</string>
     <string name="error_supervised_account">Оваа Google сметка е под надзор, па YouTube не може да се користи овде. Одјавете се или префрлете се на друга сметка.</string>
     <string name="settings_player_cache">Кеш на плеерот</string>

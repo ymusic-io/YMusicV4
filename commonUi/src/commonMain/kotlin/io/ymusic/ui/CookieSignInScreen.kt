@@ -1,8 +1,6 @@
-package io.ymusic.desktop
+package io.ymusic.ui
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,7 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -37,6 +34,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -47,21 +46,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.ymusic.remoteconfig.ApiService
-import io.ymusic.ui.ActionIcon
-import io.ymusic.ui.AppTextField
-import io.ymusic.ui.DesignColors
-import io.ymusic.ui.DesignSpacing
-import io.ymusic.ui.DeviceLinkOffer
-import io.ymusic.ui.DeviceLinkQrCode
-import io.ymusic.ui.ElevatedBarDialog
-import io.ymusic.ui.SessionCookie
-import io.ymusic.ui.awaitDeviceLinkCookies
-import io.ymusic.ui.closeDeviceLink
-import io.ymusic.ui.createDeviceLinkOffer
-import io.ymusic.ui.deviceLinkSas
-import io.ymusic.ui.looksLikeCurlPaste
-import io.ymusic.ui.looksSignedIn
-import io.ymusic.ui.parseCookiePaste
 import io.ymusic.ui.resources.Res
 import io.ymusic.ui.resources.cd_back
 import io.ymusic.ui.resources.cd_device_link_qr
@@ -93,16 +77,18 @@ import org.jetbrains.compose.resources.stringResource
 import projectcommon.log.captureUnlessNetwork
 
 @Composable
-fun DesktopCookieSignIn(
+fun CookieSignInScreen(
     /** The QR relay's service; null (no service url in this build) leaves only the paste flow working. */
     api: ApiService?,
     importCookies: suspend (List<SessionCookie>) -> Unit,
     loginStatus: suspend () -> Boolean,
-    /** Offers the "protect with a password" step after a successful sign-in; null skips it. */
-    protectWithPassword: (suspend (CharArray) -> Unit)?,
     logger: Logger?,
     onComplete: () -> Unit,
     onBack: () -> Unit,
+    /** How to copy cookies out of a browser; null drops the paste flow (a TV has nothing to paste with). */
+    pasteGuide: (@Composable () -> Unit)? = null,
+    /** A step shown after a successful sign-in, finishing with its callback; null completes at once. */
+    afterSignIn: (@Composable (onDone: () -> Unit) -> Unit)? = null,
 ) {
     val scope = rememberCoroutineScope()
     val log = remember(logger) { logger?.fork("device-link") }
@@ -135,7 +121,7 @@ fun DesktopCookieSignIn(
                     return
                 }
                 finished = true
-                if (protectWithPassword != null) protecting = true else onComplete()
+                if (afterSignIn != null) protecting = true else onComplete()
             } catch (c: CancellationException) {
                 throw c
             } catch (t: Throwable) {
@@ -168,11 +154,14 @@ fun DesktopCookieSignIn(
         }
     }
 
-    if (protecting && protectWithPassword != null) {
-        CookieProtectStep(protect = protectWithPassword, logger = logger?.fork("cookies"), onDone = onComplete)
+    if (protecting && afterSignIn != null) {
+        afterSignIn(onComplete)
         return
     }
 
+    // Without touch the button that opened this screen is gone, so focus would fall to whatever comes first (the rail).
+    val backFocus = remember { FocusRequester() }
+    if (!platformUsesTouch) LaunchedEffect(Unit) { backFocus.requestFocus() }
     Column(Modifier.fillMaxSize().background(DesignColors.Surface)) {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = DesignSpacing.Space8, vertical = DesignSpacing.Space4),
@@ -181,6 +170,7 @@ fun DesktopCookieSignIn(
             ActionIcon(
                 Icons.AutoMirrored.Filled.ArrowBack,
                 stringResource(Res.string.cd_back),
+                modifier = Modifier.focusRequester(backFocus),
                 onClick = {
                     if (pasteFlow) pasteFlow = false else onBack()
                 },
@@ -218,7 +208,7 @@ fun DesktopCookieSignIn(
                             textAlign = TextAlign.Center,
                             modifier = Modifier.fillMaxWidth(),
                         )
-                        CookieCopyGuide()
+                        pasteGuide?.invoke()
                         AppTextField(
                             value = paste,
                             onValueChange = { paste = it; pasteError = null },
@@ -350,14 +340,16 @@ fun DesktopCookieSignIn(
                                 }
                             }
                         }
-                        Text(
-                            stringResource(Res.string.signin_or_paste),
-                            style = TextStyle(fontSize = 13.sp, color = DesignColors.Accent),
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier
-                                .clickable { pasteFlow = true }
-                                .padding(vertical = DesignSpacing.Space8),
-                        )
+                        if (pasteGuide != null) {
+                            Text(
+                                stringResource(Res.string.signin_or_paste),
+                                style = TextStyle(fontSize = 13.sp, color = DesignColors.Accent),
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier
+                                    .clickable { pasteFlow = true }
+                                    .padding(vertical = DesignSpacing.Space8),
+                            )
+                        }
                     }
                 }
             }
@@ -384,46 +376,6 @@ fun DesktopCookieSignIn(
                 ),
             )
         }
-    }
-}
-
-@Composable
-internal fun AccentButton(text: String, enabled: Boolean, onClick: () -> Unit) {
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .background(
-                if (enabled) DesignColors.Accent else DesignColors.Accent.copy(alpha = 0.4f),
-                RoundedCornerShape(8.dp),
-            )
-            .clickable(enabled = enabled, onClick = onClick)
-            .padding(vertical = 14.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text.uppercase(),
-            style = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Bold, color = DesignColors.OnInk),
-        )
-    }
-}
-
-/** Neutral secondary peer for [AccentButton] — same footprint, outlined instead of filled. */
-@Composable
-internal fun OutlinedActionButton(text: String, enabled: Boolean, onClick: () -> Unit) {
-    val stroke = if (enabled) DesignColors.Outline else DesignColors.Outline.copy(alpha = 0.4f)
-    val textColor = if (enabled) DesignColors.Ink else DesignColors.Ink.copy(alpha = 0.4f)
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .border(BorderStroke(1.25.dp, stroke), RoundedCornerShape(8.dp))
-            .clickable(enabled = enabled, onClick = onClick)
-            .padding(vertical = 14.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text.uppercase(),
-            style = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Bold, color = textColor),
-        )
     }
 }
 

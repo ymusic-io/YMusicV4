@@ -14,11 +14,11 @@ object Versions {
     /** The scrape bundle's (engine.js) self-declared revision — BUMP MANUALLY on every remote push of
      *  it. Feeds its inlined BACKEND_VERSION, its embedded-const version and each shell's
      *  ENGINE_JS_VERSION. A remote engine.js applies only above the embedded revision. */
-    const val engineJsVersion = 95L
+    const val engineJsVersion = 96L
 
     /** The MSE player bundle's (player.js) revision — independent of [engineJsVersion]; BUMP
      *  MANUALLY on every remote push of it. Feeds its inlined BACKEND_VERSION and PLAYER_JS_VERSION. */
-    const val playerJsVersion = 119L
+    const val playerJsVersion = 136L
     const val targetSdk = 35
 
     // KMP
@@ -42,6 +42,7 @@ object Versions {
     const val lifecycleRuntimeKtx = "2.8.7"
     const val activityCompose = "1.9.3"
     const val cameraX = "1.4.2"
+    const val carApp = "1.7.0"
     const val composeBom = "2024.12.01"
 
     // JS toolchain (:engine-js, run via npx — Node required at build)
@@ -80,6 +81,7 @@ object Libs {
         const val activityCompose = "androidx.activity:activity-compose:${Versions.activityCompose}"
         const val biometric = "androidx.biometric:biometric:1.1.0"
         const val palette = "androidx.palette:palette:1.0.0"
+        const val carApp = "androidx.car.app:app:${Versions.carApp}"
 
         // biometric 1.1.0 drags in fragment 1.2.5, whose FragmentActivity rejects the request codes
         // registerForActivityResult issues ("Can only use lower 16 bits for requestCode").

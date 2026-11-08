@@ -291,6 +291,10 @@
     <string name="cd_search">Търсене</string>
     <string name="cd_back">Назад</string>
     <string name="cd_clear">Изчисти</string>
+    <string name="cd_voice_search">Търсене с глас</string>
+    <string name="voice_search_press_ok">Натиснете OK за търсене с глас</string>
+    <string name="voice_search_listening">Слуша се…</string>
+    <string name="voice_search_missed">Не беше разпознато. Натиснете OK, за да опитате отново</string>
     <string name="cd_close">Затвори</string>
     <string name="cd_more">Още</string>
     <string name="cd_collapse">Свий</string>
@@ -530,6 +534,13 @@
     <string name="dialog_ok">OK</string>
     <string name="folder_picker_disabled">Системното приложение „Файлове“ е изключено. Включете го, за да изберете папка.</string>
     <string name="folder_picker_open_settings">Отвори настройките</string>
+    <string name="folder_picker_title">Изберете папка с музика</string>
+    <string name="folder_picker_use_folder">Използване на тази папка</string>
+    <string name="folder_picker_empty">Тук няма папки</string>
+    <string name="folder_picker_storage_denied">Разрешете достъп до музикалните си файлове в настройките, за да изберете папка.</string>
+    <string name="folder_picker_companion_message">Това устройство няма инструмент за избор на папки. За да избирате папки, изтеглете и инсталирайте YMusic Files – малко помощно приложение за YMusic, от тази връзка и опитайте отново.</string>
+    <string name="folder_picker_companion_update">YMusic Files трябва да се актуализира, за да работи с тази версия на YMusic. Изтеглете и инсталирайте най-новата версия от тази връзка и опитайте отново.</string>
+    <string name="folder_picker_companion_open">Отваряне на връзката</string>
     <string name="folder_picker_missing">Това устройство няма инструмент за избор на папка, затова не може да се избере папка.</string>
     <string name="error_supervised_account">Този профил в Google е под надзор, затова YouTube не може да се използва тук. Излезте или превключете към друг профил.</string>
     <string name="settings_player_cache">Кеш на плейъра</string>

@@ -3,9 +3,11 @@ name: release
 # The shipping build, run by pushing a release tag: git tag release-v4.0.0 && git push <remote> release-v4.0.0
 # Any branch: the tag alone picks the commit. The draft release waits for the tests and the bundle
 # compat check as well as the builds.
+# A prerelease-v* tag is a test build: the same full set of artifacts in a draft prerelease, no
+# CHANGELOG section in its notes, and Sentry environment "beta".
 on:
   push:
-    tags: ['release-*']
+    tags: ['release-*', 'prerelease-*']
 
 permissions:
   contents: read
@@ -15,10 +17,12 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  # Read by every Gradle run as -PsentryEnvironment.
+  ORG_GRADLE_PROJECT_sentryEnvironment: ${{ startsWith(github.ref_name, 'prerelease-') && 'beta' || 'production' }}
   # The ffmpeg-build commit the apps link against. Bumping it rebuilds every ffmpeg pack once;
   # otherwise each pack comes from the cache keyed on this ref.
   FFMPEG_BUILD_REPO: ymusic-io/ffmpeg-build
-  FFMPEG_BUILD_REF: d0a89492c442dbca24dfabd044b866299f0a97b1
+  FFMPEG_BUILD_REF: 4d2dc9ae0c73dc5f01733f18af070412013a6a93
   # The NDK (r28c) for the Android ffmpeg packs and the app's own native code, installed with the
   # runner's sdkmanager: the image's ANDROID_NDK_LATEST_HOME moves (r30 fails android-x86_64).
   NDK_VERSION: 28.2.13676358
@@ -767,7 +771,8 @@ jobs:
           if-no-files-found: error
 
       # Release notes: GitHub's "Full Changelog" compare line, the trusted-sources warning, then this
-      # version's section of CHANGELOG.md (the tag's "## <version>", e.g. release-v4.0.5 → "## 4.0.5").
+      # version's section of CHANGELOG.md (the tag's "## <version>", e.g. release-v4.0.5 → "## 4.0.5");
+      # a prerelease carries no CHANGELOG section.
       - name: Build the release notes
         env:
           GH_TOKEN: ${{ github.token }}
@@ -781,12 +786,14 @@ jobs:
           > **Only install YMusic from trusted sources:** [ymusic.io](https://ymusic.io) or [GitHub Releases](https://github.com/ymusic-io/YMusicV4/releases). Anyone can build a modified copy — bad actors can ship a fake app that steals your Google account credentials when you sign in.
 
           EOF
-          version="${TAG#*-v}"
-          section="$(awk -v head="## $version" '$0 == head { found = 1 } found && /^## / && $0 != head { exit } found' YMusicV4/CHANGELOG.md)"
-          if [ -z "$section" ]; then
-            echo "::warning::CHANGELOG.md has no '## $version' section; the release notes carry only the compare link"
-          else
-            printf '\n%s\n' "$section" >> "$notes"
+          if [[ "$TAG" != prerelease-* ]]; then
+            version="${TAG#*-v}"
+            section="$(awk -v head="## $version" '$0 == head { found = 1 } found && /^## / && $0 != head { exit } found' YMusicV4/CHANGELOG.md)"
+            if [ -z "$section" ]; then
+              echo "::warning::CHANGELOG.md has no '## $version' section; the release notes carry only the compare link"
+            else
+              printf '\n%s\n' "$section" >> "$notes"
+            fi
           fi
           cat "$notes" >> "$GITHUB_STEP_SUMMARY"
 
@@ -797,9 +804,11 @@ jobs:
         run: |
           set -euo pipefail
           notes="$RUNNER_TEMP/release-notes.md"
+          prerelease=()
+          [[ "$TAG" == prerelease-* ]] && prerelease=(--prerelease)
           draft="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft -q .isDraft 2>/dev/null || true)"
           case "$draft" in
-            "")    gh release create "$TAG" release/* --repo "$GITHUB_REPOSITORY" --draft \
+            "")    gh release create "$TAG" release/* --repo "$GITHUB_REPOSITORY" --draft "${prerelease[@]}" \
                      --title "$TAG" --notes-file "$notes" ;;
             # A re-run of the tag refreshes its draft's files and notes.
             true)  gh release upload "$TAG" release/* --repo "$GITHUB_REPOSITORY" --clobber

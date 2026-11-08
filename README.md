@@ -1,20 +1,61 @@
-# YMusic
+<p align="center">
+  <img src="desktopApp/ymusic.png" alt="YMusic logo" width="112" height="112">
+</p>
 
-A Kotlin Multiplatform music player for Android, desktop (MacOs, Windows, Linux), and iOS/iPad.
+<h1 align="center">YMusic</h1>
+
+<p align="center">
+  Music and videos from YouTube, plus your own library. One open-source app for Android, desktop and iOS.
+</p>
+
+<p align="center">
+  <a href="https://github.com/ymusic-io/YMusicV4/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/ymusic-io/YMusicV4"></a>
+  <a href="LICENSE"><img alt="License: GPL-3.0" src="https://img.shields.io/badge/license-GPL--3.0-2c7a2c"></a>
+  <img alt="Platforms: Android, Android TV, macOS, Windows, Linux, iOS" src="https://img.shields.io/badge/platforms-Android%20%C2%B7%20TV%20%C2%B7%20macOS%20%C2%B7%20Windows%20%C2%B7%20Linux%20%C2%B7%20iOS-6a3fb5">
+  <img alt="Built with Kotlin Multiplatform" src="https://img.shields.io/badge/built%20with-Kotlin%20Multiplatform-b35900">
+</p>
+
+<p align="center">
+  <b><a href="https://github.com/ymusic-io/YMusicV4/releases/latest">Download</a></b> ·
+  <b><a href="https://ymusic.io">Website</a></b> ·
+  <b><a href="CHANGELOG.md">Changelog</a></b> ·
+  <b><a href="https://github.com/ymusic-io/YMusicV4/issues">Report a bug</a></b>
+</p>
 
 > [!CAUTION]
-> **Only install YMusic from trusted sources:** [ymusic.io](https://ymusic.io) or [GitHub Releases](https://github.com/ymusic-io/YMusicV4/releases). Anyone can build a modified copy — bad actors can ship a fake app that steals your Google account credentials when you sign in.
+> **Only install YMusic from [ymusic.io](https://ymusic.io) or [GitHub Releases](https://github.com/ymusic-io/YMusicV4/releases).** Anyone can build a modified copy, and a fake app can steal your Google account when you sign in.
 >
-> **Misuse Disclaimer:**
 > The authors are not responsible for any misuse of the application.
+
+## Features
+
+Just another YouTube client, try it out yourself.
+Missing something? [Open a new issue](https://github.com/ymusic-io/YMusicV4/issues/new).
+
+## Download
+
+Get the latest version from the **[Releases page](https://github.com/ymusic-io/YMusicV4/releases/latest)**.
+
+| Platform                                  | Requires | File |
+|-------------------------------------------|---|---|
+| Android (phone, tablet, TV, Android Auto) | Android 7.0 | `.apk` |
+| macOS (Apple silicon, Intel)              | macOS 11 | `.dmg` |
+| Windows (x64, ARM64)                      | Windows 10 | `.exe` installer |
+| Linux (x64, ARM64)                        | Ubuntu 24.04, Debian 13 | `.deb` |
+| iOS, iPadOS                               | iOS 15 | build from source |
 
 ## Building
 
-Every platform needs **JDK 17+** (CI uses 21), **Node.js** (CI uses 22) and **CMake 3.20+**. Packaging
-an installer needs a full JDK that ships `jpackage` (e.g. Temurin; not a JBR). The desktop app is
-built on, and for, the machine's own OS and CPU.
+Every platform needs **JDK 17+** (CI uses 21), **Node.js** (CI uses 22) and **CMake 3.20+**, plus FFmpeg from
+[ffmpeg-build](https://github.com/ymusic-io/ffmpeg-build) checked out next to this repository.
 
-### FFmpeg
+```sh
+./gradlew :desktopApp:run            # desktop app
+./gradlew :androidApp:installDebug   # Android, on a connected device
+```
+
+<details>
+<summary><b>FFmpeg</b></summary>
 
 FFmpeg comes from [ffmpeg-build](https://github.com/ymusic-io/ffmpeg-build), checked out next to this
 repository (`../ffmpeg-build`) and built locally — nothing is downloaded. Check out the commit CI builds
@@ -32,7 +73,13 @@ scripts/build-android.sh arm64-v8a  # Android, once per ABI: armeabi-v7a, arm64-
 scripts/build-ios.sh                # iOS
 ```
 
-### Per platform
+</details>
+
+<details>
+<summary><b>macOS, Linux, Windows and Android prerequisites</b></summary>
+
+Packaging an installer needs a full JDK that ships `jpackage` (e.g. Temurin; not a JBR). The desktop app is
+built on, and for, the machine's own OS and CPU.
 
 - **macOS** — Xcode (the iOS app, and the command-line tools for the desktop natives). ffmpeg-build:
   `brew install nasm automake autoconf libtool pkg-config meson ninja`.
@@ -50,15 +97,15 @@ scripts/build-ios.sh                # iOS
 - **Android** — the Android SDK with NDK r28 (`28.2.13676358`). ffmpeg-build needs `ANDROID_NDK_ROOT`
   pointing at it, `nasm`, the autotools and `patchelf`.
 
-### Run
+</details>
 
-```sh
-./gradlew :desktopApp:run            # desktop app
-./gradlew :androidApp:installDebug   # Android, on a connected device
-```
+<details>
+<summary><b>iOS</b></summary>
 
 The iOS app builds from `iosApp/iosApp.xcodeproj` in Xcode; its Kotlin framework comes from
 `:iosAppKotlin` automatically.
+
+</details>
 
 ## License
 

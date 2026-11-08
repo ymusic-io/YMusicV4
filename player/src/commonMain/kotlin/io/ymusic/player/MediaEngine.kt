@@ -1,6 +1,7 @@
 package io.ymusic.player
 
 import kotlinx.coroutines.flow.StateFlow
+import kotlin.math.pow
 
 /**
  * A resolved, playable source. The `Player` router picks an engine by variant; each engine plays
@@ -21,6 +22,12 @@ sealed interface PlayableItem {
      *  durations for every queue row, not just the loaded one. */
     val durationMs: Long?
 
+    /** The YouTube video this item plays: always set for [YtMedia]; for [LocalMedia], the video a download came from. */
+    val videoId: String?
+
+    /** What the facade multiplies into the volume for this item; 1 when its engine levels it. */
+    val loudnessScale: Float get() = 1f
+
     /**
      * A local file. [uri] (a `file://` URI or an absolute path) is all the native-local engine needs;
      * the rest travels with the item so the UI (Now Playing display, play-count recording) never has
@@ -35,7 +42,14 @@ sealed interface PlayableItem {
         val album: String? = null,
         val thumbnailUrl: String? = null,
         override val durationMs: Long? = null,
+        /** dB from the file's measured loudness to its target; null when unmeasured. */
+        val loudnessGainDb: Double? = null,
+        override val videoId: String? = null,
     ) : PlayableItem {
+        /** YouTube's rule: loud files come down to the target, quiet ones are never raised. */
+        override val loudnessScale: Float
+            get() = loudnessGainDb?.let { 10.0.pow(minOf(it, 0.0) / 20).toFloat() } ?: 1f
+
         override val displayTitle: String get() = title ?: uri.substringAfterLast('/')
         override val displaySubtitle: String? get() = listOfNotNull(artist, album).joinToString(" · ").ifEmpty { null }
         override val displayThumbnailUrl: String? get() = thumbnailUrl
@@ -49,7 +63,7 @@ sealed interface PlayableItem {
      * [Progress.seekable] — DVR live is seekable, head-only live is not.
      */
     data class YtMedia(
-        val videoId: String,
+        override val videoId: String,
         val title: String? = null,
         val artist: String? = null,
         val thumbnailUrl: String? = null,

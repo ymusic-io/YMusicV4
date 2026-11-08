@@ -287,6 +287,10 @@
     <string name="cd_search">Cari</string>
     <string name="cd_back">Kembali</string>
     <string name="cd_clear">Hapus</string>
+    <string name="cd_voice_search">Telusuri dengan suara</string>
+    <string name="voice_search_press_ok">Tekan OK untuk menelusuri dengan suara</string>
+    <string name="voice_search_listening">Mendengarkan…</string>
+    <string name="voice_search_missed">Tidak dapat dipahami. Tekan OK untuk mencoba lagi</string>
     <string name="cd_close">Tutup</string>
     <string name="cd_more">Lainnya</string>
     <string name="cd_collapse">Ciutkan</string>
@@ -522,6 +526,13 @@
     <string name="dialog_ok">OK</string>
     <string name="folder_picker_disabled">Aplikasi File sistem dinonaktifkan. Aktifkan untuk memilih folder.</string>
     <string name="folder_picker_open_settings">Buka setelan</string>
+    <string name="folder_picker_title">Pilih folder musik</string>
+    <string name="folder_picker_use_folder">Gunakan folder ini</string>
+    <string name="folder_picker_empty">Tidak ada folder di sini</string>
+    <string name="folder_picker_storage_denied">Izinkan akses ke file musik Anda di setelan untuk memilih folder.</string>
+    <string name="folder_picker_companion_message">Perangkat ini tidak memiliki pemilih folder. Untuk memilih folder, download dan instal YMusic Files, aplikasi bantuan kecil untuk YMusic, dari link ini, lalu coba lagi.</string>
+    <string name="folder_picker_companion_update">YMusic Files perlu diupdate agar berfungsi dengan versi YMusic ini. Download dan instal versi terbaru dari link ini, lalu coba lagi.</string>
+    <string name="folder_picker_companion_open">Buka link</string>
     <string name="folder_picker_missing">Perangkat ini tidak memiliki pemilih folder, jadi folder tidak dapat dipilih.</string>
     <string name="error_supervised_account">Akun Google ini diawasi, jadi YouTube tidak dapat digunakan di sini. Logout atau beralih ke akun lain.</string>
     <string name="settings_player_cache">Cache pemutar</string>

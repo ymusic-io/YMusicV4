@@ -33,6 +33,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -69,10 +70,15 @@ import io.ymusic.ui.resources.search_filter_title
 import io.ymusic.ui.resources.search_no_results
 import io.ymusic.ui.resources.search_type_to_search
 import io.ymusic.ui.resources.search_youtube
+import io.ymusic.ui.resources.voice_search_listening
+import io.ymusic.ui.resources.voice_search_missed
+import io.ymusic.ui.resources.voice_search_press_ok
 import io.ymusic.ui.resources.ytmusic_search_hint
 import kmpcommon.log.Logger
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
@@ -164,6 +170,9 @@ fun SearchScreen(
     val s = session ?: remember { SearchSession.youtube(graph, scope) }
     var suggestions by remember { mutableStateOf(listOf<String>()) }
     var filterOpen by remember { mutableStateOf(false) }
+    var voiceStatus by remember { mutableStateOf(VoiceStatus.Idle) }
+    val voiceLevel = remember { mutableFloatStateOf(0f) }
+    var voiceJob by remember { mutableStateOf<Job?>(null) }
 
     val historyRaw by remember(graph) { graph.settings.string(SearchHistoryKey, "") }.collectAsState()
     val history = remember(historyRaw) { historyRaw.split('\n').filter { it.isNotBlank() } }
@@ -199,12 +208,45 @@ fun SearchScreen(
     fun submit(q: String) {
         val trimmed = q.trim().replace('\n', ' ')
         if (trimmed.isEmpty()) return
+        voiceJob?.cancel()
+        voiceStatus = VoiceStatus.Idle
         setField(trimmed)
         s.submitted = trimmed
         s.filterParams = null
         s.editing = false
         saveHistory(listOf(trimmed) + history.filter { it != trimmed })
         s.pager.refresh()
+    }
+
+    fun toggleVoice(listen: () -> Flow<SpeechEvent>) {
+        val wasListening = voiceStatus == VoiceStatus.Listening
+        voiceJob?.cancel()
+        voiceJob = null
+        voiceStatus = VoiceStatus.Idle
+        if (wasListening) return
+        voiceStatus = VoiceStatus.Listening
+        voiceLevel.floatValue = 0f
+        voiceJob = scope.launch {
+            graph.player.setVoiceDucked(true)
+            try {
+                listen().collect { event ->
+                    when (event) {
+                        is SpeechEvent.Level -> voiceLevel.floatValue = event.value
+                        is SpeechEvent.Partial -> setField(event.text)
+                        is SpeechEvent.Final -> submit(event.text)
+                        SpeechEvent.NoMatch -> voiceStatus = VoiceStatus.Missed
+                    }
+                }
+                if (voiceStatus == VoiceStatus.Listening) voiceStatus = VoiceStatus.Idle
+            } catch (c: kotlinx.coroutines.CancellationException) {
+                throw c
+            } catch (e: Exception) {
+                s.log?.log(Logger.Level.WARN, "speech to text failed", e)
+                voiceStatus = VoiceStatus.Missed
+            } finally {
+                graph.player.setVoiceDucked(false)
+            }
+        }
     }
 
     fun LazyListScope.historyRows(entries: List<String>, label: (String) -> AnnotatedString) {
@@ -227,6 +269,17 @@ fun SearchScreen(
                 onSubmit = ::submit,
                 onBack = { if (s.submitted != null) s.editing = false else onBack() },
                 placeholder = stringResource(s.hint),
+                onVoice = graph.speechToText?.let { listen -> { toggleVoice(listen) } },
+                voiceFirst = platformIsTelevision,
+                voiceListening = voiceStatus == VoiceStatus.Listening,
+                voiceLevel = { voiceLevel.floatValue },
+                voiceHint = stringResource(
+                    when (voiceStatus) {
+                        VoiceStatus.Idle -> Res.string.voice_search_press_ok
+                        VoiceStatus.Listening -> Res.string.voice_search_listening
+                        VoiceStatus.Missed -> Res.string.voice_search_missed
+                    },
+                ),
             )
             when {
                 s.field.text.isBlank() && history.isEmpty() -> CenteredBox {

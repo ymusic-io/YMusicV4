@@ -295,6 +295,10 @@
     <string name="cd_search">Traži</string>
     <string name="cd_back">Natrag</string>
     <string name="cd_clear">Očisti</string>
+    <string name="cd_voice_search">Glasovno pretraživanje</string>
+    <string name="voice_search_press_ok">Pritisnite OK za glasovno pretraživanje</string>
+    <string name="voice_search_listening">Slušam…</string>
+    <string name="voice_search_missed">Nije razumljivo. Pritisnite OK da biste pokušali ponovno</string>
     <string name="cd_close">Zatvori</string>
     <string name="cd_more">Više</string>
     <string name="cd_collapse">Sažmi</string>
@@ -538,6 +542,13 @@
     <string name="dialog_ok">U redu</string>
     <string name="folder_picker_disabled">Sustavna aplikacija Datoteke je isključena. Uključite je da biste odabrali mapu.</string>
     <string name="folder_picker_open_settings">Otvori postavke</string>
+    <string name="folder_picker_title">Odaberite mapu s glazbom</string>
+    <string name="folder_picker_use_folder">Koristi ovu mapu</string>
+    <string name="folder_picker_empty">Ovdje nema mapa</string>
+    <string name="folder_picker_storage_denied">Da biste odabrali mapu, u postavkama dopustite pristup glazbenim datotekama.</string>
+    <string name="folder_picker_companion_message">Ovaj uređaj nema alat za odabir mapa. Za odabir mapa preuzmite i instalirajte YMusic Files, malu pomoćnu aplikaciju za YMusic, s ove poveznice pa pokušajte ponovno.</string>
+    <string name="folder_picker_companion_update">YMusic Files treba ažurirati da bi radio s ovom verzijom YMusica. Preuzmite i instalirajte najnoviju verziju s ove poveznice pa pokušajte ponovno.</string>
+    <string name="folder_picker_companion_open">Otvori poveznicu</string>
     <string name="folder_picker_missing">Ovaj uređaj nema alat za odabir mape, pa se mapa ne može odabrati.</string>
     <string name="error_supervised_account">Ovaj Google račun je pod nadzorom pa se YouTube ovdje ne može koristiti. Odjavite se ili prijeđite na drugi račun.</string>
     <string name="settings_player_cache">Predmemorija playera</string>

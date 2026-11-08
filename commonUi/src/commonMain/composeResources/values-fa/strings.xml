@@ -291,6 +291,10 @@
     <string name="cd_search">جستجو</string>
     <string name="cd_back">بازگشت</string>
     <string name="cd_clear">پاک کردن</string>
+    <string name="cd_voice_search">جستجوی صوتی</string>
+    <string name="voice_search_press_ok">برای جستجوی صوتی، OK را فشار دهید</string>
+    <string name="voice_search_listening">درحال گوش دادن…</string>
+    <string name="voice_search_missed">متوجه نشدیم. برای امتحان دوباره، OK را فشار دهید</string>
     <string name="cd_close">بستن</string>
     <string name="cd_more">بیشتر</string>
     <string name="cd_collapse">جمع کردن</string>
@@ -530,6 +534,13 @@
     <string name="dialog_ok">تأیید</string>
     <string name="folder_picker_disabled">برنامه «فایل‌ها»ی سیستم خاموش است. برای انتخاب پوشه آن را روشن کنید.</string>
     <string name="folder_picker_open_settings">باز کردن تنظیمات</string>
+    <string name="folder_picker_title">یک پوشه موسیقی انتخاب کنید</string>
+    <string name="folder_picker_use_folder">استفاده از این پوشه</string>
+    <string name="folder_picker_empty">پوشه‌ای اینجا نیست</string>
+    <string name="folder_picker_storage_denied">برای انتخاب پوشه، در تنظیمات اجازه دسترسی به فایل‌های موسیقی را بدهید.</string>
+    <string name="folder_picker_companion_message">این دستگاه انتخابگر پوشه ندارد. برای انتخاب پوشه، YMusic Files را که یک برنامه کمکی کوچک برای YMusic است از این پیوند بارگیری و نصب کنید و دوباره امتحان کنید.</string>
+    <string name="folder_picker_companion_update">YMusic Files برای کار با این نسخه از YMusic باید به‌روز شود. جدیدترین نسخه را از این پیوند بارگیری و نصب کنید و دوباره امتحان کنید.</string>
+    <string name="folder_picker_companion_open">باز کردن پیوند</string>
     <string name="folder_picker_missing">این دستگاه انتخابگر پوشه ندارد، بنابراین نمی‌توان پوشه‌ای انتخاب کرد.</string>
     <string name="error_supervised_account">این حساب Google تحت نظارت است، بنابراین YouTube در اینجا قابل استفاده نیست. از سیستم خارج شوید یا به حساب دیگری بروید.</string>
     <string name="settings_player_cache">حافظه پنهان پخش‌کننده</string>

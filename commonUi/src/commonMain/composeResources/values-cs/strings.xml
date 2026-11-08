@@ -299,6 +299,10 @@
     <string name="cd_search">Hledat</string>
     <string name="cd_back">Zpět</string>
     <string name="cd_clear">Vymazat</string>
+    <string name="cd_voice_search">Hledat hlasem</string>
+    <string name="voice_search_press_ok">Stisknutím OK vyhledáte hlasem</string>
+    <string name="voice_search_listening">Poslouchám…</string>
+    <string name="voice_search_missed">Nerozuměl jsem. Stisknutím OK to zkuste znovu</string>
     <string name="cd_close">Zavřít</string>
     <string name="cd_more">Více</string>
     <string name="cd_collapse">Sbalit</string>
@@ -546,6 +550,13 @@
     <string name="dialog_ok">OK</string>
     <string name="folder_picker_disabled">Systémová aplikace Soubory je vypnutá. Zapněte ji, abyste mohli vybrat složku.</string>
     <string name="folder_picker_open_settings">Otevřít nastavení</string>
+    <string name="folder_picker_title">Vyberte hudební složku</string>
+    <string name="folder_picker_use_folder">Použít tuto složku</string>
+    <string name="folder_picker_empty">Žádné složky</string>
+    <string name="folder_picker_storage_denied">Chcete-li vybrat složku, povolte v nastavení přístup k hudebním souborům.</string>
+    <string name="folder_picker_companion_message">Toto zařízení nemá výběr složek. Chcete-li vybírat složky, stáhněte a nainstalujte z tohoto odkazu YMusic Files, malého pomocníka pro YMusic, a zkuste to znovu.</string>
+    <string name="folder_picker_companion_update">YMusic Files je potřeba aktualizovat, aby fungoval s touto verzí YMusic. Stáhněte a nainstalujte nejnovější verzi z tohoto odkazu a zkuste to znovu.</string>
+    <string name="folder_picker_companion_open">Otevřít odkaz</string>
     <string name="folder_picker_missing">Toto zařízení nemá výběr složek, takže složku nelze vybrat.</string>
     <string name="error_supervised_account">Tento účet Google je pod dohledem, takže zde YouTube nelze používat. Odhlaste se nebo přepněte na jiný účet.</string>
     <string name="settings_player_cache">Mezipaměť přehrávače</string>

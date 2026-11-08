@@ -352,6 +352,10 @@
     <string name="cd_search">Пошук</string>
     <string name="cd_back">Назад</string>
     <string name="cd_clear">Очистити</string>
+    <string name="cd_voice_search">Голосовий пошук</string>
+    <string name="voice_search_press_ok">Натисніть OK, щоб шукати голосом</string>
+    <string name="voice_search_listening">Слухаю…</string>
+    <string name="voice_search_missed">Не вдалося розпізнати. Натисніть OK, щоб повторити</string>
     <string name="cd_close">Закрити</string>
     <string name="cd_more">Більше</string>
     <string name="cd_collapse">Згорнути</string>
@@ -643,6 +647,12 @@
     <string name="dialog_ok">OK</string>
     <string name="folder_picker_disabled">Системний додаток «Файли» вимкнено. Увімкніть його, щоб вибрати папку.</string>
     <string name="folder_picker_open_settings">Відкрити налаштування</string>
+    <string name="folder_picker_use_folder">Вибрати цю папку</string>
+    <string name="folder_picker_empty">Тут немає папок</string>
+    <string name="folder_picker_storage_denied">Щоб вибрати папку, дозвольте в налаштуваннях доступ до музичних файлів.</string>
+    <string name="folder_picker_companion_message">На цьому пристрої немає засобу вибору папок. Щоб вибирати папки, завантажте за цим посиланням і встановіть YMusic Files — невеликий помічник для YMusic, — а потім спробуйте ще раз.</string>
+    <string name="folder_picker_companion_update">YMusic Files потрібно оновити, щоб він працював із цією версією YMusic. Завантажте за цим посиланням і встановіть останню версію, а потім спробуйте ще раз.</string>
+    <string name="folder_picker_companion_open">Відкрити посилання</string>
     <string name="folder_picker_missing">На цьому пристрої немає засобу вибору папок, тому вибрати папку неможливо.</string>
     <string name="error_supervised_account">Цей акаунт Google перебуває під наглядом, тому YouTube тут використовувати не можна. Вийдіть або перейдіть на інший акаунт.</string>
     <string name="captcha_verify">Підтвердити</string>

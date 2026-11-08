@@ -287,6 +287,10 @@
     <string name="cd_search">검색</string>
     <string name="cd_back">뒤로</string>
     <string name="cd_clear">지우기</string>
+    <string name="cd_voice_search">음성으로 검색</string>
+    <string name="voice_search_press_ok">음성으로 검색하려면 확인을 누르세요</string>
+    <string name="voice_search_listening">듣는 중…</string>
+    <string name="voice_search_missed">알아듣지 못했습니다. 다시 시도하려면 확인을 누르세요</string>
     <string name="cd_close">닫기</string>
     <string name="cd_more">더보기</string>
     <string name="cd_collapse">접기</string>
@@ -522,6 +526,13 @@
     <string name="dialog_ok">확인</string>
     <string name="folder_picker_disabled">시스템 파일 앱이 꺼져 있습니다. 폴더를 선택하려면 켜 주세요.</string>
     <string name="folder_picker_open_settings">설정 열기</string>
+    <string name="folder_picker_title">음악 폴더 선택</string>
+    <string name="folder_picker_use_folder">이 폴더 사용</string>
+    <string name="folder_picker_empty">폴더가 없습니다</string>
+    <string name="folder_picker_storage_denied">폴더를 선택하려면 설정에서 음악 파일 액세스를 허용하세요.</string>
+    <string name="folder_picker_companion_message">이 기기에는 폴더 선택 도구가 없습니다. 폴더를 선택하려면 이 링크에서 YMusic용 작은 도우미 앱인 YMusic Files를 다운로드해 설치한 후 다시 시도하세요.</string>
+    <string name="folder_picker_companion_update">이 버전의 YMusic에서 사용하려면 YMusic Files를 업데이트해야 합니다. 이 링크에서 최신 버전을 다운로드해 설치한 후 다시 시도하세요.</string>
+    <string name="folder_picker_companion_open">링크 열기</string>
     <string name="folder_picker_missing">이 기기에는 폴더 선택 도구가 없어 폴더를 선택할 수 없습니다.</string>
     <string name="error_supervised_account">이 Google 계정은 보호자 관리 계정이어서 여기서 YouTube를 사용할 수 없습니다. 로그아웃하거나 다른 계정으로 전환하세요.</string>
     <string name="settings_player_cache">플레이어 캐시</string>

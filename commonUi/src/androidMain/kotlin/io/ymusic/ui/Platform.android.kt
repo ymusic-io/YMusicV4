@@ -1,9 +1,13 @@
 package io.ymusic.ui
 
 import android.app.Activity
+import android.app.UiModeManager
+import android.content.Context
 import android.content.ContextWrapper
 import android.content.pm.ActivityInfo
+import android.content.res.Configuration
 import android.os.Build
+import android.view.accessibility.AccessibilityManager
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
@@ -13,9 +17,13 @@ import androidx.compose.foundation.systemGestureExclusion
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalView
@@ -27,7 +35,24 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 
-internal actual val platformUsesTouch: Boolean = true
+internal actual val platformUsesTouch: Boolean get() = !AndroidInputMode.television
+
+internal actual val platformIsTelevision: Boolean get() = AndroidInputMode.television
+
+/** How the device is driven, recorded by the app shell before any UI composes. */
+object AndroidInputMode {
+    /** A TV is driven by a D-pad, whatever touchscreen it reports: the emulator image claims one. */
+    @Volatile
+    internal var television = false
+        private set
+
+    val isTelevision: Boolean get() = television
+
+    fun init(context: Context) {
+        val uiMode = context.getSystemService(UiModeManager::class.java)
+        television = uiMode?.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION
+    }
+}
 
 internal actual val desktopLayoutHole: Boolean = false
 
@@ -46,6 +71,21 @@ internal actual fun Modifier.a11ySlider(
 @Composable
 internal actual fun PlatformBackHandler(enabled: Boolean, onBack: () -> Unit) {
     androidx.activity.compose.BackHandler(enabled, onBack)
+}
+
+@Composable
+internal actual fun rememberTouchExplorationEnabled(): Boolean {
+    val context = LocalContext.current
+    val manager = remember(context) { context.getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager }
+    var enabled by remember(manager) { mutableStateOf(manager?.isTouchExplorationEnabled == true) }
+    DisposableEffect(manager) {
+        if (manager == null) return@DisposableEffect onDispose {}
+        val listener = AccessibilityManager.TouchExplorationStateChangeListener { enabled = it }
+        manager.addTouchExplorationStateChangeListener(listener)
+        enabled = manager.isTouchExplorationEnabled
+        onDispose { manager.removeTouchExplorationStateChangeListener(listener) }
+    }
+    return enabled
 }
 
 @Composable
@@ -86,7 +126,7 @@ internal actual fun SyncSensorRotation(locked: Boolean) {
     }
 }
 
-internal actual val rotationLockSupported: Boolean = true
+internal actual val rotationLockSupported: Boolean get() = !AndroidInputMode.television
 
 @Composable
 internal actual fun SyncImmersiveSystemBars(immersive: Boolean) {

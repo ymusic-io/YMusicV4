@@ -291,6 +291,10 @@
     <string name="cd_search">शोधा</string>
     <string name="cd_back">मागे</string>
     <string name="cd_clear">साफ करा</string>
+    <string name="cd_voice_search">आवाजाने शोधा</string>
+    <string name="voice_search_press_ok">आवाजाने शोधण्यासाठी OK दाबा</string>
+    <string name="voice_search_listening">ऐकत आहे…</string>
+    <string name="voice_search_missed">समजले नाही. पुन्हा प्रयत्न करण्यासाठी OK दाबा</string>
     <string name="cd_close">बंद करा</string>
     <string name="cd_more">अधिक</string>
     <string name="cd_collapse">लहान करा</string>
@@ -530,6 +534,13 @@
     <string name="dialog_ok">ठीक आहे</string>
     <string name="folder_picker_disabled">सिस्टमचे Files ॲप बंद आहे. फोल्डर निवडण्यासाठी ते सुरू करा.</string>
     <string name="folder_picker_open_settings">सेटिंग्ज उघडा</string>
+    <string name="folder_picker_title">संगीत फोल्डर निवडा</string>
+    <string name="folder_picker_use_folder">हे फोल्डर वापरा</string>
+    <string name="folder_picker_empty">येथे कोणतेही फोल्डर नाहीत</string>
+    <string name="folder_picker_storage_denied">फोल्डर निवडण्यासाठी सेटिंग्जमध्ये तुमच्या संगीत फाइलचा ॲक्सेस द्या.</string>
+    <string name="folder_picker_companion_message">या डिव्हाइसमध्ये फोल्डर निवडक नाही. फोल्डर निवडण्यासाठी या लिंकवरून YMusic साठीचे छोटे साहाय्यक ॲप YMusic Files डाउनलोड करून इंस्टॉल करा, नंतर पुन्हा प्रयत्न करा.</string>
+    <string name="folder_picker_companion_update">YMusic च्या या आवृत्तीसोबत काम करण्यासाठी YMusic Files अपडेट करणे आवश्यक आहे. या लिंकवरून नवीनतम आवृत्ती डाउनलोड करून इंस्टॉल करा, नंतर पुन्हा प्रयत्न करा.</string>
+    <string name="folder_picker_companion_open">लिंक उघडा</string>
     <string name="folder_picker_missing">या डिव्हाइसमध्ये फोल्डर पिकर नाही, त्यामुळे फोल्डर निवडता येत नाही.</string>
     <string name="error_supervised_account">हे Google खाते देखरेखीखाली आहे, त्यामुळे येथे YouTube वापरता येत नाही. साइन आउट करा किंवा दुसऱ्या खात्यावर जा.</string>
     <string name="settings_player_cache">प्लेअर कॅशे</string>

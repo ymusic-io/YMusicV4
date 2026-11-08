@@ -11,7 +11,9 @@ import android.os.Build
 import android.telephony.PhoneStateListener
 import android.telephony.TelephonyManager
 import androidx.annotation.RequiresApi
+import androidx.car.app.connection.CarConnection
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Observer
 import io.ymusic.player.Player
 import io.ymusic.player.isPlaying
 import io.ymusic.settings.AppSettings
@@ -20,11 +22,15 @@ import io.ymusic.settings.flow
 import kmpcommon.log.Logger
 import kmpcommon.log.info
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
 
 /**
@@ -32,7 +38,8 @@ import kotlinx.coroutines.launch
  * focus and noisy handling stay off). Becoming-noisy always pauses. [AppSettings.audioFocus] picks
  * the rest: [AppSettings.AUDIO_FOCUS_APPS] holds audio focus (pause on loss, duck on can-duck) while
  * anything is queued; [AppSettings.AUDIO_FOCUS_CALLS] never requests focus and only pauses for the
- * length of a phone call.
+ * length of a phone call. While a car is connected focus is always followed: Android Auto plays the
+ * phone's media audio only for the focus holder, so unfocused playback is silent there.
  */
 class AudioFocusCoordinator(
     private val context: Context,
@@ -44,6 +51,9 @@ class AudioFocusCoordinator(
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     private var focusRequest: AudioFocusRequest? = null
     private var hasFocus = false
+
+    /** Still in the system focus stack: true through a transient loss, so the queue emptying abandons it. */
+    private var inFocusStack = false
     private var resumeOnGain = false
     private var ducked = false
     private var noisyRegistered = false
@@ -56,18 +66,22 @@ class AudioFocusCoordinator(
         when (change) {
             AudioManager.AUDIOFOCUS_LOSS -> {
                 hasFocus = false
+                inFocusStack = false
                 resumeOnGain = false
                 restoreDuck()
                 if (playing()) player.pause()
             }
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+                hasFocus = false
                 if (playing()) {
                     resumeOnGain = true
                     player.pause()
                 }
             }
+            // Still the focus holder while ducked: a request now would take GAIN back from the ducking app.
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> duck()
             AudioManager.AUDIOFOCUS_GAIN -> {
+                hasFocus = true
                 restoreDuck()
                 if (resumeOnGain) {
                     resumeOnGain = false
@@ -93,15 +107,22 @@ class AudioFocusCoordinator(
                 .collect { playing -> if (playing) registerNoisy() else unregisterNoisy() }
         }
         scope.launch {
-            settings.flow(AppSettings.audioFocus)
-                .map { it != AppSettings.AUDIO_FOCUS_CALLS }
+            combine(settings.flow(AppSettings.audioFocus), carConnected()) { mode, inCar ->
+                log.info("mode $mode car=$inCar")
+                mode != AppSettings.AUDIO_FOCUS_CALLS || inCar
+            }
                 .distinctUntilChanged()
-                .collectLatest { followFocus ->
-                    log.info(if (followFocus) "mode apps" else "mode calls")
-                    if (followFocus) followFocus() else pauseForCalls()
-                }
+                .collectLatest { followFocus -> if (followFocus) followFocus() else pauseForCalls() }
         }
     }
+
+    /** Android Auto projecting, or running on Android Automotive OS. */
+    private fun carConnected(): Flow<Boolean> = callbackFlow {
+        val type = CarConnection(context).type
+        val observer = Observer<Int> { trySend(it != CarConnection.CONNECTION_TYPE_NOT_CONNECTED) }
+        type.observeForever(observer)
+        awaitClose { type.removeObserver(observer) }
+    }.flowOn(Dispatchers.Main.immediate).distinctUntilChanged()
 
     /** Focus is requested on play and kept while paused (so a transient interruption can hand it
      *  back); it is abandoned once the queue is empty. */
@@ -192,11 +213,16 @@ class AudioFocusCoordinator(
             audioManager.requestAudioFocus(focusListener, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN)
         }
         hasFocus = result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        if (hasFocus) {
+            inFocusStack = true
+            resumeOnGain = false
+            restoreDuck()
+        }
         log.info("focus request result=$result")
     }
 
     private fun abandonFocus() {
-        if (!hasFocus) return
+        if (!inFocusStack) return
         if (Build.VERSION.SDK_INT >= 26) {
             focusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
         } else {
@@ -204,6 +230,7 @@ class AudioFocusCoordinator(
             audioManager.abandonAudioFocus(focusListener)
         }
         hasFocus = false
+        inFocusStack = false
         resumeOnGain = false
         log.info("focus abandoned")
     }

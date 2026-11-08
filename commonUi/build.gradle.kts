@@ -71,10 +71,11 @@ kotlin {
             }
         }
 
-        // The system back bridge (PlatformBackHandler) — the only Android-specific dependency.
+        // The system back bridge (PlatformBackHandler) and the device-link QR drawing.
         val androidMain by getting {
             dependencies {
                 implementation(Libs.AndroidX.activityCompose)
+                implementation(Libs.Zxing.core)
                 implementation(Libs.SqlDelight.androidDriver)
             }
         }

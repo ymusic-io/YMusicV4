@@ -291,6 +291,10 @@
     <string name="cd_search">Որոնել</string>
     <string name="cd_back">Հետ</string>
     <string name="cd_clear">Մաքրել</string>
+    <string name="cd_voice_search">Ձայնային որոնում</string>
+    <string name="voice_search_press_ok">Սեղմեք OK՝ ձայնով որոնելու համար</string>
+    <string name="voice_search_listening">Լսում է…</string>
+    <string name="voice_search_missed">Չհաջողվեց հասկանալ։ Սեղմեք OK՝ նորից փորձելու համար</string>
     <string name="cd_close">Փակել</string>
     <string name="cd_more">Ավելին</string>
     <string name="cd_collapse">Ծալել</string>
@@ -530,6 +534,13 @@
     <string name="dialog_ok">Լավ</string>
     <string name="folder_picker_disabled">Համակարգի Ֆայլեր հավելվածն անջատված է։ Միացրեք այն՝ թղթապանակ ընտրելու համար։</string>
     <string name="folder_picker_open_settings">Բացել կարգավորումները</string>
+    <string name="folder_picker_title">Ընտրեք երաժշտության թղթապանակ</string>
+    <string name="folder_picker_use_folder">Օգտագործել այս թղթապանակը</string>
+    <string name="folder_picker_empty">Այստեղ թղթապանակներ չկան</string>
+    <string name="folder_picker_storage_denied">Թղթապանակ ընտրելու համար կարգավորումներում թույլատրեք մուտքը ձեր երաժշտական ֆայլեր։</string>
+    <string name="folder_picker_companion_message">Այս սարքում թղթապանակ ընտրելու գործիք չկա։ Թղթապանակներ ընտրելու համար այս հղումից ներբեռնեք և տեղադրեք YMusic Files-ը՝ YMusic-ի փոքր օգնական հավելվածը, ապա նորից փորձեք։</string>
+    <string name="folder_picker_companion_update">YMusic Files-ը պետք է թարմացվի, որպեսզի աշխատի YMusic-ի այս տարբերակի հետ։ Ներբեռնեք և տեղադրեք վերջին տարբերակը այս հղումից, ապա նորից փորձեք։</string>
+    <string name="folder_picker_companion_open">Բացել հղումը</string>
     <string name="folder_picker_missing">Այս սարքը չունի թղթապանակի ընտրիչ, ուստի թղթապանակ ընտրել հնարավոր չէ։</string>
     <string name="error_supervised_account">Այս Google հաշիվը վերահսկվում է, ուստի YouTube-ն այստեղ հնարավոր չէ օգտագործել։ Դուրս եկեք կամ անցեք այլ հաշվի։</string>
     <string name="settings_player_cache">Նվագարկչի քեշ</string>

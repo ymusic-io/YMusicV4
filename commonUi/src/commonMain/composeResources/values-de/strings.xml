@@ -291,6 +291,10 @@
     <string name="cd_search">Suchen</string>
     <string name="cd_back">Zurück</string>
     <string name="cd_clear">Löschen</string>
+    <string name="cd_voice_search">Sprachsuche</string>
+    <string name="voice_search_press_ok">OK drücken, um per Sprache zu suchen</string>
+    <string name="voice_search_listening">Hört zu…</string>
+    <string name="voice_search_missed">Das wurde nicht verstanden. OK drücken, um es noch einmal zu versuchen</string>
     <string name="cd_close">Schließen</string>
     <string name="cd_more">Mehr</string>
     <string name="cd_collapse">Einklappen</string>
@@ -530,6 +534,13 @@
     <string name="dialog_ok">OK</string>
     <string name="folder_picker_disabled">Die System-App „Dateien“ ist deaktiviert. Aktiviere sie, um einen Ordner auszuwählen.</string>
     <string name="folder_picker_open_settings">Einstellungen öffnen</string>
+    <string name="folder_picker_title">Musikordner auswählen</string>
+    <string name="folder_picker_use_folder">Diesen Ordner verwenden</string>
+    <string name="folder_picker_empty">Keine Ordner vorhanden</string>
+    <string name="folder_picker_storage_denied">Erlaube in den Einstellungen den Zugriff auf deine Musikdateien, um einen Ordner auszuwählen.</string>
+    <string name="folder_picker_companion_message">Dieses Gerät hat keine Ordnerauswahl. Um Ordner auszuwählen, lade YMusic Files, eine kleine Hilfs-App für YMusic, über diesen Link herunter, installiere sie und versuche es dann erneut.</string>
+    <string name="folder_picker_companion_update">YMusic Files muss aktualisiert werden, um mit dieser YMusic-Version zu funktionieren. Lade die neueste Version über diesen Link herunter, installiere sie und versuche es dann erneut.</string>
+    <string name="folder_picker_companion_open">Link öffnen</string>
     <string name="folder_picker_missing">Dieses Gerät hat keine Ordnerauswahl, daher kann kein Ordner ausgewählt werden.</string>
     <string name="error_supervised_account">Dieses Google-Konto wird beaufsichtigt, daher kann YouTube hier nicht verwendet werden. Melde dich ab oder wechsle zu einem anderen Konto.</string>
     <string name="settings_player_cache">Player-Cache</string>

@@ -38,6 +38,8 @@ data class MediaStoreItem(
     val lastModified: Long,
     /** When this item was first indexed into the store (epoch millis) — the "date added". */
     val createdAt: Long,
+    /** dB from the file's measured loudness to its target; null when unmeasured. */
+    val loudnessGainDb: Double? = null,
 ) {
     /**
      * Stable content fingerprint used for playlist membership (see PlaylistItem): the YouTube video

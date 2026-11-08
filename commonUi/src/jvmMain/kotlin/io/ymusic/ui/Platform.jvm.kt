@@ -12,6 +12,8 @@ import javax.accessibility.AccessibleRole
 
 internal actual val platformUsesTouch: Boolean = false
 
+internal actual val platformIsTelevision: Boolean = false
+
 internal actual val desktopLayoutHole: Boolean = true
 
 actual fun Modifier.a11yActionLabel(label: String?): Modifier =
@@ -36,6 +38,9 @@ internal actual fun Modifier.a11ySlider(
 internal actual fun PlatformBackHandler(enabled: Boolean, onBack: () -> Unit) {
     // No system back concept on desktop; navigation uses the in-app back arrows.
 }
+
+@Composable
+internal actual fun rememberTouchExplorationEnabled(): Boolean = false
 
 @Composable
 internal actual fun SyncSystemBars(dark: Boolean) {

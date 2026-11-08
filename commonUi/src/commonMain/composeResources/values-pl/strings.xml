@@ -299,6 +299,10 @@
     <string name="cd_search">Szukaj</string>
     <string name="cd_back">Wstecz</string>
     <string name="cd_clear">Wyczyść</string>
+    <string name="cd_voice_search">Wyszukiwanie głosowe</string>
+    <string name="voice_search_press_ok">Naciśnij OK, aby wyszukać głosowo</string>
+    <string name="voice_search_listening">Słucham…</string>
+    <string name="voice_search_missed">Nie udało się rozpoznać. Naciśnij OK, aby spróbować ponownie</string>
     <string name="cd_close">Zamknij</string>
     <string name="cd_more">Więcej</string>
     <string name="cd_collapse">Zwiń</string>
@@ -546,6 +550,13 @@
     <string name="dialog_ok">OK</string>
     <string name="folder_picker_disabled">Systemowa aplikacja Pliki jest wyłączona. Włącz ją, aby wybrać folder.</string>
     <string name="folder_picker_open_settings">Otwórz ustawienia</string>
+    <string name="folder_picker_title">Wybierz folder z muzyką</string>
+    <string name="folder_picker_use_folder">Użyj tego folderu</string>
+    <string name="folder_picker_empty">Brak folderów</string>
+    <string name="folder_picker_storage_denied">Aby wybrać folder, zezwól w ustawieniach na dostęp do plików muzycznych.</string>
+    <string name="folder_picker_companion_message">To urządzenie nie ma narzędzia do wybierania folderów. Aby wybierać foldery, pobierz z tego linku i zainstaluj YMusic Files – małą aplikację pomocniczą dla YMusic – a potem spróbuj ponownie.</string>
+    <string name="folder_picker_companion_update">YMusic Files wymaga aktualizacji, aby działać z tą wersją YMusic. Pobierz z tego linku i zainstaluj najnowszą wersję, a potem spróbuj ponownie.</string>
+    <string name="folder_picker_companion_open">Otwórz link</string>
     <string name="folder_picker_missing">To urządzenie nie ma narzędzia do wyboru folderu, więc nie można wybrać folderu.</string>
     <string name="error_supervised_account">To konto Google jest nadzorowane, więc nie można tu korzystać z YouTube. Wyloguj się lub przełącz na inne konto.</string>
     <string name="settings_player_cache">Pamięć podręczna odtwarzacza</string>

@@ -287,6 +287,10 @@
     <string name="cd_search">Cari</string>
     <string name="cd_back">Kembali</string>
     <string name="cd_clear">Kosongkan</string>
+    <string name="cd_voice_search">Cari dengan suara</string>
+    <string name="voice_search_press_ok">Tekan OK untuk mencari dengan suara</string>
+    <string name="voice_search_listening">Mendengar…</string>
+    <string name="voice_search_missed">Tidak dapat difahami. Tekan OK untuk mencuba lagi</string>
     <string name="cd_close">Tutup</string>
     <string name="cd_more">Lagi</string>
     <string name="cd_collapse">Kuncupkan</string>
@@ -522,6 +526,13 @@
     <string name="dialog_ok">OK</string>
     <string name="folder_picker_disabled">Apl Fail sistem dimatikan. Hidupkannya untuk memilih folder.</string>
     <string name="folder_picker_open_settings">Buka tetapan</string>
+    <string name="folder_picker_title">Pilih folder muzik</string>
+    <string name="folder_picker_use_folder">Gunakan folder ini</string>
+    <string name="folder_picker_empty">Tiada folder di sini</string>
+    <string name="folder_picker_storage_denied">Benarkan akses kepada fail muzik anda dalam tetapan untuk memilih folder.</string>
+    <string name="folder_picker_companion_message">Peranti ini tiada pemilih folder. Untuk memilih folder, muat turun dan pasang YMusic Files, aplikasi pembantu kecil untuk YMusic, daripada pautan ini, kemudian cuba lagi.</string>
+    <string name="folder_picker_companion_update">YMusic Files perlu dikemas kini untuk berfungsi dengan versi YMusic ini. Muat turun dan pasang versi terkini daripada pautan ini, kemudian cuba lagi.</string>
+    <string name="folder_picker_companion_open">Buka pautan</string>
     <string name="folder_picker_missing">Peranti ini tiada pemilih folder, jadi folder tidak boleh dipilih.</string>
     <string name="error_supervised_account">Akaun Google ini diselia, jadi YouTube tidak boleh digunakan di sini. Log keluar atau tukar kepada akaun lain.</string>
     <string name="settings_player_cache">Cache pemain</string>

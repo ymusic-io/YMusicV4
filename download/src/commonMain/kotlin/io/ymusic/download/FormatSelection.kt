@@ -87,7 +87,7 @@ internal object FormatSelection {
         videoStreams(formats, container).firstOrNull { it.streamId == stream }
 
     private fun audioStreams(formats: List<AdaptiveFormat>, codec: AudioCodec): List<AdaptiveFormat> =
-        formats.filter { it.mimeType.startsWith("audio") && it.clen > 0 && !it.isDrc && codec.accepts(it.mimeType) }
+        formats.filter { it.mimeType.startsWith("audio") && it.clen > 0 && !it.isDrc && !it.isVb && codec.accepts(it.mimeType) }
 
     /**
      * Video track nearest [requestedHeight] (or the highest when null), biased to the codec family that

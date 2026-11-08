@@ -291,6 +291,10 @@
     <string name="cd_search">Soek</string>
     <string name="cd_back">Terug</string>
     <string name="cd_clear">Vee uit</string>
+    <string name="cd_voice_search">Soek met stem</string>
+    <string name="voice_search_press_ok">Druk OK om met stem te soek</string>
+    <string name="voice_search_listening">Luister tans…</string>
+    <string name="voice_search_missed">Kon dit nie hoor nie. Druk OK om weer te probeer</string>
     <string name="cd_close">Maak toe</string>
     <string name="cd_more">Meer</string>
     <string name="cd_collapse">Vou in</string>
@@ -530,6 +534,13 @@
     <string name="dialog_ok">OK</string>
     <string name="folder_picker_disabled">Die stelsel se Lêers-app is afgeskakel. Skakel dit aan om ’n vouer te kies.</string>
     <string name="folder_picker_open_settings">Maak instellings oop</string>
+    <string name="folder_picker_title">Kies ’n musiekvouer</string>
+    <string name="folder_picker_use_folder">Gebruik hierdie vouer</string>
+    <string name="folder_picker_empty">Geen vouers hier nie</string>
+    <string name="folder_picker_storage_denied">Gee in instellings toegang tot jou musieklêers om ’n vouer te kies.</string>
+    <string name="folder_picker_companion_message">Hierdie toestel het geen vouerkieser nie. Laai YMusic Files, ’n klein hulpprogram vir YMusic, van hierdie skakel af en installeer dit om vouers te kies, en probeer dan weer.</string>
+    <string name="folder_picker_companion_update">YMusic Files moet opgedateer word om met hierdie weergawe van YMusic te werk. Laai die nuutste weergawe van hierdie skakel af, installeer dit en probeer dan weer.</string>
+    <string name="folder_picker_companion_open">Maak skakel oop</string>
     <string name="folder_picker_missing">Hierdie toestel het nie ’n vouerkieser nie, so ’n vouer kan nie gekies word nie.</string>
     <string name="error_supervised_account">Hierdie Google-rekening word onder toesig gebruik, so YouTube kan nie hier gebruik word nie. Meld af of skakel oor na 'n ander rekening.</string>
     <string name="settings_player_cache">Spelerkas</string>

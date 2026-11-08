@@ -31,19 +31,22 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.ymusic.ui.resources.Res
 import io.ymusic.ui.resources.app_name
 import io.ymusic.ui.resources.badge_premium
 import io.ymusic.ui.resources.update_check
-import io.ymusic.ui.resources.ymusic_logo
+import io.ymusic.ui.resources.ymusic_logo_square
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -51,6 +54,23 @@ import org.jetbrains.compose.resources.stringResource
 private val BrandGreenInk: Color @Composable get() = if (DesignColors.isDark) Color(0xFF4ADE80) else Color(0xFF15803D)
 private val BrandGreenBg: Color @Composable get() = if (DesignColors.isDark) Color(0xFF11301C) else Color(0xFFEAFAF0)
 private val BrandGreenBorder: Color @Composable get() = if (DesignColors.isDark) Color(0xFF1D4A2C) else Color(0xFFCDEED9)
+
+/** The logo, clipped to its disc here: clipped layer by layer, the rim's antialiasing compounds into a hard step. */
+@Composable
+internal fun AppLogo(size: Dp, modifier: Modifier = Modifier) {
+    Image(
+        painterResource(Res.drawable.ymusic_logo_square),
+        contentDescription = null,
+        modifier = modifier.size(size).clip(CircleShape),
+    )
+}
+
+/** The sections the app's navigation lists, on both the drawer and the rail. */
+internal fun listedSections(showCatalogue: Boolean, guest: Boolean, showDonate: Boolean): List<AppSection> =
+    AppSection.entries
+        .filter { it != AppSection.Catalogue || showCatalogue }
+        .filter { it != AppSection.PlayAgain || !guest }
+        .filter { it != AppSection.Donate || showDonate }
 
 /** The navigation drawer (design/final/drawer.html): brand header + three nav sections. */
 @Composable
@@ -82,10 +102,7 @@ fun AppDrawer(
             val updateWaiting = updateStatus is AppUpdateStatus.Offered
             DrawerHeader(appVersion, premium, onCheckUpdate, updateWaiting, websiteUrl)
             HorizontalDivider(color = DesignColors.Divider)
-            val listed = AppSection.entries
-                .filter { it != AppSection.Catalogue || showCatalogue }
-                .filter { it != AppSection.PlayAgain || !guest }
-                .filter { it != AppSection.Donate || showDonate }
+            val listed = listedSections(showCatalogue, guest, showDonate)
             // Keyed on open: Material3's drawer keeps its content composed while closed.
             val activeItemFocus = remember { FocusRequester() }
             LaunchedEffect(open) {
@@ -113,11 +130,7 @@ fun AppDrawer(
 private fun DrawerHeader(appVersion: String?, premium: Boolean, onCheckUpdate: (() -> Unit)?, updateWaiting: Boolean, websiteUrl: String) {
     Column(Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, top = 16.dp, bottom = 13.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Image(
-                painterResource(Res.drawable.ymusic_logo),
-                contentDescription = null,
-                modifier = Modifier.size(46.dp).clip(RoundedCornerShape(13.dp)),
-            )
+            AppLogo(46.dp)
             Column {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(
@@ -125,19 +138,7 @@ private fun DrawerHeader(appVersion: String?, premium: Boolean, onCheckUpdate: (
                         style = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = DesignColors.InkStrong),
                     )
                     if (premium) {
-                        Text(
-                            stringResource(Res.string.badge_premium),
-                            style = TextStyle(
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                letterSpacing = 0.54.sp,
-                                color = BrandGreenInk,
-                            ),
-                            modifier = Modifier
-                                .background(BrandGreenBg, RoundedCornerShape(5.dp))
-                                .border(1.dp, BrandGreenBorder, RoundedCornerShape(5.dp))
-                                .padding(horizontal = 6.dp, vertical = 2.dp),
-                        )
+                        PremiumBadge()
                     }
                 }
                 appVersion?.let {
@@ -149,19 +150,41 @@ private fun DrawerHeader(appVersion: String?, premium: Boolean, onCheckUpdate: (
                 }
             }
         }
-        // Text links under the logo, as in YMusicLegacy's drawer header; accent and a trailing dot while an update is waiting.
-        val uriHandler = LocalUriHandler.current
-        Column(Modifier.padding(top = DesignSpacing.Space8)) {
-            if (onCheckUpdate != null) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    HeaderLink(stringResource(Res.string.update_check), highlighted = updateWaiting, onClick = onCheckUpdate)
-                    if (updateWaiting) {
-                        Box(Modifier.size(DesignSpacing.Space8).background(DesignColors.Accent, CircleShape))
-                    }
+        DrawerLinks(onCheckUpdate, updateWaiting, websiteUrl)
+    }
+}
+
+@Composable
+internal fun PremiumBadge() {
+    Text(
+        stringResource(Res.string.badge_premium),
+        style = TextStyle(
+            fontSize = 9.sp,
+            fontWeight = FontWeight.ExtraBold,
+            letterSpacing = 0.54.sp,
+            color = BrandGreenInk,
+        ),
+        modifier = Modifier
+            .background(BrandGreenBg, RoundedCornerShape(5.dp))
+            .border(1.dp, BrandGreenBorder, RoundedCornerShape(5.dp))
+            .padding(horizontal = 6.dp, vertical = 2.dp),
+    )
+}
+
+/** Text links under the logo, as in YMusicLegacy's drawer header; accent and a trailing dot while an update is waiting. */
+@Composable
+internal fun DrawerLinks(onCheckUpdate: (() -> Unit)?, updateWaiting: Boolean, websiteUrl: String) {
+    val uriHandler = LocalUriHandler.current
+    Column(Modifier.padding(top = DesignSpacing.Space8)) {
+        if (onCheckUpdate != null) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                HeaderLink(stringResource(Res.string.update_check), highlighted = updateWaiting, onClick = onCheckUpdate)
+                if (updateWaiting) {
+                    Box(Modifier.size(DesignSpacing.Space8).background(DesignColors.Accent, CircleShape))
                 }
             }
-            HeaderLink("ymusic.io") { uriHandler.openUri(websiteUrl) }
         }
+        HeaderLink("ymusic.io") { uriHandler.openUri(websiteUrl) }
     }
 }
 
@@ -182,15 +205,28 @@ private fun HeaderLink(text: String, highlighted: Boolean = false, onClick: () -
 }
 
 @Composable
-private fun DrawerItem(section: AppSection, active: Boolean, focusRequester: FocusRequester? = null, onClick: () -> Unit) =
-    DrawerRow(section.icon, stringResource(section.label), active, focusRequester, onClick)
+internal fun DrawerItem(
+    section: AppSection,
+    active: Boolean,
+    focusRequester: FocusRequester? = null,
+    shape: Shape = RectangleShape,
+    onClick: () -> Unit,
+) = DrawerRow(section.icon, stringResource(section.label), active, focusRequester, shape, onClick)
 
 @Composable
-private fun DrawerRow(icon: ImageVector, label: String, active: Boolean, focusRequester: FocusRequester? = null, onClick: () -> Unit) {
+private fun DrawerRow(
+    icon: ImageVector,
+    label: String,
+    active: Boolean,
+    focusRequester: FocusRequester?,
+    shape: Shape,
+    onClick: () -> Unit,
+) {
     val scheme = androidx.compose.material3.MaterialTheme.colorScheme
     val focusMod = if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier
     Box(
         Modifier.fillMaxWidth().then(focusMod)
+            .clip(shape)
             .clickable(onClick = onClick)
             .semantics { selected = active }
             .background(if (active) scheme.primaryContainer else Color.Transparent),

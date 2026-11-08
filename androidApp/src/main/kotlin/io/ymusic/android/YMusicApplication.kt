@@ -4,6 +4,7 @@ import android.app.Activity
 import android.app.Application
 import android.app.UiModeManager
 import android.content.ComponentCallbacks2
+import android.content.ContentResolver
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
@@ -11,6 +12,9 @@ import android.graphics.SurfaceTexture
 import android.hardware.display.DisplayManager
 import android.os.Build
 import android.os.SystemClock
+import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
+import android.system.OsConstants
 import android.util.DisplayMetrics
 import android.view.Display
 import android.view.Surface
@@ -36,6 +40,7 @@ import io.ymusic.dynamicengine.JsSourceProvider
 import io.ymusic.dynamicengine.androidEngineCacheStore
 import io.ymusic.dynamicengine.player.bindMseNativeLogs
 import io.ymusic.dynamicengine.playerJsSource
+import io.ymusic.dynamicengine.yt.ytLoginStatus
 import io.ymusic.imageloader.DiskScaledImageCache
 import io.ymusic.imageloader.DiskVariantIndex
 import io.ymusic.imageloader.ImageLoader
@@ -88,14 +93,17 @@ import io.ymusic.telemetry.installSentryPlayerVersion
 import io.ymusic.telemetry.installSentryRemoteTags
 import io.ymusic.telemetry.shareLogTraceWithSentry
 import io.ymusic.ui.APP_HTTP_TIMEOUT
+import io.ymusic.ui.AndroidInputMode
 import io.ymusic.ui.AppGraph
 import io.ymusic.ui.AppHttpClients
+import io.ymusic.ui.CookieSignInScreen
 import io.ymusic.ui.FolderWriteProblem
 import io.ymusic.ui.ScanResult
 import io.ymusic.ui.YtEngineSabrSpecResolver
 import io.ymusic.ui.bundleConfig
 import io.ymusic.ui.downloadLocationFolder
 import io.ymusic.ui.ensureAppLanguage
+import io.ymusic.ui.importSessionCookies
 import io.ymusic.ui.loaderYoutubeArt
 import io.ymusic.ui.mediaStoreArtFetcher
 import io.ymusic.ui.playhistory.PlayHistoryStore
@@ -110,6 +118,7 @@ import io.ymusic.ytmedia.cache.SqlDelightCacheStats
 import io.ymusic.ytmedia.cache.SqlDelightSegmentIndex
 import io.ymusic.ytmedia.cache.androidSegmentDatabaseDriver
 import io.ymusic.ytmedia.proxy.LocalMediaProxy
+import kmpcommon.WorkerThread
 import kmpcommon.log.Logger
 import kmpcommon.log.TeeLogger
 import kmpcommon.uri.Uri
@@ -130,6 +139,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.last
 import kotlinx.coroutines.flow.map
@@ -221,12 +231,20 @@ class YMusicApplication : Application() {
     /** The home-screen player widgets; live once the graph is built. */
     val widgets: PlayerWidgets by lazy { PlayerWidgets(this, appScope, rootLogger.fork("widgets")) }
 
-    /** The current Activity's SAF folder pick, registered while it lives. The graph is app-scoped
-     *  but a pick needs an Activity; a scan is always user-driven, so one is up when this runs. */
+    /** The current Activity's folder pick (a SAF tree, or a `file://` folder where the device has no tree
+     *  picker), registered while it lives. The graph is app-scoped but a pick needs an Activity; a scan is
+     *  always user-driven, so one is up when this runs. */
     @Volatile var folderPicker: (suspend () -> Uri?)? = null
 
     /** The current Activity's QR scan — same lifecycle as [folderPicker]. */
     @Volatile var qrScanner: (suspend () -> String?)? = null
+
+    /** The current Activity's voice search — same lifecycle as [folderPicker]. */
+    @Volatile internal var speechInput: AndroidSpeechInput? = null
+
+    private fun speechRecognitionAvailable(): Boolean =
+        packageManager.queryIntentActivities(Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH), 0).isNotEmpty() ||
+            SpeechRecognizer.isRecognitionAvailable(this)
 
     /** The current Activity's PIN / biometric prompt — same lifecycle as [folderPicker]. */
     @Volatile var deviceOwnerAuth: (suspend (String, String) -> Boolean)? = null
@@ -318,7 +336,7 @@ class YMusicApplication : Application() {
                     // Explicit and persisted: without it, ANR/tombstone events replayed by the next
                     // process take dist from the text after '+' in the release (the commit).
                     it.dist = BuildConfig.VERSION_CODE.toString()
-                    it.environment = if (BuildConfig.DEBUG) "debug" else "production"
+                    it.environment = if (BuildConfig.DEBUG) "debug" else BuildConfig.SENTRY_ENVIRONMENT
                     // One trace per app open: no new trace per Activity, and no gesture listener on
                     // every window (it cannot resolve Compose elements, so it only costs hooks).
                     it.isEnableAutoTraceIdGeneration = false
@@ -337,6 +355,7 @@ class YMusicApplication : Application() {
             engineFloor = maxOf(BuildConfig.ENGINE_JS_VERSION.toInt(), settings.flow(AppSettings.lastLoadedEngineJsVer).value),
             playerFloor = maxOf(EMBEDDED_PLAYER_JS_VERSION.toInt(), settings.flow(AppSettings.lastLoadedPlayerJsVer).value),
         )
+        AndroidInputMode.init(this)
         val api = BuildConfig.REMOTE_CONFIG_URL.takeIf { it.isNotBlank() }?.let { baseUrl ->
             HttpApiService(
                 client = http.engine.newBuilder().apply {
@@ -352,6 +371,7 @@ class YMusicApplication : Application() {
                 // The device's preferred ABI, so the service can offer its split APK.
                 arch = android.os.Build.SUPPORTED_ABIS.firstOrNull(),
                 bundles = runningBundles,
+                formFactor = if (AndroidInputMode.isTelevision) "tv" else null,
             )
         }
         // Flags, the newest JS bundle revisions, and update availability. Started here so the first
@@ -693,6 +713,9 @@ class YMusicApplication : Application() {
         }
 
         val versionName = packageManager.getPackageInfo(packageName, 0).versionName
+        // Decided before the graph: a TV signs in through the phone (QR) rather than a WebView it cannot type into.
+        AndroidInputMode.init(this)
+        val television = AndroidInputMode.isTelevision
         return AppGraph(
             shared.engines,
             player,
@@ -720,8 +743,12 @@ class YMusicApplication : Application() {
             scanLibraryFolder = { onProgress -> scanPickedFolder(shared.mediaStore, onProgress) },
             libraryFolderPicker = { pickAndRegisterFolder(shared.mediaStore) },
             canWriteFolder = { uri ->
-                checkCallingOrSelfUriPermission(android.net.Uri.parse(uri), Intent.FLAG_GRANT_WRITE_URI_PERMISSION) ==
-                    PackageManager.PERMISSION_GRANTED
+                val parsed = android.net.Uri.parse(uri)
+                if (parsed.scheme == ContentResolver.SCHEME_FILE) {
+                    File(checkNotNull(parsed.path) { "file uri without a path: $uri" }).canWrite()
+                } else {
+                    checkCallingOrSelfUriPermission(parsed, Intent.FLAG_GRANT_WRITE_URI_PERMISSION) == PackageManager.PERMISSION_GRANTED
+                }
             },
             probeDownloadFolder = { uri -> probeDownloadFolder(android.net.Uri.parse(uri)) },
             rescanLibrary = { folderUri, onProgress -> rescanKnownRoots(shared.mediaStore, folderUri, onProgress) },
@@ -729,6 +756,11 @@ class YMusicApplication : Application() {
             deleteFromDisk = { item ->
                 withContext(Dispatchers.IO) {
                     val uri = android.net.Uri.parse(item.uri.toString())
+                    if (uri.scheme == ContentResolver.SCHEME_FILE) {
+                        val file = File(checkNotNull(uri.path) { "file uri without a path: $uri" })
+                        if (!file.delete() && file.exists()) throw TechnicalException("E50009", "could not delete $file")
+                        return@withContext
+                    }
                     // Rides the persisted tree permission from the folder pick. A file that is already gone
                     // (or whose folder is) needs no delete: the caller still clears its library row.
                     if (!documentExists(uri)) return@withContext
@@ -760,8 +792,30 @@ class YMusicApplication : Application() {
             loginBrowser = { url, userAgent, state, onPageChanged, modifier ->
                 AndroidLoginBrowser(url, userAgent, state, onPageChanged, modifier)
             },
+            cookieSignIn = if (!television) {
+                null
+            } else {
+                { onComplete, onBack ->
+                    CookieSignInScreen(
+                        api = shared.api,
+                        importCookies = { shared.cookies.importSessionCookies(it) },
+                        loginStatus = { shared.engines.ytLoginStatus() },
+                        logger = rootLogger,
+                        onComplete = onComplete,
+                        onBack = onBack,
+                    )
+                }
+            },
             exportSessionCookies = { shared.cookies.exportSessionCookies() },
             scanQrCode = { qrScanner?.invoke() },
+            speechToText = if (speechRecognitionAvailable()) {
+                {
+                    val appLanguage = shared.settings.string(AppSettings.uiLanguage.key, "").value
+                    speechInput?.listen(appLanguage) ?: emptyFlow()
+                }
+            } else {
+                null
+            },
             confirmDeviceOwner = { title, subtitle ->
                 val fn = deviceOwnerAuth ?: error("no-lock")
                 fn(title, subtitle)
@@ -854,6 +908,9 @@ class YMusicApplication : Application() {
     /** Creates, writes and deletes a scratch file in [folder] — the steps a finished download takes. */
     private suspend fun probeDownloadFolder(folder: android.net.Uri): FolderWriteProblem? = withContext(Dispatchers.IO) {
         val log = rootLogger.fork("download-folder-probe", mapOf("folder" to folder.toString()))
+        if (folder.scheme == ContentResolver.SCHEME_FILE) {
+            return@withContext probeFileFolder(File(checkNotNull(folder.path) { "file uri without a path: $folder" }), log)
+        }
         if (checkCallingOrSelfUriPermission(folder, Intent.FLAG_GRANT_WRITE_URI_PERMISSION) != PackageManager.PERMISSION_GRANTED) {
             return@withContext FolderWriteProblem.NoPermission
         }
@@ -889,6 +946,27 @@ class YMusicApplication : Application() {
             } catch (e: Exception) {
                 log.log(Logger.Level.WARN, "test file left behind", e)
             }
+        }
+    }
+
+    @WorkerThread
+    private fun probeFileFolder(folder: File, log: Logger): FolderWriteProblem? {
+        if (!folder.isDirectory) return FolderWriteProblem.Missing
+        // Named as audio: on scoped storage the folder decides which file types it accepts.
+        val probe = File(folder, ".ymusic-write-test.m4a")
+        return try {
+            java.io.FileOutputStream(probe).use { it.write(0) }
+            null
+        } catch (e: java.io.IOException) {
+            log.log(Logger.Level.WARN, "test file not writable", e)
+            val errno = (e.cause as? android.system.ErrnoException)?.errno
+            if (errno == OsConstants.EACCES || errno == OsConstants.EPERM || errno == OsConstants.EROFS) {
+                FolderWriteProblem.NoPermission
+            } else {
+                FolderWriteProblem.CannotCreateFiles
+            }
+        } finally {
+            if (probe.exists() && !probe.delete()) log.log(Logger.Level.WARN, "test file left behind")
         }
     }
 

@@ -15,9 +15,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Chat
@@ -55,6 +57,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
@@ -353,6 +356,8 @@ private fun AppRoot(
         // App-level so a scan started in Library keeps running (and still notifies) across sections.
         val scanController = graph.scans
         val drawer = rememberDrawerState(DrawerValue.Closed)
+        var railToggled by rememberSaveable { mutableStateOf<Boolean?>(null) }
+        var usesRail by remember { mutableStateOf(false) }
         if (catalogue == null) {
             LaunchedEffect(section) {
                 if (section == AppSection.Catalogue) onSection(AppSection.Discover)
@@ -840,10 +845,13 @@ private fun AppRoot(
         var updateRecheck by remember { mutableStateOf(0) }
         // The system back gesture/button walks the same path as the in-app back arrows: overlays
         // close first (drawer, Now Playing); the search input steps back to its results; then one
-        // layer of the CURRENT section's stack pops. A lateral section with nothing left to unwind
+        // layer of the CURRENT section's stack pops; then the section's own drill-down (a Library
+        // folder, playlist or album) steps up one level. A lateral section with nothing left to unwind
         // steps back to Discover — which restores its own retained stack — and only from Discover's
         // root is back left to the OS to exit the app.
-        val backEnabled = drawer.isOpen || nowPlayingOpen || layers.isNotEmpty() || section != AppSection.Discover
+        val nestedBack = remember { NestedBackStack() }
+        val backEnabled = drawer.isOpen || nowPlayingOpen || layers.isNotEmpty() || nestedBack.active ||
+            section != AppSection.Discover
         val onBack: () -> Unit = {
             val top = layers.lastOrNull()
             when {
@@ -856,6 +864,7 @@ private fun AppRoot(
                 top is AppLayer.Login && top.state.canGoBack -> top.state.goBack()
                 top is AppLayer.Verify && top.state.canGoBack -> top.state.goBack()
                 layers.isNotEmpty() -> popLayer()
+                nestedBack.active -> nestedBack.back()
                 else -> onSection(AppSection.Discover)
             }
         }
@@ -875,18 +884,37 @@ private fun AppRoot(
         val needsSurface = queue.currentItem is PlayableItem.YtMedia ||
             (queue.currentItem != null && showsVideo(playbackConfig, quality))
 
-        val holeOpen = desktopLayoutHole && nowPlayingOpen
+        // Without touch, nothing peeks at the shell under Now Playing: drop it so focus can't land behind.
+        val shellHidden = nowPlayingOpen && (desktopLayoutHole || !platformUsesTouch)
+        // The shell owns app-bar elevation: content reports its scroll via TrackScroll into this host, and the
+        // bar, the rail and the status-bar strip read it. (Content never touches them directly.)
+        val scrollHost = remember { ScrollHost() }
         Box(
             Modifier.fillMaxSize()
                 .then(if (desktopLayoutHole) Modifier else Modifier.background(DesignColors.Surface))
                 // Every screen that shows the drawer's Menu button (nothing pushed) takes the edge swipe.
-                .drawerEdgeGestureExclusion(!drawer.isOpen && !nowPlayingOpen && layers.isEmpty()),
+                .drawerEdgeGestureExclusion(!usesRail && !drawer.isOpen && !nowPlayingOpen && layers.isEmpty()),
         ) {
+            // The strip under the status bar is chrome too: it lifts with the app bar and rail beneath it.
+            if (!desktopLayoutHole) {
+                Box(
+                    Modifier.fillMaxWidth().windowInsetsTopHeight(WindowInsets.safeDrawing)
+                        .background(chromeTone(scrollHost.scrolled)),
+                )
+            }
             BoxWithConstraints(
                 Modifier.fillMaxSize().safeDrawingPadding(),
             ) {
+                val railWindow = windowUsesRail(maxWidth, maxHeight)
+                val railStartsOpen = windowStartsRailOpen(maxWidth)
+                val railExpanded = railToggled ?: railStartsOpen
+                SideEffect { usesRail = railWindow }
+                LaunchedEffect(railWindow, railStartsOpen) {
+                    railToggled = null
+                }
                 // design/final/home.html: landscape (or any window this wide) puts the tab row inline in the app bar.
-                val wide = maxWidth > maxHeight && maxWidth >= 600.dp || maxWidth >= 650.dp
+                val shellWidth = if (railWindow) maxWidth - DesignSpacing.RailExpandedWidth else maxWidth
+                val wide = shellWidth > maxHeight && shellWidth >= 600.dp || shellWidth >= 650.dp
                 // Fully covering Now Playing is opaque: skip drawing the feed/mini-player under it
                 // (4× GPU overdraw). Draw them again as soon as the sheet peeks so dismiss reveals.
                 val drawShell = !nowPlayingOpen || nowPlayingPeeking
@@ -896,42 +924,73 @@ private fun AppRoot(
                         // Not with the hole open (the box is empty then): desktop's a11y point
                         // hit-test returns the first child containing the point, so even an empty
                         // cleared node here would shadow Now Playing.
-                        .then(if (nowPlayingOpen && !holeOpen) Modifier.clearAndSetSemantics {} else Modifier),
+                        .then(if (nowPlayingOpen && !shellHidden) Modifier.clearAndSetSemantics {} else Modifier),
                 ) {
-                    if (!holeOpen) AppNavigationDrawer(
-                        drawerState = drawer,
-                        drawerContent = {
-                            AppDrawer(
-                                section = section,
-                                appVersion = graph.appVersion,
-                                guest = graph.guest,
-                                showCatalogue = catalogue != null,
-                                onSelect = { s ->
-                                    // Donate and Telegram are actions, not screens.
-                                    when (s) {
-                                        AppSection.Donate -> graph.openDonation?.invoke()
-                                        AppSection.Telegram -> uriHandler.openUri(AppLinks(config).telegram)
-                                        else -> openSection(s)
-                                    }
-                                    scope.launch { drawer.close() }
+                    val selectSection: (AppSection) -> Unit = { selected ->
+                        // Donate and Telegram are actions, not screens.
+                        when (selected) {
+                            AppSection.Donate -> graph.openDonation?.invoke()
+                            AppSection.Telegram -> uriHandler.openUri(AppLinks(config).telegram)
+                            else -> openSection(selected)
+                        }
+                        scope.launch { drawer.close() }
+                    }
+                    val onCheckUpdate: (() -> Unit)? = graph.updates?.let {
+                        {
+                            checkingUpdate = true
+                            scope.launch { drawer.close() }
+                        }
+                    }
+                    val shellFrame: @Composable (@Composable () -> Unit) -> Unit = if (railWindow) {
+                        { shell ->
+                            AppRail(
+                                rail = RailContent(
+                                    section = section,
+                                    sections = listedSections(catalogue != null, graph.guest, graph.openDonation != null),
+                                    appVersion = graph.appVersion,
+                                    premium = premium,
+                                    updateWaiting = graph.updates?.status?.collectAsState()?.value is AppUpdateStatus.Offered,
+                                    onCheckUpdate = onCheckUpdate,
+                                    websiteUrl = AppLinks(config).website,
+                                    onSelect = selectSection,
+                                ),
+                                expanded = railExpanded,
+                                onToggle = {
+                                    railToggled = !railExpanded
                                 },
-                                premium = premium,
-                                showDonate = graph.openDonation != null,
-                                websiteUrl = AppLinks(config).website,
-                                updates = graph.updates,
-                                onCheckUpdate = graph.updates?.let {
-                                    {
-                                        checkingUpdate = true
-                                        scope.launch { drawer.close() }
-                                    }
+                                coordinator = coordinator,
+                                surface = if (needsSurface && !nowPlayingOpen) graph.playerSurface else null,
+                                onExpandPlayer = {
+                                    graph.pip.nowPlayingOpen.value = true
                                 },
-                                open = drawer.isOpen,
+                                chromeElevated = scrollHost.scrolled,
+                                content = shell,
                             )
-                        },
-                    ) {
-                        // The shell owns app-bar elevation: content reports its scroll via TrackScroll into
-                        // this host, and the bar reads it. (Content never touches the bar directly.)
-                        val scrollHost = remember { ScrollHost() }
+                        }
+                    } else {
+                        { shell ->
+                            AppNavigationDrawer(
+                                drawerState = drawer,
+                                drawerContent = {
+                                    AppDrawer(
+                                        section = section,
+                                        appVersion = graph.appVersion,
+                                        guest = graph.guest,
+                                        showCatalogue = catalogue != null,
+                                        onSelect = selectSection,
+                                        premium = premium,
+                                        showDonate = graph.openDonation != null,
+                                        websiteUrl = AppLinks(config).website,
+                                        updates = graph.updates,
+                                        onCheckUpdate = onCheckUpdate,
+                                        open = drawer.isOpen,
+                                    )
+                                },
+                                content = shell,
+                            )
+                        }
+                    }
+                    if (!shellHidden) shellFrame {
                         // Touch platforms scroll the toolbar row away (enter-always) while the tab row
                         // stays pinned; with the tabs inline (wide) the bar carries them, so it stays put.
                         // Only the tabbed sections collapse: without a tab row below, a vanishing toolbar
@@ -957,7 +1016,7 @@ private fun AppRoot(
                             LocalScrollHost provides scrollHost,
                             LocalSnackbar provides showSnackbar,
                             LocalScanController provides scanController,
-                            LocalOpenNavDrawer provides { scope.launch { drawer.open() } },
+                            LocalOpenNavDrawer provides if (railWindow) null else { { scope.launch { drawer.open() } } },
                             LocalDownloadLauncher provides downloadLauncher,
                             LocalYtPlaylistActions provides ytPlaylistActions,
                             LocalAvailableOffline provides availableOffline,
@@ -995,7 +1054,7 @@ private fun AppRoot(
                                                     title = stringResource(
                                                         if (section == AppSection.Discover) discoverTab.label else section.label,
                                                     ),
-                                                    onMenu = { scope.launch { drawer.open() } },
+                                                    onMenu = if (railWindow) null else { { scope.launch { drawer.open() } } },
                                                     onSearch = sectionSearch,
                                                     // Inline tabs sit right after the title, so the slot
                                                     // reserves the widest tab label — the tabs must not
@@ -1114,7 +1173,7 @@ private fun AppRoot(
                                                     onSelect = { discoverTab = it },
                                                     onDragProgress = { discoverDrag = it },
                                                     leadingEdgeReserve = NavDrawerEdgeReserve,
-                                                    onLeadingEdgeSwipe = { scope.launch { drawer.open() } },
+                                                    onLeadingEdgeSwipe = if (railWindow) null else { { scope.launch { drawer.open() } } },
                                                 ) { current ->
                                                     DiscoverFeed(
                                                         graph,
@@ -1176,17 +1235,26 @@ private fun AppRoot(
                                         Column(
                                             Modifier.weight(1f).fillMaxWidth().padding(padding)
                                                 .background(DesignColors.Surface),
-                                        ) { screens() }
-                                        mini(Modifier.fillMaxWidth())
+                                        ) { CompositionLocalProvider(LocalNestedBack provides nestedBack) { screens() } }
+                                        if (!railWindow) mini(Modifier.fillMaxWidth())
                                     }
                                 } else {
-                                    val miniVisible = coordinator.player.queue.collectAsState().value.currentItem != null
+                                    val miniVisible = !railWindow && coordinator.player.queue.collectAsState().value.currentItem != null
                                     val miniInset = if (miniVisible) with(LocalDensity.current) { miniHeightPx.toDp() } else 0.dp
+                                    // A screen reader takes a row painted over by the bar as visible, focusing it without
+                                    // scrolling and skipping its ⋮; with one on, the content ends above the bar instead.
+                                    val contentEndsAboveMini = rememberTouchExplorationEnabled()
                                     Box(Modifier.fillMaxSize()) {
-                                        Column(Modifier.fillMaxSize().padding(padding)) {
-                                            CompositionLocalProvider(LocalMiniPlayerInset provides miniInset) { screens() }
+                                        Column(
+                                            Modifier.fillMaxSize().padding(padding)
+                                                .padding(bottom = if (contentEndsAboveMini) miniInset else 0.dp),
+                                        ) {
+                                            CompositionLocalProvider(
+                                                LocalMiniPlayerInset provides if (contentEndsAboveMini) 0.dp else miniInset,
+                                                LocalNestedBack provides nestedBack,
+                                            ) { screens() }
                                         }
-                                        mini(
+                                        if (!railWindow) mini(
                                             Modifier.align(Alignment.BottomCenter)
                                                 .fillMaxWidth()
                                                 .navigationBarsPadding(),

@@ -1,6 +1,9 @@
 package io.ymusic.ui
 
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
@@ -35,6 +38,8 @@ import kotlin.test.assertTrue
  * LIVE `/feed/you` capture (2026-07-30: richShelfRenderer shelves, playlist lockups with
  * "Private · Playlist" metadata rows and count thumbnail badges).
  */
+private val hasTabRole = SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab)
+
 @OptIn(ExperimentalTestApi::class)
 class AccountLibraryScreenTest {
 
@@ -159,7 +164,7 @@ class AccountLibraryScreenTest {
         try {
             runComposeUiTest {
                 setContent { App(AppGraph(settings = InMemorySettingsStore(), engines = engines, player = StubPlayer(), playerSurface = {})) }
-                onNodeWithActionLabel("Library").performClick()
+                onNode(hasActionLabel("Library") and hasTabRole).performClick()
                 waitUntilAtLeastOneExists(hasText("Sign in with YouTube"), 20_000)
                 onAllNodesWithText("Watch history").assertCountEquals(0)
             }
@@ -180,7 +185,7 @@ class AccountLibraryScreenTest {
         try {
             runComposeUiTest {
                 setContent { App(AppGraph(settings = InMemorySettingsStore(), engines = engines, player = StubPlayer(), playerSurface = {})) }
-                onNodeWithActionLabel("Library").performClick()
+                onNode(hasActionLabel("Library") and hasTabRole).performClick()
 
                 // The account card (from account_menu) over the cookie gate.
                 waitUntilAtLeastOneExists(hasText("Mock Account"), 20_000)

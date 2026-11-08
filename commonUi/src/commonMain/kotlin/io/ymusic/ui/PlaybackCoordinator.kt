@@ -214,10 +214,10 @@ class PlaybackCoordinator(
      * same id, tags and embedded-cover art as the Library; else the file by uri with [videoId]'s
      * thumbnail, resolved at the view size by the `art:` fetcher.
      */
-    suspend fun playDownloaded(uri: String, videoId: String, title: String, artist: String?) {
+    suspend fun playDownloaded(uri: String, videoId: String, title: String, artist: String?, loudnessGainDb: Double?) {
         val item = mediaStore?.findItemByUri(Uri.parse(uri))?.toLocalMedia() ?: run {
             val art = if (mediaStore != null) youtubeArtUrl(videoId) else youtubeThumbUrl(videoId)
-            PlayableItem.LocalMedia(uri = uri, title = title, artist = artist, thumbnailUrl = art)
+            PlayableItem.LocalMedia(uri = uri, title = title, artist = artist, thumbnailUrl = art, loudnessGainDb = loudnessGainDb, videoId = videoId)
         }
         player.setQueue(listOf(item), origin = QueueOrigin.Downloads)
     }
@@ -339,6 +339,8 @@ fun MediaStoreItem.toLocalMedia() = PlayableItem.LocalMedia(
     album = album,
     thumbnailUrl = localArtUrl(this),
     durationMs = durationMs,
+    loudnessGainDb = loudnessGainDb,
+    videoId = youtubeVid,
 )
 
 /** A scraped video as a self-describing queue item — keeps just what the UI + downloads need. */

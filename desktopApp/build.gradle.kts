@@ -30,7 +30,7 @@ compose.resources {
 val desktopVersion = appVersionName()
 // BUMP ON EVERY RELEASE. The update check compares this and nothing else — desktopVersion is a
 // display string. Every platform shares one versionCode (androidApp, iosApp's CFBundleVersion): bump them together.
-val desktopVersionCode = 22
+val desktopVersionCode = 25
 version = desktopVersion
 
 /** The first candidate JDK that carries jpackage — the marker for "full JDK, not a JBR/JRE". */
@@ -202,9 +202,11 @@ fun relinkMacJni(jni: File) {
 val generateBuildConfig by tasks.registering {
     val dsn = sentryDsn()
     val release = "ymusic-desktop@$desktopVersion+${gitCommit()}"
+    val environment = sentryEnvironment()
     val outDir = layout.buildDirectory.dir("generated/buildconfig/kotlin")
     inputs.property("dsn", dsn)
     inputs.property("release", release)
+    inputs.property("environment", environment)
     inputs.property("engineJsVersion", Versions.engineJsVersion)
     inputs.property("versionCode", desktopVersionCode)
     inputs.property("updatePublicKey", updatePublicKeyValue)
@@ -221,6 +223,7 @@ val generateBuildConfig by tasks.registering {
 
             internal const val SENTRY_DSN = "$dsn"
             internal const val SENTRY_RELEASE = "$release"
+            internal const val SENTRY_ENVIRONMENT = "$environment"
 
             // The jar's engine_ymusic.js resource revision (Versions.engineJsVersion).
             internal const val ENGINE_JS_VERSION: Long = ${Versions.engineJsVersion}L
@@ -327,15 +330,18 @@ compose.desktop {
         fullJdkHome?.let { javaHome = it }
         // Compose SwingPanel (MSE blit) needs AWT internals opened on the JBR/JDK.
         // Heap: without these, packaged HotSpot picks ~1/4 RAM (16g here) and
-        // InitialHeapSize=Xmx. Live use was ~50–97m objects / ~38m JIT code.
+        // InitialHeapSize=Xmx. Live use peaks ~31m browsing + video; Xmx keeps room for big libraries.
+        // GC threads: HotSpot sizes them by core count, and each parallel one costs ~2MB of queues.
         // Skia GPU cache default is 256m.
         jvmArgs(
             "--add-opens=java.desktop/sun.awt=ALL-UNNAMED",
             "--add-opens=java.desktop/sun.lwawt=ALL-UNNAMED",
             "--add-opens=java.desktop/sun.lwawt.macosx=ALL-UNNAMED",
             "--add-opens=java.desktop/sun.awt.X11=ALL-UNNAMED",
-            "-Xms96m",
-            "-Xmx256m",
+            "-Xms32m",
+            "-Xmx128m",
+            "-XX:ParallelGCThreads=4",
+            "-XX:ConcGCThreads=1",
             "-XX:ReservedCodeCacheSize=64m",
             "-Dskiko.gpu.resourceCacheLimit=64M",
             // POSIX_SPAWN execs the runtime's jspawnhelper, which an update replaces under the running

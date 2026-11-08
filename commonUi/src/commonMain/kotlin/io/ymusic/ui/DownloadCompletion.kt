@@ -53,6 +53,7 @@ suspend fun registerCompletedDownload(
             width = result.width,
             height = result.height,
             youtubeVid = task.videoId,
+            loudnessGainDb = result.loudnessGainDb,
         ),
     )
 }

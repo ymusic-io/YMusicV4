@@ -295,6 +295,10 @@
     <string name="cd_search">Cerca</string>
     <string name="cd_back">Indietro</string>
     <string name="cd_clear">Cancella</string>
+    <string name="cd_voice_search">Ricerca vocale</string>
+    <string name="voice_search_press_ok">Premi OK per cercare con la voce</string>
+    <string name="voice_search_listening">In ascolto…</string>
+    <string name="voice_search_missed">Non ho capito. Premi OK per riprovare</string>
     <string name="cd_close">Chiudi</string>
     <string name="cd_more">Altro</string>
     <string name="cd_collapse">Comprimi</string>
@@ -538,6 +542,13 @@
     <string name="dialog_ok">OK</string>
     <string name="folder_picker_disabled">L'app File di sistema è disattivata. Attivala per scegliere una cartella.</string>
     <string name="folder_picker_open_settings">Apri impostazioni</string>
+    <string name="folder_picker_title">Scegli una cartella musicale</string>
+    <string name="folder_picker_use_folder">Usa questa cartella</string>
+    <string name="folder_picker_empty">Nessuna cartella qui</string>
+    <string name="folder_picker_storage_denied">Consenti l’accesso ai tuoi file musicali nelle impostazioni per scegliere una cartella.</string>
+    <string name="folder_picker_companion_message">Questo dispositivo non ha un selettore di cartelle. Per scegliere le cartelle, scarica e installa YMusic Files, una piccola app di supporto per YMusic, da questo link e riprova.</string>
+    <string name="folder_picker_companion_update">YMusic Files deve essere aggiornato per funzionare con questa versione di YMusic. Scarica e installa la versione più recente da questo link e riprova.</string>
+    <string name="folder_picker_companion_open">Apri link</string>
     <string name="folder_picker_missing">Questo dispositivo non ha un selettore di cartelle, quindi non è possibile sceglierne una.</string>
     <string name="error_supervised_account">Questo account Google è supervisionato, quindi YouTube non può essere usato qui. Esci o passa a un altro account.</string>
     <string name="settings_player_cache">Cache del player</string>

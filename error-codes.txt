@@ -112,6 +112,8 @@ E50005 D playlist restore failed to write the store (commonUi PlaylistTransferSt
 E50006 D saving a local playlist's arrangement failed (commonUi ArrangePlaylistDialog)
 E50007 D the document provider refused to delete a library file (androidApp YMusicApplication.deleteFromDisk)
 E50008 D deleting a library file from disk failed, otherwise uncoded (commonUi DeleteFromDiskDialog)
+E50009 D a library file:// file could not be deleted (androidApp YMusicApplication.deleteFromDisk)
+E50011 D the installed YMusic Files has no folder picker activity (androidApp MainActivity.pickFolderWithCompanion)
 
 E60001 D bad media uri — AVURLAsset unopenable (player apple)
 E60002 D timed out preparing the AVPlayerItem (player apple)

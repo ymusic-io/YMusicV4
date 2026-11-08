@@ -103,9 +103,13 @@ internal class PlayerImpl(
         set(value) { _config.value = value }
 
     private var ducked = false
+    private var voiceDucked = false
+
+    /** [PlayableItem.loudnessScale] of the item last handed to an engine. */
+    private var loudnessScale = 1f
 
     /** What the engines apply: [currentConfig] with the audio effects flattened while they are off
-     *  and the volume lowered while [ducked]. */
+     *  and the volume lowered while [ducked] or [voiceDucked] and scaled by [loudnessScale]. */
     private val engineConfig: PlaybackConfig
         get() = currentConfig.let {
             if (it.inAppAudioFx) {
@@ -113,7 +117,11 @@ internal class PlayerImpl(
             } else {
                 it.copy(eqBands = List(10) { 0f }, bassBoostDb = 0f, virtualizer = 1f, preampDb = 0f)
             }
-        }.let { if (ducked) it.copy(volume = it.volume * DUCK_VOLUME) else it }
+        }.let {
+            val duck = minOf(if (ducked) DUCK_VOLUME else 1f, if (voiceDucked) VOICE_DUCK_VOLUME else 1f)
+            it.copy(volume = it.volume * duck)
+        }
+            .let { it.copy(volume = it.volume * loudnessScale) }
 
     /** The engine bound to the current item — internal routing state; not exposed (the UI hands one
      *  video container to the engines and each owns its own surface, so it never needs this). */
@@ -351,6 +359,12 @@ internal class PlayerImpl(
     override fun setDucked(ducked: Boolean) {
         if (this.ducked == ducked) return
         this.ducked = ducked
+        _currentEngine.value?.setConfig(engineConfig)
+    }
+
+    override fun setVoiceDucked(ducked: Boolean) {
+        if (voiceDucked == ducked) return
+        voiceDucked = ducked
         _currentEngine.value?.setConfig(engineConfig)
     }
 
@@ -726,6 +740,7 @@ internal class PlayerImpl(
     }
 
     private fun loadOn(engine: MediaEngine<*>, item: PlayableItem, startPositionMs: Long) {
+        loudnessScale = item.loudnessScale
         when (item) {
             is PlayableItem.LocalMedia ->
                 (engine as LocalPlayer).load(item, startPositionMs, playWhenReadyIntent, engineConfig)
@@ -965,6 +980,9 @@ internal class PlayerImpl(
 
     private companion object {
         const val DUCK_VOLUME = 0.3f
+
+        /** Low enough that music doesn't drown out the speaker's voice in the remote's mic. */
+        const val VOICE_DUCK_VOLUME = 0.1f
 
         /** Played longer than this, "previous" restarts the current track instead. */
         const val SMART_PREV_THRESHOLD_MS = 3_000L

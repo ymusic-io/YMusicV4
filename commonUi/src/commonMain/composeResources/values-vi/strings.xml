@@ -328,6 +328,10 @@
     <string name="cd_search">Tìm kiếm</string>
     <string name="cd_back">Quay lại</string>
     <string name="cd_clear">Xóa</string>
+    <string name="cd_voice_search">Tìm kiếm bằng giọng nói</string>
+    <string name="voice_search_press_ok">Nhấn OK để tìm kiếm bằng giọng nói</string>
+    <string name="voice_search_listening">Đang nghe…</string>
+    <string name="voice_search_missed">Không nghe rõ. Nhấn OK để thử lại</string>
     <string name="cd_close">Đóng</string>
     <string name="cd_more">Thêm</string>
     <string name="cd_collapse">Thu gọn</string>
@@ -600,6 +604,12 @@
     <string name="dialog_ok">OK</string>
     <string name="folder_picker_disabled">Ứng dụng Tệp của hệ thống đang bị tắt. Hãy bật nó lên để chọn thư mục.</string>
     <string name="folder_picker_open_settings">Mở cài đặt</string>
+    <string name="folder_picker_use_folder">Dùng thư mục này</string>
+    <string name="folder_picker_empty">Không có thư mục nào</string>
+    <string name="folder_picker_storage_denied">Hãy cho phép truy cập tệp nhạc trong phần cài đặt để chọn thư mục.</string>
+    <string name="folder_picker_companion_message">Thiết bị này không có trình chọn thư mục. Để chọn thư mục, hãy tải và cài YMusic Files, một ứng dụng trợ giúp nhỏ cho YMusic, từ đường dẫn này rồi thử lại.</string>
+    <string name="folder_picker_companion_update">YMusic Files cần được cập nhật để dùng được với phiên bản YMusic này. Hãy tải và cài phiên bản mới nhất từ đường dẫn này rồi thử lại.</string>
+    <string name="folder_picker_companion_open">Mở đường dẫn</string>
     <string name="folder_picker_missing">Thiết bị này không có trình chọn thư mục nên không thể chọn thư mục.</string>
     <string name="error_supervised_account">Tài khoản Google này đang được giám sát nên không thể dùng YouTube ở đây. Hãy đăng xuất hoặc chuyển sang tài khoản khác.</string>
     <string name="captcha_verify">Xác minh</string>

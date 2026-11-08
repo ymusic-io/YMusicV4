@@ -356,6 +356,10 @@
     <string name="cd_search">Search</string>
     <string name="cd_back">Back</string>
     <string name="cd_clear">Clear</string>
+    <string name="cd_voice_search">Search by voice</string>
+    <string name="voice_search_press_ok">Press OK to search by voice</string>
+    <string name="voice_search_listening">Listening…</string>
+    <string name="voice_search_missed">Didn't catch that. Press OK to try again</string>
     <string name="cd_close">Close</string>
     <string name="cd_more">More</string>
     <string name="cd_collapse">Collapse</string>
@@ -637,6 +641,12 @@
     <string name="dialog_ok">OK</string>
     <string name="folder_picker_disabled">The system Files app is turned off. Turn it on to choose a folder.</string>
     <string name="folder_picker_open_settings">Open settings</string>
+    <string name="folder_picker_use_folder">Use this folder</string>
+    <string name="folder_picker_empty">No folders here</string>
+    <string name="folder_picker_storage_denied">Allow access to your music files in settings to choose a folder.</string>
+    <string name="folder_picker_companion_message">This device has no folder picker. To choose folders, download and install YMusic Files, a small helper for YMusic, from this link, then try again.</string>
+    <string name="folder_picker_companion_update">YMusic Files needs an update to work with this version of YMusic. Download and install the latest version from this link, then try again.</string>
+    <string name="folder_picker_companion_open">Open link</string>
     <string name="folder_picker_missing">This device doesn't have a folder picker, so a folder can't be chosen.</string>
     <string name="error_supervised_account">This Google account is supervised, so YouTube can't be used here. Sign out or switch to another account.</string>
     <string name="captcha_verify">Verify</string>

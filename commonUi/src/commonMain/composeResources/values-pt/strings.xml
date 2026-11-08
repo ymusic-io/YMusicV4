@@ -295,6 +295,10 @@
     <string name="cd_search">Pesquisar</string>
     <string name="cd_back">Voltar</string>
     <string name="cd_clear">Limpar</string>
+    <string name="cd_voice_search">Pesquisar por voz</string>
+    <string name="voice_search_press_ok">Prima OK para pesquisar por voz</string>
+    <string name="voice_search_listening">A ouvir…</string>
+    <string name="voice_search_missed">Não foi possível perceber. Prima OK para tentar novamente</string>
     <string name="cd_close">Fechar</string>
     <string name="cd_more">Mais</string>
     <string name="cd_collapse">Recolher</string>
@@ -538,6 +542,13 @@
     <string name="dialog_ok">OK</string>
     <string name="folder_picker_disabled">O app Arquivos do sistema está desativado. Ative-o para escolher uma pasta.</string>
     <string name="folder_picker_open_settings">Abrir configurações</string>
+    <string name="folder_picker_title">Escolha uma pasta de música</string>
+    <string name="folder_picker_use_folder">Usar esta pasta</string>
+    <string name="folder_picker_empty">Nenhuma pasta aqui</string>
+    <string name="folder_picker_storage_denied">Permita o acesso aos seus arquivos de música nas configurações para escolher uma pasta.</string>
+    <string name="folder_picker_companion_message">Este dispositivo não tem seletor de pastas. Para escolher pastas, baixe e instale o YMusic Files, um pequeno app auxiliar do YMusic, a partir deste link e tente novamente.</string>
+    <string name="folder_picker_companion_update">O YMusic Files precisa ser atualizado para funcionar com esta versão do YMusic. Baixe e instale a versão mais recente a partir deste link e tente novamente.</string>
+    <string name="folder_picker_companion_open">Abrir link</string>
     <string name="folder_picker_missing">Este dispositivo não tem seletor de pastas, então não é possível escolher uma pasta.</string>
     <string name="error_supervised_account">Esta conta Google é supervisionada, por isso o YouTube não pode ser usado aqui. Saia ou mude para outra conta.</string>
     <string name="settings_player_cache">Cache do player</string>

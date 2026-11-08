@@ -8,12 +8,22 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <!-- Import from device: reads the playlists other music apps registered in MediaStore. -->
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <!-- With READ_EXTERNAL_STORAGE: the folder pick by path up to Android 10 on devices without the system
+         folder picker (MainActivity.pickFolderByPath). -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
     <!-- In-app updates: the downloaded APK is handed to PackageInstaller. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <!-- The CAMERA permission implies autofocus is required; the QR scan works without it. -->
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+    <!-- Android TV: installable without a touchscreen, and listed in the TV launcher. -->
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+    <uses-feature android:name="android.software.leanback" android:required="false" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
 
     <!-- Android 11+ package visibility: premium is "the Support Development app is installed", and
          Donate starts its donation screen. The folder picker tells a disabled system Files app from a missing one. -->
@@ -24,13 +34,45 @@
         <intent>
             <action android:name="android.intent.action.OPEN_DOCUMENT_TREE" />
         </intent>
+        <intent>
+            <action android:name="android.speech.action.RECOGNIZE_SPEECH" />
+        </intent>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+    </queries>
+
+    <!-- YMusic Files, the folder picker on Android 11+ devices without one (its package comes from the remote
+         config, so it is found by its action), the screens that grant it All files access, and a browser for its
+         download link (StorageCompanion). -->
+    <queries>
+        <!-- Every handler of the system folder pick, to launch only a trusted one (MainActivity.trustedFolderPicker). -->
+        <intent>
+            <action android:name="android.intent.action.OPEN_DOCUMENT_TREE" />
+        </intent>
+        <intent>
+            <action android:name="io.ymusic.android.saf.action.PICK_FOLDER" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.settings.MANAGE_APP_ALL_FILES_ACCESS_PERMISSION" />
+            <data android:scheme="package" />
+        </intent>
+        <intent>
+            <action android:name="android.settings.MANAGE_ALL_FILES_ACCESS_PERMISSION" />
+        </intent>
     </queries>
 
     <application
         android:name=".YMusicApplication"
         android:allowBackup="true"
         android:largeHeap="true"
+        android:requestLegacyExternalStorage="true"
         android:usesCleartextTraffic="${usesCleartextTraffic}"
+        android:banner="@drawable/tv_banner"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
@@ -46,6 +88,7 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
             </intent-filter>
 
             <!-- Outside links: opened at the matching page (commonUi IncomingLinks; the engine resolves them). -->

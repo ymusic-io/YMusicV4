@@ -291,6 +291,10 @@
     <string name="cd_search">खोज्नुहोस्</string>
     <string name="cd_back">पछाडि</string>
     <string name="cd_clear">खाली गर्नुहोस्</string>
+    <string name="cd_voice_search">आवाजबाट खोज्नुहोस्</string>
+    <string name="voice_search_press_ok">आवाजबाट खोज्न OK थिच्नुहोस्</string>
+    <string name="voice_search_listening">सुनिरहेको छ…</string>
+    <string name="voice_search_missed">बुझिएन। फेरि प्रयास गर्न OK थिच्नुहोस्</string>
     <string name="cd_close">बन्द गर्नुहोस्</string>
     <string name="cd_more">थप</string>
     <string name="cd_collapse">खुम्च्याउनुहोस्</string>
@@ -530,6 +534,13 @@
     <string name="dialog_ok">ठिक छ</string>
     <string name="folder_picker_disabled">सिस्टमको Files एप बन्द छ। फोल्डर छान्न यसलाई सक्रिय गर्नुहोस्।</string>
     <string name="folder_picker_open_settings">सेटिङ खोल्नुहोस्</string>
+    <string name="folder_picker_title">सङ्गीत फोल्डर छान्नुहोस्</string>
+    <string name="folder_picker_use_folder">यो फोल्डर प्रयोग गर्नुहोस्</string>
+    <string name="folder_picker_empty">यहाँ कुनै फोल्डर छैन</string>
+    <string name="folder_picker_storage_denied">फोल्डर छान्न सेटिङमा आफ्ना सङ्गीत फाइलहरूको पहुँच दिनुहोस्।</string>
+    <string name="folder_picker_companion_message">यो डिभाइसमा फोल्डर छान्ने सुविधा छैन। फोल्डर छान्न यो लिंकबाट YMusic को सानो सहायक एप YMusic Files डाउनलोड गरेर इन्स्टल गर्नुहोस्, अनि फेरि प्रयास गर्नुहोस्।</string>
+    <string name="folder_picker_companion_update">YMusic को यो संस्करणसँग काम गर्न YMusic Files अपडेट गर्नुपर्छ। यो लिंकबाट नयाँ संस्करण डाउनलोड गरेर इन्स्टल गर्नुहोस्, अनि फेरि प्रयास गर्नुहोस्।</string>
+    <string name="folder_picker_companion_open">लिंक खोल्नुहोस्</string>
     <string name="folder_picker_missing">यो डिभाइसमा फोल्डर पिकर छैन, त्यसैले फोल्डर छान्न सकिँदैन।</string>
     <string name="error_supervised_account">यो Google खाता निगरानीमा छ, त्यसैले यहाँ YouTube प्रयोग गर्न सकिँदैन। साइन आउट गर्नुहोस् वा अर्को खातामा जानुहोस्।</string>
     <string name="settings_player_cache">प्लेयर क्यास</string>

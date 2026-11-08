@@ -287,6 +287,10 @@
     <string name="cd_search">検索</string>
     <string name="cd_back">戻る</string>
     <string name="cd_clear">消去</string>
+    <string name="cd_voice_search">音声で検索</string>
+    <string name="voice_search_press_ok">OK を押して音声で検索</string>
+    <string name="voice_search_listening">聞き取り中…</string>
+    <string name="voice_search_missed">聞き取れませんでした。OK を押してもう一度お試しください</string>
     <string name="cd_close">閉じる</string>
     <string name="cd_more">その他</string>
     <string name="cd_collapse">折りたたむ</string>
@@ -522,6 +526,13 @@
     <string name="dialog_ok">OK</string>
     <string name="folder_picker_disabled">システムの「ファイル」アプリがオフになっています。フォルダを選択するにはオンにしてください。</string>
     <string name="folder_picker_open_settings">設定を開く</string>
+    <string name="folder_picker_title">音楽フォルダを選択</string>
+    <string name="folder_picker_use_folder">このフォルダを使用</string>
+    <string name="folder_picker_empty">フォルダがありません</string>
+    <string name="folder_picker_storage_denied">フォルダを選択するには、設定で音楽ファイルへのアクセスを許可してください。</string>
+    <string name="folder_picker_companion_message">この端末にはフォルダ選択機能がありません。フォルダを選ぶには、このリンクから YMusic 用の小さな補助アプリ YMusic Files をダウンロードしてインストールし、もう一度お試しください。</string>
+    <string name="folder_picker_companion_update">このバージョンの YMusic で使うには、YMusic Files を更新する必要があります。このリンクから最新版をダウンロードしてインストールし、もう一度お試しください。</string>
+    <string name="folder_picker_companion_open">リンクを開く</string>
     <string name="folder_picker_missing">このデバイスにはフォルダ選択機能がないため、フォルダを選択できません。</string>
     <string name="error_supervised_account">この Google アカウントは保護者による管理の対象のため、ここでは YouTube を使用できません。ログアウトするか、別のアカウントに切り替えてください。</string>
     <string name="settings_player_cache">プレーヤーキャッシュ</string>

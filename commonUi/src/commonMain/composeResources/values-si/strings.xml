@@ -291,6 +291,10 @@
     <string name="cd_search">සොයන්න</string>
     <string name="cd_back">ආපසු</string>
     <string name="cd_clear">හිස් කරන්න</string>
+    <string name="cd_voice_search">හඬින් සොයන්න</string>
+    <string name="voice_search_press_ok">හඬින් සෙවීමට OK ඔබන්න</string>
+    <string name="voice_search_listening">සවන් දෙමින්…</string>
+    <string name="voice_search_missed">තේරුම් ගත නොහැකි විය. නැවත උත්සාහ කිරීමට OK ඔබන්න</string>
     <string name="cd_close">වසන්න</string>
     <string name="cd_more">තව</string>
     <string name="cd_collapse">හකුළන්න</string>
@@ -530,6 +534,13 @@
     <string name="dialog_ok">හරි</string>
     <string name="folder_picker_disabled">පද්ධතියේ Files යෙදුම ක්‍රියාවිරහිතයි. ෆෝල්ඩරයක් තේරීමට එය ක්‍රියාත්මක කරන්න.</string>
     <string name="folder_picker_open_settings">සැකසීම් විවෘත කරන්න</string>
+    <string name="folder_picker_title">සංගීත ෆෝල්ඩරයක් තෝරන්න</string>
+    <string name="folder_picker_use_folder">මෙම ෆෝල්ඩරය භාවිත කරන්න</string>
+    <string name="folder_picker_empty">මෙහි ෆෝල්ඩර නැත</string>
+    <string name="folder_picker_storage_denied">ෆෝල්ඩරයක් තේරීමට සැකසීම් තුළ ඔබේ සංගීත ගොනු වෙත ප්‍රවේශය ඉඩ දෙන්න.</string>
+    <string name="folder_picker_companion_message">මෙම උපාංගයේ ෆෝල්ඩර තෝරනයක් නැත. ෆෝල්ඩර තේරීමට මෙම සබැඳියෙන් YMusic සඳහා වූ කුඩා සහායක යෙදුම වන YMusic Files බාගත කර ස්ථාපනය කර, නැවත උත්සාහ කරන්න.</string>
+    <string name="folder_picker_companion_update">YMusic හි මෙම අනුවාදය සමඟ ක්‍රියා කිරීමට YMusic Files යාවත්කාලීන කළ යුතුය. මෙම සබැඳියෙන් නවතම අනුවාදය බාගත කර ස්ථාපනය කර, නැවත උත්සාහ කරන්න.</string>
+    <string name="folder_picker_companion_open">සබැඳිය විවෘත කරන්න</string>
     <string name="folder_picker_missing">මෙම උපාංගයේ ෆෝල්ඩර තෝරනයක් නැති නිසා ෆෝල්ඩරයක් තේරිය නොහැක.</string>
     <string name="error_supervised_account">මෙම Google ගිණුම අධීක්ෂණය යටතේ ඇති බැවින් මෙහි YouTube භාවිත කළ නොහැක. වරන්න හෝ වෙනත් ගිණුමකට මාරු වන්න.</string>
     <string name="settings_player_cache">ප්ලේයර් හැඹිලිය</string>

@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -26,6 +25,7 @@ import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -193,7 +193,7 @@ fun DownloadsScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
     Box(Modifier.fillMaxSize()) {
         LazyVerticalGrid(
             state = gridState,
-            columns = GridCells.Adaptive(DownloadCardMinWidth),
+            columns = railStableAdaptive(DownloadCardMinWidth),
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(
                 start = DesignSpacing.MarginCompact,
@@ -237,7 +237,7 @@ fun DownloadsScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
                     },
                     onPlay = {
                         task.fileUri?.let { uri ->
-                            scope.launch { coordinator.playDownloaded(uri, task.videoId, task.title, task.artist) }
+                            scope.launch { coordinator.playDownloaded(uri, task.videoId, task.title, task.artist, task.loudnessGainDb) }
                         }
                     },
                     onRevealLibrary = if (store != null) ({
@@ -275,7 +275,8 @@ fun DownloadsScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
                 onClick = { if (running) service.pauseAll() else service.resumeAll() },
                 text = { Text(stringResource(if (running) Res.string.downloads_pause_all else Res.string.downloads_resume_all)) },
                 icon = { Icon(if (running) Icons.Filled.Pause else Icons.Filled.PlayArrow, null) },
-                modifier = Modifier.align(Alignment.BottomEnd).padding(bottom = LocalMiniPlayerInset.current).padding(DesignSpacing.Space16),
+                modifier = Modifier.align(Alignment.BottomEnd).padding(bottom = LocalMiniPlayerInset.current).padding(DesignSpacing.Space16)
+                    .focusRing(FloatingActionButtonDefaults.extendedFabShape),
             )
         }
     }
@@ -377,6 +378,7 @@ private fun DownloadCard(
                             Text(downloadErrorText(task), style = MaterialTheme.typography.bodySmall, color = c.danger, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                             Button(
                                 onClick = onRetry,
+                                modifier = Modifier.focusRing(RoundedCornerShape(percent = 50)),
                                 shape = RoundedCornerShape(percent = 50),
                                 colors = ButtonDefaults.buttonColors(containerColor = c.accent, contentColor = c.onAccent),
                                 contentPadding = PaddingValues(horizontal = DesignSpacing.Space16, vertical = DesignSpacing.Space4),

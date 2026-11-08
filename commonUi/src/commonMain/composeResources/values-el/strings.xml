@@ -291,6 +291,10 @@
     <string name="cd_search">Αναζήτηση</string>
     <string name="cd_back">Πίσω</string>
     <string name="cd_clear">Εκκαθάριση</string>
+    <string name="cd_voice_search">Φωνητική αναζήτηση</string>
+    <string name="voice_search_press_ok">Πατήστε OK για φωνητική αναζήτηση</string>
+    <string name="voice_search_listening">Ακρόαση…</string>
+    <string name="voice_search_missed">Δεν έγινε κατανοητό. Πατήστε OK για να δοκιμάσετε ξανά</string>
     <string name="cd_close">Κλείσιμο</string>
     <string name="cd_more">Περισσότερα</string>
     <string name="cd_collapse">Σύμπτυξη</string>
@@ -530,6 +534,13 @@
     <string name="dialog_ok">OK</string>
     <string name="folder_picker_disabled">Η εφαρμογή Αρχεία του συστήματος είναι απενεργοποιημένη. Ενεργοποιήστε την για να επιλέξετε φάκελο.</string>
     <string name="folder_picker_open_settings">Άνοιγμα ρυθμίσεων</string>
+    <string name="folder_picker_title">Επιλέξτε φάκελο μουσικής</string>
+    <string name="folder_picker_use_folder">Χρήση αυτού του φακέλου</string>
+    <string name="folder_picker_empty">Δεν υπάρχουν φάκελοι εδώ</string>
+    <string name="folder_picker_storage_denied">Επιτρέψτε την πρόσβαση στα αρχεία μουσικής από τις ρυθμίσεις για να επιλέξετε φάκελο.</string>
+    <string name="folder_picker_companion_message">Αυτή η συσκευή δεν έχει επιλογέα φακέλων. Για να επιλέγετε φακέλους, κατεβάστε και εγκαταστήστε από αυτόν τον σύνδεσμο το YMusic Files, μια μικρή βοηθητική εφαρμογή του YMusic, και δοκιμάστε ξανά.</string>
+    <string name="folder_picker_companion_update">Το YMusic Files χρειάζεται ενημέρωση για να λειτουργεί με αυτήν την έκδοση του YMusic. Κατεβάστε και εγκαταστήστε την πιο πρόσφατη έκδοση από αυτόν τον σύνδεσμο και δοκιμάστε ξανά.</string>
+    <string name="folder_picker_companion_open">Άνοιγμα συνδέσμου</string>
     <string name="folder_picker_missing">Αυτή η συσκευή δεν διαθέτει επιλογέα φακέλων, οπότε δεν μπορεί να επιλεγεί φάκελος.</string>
     <string name="error_supervised_account">Αυτός ο λογαριασμός Google είναι υπό επίβλεψη, επομένως το YouTube δεν μπορεί να χρησιμοποιηθεί εδώ. Αποσυνδεθείτε ή μεταβείτε σε άλλον λογαριασμό.</string>
     <string name="settings_player_cache">Κρυφή μνήμη αναπαραγωγής</string>

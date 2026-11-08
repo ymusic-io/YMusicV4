@@ -12,6 +12,8 @@ import platform.UIKit.UIApplication
 
 internal actual val platformUsesTouch: Boolean = true
 
+internal actual val platformIsTelevision: Boolean = false
+
 internal actual val desktopLayoutHole: Boolean = false
 
 actual fun Modifier.a11yActionLabel(label: String?): Modifier =
@@ -30,6 +32,9 @@ internal actual fun Modifier.a11ySlider(
 internal actual fun PlatformBackHandler(enabled: Boolean, onBack: () -> Unit) {
     // iOS has no system back button; the edge-swipe gesture can be wired here later.
 }
+
+@Composable
+internal actual fun rememberTouchExplorationEnabled(): Boolean = false
 
 @Composable
 internal actual fun SyncSystemBars(dark: Boolean) {

@@ -8,6 +8,9 @@ import androidx.compose.ui.Modifier
  *  gesture would steal any click whose press wanders a pixel. */
 internal expect val platformUsesTouch: Boolean
 
+/** A TV: driven by a D-pad from across the room. */
+internal expect val platformIsTelevision: Boolean
+
 /** Desktop Compose UI uses a transparent window with a layout hole over a video-only Frame. */
 internal expect val desktopLayoutHole: Boolean
 
@@ -15,6 +18,10 @@ internal expect val desktopLayoutHole: Boolean
  *  it instead of finishing the app. No-op on platforms without a system back concept. */
 @Composable
 internal expect fun PlatformBackHandler(enabled: Boolean, onBack: () -> Unit)
+
+/** Whether a touch screen reader (Android TalkBack) is exploring the screen; false where none is tracked. */
+@Composable
+internal expect fun rememberTouchExplorationEnabled(): Boolean
 
 /** Keeps OS chrome legible against the active theme — on Android, flips the status/navigation
  *  bar icon appearance to contrast the edge-to-edge app background. No-op elsewhere. */

@@ -453,6 +453,7 @@ private fun FoldersTab(
     // (id, displayName) instead of the bucket itself so the browse position survives the section
     // leaving composition (saveable): coming back from Discover reopens the same folder.
     var path by rememberSaveable(stateSaver = CrumbPathSaver) { mutableStateOf(listOf<Pair<Long, String>>()) }
+    NestedBackHandler(enabled = path.isNotEmpty()) { path = path.dropLast(1) }
     var folders by remember { mutableStateOf<List<MediaStoreBucket>?>(null) }
     var items by remember { mutableStateOf<List<MediaStoreItem>>(emptyList()) }
     val folderListState = rememberLazyListState()
@@ -565,9 +566,10 @@ private fun FoldersTab(
                 // as a wider list below them (see design/final/library.html). Songs are min-width
                 // sized — full-width when tight, splitting as the screen grows — and rendered as
                 // full-width weighted rows so they stay gap-free whatever the folder column count.
-                if (maxWidth >= LibraryGridMinWidth) {
-                    val columns = libraryGridColumns(maxWidth)
-                    val songsPerRow = librarySongColumns(maxWidth)
+                val layoutWidth = railStableWidth(maxWidth)
+                if (layoutWidth >= LibraryGridMinWidth) {
+                    val columns = libraryGridColumns(layoutWidth)
+                    val songsPerRow = librarySongColumns(layoutWidth)
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(columns),
                         modifier = Modifier.fillMaxSize(),
@@ -930,6 +932,7 @@ private fun PlaylistsTab(
     // (id, name) — saveable, so the opened playlist survives the tab leaving composition. Negative ids
     // are the system playlists; the name is the resolved display title.
     var selected by rememberSaveable(stateSaver = OpenPlaylistSaver) { mutableStateOf<Pair<Long, String>?>(null) }
+    NestedBackHandler(enabled = selected != null) { selected = null }
     var userLists by remember { mutableStateOf<List<Pair<Playlist, Int>>?>(null) }
     // Each user playlist's thumbnail: the art of its most recently added song that has artwork.
     var userArt by remember { mutableStateOf<Map<Long, String?>>(emptyMap()) }
@@ -1088,9 +1091,10 @@ private fun PlaylistsTab(
         LocalRemoveFromPlayHistory provides removeFromPlayHistory,
     ) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
-            if (maxWidth >= LibraryGridMinWidth) {
+            val layoutWidth = railStableWidth(maxWidth)
+            if (layoutWidth >= LibraryGridMinWidth) {
                 LazyVerticalGrid(
-                    columns = GridCells.Fixed(libraryGridColumns(maxWidth)),
+                    columns = GridCells.Fixed(libraryGridColumns(layoutWidth)),
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(start = LibraryGridPadding, end = LibraryGridPadding, top = 4.dp, bottom = 4.dp + LocalMiniPlayerInset.current),
                     state = gridState,
@@ -1102,7 +1106,7 @@ private fun PlaylistsTab(
                         }
                         if (showEmptyHint) item("empty", span = { GridItemSpan(maxLineSpan) }) { NoPlaylistsHint(transfer) }
                     } else {
-                        val perRow = librarySongColumns(maxWidth)
+                        val perRow = librarySongColumns(layoutWidth)
                         items(
                             songs.indices.chunked(perRow),
                             key = { songs[it.first()].id },
@@ -1493,9 +1497,10 @@ internal fun SongList(
     BoxWithConstraints(modifier.fillMaxSize()) {
         // Same min-width sizing as the Folders tab's songs: as many columns as keep each song
         // ≥ LibrarySongMinWidth, dropping to a single full-width column when that's all that fits.
-        if (maxWidth >= LibraryGridMinWidth) {
+        val layoutWidth = railStableWidth(maxWidth)
+        if (layoutWidth >= LibraryGridMinWidth) {
             LazyVerticalGrid(
-                columns = GridCells.Fixed(librarySongColumns(maxWidth)),
+                columns = GridCells.Fixed(librarySongColumns(layoutWidth)),
                 modifier = Modifier.fillMaxSize(),
                 state = gridState,
                 contentPadding = PaddingValues(bottom = LocalMiniPlayerInset.current),
@@ -1524,7 +1529,7 @@ internal fun SongRow(song: MediaStoreItem, coordinator: PlaybackCoordinator? = n
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onPlay)
-            .a11yActionLabel(listOfNotNull(song.title, length, sub.ifEmpty { null }).joinToString(", "))
+            .a11yRowLabel(listOfNotNull(song.title, length, sub.ifEmpty { null }).joinToString(", "))
             .padding(start = 16.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalAlignment = Alignment.Top,
@@ -1606,6 +1611,7 @@ private fun GroupedList(
 ) {
     // Saveable: the opened artist/album/genre survives the tab leaving composition.
     var group by rememberSaveable { mutableStateOf<String?>(null) }
+    NestedBackHandler(enabled = group != null) { group = null }
     val listState = rememberLazyListState()
     val gridState = rememberLazyGridState()
     LaunchedEffect(reveal) {
@@ -1656,9 +1662,10 @@ private fun GroupedList(
 
     TrackScroll { listState.canScrollBackward || gridState.canScrollBackward }
     BoxWithConstraints(Modifier.fillMaxSize()) {
-        if (maxWidth >= LibraryGridMinWidth) {
+        val layoutWidth = railStableWidth(maxWidth)
+        if (layoutWidth >= LibraryGridMinWidth) {
             LazyVerticalGrid(
-                columns = GridCells.Fixed(libraryGridColumns(maxWidth)),
+                columns = GridCells.Fixed(libraryGridColumns(layoutWidth)),
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(start = 10.dp, end = 10.dp, top = 4.dp, bottom = 4.dp + LocalMiniPlayerInset.current),
                 state = gridState,
@@ -1667,7 +1674,7 @@ private fun GroupedList(
                 if (selected == null) {
                     items(entries, key = { it.first }) { (name, members) -> GroupCard(icon, name, members) { group = name } }
                 } else {
-                    val perRow = librarySongColumns(maxWidth)
+                    val perRow = librarySongColumns(layoutWidth)
                     items(
                         groupSongs.indices.chunked(perRow),
                         key = { groupSongs[it.first()].id },

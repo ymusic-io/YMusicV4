@@ -38,7 +38,7 @@ class DownloadStoreTest {
         assertEquals(500, row.downloadedBytes)
         assertEquals(0.5f, row.progress)
 
-        store.updateCompleted("a", fileUri = "/out/a.mp3", bytes = 1000, updatedAt = 300)
+        store.updateCompleted("a", fileUri = "/out/a.mp3", bytes = 1000, loudnessGainDb = null, updatedAt = 300)
         row = store.all().first()
         assertEquals(DownloadState.COMPLETED, row.state)
         assertEquals("/out/a.mp3", row.fileUri)

@@ -21,6 +21,7 @@ import okio.IOException
 import okio.use
 import projectcommon.error.TechnicalException
 import projectcommon.error.codedError
+import kotlin.math.round
 
 /** Caption tracks to fetch: the ones a per-task [choice] names (MP3 and Opus take them as lyrics); else the
  *  track in [preferredLanguage] or, lacking it, the video's default; else none. */
@@ -57,10 +58,19 @@ class DownloadedStreams(
     val captions: List<DownloadedCaption>,
     /** The artist read from the player response, for when the request carried none. */
     val artist: String? = null,
+    private val loudnessTargetLkfs: Double? = null,
     /** The output format these streams are for: the task's, or MP4 when it asked for WebM video and the
      *  video has no WebM-muxable stream. */
     val format: DownloadFormat,
-)
+) {
+    /** dB from this audio's measured loudness to the video's target; null when YouTube gave neither. */
+    val loudnessGainDb: Double?
+        get() {
+            val measured = audio.format.loudnessLkfs ?: return null
+            val target = loudnessTargetLkfs ?: return null
+            return round((target - measured) * 100) / 100
+        }
+}
 
 /**
  * The download step of the pipeline: takes a queued [DownloadTask] and produces the elementary files
@@ -137,6 +147,7 @@ class YtStreamDownloader(
             video = videoFmt?.let { DownloadedStream(it, videoScratch!!) },
             captions = captionFiles,
             artist = resolved.artist,
+            loudnessTargetLkfs = resolved.loudnessTargetLkfs,
             format = format,
         )
     }

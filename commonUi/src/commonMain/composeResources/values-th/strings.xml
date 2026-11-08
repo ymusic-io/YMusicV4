@@ -287,6 +287,10 @@
     <string name="cd_search">ค้นหา</string>
     <string name="cd_back">กลับ</string>
     <string name="cd_clear">ล้าง</string>
+    <string name="cd_voice_search">ค้นหาด้วยเสียง</string>
+    <string name="voice_search_press_ok">กด OK เพื่อค้นหาด้วยเสียง</string>
+    <string name="voice_search_listening">กำลังฟัง…</string>
+    <string name="voice_search_missed">ฟังไม่ออก กด OK เพื่อลองอีกครั้ง</string>
     <string name="cd_close">ปิด</string>
     <string name="cd_more">เพิ่มเติม</string>
     <string name="cd_collapse">ยุบ</string>
@@ -522,6 +526,13 @@
     <string name="dialog_ok">ตกลง</string>
     <string name="folder_picker_disabled">แอปไฟล์ของระบบถูกปิดอยู่ เปิดแอปนี้เพื่อเลือกโฟลเดอร์</string>
     <string name="folder_picker_open_settings">เปิดการตั้งค่า</string>
+    <string name="folder_picker_title">เลือกโฟลเดอร์เพลง</string>
+    <string name="folder_picker_use_folder">ใช้โฟลเดอร์นี้</string>
+    <string name="folder_picker_empty">ไม่มีโฟลเดอร์ที่นี่</string>
+    <string name="folder_picker_storage_denied">อนุญาตให้เข้าถึงไฟล์เพลงของคุณในการตั้งค่าเพื่อเลือกโฟลเดอร์</string>
+    <string name="folder_picker_companion_message">อุปกรณ์นี้ไม่มีตัวเลือกโฟลเดอร์ หากต้องการเลือกโฟลเดอร์ ให้ดาวน์โหลดและติดตั้ง YMusic Files ซึ่งเป็นแอปผู้ช่วยขนาดเล็กสำหรับ YMusic จากลิงก์นี้ แล้วลองอีกครั้ง</string>
+    <string name="folder_picker_companion_update">ต้องอัปเดต YMusic Files เพื่อให้ใช้งานกับ YMusic เวอร์ชันนี้ได้ ดาวน์โหลดและติดตั้งเวอร์ชันล่าสุดจากลิงก์นี้ แล้วลองอีกครั้ง</string>
+    <string name="folder_picker_companion_open">เปิดลิงก์</string>
     <string name="folder_picker_missing">อุปกรณ์นี้ไม่มีตัวเลือกโฟลเดอร์ จึงเลือกโฟลเดอร์ไม่ได้</string>
     <string name="error_supervised_account">บัญชี Google นี้อยู่ภายใต้การดูแล จึงใช้ YouTube ที่นี่ไม่ได้ ออกจากระบบหรือเปลี่ยนไปใช้บัญชีอื่น</string>
     <string name="settings_player_cache">แคชของเพลเยอร์</string>

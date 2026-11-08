@@ -295,6 +295,10 @@
     <string name="cd_search">Rechercher</string>
     <string name="cd_back">Retour</string>
     <string name="cd_clear">Effacer</string>
+    <string name="cd_voice_search">Recherche vocale</string>
+    <string name="voice_search_press_ok">Appuyez sur OK pour rechercher par la voix</string>
+    <string name="voice_search_listening">Écoute…</string>
+    <string name="voice_search_missed">Désolé, je n'ai pas compris. Appuyez sur OK pour réessayer</string>
     <string name="cd_close">Fermer</string>
     <string name="cd_more">Plus</string>
     <string name="cd_collapse">Réduire</string>
@@ -538,6 +542,13 @@
     <string name="dialog_ok">OK</string>
     <string name="folder_picker_disabled">L'application Fichiers du système est désactivée. Activez-la pour choisir un dossier.</string>
     <string name="folder_picker_open_settings">Ouvrir les paramètres</string>
+    <string name="folder_picker_title">Choisir un dossier de musique</string>
+    <string name="folder_picker_use_folder">Utiliser ce dossier</string>
+    <string name="folder_picker_empty">Aucun dossier ici</string>
+    <string name="folder_picker_storage_denied">Autorisez l’accès à vos fichiers musicaux dans les paramètres pour choisir un dossier.</string>
+    <string name="folder_picker_companion_message">Cet appareil n’a pas de sélecteur de dossiers. Pour choisir des dossiers, téléchargez et installez YMusic Files, un petit assistant pour YMusic, depuis ce lien, puis réessayez.</string>
+    <string name="folder_picker_companion_update">YMusic Files doit être mis à jour pour fonctionner avec cette version de YMusic. Téléchargez et installez la dernière version depuis ce lien, puis réessayez.</string>
+    <string name="folder_picker_companion_open">Ouvrir le lien</string>
     <string name="folder_picker_missing">Cet appareil n'a pas de sélecteur de dossier, impossible de choisir un dossier.</string>
     <string name="error_supervised_account">Ce compte Google est supervisé, YouTube ne peut donc pas être utilisé ici. Déconnectez-vous ou changez de compte.</string>
     <string name="settings_player_cache">Cache du lecteur</string>

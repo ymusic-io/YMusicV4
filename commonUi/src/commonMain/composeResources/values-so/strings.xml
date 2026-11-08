@@ -291,6 +291,10 @@
     <string name="cd_search">Raadi</string>
     <string name="cd_back">Dib u noqo</string>
     <string name="cd_clear">Tirtir</string>
+    <string name="cd_voice_search">Ku raadi cod</string>
+    <string name="voice_search_press_ok">Riix OK si aad cod ugu raadiso</string>
+    <string name="voice_search_listening">Waa la dhegaysanayaa…</string>
+    <string name="voice_search_missed">Lama fahmin. Riix OK si aad mar kale isku daydo</string>
     <string name="cd_close">Xidh</string>
     <string name="cd_more">Wax kale</string>
     <string name="cd_collapse">Isku laab</string>
@@ -530,6 +534,13 @@
     <string name="dialog_ok">Hagaag</string>
     <string name="folder_picker_disabled">Abka Faylasha ee nidaamka waa la damiyay. Daar si aad u doorato gal.</string>
     <string name="folder_picker_open_settings">Fur dejinta</string>
+    <string name="folder_picker_title">Dooro gal muusig</string>
+    <string name="folder_picker_use_folder">Isticmaal galkan</string>
+    <string name="folder_picker_empty">Gal halkan kuma jiro</string>
+    <string name="folder_picker_storage_denied">U oggolow gelitaanka faylasha muusiggaaga dejinta si aad gal u doorato.</string>
+    <string name="folder_picker_companion_message">Qalabkan ma laha dooraha galalka. Si aad galal u doorato, ka soo deji oo ku rakib YMusic Files, caawiye yar oo YMusic ah, linkigan, kadibna isku day mar kale.</string>
+    <string name="folder_picker_companion_update">YMusic Files waa in la cusboonaysiiyaa si uu ula shaqeeyo noocan YMusic. Ka soo deji oo ku rakib nooca ugu dambeeyay linkigan, kadibna isku day mar kale.</string>
+    <string name="folder_picker_companion_open">Fur linkiga</string>
     <string name="folder_picker_missing">Qalabkan ma laha dooraha galka, sidaa darteed gal lama dooran karo.</string>
     <string name="error_supervised_account">Akoonkan Google waa la kormeeraa, sidaa darteed YouTube halkan laguma isticmaali karo. Ka bax ama u beddel akoon kale.</string>
     <string name="settings_player_cache">Kaydka k/g ee daaraha</string>

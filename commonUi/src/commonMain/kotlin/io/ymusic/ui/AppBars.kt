@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -50,6 +51,7 @@ import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.FilterAlt
 import androidx.compose.material3.Icon
@@ -118,6 +120,7 @@ import io.ymusic.ui.resources.cd_filter
 import io.ymusic.ui.resources.cd_menu
 import io.ymusic.ui.resources.cd_more_tabs
 import io.ymusic.ui.resources.cd_search
+import io.ymusic.ui.resources.cd_voice_search
 import io.ymusic.ui.resources.search_youtube
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -176,6 +179,18 @@ internal fun TrackScroll(scrolled: () -> Boolean) {
     LaunchedEffect(host, token) { snapshotFlow(scrolled).collect { host.report(token, it) } }
 }
 
+/** The app chrome's tone, shared by the app bars and the rail so they read as one layer. */
+@Composable
+internal fun chromeTone(elevated: Boolean): Color =
+    animateColorAsState(if (elevated) DesignColors.SurfaceElevated else DesignColors.Surface).value
+
+/** The painted elevation falloff, nearest the surface first. Approximates the 6dp blur of [ElevatedBarDialog]'s bars. */
+internal fun elevationShadowStops(alpha: Float): Array<Pair<Float, Color>> = arrayOf(
+    0f to Color.Black.copy(alpha = 0.20f * alpha),
+    0.4f to Color.Black.copy(alpha = 0.07f * alpha),
+    1f to Color.Transparent,
+)
+
 /** An app-bar surface that lifts while the screen under it is scrolled: shadow + the elevated
  *  tone (elevated white ≠ white). Drawn above siblings so the shadow is never painted over.
  *  [bottomShadow] = false keeps the tone but drops the shadow, for when another elevated surface
@@ -189,7 +204,7 @@ internal fun ElevatedBarColumn(bottomShadow: Boolean = true, content: @Composabl
     // ElevatedBarDialog bars cast (soft peak, gaussian-ish falloff), so every lifted bar in the
     // app reads identically.
     val shadowAlpha by animateFloatAsState(if (elevated && bottomShadow) 1f else 0f)
-    val tone by animateColorAsState(if (elevated) DesignColors.SurfaceElevated else DesignColors.Surface)
+    val tone = chromeTone(elevated)
     Column(
         Modifier
             .zIndex(1f)
@@ -198,9 +213,7 @@ internal fun ElevatedBarColumn(bottomShadow: Boolean = true, content: @Composabl
                     val reach = 12.dp.toPx()
                     drawRect(
                         brush = Brush.verticalGradient(
-                            0f to Color.Black.copy(alpha = 0.20f * shadowAlpha),
-                            0.4f to Color.Black.copy(alpha = 0.07f * shadowAlpha),
-                            1f to Color.Transparent,
+                            *elevationShadowStops(shadowAlpha),
                             startY = size.height,
                             endY = size.height + reach,
                         ),
@@ -347,13 +360,17 @@ internal fun RowScope.AppBarTitle(text: String, fill: Boolean = true, reserveWid
 @Composable
 internal fun DesignAppBar(
     title: String,
-    onMenu: () -> Unit,
+    onMenu: (() -> Unit)?,
     onSearch: (() -> Unit)?,
     titleReserveWidthOf: List<String> = emptyList(),
     inlineContent: (@Composable () -> Unit)? = null,
 ) {
     AppBarRow {
-        ActionIcon(Icons.Default.Menu, stringResource(Res.string.cd_menu), onClick = onMenu)
+        if (onMenu != null) {
+            ActionIcon(Icons.Default.Menu, stringResource(Res.string.cd_menu), onClick = onMenu)
+        } else {
+            Spacer(Modifier.width(DesignSpacing.Space8))
+        }
         AppBarTitle(title, fill = false, reserveWidthOf = titleReserveWidthOf)
         if (inlineContent != null) {
             Box(Modifier.weight(1f).padding(start = 16.dp)) { inlineContent() }
@@ -367,7 +384,9 @@ internal fun DesignAppBar(
 }
 
 /** The search input bar: back · pill field (`.sfield`: 40dp gray pill, 15sp text, clear ✕ while
- *  non-empty). [autoFocus] off for showcase hosting (the catalogue). */
+ *  non-empty, else the [onVoice] mic). [voiceFirst] (TV) moves the mic before the pill, focuses it
+ *  instead of the field, and shows [voiceHint] under the row. [autoFocus] off for showcase hosting
+ *  (the catalogue). */
 @Composable
 internal fun SearchInputBar(
     value: TextFieldValue,
@@ -376,18 +395,33 @@ internal fun SearchInputBar(
     onBack: () -> Unit,
     autoFocus: Boolean = true,
     placeholder: String = stringResource(Res.string.search_youtube),
+    onVoice: (() -> Unit)? = null,
+    voiceFirst: Boolean = false,
+    voiceListening: Boolean = false,
+    voiceLevel: () -> Float = { 0f },
+    voiceHint: String? = null,
 ) = ElevatedBarColumn {
     val focusRequester = remember { FocusRequester() }
+    val leadingMic = voiceFirst && onVoice != null
+    val inlineMic = onVoice.takeUnless { leadingMic }
     AppBarRow {
         ActionIcon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(Res.string.cd_back), onClick = onBack)
+        if (leadingMic) {
+            VoiceMicButton(
+                listening = voiceListening,
+                level = voiceLevel,
+                onClick = onVoice,
+                modifier = Modifier.focusRequester(focusRequester),
+            )
+        }
         Row(
             Modifier
                 .weight(1f)
                 .height(40.dp)
                 .clip(RoundedCornerShape(999.dp))
                 .background(DesignColors.FieldPill)
-                // The ✕'s own 8dp inset is the trailing padding while it shows.
-                .padding(start = 16.dp, end = if (value.text.isEmpty()) 16.dp else 0.dp),
+                // The trailing icon's own 8dp inset is the trailing padding while it shows.
+                .padding(start = 16.dp, end = if (value.text.isEmpty() && inlineMic == null) 16.dp else 0.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             BasicTextField(
@@ -398,7 +432,9 @@ internal fun SearchInputBar(
                 cursorBrush = SolidColor(DesignColors.Accent),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(onSearch = { onSubmit(value.text) }),
-                modifier = Modifier.weight(1f).fillMaxHeight().focusRequester(focusRequester),
+                modifier = Modifier.weight(1f).fillMaxHeight()
+                    .tvTextFieldDpad(singleLine = true)
+                    .then(if (leadingMic) Modifier else Modifier.focusRequester(focusRequester)),
                 decorationBox = { inner ->
                     Box(Modifier.fillMaxHeight(), contentAlignment = Alignment.CenterStart) {
                         if (value.text.isEmpty()) {
@@ -419,8 +455,22 @@ internal fun SearchInputBar(
                     tint = DesignColors.InkSecondary,
                     onClick = { onValue(TextFieldValue("")) },
                 )
+            } else if (inlineMic != null) {
+                ActionIcon(
+                    Icons.Default.Mic,
+                    stringResource(Res.string.cd_voice_search),
+                    tint = if (voiceListening) DesignColors.Accent else DesignColors.InkSecondary,
+                    onClick = inlineMic,
+                )
             }
         }
+    }
+    if (leadingMic && voiceHint != null) {
+        Text(
+            voiceHint,
+            style = TextStyle(fontSize = 13.sp, color = DesignColors.InkSecondary),
+            modifier = Modifier.padding(start = VoiceHintInset, end = DesignSpacing.Space16, bottom = DesignSpacing.Space8),
+        )
     }
     if (autoFocus) {
         LaunchedEffect(Unit) { focusRequester.requestFocus() }
@@ -713,7 +763,7 @@ internal fun SwipeDownDismissBox(
     restingShadow: Boolean = false,
     /** Visual translation in px; parent uses this to draw the shell only while the sheet is peeking. */
     onPeek: (Float) -> Unit = {},
-    /** Off on desktop: a peek would show the transparent video hole, not the shell. */
+    /** Off without touch (nothing to swipe with) and on desktop, where a peek would show the transparent video hole. */
     enabled: Boolean = true,
     content: @Composable () -> Unit,
 ) {
@@ -891,3 +941,6 @@ private fun TabOverflowHint(towardStart: Boolean, modifier: Modifier, onClick: (
         )
     }
 }
+
+/** Lines the voice hint up with the TV mic: the bar's 8dp inset, the 40dp back icon, its 8dp gap. */
+private val VoiceHintInset = DesignSpacing.Space8 + 40.dp + DesignSpacing.Space8

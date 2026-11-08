@@ -45,6 +45,7 @@ internal fun DbMediaItem.toModel() = MediaStoreItem(
     fileSize = fileSize,
     lastModified = lastModified,
     createdAt = createdAt,
+    loudnessGainDb = loudnessGainDb,
 )
 
 internal fun DbPlaylist.toModel() = Playlist(id = id, name = name, createdAt = createdAt)
