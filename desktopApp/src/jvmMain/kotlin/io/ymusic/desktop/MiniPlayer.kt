@@ -99,6 +99,7 @@ fun ApplicationScope.MiniPlayerWindow(
                 title = "YMusic"
                 isUndecorated = true
                 isTransparent = true
+                if (isWindows) followRendererTransparency()
                 isResizable = false
                 isAlwaysOnTop = true
                 val position = miniPlayerPosition(anchor)
