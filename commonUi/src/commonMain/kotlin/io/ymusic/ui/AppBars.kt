@@ -433,6 +433,7 @@ internal fun SearchInputBar(
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(onSearch = { onSubmit(value.text) }),
                 modifier = Modifier.weight(1f).fillMaxHeight()
+                    .tvTextFieldDpad(singleLine = true)
                     .then(if (leadingMic) Modifier else Modifier.focusRequester(focusRequester)),
                 decorationBox = { inner ->
                     Box(Modifier.fillMaxHeight(), contentAlignment = Alignment.CenterStart) {

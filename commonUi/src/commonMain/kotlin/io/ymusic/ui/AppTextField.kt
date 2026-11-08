@@ -67,7 +67,7 @@ fun AppTextField(
     BasicTextField(
         value = value,
         onValueChange = onValueChange,
-        modifier = modifier.fillMaxWidth().focusRequester(focusRequester),
+        modifier = modifier.fillMaxWidth().focusRequester(focusRequester).tvTextFieldDpad(singleLine),
         singleLine = singleLine,
         textStyle = TextStyle(fontSize = 15.sp, color = DesignColors.Ink),
         cursorBrush = SolidColor(if (isError) MaterialTheme.colorScheme.error else DesignColors.Accent),
