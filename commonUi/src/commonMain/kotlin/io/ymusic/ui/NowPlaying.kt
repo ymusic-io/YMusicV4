@@ -2133,7 +2133,7 @@ private fun QueueRowContent(
             .then(if (current) Modifier.background(DesignColors.Accent.copy(alpha = 0.1f)) else Modifier)
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
             .clickable(role = Role.Button, onClickLabel = playLabel) { coordinator.player.playAt(index) }
-            .a11yActionLabel(label)
+            .a11yRowLabel(label)
             .padding(horizontal = 16.dp, vertical = if (large) 10.dp else 8.dp),
         horizontalArrangement = Arrangement.spacedBy(if (large) 12.dp else 8.dp),
         verticalAlignment = Alignment.Top,

@@ -258,7 +258,7 @@ fun FeedListItem(
         modifier
             .fillMaxWidth()
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .a11yActionLabel(feedItemLabel(item))
+            .a11yRowLabel(feedItemLabel(item))
             // The trailing inset is the ⋮ button's own touch padding, so the row stops 4dp short of
             // the edge — same as the Library song row, so the two lists' dots align.
             .padding(
@@ -312,7 +312,7 @@ fun FeedGridCard(
         modifier
             .clip(RoundedCornerShape(12.dp))
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .a11yActionLabel(feedItemLabel(item))
+            .a11yRowLabel(feedItemLabel(item))
             .padding(inset),
     ) {
         // Content is inset on all four sides (top==bottom, left==right). The
@@ -374,7 +374,7 @@ private fun ChannelGridCard(
         modifier
             .clip(RoundedCornerShape(12.dp))
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .a11yActionLabel(feedItemLabel(item))
+            .a11yRowLabel(feedItemLabel(item))
             .padding(inset),
     ) {
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
