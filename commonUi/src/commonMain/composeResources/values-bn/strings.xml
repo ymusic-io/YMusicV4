@@ -291,6 +291,10 @@
     <string name="cd_search">খুঁজুন</string>
     <string name="cd_back">পেছনে</string>
     <string name="cd_clear">মুছুন</string>
+    <string name="cd_voice_search">ভয়েস দিয়ে সার্চ করুন</string>
+    <string name="voice_search_press_ok">ভয়েস দিয়ে সার্চ করতে OK টিপুন</string>
+    <string name="voice_search_listening">শুনছে…</string>
+    <string name="voice_search_missed">বোঝা যায়নি। আবার চেষ্টা করতে OK টিপুন</string>
     <string name="cd_close">বন্ধ করুন</string>
     <string name="cd_more">আরও</string>
     <string name="cd_collapse">ছোট করুন</string>

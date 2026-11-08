@@ -291,6 +291,10 @@
     <string name="cd_search">શોધો</string>
     <string name="cd_back">પાછળ</string>
     <string name="cd_clear">સાફ કરો</string>
+    <string name="cd_voice_search">અવાજથી શોધો</string>
+    <string name="voice_search_press_ok">અવાજથી શોધવા માટે OK દબાવો</string>
+    <string name="voice_search_listening">સાંભળી રહ્યાં છીએ…</string>
+    <string name="voice_search_missed">સમજાયું નહીં. ફરી પ્રયાસ કરવા માટે OK દબાવો</string>
     <string name="cd_close">બંધ કરો</string>
     <string name="cd_more">વધુ</string>
     <string name="cd_collapse">સંકુચિત કરો</string>

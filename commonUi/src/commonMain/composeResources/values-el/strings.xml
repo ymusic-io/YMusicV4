@@ -291,6 +291,10 @@
     <string name="cd_search">Αναζήτηση</string>
     <string name="cd_back">Πίσω</string>
     <string name="cd_clear">Εκκαθάριση</string>
+    <string name="cd_voice_search">Φωνητική αναζήτηση</string>
+    <string name="voice_search_press_ok">Πατήστε OK για φωνητική αναζήτηση</string>
+    <string name="voice_search_listening">Ακρόαση…</string>
+    <string name="voice_search_missed">Δεν έγινε κατανοητό. Πατήστε OK για να δοκιμάσετε ξανά</string>
     <string name="cd_close">Κλείσιμο</string>
     <string name="cd_more">Περισσότερα</string>
     <string name="cd_collapse">Σύμπτυξη</string>

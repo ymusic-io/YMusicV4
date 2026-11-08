@@ -287,6 +287,10 @@
     <string name="cd_search">Cari</string>
     <string name="cd_back">Kembali</string>
     <string name="cd_clear">Kosongkan</string>
+    <string name="cd_voice_search">Cari dengan suara</string>
+    <string name="voice_search_press_ok">Tekan OK untuk mencari dengan suara</string>
+    <string name="voice_search_listening">Mendengar…</string>
+    <string name="voice_search_missed">Tidak dapat difahami. Tekan OK untuk mencuba lagi</string>
     <string name="cd_close">Tutup</string>
     <string name="cd_more">Lagi</string>
     <string name="cd_collapse">Kuncupkan</string>

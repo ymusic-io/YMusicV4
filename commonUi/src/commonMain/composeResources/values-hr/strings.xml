@@ -295,6 +295,10 @@
     <string name="cd_search">Traži</string>
     <string name="cd_back">Natrag</string>
     <string name="cd_clear">Očisti</string>
+    <string name="cd_voice_search">Glasovno pretraživanje</string>
+    <string name="voice_search_press_ok">Pritisnite OK za glasovno pretraživanje</string>
+    <string name="voice_search_listening">Slušam…</string>
+    <string name="voice_search_missed">Nije razumljivo. Pritisnite OK da biste pokušali ponovno</string>
     <string name="cd_close">Zatvori</string>
     <string name="cd_more">Više</string>
     <string name="cd_collapse">Sažmi</string>

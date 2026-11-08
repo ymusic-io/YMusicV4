@@ -352,6 +352,10 @@
     <string name="cd_search">Пошук</string>
     <string name="cd_back">Назад</string>
     <string name="cd_clear">Очистити</string>
+    <string name="cd_voice_search">Голосовий пошук</string>
+    <string name="voice_search_press_ok">Натисніть OK, щоб шукати голосом</string>
+    <string name="voice_search_listening">Слухаю…</string>
+    <string name="voice_search_missed">Не вдалося розпізнати. Натисніть OK, щоб повторити</string>
     <string name="cd_close">Закрити</string>
     <string name="cd_more">Більше</string>
     <string name="cd_collapse">Згорнути</string>

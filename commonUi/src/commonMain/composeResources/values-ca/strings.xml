@@ -295,6 +295,10 @@
     <string name="cd_search">Cerca</string>
     <string name="cd_back">Enrere</string>
     <string name="cd_clear">Esborra</string>
+    <string name="cd_voice_search">Cerca per veu</string>
+    <string name="voice_search_press_ok">Premeu D'acord per cercar per veu</string>
+    <string name="voice_search_listening">S'està escoltant…</string>
+    <string name="voice_search_missed">No s'ha entès. Premeu D'acord per tornar-ho a provar</string>
     <string name="cd_close">Tanca</string>
     <string name="cd_more">Més</string>
     <string name="cd_collapse">Replega</string>

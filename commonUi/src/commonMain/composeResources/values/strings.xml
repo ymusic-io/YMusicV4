@@ -356,6 +356,10 @@
     <string name="cd_search">Search</string>
     <string name="cd_back">Back</string>
     <string name="cd_clear">Clear</string>
+    <string name="cd_voice_search">Search by voice</string>
+    <string name="voice_search_press_ok">Press OK to search by voice</string>
+    <string name="voice_search_listening">Listening…</string>
+    <string name="voice_search_missed">Didn't catch that. Press OK to try again</string>
     <string name="cd_close">Close</string>
     <string name="cd_more">More</string>
     <string name="cd_collapse">Collapse</string>

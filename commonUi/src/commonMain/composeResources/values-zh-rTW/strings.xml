@@ -287,6 +287,10 @@
     <string name="cd_search">搜尋</string>
     <string name="cd_back">返回</string>
     <string name="cd_clear">清除</string>
+    <string name="cd_voice_search">語音搜尋</string>
+    <string name="voice_search_press_ok">按下「確定」即可語音搜尋</string>
+    <string name="voice_search_listening">正在聆聽…</string>
+    <string name="voice_search_missed">無法辨識，按下「確定」再試一次</string>
     <string name="cd_close">關閉</string>
     <string name="cd_more">更多</string>
     <string name="cd_collapse">收合</string>

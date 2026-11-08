@@ -287,6 +287,10 @@
     <string name="cd_search">搜索</string>
     <string name="cd_back">返回</string>
     <string name="cd_clear">清除</string>
+    <string name="cd_voice_search">语音搜索</string>
+    <string name="voice_search_press_ok">按“确定”即可语音搜索</string>
+    <string name="voice_search_listening">正在聆听…</string>
+    <string name="voice_search_missed">没听清。按“确定”重试</string>
     <string name="cd_close">关闭</string>
     <string name="cd_more">更多</string>
     <string name="cd_collapse">收起</string>

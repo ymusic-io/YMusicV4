@@ -291,6 +291,10 @@
     <string name="cd_search">Maghanap</string>
     <string name="cd_back">Bumalik</string>
     <string name="cd_clear">I-clear</string>
+    <string name="cd_voice_search">Maghanap gamit ang boses</string>
+    <string name="voice_search_press_ok">Pindutin ang OK para maghanap gamit ang boses</string>
+    <string name="voice_search_listening">Nakikinig…</string>
+    <string name="voice_search_missed">Hindi naintindihan. Pindutin ang OK para subukan ulit</string>
     <string name="cd_close">Isara</string>
     <string name="cd_more">Higit pa</string>
     <string name="cd_collapse">I-collapse</string>

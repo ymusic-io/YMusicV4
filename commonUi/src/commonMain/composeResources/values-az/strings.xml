@@ -291,6 +291,10 @@
     <string name="cd_search">Axtar</string>
     <string name="cd_back">Geri</string>
     <string name="cd_clear">Təmizlə</string>
+    <string name="cd_voice_search">Səslə axtar</string>
+    <string name="voice_search_press_ok">Səslə axtarmaq üçün OK düyməsini basın</string>
+    <string name="voice_search_listening">Dinlənilir…</string>
+    <string name="voice_search_missed">Başa düşülmədi. Yenidən cəhd etmək üçün OK düyməsini basın</string>
     <string name="cd_close">Bağla</string>
     <string name="cd_more">Daha çox</string>
     <string name="cd_collapse">Yığ</string>

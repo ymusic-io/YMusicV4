@@ -291,6 +291,10 @@
     <string name="cd_search">Raadi</string>
     <string name="cd_back">Dib u noqo</string>
     <string name="cd_clear">Tirtir</string>
+    <string name="cd_voice_search">Ku raadi cod</string>
+    <string name="voice_search_press_ok">Riix OK si aad cod ugu raadiso</string>
+    <string name="voice_search_listening">Waa la dhegaysanayaa…</string>
+    <string name="voice_search_missed">Lama fahmin. Riix OK si aad mar kale isku daydo</string>
     <string name="cd_close">Xidh</string>
     <string name="cd_more">Wax kale</string>
     <string name="cd_collapse">Isku laab</string>

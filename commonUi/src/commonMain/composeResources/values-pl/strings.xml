@@ -299,6 +299,10 @@
     <string name="cd_search">Szukaj</string>
     <string name="cd_back">Wstecz</string>
     <string name="cd_clear">Wyczyść</string>
+    <string name="cd_voice_search">Wyszukiwanie głosowe</string>
+    <string name="voice_search_press_ok">Naciśnij OK, aby wyszukać głosowo</string>
+    <string name="voice_search_listening">Słucham…</string>
+    <string name="voice_search_missed">Nie udało się rozpoznać. Naciśnij OK, aby spróbować ponownie</string>
     <string name="cd_close">Zamknij</string>
     <string name="cd_more">Więcej</string>
     <string name="cd_collapse">Zwiń</string>

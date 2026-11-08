@@ -291,6 +291,10 @@
     <string name="cd_search">खोज्नुहोस्</string>
     <string name="cd_back">पछाडि</string>
     <string name="cd_clear">खाली गर्नुहोस्</string>
+    <string name="cd_voice_search">आवाजबाट खोज्नुहोस्</string>
+    <string name="voice_search_press_ok">आवाजबाट खोज्न OK थिच्नुहोस्</string>
+    <string name="voice_search_listening">सुनिरहेको छ…</string>
+    <string name="voice_search_missed">बुझिएन। फेरि प्रयास गर्न OK थिच्नुहोस्</string>
     <string name="cd_close">बन्द गर्नुहोस्</string>
     <string name="cd_more">थप</string>
     <string name="cd_collapse">खुम्च्याउनुहोस्</string>

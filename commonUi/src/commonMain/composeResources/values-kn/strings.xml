@@ -291,6 +291,10 @@
     <string name="cd_search">ಹುಡುಕಿ</string>
     <string name="cd_back">ಹಿಂದೆ</string>
     <string name="cd_clear">ತೆರವುಗೊಳಿಸಿ</string>
+    <string name="cd_voice_search">ಧ್ವನಿ ಮೂಲಕ ಹುಡುಕಿ</string>
+    <string name="voice_search_press_ok">ಧ್ವನಿ ಮೂಲಕ ಹುಡುಕಲು OK ಒತ್ತಿ</string>
+    <string name="voice_search_listening">ಆಲಿಸಲಾಗುತ್ತಿದೆ…</string>
+    <string name="voice_search_missed">ಅರ್ಥವಾಗಲಿಲ್ಲ. ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಲು OK ಒತ್ತಿ</string>
     <string name="cd_close">ಮುಚ್ಚಿ</string>
     <string name="cd_more">ಇನ್ನಷ್ಟು</string>
     <string name="cd_collapse">ಕುಗ್ಗಿಸಿ</string>

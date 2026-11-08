@@ -295,6 +295,10 @@
     <string name="cd_search">Pesquisar</string>
     <string name="cd_back">Voltar</string>
     <string name="cd_clear">Limpar</string>
+    <string name="cd_voice_search">Pesquisar por voz</string>
+    <string name="voice_search_press_ok">Prima OK para pesquisar por voz</string>
+    <string name="voice_search_listening">A ouvir…</string>
+    <string name="voice_search_missed">Não foi possível perceber. Prima OK para tentar novamente</string>
     <string name="cd_close">Fechar</string>
     <string name="cd_more">Mais</string>
     <string name="cd_collapse">Recolher</string>

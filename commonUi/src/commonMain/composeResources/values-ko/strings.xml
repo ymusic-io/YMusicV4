@@ -287,6 +287,10 @@
     <string name="cd_search">검색</string>
     <string name="cd_back">뒤로</string>
     <string name="cd_clear">지우기</string>
+    <string name="cd_voice_search">음성으로 검색</string>
+    <string name="voice_search_press_ok">음성으로 검색하려면 확인을 누르세요</string>
+    <string name="voice_search_listening">듣는 중…</string>
+    <string name="voice_search_missed">알아듣지 못했습니다. 다시 시도하려면 확인을 누르세요</string>
     <string name="cd_close">닫기</string>
     <string name="cd_more">더보기</string>
     <string name="cd_collapse">접기</string>

@@ -295,6 +295,10 @@
     <string name="cd_search">Caută</string>
     <string name="cd_back">Înapoi</string>
     <string name="cd_clear">Șterge</string>
+    <string name="cd_voice_search">Caută vocal</string>
+    <string name="voice_search_press_ok">Apasă OK pentru a căuta vocal</string>
+    <string name="voice_search_listening">Se ascultă…</string>
+    <string name="voice_search_missed">Nu s-a înțeles. Apasă OK pentru a încerca din nou</string>
     <string name="cd_close">Închide</string>
     <string name="cd_more">Mai multe</string>
     <string name="cd_collapse">Restrânge</string>

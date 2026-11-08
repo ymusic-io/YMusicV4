@@ -291,6 +291,10 @@
     <string name="cd_search">جستجو</string>
     <string name="cd_back">بازگشت</string>
     <string name="cd_clear">پاک کردن</string>
+    <string name="cd_voice_search">جستجوی صوتی</string>
+    <string name="voice_search_press_ok">برای جستجوی صوتی، OK را فشار دهید</string>
+    <string name="voice_search_listening">درحال گوش دادن…</string>
+    <string name="voice_search_missed">متوجه نشدیم. برای امتحان دوباره، OK را فشار دهید</string>
     <string name="cd_close">بستن</string>
     <string name="cd_more">بیشتر</string>
     <string name="cd_collapse">جمع کردن</string>

@@ -8,6 +8,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <!-- Import from device: reads the playlists other music apps registered in MediaStore. -->
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
@@ -19,6 +20,7 @@
     <!-- Android TV: installable without a touchscreen, and listed in the TV launcher. -->
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
     <uses-feature android:name="android.software.leanback" android:required="false" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
 
     <!-- Android 11+ package visibility: premium is "the Support Development app is installed", and
          Donate starts its donation screen. The folder picker tells a disabled system Files app from a missing one. -->
@@ -28,6 +30,12 @@
         <package android:name="com.android.documentsui" />
         <intent>
             <action android:name="android.intent.action.OPEN_DOCUMENT_TREE" />
+        </intent>
+        <intent>
+            <action android:name="android.speech.action.RECOGNIZE_SPEECH" />
+        </intent>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
         </intent>
     </queries>
 
