@@ -453,6 +453,7 @@ private fun FoldersTab(
     // (id, displayName) instead of the bucket itself so the browse position survives the section
     // leaving composition (saveable): coming back from Discover reopens the same folder.
     var path by rememberSaveable(stateSaver = CrumbPathSaver) { mutableStateOf(listOf<Pair<Long, String>>()) }
+    NestedBackHandler(enabled = path.isNotEmpty()) { path = path.dropLast(1) }
     var folders by remember { mutableStateOf<List<MediaStoreBucket>?>(null) }
     var items by remember { mutableStateOf<List<MediaStoreItem>>(emptyList()) }
     val folderListState = rememberLazyListState()
@@ -931,6 +932,7 @@ private fun PlaylistsTab(
     // (id, name) — saveable, so the opened playlist survives the tab leaving composition. Negative ids
     // are the system playlists; the name is the resolved display title.
     var selected by rememberSaveable(stateSaver = OpenPlaylistSaver) { mutableStateOf<Pair<Long, String>?>(null) }
+    NestedBackHandler(enabled = selected != null) { selected = null }
     var userLists by remember { mutableStateOf<List<Pair<Playlist, Int>>?>(null) }
     // Each user playlist's thumbnail: the art of its most recently added song that has artwork.
     var userArt by remember { mutableStateOf<Map<Long, String?>>(emptyMap()) }
@@ -1609,6 +1611,7 @@ private fun GroupedList(
 ) {
     // Saveable: the opened artist/album/genre survives the tab leaving composition.
     var group by rememberSaveable { mutableStateOf<String?>(null) }
+    NestedBackHandler(enabled = group != null) { group = null }
     val listState = rememberLazyListState()
     val gridState = rememberLazyGridState()
     LaunchedEffect(reveal) {

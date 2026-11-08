@@ -845,10 +845,13 @@ private fun AppRoot(
         var updateRecheck by remember { mutableStateOf(0) }
         // The system back gesture/button walks the same path as the in-app back arrows: overlays
         // close first (drawer, Now Playing); the search input steps back to its results; then one
-        // layer of the CURRENT section's stack pops. A lateral section with nothing left to unwind
+        // layer of the CURRENT section's stack pops; then the section's own drill-down (a Library
+        // folder, playlist or album) steps up one level. A lateral section with nothing left to unwind
         // steps back to Discover — which restores its own retained stack — and only from Discover's
         // root is back left to the OS to exit the app.
-        val backEnabled = drawer.isOpen || nowPlayingOpen || layers.isNotEmpty() || section != AppSection.Discover
+        val nestedBack = remember { NestedBackStack() }
+        val backEnabled = drawer.isOpen || nowPlayingOpen || layers.isNotEmpty() || nestedBack.active ||
+            section != AppSection.Discover
         val onBack: () -> Unit = {
             val top = layers.lastOrNull()
             when {
@@ -861,6 +864,7 @@ private fun AppRoot(
                 top is AppLayer.Login && top.state.canGoBack -> top.state.goBack()
                 top is AppLayer.Verify && top.state.canGoBack -> top.state.goBack()
                 layers.isNotEmpty() -> popLayer()
+                nestedBack.active -> nestedBack.back()
                 else -> onSection(AppSection.Discover)
             }
         }
@@ -1231,7 +1235,7 @@ private fun AppRoot(
                                         Column(
                                             Modifier.weight(1f).fillMaxWidth().padding(padding)
                                                 .background(DesignColors.Surface),
-                                        ) { screens() }
+                                        ) { CompositionLocalProvider(LocalNestedBack provides nestedBack) { screens() } }
                                         if (!railWindow) mini(Modifier.fillMaxWidth())
                                     }
                                 } else {
@@ -1239,7 +1243,10 @@ private fun AppRoot(
                                     val miniInset = if (miniVisible) with(LocalDensity.current) { miniHeightPx.toDp() } else 0.dp
                                     Box(Modifier.fillMaxSize()) {
                                         Column(Modifier.fillMaxSize().padding(padding)) {
-                                            CompositionLocalProvider(LocalMiniPlayerInset provides miniInset) { screens() }
+                                            CompositionLocalProvider(
+                                                LocalMiniPlayerInset provides miniInset,
+                                                LocalNestedBack provides nestedBack,
+                                            ) { screens() }
                                         }
                                         if (!railWindow) mini(
                                             Modifier.align(Alignment.BottomCenter)
