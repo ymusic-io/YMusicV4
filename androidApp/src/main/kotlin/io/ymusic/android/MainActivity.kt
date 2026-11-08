@@ -197,8 +197,8 @@ class MainActivity : FragmentActivity() {
         val features = (application as YMusicApplication).services.await().remoteConfig.awaitLoaded().features
         val helper = features.safHelperPackage
         val downloadUrl = features.safHelperUrl
-        if (helper == null || downloadUrl == null) {
-            log.log(Logger.Level.WARN, "the remote config names no folder picker helper")
+        if (helper.isBlank() || downloadUrl.isBlank()) {
+            log.log(Logger.Level.WARN, "the remote config switched the folder picker helper off")
             folderPickerIssue.value = FolderPickerIssue.Unsupported
             return null
         }
