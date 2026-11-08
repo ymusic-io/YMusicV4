@@ -22,7 +22,11 @@ import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -38,6 +42,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
@@ -51,6 +57,10 @@ import io.ymusic.ui.AndroidInputMode
 import io.ymusic.ui.App
 import io.ymusic.ui.AppGraph
 import io.ymusic.ui.AppSection
+import io.ymusic.ui.DesignColors
+import io.ymusic.ui.DesignSpacing
+import io.ymusic.ui.DialogSecondaryButton
+import io.ymusic.ui.ElevatedBarDialog
 import io.ymusic.ui.IncomingLinks
 import io.ymusic.ui.LinkAction
 import io.ymusic.ui.YMusicTheme
@@ -67,6 +77,7 @@ import io.ymusic.ui.resources.folder_picker_disabled
 import io.ymusic.ui.resources.folder_picker_missing
 import io.ymusic.ui.resources.folder_picker_open_settings
 import io.ymusic.ui.resources.folder_picker_storage_denied
+import io.ymusic.ui.resources.folder_picker_title
 import io.ymusic.ui.startupFailedMessage
 import kmpcommon.log.Logger
 import kmpcommon.uri.Uri
@@ -551,36 +562,37 @@ class MainActivity : FragmentActivity() {
                 NotificationRequiredDialog(onAllow = ::requestNotificationAccess)
             }
             folderPickerIssue.value?.let { issue ->
-                FolderPickerIssueDialog(
-                    issue = issue,
-                    onOpenSettings = { pkg ->
-                        folderPickerIssue.value = null
-                        openAppDetails(pkg ?: packageName)
-                    },
-                    onDismiss = { folderPickerIssue.value = null },
-                )
+                AppThemed {
+                    FolderPickerIssueDialog(
+                        issue = issue,
+                        onOpenSettings = { pkg ->
+                            folderPickerIssue.value = null
+                            openAppDetails(pkg ?: packageName)
+                        },
+                        onDismiss = { folderPickerIssue.value = null },
+                    )
+                }
             }
             companionDownload.value?.let { download ->
                 val url = download.url
-                CompanionInstallDialog(
-                    url = url,
-                    update = download.update,
-                    canOpen = remember(url) { Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)).resolveActivity(packageManager) != null },
-                    onOpen = {
-                        companionDownload.value = null
-                        if (!startFirstActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)))) {
-                            (application as YMusicApplication).rootLogger.fork("storage-companion")
-                                .log(Logger.Level.WARN, "no app opens the helper download link")
-                        }
-                    },
-                    onDismiss = { companionDownload.value = null },
-                )
+                AppThemed {
+                    CompanionInstallDialog(
+                        url = url,
+                        update = download.update,
+                        canOpen = remember(url) { Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)).resolveActivity(packageManager) != null },
+                        onOpen = {
+                            companionDownload.value = null
+                            if (!startFirstActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)))) {
+                                (application as YMusicApplication).rootLogger.fork("storage-companion")
+                                    .log(Logger.Level.WARN, "no app opens the helper download link")
+                            }
+                        },
+                        onDismiss = { companionDownload.value = null },
+                    )
+                }
             }
             pathPick.value?.let { pick ->
-                val settings = remember { PrefsSettingsStore.open(this) }
-                val theme by settings.flow(AppSettings.theme).collectAsState()
-                val accent by settings.flow(AppSettings.themeAccent).collectAsState()
-                YMusicTheme(designPaletteFor(theme, androidx.compose.foundation.isSystemInDarkTheme(), accent)) {
+                AppThemed {
                     PathFolderPickerDialog(
                         roots = pick.roots,
                         onPick = { dir ->
@@ -852,39 +864,23 @@ private sealed interface FolderPickerIssue {
 /** [onOpenSettings] gets the app whose details screen fixes the issue, null for this app. */
 @androidx.compose.runtime.Composable
 private fun FolderPickerIssueDialog(issue: FolderPickerIssue, onOpenSettings: (String?) -> Unit, onDismiss: () -> Unit) {
-    val (message, settingsPackage) = when (issue) {
-        is FolderPickerIssue.Disabled -> Res.string.folder_picker_disabled to issue.packageName
-        FolderPickerIssue.StorageAccessDenied -> Res.string.folder_picker_storage_denied to null
-        is FolderPickerIssue.Failed -> {
-            AlertDialog(
-                onDismissRequest = onDismiss,
-                text = { Text(resString(Res.string.error_generic, issue.code)) },
-                confirmButton = { TextButton(onClick = onDismiss) { Text(resString(Res.string.dialog_ok)) } },
-            )
-            return
-        }
-        FolderPickerIssue.Unsupported -> {
-            AlertDialog(
-                onDismissRequest = onDismiss,
-                text = { Text(resString(Res.string.folder_picker_missing)) },
-                confirmButton = { TextButton(onClick = onDismiss) { Text(resString(Res.string.dialog_ok)) } },
-            )
-            return
-        }
-        FolderPickerIssue.Missing -> return
+    when (issue) {
+        is FolderPickerIssue.Disabled -> FolderPickDialog(
+            message = resString(Res.string.folder_picker_disabled),
+            action = resString(Res.string.folder_picker_open_settings),
+            onAction = { onOpenSettings(issue.packageName) },
+            onDismiss = onDismiss,
+        )
+        FolderPickerIssue.StorageAccessDenied -> FolderPickDialog(
+            message = resString(Res.string.folder_picker_storage_denied),
+            action = resString(Res.string.folder_picker_open_settings),
+            onAction = { onOpenSettings(null) },
+            onDismiss = onDismiss,
+        )
+        is FolderPickerIssue.Failed -> FolderPickDialog(resString(Res.string.error_generic, issue.code), onDismiss = onDismiss)
+        FolderPickerIssue.Unsupported -> FolderPickDialog(resString(Res.string.folder_picker_missing), onDismiss = onDismiss)
+        FolderPickerIssue.Missing -> Unit
     }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        text = { Text(resString(message)) },
-        confirmButton = {
-            TextButton(onClick = { onOpenSettings(settingsPackage) }) {
-                Text(resString(Res.string.folder_picker_open_settings))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(resString(Res.string.dialog_cancel)) }
-        },
-    )
 }
 
 private class CompanionDownload(val url: String, val update: Boolean)
@@ -892,31 +888,64 @@ private class CompanionDownload(val url: String, val update: Boolean)
 /** Asks the user to install the helper from [url] themselves; the link is spelled out for devices with no browser. */
 @androidx.compose.runtime.Composable
 private fun CompanionInstallDialog(url: String, update: Boolean, canOpen: Boolean, onOpen: () -> Unit, onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        text = {
-            androidx.compose.foundation.layout.Column(
-                verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(io.ymusic.ui.DesignSpacing.Space16),
-            ) {
-                Text(resString(if (update) Res.string.folder_picker_companion_update else Res.string.folder_picker_companion_message))
-                androidx.compose.foundation.text.selection.SelectionContainer {
-                    Text(url, color = MaterialTheme.colorScheme.primary)
-                }
-            }
-        },
-        confirmButton = {
-            if (canOpen) {
-                TextButton(onClick = onOpen) { Text(resString(Res.string.folder_picker_companion_open)) }
+    FolderPickDialog(
+        message = resString(if (update) Res.string.folder_picker_companion_update else Res.string.folder_picker_companion_message),
+        action = if (canOpen) resString(Res.string.folder_picker_companion_open) else null,
+        onAction = onOpen,
+        onDismiss = onDismiss,
+    ) {
+        SelectionContainer {
+            Text(
+                url,
+                Modifier.fillMaxWidth().padding(start = DesignSpacing.Space24, end = DesignSpacing.Space24, bottom = DesignSpacing.Space16),
+                style = TextStyle(fontSize = 14.sp, color = DesignColors.Accent, lineHeight = 20.sp),
+            )
+        }
+    }
+}
+
+/** The app's message dialog for the folder pick: [action] beside Cancel, or a lone OK without one. */
+@androidx.compose.runtime.Composable
+private fun FolderPickDialog(
+    message: String,
+    action: String? = null,
+    onAction: () -> Unit = {},
+    onDismiss: () -> Unit,
+    extra: @androidx.compose.runtime.Composable () -> Unit = {},
+) {
+    ElevatedBarDialog(
+        title = resString(Res.string.folder_picker_title),
+        onDismiss = onDismiss,
+        canScrollBackward = false,
+        canScrollForward = false,
+        buttons = {
+            if (action != null) {
+                DialogSecondaryButton(resString(Res.string.dialog_cancel), onClick = onDismiss)
+                TextButton(onClick = onAction) { Text(action, color = DesignColors.Accent) }
             } else {
-                TextButton(onClick = onDismiss) { Text(resString(Res.string.dialog_ok)) }
+                TextButton(onClick = onDismiss) { Text(resString(Res.string.dialog_ok), color = DesignColors.Accent) }
             }
         },
-        dismissButton = if (canOpen) {
-            { TextButton(onClick = onDismiss) { Text(resString(Res.string.dialog_cancel)) } }
-        } else {
-            null
-        },
-    )
+    ) {
+        Column {
+            Text(
+                message,
+                Modifier.fillMaxWidth().padding(horizontal = DesignSpacing.Space24, vertical = DesignSpacing.Space16),
+                style = TextStyle(fontSize = 14.sp, color = DesignColors.Ink, lineHeight = 20.sp),
+            )
+            extra()
+        }
+    }
+}
+
+/** These dialogs show outside [App], so they take the app's theme here. */
+@androidx.compose.runtime.Composable
+private fun AppThemed(content: @androidx.compose.runtime.Composable () -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val settings = remember { PrefsSettingsStore.open(context) }
+    val theme by settings.flow(AppSettings.theme).collectAsState()
+    val accent by settings.flow(AppSettings.themeAccent).collectAsState()
+    YMusicTheme(designPaletteFor(theme, androidx.compose.foundation.isSystemInDarkTheme(), accent), content)
 }
 
 @androidx.compose.runtime.Composable
