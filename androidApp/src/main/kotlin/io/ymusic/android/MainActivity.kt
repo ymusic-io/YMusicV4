@@ -63,6 +63,7 @@ import io.ymusic.ui.resources.error_generic
 import io.ymusic.ui.resources.folder_picker_companion_install
 import io.ymusic.ui.resources.folder_picker_companion_message
 import io.ymusic.ui.resources.folder_picker_disabled
+import io.ymusic.ui.resources.folder_picker_missing
 import io.ymusic.ui.resources.folder_picker_open_settings
 import io.ymusic.ui.resources.folder_picker_storage_denied
 import io.ymusic.ui.startupFailedMessage
@@ -196,9 +197,8 @@ class MainActivity : FragmentActivity() {
         val log = (application as YMusicApplication).rootLogger.fork("storage-companion")
         if (!withContext(Dispatchers.IO) { StorageCompanion.isUpToDate(this@MainActivity) }) {
             if (!StorageCompanion.canGrantAllFilesAccess(this)) {
-                val error = TechnicalException("E50012", "no All files access settings screen: YMusic Files could not work here")
-                log.captureError(error)
-                folderPickerIssue.value = FolderPickerIssue.Failed(error.code)
+                log.log(Logger.Level.WARN, "no All files access screen either: no way to pick a folder on this device")
+                folderPickerIssue.value = FolderPickerIssue.Unsupported
                 return null
             }
             val answer = CompletableDeferred<Boolean>()
@@ -861,6 +861,9 @@ private sealed interface FolderPickerIssue {
     data object StorageAccessDenied : FolderPickerIssue
 
     data class Failed(val code: String) : FolderPickerIssue
+
+    /** Neither a system folder picker nor a way to grant the helper All files access. */
+    data object Unsupported : FolderPickerIssue
 }
 
 /** [onOpenSettings] gets the app whose details screen fixes the issue, null for this app. */
@@ -873,6 +876,14 @@ private fun FolderPickerIssueDialog(issue: FolderPickerIssue, onOpenSettings: (S
             AlertDialog(
                 onDismissRequest = onDismiss,
                 text = { Text(resString(Res.string.error_generic, issue.code)) },
+                confirmButton = { TextButton(onClick = onDismiss) { Text(resString(Res.string.dialog_ok)) } },
+            )
+            return
+        }
+        FolderPickerIssue.Unsupported -> {
+            AlertDialog(
+                onDismissRequest = onDismiss,
+                text = { Text(resString(Res.string.folder_picker_missing)) },
                 confirmButton = { TextButton(onClick = onDismiss) { Text(resString(Res.string.dialog_ok)) } },
             )
             return

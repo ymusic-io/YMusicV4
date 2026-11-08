@@ -532,6 +532,7 @@
     <string name="folder_picker_storage_denied">อนุญาตให้เข้าถึงไฟล์เพลงของคุณในการตั้งค่าเพื่อเลือกโฟลเดอร์</string>
     <string name="folder_picker_companion_message">อุปกรณ์นี้ไม่มีตัวเลือกโฟลเดอร์ ติดตั้ง YMusic Files ซึ่งเป็นแอปผู้ช่วยขนาดเล็กที่มาพร้อม YMusic เพื่อเลือกโฟลเดอร์</string>
     <string name="folder_picker_companion_install">ติดตั้ง</string>
+    <string name="folder_picker_missing">อุปกรณ์นี้ไม่มีตัวเลือกโฟลเดอร์ จึงเลือกโฟลเดอร์ไม่ได้</string>
     <string name="error_supervised_account">บัญชี Google นี้อยู่ภายใต้การดูแล จึงใช้ YouTube ที่นี่ไม่ได้ ออกจากระบบหรือเปลี่ยนไปใช้บัญชีอื่น</string>
     <string name="settings_player_cache">แคชของเพลเยอร์</string>
     <string name="settings_player_cache_summary">สูงสุด %1$s · ใช้ไป %2$s · ประหยัด %3$s</string>

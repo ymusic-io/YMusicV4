@@ -548,6 +548,7 @@
     <string name="folder_picker_storage_denied">Permite el acceso a tus archivos de música en los ajustes para elegir una carpeta.</string>
     <string name="folder_picker_companion_message">Este dispositivo no tiene selector de carpetas. Instala YMusic Files, una pequeña app auxiliar incluida con YMusic, para elegir carpetas.</string>
     <string name="folder_picker_companion_install">Instalar</string>
+    <string name="folder_picker_missing">Este dispositivo no tiene selector de carpetas, así que no se puede elegir una carpeta.</string>
     <string name="error_supervised_account">Esta cuenta de Google está supervisada, así que no se puede usar YouTube aquí. Cierra sesión o cambia a otra cuenta.</string>
     <string name="settings_player_cache">Caché del reproductor</string>
     <string name="settings_player_cache_summary">Máx. %1$s · Usado %2$s · Ahorrado %3$s</string>

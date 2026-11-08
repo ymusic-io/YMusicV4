@@ -540,6 +540,7 @@
     <string name="folder_picker_storage_denied">Gee in instellings toegang tot jou musieklêers om ’n vouer te kies.</string>
     <string name="folder_picker_companion_message">Hierdie toestel het geen vouerkieser nie. Installeer YMusic Files, ’n klein hulpprogram wat saam met YMusic kom, om vouers te kies.</string>
     <string name="folder_picker_companion_install">Installeer</string>
+    <string name="folder_picker_missing">Hierdie toestel het nie ’n vouerkieser nie, so ’n vouer kan nie gekies word nie.</string>
     <string name="error_supervised_account">Hierdie Google-rekening word onder toesig gebruik, so YouTube kan nie hier gebruik word nie. Meld af of skakel oor na 'n ander rekening.</string>
     <string name="settings_player_cache">Spelerkas</string>
     <string name="settings_player_cache_summary">Maks. %1$s · Gebruik %2$s · Bespaar %3$s</string>

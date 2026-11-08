@@ -548,6 +548,7 @@
     <string name="folder_picker_storage_denied">Permite accesul la fișierele de muzică din setări pentru a alege un dosar.</string>
     <string name="folder_picker_companion_message">Acest dispozitiv nu are selector de dosare. Instalează YMusic Files, o mică aplicație ajutătoare inclusă în YMusic, ca să alegi dosare.</string>
     <string name="folder_picker_companion_install">Instalează</string>
+    <string name="folder_picker_missing">Acest dispozitiv nu are selector de dosare, deci nu se poate alege un dosar.</string>
     <string name="error_supervised_account">Acest cont Google este supravegheat, așa că YouTube nu poate fi folosit aici. Deconectează-te sau comută la alt cont.</string>
     <string name="settings_player_cache">Cache player</string>
     <string name="settings_player_cache_summary">Max. %1$s · Folosit %2$s · Economisit %3$s</string>

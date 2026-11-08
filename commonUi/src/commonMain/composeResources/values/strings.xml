@@ -646,6 +646,7 @@
     <string name="folder_picker_storage_denied">Allow access to your music files in settings to choose a folder.</string>
     <string name="folder_picker_companion_message">This device has no folder picker. Install YMusic Files, a small helper that comes with YMusic, to choose folders.</string>
     <string name="folder_picker_companion_install">Install</string>
+    <string name="folder_picker_missing">This device doesn't have a folder picker, so a folder can't be chosen.</string>
     <string name="error_supervised_account">This Google account is supervised, so YouTube can't be used here. Sign out or switch to another account.</string>
     <string name="captcha_verify">Verify</string>
     <string name="captcha_verify_hint">Solve any captcha you see on the screen, then tap Done</string>

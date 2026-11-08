@@ -540,6 +540,7 @@
     <string name="folder_picker_storage_denied">ಫೋಲ್ಡರ್ ಆಯ್ಕೆ ಮಾಡಲು ಸೆಟ್ಟಿಂಗ್‌ಗಳಲ್ಲಿ ನಿಮ್ಮ ಸಂಗೀತ ಫೈಲ್‌ಗಳಿಗೆ ಪ್ರವೇಶ ನೀಡಿ.</string>
     <string name="folder_picker_companion_message">ಈ ಸಾಧನದಲ್ಲಿ ಫೋಲ್ಡರ್ ಆಯ್ಕೆ ಸಾಧನವಿಲ್ಲ. ಫೋಲ್ಡರ್‌ಗಳನ್ನು ಆಯ್ಕೆ ಮಾಡಲು YMusic ಜೊತೆ ಬರುವ ಚಿಕ್ಕ ಸಹಾಯಕ ಆ್ಯಪ್ YMusic Files ಅನ್ನು ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಿ.</string>
     <string name="folder_picker_companion_install">ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಿ</string>
+    <string name="folder_picker_missing">ಈ ಸಾಧನದಲ್ಲಿ ಫೋಲ್ಡರ್ ಪಿಕ್ಕರ್ ಇಲ್ಲ, ಆದ್ದರಿಂದ ಫೋಲ್ಡರ್ ಆಯ್ಕೆ ಮಾಡಲು ಸಾಧ್ಯವಿಲ್ಲ.</string>
     <string name="error_supervised_account">ಈ Google ಖಾತೆ ಮೇಲ್ವಿಚಾರಣೆಯಲ್ಲಿದೆ, ಆದ್ದರಿಂದ ಇಲ್ಲಿ YouTube ಬಳಸಲು ಸಾಧ್ಯವಿಲ್ಲ. ಸೈನ್ ಔಟ್ ಮಾಡಿ ಅಥವಾ ಬೇರೆ ಖಾತೆಗೆ ಬದಲಿಸಿ.</string>
     <string name="settings_player_cache">ಪ್ಲೇಯರ್ ಕ್ಯಾಶ್</string>
     <string name="settings_player_cache_summary">ಗರಿಷ್ಠ %1$s · ಬಳಸಲಾಗಿದೆ %2$s · ಉಳಿತಾಯ %3$s</string>

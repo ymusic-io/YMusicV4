@@ -556,6 +556,7 @@
     <string name="folder_picker_storage_denied">Ak chcete vybrať priečinok, povoľte v nastaveniach prístup k hudobným súborom.</string>
     <string name="folder_picker_companion_message">Toto zariadenie nemá výber priečinkov. Ak chcete vyberať priečinky, nainštalujte YMusic Files, malého pomocníka, ktorý je súčasťou YMusic.</string>
     <string name="folder_picker_companion_install">Inštalovať</string>
+    <string name="folder_picker_missing">Toto zariadenie nemá výber priečinkov, takže priečinok nie je možné vybrať.</string>
     <string name="error_supervised_account">Tento účet Google je pod dohľadom, takže tu nie je možné používať YouTube. Odhláste sa alebo prepnite na iný účet.</string>
     <string name="settings_player_cache">Vyrovnávacia pamäť prehrávača</string>
     <string name="settings_player_cache_summary">Max. %1$s · Využité %2$s · Ušetrené %3$s</string>

@@ -540,6 +540,7 @@
     <string name="folder_picker_storage_denied">Kausta valimiseks luba seadetes juurdepääs oma muusikafailidele.</string>
     <string name="folder_picker_companion_message">Sellel seadmel pole kaustavalijat. Kaustade valimiseks installi YMusic Files – väike YMusicuga kaasas olev abirakendus.</string>
     <string name="folder_picker_companion_install">Installi</string>
+    <string name="folder_picker_missing">Selles seadmes pole kaustavalijat, seega ei saa kausta valida.</string>
     <string name="error_supervised_account">See Google'i konto on järelevalve all, seega ei saa YouTube'i siin kasutada. Logi välja või vaheta teise konto vastu.</string>
     <string name="settings_player_cache">Pleieri vahemälu</string>
     <string name="settings_player_cache_summary">Max %1$s · Kasutusel %2$s · Säästetud %3$s</string>

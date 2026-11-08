@@ -540,6 +540,7 @@
     <string name="folder_picker_storage_denied">Payagan ang access sa iyong mga music file sa mga setting para makapili ng folder.</string>
     <string name="folder_picker_companion_message">Walang folder picker ang device na ito. I-install ang YMusic Files, isang maliit na helper na kasama ng YMusic, para makapili ng mga folder.</string>
     <string name="folder_picker_companion_install">I-install</string>
+    <string name="folder_picker_missing">Walang folder picker ang device na ito, kaya hindi makakapili ng folder.</string>
     <string name="error_supervised_account">Pinangangasiwaan ang Google account na ito, kaya hindi magagamit dito ang YouTube. Mag-sign out o lumipat sa ibang account.</string>
     <string name="settings_player_cache">Cache ng player</string>
     <string name="settings_player_cache_summary">Max %1$s · Nagamit %2$s · Natipid %3$s</string>

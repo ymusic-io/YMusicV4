@@ -532,6 +532,7 @@
     <string name="folder_picker_storage_denied">Benarkan akses kepada fail muzik anda dalam tetapan untuk memilih folder.</string>
     <string name="folder_picker_companion_message">Peranti ini tiada pemilih folder. Pasang YMusic Files, aplikasi pembantu kecil yang disertakan dengan YMusic, untuk memilih folder.</string>
     <string name="folder_picker_companion_install">Pasang</string>
+    <string name="folder_picker_missing">Peranti ini tiada pemilih folder, jadi folder tidak boleh dipilih.</string>
     <string name="error_supervised_account">Akaun Google ini diselia, jadi YouTube tidak boleh digunakan di sini. Log keluar atau tukar kepada akaun lain.</string>
     <string name="settings_player_cache">Cache pemain</string>
     <string name="settings_player_cache_summary">Maks %1$s · Digunakan %2$s · Dijimatkan %3$s</string>

@@ -540,6 +540,7 @@
     <string name="folder_picker_storage_denied">Mappa kiválasztásához engedélyezd a zenefájlokhoz való hozzáférést a beállításokban.</string>
     <string name="folder_picker_companion_message">Ezen az eszközön nincs mappaválasztó. Mappák kiválasztásához telepítsd a YMusic Files-t, a YMusichoz tartozó kis segédalkalmazást.</string>
     <string name="folder_picker_companion_install">Telepítés</string>
+    <string name="folder_picker_missing">Ezen az eszközön nincs mappaválasztó, ezért nem lehet mappát választani.</string>
     <string name="error_supervised_account">Ez a Google-fiók felügyelt, ezért a YouTube itt nem használható. Jelentkezz ki, vagy válts másik fiókra.</string>
     <string name="settings_player_cache">Lejátszó gyorsítótára</string>
     <string name="settings_player_cache_summary">Max. %1$s · Használt %2$s · Megtakarított %3$s</string>

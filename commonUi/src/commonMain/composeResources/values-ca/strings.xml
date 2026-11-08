@@ -548,6 +548,7 @@
     <string name="folder_picker_storage_denied">Permet l’accés als fitxers de música a la configuració per triar una carpeta.</string>
     <string name="folder_picker_companion_message">Aquest dispositiu no té selector de carpetes. Instal·la YMusic Files, una petita aplicació auxiliar que ve amb YMusic, per triar carpetes.</string>
     <string name="folder_picker_companion_install">Instal·la</string>
+    <string name="folder_picker_missing">Aquest dispositiu no té selector de carpetes, així que no es pot triar cap carpeta.</string>
     <string name="error_supervised_account">Aquest compte de Google està supervisat, de manera que YouTube no es pot fer servir aquí. Tanca la sessió o canvia a un altre compte.</string>
     <string name="settings_player_cache">Memòria cau del reproductor</string>
     <string name="settings_player_cache_summary">Màx. %1$s · Usat %2$s · Estalviat %3$s</string>

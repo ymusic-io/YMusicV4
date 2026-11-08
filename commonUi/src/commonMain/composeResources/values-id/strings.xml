@@ -532,6 +532,7 @@
     <string name="folder_picker_storage_denied">Izinkan akses ke file musik Anda di setelan untuk memilih folder.</string>
     <string name="folder_picker_companion_message">Perangkat ini tidak memiliki pemilih folder. Instal YMusic Files, aplikasi bantuan kecil yang disertakan dengan YMusic, untuk memilih folder.</string>
     <string name="folder_picker_companion_install">Instal</string>
+    <string name="folder_picker_missing">Perangkat ini tidak memiliki pemilih folder, jadi folder tidak dapat dipilih.</string>
     <string name="error_supervised_account">Akun Google ini diawasi, jadi YouTube tidak dapat digunakan di sini. Logout atau beralih ke akun lain.</string>
     <string name="settings_player_cache">Cache pemutar</string>
     <string name="settings_player_cache_summary">Maks %1$s · Terpakai %2$s · Hemat %3$s</string>

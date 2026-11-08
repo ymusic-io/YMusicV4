@@ -540,6 +540,7 @@
     <string name="folder_picker_storage_denied">Επιτρέψτε την πρόσβαση στα αρχεία μουσικής από τις ρυθμίσεις για να επιλέξετε φάκελο.</string>
     <string name="folder_picker_companion_message">Αυτή η συσκευή δεν έχει επιλογέα φακέλων. Εγκαταστήστε το YMusic Files, μια μικρή βοηθητική εφαρμογή του YMusic, για να επιλέγετε φακέλους.</string>
     <string name="folder_picker_companion_install">Εγκατάσταση</string>
+    <string name="folder_picker_missing">Αυτή η συσκευή δεν διαθέτει επιλογέα φακέλων, οπότε δεν μπορεί να επιλεγεί φάκελος.</string>
     <string name="error_supervised_account">Αυτός ο λογαριασμός Google είναι υπό επίβλεψη, επομένως το YouTube δεν μπορεί να χρησιμοποιηθεί εδώ. Αποσυνδεθείτε ή μεταβείτε σε άλλον λογαριασμό.</string>
     <string name="settings_player_cache">Κρυφή μνήμη αναπαραγωγής</string>
     <string name="settings_player_cache_summary">Μέγ. %1$s · Σε χρήση %2$s · Εξοικονόμηση %3$s</string>

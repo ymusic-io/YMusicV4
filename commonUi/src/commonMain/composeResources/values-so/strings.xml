@@ -540,6 +540,7 @@
     <string name="folder_picker_storage_denied">U oggolow gelitaanka faylasha muusiggaaga dejinta si aad gal u doorato.</string>
     <string name="folder_picker_companion_message">Qalabkan ma laha dooraha galalka. Ku rakib YMusic Files, caawiye yar oo la socda YMusic, si aad galal u doorato.</string>
     <string name="folder_picker_companion_install">Ku rakib</string>
+    <string name="folder_picker_missing">Qalabkan ma laha dooraha galka, sidaa darteed gal lama dooran karo.</string>
     <string name="error_supervised_account">Akoonkan Google waa la kormeeraa, sidaa darteed YouTube halkan laguma isticmaali karo. Ka bax ama u beddel akoon kale.</string>
     <string name="settings_player_cache">Kaydka k/g ee daaraha</string>
     <string name="settings_player_cache_summary">Ugu badnaan %1$s · La isticmaalay %2$s · La badbaadiyay %3$s</string>
