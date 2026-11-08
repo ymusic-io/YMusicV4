@@ -16,11 +16,11 @@ internal object StorageCompanion {
 
     fun pickFolderIntent(packageName: String): Intent = Intent(ACTION_PICK_FOLDER).setPackage(packageName)
 
-    fun isInstalled(context: Context, packageName: String): Boolean = try {
-        context.packageManager.getPackageInfo(packageName, 0)
-        true
+    /** The installed helper's versionCode; null when it isn't installed. */
+    fun installedVersion(context: Context, packageName: String): Long? = try {
+        context.packageManager.getPackageInfo(packageName, 0).longVersionCode
     } catch (e: PackageManager.NameNotFoundException) {
-        false
+        null
     }
 
     /** Anything else under that package name is not ours, and ours refuses a caller signed differently. */

@@ -539,6 +539,7 @@
     <string name="folder_picker_empty">Այստեղ թղթապանակներ չկան</string>
     <string name="folder_picker_storage_denied">Թղթապանակ ընտրելու համար կարգավորումներում թույլատրեք մուտքը ձեր երաժշտական ֆայլեր։</string>
     <string name="folder_picker_companion_message">Այս սարքում թղթապանակ ընտրելու գործիք չկա։ Թղթապանակներ ընտրելու համար այս հղումից ներբեռնեք և տեղադրեք YMusic Files-ը՝ YMusic-ի փոքր օգնական հավելվածը, ապա նորից փորձեք։</string>
+    <string name="folder_picker_companion_update">YMusic Files-ը պետք է թարմացվի, որպեսզի աշխատի YMusic-ի այս տարբերակի հետ։ Ներբեռնեք և տեղադրեք վերջին տարբերակը այս հղումից, ապա նորից փորձեք։</string>
     <string name="folder_picker_companion_open">Բացել հղումը</string>
     <string name="folder_picker_missing">Այս սարքը չունի թղթապանակի ընտրիչ, ուստի թղթապանակ ընտրել հնարավոր չէ։</string>
     <string name="error_supervised_account">Այս Google հաշիվը վերահսկվում է, ուստի YouTube-ն այստեղ հնարավոր չէ օգտագործել։ Դուրս եկեք կամ անցեք այլ հաշվի։</string>

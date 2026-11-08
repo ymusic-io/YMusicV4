@@ -555,6 +555,7 @@
     <string name="folder_picker_empty">Žádné složky</string>
     <string name="folder_picker_storage_denied">Chcete-li vybrat složku, povolte v nastavení přístup k hudebním souborům.</string>
     <string name="folder_picker_companion_message">Toto zařízení nemá výběr složek. Chcete-li vybírat složky, stáhněte a nainstalujte z tohoto odkazu YMusic Files, malého pomocníka pro YMusic, a zkuste to znovu.</string>
+    <string name="folder_picker_companion_update">YMusic Files je potřeba aktualizovat, aby fungoval s touto verzí YMusic. Stáhněte a nainstalujte nejnovější verzi z tohoto odkazu a zkuste to znovu.</string>
     <string name="folder_picker_companion_open">Otevřít odkaz</string>
     <string name="folder_picker_missing">Toto zařízení nemá výběr složek, takže složku nelze vybrat.</string>
     <string name="error_supervised_account">Tento účet Google je pod dohledem, takže zde YouTube nelze používat. Odhlaste se nebo přepněte na jiný účet.</string>

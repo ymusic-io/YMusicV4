@@ -547,6 +547,7 @@
     <string name="folder_picker_empty">Nenhuma pasta aqui</string>
     <string name="folder_picker_storage_denied">Permita o acesso aos seus arquivos de música nas configurações para escolher uma pasta.</string>
     <string name="folder_picker_companion_message">Este dispositivo não tem seletor de pastas. Para escolher pastas, baixe e instale o YMusic Files, um pequeno app auxiliar do YMusic, a partir deste link e tente novamente.</string>
+    <string name="folder_picker_companion_update">O YMusic Files precisa ser atualizado para funcionar com esta versão do YMusic. Baixe e instale a versão mais recente a partir deste link e tente novamente.</string>
     <string name="folder_picker_companion_open">Abrir link</string>
     <string name="folder_picker_missing">Este dispositivo não tem seletor de pastas, então não é possível escolher uma pasta.</string>
     <string name="error_supervised_account">Esta conta Google é supervisionada, por isso o YouTube não pode ser usado aqui. Saia ou mude para outra conta.</string>

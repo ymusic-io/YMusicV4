@@ -531,6 +531,7 @@
     <string name="folder_picker_empty">這裡沒有資料夾</string>
     <string name="folder_picker_storage_denied">請在設定中允許存取你的音樂檔案，才能選擇資料夾。</string>
     <string name="folder_picker_companion_message">這部裝置沒有資料夾選擇器。如要選擇資料夾，請透過這個連結下載並安裝 YMusic 的小型輔助應用程式 YMusic Files，然後再試一次。</string>
+    <string name="folder_picker_companion_update">YMusic Files 需要更新才能搭配這個版本的 YMusic 使用。請透過這個連結下載並安裝最新版本，然後再試一次。</string>
     <string name="folder_picker_companion_open">開啟連結</string>
     <string name="folder_picker_missing">這部裝置沒有資料夾選擇器，因此無法選擇資料夾。</string>
     <string name="error_supervised_account">這個 Google 帳戶受到監管，因此無法在這裡使用 YouTube。請登出或切換至其他帳戶。</string>

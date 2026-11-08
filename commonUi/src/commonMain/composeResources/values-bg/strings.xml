@@ -539,6 +539,7 @@
     <string name="folder_picker_empty">Тук няма папки</string>
     <string name="folder_picker_storage_denied">Разрешете достъп до музикалните си файлове в настройките, за да изберете папка.</string>
     <string name="folder_picker_companion_message">Това устройство няма инструмент за избор на папки. За да избирате папки, изтеглете и инсталирайте YMusic Files – малко помощно приложение за YMusic, от тази връзка и опитайте отново.</string>
+    <string name="folder_picker_companion_update">YMusic Files трябва да се актуализира, за да работи с тази версия на YMusic. Изтеглете и инсталирайте най-новата версия от тази връзка и опитайте отново.</string>
     <string name="folder_picker_companion_open">Отваряне на връзката</string>
     <string name="folder_picker_missing">Това устройство няма инструмент за избор на папка, затова не може да се избере папка.</string>
     <string name="error_supervised_account">Този профил в Google е под надзор, затова YouTube не може да се използва тук. Излезте или превключете към друг профил.</string>

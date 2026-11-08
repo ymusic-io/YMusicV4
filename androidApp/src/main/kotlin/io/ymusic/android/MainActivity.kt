@@ -62,6 +62,7 @@ import io.ymusic.ui.resources.dialog_ok
 import io.ymusic.ui.resources.error_generic
 import io.ymusic.ui.resources.folder_picker_companion_message
 import io.ymusic.ui.resources.folder_picker_companion_open
+import io.ymusic.ui.resources.folder_picker_companion_update
 import io.ymusic.ui.resources.folder_picker_disabled
 import io.ymusic.ui.resources.folder_picker_missing
 import io.ymusic.ui.resources.folder_picker_open_settings
@@ -180,8 +181,8 @@ class MainActivity : FragmentActivity() {
     private suspend fun pickFolderWithoutSystemPicker(): Uri? =
         if (Build.VERSION.SDK_INT >= 30) pickFolderWithCompanion() else pickFolderByPath()
 
-    /** The helper's download link while [CompanionInstallDialog] asks the user to install it. */
-    private val companionDownload = mutableStateOf<String?>(null)
+    /** While set, [CompanionInstallDialog] asks the user to install (or update) the helper from its link. */
+    private val companionDownload = mutableStateOf<CompanionDownload?>(null)
 
     private var pendingCompanionPick: CompletableDeferred<android.net.Uri?>? = null
     private val companionPickLauncher =
@@ -201,17 +202,27 @@ class MainActivity : FragmentActivity() {
             folderPickerIssue.value = FolderPickerIssue.Unsupported
             return null
         }
-        val installed = StorageCompanion.isInstalled(this, helper)
-        if (!installed || !StorageCompanion.isSignedLikeUs(this, helper)) {
-            if (installed) {
-                log.log(Logger.Level.WARN, "$helper is installed but signed with another key")
-            } else if (!StorageCompanion.canGrantAllFilesAccess(this, helper)) {
-                log.log(Logger.Level.WARN, "no All files access screen either: no way to pick a folder on this device")
-                folderPickerIssue.value = FolderPickerIssue.Unsupported
+        val version = StorageCompanion.installedVersion(this, helper)
+        when {
+            version == null -> {
+                if (!StorageCompanion.canGrantAllFilesAccess(this, helper)) {
+                    log.log(Logger.Level.WARN, "no All files access screen either: no way to pick a folder on this device")
+                    folderPickerIssue.value = FolderPickerIssue.Unsupported
+                    return null
+                }
+                companionDownload.value = CompanionDownload(downloadUrl, update = false)
                 return null
             }
-            companionDownload.value = downloadUrl
-            return null
+            !StorageCompanion.isSignedLikeUs(this, helper) -> {
+                log.log(Logger.Level.WARN, "$helper is installed but signed with another key")
+                companionDownload.value = CompanionDownload(downloadUrl, update = false)
+                return null
+            }
+            version < features.safHelperMinVersion -> {
+                log.log(Logger.Level.INFO, "$helper $version is older than ${features.safHelperMinVersion}")
+                companionDownload.value = CompanionDownload(downloadUrl, update = true)
+                return null
+            }
         }
         val picked = CompletableDeferred<android.net.Uri?>()
         pendingCompanionPick?.complete(null)
@@ -549,9 +560,11 @@ class MainActivity : FragmentActivity() {
                     onDismiss = { folderPickerIssue.value = null },
                 )
             }
-            companionDownload.value?.let { url ->
+            companionDownload.value?.let { download ->
+                val url = download.url
                 CompanionInstallDialog(
                     url = url,
+                    update = download.update,
                     canOpen = remember(url) { Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)).resolveActivity(packageManager) != null },
                     onOpen = {
                         companionDownload.value = null
@@ -874,16 +887,18 @@ private fun FolderPickerIssueDialog(issue: FolderPickerIssue, onOpenSettings: (S
     )
 }
 
+private class CompanionDownload(val url: String, val update: Boolean)
+
 /** Asks the user to install the helper from [url] themselves; the link is spelled out for devices with no browser. */
 @androidx.compose.runtime.Composable
-private fun CompanionInstallDialog(url: String, canOpen: Boolean, onOpen: () -> Unit, onDismiss: () -> Unit) {
+private fun CompanionInstallDialog(url: String, update: Boolean, canOpen: Boolean, onOpen: () -> Unit, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         text = {
             androidx.compose.foundation.layout.Column(
                 verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(io.ymusic.ui.DesignSpacing.Space16),
             ) {
-                Text(resString(Res.string.folder_picker_companion_message))
+                Text(resString(if (update) Res.string.folder_picker_companion_update else Res.string.folder_picker_companion_message))
                 androidx.compose.foundation.text.selection.SelectionContainer {
                     Text(url, color = MaterialTheme.colorScheme.primary)
                 }

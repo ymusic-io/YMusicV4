@@ -547,6 +547,7 @@
     <string name="folder_picker_empty">Овде нема фасцикли</string>
     <string name="folder_picker_storage_denied">Да бисте изабрали фасциклу, дозволите у подешавањима приступ музичким фајловима.</string>
     <string name="folder_picker_companion_message">Овај уређај нема алатку за избор фасцикли. Да бисте бирали фасцикле, преузмите и инсталирајте са овог линка YMusic Files, малу помоћну апликацију за YMusic, па покушајте поново.</string>
+    <string name="folder_picker_companion_update">YMusic Files треба ажурирати да би радио са овом верзијом YMusic-а. Преузмите и инсталирајте најновију верзију са овог линка, па покушајте поново.</string>
     <string name="folder_picker_companion_open">Отвори линк</string>
     <string name="folder_picker_missing">Овај уређај нема алатку за избор фолдера, па фолдер не може да се изабере.</string>
     <string name="error_supervised_account">Овај Google налог је под надзором, па се YouTube овде не може користити. Одјавите се или пређите на други налог.</string>

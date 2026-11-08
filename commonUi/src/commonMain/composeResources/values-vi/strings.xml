@@ -608,6 +608,7 @@
     <string name="folder_picker_empty">Không có thư mục nào</string>
     <string name="folder_picker_storage_denied">Hãy cho phép truy cập tệp nhạc trong phần cài đặt để chọn thư mục.</string>
     <string name="folder_picker_companion_message">Thiết bị này không có trình chọn thư mục. Để chọn thư mục, hãy tải và cài YMusic Files, một ứng dụng trợ giúp nhỏ cho YMusic, từ đường dẫn này rồi thử lại.</string>
+    <string name="folder_picker_companion_update">YMusic Files cần được cập nhật để dùng được với phiên bản YMusic này. Hãy tải và cài phiên bản mới nhất từ đường dẫn này rồi thử lại.</string>
     <string name="folder_picker_companion_open">Mở đường dẫn</string>
     <string name="folder_picker_missing">Thiết bị này không có trình chọn thư mục nên không thể chọn thư mục.</string>
     <string name="error_supervised_account">Tài khoản Google này đang được giám sát nên không thể dùng YouTube ở đây. Hãy đăng xuất hoặc chuyển sang tài khoản khác.</string>

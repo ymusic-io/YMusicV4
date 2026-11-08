@@ -531,6 +531,7 @@
     <string name="folder_picker_empty">此处没有文件夹</string>
     <string name="folder_picker_storage_denied">请在设置中允许访问您的音乐文件，以便选择文件夹。</string>
     <string name="folder_picker_companion_message">此设备没有文件夹选择器。如需选择文件夹，请通过此链接下载并安装 YMusic 的小型辅助应用 YMusic Files，然后重试。</string>
+    <string name="folder_picker_companion_update">YMusic Files 需要更新才能与此版本的 YMusic 配合使用。请通过此链接下载并安装最新版本，然后重试。</string>
     <string name="folder_picker_companion_open">打开链接</string>
     <string name="folder_picker_missing">此设备没有文件夹选择器，无法选择文件夹。</string>
     <string name="error_supervised_account">此 Google 帐号受监管，因此无法在此使用 YouTube。请退出登录或切换到其他帐号。</string>

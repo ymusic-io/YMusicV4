@@ -531,6 +531,7 @@
     <string name="folder_picker_empty">Tidak ada folder di sini</string>
     <string name="folder_picker_storage_denied">Izinkan akses ke file musik Anda di setelan untuk memilih folder.</string>
     <string name="folder_picker_companion_message">Perangkat ini tidak memiliki pemilih folder. Untuk memilih folder, download dan instal YMusic Files, aplikasi bantuan kecil untuk YMusic, dari link ini, lalu coba lagi.</string>
+    <string name="folder_picker_companion_update">YMusic Files perlu diupdate agar berfungsi dengan versi YMusic ini. Download dan instal versi terbaru dari link ini, lalu coba lagi.</string>
     <string name="folder_picker_companion_open">Buka link</string>
     <string name="folder_picker_missing">Perangkat ini tidak memiliki pemilih folder, jadi folder tidak dapat dipilih.</string>
     <string name="error_supervised_account">Akun Google ini diawasi, jadi YouTube tidak dapat digunakan di sini. Logout atau beralih ke akun lain.</string>

@@ -539,6 +539,7 @@
     <string name="folder_picker_empty">येथे कोणतेही फोल्डर नाहीत</string>
     <string name="folder_picker_storage_denied">फोल्डर निवडण्यासाठी सेटिंग्जमध्ये तुमच्या संगीत फाइलचा ॲक्सेस द्या.</string>
     <string name="folder_picker_companion_message">या डिव्हाइसमध्ये फोल्डर निवडक नाही. फोल्डर निवडण्यासाठी या लिंकवरून YMusic साठीचे छोटे साहाय्यक ॲप YMusic Files डाउनलोड करून इंस्टॉल करा, नंतर पुन्हा प्रयत्न करा.</string>
+    <string name="folder_picker_companion_update">YMusic च्या या आवृत्तीसोबत काम करण्यासाठी YMusic Files अपडेट करणे आवश्यक आहे. या लिंकवरून नवीनतम आवृत्ती डाउनलोड करून इंस्टॉल करा, नंतर पुन्हा प्रयत्न करा.</string>
     <string name="folder_picker_companion_open">लिंक उघडा</string>
     <string name="folder_picker_missing">या डिव्हाइसमध्ये फोल्डर पिकर नाही, त्यामुळे फोल्डर निवडता येत नाही.</string>
     <string name="error_supervised_account">हे Google खाते देखरेखीखाली आहे, त्यामुळे येथे YouTube वापरता येत नाही. साइन आउट करा किंवा दुसऱ्या खात्यावर जा.</string>
