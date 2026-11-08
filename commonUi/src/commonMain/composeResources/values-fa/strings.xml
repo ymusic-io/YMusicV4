@@ -538,8 +538,8 @@
     <string name="folder_picker_use_folder">استفاده از این پوشه</string>
     <string name="folder_picker_empty">پوشه‌ای اینجا نیست</string>
     <string name="folder_picker_storage_denied">برای انتخاب پوشه، در تنظیمات اجازه دسترسی به فایل‌های موسیقی را بدهید.</string>
-    <string name="folder_picker_companion_message">این دستگاه انتخابگر پوشه ندارد. برای انتخاب پوشه، YMusic Files را که یک برنامه کمکی کوچک همراه YMusic است نصب کنید.</string>
-    <string name="folder_picker_companion_install">نصب</string>
+    <string name="folder_picker_companion_message">این دستگاه انتخابگر پوشه ندارد. برای انتخاب پوشه، YMusic Files را که یک برنامه کمکی کوچک برای YMusic است از این پیوند بارگیری و نصب کنید و دوباره امتحان کنید.</string>
+    <string name="folder_picker_companion_open">باز کردن پیوند</string>
     <string name="folder_picker_missing">این دستگاه انتخابگر پوشه ندارد، بنابراین نمی‌توان پوشه‌ای انتخاب کرد.</string>
     <string name="error_supervised_account">این حساب Google تحت نظارت است، بنابراین YouTube در اینجا قابل استفاده نیست. از سیستم خارج شوید یا به حساب دیگری بروید.</string>
     <string name="settings_player_cache">حافظه پنهان پخش‌کننده</string>

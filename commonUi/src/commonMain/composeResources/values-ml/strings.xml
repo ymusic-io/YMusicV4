@@ -538,8 +538,8 @@
     <string name="folder_picker_use_folder">ഈ ഫോൾഡർ ഉപയോഗിക്കുക</string>
     <string name="folder_picker_empty">ഇവിടെ ഫോൾഡറുകളൊന്നുമില്ല</string>
     <string name="folder_picker_storage_denied">ഫോൾഡർ തിരഞ്ഞെടുക്കാൻ ക്രമീകരണത്തിൽ നിങ്ങളുടെ സംഗീത ഫയലുകളിലേക്കുള്ള ആക്‌സസ് അനുവദിക്കുക.</string>
-    <string name="folder_picker_companion_message">ഈ ഉപകരണത്തിൽ ഫോൾഡർ പിക്കർ ഇല്ല. ഫോൾഡറുകൾ തിരഞ്ഞെടുക്കാൻ YMusic-നൊപ്പം വരുന്ന ചെറിയ സഹായ ആപ്പായ YMusic Files ഇൻസ്‌റ്റാൾ ചെയ്യുക.</string>
-    <string name="folder_picker_companion_install">ഇൻസ്‌റ്റാൾ ചെയ്യുക</string>
+    <string name="folder_picker_companion_message">ഈ ഉപകരണത്തിൽ ഫോൾഡർ പിക്കർ ഇല്ല. ഫോൾഡറുകൾ തിരഞ്ഞെടുക്കാൻ ഈ ലിങ്കിൽ നിന്ന് YMusic-നുള്ള ചെറിയ സഹായ ആപ്പായ YMusic Files ഡൗൺലോഡ് ചെയ്‌ത് ഇൻസ്‌റ്റാൾ ചെയ്‌ത ശേഷം വീണ്ടും ശ്രമിക്കുക.</string>
+    <string name="folder_picker_companion_open">ലിങ്ക് തുറക്കുക</string>
     <string name="folder_picker_missing">ഈ ഉപകരണത്തിൽ ഫോൾഡർ പിക്കർ ഇല്ല, അതിനാൽ ഫോൾഡർ തിരഞ്ഞെടുക്കാനാകില്ല.</string>
     <string name="error_supervised_account">ഈ Google അക്കൗണ്ട് മേൽനോട്ടത്തിലാണ്, അതിനാൽ ഇവിടെ YouTube ഉപയോഗിക്കാനാകില്ല. സൈൻ ഔട്ട് ചെയ്യുക അല്ലെങ്കിൽ മറ്റൊരു അക്കൗണ്ടിലേക്ക് മാറുക.</string>
     <string name="settings_player_cache">പ്ലേയർ കാഷെ</string>

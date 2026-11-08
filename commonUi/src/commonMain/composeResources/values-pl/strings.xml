@@ -554,8 +554,8 @@
     <string name="folder_picker_use_folder">Użyj tego folderu</string>
     <string name="folder_picker_empty">Brak folderów</string>
     <string name="folder_picker_storage_denied">Aby wybrać folder, zezwól w ustawieniach na dostęp do plików muzycznych.</string>
-    <string name="folder_picker_companion_message">To urządzenie nie ma narzędzia do wybierania folderów. Aby wybierać foldery, zainstaluj YMusic Files – małą aplikację pomocniczą dołączoną do YMusic.</string>
-    <string name="folder_picker_companion_install">Zainstaluj</string>
+    <string name="folder_picker_companion_message">To urządzenie nie ma narzędzia do wybierania folderów. Aby wybierać foldery, pobierz z tego linku i zainstaluj YMusic Files – małą aplikację pomocniczą dla YMusic – a potem spróbuj ponownie.</string>
+    <string name="folder_picker_companion_open">Otwórz link</string>
     <string name="folder_picker_missing">To urządzenie nie ma narzędzia do wyboru folderu, więc nie można wybrać folderu.</string>
     <string name="error_supervised_account">To konto Google jest nadzorowane, więc nie można tu korzystać z YouTube. Wyloguj się lub przełącz na inne konto.</string>
     <string name="settings_player_cache">Pamięć podręczna odtwarzacza</string>

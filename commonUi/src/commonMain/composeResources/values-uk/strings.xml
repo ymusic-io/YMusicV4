@@ -650,8 +650,8 @@
     <string name="folder_picker_use_folder">Вибрати цю папку</string>
     <string name="folder_picker_empty">Тут немає папок</string>
     <string name="folder_picker_storage_denied">Щоб вибрати папку, дозвольте в налаштуваннях доступ до музичних файлів.</string>
-    <string name="folder_picker_companion_message">На цьому пристрої немає засобу вибору папок. Щоб вибирати папки, установіть YMusic Files — невеликий помічник, що входить до YMusic.</string>
-    <string name="folder_picker_companion_install">Установити</string>
+    <string name="folder_picker_companion_message">На цьому пристрої немає засобу вибору папок. Щоб вибирати папки, завантажте за цим посиланням і встановіть YMusic Files — невеликий помічник для YMusic, — а потім спробуйте ще раз.</string>
+    <string name="folder_picker_companion_open">Відкрити посилання</string>
     <string name="folder_picker_missing">На цьому пристрої немає засобу вибору папок, тому вибрати папку неможливо.</string>
     <string name="error_supervised_account">Цей акаунт Google перебуває під наглядом, тому YouTube тут використовувати не можна. Вийдіть або перейдіть на інший акаунт.</string>
     <string name="captcha_verify">Підтвердити</string>

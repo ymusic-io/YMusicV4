@@ -1,6 +1,3 @@
-import org.gradle.process.ExecOperations
-import javax.inject.Inject
-
 plugins {
     id("com.android.application")
     id("org.jetbrains.compose")
@@ -211,78 +208,6 @@ val copyComposeResources by tasks.registering(Copy::class) {
 }
 tasks.matching { it.name.startsWith("merge") && it.name.endsWith("Assets") }.configureEach {
     dependsOn(copyComposeResources, copyEngineJs)
-}
-
-/** Builds the YMusic Files helper (the `android-saf/` submodule, its own Gradle project) and stages its APK as an
- *  asset, signed like the variant: the helper grants folders only to apps signed with its own key. */
-abstract class StorageCompanionApk @Inject constructor(private val exec: ExecOperations) : DefaultTask() {
-    @get:InputFiles
-    @get:PathSensitive(PathSensitivity.RELATIVE)
-    abstract val sources: ConfigurableFileCollection
-
-    @get:Input
-    abstract val buildType: Property<String>
-
-    @get:Input
-    abstract val signingEnv: MapProperty<String, String>
-
-    @get:Internal
-    abstract val companionDir: DirectoryProperty
-
-    @get:Internal
-    abstract val sdkDir: DirectoryProperty
-
-    @get:OutputDirectory
-    abstract val outputDir: DirectoryProperty
-
-    @TaskAction
-    fun build() {
-        val type = buildType.get()
-        val companion = companionDir.get().asFile
-        val windows = System.getProperty("os.name").startsWith("Windows")
-        val gradlew = File(companion, if (windows) "gradlew.bat" else "gradlew")
-        if (!gradlew.isFile) throw GradleException("the android-saf submodule is missing: run git submodule update --init")
-        exec.exec {
-            workingDir = companion
-            commandLine(gradlew.absolutePath, "--quiet", "assemble${type.replaceFirstChar { it.uppercase() }}")
-            environment("ANDROID_HOME", sdkDir.get().asFile.absolutePath)
-            SIGNING_ENV_KEYS.forEach { environment.remove(it) }
-            environment(signingEnv.get())
-        }
-        val out = outputDir.get().asFile
-        out.deleteRecursively()
-        out.mkdirs()
-        File(companion, "build/outputs/apk/$type/android-saf-$type.apk").copyTo(File(out, "android-saf.apk"))
-    }
-
-    companion object {
-        val SIGNING_ENV_KEYS = listOf("YMUSIC_ANDROID_STORE_FILE", "YMUSIC_ANDROID_STORE_PASSWORD", "YMUSIC_ANDROID_KEY_ALIAS", "YMUSIC_ANDROID_KEY_PASSWORD")
-    }
-}
-
-androidComponents {
-    onVariants { variant ->
-        val type = variant.buildType ?: "release"
-        val signing = if (type == "release") androidReleaseSigning() else null
-        val task = tasks.register<StorageCompanionApk>("storageCompanion${variant.name.replaceFirstChar { it.uppercase() }}") {
-            val dir = rootProject.layout.projectDirectory.dir("android-saf")
-            companionDir.set(dir)
-            sources.from(fileTree(dir) { exclude("build/**", ".gradle/**", ".git") })
-            buildType.set(type)
-            signingEnv.set(
-                signing?.let {
-                    mapOf(
-                        "YMUSIC_ANDROID_STORE_FILE" to it.storeFile.absolutePath,
-                        "YMUSIC_ANDROID_STORE_PASSWORD" to it.storePassword,
-                        "YMUSIC_ANDROID_KEY_ALIAS" to it.keyAlias,
-                        "YMUSIC_ANDROID_KEY_PASSWORD" to it.keyPassword,
-                    )
-                } ?: emptyMap(),
-            )
-            sdkDir.set(androidComponents.sdkComponents.sdkDirectory)
-        }
-        variant.sources.assets?.addGeneratedSourceDirectory(task, StorageCompanionApk::outputDir)
-    }
 }
 
 // Release builds also read src/main/assets from lintVital's model writer — same staged inputs.

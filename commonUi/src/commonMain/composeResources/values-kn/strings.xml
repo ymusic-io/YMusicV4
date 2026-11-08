@@ -538,8 +538,8 @@
     <string name="folder_picker_use_folder">ಈ ಫೋಲ್ಡರ್ ಬಳಸಿ</string>
     <string name="folder_picker_empty">ಇಲ್ಲಿ ಯಾವುದೇ ಫೋಲ್ಡರ್‌ಗಳಿಲ್ಲ</string>
     <string name="folder_picker_storage_denied">ಫೋಲ್ಡರ್ ಆಯ್ಕೆ ಮಾಡಲು ಸೆಟ್ಟಿಂಗ್‌ಗಳಲ್ಲಿ ನಿಮ್ಮ ಸಂಗೀತ ಫೈಲ್‌ಗಳಿಗೆ ಪ್ರವೇಶ ನೀಡಿ.</string>
-    <string name="folder_picker_companion_message">ಈ ಸಾಧನದಲ್ಲಿ ಫೋಲ್ಡರ್ ಆಯ್ಕೆ ಸಾಧನವಿಲ್ಲ. ಫೋಲ್ಡರ್‌ಗಳನ್ನು ಆಯ್ಕೆ ಮಾಡಲು YMusic ಜೊತೆ ಬರುವ ಚಿಕ್ಕ ಸಹಾಯಕ ಆ್ಯಪ್ YMusic Files ಅನ್ನು ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಿ.</string>
-    <string name="folder_picker_companion_install">ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಿ</string>
+    <string name="folder_picker_companion_message">ಈ ಸಾಧನದಲ್ಲಿ ಫೋಲ್ಡರ್ ಆಯ್ಕೆ ಸಾಧನವಿಲ್ಲ. ಫೋಲ್ಡರ್‌ಗಳನ್ನು ಆಯ್ಕೆ ಮಾಡಲು ಈ ಲಿಂಕ್‌ನಿಂದ YMusic ಗಾಗಿ ಇರುವ ಚಿಕ್ಕ ಸಹಾಯಕ ಆ್ಯಪ್ YMusic Files ಅನ್ನು ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಿ, ನಂತರ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.</string>
+    <string name="folder_picker_companion_open">ಲಿಂಕ್ ತೆರೆಯಿರಿ</string>
     <string name="folder_picker_missing">ಈ ಸಾಧನದಲ್ಲಿ ಫೋಲ್ಡರ್ ಪಿಕ್ಕರ್ ಇಲ್ಲ, ಆದ್ದರಿಂದ ಫೋಲ್ಡರ್ ಆಯ್ಕೆ ಮಾಡಲು ಸಾಧ್ಯವಿಲ್ಲ.</string>
     <string name="error_supervised_account">ಈ Google ಖಾತೆ ಮೇಲ್ವಿಚಾರಣೆಯಲ್ಲಿದೆ, ಆದ್ದರಿಂದ ಇಲ್ಲಿ YouTube ಬಳಸಲು ಸಾಧ್ಯವಿಲ್ಲ. ಸೈನ್ ಔಟ್ ಮಾಡಿ ಅಥವಾ ಬೇರೆ ಖಾತೆಗೆ ಬದಲಿಸಿ.</string>
     <string name="settings_player_cache">ಪ್ಲೇಯರ್ ಕ್ಯಾಶ್</string>

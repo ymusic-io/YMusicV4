@@ -42,10 +42,17 @@
         </intent>
     </queries>
 
-    <!-- YMusic Files, the folder picker on Android 11+ devices without one, and the screens that grant it
-         All files access (StorageCompanion). -->
+    <!-- YMusic Files, the folder picker on Android 11+ devices without one (its package comes from the remote
+         config, so it is found by its action), the screens that grant it All files access, and a browser for its
+         download link (StorageCompanion). -->
     <queries>
-        <package android:name="io.ymusic.android.saf" />
+        <intent>
+            <action android:name="io.ymusic.android.saf.action.PICK_FOLDER" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
         <intent>
             <action android:name="android.settings.MANAGE_APP_ALL_FILES_ACCESS_PERMISSION" />
             <data android:scheme="package" />
@@ -305,9 +312,6 @@
             android:resource="@xml/automotive_app_desc" />
         <receiver
             android:name=".UpdateInstallReceiver"
-            android:exported="false" />
-        <receiver
-            android:name=".CompanionInstallReceiver"
             android:exported="false" />
     </application>
 

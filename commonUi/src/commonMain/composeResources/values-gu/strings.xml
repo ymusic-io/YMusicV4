@@ -538,8 +538,8 @@
     <string name="folder_picker_use_folder">આ ફોલ્ડરનો ઉપયોગ કરો</string>
     <string name="folder_picker_empty">અહીં કોઈ ફોલ્ડર નથી</string>
     <string name="folder_picker_storage_denied">ફોલ્ડર પસંદ કરવા માટે સેટિંગ્સમાં તમારી મ્યુઝિક ફાઇલોની ઍક્સેસ આપો.</string>
-    <string name="folder_picker_companion_message">આ ડિવાઇસમાં ફોલ્ડર પસંદગીકાર નથી. ફોલ્ડર પસંદ કરવા માટે YMusic સાથે આવતી નાની સહાયક ઍપ YMusic Files ઇન્સ્ટૉલ કરો.</string>
-    <string name="folder_picker_companion_install">ઇન્સ્ટૉલ કરો</string>
+    <string name="folder_picker_companion_message">આ ડિવાઇસમાં ફોલ્ડર પસંદગીકાર નથી. ફોલ્ડર પસંદ કરવા માટે આ લિંક પરથી YMusic માટેની નાની સહાયક ઍપ YMusic Files ડાઉનલોડ કરીને ઇન્સ્ટૉલ કરો, પછી ફરી પ્રયાસ કરો.</string>
+    <string name="folder_picker_companion_open">લિંક ખોલો</string>
     <string name="folder_picker_missing">આ ડિવાઇસમાં ફોલ્ડર પિકર નથી, તેથી ફોલ્ડર પસંદ કરી શકાતું નથી.</string>
     <string name="error_supervised_account">આ Google એકાઉન્ટ દેખરેખ હેઠળ છે, તેથી અહીં YouTube નો ઉપયોગ કરી શકાતો નથી. સાઇન આઉટ કરો અથવા બીજા એકાઉન્ટ પર સ્વિચ કરો.</string>
     <string name="settings_player_cache">પ્લેયર કૅશ</string>

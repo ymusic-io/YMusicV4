@@ -60,8 +60,8 @@ import io.ymusic.ui.resources.Res
 import io.ymusic.ui.resources.dialog_cancel
 import io.ymusic.ui.resources.dialog_ok
 import io.ymusic.ui.resources.error_generic
-import io.ymusic.ui.resources.folder_picker_companion_install
 import io.ymusic.ui.resources.folder_picker_companion_message
+import io.ymusic.ui.resources.folder_picker_companion_open
 import io.ymusic.ui.resources.folder_picker_disabled
 import io.ymusic.ui.resources.folder_picker_missing
 import io.ymusic.ui.resources.folder_picker_open_settings
@@ -180,10 +180,8 @@ class MainActivity : FragmentActivity() {
     private suspend fun pickFolderWithoutSystemPicker(): Uri? =
         if (Build.VERSION.SDK_INT >= 30) pickFolderWithCompanion() else pickFolderByPath()
 
-    /** Asks before installing the helper: [CompanionInstallDialog] shows while this is set, and completes it. */
-    private val companionPrompt = mutableStateOf<CompletableDeferred<Boolean>?>(null)
-
-    private var pendingResume: CompletableDeferred<Unit>? = null
+    /** The helper's download link while [CompanionInstallDialog] asks the user to install it. */
+    private val companionDownload = mutableStateOf<String?>(null)
 
     private var pendingCompanionPick: CompletableDeferred<android.net.Uri?>? = null
     private val companionPickLauncher =
@@ -192,25 +190,34 @@ class MainActivity : FragmentActivity() {
             pendingCompanionPick = null
         }
 
-    /** The YMusic Files folder pick (installing the helper first when needed): a SAF tree, or null when canceled. */
+    /** The YMusic Files folder pick: a SAF tree, or null when canceled or the user has yet to install the helper. */
     private suspend fun pickFolderWithCompanion(): Uri? {
         val log = (application as YMusicApplication).rootLogger.fork("storage-companion")
-        if (!withContext(Dispatchers.IO) { StorageCompanion.isUpToDate(this@MainActivity) }) {
-            if (!StorageCompanion.canGrantAllFilesAccess(this)) {
+        val features = (application as YMusicApplication).services.await().remoteConfig.awaitLoaded().features
+        val helper = features.safHelperPackage
+        val downloadUrl = features.safHelperUrl
+        if (helper == null || downloadUrl == null) {
+            log.log(Logger.Level.WARN, "the remote config names no folder picker helper")
+            folderPickerIssue.value = FolderPickerIssue.Unsupported
+            return null
+        }
+        val installed = StorageCompanion.isInstalled(this, helper)
+        if (!installed || !StorageCompanion.isSignedLikeUs(this, helper)) {
+            if (installed) {
+                log.log(Logger.Level.WARN, "$helper is installed but signed with another key")
+            } else if (!StorageCompanion.canGrantAllFilesAccess(this, helper)) {
                 log.log(Logger.Level.WARN, "no All files access screen either: no way to pick a folder on this device")
                 folderPickerIssue.value = FolderPickerIssue.Unsupported
                 return null
             }
-            val answer = CompletableDeferred<Boolean>()
-            companionPrompt.value?.complete(false)
-            companionPrompt.value = answer
-            if (!answer.await() || !installCompanion(log)) return null
+            companionDownload.value = downloadUrl
+            return null
         }
         val picked = CompletableDeferred<android.net.Uri?>()
         pendingCompanionPick?.complete(null)
         pendingCompanionPick = picked
         try {
-            companionPickLauncher.launch(StorageCompanion.pickFolderIntent())
+            companionPickLauncher.launch(StorageCompanion.pickFolderIntent(helper))
         } catch (e: ActivityNotFoundException) {
             pendingCompanionPick = null
             val error = TechnicalException("E50011", "the installed YMusic Files has no folder picker", cause = e)
@@ -221,39 +228,6 @@ class MainActivity : FragmentActivity() {
         val treeUri = picked.await() ?: return null
         persistTreeGrant(treeUri)
         return Uri.parse(treeUri.toString())
-    }
-
-    /** Whether the bundled helper got installed; the user may first have to allow installs from YMusic. */
-    private suspend fun installCompanion(log: Logger): Boolean {
-        if (!packageManager.canRequestPackageInstalls()) {
-            val resumed = CompletableDeferred<Unit>()
-            pendingResume = resumed
-            val asked = startFirstActivity(
-                Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, android.net.Uri.parse("package:$packageName")),
-            )
-            if (!asked) {
-                pendingResume = null
-                log.log(Logger.Level.WARN, "no screen allows installing apps from YMusic")
-                return false
-            }
-            resumed.await()
-            if (!packageManager.canRequestPackageInstalls()) return false
-        }
-        val result = try {
-            StorageCompanion.install(this)
-        } catch (e: java.io.IOException) {
-            StorageCompanion.InstallResult(android.content.pm.PackageInstaller.STATUS_FAILURE, e.toString())
-        }
-        return when (result.status) {
-            android.content.pm.PackageInstaller.STATUS_SUCCESS -> true
-            android.content.pm.PackageInstaller.STATUS_FAILURE_ABORTED -> false // the user declined
-            else -> {
-                val error = TechnicalException("E50010", "YMusic Files install ended with status ${result.status}: ${result.message}")
-                log.captureError(error)
-                folderPickerIssue.value = FolderPickerIssue.Failed(error.code)
-                false
-            }
-        }
     }
 
     /** The open path pick: [PathFolderPickerDialog] shows while this is set, and completes it. */
@@ -472,10 +446,6 @@ class MainActivity : FragmentActivity() {
         pathPick.value = null
         pendingStorageAccess?.complete(false)
         pendingStorageAccess = null
-        companionPrompt.value?.complete(false)
-        companionPrompt.value = null
-        pendingResume?.complete(Unit)
-        pendingResume = null
         pendingCompanionPick?.complete(null)
         pendingCompanionPick = null
         if (app.qrScanner === scanQr) app.qrScanner = null
@@ -579,16 +549,18 @@ class MainActivity : FragmentActivity() {
                     onDismiss = { folderPickerIssue.value = null },
                 )
             }
-            companionPrompt.value?.let { answer ->
+            companionDownload.value?.let { url ->
                 CompanionInstallDialog(
-                    onInstall = {
-                        companionPrompt.value = null
-                        answer.complete(true)
+                    url = url,
+                    canOpen = remember(url) { Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)).resolveActivity(packageManager) != null },
+                    onOpen = {
+                        companionDownload.value = null
+                        if (!startFirstActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)))) {
+                            (application as YMusicApplication).rootLogger.fork("storage-companion")
+                                .log(Logger.Level.WARN, "no app opens the helper download link")
+                        }
                     },
-                    onDismiss = {
-                        companionPrompt.value = null
-                        answer.complete(false)
-                    },
+                    onDismiss = { companionDownload.value = null },
                 )
             }
             pathPick.value?.let { pick ->
@@ -625,8 +597,6 @@ class MainActivity : FragmentActivity() {
         // The Support Development app may have been installed or removed while we were away.
         (application as YMusicApplication).refreshPremium()
         (application as YMusicApplication).resumedActivity = WeakReference(this)
-        pendingResume?.complete(Unit)
-        pendingResume = null
         val g = appGraph
         (g?.updates as? AndroidAppUpdates)?.onResume()
         if (pipExitPending) {
@@ -904,16 +874,32 @@ private fun FolderPickerIssueDialog(issue: FolderPickerIssue, onOpenSettings: (S
     )
 }
 
+/** Asks the user to install the helper from [url] themselves; the link is spelled out for devices with no browser. */
 @androidx.compose.runtime.Composable
-private fun CompanionInstallDialog(onInstall: () -> Unit, onDismiss: () -> Unit) {
+private fun CompanionInstallDialog(url: String, canOpen: Boolean, onOpen: () -> Unit, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        text = { Text(resString(Res.string.folder_picker_companion_message)) },
-        confirmButton = {
-            TextButton(onClick = onInstall) { Text(resString(Res.string.folder_picker_companion_install)) }
+        text = {
+            androidx.compose.foundation.layout.Column(
+                verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(io.ymusic.ui.DesignSpacing.Space16),
+            ) {
+                Text(resString(Res.string.folder_picker_companion_message))
+                androidx.compose.foundation.text.selection.SelectionContainer {
+                    Text(url, color = MaterialTheme.colorScheme.primary)
+                }
+            }
         },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(resString(Res.string.dialog_cancel)) }
+        confirmButton = {
+            if (canOpen) {
+                TextButton(onClick = onOpen) { Text(resString(Res.string.folder_picker_companion_open)) }
+            } else {
+                TextButton(onClick = onDismiss) { Text(resString(Res.string.dialog_ok)) }
+            }
+        },
+        dismissButton = if (canOpen) {
+            { TextButton(onClick = onDismiss) { Text(resString(Res.string.dialog_cancel)) } }
+        } else {
+            null
         },
     )
 }

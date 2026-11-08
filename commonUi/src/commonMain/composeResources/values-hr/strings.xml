@@ -546,8 +546,8 @@
     <string name="folder_picker_use_folder">Koristi ovu mapu</string>
     <string name="folder_picker_empty">Ovdje nema mapa</string>
     <string name="folder_picker_storage_denied">Da biste odabrali mapu, u postavkama dopustite pristup glazbenim datotekama.</string>
-    <string name="folder_picker_companion_message">Ovaj uređaj nema alat za odabir mapa. Instalirajte YMusic Files, malu pomoćnu aplikaciju koja dolazi uz YMusic, kako biste birali mape.</string>
-    <string name="folder_picker_companion_install">Instaliraj</string>
+    <string name="folder_picker_companion_message">Ovaj uređaj nema alat za odabir mapa. Za odabir mapa preuzmite i instalirajte YMusic Files, malu pomoćnu aplikaciju za YMusic, s ove poveznice pa pokušajte ponovno.</string>
+    <string name="folder_picker_companion_open">Otvori poveznicu</string>
     <string name="folder_picker_missing">Ovaj uređaj nema alat za odabir mape, pa se mapa ne može odabrati.</string>
     <string name="error_supervised_account">Ovaj Google račun je pod nadzorom pa se YouTube ovdje ne može koristiti. Odjavite se ili prijeđite na drugi račun.</string>
     <string name="settings_player_cache">Predmemorija playera</string>
