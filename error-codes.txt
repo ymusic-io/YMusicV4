@@ -115,6 +115,7 @@ E50008 D deleting a library file from disk failed, otherwise uncoded (commonUi D
 E50009 - a library file:// file could not be deleted (androidApp YMusicApplication.deleteFromDisk)
 E50010 - installing the bundled YMusic Files helper failed (androidApp MainActivity.installCompanion)
 E50011 - the installed YMusic Files has no folder picker activity (androidApp MainActivity.pickFolderWithCompanion)
+E50012 - Android 11+ device has neither a folder picker nor an All files access screen (androidApp MainActivity.pickFolderWithCompanion)
 
 E60001 D bad media uri — AVURLAsset unopenable (player apple)
 E60002 D timed out preparing the AVPlayerItem (player apple)

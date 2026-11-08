@@ -6,6 +6,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageInstaller
 import android.content.pm.PackageManager
+import android.net.Uri
+import android.provider.Settings
 import kmpcommon.WorkerThread
 import kmpcommon.log.Logger
 import kotlinx.coroutines.CompletableDeferred
@@ -27,6 +29,12 @@ internal object StorageCompanion {
     @Volatile private var pendingInstall: CompletableDeferred<InstallResult>? = null
 
     fun pickFolderIntent(): Intent = Intent(ACTION_PICK_FOLDER).setPackage(PACKAGE)
+
+    /** Whether the device has a screen to grant the helper All files access; without one it can't work at all. */
+    fun canGrantAllFilesAccess(context: Context): Boolean = listOf(
+        Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.parse("package:$PACKAGE")),
+        Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION),
+    ).any { it.resolveActivity(context.packageManager) != null }
 
     /** Whether the installed helper is at least as new as the bundled one. */
     @WorkerThread

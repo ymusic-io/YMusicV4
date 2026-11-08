@@ -195,6 +195,12 @@ class MainActivity : FragmentActivity() {
     private suspend fun pickFolderWithCompanion(): Uri? {
         val log = (application as YMusicApplication).rootLogger.fork("storage-companion")
         if (!withContext(Dispatchers.IO) { StorageCompanion.isUpToDate(this@MainActivity) }) {
+            if (!StorageCompanion.canGrantAllFilesAccess(this)) {
+                val error = TechnicalException("E50012", "no All files access settings screen: YMusic Files could not work here")
+                log.captureError(error)
+                folderPickerIssue.value = FolderPickerIssue.Failed(error.code)
+                return null
+            }
             val answer = CompletableDeferred<Boolean>()
             companionPrompt.value?.complete(false)
             companionPrompt.value = answer
