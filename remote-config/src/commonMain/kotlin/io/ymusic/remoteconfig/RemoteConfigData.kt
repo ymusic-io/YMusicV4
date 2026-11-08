@@ -177,6 +177,9 @@ class Features(private val flags: JsonObject = EMPTY_JSON) {
     /** Where the user downloads that helper (they install it themselves); null = no helper. */
     val safHelperUrl: String? get() = flags.stringOrNull("safHelperUrl")
 
+    /** The oldest helper versionCode this build accepts; an older install is sent to [safHelperUrl] to update. */
+    val safHelperMinVersion: Long get() = flags.longOrNull("safHelperMinVersion") ?: 0L
+
     /** Whether playback reads and fills the player cache; downloads still reuse what it holds. */
     val playerCacheEnabled: Boolean get() = flags.boolOrNull("playerCacheEnabled") ?: true
 
