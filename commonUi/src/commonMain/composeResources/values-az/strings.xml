@@ -534,6 +534,13 @@
     <string name="dialog_ok">OK</string>
     <string name="folder_picker_disabled">Sistemin Fayllar tətbiqi deaktivdir. Qovluq seçmək üçün onu aktivləşdirin.</string>
     <string name="folder_picker_open_settings">Ayarları aç</string>
+    <string name="folder_picker_title">Musiqi qovluğu seçin</string>
+    <string name="folder_picker_use_folder">Bu qovluqdan istifadə et</string>
+    <string name="folder_picker_empty">Burada qovluq yoxdur</string>
+    <string name="folder_picker_storage_denied">Qovluq seçmək üçün ayarlarda musiqi fayllarınıza giriş icazəsi verin.</string>
+    <string name="folder_picker_companion_message">Bu cihazda qovluq seçicisi yoxdur. Qovluq seçmək üçün YMusic üçün kiçik köməkçi olan YMusic Files-ı bu keçiddən endirib quraşdırın, sonra yenidən cəhd edin.</string>
+    <string name="folder_picker_companion_update">YMusic Files-ın YMusic-in bu versiyası ilə işləməsi üçün yenilənməsi lazımdır. Ən son versiyanı bu keçiddən endirib quraşdırın, sonra yenidən cəhd edin.</string>
+    <string name="folder_picker_companion_open">Keçidi aç</string>
     <string name="folder_picker_missing">Bu cihazda qovluq seçicisi yoxdur, ona görə qovluq seçmək mümkün deyil.</string>
     <string name="error_supervised_account">Bu Google hesabı nəzarət altındadır, ona görə də YouTube burada istifadə edilə bilməz. Hesabdan çıxın və ya başqa hesaba keçin.</string>
     <string name="settings_player_cache">Pleyer keşi</string>

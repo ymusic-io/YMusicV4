@@ -44,7 +44,13 @@ class SafDocumentsProvider(
     override suspend fun queryDocument(uri: Uri): DocumentInfo = withContext(io) {
         val android = AndroidUri.parse(uri.toString())
         when (android.scheme) {
-            "file" -> fileDocument(uri, File(requireNotNull(android.path)))
+            "file" -> {
+                val file = File(requireNotNull(android.path))
+                val info = fileDocument(uri, file)
+                // A volume root's own name is a mount id ("0", "1234-5678"); the volume's label reads better.
+                val volume = (info as? DocumentInfo.Folder)?.let { storageRoots(context).firstOrNull { it.directory == file } }
+                if (volume != null) info.copy(name = volume.label) else info
+            }
             "content" -> {
                 if (!hasReadPermission(android)) return@withContext DocumentInfo.Missing(uri, permissionDenied = true)
                 // A bare tree uri (content://auth/tree/X — what the app grants and the docs tell it

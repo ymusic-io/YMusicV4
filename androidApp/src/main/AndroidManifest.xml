@@ -12,6 +12,9 @@
     <!-- Import from device: reads the playlists other music apps registered in MediaStore. -->
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <!-- With READ_EXTERNAL_STORAGE: the folder pick by path up to Android 10 on devices without the system
+         folder picker (MainActivity.pickFolderByPath). -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
     <!-- In-app updates: the downloaded APK is handed to PackageInstaller. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
@@ -39,10 +42,31 @@
         </intent>
     </queries>
 
+    <!-- YMusic Files, the folder picker on Android 11+ devices without one (its package comes from the remote
+         config, so it is found by its action), the screens that grant it All files access, and a browser for its
+         download link (StorageCompanion). -->
+    <queries>
+        <intent>
+            <action android:name="io.ymusic.android.saf.action.PICK_FOLDER" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.settings.MANAGE_APP_ALL_FILES_ACCESS_PERMISSION" />
+            <data android:scheme="package" />
+        </intent>
+        <intent>
+            <action android:name="android.settings.MANAGE_ALL_FILES_ACCESS_PERMISSION" />
+        </intent>
+    </queries>
+
     <application
         android:name=".YMusicApplication"
         android:allowBackup="true"
         android:largeHeap="true"
+        android:requestLegacyExternalStorage="true"
         android:usesCleartextTraffic="${usesCleartextTraffic}"
         android:banner="@drawable/tv_banner"
         android:icon="@mipmap/ic_launcher"

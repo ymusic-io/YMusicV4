@@ -14,8 +14,10 @@ import androidx.compose.ui.input.key.isCtrlPressed
 import androidx.compose.ui.input.key.isMetaPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 
 internal enum class ListOrientation { Vertical, Horizontal, Both }
 
@@ -56,5 +58,29 @@ internal fun Modifier.listKeyboardNavigation(
             else -> return@onKeyEvent false
         }
         focusManager.moveFocus(dir)
+    }
+}
+
+/**
+ * TV remote keys on a text field. Compose's own D-pad escape skips remotes whose key events report
+ * only `SOURCE_KEYBOARD` (common on cheap boxes), leaving ↑/↓ as cursor moves and OK as a no-op —
+ * focus could never leave the field and the IME could never be reopened.
+ */
+@Composable
+internal fun Modifier.tvTextFieldDpad(singleLine: Boolean): Modifier {
+    if (!platformIsTelevision) return this
+    val focusManager = LocalFocusManager.current
+    val keyboard = LocalSoftwareKeyboardController.current
+    return onPreviewKeyEvent { event ->
+        if (event.type != KeyEventType.KeyDown || event.hasCommandModifier) return@onPreviewKeyEvent false
+        when (event.key) {
+            Key.DirectionUp -> singleLine && focusManager.moveFocus(FocusDirection.Up)
+            Key.DirectionDown -> singleLine && focusManager.moveFocus(FocusDirection.Down)
+            Key.DirectionCenter -> {
+                keyboard?.show()
+                keyboard != null
+            }
+            else -> false
+        }
     }
 }

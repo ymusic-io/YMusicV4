@@ -171,6 +171,15 @@ class Features(private val flags: JsonObject = EMPTY_JSON) {
         get() = flags.arrayOrNull("errorFilters").orEmpty()
             .mapNotNull { (it as? JsonPrimitive)?.takeIf { primitive -> primitive.isString }?.content }
 
+    /** Android 11+ without a system folder picker: the package of the YMusic Files helper; "" = no helper. */
+    val safHelperPackage: String get() = flags.stringOrNull("safHelperPackage") ?: "io.ymusic.android.saf"
+
+    /** Where the user downloads that helper (they install it themselves); "" = no helper. */
+    val safHelperUrl: String get() = flags.stringOrNull("safHelperUrl") ?: "https://github.com/ymusic-io/android-saf/releases"
+
+    /** The oldest helper versionCode this build accepts; an older install is sent to [safHelperUrl] to update. */
+    val safHelperMinVersion: Long get() = flags.longOrNull("safHelperMinVersion") ?: 1L
+
     /** Whether playback reads and fills the player cache; downloads still reuse what it holds. */
     val playerCacheEnabled: Boolean get() = flags.boolOrNull("playerCacheEnabled") ?: true
 
