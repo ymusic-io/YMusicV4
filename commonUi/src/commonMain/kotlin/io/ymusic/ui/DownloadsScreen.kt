@@ -25,6 +25,7 @@ import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -274,7 +275,8 @@ fun DownloadsScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
                 onClick = { if (running) service.pauseAll() else service.resumeAll() },
                 text = { Text(stringResource(if (running) Res.string.downloads_pause_all else Res.string.downloads_resume_all)) },
                 icon = { Icon(if (running) Icons.Filled.Pause else Icons.Filled.PlayArrow, null) },
-                modifier = Modifier.align(Alignment.BottomEnd).padding(bottom = LocalMiniPlayerInset.current).padding(DesignSpacing.Space16),
+                modifier = Modifier.align(Alignment.BottomEnd).padding(bottom = LocalMiniPlayerInset.current).padding(DesignSpacing.Space16)
+                    .focusRing(FloatingActionButtonDefaults.extendedFabShape),
             )
         }
     }
@@ -376,6 +378,7 @@ private fun DownloadCard(
                             Text(downloadErrorText(task), style = MaterialTheme.typography.bodySmall, color = c.danger, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                             Button(
                                 onClick = onRetry,
+                                modifier = Modifier.focusRing(RoundedCornerShape(percent = 50)),
                                 shape = RoundedCornerShape(percent = 50),
                                 colors = ButtonDefaults.buttonColors(containerColor = c.accent, contentColor = c.onAccent),
                                 contentPadding = PaddingValues(horizontal = DesignSpacing.Space16, vertical = DesignSpacing.Space4),
