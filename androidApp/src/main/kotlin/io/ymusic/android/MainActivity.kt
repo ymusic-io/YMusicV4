@@ -240,7 +240,7 @@ class MainActivity : FragmentActivity() {
             }
             !StorageCompanion.isSignedLikeUs(this, helper) -> {
                 log.log(Logger.Level.WARN, "$helper is installed but signed with another key")
-                companionDownload.value = CompanionDownload(downloadUrl, update = false)
+                folderPickerIssue.value = FolderPickerIssue.ForeignSignature(helper)
                 return null
             }
             version < features.safHelperMinVersion -> {
@@ -881,6 +881,9 @@ private sealed interface FolderPickerIssue {
 
     /** Neither a system folder picker nor a way to grant the helper All files access. */
     data object Unsupported : FolderPickerIssue
+
+    /** The installed helper and this build are signed with different keys (a self-built or re-signed copy). */
+    data class ForeignSignature(val packageName: String) : FolderPickerIssue
 }
 
 /** [onOpenSettings] gets the app whose details screen fixes the issue, null for this app. */
@@ -901,6 +904,14 @@ private fun FolderPickerIssueDialog(issue: FolderPickerIssue, onOpenSettings: (S
         )
         is FolderPickerIssue.Failed -> FolderPickDialog(resString(Res.string.error_generic, issue.code), onDismiss = onDismiss)
         FolderPickerIssue.Unsupported -> FolderPickDialog(resString(Res.string.folder_picker_missing), onDismiss = onDismiss)
+        // English only by choice: only self-built or re-signed copies get here.
+        is FolderPickerIssue.ForeignSignature -> FolderPickDialog(
+            message = "YMusic Files is installed, but it isn't signed with the same key as this copy of YMusic, so " +
+                "YMusic can't use it. Install both apps from their official releases, or uninstall YMusic Files.",
+            action = resString(Res.string.folder_picker_open_settings),
+            onAction = { onOpenSettings(issue.packageName) },
+            onDismiss = onDismiss,
+        )
         FolderPickerIssue.Missing -> Unit
     }
 }
