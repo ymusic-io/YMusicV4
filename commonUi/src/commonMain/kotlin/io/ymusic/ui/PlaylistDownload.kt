@@ -190,7 +190,7 @@ fun PlaylistDownloadScreen(graph: AppGraph, session: PlaylistDownloadSession, on
                     if (picked.any { it.id in offline }) confirming = picked else startDownload(picked)
                 },
                 enabled = count > 0,
-                modifier = Modifier.widthIn(max = CONTENT_MAX_WIDTH).fillMaxWidth().height(48.dp),
+                modifier = Modifier.widthIn(max = CONTENT_MAX_WIDTH).fillMaxWidth().height(48.dp).focusRing(RoundedCornerShape(12.dp)),
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = downloadPrimary, contentColor = Color.White),
             ) {

@@ -600,7 +600,7 @@ internal fun NoPlaylistsHint(state: PlaylistTransferState) {
             verticalArrangement = Arrangement.spacedBy(DesignSpacing.Space8),
         ) {
             if (state.canImport) {
-                Button(onClick = state::openImport, enabled = !state.busy) { Text(stringResource(Res.string.playlist_menu_import_device)) }
+                Button(onClick = state::openImport, modifier = Modifier.focusRing(ButtonDefaults.shape), enabled = !state.busy) { Text(stringResource(Res.string.playlist_menu_import_device)) }
             }
             if (state.canRestore) {
                 OutlinedButton(

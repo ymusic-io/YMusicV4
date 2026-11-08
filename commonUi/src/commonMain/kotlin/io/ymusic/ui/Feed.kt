@@ -493,7 +493,7 @@ internal fun EmptyState(
                         Text(stringResource(Res.string.reload))
                     }
                 }
-                Button(onClick = onReload) { Text(actionLabel) }
+                Button(onClick = onReload, modifier = Modifier.focusRing(ButtonDefaults.shape)) { Text(actionLabel) }
             }
         }
     }
@@ -541,7 +541,7 @@ internal fun ErrorState(code: String, modifier: Modifier = Modifier, onRetry: ()
             )
             val captcha = LocalCaptchaResolver.current?.takeIf { code == CAPTCHA_CODE }
             if (captcha == null) {
-                Button(onClick = onRetry, modifier = Modifier.padding(top = DesignSpacing.Space8)) {
+                Button(onClick = onRetry, modifier = Modifier.padding(top = DesignSpacing.Space8).focusRing(ButtonDefaults.shape)) {
                     Text(stringResource(Res.string.retry))
                 }
             } else {
@@ -556,7 +556,7 @@ internal fun ErrorState(code: String, modifier: Modifier = Modifier, onRetry: ()
                     ) {
                         Text(stringResource(Res.string.retry))
                     }
-                    Button(onClick = { captcha.resolve(onRetry) }) { Text(stringResource(captcha.label)) }
+                    Button(onClick = { captcha.resolve(onRetry) }, modifier = Modifier.focusRing(ButtonDefaults.shape)) { Text(stringResource(captcha.label)) }
                 }
             }
         }

@@ -598,7 +598,7 @@ private fun DownloadButton(state: DownloadOptionsState, onDownload: () -> Unit) 
     Button(
         onClick = onDownload,
         enabled = state.options != null && !state.isLive,
-        modifier = Modifier.fillMaxWidth().height(52.dp),
+        modifier = Modifier.fillMaxWidth().height(52.dp).focusRing(RoundedCornerShape(14.dp)),
         shape = RoundedCornerShape(14.dp),
         colors = ButtonDefaults.buttonColors(containerColor = downloadPrimary, contentColor = Color.White),
     ) {
