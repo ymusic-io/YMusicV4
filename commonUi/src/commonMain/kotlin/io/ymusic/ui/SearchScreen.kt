@@ -227,6 +227,7 @@ fun SearchScreen(
         voiceStatus = VoiceStatus.Listening
         voiceLevel.floatValue = 0f
         voiceJob = scope.launch {
+            graph.player.setVoiceDucked(true)
             try {
                 listen().collect { event ->
                     when (event) {
@@ -242,6 +243,8 @@ fun SearchScreen(
             } catch (e: Exception) {
                 s.log?.log(Logger.Level.WARN, "speech to text failed", e)
                 voiceStatus = VoiceStatus.Missed
+            } finally {
+                graph.player.setVoiceDucked(false)
             }
         }
     }
