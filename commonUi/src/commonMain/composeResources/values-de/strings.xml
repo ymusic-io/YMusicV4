@@ -292,6 +292,9 @@
     <string name="cd_back">Zurück</string>
     <string name="cd_clear">Löschen</string>
     <string name="cd_voice_search">Sprachsuche</string>
+    <string name="voice_search_press_ok">OK drücken, um per Sprache zu suchen</string>
+    <string name="voice_search_listening">Hört zu…</string>
+    <string name="voice_search_missed">Das wurde nicht verstanden. OK drücken, um es noch einmal zu versuchen</string>
     <string name="cd_close">Schließen</string>
     <string name="cd_more">Mehr</string>
     <string name="cd_collapse">Einklappen</string>

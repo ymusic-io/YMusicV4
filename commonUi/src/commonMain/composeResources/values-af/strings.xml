@@ -292,6 +292,9 @@
     <string name="cd_back">Terug</string>
     <string name="cd_clear">Vee uit</string>
     <string name="cd_voice_search">Soek met stem</string>
+    <string name="voice_search_press_ok">Druk OK om met stem te soek</string>
+    <string name="voice_search_listening">Luister tans…</string>
+    <string name="voice_search_missed">Kon dit nie hoor nie. Druk OK om weer te probeer</string>
     <string name="cd_close">Maak toe</string>
     <string name="cd_more">Meer</string>
     <string name="cd_collapse">Vou in</string>

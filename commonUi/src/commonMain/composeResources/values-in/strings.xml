@@ -288,6 +288,9 @@
     <string name="cd_back">Kembali</string>
     <string name="cd_clear">Hapus</string>
     <string name="cd_voice_search">Telusuri dengan suara</string>
+    <string name="voice_search_press_ok">Tekan OK untuk menelusuri dengan suara</string>
+    <string name="voice_search_listening">Mendengarkan…</string>
+    <string name="voice_search_missed">Tidak dapat dipahami. Tekan OK untuk mencoba lagi</string>
     <string name="cd_close">Tutup</string>
     <string name="cd_more">Lainnya</string>
     <string name="cd_collapse">Ciutkan</string>

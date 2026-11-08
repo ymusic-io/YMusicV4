@@ -296,6 +296,9 @@
     <string name="cd_back">Назад</string>
     <string name="cd_clear">Обриши</string>
     <string name="cd_voice_search">Претражујте гласом</string>
+    <string name="voice_search_press_ok">Притисните OK за претрагу гласом</string>
+    <string name="voice_search_listening">Слуша се…</string>
+    <string name="voice_search_missed">Није разумљиво. Притисните OK да бисте пробали поново</string>
     <string name="cd_close">Затвори</string>
     <string name="cd_more">Још</string>
     <string name="cd_collapse">Скупи</string>

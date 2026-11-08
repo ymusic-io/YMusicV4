@@ -300,6 +300,9 @@
     <string name="cd_back">Späť</string>
     <string name="cd_clear">Vymazať</string>
     <string name="cd_voice_search">Hľadať hlasom</string>
+    <string name="voice_search_press_ok">Stlačením OK vyhľadáte hlasom</string>
+    <string name="voice_search_listening">Počúvam…</string>
+    <string name="voice_search_missed">Nerozumel som. Stlačením OK to skúste znova</string>
     <string name="cd_close">Zavrieť</string>
     <string name="cd_more">Viac</string>
     <string name="cd_collapse">Zbaliť</string>

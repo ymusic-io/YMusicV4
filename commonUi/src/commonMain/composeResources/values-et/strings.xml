@@ -292,6 +292,9 @@
     <string name="cd_back">Tagasi</string>
     <string name="cd_clear">Tühjenda</string>
     <string name="cd_voice_search">Otsi häälega</string>
+    <string name="voice_search_press_ok">Häälega otsimiseks vajutage OK</string>
+    <string name="voice_search_listening">Kuulan…</string>
+    <string name="voice_search_missed">Ei saanud aru. Uuesti proovimiseks vajutage OK</string>
     <string name="cd_close">Sulge</string>
     <string name="cd_more">Rohkem</string>
     <string name="cd_collapse">Ahenda</string>

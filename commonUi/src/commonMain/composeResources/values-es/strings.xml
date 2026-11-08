@@ -296,6 +296,9 @@
     <string name="cd_back">Atrás</string>
     <string name="cd_clear">Borrar</string>
     <string name="cd_voice_search">Buscar por voz</string>
+    <string name="voice_search_press_ok">Pulsa Aceptar para buscar por voz</string>
+    <string name="voice_search_listening">Escuchando…</string>
+    <string name="voice_search_missed">No se ha entendido. Pulsa Aceptar para volver a intentarlo</string>
     <string name="cd_close">Cerrar</string>
     <string name="cd_more">Más</string>
     <string name="cd_collapse">Contraer</string>

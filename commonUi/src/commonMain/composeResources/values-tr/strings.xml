@@ -292,6 +292,9 @@
     <string name="cd_back">Geri</string>
     <string name="cd_clear">Temizle</string>
     <string name="cd_voice_search">Sesle ara</string>
+    <string name="voice_search_press_ok">Sesle aramak için Tamam'a basın</string>
+    <string name="voice_search_listening">Dinleniyor…</string>
+    <string name="voice_search_missed">Anlaşılamadı. Tekrar denemek için Tamam'a basın</string>
     <string name="cd_close">Kapat</string>
     <string name="cd_more">Diğer</string>
     <string name="cd_collapse">Daralt</string>

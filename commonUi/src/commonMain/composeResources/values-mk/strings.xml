@@ -292,6 +292,9 @@
     <string name="cd_back">Назад</string>
     <string name="cd_clear">Исчисти</string>
     <string name="cd_voice_search">Пребарување со глас</string>
+    <string name="voice_search_press_ok">Притиснете OK за пребарување со глас</string>
+    <string name="voice_search_listening">Слуша…</string>
+    <string name="voice_search_missed">Не беше разбрано. Притиснете OK за да се обидете повторно</string>
     <string name="cd_close">Затвори</string>
     <string name="cd_more">Повеќе</string>
     <string name="cd_collapse">Собери</string>

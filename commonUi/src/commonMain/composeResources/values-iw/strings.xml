@@ -296,6 +296,9 @@
     <string name="cd_back">חזרה</string>
     <string name="cd_clear">ניקוי</string>
     <string name="cd_voice_search">חיפוש קולי</string>
+    <string name="voice_search_press_ok">יש ללחוץ על OK כדי לחפש בקול</string>
+    <string name="voice_search_listening">מאזין…</string>
+    <string name="voice_search_missed">לא הבנו. יש ללחוץ על OK כדי לנסות שוב</string>
     <string name="cd_close">סגירה</string>
     <string name="cd_more">עוד</string>
     <string name="cd_collapse">כיווץ</string>

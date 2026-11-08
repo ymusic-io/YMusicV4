@@ -292,6 +292,9 @@
     <string name="cd_back">Rudi nyuma</string>
     <string name="cd_clear">Futa</string>
     <string name="cd_voice_search">Tafuta kwa kutamka</string>
+    <string name="voice_search_press_ok">Bonyeza OK ili utafute kwa kutamka</string>
+    <string name="voice_search_listening">Inasikiliza…</string>
+    <string name="voice_search_missed">Haikueleweka. Bonyeza OK ili ujaribu tena</string>
     <string name="cd_close">Funga</string>
     <string name="cd_more">Zaidi</string>
     <string name="cd_collapse">Kunja</string>

@@ -292,6 +292,9 @@
     <string name="cd_back">ආපසු</string>
     <string name="cd_clear">හිස් කරන්න</string>
     <string name="cd_voice_search">හඬින් සොයන්න</string>
+    <string name="voice_search_press_ok">හඬින් සෙවීමට OK ඔබන්න</string>
+    <string name="voice_search_listening">සවන් දෙමින්…</string>
+    <string name="voice_search_missed">තේරුම් ගත නොහැකි විය. නැවත උත්සාහ කිරීමට OK ඔබන්න</string>
     <string name="cd_close">වසන්න</string>
     <string name="cd_more">තව</string>
     <string name="cd_collapse">හකුළන්න</string>

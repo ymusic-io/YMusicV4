@@ -292,6 +292,9 @@
     <string name="cd_back">वापस</string>
     <string name="cd_clear">साफ़ करें</string>
     <string name="cd_voice_search">बोलकर खोजें</string>
+    <string name="voice_search_press_ok">बोलकर खोजने के लिए OK दबाएं</string>
+    <string name="voice_search_listening">सुन रहा है…</string>
+    <string name="voice_search_missed">समझ नहीं आया. फिर से कोशिश करने के लिए OK दबाएं</string>
     <string name="cd_close">बंद करें</string>
     <string name="cd_more">और</string>
     <string name="cd_collapse">छोटा करें</string>

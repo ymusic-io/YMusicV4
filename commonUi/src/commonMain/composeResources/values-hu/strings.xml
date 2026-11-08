@@ -292,6 +292,9 @@
     <string name="cd_back">Vissza</string>
     <string name="cd_clear">Törlés</string>
     <string name="cd_voice_search">Hangalapú keresés</string>
+    <string name="voice_search_press_ok">Nyomja meg az OK gombot a hangalapú kereséshez</string>
+    <string name="voice_search_listening">Figyelés…</string>
+    <string name="voice_search_missed">Nem sikerült értelmezni. Nyomja meg az OK gombot az újrapróbálkozáshoz</string>
     <string name="cd_close">Bezárás</string>
     <string name="cd_more">Továbbiak</string>
     <string name="cd_collapse">Összecsukás</string>
