@@ -171,6 +171,16 @@ class Features(private val flags: JsonObject = EMPTY_JSON) {
         get() = flags.arrayOrNull("errorFilters").orEmpty()
             .mapNotNull { (it as? JsonPrimitive)?.takeIf { primitive -> primitive.isString }?.content }
 
+    /**
+     * The apps trusted to show the system folder picker (`ACTION_OPEN_DOCUMENT_TREE`), comma-separated. Some builds
+     * register a dummy for that intent that shows nothing; a device with none of these takes YMusic's own fallback.
+     */
+    val safPickerPackages: List<String>
+        get() = (flags.stringOrNull("safPickerPackages") ?: "com.google.android.documentsui,com.android.documentsui")
+            .split(',')
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+
     /** Android 11+ without a system folder picker: the package of the YMusic Files helper; "" = no helper. */
     val safHelperPackage: String get() = flags.stringOrNull("safHelperPackage") ?: "io.ymusic.android.saf"
 
