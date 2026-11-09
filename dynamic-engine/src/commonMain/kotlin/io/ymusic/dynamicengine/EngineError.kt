@@ -3,6 +3,7 @@ package io.ymusic.dynamicengine
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import projectcommon.error.CodedError
+import projectcommon.error.DISK_FULL_CODE
 
 /**
  * A failure of an engine call, rebuilt from the structured RESET reason the JS `commandHandler`
@@ -40,6 +41,10 @@ sealed class EngineError(
     /** The JS engine itself gave out (OOM, stack overflow) — when it was even catchable. */
     class Oom internal constructor(m: String, u: String?, n: String?, s: String?, c: Throwable?) :
         EngineError("oom", m, u, n, s, c)
+
+    /** A host store ran out of device storage (SQLITE_FULL behind a cache or cookie write). */
+    class DiskFull internal constructor(m: String, u: String?, n: String?, s: String?, c: Throwable?) :
+        EngineError(DISK_FULL_CODE, m, u, n, s, c)
 
     /** A site-coded technical failure (`E#####`) from any tier — rendered as the generic
      *  something-went-wrong message plus the code. */
@@ -79,6 +84,7 @@ internal fun decodeEngineError(reason: String, cause: Throwable?): EngineError {
         wire.code == "parse" -> EngineError.Parse(message, wire.userMessage, wire.name, wire.stack, cause)
         wire.code == "captcha" -> EngineError.Captcha(message, wire.userMessage, wire.name, wire.stack, cause)
         wire.code == "oom" -> EngineError.Oom(message, wire.userMessage, wire.name, wire.stack, cause)
+        wire.code == DISK_FULL_CODE -> EngineError.DiskFull(message, wire.userMessage, wire.name, wire.stack, cause)
         SITE_CODE.matches(wire.code) ->
             EngineError.Technical(wire.code, message, wire.userMessage, wire.name, wire.stack, cause)
         else -> EngineError.Other(wire.code, message, wire.userMessage, wire.name, wire.stack, cause)
