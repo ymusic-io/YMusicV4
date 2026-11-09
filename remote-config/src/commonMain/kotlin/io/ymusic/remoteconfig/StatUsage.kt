@@ -113,7 +113,12 @@ class StatUsage(
                 return
             }
             repeat(chunk.size) { pending.removeFirst() }
-            if (pending.isEmpty()) fileSystem.delete(queueFile) else compact()
+            try {
+                if (pending.isEmpty()) fileSystem.delete(queueFile) else compact()
+            } catch (error: IOException) {
+                // The sent events stay in the mirror: a restart before the next flush sends them again.
+                log?.log(Logger.Level.WARN, "stat queue mirror not updated after a flush", error)
+            }
         }
     }
 
