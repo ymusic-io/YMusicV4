@@ -26,6 +26,10 @@ env:
   # The NDK (r28c) for the Android ffmpeg packs and the app's own native code, installed with the
   # runner's sdkmanager: the image's ANDROID_NDK_LATEST_HOME moves (r30 fails android-x86_64).
   NDK_VERSION: 28.2.13676358
+  # The installer msys2/setup-msys2 (pinned below) extracts; both must change together. The Seed MSYS2
+  # installer step fetches it from GitHub or a mirror into the tool cache, where setup-msys2 looks first.
+  MSYS2_INSTALLER_DATE: '2026-09-27'
+  MSYS2_INSTALLER_SHA256: ad336cccfda47758b5e15cda993fbba421115cb0b126697daef1ee4dfe37209f
 
 jobs:
   # The checkouts sit side by side (YMusicV4/ + ffmpeg-build/): the Gradle build reads
@@ -120,6 +124,30 @@ jobs:
           brew install nasm automake autoconf libtool pkg-config meson ninja
           scripts/build-desktop.sh
 
+      - name: Seed MSYS2 installer
+        if: steps.cache.outputs.cache-hit != 'true' && startsWith(matrix.slug, 'windows-')
+        shell: bash
+        run: |
+          set -euo pipefail
+          day="${MSYS2_INSTALLER_DATE//-/}"
+          file="msys2-base-x86_64-$day.sfx.exe"
+          dir="$(cygpath -u "$RUNNER_TOOL_CACHE")/msys2-installer/0.0.$day/x64"
+          mkdir -p "$dir"
+          for url in \
+            "https://github.com/msys2/msys2-installer/releases/download/$MSYS2_INSTALLER_DATE/$file" \
+            "https://repo.msys2.org/distrib/x86_64/$file" \
+            "https://mirror.msys2.org/distrib/x86_64/$file" \
+            "https://mirrors.tuna.tsinghua.edu.cn/msys2/distrib/x86_64/$file"; do
+            if curl -fsSL --retry 3 --retry-all-errors --connect-timeout 20 -o "$dir/base.exe" "$url" &&
+              echo "$MSYS2_INSTALLER_SHA256  $dir/base.exe" | sha256sum -c --status; then
+              touch "$dir.complete"
+              echo "MSYS2 installer from $url"
+              exit 0
+            fi
+            echo "::warning::MSYS2 installer download failed: $url"
+          done
+          echo "::error::MSYS2 installer: every source failed"
+          exit 1
       - if: steps.cache.outputs.cache-hit != 'true' && startsWith(matrix.slug, 'windows-')
         uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2.33.0
         with:
@@ -410,6 +438,29 @@ jobs:
           fail-on-cache-miss: true
 
       # The MinGW toolchain for the :quickjs and :mse JNI (GCC/Clang-only C; MSVC rejects it).
+      - name: Seed MSYS2 installer
+        shell: bash
+        run: |
+          set -euo pipefail
+          day="${MSYS2_INSTALLER_DATE//-/}"
+          file="msys2-base-x86_64-$day.sfx.exe"
+          dir="$(cygpath -u "$RUNNER_TOOL_CACHE")/msys2-installer/0.0.$day/x64"
+          mkdir -p "$dir"
+          for url in \
+            "https://github.com/msys2/msys2-installer/releases/download/$MSYS2_INSTALLER_DATE/$file" \
+            "https://repo.msys2.org/distrib/x86_64/$file" \
+            "https://mirror.msys2.org/distrib/x86_64/$file" \
+            "https://mirrors.tuna.tsinghua.edu.cn/msys2/distrib/x86_64/$file"; do
+            if curl -fsSL --retry 3 --retry-all-errors --connect-timeout 20 -o "$dir/base.exe" "$url" &&
+              echo "$MSYS2_INSTALLER_SHA256  $dir/base.exe" | sha256sum -c --status; then
+              touch "$dir.complete"
+              echo "MSYS2 installer from $url"
+              exit 0
+            fi
+            echo "::warning::MSYS2 installer download failed: $url"
+          done
+          echo "::error::MSYS2 installer: every source failed"
+          exit 1
       - id: msys2
         uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2.33.0
         with:
