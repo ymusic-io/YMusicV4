@@ -12,6 +12,7 @@ import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
+import android.os.SystemClock
 import android.provider.MediaStore
 import android.support.v4.media.session.MediaSessionCompat
 import android.view.KeyEvent
@@ -120,6 +121,9 @@ class PlaybackService : MediaLibraryService() {
 
     /** Closed from the notification: stop() keeps the item, so nothing is posted until playback starts again. */
     private var dismissed = false
+
+    private var notificationPostedAt = 0L
+    private var notificationJob: Job? = null
 
     // Set in onCreate — getApplication() is null until the service is attached.
     private var log: Logger? = null
@@ -602,7 +606,7 @@ class PlaybackService : MediaLibraryService() {
     override fun onUpdateNotification(session: MediaSession, startInForegroundRequired: Boolean) {
         if (startInForegroundRequired) {
             if (!foreground) foreground = promote(buildNotification())
-        } else if (foreground && player?.let { isPlaying(it.status.value, it.queue.value) } != true) {
+        } else if (foreground && player?.queue?.value?.currentItem == null) {
             // The contract-promotion that never became playback (media-button start on a dead
             // process, nothing restored): no (playing × item) transition will ever fire the
             // collector, so demote through the one owner when media3 releases the contract.
@@ -624,15 +628,17 @@ class PlaybackService : MediaLibraryService() {
         }
         // super routes MEDIA_BUTTON intents (our notification actions) onto the session.
         val result = super.onStartCommand(intent, flags, startId)
-        // The startForegroundService contract: enter foreground now; the collector demotes on pause.
+        // The startForegroundService contract: enter foreground now; once foreground there is no
+        // contract left (AMS drops fgRequired), and the collector owns the content.
         // A plain start from the background (the system restarting the sticky service after the
         // process died) is refused promotion and stays a background service.
-        foreground = promote(buildNotification())
+        if (!foreground) foreground = promote(buildNotification())
         return result
     }
 
     private fun dismiss() {
         dismissed = true
+        notificationJob?.cancel()
         player?.stop()
         stopForegroundSafely(ServiceCompat.STOP_FOREGROUND_REMOVE, log)
         NotificationManagerCompat.from(this).cancel(NOTIFICATION_ID)
@@ -674,15 +680,39 @@ class PlaybackService : MediaLibraryService() {
         pendingPlayer = null
     }
 
-    /** Foreground while there is an item, paused included: Android 12+ refuses a promotion from the
-     *  background, so a service demoted on pause could never come back when playback resumes there
-     *  (focus regained, Bluetooth) and gets frozen. The notification's close action ends it. */
     private fun updateNotification() {
         val player = this.player ?: return
         if (player.queue.value.currentItem == null) {
-            stopForegroundSafely(ServiceCompat.STOP_FOREGROUND_REMOVE, log)
-            NotificationManagerCompat.from(this).cancel(NOTIFICATION_ID)
-            foreground = false
+            removeNotification()
+            return
+        }
+        if (!foreground) {
+            // A promotion can't wait: Android 12+ refuses it once the app has gone to the background.
+            notificationJob?.cancel()
+            postNotification()
+            return
+        }
+        if (notificationJob?.isActive == true) return
+        notificationJob = serviceScope.launch {
+            delay(notificationPostedAt + NOTIFICATION_MIN_INTERVAL_MS - SystemClock.uptimeMillis())
+            postNotification()
+        }
+    }
+
+    private fun removeNotification() {
+        notificationJob?.cancel()
+        stopForegroundSafely(ServiceCompat.STOP_FOREGROUND_REMOVE, log)
+        NotificationManagerCompat.from(this).cancel(NOTIFICATION_ID)
+        foreground = false
+    }
+
+    /** Foreground while there is an item, paused included: Android 12+ refuses a promotion from the
+     *  background, so a service demoted on pause could never come back when playback resumes there
+     *  (focus regained, Bluetooth) and gets frozen. The notification's close action ends it. */
+    private fun postNotification() {
+        val player = this.player ?: return
+        if (player.queue.value.currentItem == null) {
+            removeNotification()
             return
         }
         if (isPlaying(player.status.value, player.queue.value)) {
@@ -693,6 +723,7 @@ class PlaybackService : MediaLibraryService() {
         val notification = buildNotification()
         if (foreground) {
             NotificationManagerCompat.from(this).notify(NOTIFICATION_ID, notification)
+            notificationPostedAt = SystemClock.uptimeMillis()
         } else {
             foreground = promote(notification)
         }
@@ -702,6 +733,7 @@ class PlaybackService : MediaLibraryService() {
      *  background (playback resumed by Bluetooth, a car, or audio focus coming back while the app is
      *  backgrounded). Playback continues; the service stays background until a later promotion. */
     private fun promote(notification: android.app.Notification): Boolean {
+        notificationPostedAt = SystemClock.uptimeMillis()
         return try {
             startForeground(NOTIFICATION_ID, notification)
             foregroundRefused = false
@@ -912,6 +944,10 @@ class PlaybackService : MediaLibraryService() {
         const val DISMISS_REQUEST_CODE = 100
         const val LOCK_RELEASE_GRACE_MS = 60_000L
         const val HEADSET_CLICK_WINDOW_MS = 300L
+
+        // Some OEM SystemUIs (ColorOS 6/7, One UI 7) race their own inflation of one notification
+        // against the next update of it and crash the app with "Couldn't inflate contentViews".
+        const val NOTIFICATION_MIN_INTERVAL_MS = 1_000L
 
         // media3 keeps every session id in a process-wide registry until release(), and a constructor
         // that fails after registering leaks its id: each instance gets a fresh one. Main thread only.
