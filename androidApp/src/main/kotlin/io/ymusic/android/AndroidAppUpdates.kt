@@ -18,6 +18,7 @@ import io.ymusic.ui.AppUpdates
 import io.ymusic.ui.UpdateCheck
 import io.ymusic.ui.UpdateDownload
 import kmpcommon.log.Logger
+import kmphttp.HttpStatusException
 import kmphttp.KmpHttpClient
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -218,6 +219,9 @@ class AndroidAppUpdates(
                 } else if (error is DownloadMismatchException) {
                     log?.captureError(error, "update ${update.versionCode} failed verification")
                     set(release, UpdateDownload.Failed("E91011"))
+                } else if (error is HttpStatusException) {
+                    log?.log(Logger.Level.WARN, "downloading update ${update.versionCode} refused by the server", error)
+                    set(release, UpdateDownload.Failed("E91017"))
                 } else if (error.errorCode() == DISK_FULL_CODE) {
                     log?.log(Logger.Level.WARN, "downloading update ${update.versionCode} failed: storage is full", error)
                     set(release, UpdateDownload.Failed(DISK_FULL_CODE))
