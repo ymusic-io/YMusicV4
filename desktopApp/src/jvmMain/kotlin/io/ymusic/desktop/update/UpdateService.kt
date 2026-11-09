@@ -5,6 +5,7 @@ import io.ymusic.remoteconfig.AppUpdate
 import io.ymusic.remoteconfig.DownloadMismatchException
 import io.ymusic.remoteconfig.downloadResumable
 import kmpcommon.log.Logger
+import kmphttp.HttpStatusException
 import kmphttp.KmpHttpClient
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -233,6 +234,9 @@ class UpdateService internal constructor(
                 } else if (error is DownloadMismatchException) {
                     log?.captureError(error, "update ${update.versionCode} failed verification")
                     set(release, Step.Failed("E91002"))
+                } else if (error is HttpStatusException) {
+                    log?.log(Logger.Level.WARN, "downloading update ${update.versionCode} refused by the server", error)
+                    set(release, Step.Failed("E91005"))
                 } else if (error.errorCode() == NETWORK_CODE) {
                     log?.log(Logger.Level.WARN, "downloading update ${update.versionCode} hit a network failure", error)
                     set(release, Step.Failed(NETWORK_CODE))
