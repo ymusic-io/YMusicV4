@@ -34,7 +34,8 @@ env:
 jobs:
   # The checkouts sit side by side (YMusicV4/ + ffmpeg-build/): the Gradle build reads
   # ../ffmpeg-build/out/<slug>, exactly as on a developer machine.
-  ffmpeg:
+  # One job per platform, so a platform's build waits only for its own ffmpeg packs.
+  ffmpeg-android:
     name: ffmpeg ${{ matrix.slug }}
     runs-on: ${{ matrix.runner }}
     strategy:
@@ -45,10 +46,117 @@ jobs:
           - { slug: android-arm64-v8a, runner: ubuntu-24.04 }
           - { slug: android-x86, runner: ubuntu-24.04 }
           - { slug: android-x86_64, runner: ubuntu-24.04 }
+    steps:
+      - id: cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ffmpeg-build/out/${{ matrix.slug }}
+          # Android packs also key on the NDK: a pack must not outlive the toolchain it was built with.
+          key: ffmpeg-${{ matrix.slug }}-${{ env.FFMPEG_BUILD_REF }}-ndk${{ env.NDK_VERSION }}
+
+      - if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: ${{ env.FFMPEG_BUILD_REPO }}
+          ref: ${{ env.FFMPEG_BUILD_REF }}
+          path: ffmpeg-build
+          submodules: recursive
+          fetch-depth: 1
+
+      - if: steps.cache.outputs.cache-hit != 'true'
+        name: Install NDK
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$NDK_VERSION" > /dev/null
+          echo "ANDROID_NDK_ROOT=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
+
+      - if: steps.cache.outputs.cache-hit != 'true'
+        working-directory: ffmpeg-build
+        run: |
+          sudo apt-get update && sudo apt-get install -y nasm automake autoconf libtool pkg-config patchelf
+          scripts/build-android.sh "${SLUG#android-}" || {
+            # A dependency's configure failure prints only its verdict; the reason is in its log.
+            for log in .deps-$SLUG/.build/*/config.log; do
+              [ -f "$log" ] && { echo "::group::$log"; tail -n 80 "$log"; echo "::endgroup::"; }
+            done
+            exit 1
+          }
+        env:
+          SLUG: ${{ matrix.slug }}
+
+  ffmpeg-macos:
+    name: ffmpeg ${{ matrix.slug }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
           - { slug: macos-arm64, runner: macos-15 }
           - { slug: macos-x86_64, runner: macos-15-intel }
+    steps:
+      - id: cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ffmpeg-build/out/${{ matrix.slug }}
+          key: ffmpeg-${{ matrix.slug }}-${{ env.FFMPEG_BUILD_REF }}
+
+      - if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: ${{ env.FFMPEG_BUILD_REPO }}
+          ref: ${{ env.FFMPEG_BUILD_REF }}
+          path: ffmpeg-build
+          submodules: recursive
+          fetch-depth: 1
+
+      - if: steps.cache.outputs.cache-hit != 'true'
+        working-directory: ffmpeg-build
+        run: |
+          brew install nasm automake autoconf libtool pkg-config meson ninja
+          scripts/build-desktop.sh
+
+  ffmpeg-linux:
+    name: ffmpeg ${{ matrix.slug }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
           - { slug: linux-x86_64, runner: ubuntu-24.04 }
           - { slug: linux-arm64, runner: ubuntu-24.04-arm }
+    steps:
+      - id: cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ffmpeg-build/out/${{ matrix.slug }}
+          key: ffmpeg-${{ matrix.slug }}-${{ env.FFMPEG_BUILD_REF }}
+
+      - if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: ${{ env.FFMPEG_BUILD_REPO }}
+          ref: ${{ env.FFMPEG_BUILD_REF }}
+          path: ffmpeg-build
+          submodules: recursive
+          fetch-depth: 1
+
+      - if: steps.cache.outputs.cache-hit != 'true'
+        working-directory: ffmpeg-build
+        run: |
+          sudo apt-get update && sudo apt-get install -y nasm automake autoconf libtool pkg-config meson ninja-build patchelf
+          scripts/build-desktop.sh || {
+            for log in .deps/.build/*/config.log; do
+              [ -f "$log" ] && { echo "::group::$log"; tail -n 80 "$log"; echo "::endgroup::"; }
+            done
+            exit 1
+          }
+
+  ffmpeg-windows:
+    name: ffmpeg ${{ matrix.slug }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
           # Native under MSYS2, as on a developer machine. CLANGARM64 has no gcc: HOST_CC is
           # ffmpeg's compiler, which its configure otherwise assumes is gcc.
           - slug: windows-x86_64
@@ -68,15 +176,13 @@ jobs:
               mingw-w64-clang-aarch64-zlib
     steps:
       # The Windows runner checks out with CRLF, which breaks every shell script ffmpeg-build runs.
-      - if: startsWith(matrix.slug, 'windows-')
-        run: git config --global core.autocrlf false
+      - run: git config --global core.autocrlf false
 
       - id: cache
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ffmpeg-build/out/${{ matrix.slug }}
-          # Android packs also key on the NDK: a pack must not outlive the toolchain it was built with.
-          key: ffmpeg-${{ matrix.slug }}-${{ env.FFMPEG_BUILD_REF }}${{ startsWith(matrix.slug, 'android-') && format('-ndk{0}', env.NDK_VERSION) || '' }}
+          key: ffmpeg-${{ matrix.slug }}-${{ env.FFMPEG_BUILD_REF }}
 
       - if: steps.cache.outputs.cache-hit != 'true'
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -87,45 +193,8 @@ jobs:
           submodules: recursive
           fetch-depth: 1
 
-      - if: steps.cache.outputs.cache-hit != 'true' && startsWith(matrix.slug, 'android-')
-        name: Install NDK
-        run: |
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$NDK_VERSION" > /dev/null
-          echo "ANDROID_NDK_ROOT=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
-
-      - if: steps.cache.outputs.cache-hit != 'true' && startsWith(matrix.slug, 'android-')
-        working-directory: ffmpeg-build
-        run: |
-          sudo apt-get update && sudo apt-get install -y nasm automake autoconf libtool pkg-config patchelf
-          scripts/build-android.sh "${SLUG#android-}" || {
-            # A dependency's configure failure prints only its verdict; the reason is in its log.
-            for log in .deps-$SLUG/.build/*/config.log; do
-              [ -f "$log" ] && { echo "::group::$log"; tail -n 80 "$log"; echo "::endgroup::"; }
-            done
-            exit 1
-          }
-        env:
-          SLUG: ${{ matrix.slug }}
-
-      - if: steps.cache.outputs.cache-hit != 'true' && startsWith(matrix.slug, 'linux-')
-        working-directory: ffmpeg-build
-        run: |
-          sudo apt-get update && sudo apt-get install -y nasm automake autoconf libtool pkg-config meson ninja-build patchelf
-          scripts/build-desktop.sh || {
-            for log in .deps/.build/*/config.log; do
-              [ -f "$log" ] && { echo "::group::$log"; tail -n 80 "$log"; echo "::endgroup::"; }
-            done
-            exit 1
-          }
-
-      - if: steps.cache.outputs.cache-hit != 'true' && startsWith(matrix.slug, 'macos-')
-        working-directory: ffmpeg-build
-        run: |
-          brew install nasm automake autoconf libtool pkg-config meson ninja
-          scripts/build-desktop.sh
-
       - name: Seed MSYS2 installer
-        if: steps.cache.outputs.cache-hit != 'true' && startsWith(matrix.slug, 'windows-')
+        if: steps.cache.outputs.cache-hit != 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -148,14 +217,14 @@ jobs:
           done
           echo "::error::MSYS2 installer: every source failed"
           exit 1
-      - if: steps.cache.outputs.cache-hit != 'true' && startsWith(matrix.slug, 'windows-')
+      - if: steps.cache.outputs.cache-hit != 'true'
         uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2.33.0
         with:
           msystem: ${{ matrix.msystem }}
           update: true
           install: git make diffutils autoconf automake libtool patch ${{ matrix.packages }}
 
-      - if: steps.cache.outputs.cache-hit != 'true' && startsWith(matrix.slug, 'windows-')
+      - if: steps.cache.outputs.cache-hit != 'true'
         shell: msys2 {0}
         working-directory: ffmpeg-build
         env:
@@ -169,7 +238,7 @@ jobs:
           }
 
   android:
-    needs: ffmpeg
+    needs: ffmpeg-android
     runs-on: ubuntu-24.04
     env:
       # Only whether secrets.enc can be opened: the passphrase itself goes to the Restore secrets step alone.
@@ -269,7 +338,7 @@ jobs:
 
   macos:
     name: macos ${{ matrix.slug }}
-    needs: ffmpeg
+    needs: ffmpeg-macos
     runs-on: ${{ matrix.runner }}
     env:
       # Only whether secrets.enc can be opened: the passphrase itself goes to the Restore secrets step alone.
@@ -411,7 +480,7 @@ jobs:
   # The Inno Setup installer (YMusic-Setup-<version>-<platform>.exe), unsigned.
   windows:
     name: windows ${{ matrix.slug }}
-    needs: ffmpeg
+    needs: ffmpeg-windows
     runs-on: ${{ matrix.runner }}
     env:
       # Only whether secrets.enc can be opened: the passphrase itself goes to the Restore secrets step alone.
@@ -540,7 +609,7 @@ jobs:
   # The Debian package, unsigned.
   linux:
     name: linux ${{ matrix.slug }}
-    needs: ffmpeg
+    needs: ffmpeg-linux
     runs-on: ${{ matrix.runner }}
     env:
       # Only whether secrets.enc can be opened: the passphrase itself goes to the Restore secrets step alone.
@@ -608,7 +677,7 @@ jobs:
 
   # Every module's JVM tests; JUnit aborts any test past 30 s (root build.gradle.kts).
   test:
-    needs: ffmpeg
+    needs: ffmpeg-macos
     runs-on: macos-15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
