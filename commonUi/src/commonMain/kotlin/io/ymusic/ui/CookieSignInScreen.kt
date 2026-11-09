@@ -74,7 +74,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
-import projectcommon.log.captureUnlessNetwork
+import projectcommon.log.captureUnlessEnvironmental
 
 @Composable
 fun CookieSignInScreen(
@@ -125,7 +125,7 @@ fun CookieSignInScreen(
             } catch (c: CancellationException) {
                 throw c
             } catch (t: Throwable) {
-                log?.captureUnlessNetwork(t, "cookie import failed")
+                log?.captureUnlessEnvironmental(t, "cookie import failed")
                 pasteError = getString(Res.string.device_link_error_generic)
             } finally {
                 if (!finished) importing = false

@@ -10,7 +10,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.unit.dp
 import io.ymusic.dynamicengine.yt.YtFeedItem
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.onStart
+import projectcommon.log.captureUnlessEnvironmental
 
 /** YouTube video ids the Library holds a file of — empty where there is no media store. */
 internal val LocalAvailableOffline = compositionLocalOf<Set<String>> { emptySet() }
@@ -21,7 +23,17 @@ internal val LocalAvailableOffline = compositionLocalOf<Set<String>> { emptySet(
 internal fun rememberAvailableOffline(graph: AppGraph): Set<String> {
     val store = graph.mediaStore ?: return emptySet()
     val ids by produceState(emptySet<String>(), store) {
-        store.itemsChanges().onStart { emit(Unit) }.collect { value = store.youtubeVideoIds() }
+        val log = graph.logger?.fork("available-offline")
+        store.itemsChanges().onStart { emit(Unit) }.collect {
+            try {
+                value = store.youtubeVideoIds()
+            } catch (c: CancellationException) {
+                throw c
+            } catch (e: Exception) {
+                // The marks keep their last value; the next item change reads again.
+                log?.captureUnlessEnvironmental(e, "available-offline ids failed to load")
+            }
+        }
     }
     return ids
 }

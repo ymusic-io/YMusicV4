@@ -34,6 +34,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -109,6 +110,7 @@ import kmpcommon.uri.Uri
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.Instant
@@ -120,6 +122,7 @@ import org.jetbrains.compose.resources.stringResource
 import projectcommon.error.Playability
 import projectcommon.error.errorCode
 import projectcommon.error.playabilityOf
+import projectcommon.log.captureUnlessEnvironmental
 
 /**
  * The Download Manager: a status filter chip row over one flat adaptive grid (one column on a phone,
@@ -136,8 +139,22 @@ fun DownloadsScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
     }
     // Own the aggregator for as long as this screen is composed: it seeds once and folds change events,
     // and is dropped (its DB subscription cancelled) when the user leaves.
-    val aggregator = remember(service) { DownloadTasksAggregator(service::snapshot, service.changes) }
-    val tasks by aggregator.tasks.collectAsState(emptyList())
+    var reloads by remember { mutableIntStateOf(0) }
+    var loadError by remember { mutableStateOf<String?>(null) }
+    val aggregator = remember(service, reloads) { DownloadTasksAggregator(service::snapshot, service.changes) }
+    val tasks by remember(aggregator) {
+        aggregator.tasks.catch { e ->
+            graph.logger?.fork("downloads")?.captureUnlessEnvironmental(e, "download list failed to load")
+            loadError = e.errorCode() ?: "E70081"
+        }
+    }.collectAsState(emptyList())
+    loadError?.let { code ->
+        ErrorState(code) {
+            loadError = null
+            reloads++
+        }
+        return
+    }
 
     val visible = tasks.filter { it.state != DownloadState.CANCELED }
     if (visible.isEmpty()) {
