@@ -161,6 +161,7 @@ E70053 D a SABR download failed with an otherwise uncoded error (download YtStre
 E70060 D could not create the download scratch directory, volume not full (download DefaultDownloadScratch)
 E70070 D renaming a completed download's file failed with an uncoded error (commonUi DownloadsScreen.kt RenameDownloadDialog)
 E70071 D reading a completed download's file name for Rename failed with an uncoded error (commonUi DownloadsScreen.kt RenameDownloadDialog)
+E70080 - the download database is corrupt or could not be read (download DownloadStore.db)
 
 E80070 D MSE not available on this platform (mse apple)
 E80071 D MSE mime type not supported (mse)
