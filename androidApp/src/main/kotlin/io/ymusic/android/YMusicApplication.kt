@@ -912,6 +912,11 @@ class YMusicApplication : Application() {
             return@withContext probeFileFolder(File(checkNotNull(folder.path) { "file uri without a path: $folder" }), log)
         }
         if (checkCallingOrSelfUriPermission(folder, Intent.FLAG_GRANT_WRITE_URI_PERMISSION) != PackageManager.PERMISSION_GRANTED) {
+            val persisted = contentResolver.persistedUriPermissions.firstOrNull { it.uri == folder }
+            log.log(
+                Logger.Level.WARN,
+                "no write grant (persisted read=${persisted?.isReadPermission} write=${persisted?.isWritePermission})",
+            )
             return@withContext FolderWriteProblem.NoPermission
         }
         val parent = if (android.provider.DocumentsContract.isDocumentUri(this@YMusicApplication, folder)) {
