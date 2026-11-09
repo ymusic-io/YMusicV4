@@ -1,0 +1,35 @@
+<resources>
+    <string name="playback_notification_channel">Reproducción</string>
+    <string name="notification_previous">Anterior</string>
+    <string name="notification_play">Reproducir</string>
+    <string name="notification_pause">Pausar</string>
+    <string name="notification_next">Siguiente</string>
+    <string name="notification_close">Cerrar</string>
+    <string name="notifications_required">YMusic reproduce música desde un servicio en segundo plano que debe mostrar una notificación de reproducción. Permite las notificaciones para continuar.</string>
+    <string name="notifications_allow">Permitir notificaciones</string>
+    <string name="download_notification_channel">Descargas</string>
+    <string name="notification_downloads_running">Descargando…</string>
+    <string name="notification_downloads_multi">Descargando %1$d elementos</string>
+    <string name="download_state_queued">En cola</string>
+    <string name="download_state_preparing">Preparando…</string>
+    <string name="download_state_downloading">Descargando…</string>
+    <string name="download_state_processing">Procesando…</string>
+    <string name="download_state_paused">En pausa</string>
+    <string name="notification_download_finished">Descarga completada</string>
+    <string name="downloads_summary_finished">%1$d completadas</string>
+    <string name="downloads_summary_failed">%1$d fallidas</string>
+    <string name="downloads_summary_paused">%1$d en pausa</string>
+    <string name="downloads_pause_all">Pausar todo</string>
+    <string name="share_play">Reproducir</string>
+    <string name="share_download_mp3">Descargar MP3</string>
+    <string name="share_download_m4a">Descargar M4A</string>
+    <string name="share_download">Descargar en otro formato</string>
+    <string name="share_no_link">No hay ningún enlace que abrir en lo compartido</string>
+    <string name="widget_small_name">Reproductor · Pequeño</string>
+    <string name="widget_compact_name">Reproductor · Compacto</string>
+    <string name="widget_large_name">Reproductor · Grande</string>
+    <string name="widget_square_name">Reproductor · Cuadrado</string>
+    <string name="widget_description">Reproduciendo ahora, con controles</string>
+    <string name="widget_nothing_playing">No se reproduce nada</string>
+    <string name="widget_open_to_start">Abre YMusic para empezar a escuchar</string>
+</resources>

@@ -1,0 +1,35 @@
+<resources>
+    <string name="playback_notification_channel">Відтворення</string>
+    <string name="notification_previous">Попередній</string>
+    <string name="notification_play">Відтворити</string>
+    <string name="notification_pause">Пауза</string>
+    <string name="notification_next">Наступний</string>
+    <string name="notification_close">Закрити</string>
+    <string name="notifications_required">YMusic відтворює музику у фоновій службі, яка має показувати сповіщення про відтворення. Дозвольте сповіщення, щоб продовжити.</string>
+    <string name="notifications_allow">Дозволити сповіщення</string>
+    <string name="download_notification_channel">Завантаження</string>
+    <string name="notification_downloads_running">Завантаження…</string>
+    <string name="notification_downloads_multi">Завантажується елементів: %1$d</string>
+    <string name="download_state_queued">У черзі</string>
+    <string name="download_state_preparing">Підготовка…</string>
+    <string name="download_state_downloading">Завантаження…</string>
+    <string name="download_state_processing">Обробка…</string>
+    <string name="download_state_paused">На паузі</string>
+    <string name="notification_download_finished">Завантаження завершено</string>
+    <string name="downloads_summary_finished">Завершено: %1$d</string>
+    <string name="downloads_summary_failed">Помилок: %1$d</string>
+    <string name="downloads_summary_paused">На паузі: %1$d</string>
+    <string name="downloads_pause_all">Призупинити все</string>
+    <string name="share_play">Відтворити</string>
+    <string name="share_download_mp3">Завантажити MP3</string>
+    <string name="share_download_m4a">Завантажити M4A</string>
+    <string name="share_download">Завантажити інший формат</string>
+    <string name="share_no_link">У поширеному немає посилання, яке можна відкрити</string>
+    <string name="widget_small_name">Плеєр · Малий</string>
+    <string name="widget_compact_name">Плеєр · Компактний</string>
+    <string name="widget_large_name">Плеєр · Великий</string>
+    <string name="widget_square_name">Плеєр · Квадратний</string>
+    <string name="widget_description">Відтворення з елементами керування.</string>
+    <string name="widget_nothing_playing">Нічого не грає</string>
+    <string name="widget_open_to_start">Відкрийте YMusic, щоб слухати</string>
+</resources>

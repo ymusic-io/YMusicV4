@@ -1,0 +1,35 @@
+<resources>
+    <string name="playback_notification_channel">Esitus</string>
+    <string name="notification_previous">Eelmine</string>
+    <string name="notification_play">Esita</string>
+    <string name="notification_pause">Paus</string>
+    <string name="notification_next">Järgmine</string>
+    <string name="notification_close">Sulge</string>
+    <string name="notifications_required">YMusic esitab muusikat taustateenusest, mis peab näitama esituse teavitust. Jätkamiseks luba teavitused.</string>
+    <string name="notifications_allow">Luba teavitused</string>
+    <string name="download_notification_channel">Allalaadimised</string>
+    <string name="notification_downloads_running">Allalaadimine…</string>
+    <string name="notification_downloads_multi">Laaditakse alla %1$d üksust</string>
+    <string name="download_state_queued">Järjekorras</string>
+    <string name="download_state_preparing">Ettevalmistamine…</string>
+    <string name="download_state_downloading">Allalaadimine…</string>
+    <string name="download_state_processing">Töötlemine…</string>
+    <string name="download_state_paused">Peatatud</string>
+    <string name="notification_download_finished">Allalaadimine lõpetatud</string>
+    <string name="downloads_summary_finished">%1$d lõpetatud</string>
+    <string name="downloads_summary_failed">%1$d nurjus</string>
+    <string name="downloads_summary_paused">%1$d peatatud</string>
+    <string name="downloads_pause_all">Peata kõik</string>
+    <string name="share_play">Esita</string>
+    <string name="share_download_mp3">Laadi alla MP3</string>
+    <string name="share_download_m4a">Laadi alla M4A</string>
+    <string name="share_download">Laadi alla muus vormingus</string>
+    <string name="share_no_link">Jagatud sisus pole avatavat linki</string>
+    <string name="widget_small_name">Pleier · Väike</string>
+    <string name="widget_compact_name">Pleier · Kompaktne</string>
+    <string name="widget_large_name">Pleier · Suur</string>
+    <string name="widget_square_name">Pleier · Ruudukujuline</string>
+    <string name="widget_description">Praegu mängib, koos juhtnuppudega</string>
+    <string name="widget_nothing_playing">Midagi ei mängi</string>
+    <string name="widget_open_to_start">Kuulamiseks ava YMusic</string>
+</resources>

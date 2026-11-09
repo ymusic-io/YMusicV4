@@ -1,0 +1,35 @@
+<resources>
+    <string name="playback_notification_channel">प्लेबैक</string>
+    <string name="notification_previous">पिछला</string>
+    <string name="notification_play">चलाएं</string>
+    <string name="notification_pause">रोकें</string>
+    <string name="notification_next">अगला</string>
+    <string name="notification_close">बंद करें</string>
+    <string name="notifications_required">YMusic बैकग्राउंड सेवा से संगीत चलाता है, जिसके लिए प्लेबैक सूचना दिखाना ज़रूरी है। जारी रखने के लिए सूचनाओं की अनुमति दें।</string>
+    <string name="notifications_allow">सूचनाओं की अनुमति दें</string>
+    <string name="download_notification_channel">डाउनलोड</string>
+    <string name="notification_downloads_running">डाउनलोड हो रहा है…</string>
+    <string name="notification_downloads_multi">%1$d आइटम डाउनलोड हो रहे हैं</string>
+    <string name="download_state_queued">कतार में</string>
+    <string name="download_state_preparing">तैयार हो रहा है…</string>
+    <string name="download_state_downloading">डाउनलोड हो रहा है…</string>
+    <string name="download_state_processing">प्रोसेस हो रहा है…</string>
+    <string name="download_state_paused">रोका गया</string>
+    <string name="notification_download_finished">डाउनलोड पूरा हुआ</string>
+    <string name="downloads_summary_finished">%1$d पूरे हुए</string>
+    <string name="downloads_summary_failed">%1$d विफल</string>
+    <string name="downloads_summary_paused">%1$d रोके गए</string>
+    <string name="downloads_pause_all">सभी रोकें</string>
+    <string name="share_play">चलाएं</string>
+    <string name="share_download_mp3">MP3 डाउनलोड</string>
+    <string name="share_download_m4a">M4A डाउनलोड</string>
+    <string name="share_download">अन्य डाउनलोड</string>
+    <string name="share_no_link">शेयर की गई सामग्री में खोलने लायक कोई लिंक नहीं है</string>
+    <string name="widget_small_name">प्लेयर · छोटा</string>
+    <string name="widget_compact_name">प्लेयर · कॉम्पैक्ट</string>
+    <string name="widget_large_name">प्लेयर · बड़ा</string>
+    <string name="widget_square_name">प्लेयर · चौकोर</string>
+    <string name="widget_description">अभी चल रहा है, प्लेबैक कंट्रोल के साथ</string>
+    <string name="widget_nothing_playing">कुछ नहीं चल रहा</string>
+    <string name="widget_open_to_start">सुनना शुरू करने के लिए YMusic खोलें</string>
+</resources>

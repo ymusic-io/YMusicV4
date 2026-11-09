@@ -1,0 +1,35 @@
+<resources>
+    <string name="playback_notification_channel">Riproduzione</string>
+    <string name="notification_previous">Precedente</string>
+    <string name="notification_play">Riproduci</string>
+    <string name="notification_pause">Pausa</string>
+    <string name="notification_next">Successivo</string>
+    <string name="notification_close">Chiudi</string>
+    <string name="notifications_required">YMusic riproduce la musica da un servizio in background che deve mostrare una notifica di riproduzione. Consenti le notifiche per continuare.</string>
+    <string name="notifications_allow">Consenti notifiche</string>
+    <string name="download_notification_channel">Download</string>
+    <string name="notification_downloads_running">Download in corso…</string>
+    <string name="notification_downloads_multi">Download di %1$d elementi</string>
+    <string name="download_state_queued">In attesa</string>
+    <string name="download_state_preparing">Preparazione…</string>
+    <string name="download_state_downloading">Download in corso…</string>
+    <string name="download_state_processing">Elaborazione…</string>
+    <string name="download_state_paused">In pausa</string>
+    <string name="notification_download_finished">Download completato</string>
+    <string name="downloads_summary_finished">%1$d completati</string>
+    <string name="downloads_summary_failed">%1$d non riusciti</string>
+    <string name="downloads_summary_paused">%1$d in pausa</string>
+    <string name="downloads_pause_all">Metti tutto in pausa</string>
+    <string name="share_play">Riproduci</string>
+    <string name="share_download_mp3">Scarica MP3</string>
+    <string name="share_download_m4a">Scarica M4A</string>
+    <string name="share_download">Altro download</string>
+    <string name="share_no_link">Nessun link da aprire nel contenuto condiviso</string>
+    <string name="widget_small_name">Player · Piccolo</string>
+    <string name="widget_compact_name">Player · Compatto</string>
+    <string name="widget_large_name">Player · Grande</string>
+    <string name="widget_square_name">Player · Quadrato</string>
+    <string name="widget_description">In riproduzione, con i controlli di riproduzione</string>
+    <string name="widget_nothing_playing">Nessuna riproduzione</string>
+    <string name="widget_open_to_start">Apri YMusic per iniziare ad ascoltare</string>
+</resources>

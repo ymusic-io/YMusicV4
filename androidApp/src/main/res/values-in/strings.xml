@@ -1,0 +1,35 @@
+<resources>
+    <string name="playback_notification_channel">Pemutaran</string>
+    <string name="notification_previous">Sebelumnya</string>
+    <string name="notification_play">Putar</string>
+    <string name="notification_pause">Jeda</string>
+    <string name="notification_next">Berikutnya</string>
+    <string name="notification_close">Tutup</string>
+    <string name="notifications_required">YMusic memutar musik dari layanan latar belakang yang harus menampilkan notifikasi pemutaran. Izinkan notifikasi untuk melanjutkan.</string>
+    <string name="notifications_allow">Izinkan notifikasi</string>
+    <string name="download_notification_channel">Unduhan</string>
+    <string name="notification_downloads_running">Mengunduh…</string>
+    <string name="notification_downloads_multi">Mengunduh %1$d item</string>
+    <string name="download_state_queued">Dalam antrean</string>
+    <string name="download_state_preparing">Menyiapkan…</string>
+    <string name="download_state_downloading">Mengunduh…</string>
+    <string name="download_state_processing">Memproses…</string>
+    <string name="download_state_paused">Dijeda</string>
+    <string name="notification_download_finished">Unduhan selesai</string>
+    <string name="downloads_summary_finished">%1$d selesai</string>
+    <string name="downloads_summary_failed">%1$d gagal</string>
+    <string name="downloads_summary_paused">%1$d dijeda</string>
+    <string name="downloads_pause_all">Jeda semua</string>
+    <string name="share_play">Putar</string>
+    <string name="share_download_mp3">Unduh MP3</string>
+    <string name="share_download_m4a">Unduh M4A</string>
+    <string name="share_download">Unduhan lainnya</string>
+    <string name="share_no_link">Tidak ada link untuk dibuka dalam konten yang dibagikan</string>
+    <string name="widget_small_name">Pemutar · Kecil</string>
+    <string name="widget_compact_name">Pemutar · Ringkas</string>
+    <string name="widget_large_name">Pemutar · Besar</string>
+    <string name="widget_square_name">Pemutar · Persegi</string>
+    <string name="widget_description">Sedang diputar dengan kontrol pemutaran</string>
+    <string name="widget_nothing_playing">Tidak ada yang diputar</string>
+    <string name="widget_open_to_start">Buka YMusic untuk mulai mendengarkan</string>
+</resources>

@@ -1,0 +1,35 @@
+<resources>
+    <string name="playback_notification_channel">Wiedergabe</string>
+    <string name="notification_previous">Zurück</string>
+    <string name="notification_play">Abspielen</string>
+    <string name="notification_pause">Pause</string>
+    <string name="notification_next">Weiter</string>
+    <string name="notification_close">Schließen</string>
+    <string name="notifications_required">YMusic spielt Musik über einen Hintergrunddienst ab, der eine Wiedergabebenachrichtigung anzeigen muss. Erlaube Benachrichtigungen, um fortzufahren.</string>
+    <string name="notifications_allow">Benachrichtigungen erlauben</string>
+    <string name="download_notification_channel">Downloads</string>
+    <string name="notification_downloads_running">Wird heruntergeladen…</string>
+    <string name="notification_downloads_multi">%1$d Elemente werden heruntergeladen</string>
+    <string name="download_state_queued">In der Warteschlange</string>
+    <string name="download_state_preparing">Wird vorbereitet…</string>
+    <string name="download_state_downloading">Wird heruntergeladen…</string>
+    <string name="download_state_processing">Wird verarbeitet…</string>
+    <string name="download_state_paused">Pausiert</string>
+    <string name="notification_download_finished">Download abgeschlossen</string>
+    <string name="downloads_summary_finished">%1$d abgeschlossen</string>
+    <string name="downloads_summary_failed">%1$d fehlgeschlagen</string>
+    <string name="downloads_summary_paused">%1$d pausiert</string>
+    <string name="downloads_pause_all">Alle pausieren</string>
+    <string name="share_play">Abspielen</string>
+    <string name="share_download_mp3">MP3 herunterladen</string>
+    <string name="share_download_m4a">M4A herunterladen</string>
+    <string name="share_download">Anderes Format herunterladen</string>
+    <string name="share_no_link">Im Geteilten ist kein Link zum Öffnen</string>
+    <string name="widget_small_name">Player · Klein</string>
+    <string name="widget_compact_name">Player · Kompakt</string>
+    <string name="widget_large_name">Player · Groß</string>
+    <string name="widget_square_name">Player · Quadratisch</string>
+    <string name="widget_description">Aktuelle Wiedergabe mit Steuerung</string>
+    <string name="widget_nothing_playing">Keine Wiedergabe</string>
+    <string name="widget_open_to_start">Öffne YMusic, um loszuhören</string>
+</resources>

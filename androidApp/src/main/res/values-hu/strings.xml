@@ -1,0 +1,35 @@
+<resources>
+    <string name="playback_notification_channel">Lejátszás</string>
+    <string name="notification_previous">Előző</string>
+    <string name="notification_play">Lejátszás</string>
+    <string name="notification_pause">Szünet</string>
+    <string name="notification_next">Következő</string>
+    <string name="notification_close">Bezárás</string>
+    <string name="notifications_required">A YMusic egy háttérszolgáltatásból játssza le a zenét, amelynek lejátszási értesítést kell megjelenítenie. A folytatáshoz engedélyezze az értesítéseket.</string>
+    <string name="notifications_allow">Értesítések engedélyezése</string>
+    <string name="download_notification_channel">Letöltések</string>
+    <string name="notification_downloads_running">Letöltés…</string>
+    <string name="notification_downloads_multi">%1$d elem letöltése</string>
+    <string name="download_state_queued">Várakozik</string>
+    <string name="download_state_preparing">Előkészítés…</string>
+    <string name="download_state_downloading">Letöltés…</string>
+    <string name="download_state_processing">Feldolgozás…</string>
+    <string name="download_state_paused">Szüneteltetve</string>
+    <string name="notification_download_finished">A letöltés befejeződött</string>
+    <string name="downloads_summary_finished">%1$d kész</string>
+    <string name="downloads_summary_failed">%1$d sikertelen</string>
+    <string name="downloads_summary_paused">%1$d szüneteltetve</string>
+    <string name="downloads_pause_all">Összes szüneteltetése</string>
+    <string name="share_play">Lejátszás</string>
+    <string name="share_download_mp3">MP3 letöltése</string>
+    <string name="share_download_m4a">M4A letöltése</string>
+    <string name="share_download">Egyéb letöltés</string>
+    <string name="share_no_link">A megosztott tartalomban nincs megnyitható link</string>
+    <string name="widget_small_name">Lejátszó · Kicsi</string>
+    <string name="widget_compact_name">Lejátszó · Kompakt</string>
+    <string name="widget_large_name">Lejátszó · Nagy</string>
+    <string name="widget_square_name">Lejátszó · Négyzet</string>
+    <string name="widget_description">Most szól, lejátszásvezérlőkkel</string>
+    <string name="widget_nothing_playing">Nincs lejátszás</string>
+    <string name="widget_open_to_start">Nyissa meg a YMusicot a hallgatáshoz</string>
+</resources>

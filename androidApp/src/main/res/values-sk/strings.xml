@@ -1,0 +1,35 @@
+<resources>
+    <string name="playback_notification_channel">Prehrávanie</string>
+    <string name="notification_previous">Predchádzajúce</string>
+    <string name="notification_play">Prehrať</string>
+    <string name="notification_pause">Pozastaviť</string>
+    <string name="notification_next">Ďalšie</string>
+    <string name="notification_close">Zavrieť</string>
+    <string name="notifications_required">YMusic prehráva hudbu cez službu na pozadí, ktorá musí zobrazovať upozornenie o prehrávaní. Ak chcete pokračovať, povoľte upozornenia.</string>
+    <string name="notifications_allow">Povoliť upozornenia</string>
+    <string name="download_notification_channel">Sťahovanie</string>
+    <string name="notification_downloads_running">Sťahuje sa…</string>
+    <string name="notification_downloads_multi">Sťahuje sa položiek: %1$d</string>
+    <string name="download_state_queued">V poradí</string>
+    <string name="download_state_preparing">Pripravuje sa…</string>
+    <string name="download_state_downloading">Sťahuje sa…</string>
+    <string name="download_state_processing">Spracúva sa…</string>
+    <string name="download_state_paused">Pozastavené</string>
+    <string name="notification_download_finished">Sťahovanie dokončené</string>
+    <string name="downloads_summary_finished">Dokončené: %1$d</string>
+    <string name="downloads_summary_failed">Zlyhalo: %1$d</string>
+    <string name="downloads_summary_paused">Pozastavené: %1$d</string>
+    <string name="downloads_pause_all">Pozastaviť všetko</string>
+    <string name="share_play">Prehrať</string>
+    <string name="share_download_mp3">Stiahnuť MP3</string>
+    <string name="share_download_m4a">Stiahnuť M4A</string>
+    <string name="share_download">Stiahnuť v inom formáte</string>
+    <string name="share_no_link">V zdieľanom obsahu nie je odkaz na otvorenie</string>
+    <string name="widget_small_name">Prehrávač · Malý</string>
+    <string name="widget_compact_name">Prehrávač · Kompaktný</string>
+    <string name="widget_large_name">Prehrávač · Veľký</string>
+    <string name="widget_square_name">Prehrávač · Štvorcový</string>
+    <string name="widget_description">Práve hrá s ovládaním prehrávania</string>
+    <string name="widget_nothing_playing">Nič sa neprehráva</string>
+    <string name="widget_open_to_start">Otvorte YMusic a začnite počúvať</string>
+</resources>

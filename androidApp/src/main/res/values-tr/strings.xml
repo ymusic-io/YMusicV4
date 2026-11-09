@@ -1,0 +1,35 @@
+<resources>
+    <string name="playback_notification_channel">Oynatma</string>
+    <string name="notification_previous">Önceki</string>
+    <string name="notification_play">Oynat</string>
+    <string name="notification_pause">Duraklat</string>
+    <string name="notification_next">Sonraki</string>
+    <string name="notification_close">Kapat</string>
+    <string name="notifications_required">YMusic, müziği oynatma bildirimi göstermesi gereken bir arka plan hizmetinden çalar. Devam etmek için bildirimlere izin verin.</string>
+    <string name="notifications_allow">Bildirimlere izin ver</string>
+    <string name="download_notification_channel">İndirmeler</string>
+    <string name="notification_downloads_running">İndiriliyor…</string>
+    <string name="notification_downloads_multi">%1$d öğe indiriliyor</string>
+    <string name="download_state_queued">Sırada</string>
+    <string name="download_state_preparing">Hazırlanıyor…</string>
+    <string name="download_state_downloading">İndiriliyor…</string>
+    <string name="download_state_processing">İşleniyor…</string>
+    <string name="download_state_paused">Duraklatıldı</string>
+    <string name="notification_download_finished">İndirme tamamlandı</string>
+    <string name="downloads_summary_finished">%1$d tamamlandı</string>
+    <string name="downloads_summary_failed">%1$d başarısız</string>
+    <string name="downloads_summary_paused">%1$d duraklatıldı</string>
+    <string name="downloads_pause_all">Tümünü duraklat</string>
+    <string name="share_play">Oynat</string>
+    <string name="share_download_mp3">MP3 indir</string>
+    <string name="share_download_m4a">M4A indir</string>
+    <string name="share_download">Başka biçimde indir</string>
+    <string name="share_no_link">Paylaşılan içerikte açılacak bağlantı yok</string>
+    <string name="widget_small_name">Oynatıcı · Küçük</string>
+    <string name="widget_compact_name">Oynatıcı · Kompakt</string>
+    <string name="widget_large_name">Oynatıcı · Büyük</string>
+    <string name="widget_square_name">Oynatıcı · Kare</string>
+    <string name="widget_description">Oynatma kontrolleriyle şimdi çalan</string>
+    <string name="widget_nothing_playing">Hiçbir şey çalmıyor</string>
+    <string name="widget_open_to_start">Dinlemeye başlamak için YMusic\'i açın</string>
+</resources>

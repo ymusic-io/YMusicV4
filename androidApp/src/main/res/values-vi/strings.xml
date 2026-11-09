@@ -1,5 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="playback_notification_channel">Phát nhạc</string>
+    <string name="notification_previous">Bài trước</string>
+    <string name="notification_play">Phát</string>
+    <string name="notification_pause">Tạm dừng</string>
+    <string name="notification_next">Bài tiếp theo</string>
+    <string name="notification_close">Đóng</string>
+    <string name="notifications_required">YMusic phát nhạc bằng một dịch vụ chạy nền, dịch vụ này bắt buộc phải hiển thị thông báo phát nhạc. Hãy cho phép thông báo để tiếp tục.</string>
+    <string name="notifications_allow">Cho phép thông báo</string>
+    <string name="download_notification_channel">Tải xuống</string>
+    <string name="notification_downloads_running">Đang tải…</string>
+    <string name="notification_downloads_multi">Đang tải %1$d mục</string>
+    <string name="download_state_queued">Đang chờ</string>
+    <string name="download_state_preparing">Đang chuẩn bị…</string>
+    <string name="download_state_downloading">Đang tải…</string>
+    <string name="download_state_processing">Đang xử lý…</string>
+    <string name="download_state_paused">Tạm dừng</string>
+    <string name="notification_download_finished">Đã tải xong</string>
+    <string name="downloads_summary_finished">%1$d đã xong</string>
+    <string name="downloads_summary_failed">%1$d bị lỗi</string>
+    <string name="downloads_summary_paused">%1$d tạm dừng</string>
+    <string name="downloads_pause_all">Tạm dừng tất cả</string>
     <string name="share_play">Phát</string>
     <string name="share_download_mp3">Tải MP3</string>
     <string name="share_download_m4a">Tải M4A</string>

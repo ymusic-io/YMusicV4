@@ -1,0 +1,35 @@
+<resources>
+    <string name="playback_notification_channel">การเล่น</string>
+    <string name="notification_previous">ก่อนหน้า</string>
+    <string name="notification_play">เล่น</string>
+    <string name="notification_pause">หยุดชั่วคราว</string>
+    <string name="notification_next">ถัดไป</string>
+    <string name="notification_close">ปิด</string>
+    <string name="notifications_required">YMusic เล่นเพลงจากบริการเบื้องหลังซึ่งต้องแสดงการแจ้งเตือนการเล่น อนุญาตการแจ้งเตือนเพื่อดำเนินการต่อ</string>
+    <string name="notifications_allow">อนุญาตการแจ้งเตือน</string>
+    <string name="download_notification_channel">การดาวน์โหลด</string>
+    <string name="notification_downloads_running">กำลังดาวน์โหลด…</string>
+    <string name="notification_downloads_multi">กำลังดาวน์โหลด %1$d รายการ</string>
+    <string name="download_state_queued">อยู่ในคิว</string>
+    <string name="download_state_preparing">กำลังเตรียม…</string>
+    <string name="download_state_downloading">กำลังดาวน์โหลด…</string>
+    <string name="download_state_processing">กำลังประมวลผล…</string>
+    <string name="download_state_paused">หยุดชั่วคราว</string>
+    <string name="notification_download_finished">ดาวน์โหลดเสร็จแล้ว</string>
+    <string name="downloads_summary_finished">เสร็จสิ้น %1$d</string>
+    <string name="downloads_summary_failed">ไม่สำเร็จ %1$d</string>
+    <string name="downloads_summary_paused">หยุดชั่วคราว %1$d</string>
+    <string name="downloads_pause_all">หยุดทั้งหมดชั่วคราว</string>
+    <string name="share_play">เล่น</string>
+    <string name="share_download_mp3">ดาวน์โหลด MP3</string>
+    <string name="share_download_m4a">ดาวน์โหลด M4A</string>
+    <string name="share_download">ดาวน์โหลดรูปแบบอื่น</string>
+    <string name="share_no_link">ไม่มีลิงก์ให้เปิดในสิ่งที่แชร์มา</string>
+    <string name="widget_small_name">เพลเยอร์ · เล็ก</string>
+    <string name="widget_compact_name">เพลเยอร์ · กะทัดรัด</string>
+    <string name="widget_large_name">เพลเยอร์ · ใหญ่</string>
+    <string name="widget_square_name">เพลเยอร์ · สี่เหลี่ยมจัตุรัส</string>
+    <string name="widget_description">เพลงที่กำลังเล่นพร้อมปุ่มควบคุม</string>
+    <string name="widget_nothing_playing">ไม่มีเพลงที่กำลังเล่น</string>
+    <string name="widget_open_to_start">เปิด YMusic เพื่อเริ่มฟัง</string>
+</resources>
