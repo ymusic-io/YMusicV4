@@ -77,6 +77,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import org.jetbrains.compose.resources.getString
 import projectcommon.error.runSuspendCatching
+import projectcommon.log.captureUnlessEnvironmental
 import androidx.media3.session.R as Media3R
 
 /**
@@ -270,7 +271,14 @@ class PlaybackService : MediaLibraryService() {
     private suspend fun playOrResume() {
         val player = this.player ?: return
         if (player.queue.value.currentItem != null) return player.play()
-        val last = playAgain?.sessions()?.firstOrNull() ?: return
+        val last = try {
+            playAgain?.sessions()?.firstOrNull()
+        } catch (c: CancellationException) {
+            throw c
+        } catch (e: Exception) {
+            log?.captureUnlessEnvironmental(e, "play-again session failed to load for resume")
+            null
+        } ?: return
         coordinator?.playAgain(last)
     }
 

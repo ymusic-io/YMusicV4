@@ -52,6 +52,7 @@ import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import projectcommon.error.TechnicalException
+import projectcommon.log.captureUnlessEnvironmental
 
 /** "Play again" (legacy Rewind playlist): the queues played lately, newest first; a tap resumes one. */
 @Composable
@@ -77,7 +78,7 @@ fun PlayAgainScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
             } catch (c: CancellationException) {
                 throw c
             } catch (e: Exception) {
-                log?.captureError(TechnicalException("E60060", "play-again list failed to load", cause = e))
+                log?.captureUnlessEnvironmental(TechnicalException("E60060", "play-again list failed to load", cause = e))
                 errorCode = "E60060"
             }
         }
