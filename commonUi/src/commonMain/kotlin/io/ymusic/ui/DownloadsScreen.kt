@@ -235,11 +235,7 @@ fun DownloadsScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
                             else -> service.retry(task.id)
                         }
                     },
-                    onPlay = {
-                        task.fileUri?.let { uri ->
-                            scope.launch { coordinator.playDownloaded(uri, task.videoId, task.title, task.artist, task.loudnessGainDb) }
-                        }
-                    },
+                    onPlay = { scope.launch { coordinator.playDownloads(shown, task.id) } },
                     onRevealLibrary = if (store != null) ({
                         scope.launch {
                             // Resolve the folder from the file itself, not the current download-location
