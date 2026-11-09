@@ -1,0 +1,35 @@
+<resources>
+    <string name="playback_notification_channel">Uchezaji</string>
+    <string name="notification_previous">Iliyotangulia</string>
+    <string name="notification_play">Cheza</string>
+    <string name="notification_pause">Sitisha</string>
+    <string name="notification_next">Inayofuata</string>
+    <string name="notification_close">Funga</string>
+    <string name="notifications_required">YMusic hucheza muziki kupitia huduma ya chinichini ambayo lazima ionyeshe arifa ya uchezaji. Ruhusu arifa ili kuendelea.</string>
+    <string name="notifications_allow">Ruhusu arifa</string>
+    <string name="download_notification_channel">Vipakuliwa</string>
+    <string name="notification_downloads_running">Inapakua…</string>
+    <string name="notification_downloads_multi">Inapakua vipengee %1$d</string>
+    <string name="download_state_queued">Kwenye foleni</string>
+    <string name="download_state_preparing">Inaandaa…</string>
+    <string name="download_state_downloading">Inapakua…</string>
+    <string name="download_state_processing">Inachakata…</string>
+    <string name="download_state_paused">Imesitishwa</string>
+    <string name="notification_download_finished">Upakuaji umekamilika</string>
+    <string name="downloads_summary_finished">%1$d zimekamilika</string>
+    <string name="downloads_summary_failed">%1$d zimeshindikana</string>
+    <string name="downloads_summary_paused">%1$d zimesitishwa</string>
+    <string name="downloads_pause_all">Sitisha zote</string>
+    <string name="share_play">Cheza</string>
+    <string name="share_download_mp3">Pakua MP3</string>
+    <string name="share_download_m4a">Pakua M4A</string>
+    <string name="share_download">Pakua muundo mwingine</string>
+    <string name="share_no_link">Hakuna kiungo cha kufungua katika kilichoshirikiwa</string>
+    <string name="widget_small_name">Kicheza · Kidogo</string>
+    <string name="widget_compact_name">Kicheza · Fupi</string>
+    <string name="widget_large_name">Kicheza · Kikubwa</string>
+    <string name="widget_square_name">Kicheza · Mraba</string>
+    <string name="widget_description">Inayocheza sasa pamoja na vidhibiti vya uchezaji</string>
+    <string name="widget_nothing_playing">Hakuna kinachocheza</string>
+    <string name="widget_open_to_start">Fungua YMusic ili uanze kusikiliza</string>
+</resources>

@@ -1,0 +1,35 @@
+<resources>
+    <string name="playback_notification_channel">播放</string>
+    <string name="notification_previous">上一首</string>
+    <string name="notification_play">播放</string>
+    <string name="notification_pause">暂停</string>
+    <string name="notification_next">下一首</string>
+    <string name="notification_close">关闭</string>
+    <string name="notifications_required">YMusic 通过后台服务播放音乐，该服务必须显示播放通知。请允许通知以继续。</string>
+    <string name="notifications_allow">允许通知</string>
+    <string name="download_notification_channel">下载</string>
+    <string name="notification_downloads_running">正在下载…</string>
+    <string name="notification_downloads_multi">正在下载 %1$d 项</string>
+    <string name="download_state_queued">排队中</string>
+    <string name="download_state_preparing">正在准备…</string>
+    <string name="download_state_downloading">正在下载…</string>
+    <string name="download_state_processing">正在处理…</string>
+    <string name="download_state_paused">已暂停</string>
+    <string name="notification_download_finished">下载完成</string>
+    <string name="downloads_summary_finished">%1$d 项已完成</string>
+    <string name="downloads_summary_failed">%1$d 项失败</string>
+    <string name="downloads_summary_paused">%1$d 项已暂停</string>
+    <string name="downloads_pause_all">全部暂停</string>
+    <string name="share_play">播放</string>
+    <string name="share_download_mp3">下载 MP3</string>
+    <string name="share_download_m4a">下载 M4A</string>
+    <string name="share_download">下载其他格式</string>
+    <string name="share_no_link">分享的内容中没有可打开的链接</string>
+    <string name="widget_small_name">播放器 · 小</string>
+    <string name="widget_compact_name">播放器 · 紧凑</string>
+    <string name="widget_large_name">播放器 · 大</string>
+    <string name="widget_square_name">播放器 · 方形</string>
+    <string name="widget_description">正在播放，附带播放控件</string>
+    <string name="widget_nothing_playing">未在播放</string>
+    <string name="widget_open_to_start">打开 YMusic 开始收听</string>
+</resources>

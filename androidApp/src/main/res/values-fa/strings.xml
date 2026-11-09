@@ -1,0 +1,35 @@
+<resources>
+    <string name="playback_notification_channel">پخش</string>
+    <string name="notification_previous">قبلی</string>
+    <string name="notification_play">پخش</string>
+    <string name="notification_pause">توقف موقت</string>
+    <string name="notification_next">بعدی</string>
+    <string name="notification_close">بستن</string>
+    <string name="notifications_required">YMusic موسیقی را از یک سرویس پس‌زمینه پخش می‌کند که باید اعلان پخش نشان دهد. برای ادامه، اجازهٔ اعلان‌ها را بدهید.</string>
+    <string name="notifications_allow">اجازه دادن به اعلان‌ها</string>
+    <string name="download_notification_channel">دانلودها</string>
+    <string name="notification_downloads_running">در حال دانلود…</string>
+    <string name="notification_downloads_multi">در حال دانلود %1$d مورد</string>
+    <string name="download_state_queued">در صف</string>
+    <string name="download_state_preparing">در حال آماده‌سازی…</string>
+    <string name="download_state_downloading">در حال دانلود…</string>
+    <string name="download_state_processing">در حال پردازش…</string>
+    <string name="download_state_paused">متوقف‌شده</string>
+    <string name="notification_download_finished">دانلود تمام شد</string>
+    <string name="downloads_summary_finished">%1$d تکمیل‌شده</string>
+    <string name="downloads_summary_failed">%1$d ناموفق</string>
+    <string name="downloads_summary_paused">%1$d متوقف‌شده</string>
+    <string name="downloads_pause_all">توقف همه</string>
+    <string name="share_play">پخش</string>
+    <string name="share_download_mp3">دانلود MP3</string>
+    <string name="share_download_m4a">دانلود M4A</string>
+    <string name="share_download">دانلود با قالب دیگر</string>
+    <string name="share_no_link">در محتوای اشتراک‌گذاری‌شده پیوندی برای باز کردن نیست</string>
+    <string name="widget_small_name">پخش‌کننده · کوچک</string>
+    <string name="widget_compact_name">پخش‌کننده · فشرده</string>
+    <string name="widget_large_name">پخش‌کننده · بزرگ</string>
+    <string name="widget_square_name">پخش‌کننده · مربعی</string>
+    <string name="widget_description">در حال پخش، با کنترل‌های پخش</string>
+    <string name="widget_nothing_playing">چیزی پخش نمی‌شود</string>
+    <string name="widget_open_to_start">برای شروع شنیدن، YMusic را باز کنید</string>
+</resources>

@@ -1,0 +1,35 @@
+<resources>
+    <string name="playback_notification_channel">Репродукција</string>
+    <string name="notification_previous">Претходно</string>
+    <string name="notification_play">Пусти</string>
+    <string name="notification_pause">Паузирај</string>
+    <string name="notification_next">Следеће</string>
+    <string name="notification_close">Затвори</string>
+    <string name="notifications_required">YMusic пушта музику из позадинске услуге која мора да приказује обавештење о репродукцији. Дозволите обавештења да бисте наставили.</string>
+    <string name="notifications_allow">Дозволи обавештења</string>
+    <string name="download_notification_channel">Преузимања</string>
+    <string name="notification_downloads_running">Преузимање…</string>
+    <string name="notification_downloads_multi">Преузима се ставки: %1$d</string>
+    <string name="download_state_queued">На чекању</string>
+    <string name="download_state_preparing">Припрема…</string>
+    <string name="download_state_downloading">Преузимање…</string>
+    <string name="download_state_processing">Обрада…</string>
+    <string name="download_state_paused">Паузирано</string>
+    <string name="notification_download_finished">Преузимање је завршено</string>
+    <string name="downloads_summary_finished">Завршено: %1$d</string>
+    <string name="downloads_summary_failed">Неуспело: %1$d</string>
+    <string name="downloads_summary_paused">Паузирано: %1$d</string>
+    <string name="downloads_pause_all">Паузирај све</string>
+    <string name="share_play">Пусти</string>
+    <string name="share_download_mp3">Преузми MP3</string>
+    <string name="share_download_m4a">Преузми M4A</string>
+    <string name="share_download">Преузми у другом формату</string>
+    <string name="share_no_link">У дељеном садржају нема линка за отварање</string>
+    <string name="widget_small_name">Плејер · Мали</string>
+    <string name="widget_compact_name">Плејер · Компактни</string>
+    <string name="widget_large_name">Плејер · Велики</string>
+    <string name="widget_square_name">Плејер · Квадратни</string>
+    <string name="widget_description">Управо свира, са контролама репродукције</string>
+    <string name="widget_nothing_playing">Ништа не свира</string>
+    <string name="widget_open_to_start">Отворите YMusic да бисте почели да слушате</string>
+</resources>

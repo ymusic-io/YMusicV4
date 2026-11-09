@@ -1,0 +1,35 @@
+<resources>
+    <string name="playback_notification_channel">प्लेब्याक</string>
+    <string name="notification_previous">अघिल्लो</string>
+    <string name="notification_play">बजाउनुहोस्</string>
+    <string name="notification_pause">रोक्नुहोस्</string>
+    <string name="notification_next">अर्को</string>
+    <string name="notification_close">बन्द गर्नुहोस्</string>
+    <string name="notifications_required">YMusic ले पृष्ठभूमि सेवाबाट सङ्गीत बजाउँछ, जसले प्लेब्याक सूचना देखाउनुपर्छ। जारी राख्न सूचनाहरूलाई अनुमति दिनुहोस्।</string>
+    <string name="notifications_allow">सूचनाहरूलाई अनुमति दिनुहोस्</string>
+    <string name="download_notification_channel">डाउनलोडहरू</string>
+    <string name="notification_downloads_running">डाउनलोड हुँदैछ…</string>
+    <string name="notification_downloads_multi">%1$d वस्तुहरू डाउनलोड हुँदैछन्</string>
+    <string name="download_state_queued">लाइनमा</string>
+    <string name="download_state_preparing">तयारी हुँदैछ…</string>
+    <string name="download_state_downloading">डाउनलोड हुँदैछ…</string>
+    <string name="download_state_processing">प्रशोधन हुँदैछ…</string>
+    <string name="download_state_paused">रोकिएको</string>
+    <string name="notification_download_finished">डाउनलोड पूरा भयो</string>
+    <string name="downloads_summary_finished">%1$d पूरा भए</string>
+    <string name="downloads_summary_failed">%1$d असफल भए</string>
+    <string name="downloads_summary_paused">%1$d रोकिए</string>
+    <string name="downloads_pause_all">सबै रोक्नुहोस्</string>
+    <string name="share_play">बजाउनुहोस्</string>
+    <string name="share_download_mp3">MP3 डाउनलोड गर्नुहोस्</string>
+    <string name="share_download_m4a">M4A डाउनलोड गर्नुहोस्</string>
+    <string name="share_download">अन्य ढाँचामा डाउनलोड गर्नुहोस्</string>
+    <string name="share_no_link">सेयर गरिएको सामग्रीमा खोल्न कुनै लिङ्क छैन</string>
+    <string name="widget_small_name">प्लेयर · सानो</string>
+    <string name="widget_compact_name">प्लेयर · कम्प्याक्ट</string>
+    <string name="widget_large_name">प्लेयर · ठूलो</string>
+    <string name="widget_square_name">प्लेयर · वर्गाकार</string>
+    <string name="widget_description">प्लेब्याक नियन्त्रणसहित अहिले बजिरहेको</string>
+    <string name="widget_nothing_playing">केही पनि बजिरहेको छैन</string>
+    <string name="widget_open_to_start">सुन्न सुरु गर्न YMusic खोल्नुहोस्</string>
+</resources>

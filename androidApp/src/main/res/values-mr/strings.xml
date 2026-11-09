@@ -1,0 +1,35 @@
+<resources>
+    <string name="playback_notification_channel">प्लेबॅक</string>
+    <string name="notification_previous">मागील</string>
+    <string name="notification_play">प्ले करा</string>
+    <string name="notification_pause">थांबवा</string>
+    <string name="notification_next">पुढील</string>
+    <string name="notification_close">बंद करा</string>
+    <string name="notifications_required">YMusic पार्श्वभूमी सेवेतून संगीत वाजवते, जिला प्लेबॅक सूचना दाखवावी लागते. पुढे सुरू ठेवण्यासाठी सूचनांना परवानगी द्या.</string>
+    <string name="notifications_allow">सूचनांना परवानगी द्या</string>
+    <string name="download_notification_channel">डाउनलोड</string>
+    <string name="notification_downloads_running">डाउनलोड होत आहे…</string>
+    <string name="notification_downloads_multi">%1$d आयटम डाउनलोड होत आहेत</string>
+    <string name="download_state_queued">रांगेत</string>
+    <string name="download_state_preparing">तयारी करत आहे…</string>
+    <string name="download_state_downloading">डाउनलोड होत आहे…</string>
+    <string name="download_state_processing">प्रक्रिया करत आहे…</string>
+    <string name="download_state_paused">थांबवलेले</string>
+    <string name="notification_download_finished">डाउनलोड पूर्ण झाले</string>
+    <string name="downloads_summary_finished">%1$d पूर्ण</string>
+    <string name="downloads_summary_failed">%1$d अयशस्वी</string>
+    <string name="downloads_summary_paused">%1$d थांबवलेले</string>
+    <string name="downloads_pause_all">सर्व थांबवा</string>
+    <string name="share_play">प्ले करा</string>
+    <string name="share_download_mp3">MP3 डाउनलोड करा</string>
+    <string name="share_download_m4a">M4A डाउनलोड करा</string>
+    <string name="share_download">इतर फॉरमॅटमध्ये डाउनलोड करा</string>
+    <string name="share_no_link">शेअर केलेल्या मजकुरात उघडण्यासाठी कोणतीही लिंक नाही</string>
+    <string name="widget_small_name">प्लेअर · लहान</string>
+    <string name="widget_compact_name">प्लेअर · कॉम्पॅक्ट</string>
+    <string name="widget_large_name">प्लेअर · मोठा</string>
+    <string name="widget_square_name">प्लेअर · चौरस</string>
+    <string name="widget_description">सध्या वाजत असलेले, प्लेबॅक नियंत्रणांसह</string>
+    <string name="widget_nothing_playing">काहीही वाजत नाही</string>
+    <string name="widget_open_to_start">ऐकणे सुरू करण्यासाठी YMusic उघडा</string>
+</resources>

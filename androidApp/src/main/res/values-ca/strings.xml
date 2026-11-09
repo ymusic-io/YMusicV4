@@ -1,0 +1,35 @@
+<resources>
+    <string name="playback_notification_channel">Reproducció</string>
+    <string name="notification_previous">Anterior</string>
+    <string name="notification_play">Reprodueix</string>
+    <string name="notification_pause">Pausa</string>
+    <string name="notification_next">Següent</string>
+    <string name="notification_close">Tanca</string>
+    <string name="notifications_required">YMusic reprodueix música des d\'un servei en segon pla que ha de mostrar una notificació de reproducció. Permet les notificacions per continuar.</string>
+    <string name="notifications_allow">Permet les notificacions</string>
+    <string name="download_notification_channel">Descàrregues</string>
+    <string name="notification_downloads_running">S\'està descarregant…</string>
+    <string name="notification_downloads_multi">S\'estan descarregant %1$d elements</string>
+    <string name="download_state_queued">A la cua</string>
+    <string name="download_state_preparing">S\'està preparant…</string>
+    <string name="download_state_downloading">S\'està descarregant…</string>
+    <string name="download_state_processing">S\'està processant…</string>
+    <string name="download_state_paused">En pausa</string>
+    <string name="notification_download_finished">Descàrrega acabada</string>
+    <string name="downloads_summary_finished">%1$d completades</string>
+    <string name="downloads_summary_failed">%1$d fallides</string>
+    <string name="downloads_summary_paused">%1$d en pausa</string>
+    <string name="downloads_pause_all">Posa-ho tot en pausa</string>
+    <string name="share_play">Reprodueix</string>
+    <string name="share_download_mp3">Descarrega en MP3</string>
+    <string name="share_download_m4a">Descarrega en M4A</string>
+    <string name="share_download">Descarrega en un altre format</string>
+    <string name="share_no_link">No hi ha cap enllaç per obrir en el contingut compartit</string>
+    <string name="widget_small_name">Reproductor · Petit</string>
+    <string name="widget_compact_name">Reproductor · Compacte</string>
+    <string name="widget_large_name">Reproductor · Gran</string>
+    <string name="widget_square_name">Reproductor · Quadrat</string>
+    <string name="widget_description">Reproducció actual amb controls</string>
+    <string name="widget_nothing_playing">No s\'està reproduint res</string>
+    <string name="widget_open_to_start">Obre YMusic per començar a escoltar</string>
+</resources>

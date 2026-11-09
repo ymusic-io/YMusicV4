@@ -1,0 +1,35 @@
+<resources>
+    <string name="playback_notification_channel">השמעה</string>
+    <string name="notification_previous">הקודם</string>
+    <string name="notification_play">השמעה</string>
+    <string name="notification_pause">השהיה</string>
+    <string name="notification_next">הבא</string>
+    <string name="notification_close">סגירה</string>
+    <string name="notifications_required">YMusic משמיעה מוזיקה משירות ברקע שחייב להציג התראת השמעה. כדי להמשיך, יש לאשר התראות.</string>
+    <string name="notifications_allow">אישור התראות</string>
+    <string name="download_notification_channel">הורדות</string>
+    <string name="notification_downloads_running">מוריד…</string>
+    <string name="notification_downloads_multi">מוריד %1$d פריטים</string>
+    <string name="download_state_queued">בתור</string>
+    <string name="download_state_preparing">בהכנה…</string>
+    <string name="download_state_downloading">מוריד…</string>
+    <string name="download_state_processing">בעיבוד…</string>
+    <string name="download_state_paused">מושהית</string>
+    <string name="notification_download_finished">ההורדה הושלמה</string>
+    <string name="downloads_summary_finished">%1$d הושלמו</string>
+    <string name="downloads_summary_failed">%1$d נכשלו</string>
+    <string name="downloads_summary_paused">%1$d מושהות</string>
+    <string name="downloads_pause_all">השהיית הכול</string>
+    <string name="share_play">השמעה</string>
+    <string name="share_download_mp3">הורדת MP3</string>
+    <string name="share_download_m4a">הורדת M4A</string>
+    <string name="share_download">הורדה אחרת</string>
+    <string name="share_no_link">אין קישור לפתיחה בתוכן ששותף</string>
+    <string name="widget_small_name">נגן · קטן</string>
+    <string name="widget_compact_name">נגן · קומפקטי</string>
+    <string name="widget_large_name">נגן · גדול</string>
+    <string name="widget_square_name">נגן · ריבועי</string>
+    <string name="widget_description">מתנגן עכשיו, עם פקדי השמעה</string>
+    <string name="widget_nothing_playing">שום דבר לא מתנגן</string>
+    <string name="widget_open_to_start">יש לפתוח את YMusic כדי להתחיל להאזין</string>
+</resources>

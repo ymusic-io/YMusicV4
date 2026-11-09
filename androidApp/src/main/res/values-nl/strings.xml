@@ -1,0 +1,35 @@
+<resources>
+    <string name="playback_notification_channel">Afspelen</string>
+    <string name="notification_previous">Vorige</string>
+    <string name="notification_play">Afspelen</string>
+    <string name="notification_pause">Pauzeren</string>
+    <string name="notification_next">Volgende</string>
+    <string name="notification_close">Sluiten</string>
+    <string name="notifications_required">YMusic speelt muziek af via een achtergronddienst die een afspeelmelding moet tonen. Sta meldingen toe om door te gaan.</string>
+    <string name="notifications_allow">Meldingen toestaan</string>
+    <string name="download_notification_channel">Downloads</string>
+    <string name="notification_downloads_running">Downloaden…</string>
+    <string name="notification_downloads_multi">%1$d items downloaden</string>
+    <string name="download_state_queued">In wachtrij</string>
+    <string name="download_state_preparing">Voorbereiden…</string>
+    <string name="download_state_downloading">Downloaden…</string>
+    <string name="download_state_processing">Verwerken…</string>
+    <string name="download_state_paused">Gepauzeerd</string>
+    <string name="notification_download_finished">Download voltooid</string>
+    <string name="downloads_summary_finished">%1$d voltooid</string>
+    <string name="downloads_summary_failed">%1$d mislukt</string>
+    <string name="downloads_summary_paused">%1$d gepauzeerd</string>
+    <string name="downloads_pause_all">Alles pauzeren</string>
+    <string name="share_play">Afspelen</string>
+    <string name="share_download_mp3">MP3 downloaden</string>
+    <string name="share_download_m4a">M4A downloaden</string>
+    <string name="share_download">Ander formaat downloaden</string>
+    <string name="share_no_link">Geen link om te openen in wat er is gedeeld</string>
+    <string name="widget_small_name">Speler · Klein</string>
+    <string name="widget_compact_name">Speler · Compact</string>
+    <string name="widget_large_name">Speler · Groot</string>
+    <string name="widget_square_name">Speler · Vierkant</string>
+    <string name="widget_description">Wat er nu speelt, met afspeelknoppen</string>
+    <string name="widget_nothing_playing">Er wordt niets afgespeeld</string>
+    <string name="widget_open_to_start">Open YMusic om te beginnen met luisteren</string>
+</resources>

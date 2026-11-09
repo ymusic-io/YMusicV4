@@ -1,0 +1,35 @@
+<resources>
+    <string name="playback_notification_channel">Lecture</string>
+    <string name="notification_previous">Précédent</string>
+    <string name="notification_play">Lire</string>
+    <string name="notification_pause">Pause</string>
+    <string name="notification_next">Suivant</string>
+    <string name="notification_close">Fermer</string>
+    <string name="notifications_required">YMusic lit la musique depuis un service en arrière-plan qui doit afficher une notification de lecture. Autorisez les notifications pour continuer.</string>
+    <string name="notifications_allow">Autoriser les notifications</string>
+    <string name="download_notification_channel">Téléchargements</string>
+    <string name="notification_downloads_running">Téléchargement…</string>
+    <string name="notification_downloads_multi">Téléchargement de %1$d éléments</string>
+    <string name="download_state_queued">En attente</string>
+    <string name="download_state_preparing">Préparation…</string>
+    <string name="download_state_downloading">Téléchargement…</string>
+    <string name="download_state_processing">Traitement…</string>
+    <string name="download_state_paused">En pause</string>
+    <string name="notification_download_finished">Téléchargement terminé</string>
+    <string name="downloads_summary_finished">%1$d terminé(s)</string>
+    <string name="downloads_summary_failed">%1$d en échec</string>
+    <string name="downloads_summary_paused">%1$d en pause</string>
+    <string name="downloads_pause_all">Tout mettre en pause</string>
+    <string name="share_play">Lire</string>
+    <string name="share_download_mp3">Télécharger en MP3</string>
+    <string name="share_download_m4a">Télécharger en M4A</string>
+    <string name="share_download">Autre téléchargement</string>
+    <string name="share_no_link">Aucun lien à ouvrir dans le contenu partagé</string>
+    <string name="widget_small_name">Lecteur · Petit</string>
+    <string name="widget_compact_name">Lecteur · Compact</string>
+    <string name="widget_large_name">Lecteur · Grand</string>
+    <string name="widget_square_name">Lecteur · Carré</string>
+    <string name="widget_description">En cours de lecture, avec les commandes de lecture</string>
+    <string name="widget_nothing_playing">Aucune lecture en cours</string>
+    <string name="widget_open_to_start">Ouvrez YMusic pour commencer l\'écoute</string>
+</resources>

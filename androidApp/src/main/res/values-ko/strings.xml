@@ -1,0 +1,35 @@
+<resources>
+    <string name="playback_notification_channel">재생</string>
+    <string name="notification_previous">이전</string>
+    <string name="notification_play">재생</string>
+    <string name="notification_pause">일시중지</string>
+    <string name="notification_next">다음</string>
+    <string name="notification_close">닫기</string>
+    <string name="notifications_required">YMusic은 재생 알림을 표시해야 하는 백그라운드 서비스에서 음악을 재생합니다. 계속하려면 알림을 허용하세요.</string>
+    <string name="notifications_allow">알림 허용</string>
+    <string name="download_notification_channel">다운로드</string>
+    <string name="notification_downloads_running">다운로드 중…</string>
+    <string name="notification_downloads_multi">항목 %1$d개 다운로드 중</string>
+    <string name="download_state_queued">대기 중</string>
+    <string name="download_state_preparing">준비 중…</string>
+    <string name="download_state_downloading">다운로드 중…</string>
+    <string name="download_state_processing">처리 중…</string>
+    <string name="download_state_paused">일시정지됨</string>
+    <string name="notification_download_finished">다운로드 완료</string>
+    <string name="downloads_summary_finished">%1$d개 완료</string>
+    <string name="downloads_summary_failed">%1$d개 실패</string>
+    <string name="downloads_summary_paused">%1$d개 일시정지됨</string>
+    <string name="downloads_pause_all">모두 일시중지</string>
+    <string name="share_play">재생</string>
+    <string name="share_download_mp3">MP3 다운로드</string>
+    <string name="share_download_m4a">M4A 다운로드</string>
+    <string name="share_download">다른 형식으로 다운로드</string>
+    <string name="share_no_link">공유된 내용에 열 수 있는 링크가 없습니다</string>
+    <string name="widget_small_name">플레이어 · 작게</string>
+    <string name="widget_compact_name">플레이어 · 컴팩트</string>
+    <string name="widget_large_name">플레이어 · 크게</string>
+    <string name="widget_square_name">플레이어 · 정사각형</string>
+    <string name="widget_description">현재 재생 중인 곡과 재생 컨트롤</string>
+    <string name="widget_nothing_playing">재생 중인 곡 없음</string>
+    <string name="widget_open_to_start">YMusic을 열어 감상을 시작하세요</string>
+</resources>

@@ -1,0 +1,35 @@
+<resources>
+    <string name="playback_notification_channel">Main balik</string>
+    <string name="notification_previous">Sebelumnya</string>
+    <string name="notification_play">Main</string>
+    <string name="notification_pause">Jeda</string>
+    <string name="notification_next">Seterusnya</string>
+    <string name="notification_close">Tutup</string>
+    <string name="notifications_required">YMusic memainkan muzik daripada perkhidmatan latar belakang yang mesti memaparkan pemberitahuan main balik. Benarkan pemberitahuan untuk meneruskan.</string>
+    <string name="notifications_allow">Benarkan pemberitahuan</string>
+    <string name="download_notification_channel">Muat turun</string>
+    <string name="notification_downloads_running">Memuat turun…</string>
+    <string name="notification_downloads_multi">Memuat turun %1$d item</string>
+    <string name="download_state_queued">Dalam baris gilir</string>
+    <string name="download_state_preparing">Menyediakan…</string>
+    <string name="download_state_downloading">Memuat turun…</string>
+    <string name="download_state_processing">Memproses…</string>
+    <string name="download_state_paused">Dijeda</string>
+    <string name="notification_download_finished">Muat turun selesai</string>
+    <string name="downloads_summary_finished">%1$d selesai</string>
+    <string name="downloads_summary_failed">%1$d gagal</string>
+    <string name="downloads_summary_paused">%1$d dijeda</string>
+    <string name="downloads_pause_all">Jeda semua</string>
+    <string name="share_play">Main</string>
+    <string name="share_download_mp3">Muat turun MP3</string>
+    <string name="share_download_m4a">Muat turun M4A</string>
+    <string name="share_download">Muat turun format lain</string>
+    <string name="share_no_link">Tiada pautan untuk dibuka dalam kandungan yang dikongsi</string>
+    <string name="widget_small_name">Pemain · Kecil</string>
+    <string name="widget_compact_name">Pemain · Padat</string>
+    <string name="widget_large_name">Pemain · Besar</string>
+    <string name="widget_square_name">Pemain · Segi empat</string>
+    <string name="widget_description">Sedang dimainkan, dengan kawalan main balik</string>
+    <string name="widget_nothing_playing">Tiada apa-apa yang dimainkan</string>
+    <string name="widget_open_to_start">Buka YMusic untuk mula mendengar</string>
+</resources>
