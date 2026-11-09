@@ -686,6 +686,12 @@ class PlaybackService : MediaLibraryService() {
             removeNotification()
             return
         }
+        if (!foreground) {
+            // A promotion can't wait: Android 12+ refuses it once the app has gone to the background.
+            notificationJob?.cancel()
+            postNotification()
+            return
+        }
         if (notificationJob?.isActive == true) return
         notificationJob = serviceScope.launch {
             delay(notificationPostedAt + NOTIFICATION_MIN_INTERVAL_MS - SystemClock.uptimeMillis())
