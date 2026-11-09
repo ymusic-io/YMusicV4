@@ -1,0 +1,35 @@
+<resources>
+    <string name="playback_notification_channel">再生</string>
+    <string name="notification_previous">前へ</string>
+    <string name="notification_play">再生</string>
+    <string name="notification_pause">一時停止</string>
+    <string name="notification_next">次へ</string>
+    <string name="notification_close">閉じる</string>
+    <string name="notifications_required">YMusic はバックグラウンドサービスで音楽を再生するため、再生通知の表示が必要です。続行するには通知を許可してください。</string>
+    <string name="notifications_allow">通知を許可</string>
+    <string name="download_notification_channel">ダウンロード</string>
+    <string name="notification_downloads_running">ダウンロード中…</string>
+    <string name="notification_downloads_multi">%1$d 件をダウンロード中</string>
+    <string name="download_state_queued">待機中</string>
+    <string name="download_state_preparing">準備中…</string>
+    <string name="download_state_downloading">ダウンロード中…</string>
+    <string name="download_state_processing">処理中…</string>
+    <string name="download_state_paused">一時停止中</string>
+    <string name="notification_download_finished">ダウンロード完了</string>
+    <string name="downloads_summary_finished">%1$d 件完了</string>
+    <string name="downloads_summary_failed">%1$d 件失敗</string>
+    <string name="downloads_summary_paused">%1$d 件一時停止中</string>
+    <string name="downloads_pause_all">すべて一時停止</string>
+    <string name="share_play">再生</string>
+    <string name="share_download_mp3">MP3 ダウンロード</string>
+    <string name="share_download_m4a">M4A ダウンロード</string>
+    <string name="share_download">その他のダウンロード</string>
+    <string name="share_no_link">共有された内容に開けるリンクがありません</string>
+    <string name="widget_small_name">プレーヤー · 小</string>
+    <string name="widget_compact_name">プレーヤー · コンパクト</string>
+    <string name="widget_large_name">プレーヤー · 大</string>
+    <string name="widget_square_name">プレーヤー · 正方形</string>
+    <string name="widget_description">再生中の曲と再生コントロール</string>
+    <string name="widget_nothing_playing">再生していません</string>
+    <string name="widget_open_to_start">YMusic を開いて再生を始めましょう</string>
+</resources>

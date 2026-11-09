@@ -1,0 +1,35 @@
+<resources>
+    <string name="playback_notification_channel">Playback</string>
+    <string name="notification_previous">Nakaraan</string>
+    <string name="notification_play">I-play</string>
+    <string name="notification_pause">I-pause</string>
+    <string name="notification_next">Susunod</string>
+    <string name="notification_close">Isara</string>
+    <string name="notifications_required">Nagpe-play ang YMusic ng musika mula sa isang background service na kailangang magpakita ng notification ng playback. Payagan ang mga notification para magpatuloy.</string>
+    <string name="notifications_allow">Payagan ang mga notification</string>
+    <string name="download_notification_channel">Mga download</string>
+    <string name="notification_downloads_running">Nagda-download…</string>
+    <string name="notification_downloads_multi">Nagda-download ng %1$d item</string>
+    <string name="download_state_queued">Nakapila</string>
+    <string name="download_state_preparing">Inihahanda…</string>
+    <string name="download_state_downloading">Nagda-download…</string>
+    <string name="download_state_processing">Pinoproseso…</string>
+    <string name="download_state_paused">Naka-pause</string>
+    <string name="notification_download_finished">Tapos na ang download</string>
+    <string name="downloads_summary_finished">%1$d tapos na</string>
+    <string name="downloads_summary_failed">%1$d nabigo</string>
+    <string name="downloads_summary_paused">%1$d naka-pause</string>
+    <string name="downloads_pause_all">I-pause lahat</string>
+    <string name="share_play">I-play</string>
+    <string name="share_download_mp3">I-download ang MP3</string>
+    <string name="share_download_m4a">I-download ang M4A</string>
+    <string name="share_download">Ibang download</string>
+    <string name="share_no_link">Walang link na mabubuksan sa ibinahagi</string>
+    <string name="widget_small_name">Player · Maliit</string>
+    <string name="widget_compact_name">Player · Compact</string>
+    <string name="widget_large_name">Player · Malaki</string>
+    <string name="widget_square_name">Player · Parisukat</string>
+    <string name="widget_description">Tumutugtog ngayon, may mga kontrol sa playback</string>
+    <string name="widget_nothing_playing">Walang tumutugtog</string>
+    <string name="widget_open_to_start">Buksan ang YMusic para magsimulang makinig</string>
+</resources>

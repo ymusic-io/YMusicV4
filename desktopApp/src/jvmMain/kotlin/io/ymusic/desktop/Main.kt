@@ -501,7 +501,7 @@ fun main(args: Array<String>) {
             },
             onKeyEvent = { event -> handleArrowShortcut(event, graph?.player, showVolume) },
         ) {
-            paintWindowGround(Color.Transparent)
+            if (isWindows) followRendererTransparency() else paintWindowGround(Color.Transparent)
             LaunchedEffect(window) { window.minimumSize = minimumWindowSize() }
             // Not Window(icon=): that is one 32dp raster the OS nearest-scales into each of its
             // icon slots (Windows: 16/20/24/32/40/48/64/256 px by DPI). One exact raster per slot.

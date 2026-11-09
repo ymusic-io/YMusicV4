@@ -1,0 +1,35 @@
+<resources>
+    <string name="playback_notification_channel">Αναπαραγωγή</string>
+    <string name="notification_previous">Προηγούμενο</string>
+    <string name="notification_play">Αναπαραγωγή</string>
+    <string name="notification_pause">Παύση</string>
+    <string name="notification_next">Επόμενο</string>
+    <string name="notification_close">Κλείσιμο</string>
+    <string name="notifications_required">Το YMusic αναπαράγει μουσική από μια υπηρεσία παρασκηνίου που πρέπει να εμφανίζει ειδοποίηση αναπαραγωγής. Επιτρέψτε τις ειδοποιήσεις για να συνεχίσετε.</string>
+    <string name="notifications_allow">Επιτρέψτε τις ειδοποιήσεις</string>
+    <string name="download_notification_channel">Λήψεις</string>
+    <string name="notification_downloads_running">Λήψη…</string>
+    <string name="notification_downloads_multi">Λήψη %1$d στοιχείων</string>
+    <string name="download_state_queued">Στην ουρά</string>
+    <string name="download_state_preparing">Προετοιμασία…</string>
+    <string name="download_state_downloading">Λήψη…</string>
+    <string name="download_state_processing">Επεξεργασία…</string>
+    <string name="download_state_paused">Σε παύση</string>
+    <string name="notification_download_finished">Η λήψη ολοκληρώθηκε</string>
+    <string name="downloads_summary_finished">Ολοκληρώθηκαν: %1$d</string>
+    <string name="downloads_summary_failed">Απέτυχαν: %1$d</string>
+    <string name="downloads_summary_paused">Σε παύση: %1$d</string>
+    <string name="downloads_pause_all">Παύση όλων</string>
+    <string name="share_play">Αναπαραγωγή</string>
+    <string name="share_download_mp3">Λήψη MP3</string>
+    <string name="share_download_m4a">Λήψη M4A</string>
+    <string name="share_download">Λήψη σε άλλη μορφή</string>
+    <string name="share_no_link">Δεν υπάρχει σύνδεσμος για άνοιγμα στο κοινοποιημένο περιεχόμενο</string>
+    <string name="widget_small_name">Αναπαραγωγή · Μικρή</string>
+    <string name="widget_compact_name">Αναπαραγωγή · Συμπαγής</string>
+    <string name="widget_large_name">Αναπαραγωγή · Μεγάλη</string>
+    <string name="widget_square_name">Αναπαραγωγή · Τετράγωνη</string>
+    <string name="widget_description">Παίζει τώρα, με χειριστήρια αναπαραγωγής</string>
+    <string name="widget_nothing_playing">Δεν παίζει τίποτα</string>
+    <string name="widget_open_to_start">Ανοίξτε το YMusic για να αρχίσετε να ακούτε</string>
+</resources>

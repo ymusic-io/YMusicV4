@@ -1,0 +1,35 @@
+<resources>
+    <string name="playback_notification_channel">Redare</string>
+    <string name="notification_previous">Anteriorul</string>
+    <string name="notification_play">Redă</string>
+    <string name="notification_pause">Pauză</string>
+    <string name="notification_next">Următorul</string>
+    <string name="notification_close">Închide</string>
+    <string name="notifications_required">YMusic redă muzică dintr-un serviciu de fundal care trebuie să afișeze o notificare de redare. Permite notificările pentru a continua.</string>
+    <string name="notifications_allow">Permite notificările</string>
+    <string name="download_notification_channel">Descărcări</string>
+    <string name="notification_downloads_running">Se descarcă…</string>
+    <string name="notification_downloads_multi">Elemente în descărcare: %1$d</string>
+    <string name="download_state_queued">În coadă</string>
+    <string name="download_state_preparing">Se pregătește…</string>
+    <string name="download_state_downloading">Se descarcă…</string>
+    <string name="download_state_processing">Se procesează…</string>
+    <string name="download_state_paused">Întrerupt</string>
+    <string name="notification_download_finished">Descărcare finalizată</string>
+    <string name="downloads_summary_finished">Finalizate: %1$d</string>
+    <string name="downloads_summary_failed">Eșuate: %1$d</string>
+    <string name="downloads_summary_paused">Întrerupte: %1$d</string>
+    <string name="downloads_pause_all">Întrerupe tot</string>
+    <string name="share_play">Redă</string>
+    <string name="share_download_mp3">Descarcă MP3</string>
+    <string name="share_download_m4a">Descarcă M4A</string>
+    <string name="share_download">Descarcă în alt format</string>
+    <string name="share_no_link">Niciun link de deschis în conținutul distribuit</string>
+    <string name="widget_small_name">Player · Mic</string>
+    <string name="widget_compact_name">Player · Compact</string>
+    <string name="widget_large_name">Player · Mare</string>
+    <string name="widget_square_name">Player · Pătrat</string>
+    <string name="widget_description">Redare în curs, cu comenzi de redare</string>
+    <string name="widget_nothing_playing">Nu se redă nimic</string>
+    <string name="widget_open_to_start">Deschide YMusic ca să începi să asculți</string>
+</resources>

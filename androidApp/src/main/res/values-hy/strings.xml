@@ -1,0 +1,35 @@
+<resources>
+    <string name="playback_notification_channel">Նվագարկում</string>
+    <string name="notification_previous">Նախորդը</string>
+    <string name="notification_play">Նվագարկել</string>
+    <string name="notification_pause">Դադար</string>
+    <string name="notification_next">Հաջորդը</string>
+    <string name="notification_close">Փակել</string>
+    <string name="notifications_required">YMusic-ը երաժշտությունը նվագարկում է ֆոնային ծառայությունից, որը պետք է ցուցադրի նվագարկման ծանուցում։ Շարունակելու համար թույլատրեք ծանուցումները։</string>
+    <string name="notifications_allow">Թույլատրել ծանուցումները</string>
+    <string name="download_notification_channel">Ներբեռնումներ</string>
+    <string name="notification_downloads_running">Ներբեռնվում է…</string>
+    <string name="notification_downloads_multi">Ներբեռնվում է %1$d տարր</string>
+    <string name="download_state_queued">Սպասման մեջ</string>
+    <string name="download_state_preparing">Պատրաստվում է…</string>
+    <string name="download_state_downloading">Ներբեռնվում է…</string>
+    <string name="download_state_processing">Մշակվում է…</string>
+    <string name="download_state_paused">Դադարեցված</string>
+    <string name="notification_download_finished">Ներբեռնումն ավարտվեց</string>
+    <string name="downloads_summary_finished">Ավարտված՝ %1$d</string>
+    <string name="downloads_summary_failed">Ձախողված՝ %1$d</string>
+    <string name="downloads_summary_paused">Դադարեցված՝ %1$d</string>
+    <string name="downloads_pause_all">Դադարեցնել բոլորը</string>
+    <string name="share_play">Նվագարկել</string>
+    <string name="share_download_mp3">Ներբեռնել MP3</string>
+    <string name="share_download_m4a">Ներբեռնել M4A</string>
+    <string name="share_download">Այլ ներբեռնում</string>
+    <string name="share_no_link">Կիսված բովանդակության մեջ բացելու հղում չկա</string>
+    <string name="widget_small_name">Նվագարկիչ · Փոքր</string>
+    <string name="widget_compact_name">Նվագարկիչ · Կոմպակտ</string>
+    <string name="widget_large_name">Նվագարկիչ · Մեծ</string>
+    <string name="widget_square_name">Նվագարկիչ · Քառակուսի</string>
+    <string name="widget_description">Հիմա նվագվողը՝ նվագարկման կառավարներով</string>
+    <string name="widget_nothing_playing">Ոչինչ չի նվագվում</string>
+    <string name="widget_open_to_start">Բացեք YMusic-ը՝ լսելը սկսելու համար</string>
+</resources>

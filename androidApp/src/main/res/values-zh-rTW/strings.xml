@@ -1,0 +1,35 @@
+<resources>
+    <string name="playback_notification_channel">播放</string>
+    <string name="notification_previous">上一首</string>
+    <string name="notification_play">播放</string>
+    <string name="notification_pause">暫停</string>
+    <string name="notification_next">下一首</string>
+    <string name="notification_close">關閉</string>
+    <string name="notifications_required">YMusic 透過背景服務播放音樂，此服務必須顯示播放通知。請允許通知以繼續。</string>
+    <string name="notifications_allow">允許通知</string>
+    <string name="download_notification_channel">下載</string>
+    <string name="notification_downloads_running">正在下載…</string>
+    <string name="notification_downloads_multi">正在下載 %1$d 個項目</string>
+    <string name="download_state_queued">排隊中</string>
+    <string name="download_state_preparing">正在準備…</string>
+    <string name="download_state_downloading">正在下載…</string>
+    <string name="download_state_processing">正在處理…</string>
+    <string name="download_state_paused">已暫停</string>
+    <string name="notification_download_finished">下載完成</string>
+    <string name="downloads_summary_finished">%1$d 個已完成</string>
+    <string name="downloads_summary_failed">%1$d 個失敗</string>
+    <string name="downloads_summary_paused">%1$d 個已暫停</string>
+    <string name="downloads_pause_all">全部暫停</string>
+    <string name="share_play">播放</string>
+    <string name="share_download_mp3">下載 MP3</string>
+    <string name="share_download_m4a">下載 M4A</string>
+    <string name="share_download">下載其他格式</string>
+    <string name="share_no_link">分享的內容中沒有可開啟的連結</string>
+    <string name="widget_small_name">播放器 · 小</string>
+    <string name="widget_compact_name">播放器 · 精簡</string>
+    <string name="widget_large_name">播放器 · 大</string>
+    <string name="widget_square_name">播放器 · 方形</string>
+    <string name="widget_description">現正播放，附播放控制項</string>
+    <string name="widget_nothing_playing">目前沒有播放</string>
+    <string name="widget_open_to_start">開啟 YMusic 開始聆聽</string>
+</resources>

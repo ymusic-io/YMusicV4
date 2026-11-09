@@ -1,0 +1,35 @@
+<resources>
+    <string name="playback_notification_channel">Oxutma</string>
+    <string name="notification_previous">Əvvəlki</string>
+    <string name="notification_play">Oxut</string>
+    <string name="notification_pause">Fasilə</string>
+    <string name="notification_next">Növbəti</string>
+    <string name="notification_close">Bağla</string>
+    <string name="notifications_required">YMusic musiqini oxutma bildirişi göstərməli olan fon xidmətindən oxudur. Davam etmək üçün bildirişlərə icazə verin.</string>
+    <string name="notifications_allow">Bildirişlərə icazə ver</string>
+    <string name="download_notification_channel">Yükləmələr</string>
+    <string name="notification_downloads_running">Yüklənir…</string>
+    <string name="notification_downloads_multi">%1$d element yüklənir</string>
+    <string name="download_state_queued">Növbədə</string>
+    <string name="download_state_preparing">Hazırlanır…</string>
+    <string name="download_state_downloading">Yüklənir…</string>
+    <string name="download_state_processing">Emal olunur…</string>
+    <string name="download_state_paused">Dayandırılıb</string>
+    <string name="notification_download_finished">Yükləmə tamamlandı</string>
+    <string name="downloads_summary_finished">%1$d tamamlandı</string>
+    <string name="downloads_summary_failed">%1$d uğursuz</string>
+    <string name="downloads_summary_paused">%1$d dayandırılıb</string>
+    <string name="downloads_pause_all">Hamısını dayandır</string>
+    <string name="share_play">Oxut</string>
+    <string name="share_download_mp3">MP3 yüklə</string>
+    <string name="share_download_m4a">M4A yüklə</string>
+    <string name="share_download">Başqa formatda yüklə</string>
+    <string name="share_no_link">Paylaşılanda açılacaq keçid yoxdur</string>
+    <string name="widget_small_name">Pleyer · Kiçik</string>
+    <string name="widget_compact_name">Pleyer · Kompakt</string>
+    <string name="widget_large_name">Pleyer · Böyük</string>
+    <string name="widget_square_name">Pleyer · Kvadrat</string>
+    <string name="widget_description">İndi oxunur, idarəetmə düymələri ilə</string>
+    <string name="widget_nothing_playing">Heç nə oxunmur</string>
+    <string name="widget_open_to_start">Dinləməyə başlamaq üçün YMusic-i açın</string>
+</resources>

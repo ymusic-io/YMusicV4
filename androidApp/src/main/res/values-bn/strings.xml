@@ -1,0 +1,35 @@
+<resources>
+    <string name="playback_notification_channel">প্লেব্যাক</string>
+    <string name="notification_previous">পূর্ববর্তী</string>
+    <string name="notification_play">চালান</string>
+    <string name="notification_pause">বিরতি</string>
+    <string name="notification_next">পরবর্তী</string>
+    <string name="notification_close">বন্ধ করুন</string>
+    <string name="notifications_required">YMusic একটি ব্যাকগ্রাউন্ড সার্ভিস থেকে গান চালায়, যেটিকে একটি প্লেব্যাক বিজ্ঞপ্তি দেখাতে হয়। চালিয়ে যেতে বিজ্ঞপ্তির অনুমতি দিন।</string>
+    <string name="notifications_allow">বিজ্ঞপ্তির অনুমতি দিন</string>
+    <string name="download_notification_channel">ডাউনলোড</string>
+    <string name="notification_downloads_running">ডাউনলোড হচ্ছে…</string>
+    <string name="notification_downloads_multi">%1$dটি আইটেম ডাউনলোড হচ্ছে</string>
+    <string name="download_state_queued">সারিতে</string>
+    <string name="download_state_preparing">প্রস্তুত হচ্ছে…</string>
+    <string name="download_state_downloading">ডাউনলোড হচ্ছে…</string>
+    <string name="download_state_processing">প্রক্রিয়া করা হচ্ছে…</string>
+    <string name="download_state_paused">বিরতিতে</string>
+    <string name="notification_download_finished">ডাউনলোড সম্পন্ন</string>
+    <string name="downloads_summary_finished">%1$dটি সম্পন্ন</string>
+    <string name="downloads_summary_failed">%1$dটি ব্যর্থ</string>
+    <string name="downloads_summary_paused">%1$dটি বিরতিতে</string>
+    <string name="downloads_pause_all">সব থামান</string>
+    <string name="share_play">চালান</string>
+    <string name="share_download_mp3">MP3 ডাউনলোড</string>
+    <string name="share_download_m4a">M4A ডাউনলোড</string>
+    <string name="share_download">অন্য ফরম্যাটে ডাউনলোড</string>
+    <string name="share_no_link">শেয়ার করা কনটেন্টে খোলার মতো কোনো লিংক নেই</string>
+    <string name="widget_small_name">প্লেয়ার · ছোট</string>
+    <string name="widget_compact_name">প্লেয়ার · কমপ্যাক্ট</string>
+    <string name="widget_large_name">প্লেয়ার · বড়</string>
+    <string name="widget_square_name">প্লেয়ার · বর্গাকার</string>
+    <string name="widget_description">এখন চলছে, প্লেব্যাক নিয়ন্ত্রণসহ</string>
+    <string name="widget_nothing_playing">কিছু চলছে না</string>
+    <string name="widget_open_to_start">শুনতে শুরু করতে YMusic খুলুন</string>
+</resources>

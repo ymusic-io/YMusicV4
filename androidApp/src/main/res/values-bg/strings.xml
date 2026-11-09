@@ -1,0 +1,35 @@
+<resources>
+    <string name="playback_notification_channel">Възпроизвеждане</string>
+    <string name="notification_previous">Предишна</string>
+    <string name="notification_play">Пусни</string>
+    <string name="notification_pause">Пауза</string>
+    <string name="notification_next">Следваща</string>
+    <string name="notification_close">Затвори</string>
+    <string name="notifications_required">YMusic пуска музика от фонова услуга, която трябва да показва известие за възпроизвеждане. Разрешете известията, за да продължите.</string>
+    <string name="notifications_allow">Разреши известията</string>
+    <string name="download_notification_channel">Изтегляния</string>
+    <string name="notification_downloads_running">Изтегляне…</string>
+    <string name="notification_downloads_multi">Изтеглят се %1$d елемента</string>
+    <string name="download_state_queued">В опашката</string>
+    <string name="download_state_preparing">Подготовка…</string>
+    <string name="download_state_downloading">Изтегляне…</string>
+    <string name="download_state_processing">Обработка…</string>
+    <string name="download_state_paused">На пауза</string>
+    <string name="notification_download_finished">Изтеглянето завърши</string>
+    <string name="downloads_summary_finished">Завършени: %1$d</string>
+    <string name="downloads_summary_failed">Неуспешни: %1$d</string>
+    <string name="downloads_summary_paused">На пауза: %1$d</string>
+    <string name="downloads_pause_all">Пауза на всички</string>
+    <string name="share_play">Пусни</string>
+    <string name="share_download_mp3">Изтегли MP3</string>
+    <string name="share_download_m4a">Изтегли M4A</string>
+    <string name="share_download">Изтегли в друг формат</string>
+    <string name="share_no_link">В споделеното няма връзка за отваряне</string>
+    <string name="widget_small_name">Плейър · Малък</string>
+    <string name="widget_compact_name">Плейър · Компактен</string>
+    <string name="widget_large_name">Плейър · Голям</string>
+    <string name="widget_square_name">Плейър · Квадратен</string>
+    <string name="widget_description">Сега звучи, с бутони за управление</string>
+    <string name="widget_nothing_playing">Нищо не звучи</string>
+    <string name="widget_open_to_start">Отворете YMusic, за да започнете да слушате</string>
+</resources>

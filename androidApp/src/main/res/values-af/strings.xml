@@ -1,0 +1,35 @@
+<resources>
+    <string name="playback_notification_channel">Terugspeel</string>
+    <string name="notification_previous">Vorige</string>
+    <string name="notification_play">Speel</string>
+    <string name="notification_pause">Pouseer</string>
+    <string name="notification_next">Volgende</string>
+    <string name="notification_close">Maak toe</string>
+    <string name="notifications_required">YMusic speel musiek vanaf \'n agtergronddiens wat \'n terugspeelkennisgewing moet wys. Laat kennisgewings toe om voort te gaan.</string>
+    <string name="notifications_allow">Laat kennisgewings toe</string>
+    <string name="download_notification_channel">Aflaaie</string>
+    <string name="notification_downloads_running">Laai tans af…</string>
+    <string name="notification_downloads_multi">Laai %1$d items af</string>
+    <string name="download_state_queued">In die tou</string>
+    <string name="download_state_preparing">Berei voor…</string>
+    <string name="download_state_downloading">Laai tans af…</string>
+    <string name="download_state_processing">Verwerk tans…</string>
+    <string name="download_state_paused">Onderbreek</string>
+    <string name="notification_download_finished">Aflaai voltooi</string>
+    <string name="downloads_summary_finished">%1$d voltooi</string>
+    <string name="downloads_summary_failed">%1$d misluk</string>
+    <string name="downloads_summary_paused">%1$d onderbreek</string>
+    <string name="downloads_pause_all">Pouseer alles</string>
+    <string name="share_play">Speel</string>
+    <string name="share_download_mp3">Laai MP3 af</string>
+    <string name="share_download_m4a">Laai M4A af</string>
+    <string name="share_download">Laai ander formaat af</string>
+    <string name="share_no_link">Geen skakel om oop te maak in wat gedeel is nie</string>
+    <string name="widget_small_name">Speler · Klein</string>
+    <string name="widget_compact_name">Speler · Kompak</string>
+    <string name="widget_large_name">Speler · Groot</string>
+    <string name="widget_square_name">Speler · Vierkant</string>
+    <string name="widget_description">Speel tans, met terugspeelkontroles</string>
+    <string name="widget_nothing_playing">Niks speel nie</string>
+    <string name="widget_open_to_start">Maak YMusic oop om te begin luister</string>
+</resources>

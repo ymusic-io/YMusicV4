@@ -1,11 +1,14 @@
 package io.ymusic.desktop
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
+import androidx.compose.ui.awt.ComposeWindow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.window.FrameWindowScope
+import org.jetbrains.skiko.transparentWindowBackgroundHack
 
 /**
  * Keep the AWT window's own background in step with the app's ground.
@@ -28,6 +31,28 @@ fun FrameWindowScope.paintWindowGround(color: Color) {
             window.background = awt
             window.contentPane.background = awt
         }
+    }
+}
+
+/**
+ * Windows: a transparent window's background must suit skiko's live renderer. Only Direct3D draws
+ * into a per-pixel-alpha (layered) window; OpenGL and software show nothing in one and make the
+ * window see-through themselves. Compose picks it once, before skiko falls back off Direct3D.
+ */
+fun ComposeWindow.followRendererTransparency(): () -> Unit {
+    var active = true
+    val apply = { if (active) background = transparentWindowBackgroundHack(renderApi) }
+    onRenderApiChanged(apply)
+    apply()
+    return { active = false }
+}
+
+/** [followRendererTransparency] for the composed window's lifetime. */
+@Composable
+fun FrameWindowScope.followRendererTransparency() {
+    DisposableEffect(window) {
+        val stop = window.followRendererTransparency()
+        onDispose(stop)
     }
 }
 

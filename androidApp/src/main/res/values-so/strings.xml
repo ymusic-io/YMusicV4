@@ -1,0 +1,35 @@
+<resources>
+    <string name="playback_notification_channel">Daarridda</string>
+    <string name="notification_previous">Kii hore</string>
+    <string name="notification_play">Daar</string>
+    <string name="notification_pause">Hakad</string>
+    <string name="notification_next">Ka xiga</string>
+    <string name="notification_close">Xidh</string>
+    <string name="notifications_required">YMusic waxay muusigga ka daartaa adeeg gadaal ka socda oo ay tahay inuu muujiyo ogeysiis daarid. Oggolow ogeysiisyada si aad u sii wadato.</string>
+    <string name="notifications_allow">Oggolow ogeysiisyada</string>
+    <string name="download_notification_channel">Dajinta</string>
+    <string name="notification_downloads_running">Waa la dajinayaa…</string>
+    <string name="notification_downloads_multi">Waxaa la dajinayaa %1$d shay</string>
+    <string name="download_state_queued">Safka ku jira</string>
+    <string name="download_state_preparing">Waa la diyaarinayaa…</string>
+    <string name="download_state_downloading">Waa la dajinayaa…</string>
+    <string name="download_state_processing">Waa la habaynayaa…</string>
+    <string name="download_state_paused">La hakiyay</string>
+    <string name="notification_download_finished">Dajintu way dhammaatay</string>
+    <string name="downloads_summary_finished">%1$d dhammaaday</string>
+    <string name="downloads_summary_failed">%1$d guuldareystay</string>
+    <string name="downloads_summary_paused">%1$d la hakiyay</string>
+    <string name="downloads_pause_all">Haki dhammaan</string>
+    <string name="share_play">Daar</string>
+    <string name="share_download_mp3">Daji MP3</string>
+    <string name="share_download_m4a">Daji M4A</string>
+    <string name="share_download">Daji qaab kale</string>
+    <string name="share_no_link">Waxa la wadaagay kuma jiro xiriiriye la furi karo</string>
+    <string name="widget_small_name">Daare · Yar</string>
+    <string name="widget_compact_name">Daare · Is-haysta</string>
+    <string name="widget_large_name">Daare · Weyn</string>
+    <string name="widget_square_name">Daare · Labajibbaaran</string>
+    <string name="widget_description">Waxa hadda socda oo leh xakamaynta daarridda</string>
+    <string name="widget_nothing_playing">Waxba ma socdaan</string>
+    <string name="widget_open_to_start">Fur YMusic si aad u bilowdo dhegaysiga</string>
+</resources>

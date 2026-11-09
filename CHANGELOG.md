@@ -1,6 +1,6 @@
 # Changelog
 
-## 4.0.18
+## 4.0.19
 
 ### NEW
 - **Android TV.** YMusic is listed in the TV launcher and works with the remote: a side menu that opens when you press Left, D-pad focus that stays inside Now Playing and full screen, controls that hide on their timer, and a visible ring on the focused button ([87361fdc8](https://github.com/ymusic-io/YMusicV4/commit/87361fdc8d1224f7352bd1f11804a6cd62f3e257), [6c49cf6fc](https://github.com/ymusic-io/YMusicV4/commit/6c49cf6fc81412896292432acc1ca0061717e41f), [ab873a580](https://github.com/ymusic-io/YMusicV4/commit/ab873a580ab609e0c43bb237168c8be3eb1a9a07), [cc79c94a7](https://github.com/ymusic-io/YMusicV4/commit/cc79c94a7a9d8961d1724260bac4eb33ed7872d3), [72ab73373](https://github.com/ymusic-io/YMusicV4/commit/72ab7337354e97408dee3bb54c39e6a4c7a200c4), [435153613](https://github.com/ymusic-io/YMusicV4/commit/435153613dee67cb394644d01068eeca9e1b720e), [3277b3037](https://github.com/ymusic-io/YMusicV4/commit/3277b303729d4fd8a8c276265071cec8c43a52de), [8b54e7576](https://github.com/ymusic-io/YMusicV4/commit/8b54e7576e942f24662a822fe885840c0acc3909), [af16f8530](https://github.com/ymusic-io/YMusicV4/commit/af16f8530517cc0a306aeb226116989770e1777c), [d136b8b61](https://github.com/ymusic-io/YMusicV4/commit/d136b8b61f1811e0c6f135f252b2de5a25aaf9ce), [84ce368c2](https://github.com/ymusic-io/YMusicV4/commit/84ce368c212e15c389b3e53e7bb76fcd62c86c94), [3de8a7ab1](https://github.com/ymusic-io/YMusicV4/commit/3de8a7ab1c892b0cca9ade3792e2214366b756e7), [147c56f4b](https://github.com/ymusic-io/YMusicV4/commit/147c56f4bf63ee720969e7a56cb1cecabdc32daa), [a9527f520](https://github.com/ymusic-io/YMusicV4/commit/a9527f5202780524954e9ead1527e96bd4af73c1), [6eb5c9e26](https://github.com/ymusic-io/YMusicV4/commit/6eb5c9e26be5a247f2e75d821089f08bfe8e9590))
@@ -20,9 +20,13 @@
 - Android TV boxes whose remote reports as a keyboard: Up and Down only moved the cursor in the search field, so the suggestions were out of reach, and a closed keyboard couldn't be reopened ([#120](https://github.com/ymusic-io/YMusicV4/issues/120), [fc3a29172](https://github.com/ymusic-io/YMusicV4/commit/fc3a29172d6cd0d0d52bbbd4c853e720eb03477f))
 - SponsorBlock skipped nothing in downloaded songs played from the Library ([68af7023f](https://github.com/ymusic-io/YMusicV4/commit/68af7023ffdaf2c0ee669ec9696d89f53227be1c))
 - Downloads could save YouTube's voice-boost audio instead of the normal track ([223404260](https://github.com/ymusic-io/YMusicV4/commit/223404260451ee389d1116b8abbcaf66ebc9cc36))
+- Windows: after minimizing and restoring the window, another app could show through where the video should be until you clicked or moved the window ([#239](https://github.com/ymusic-io/YMusicV4/issues/239), [f3d29ac48](https://github.com/ymusic-io/YMusicV4/commit/f3d29ac4822d696aad9e6e3bdc8af9142e1b47a2))
+- Windows: on PCs where DirectX 12 isn't available, the window and the tray mini player could stay blank ([#228](https://github.com/ymusic-io/YMusicV4/issues/228), [19d000771](https://github.com/ymusic-io/YMusicV4/commit/19d000771cfee60567cb9251f69a3b1462672a25))
+- Windows: the sound dipped for a moment just after you resumed playback ([53cfda2a3](https://github.com/ymusic-io/YMusicV4/commit/53cfda2a33cd58cfe0beba983e6b98725d58de6e))
 
 ### IMPROVED
 - Desktop uses less memory: a smaller Java heap and fewer garbage-collector threads ([81a7e4581](https://github.com/ymusic-io/YMusicV4/commit/81a7e4581b950e521943c864bdfd7af07c0a73ef))
+- Android: notifications, download status, the share menu and the widgets are now translated into every language the app supports. Ukrainian was contributed by Oleghishak ([#113](https://github.com/ymusic-io/YMusicV4/issues/113), [205717bcc](https://github.com/ymusic-io/YMusicV4/commit/205717bccdc92242b3f034e978cfd07ac44bf20b), [4a25f72ae](https://github.com/ymusic-io/YMusicV4/commit/4a25f72aeef175bbf0031b6285b4f00d99bbaad2))
 
 ### INTERNAL
 - Prerelease builds: a `prerelease-v*` tag builds every installer into a draft GitHub prerelease, reporting to Sentry's beta environment ([ef23f890a](https://github.com/ymusic-io/YMusicV4/commit/ef23f890ab5b5248c1ea582d551169cf7db48b17), [7a5e0f849](https://github.com/ymusic-io/YMusicV4/commit/7a5e0f84942c3c82e536cbeb5c37f1f362f0f443))

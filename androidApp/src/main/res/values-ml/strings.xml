@@ -1,0 +1,35 @@
+<resources>
+    <string name="playback_notification_channel">പ്ലേബാക്ക്</string>
+    <string name="notification_previous">മുമ്പത്തേത്</string>
+    <string name="notification_play">പ്ലേ ചെയ്യുക</string>
+    <string name="notification_pause">താൽക്കാലികമായി നിർത്തുക</string>
+    <string name="notification_next">അടുത്തത്</string>
+    <string name="notification_close">അടയ്ക്കുക</string>
+    <string name="notifications_required">YMusic ഒരു പശ്ചാത്തല സേവനത്തിൽ നിന്നാണ് സംഗീതം പ്ലേ ചെയ്യുന്നത്, അതിന് ഒരു പ്ലേബാക്ക് അറിയിപ്പ് കാണിക്കേണ്ടതുണ്ട്. തുടരാൻ അറിയിപ്പുകൾ അനുവദിക്കുക.</string>
+    <string name="notifications_allow">അറിയിപ്പുകൾ അനുവദിക്കുക</string>
+    <string name="download_notification_channel">ഡൗൺലോഡുകൾ</string>
+    <string name="notification_downloads_running">ഡൗൺലോഡ് ചെയ്യുന്നു…</string>
+    <string name="notification_downloads_multi">%1$d ഇനങ്ങൾ ഡൗൺലോഡ് ചെയ്യുന്നു</string>
+    <string name="download_state_queued">ക്യൂവിലാണ്</string>
+    <string name="download_state_preparing">തയ്യാറാക്കുന്നു…</string>
+    <string name="download_state_downloading">ഡൗൺലോഡ് ചെയ്യുന്നു…</string>
+    <string name="download_state_processing">പ്രോസസ്സ് ചെയ്യുന്നു…</string>
+    <string name="download_state_paused">താൽക്കാലികമായി നിർത്തി</string>
+    <string name="notification_download_finished">ഡൗൺലോഡ് പൂർത്തിയായി</string>
+    <string name="downloads_summary_finished">%1$d പൂർത്തിയായി</string>
+    <string name="downloads_summary_failed">%1$d പരാജയപ്പെട്ടു</string>
+    <string name="downloads_summary_paused">%1$d താൽക്കാലികമായി നിർത്തി</string>
+    <string name="downloads_pause_all">എല്ലാം താൽക്കാലികമായി നിർത്തുക</string>
+    <string name="share_play">പ്ലേ ചെയ്യുക</string>
+    <string name="share_download_mp3">MP3 ഡൗൺലോഡ് ചെയ്യുക</string>
+    <string name="share_download_m4a">M4A ഡൗൺലോഡ് ചെയ്യുക</string>
+    <string name="share_download">മറ്റൊരു ഫോർമാറ്റിൽ ഡൗൺലോഡ് ചെയ്യുക</string>
+    <string name="share_no_link">പങ്കിട്ടതിൽ തുറക്കാൻ ലിങ്കൊന്നുമില്ല</string>
+    <string name="widget_small_name">പ്ലേയർ · ചെറുത്</string>
+    <string name="widget_compact_name">പ്ലേയർ · കോംപാക്റ്റ്</string>
+    <string name="widget_large_name">പ്ലേയർ · വലുത്</string>
+    <string name="widget_square_name">പ്ലേയർ · ചതുരം</string>
+    <string name="widget_description">ഇപ്പോൾ പ്ലേ ചെയ്യുന്നത്, പ്ലേബാക്ക് നിയന്ത്രണങ്ങളോടെ</string>
+    <string name="widget_nothing_playing">ഒന്നും പ്ലേ ചെയ്യുന്നില്ല</string>
+    <string name="widget_open_to_start">കേട്ടുതുടങ്ങാൻ YMusic തുറക്കുക</string>
+</resources>

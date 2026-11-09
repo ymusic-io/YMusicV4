@@ -29,11 +29,16 @@ internal class VideoUnderlay {
     /** The Compose window to stay just below whenever the hole moves or reappears. */
     @Volatile var ownerWindow: Window? = null
 
-    /** Follows the main window: a separate top-level frame on X11/Windows, it would outlive a hide. */
+    /**
+     * Follows the main window: a separate top-level frame on X11/Windows, it would outlive a hide.
+     * Re-shown, Windows puts it back in its old z-slot, which another app may hold by now.
+     */
     var shown = true
         set(value) {
             field = value
+            val revealed = value && !isLinux && !frame.isVisible
             frame.isVisible = value && !isLinux
+            if (revealed) ownerWindow?.let { orderJustBehind(it) }
         }
 
     fun attach(panel: JComponent?) {

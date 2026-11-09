@@ -1,0 +1,35 @@
+<resources>
+    <string name="playback_notification_channel">Erreprodukzioa</string>
+    <string name="notification_previous">Aurrekoa</string>
+    <string name="notification_play">Erreproduzitu</string>
+    <string name="notification_pause">Pausatu</string>
+    <string name="notification_next">Hurrengoa</string>
+    <string name="notification_close">Itxi</string>
+    <string name="notifications_required">YMusic-ek atzeko planoko zerbitzu batetik erreproduzitzen du musika, eta zerbitzu horrek erreprodukzio-jakinarazpen bat erakutsi behar du. Jarraitzeko, baimendu jakinarazpenak.</string>
+    <string name="notifications_allow">Baimendu jakinarazpenak</string>
+    <string name="download_notification_channel">Deskargak</string>
+    <string name="notification_downloads_running">Deskargatzen…</string>
+    <string name="notification_downloads_multi">%1$d elementu deskargatzen</string>
+    <string name="download_state_queued">Ilaran</string>
+    <string name="download_state_preparing">Prestatzen…</string>
+    <string name="download_state_downloading">Deskargatzen…</string>
+    <string name="download_state_processing">Prozesatzen…</string>
+    <string name="download_state_paused">Pausatuta</string>
+    <string name="notification_download_finished">Deskarga osatu da</string>
+    <string name="downloads_summary_finished">%1$d osatuta</string>
+    <string name="downloads_summary_failed">%1$d huts eginda</string>
+    <string name="downloads_summary_paused">%1$d pausatuta</string>
+    <string name="downloads_pause_all">Pausatu guztiak</string>
+    <string name="share_play">Erreproduzitu</string>
+    <string name="share_download_mp3">Deskargatu MP3</string>
+    <string name="share_download_m4a">Deskargatu M4A</string>
+    <string name="share_download">Deskargatu beste formatu batean</string>
+    <string name="share_no_link">Partekatutakoan ez dago irekitzeko estekarik</string>
+    <string name="widget_small_name">Erreproduzigailua · Txikia</string>
+    <string name="widget_compact_name">Erreproduzigailua · Trinkoa</string>
+    <string name="widget_large_name">Erreproduzigailua · Handia</string>
+    <string name="widget_square_name">Erreproduzigailua · Karratua</string>
+    <string name="widget_description">Orain erreproduzitzen, kontrolekin</string>
+    <string name="widget_nothing_playing">Ez da ezer erreproduzitzen ari</string>
+    <string name="widget_open_to_start">Ireki YMusic entzuten hasteko</string>
+</resources>
