@@ -111,7 +111,7 @@ import org.jetbrains.compose.resources.stringResource
 import projectcommon.error.DISK_FULL_CODE
 import projectcommon.error.PLAYBACK_UNAVAILABLE_CODE
 import projectcommon.error.errorCode
-import projectcommon.log.captureUnlessNetwork
+import projectcommon.log.captureUnlessEnvironmental
 
 /** Paged feed loading over any yt page source (browse / search / watch-next continuations).
  *  [fetchTimeoutMs] is the watchdog for a wedged engine (seen live: Android CookieManager deadlocking
@@ -192,7 +192,7 @@ class Pager(
             } catch (e: CancellationException) {
                 throw e // a newer refresh took over the state — this coroutine just dies
             } catch (e: Exception) {
-                logger?.captureUnlessNetwork(e)
+                logger?.captureUnlessEnvironmental(e)
                 State.Failed(e.errorCode() ?: "E20032", e.message)
             }
         }
@@ -224,7 +224,7 @@ class Pager(
                 _errors.tryEmit(TIMEOUT_CODE)
                 current.copy(refreshing = false)
             } catch (e: Exception) {
-                logger?.captureUnlessNetwork(e)
+                logger?.captureUnlessEnvironmental(e)
                 _errors.tryEmit(e.errorCode() ?: "E20033")
                 current.copy(refreshing = false)
             }
@@ -294,7 +294,7 @@ class Pager(
                 logger?.log(Logger.Level.WARN, "loadMore timed out after ${fetchTimeoutMs}ms", e)
                 current.copy(loadingMore = false) // timed out — the tail button stays for a retry
             } catch (e: Exception) {
-                logger?.captureUnlessNetwork(e)
+                logger?.captureUnlessEnvironmental(e)
                 // Keep what we have; the tail button stays for a retry.
                 current.copy(loadingMore = false)
             }

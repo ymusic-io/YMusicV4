@@ -88,7 +88,7 @@ import org.jetbrains.compose.resources.stringResource
 import projectcommon.error.Playability
 import projectcommon.error.errorCode
 import projectcommon.error.runSuspendCatching
-import projectcommon.log.captureUnlessNetwork
+import projectcommon.log.captureUnlessEnvironmental
 
 /**
  * The observable state of the login browser — the shell's [LoginBrowser] writes it, the login chrome
@@ -240,7 +240,7 @@ internal class AccountController(
             // The UI flips to signed-out either way (the user asked to leave), but a failed engine
             // logout leaves the jar authenticated — that mismatch must reach telemetry.
             runSuspendCatching { graph.engines.ytLogout() }
-                .onFailure { log?.captureUnlessNetwork(it, "logout failed — jar may stay authenticated") }
+                .onFailure { log?.captureUnlessEnvironmental(it, "logout failed — jar may stay authenticated") }
             log?.log(Logger.Level.INFO, "DBG ytLogout returned")
             // Re-scrape anonymous so the account identifiers drop out of subsequent requests.
             runSuspendCatching { graph.engines.ytRefreshSession() }
@@ -280,7 +280,7 @@ internal fun YtLoginScreen(
         entryUrl = runSuspendCatching {
             if (switchAccount) graph.engines.ytSwitchAccountUrl() else graph.engines.ytLoginUrl()
         }.onFailure {
-            graph.logger?.fork("login")?.captureUnlessNetwork(it, "login entry url failed — blank login screen")
+            graph.logger?.fork("login")?.captureUnlessEnvironmental(it, "login entry url failed — blank login screen")
         }
             .getOrNull()
     }
@@ -342,7 +342,7 @@ internal fun YtVerifyScreen(graph: AppGraph, state: LoginWebViewState, onDone: (
         runSuspendCatching { graph.engines.ytVerifyTarget() }
             .onSuccess { target = it }
             .onFailure {
-                graph.logger?.fork("verify")?.captureUnlessNetwork(it, "verify target failed")
+                graph.logger?.fork("verify")?.captureUnlessEnvironmental(it, "verify target failed")
                 failedCode = it.errorCode() ?: "E20147"
             }
     }
