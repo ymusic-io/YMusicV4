@@ -235,7 +235,6 @@ private fun DrawerRow(
             Box(
                 Modifier
                     .align(Alignment.CenterStart)
-                    .padding(vertical = 8.dp)
                     .size(width = 3.dp, height = 33.dp)
                     .background(DesignColors.Accent, RoundedCornerShape(topEnd = 3.dp, bottomEnd = 3.dp)),
             )
