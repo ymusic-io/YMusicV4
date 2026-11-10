@@ -65,6 +65,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
@@ -1017,7 +1018,7 @@ private fun AppRoot(
                     } else {
                         navFrame
                     }
-                    if (!shellHidden) shellFrame {
+                    val shellContent: @Composable () -> Unit = {
                         // Touch platforms scroll the toolbar row away (enter-always) while the tab row
                         // stays pinned; with the tabs inline (wide) the bar carries them, so it stays put.
                         // Only the tabbed sections collapse: without a tab row below, a vanishing toolbar
@@ -1291,6 +1292,11 @@ private fun AppRoot(
                             }
                         }
                     }
+                    // The rail and the drawer host the content at different tree positions: movable content
+                    // carries its remembered state across a switch instead of re-creating it.
+                    val latestShellContent by rememberUpdatedState(shellContent)
+                    val movableShell = remember { movableContentOf { latestShellContent() } }
+                    if (!shellHidden) shellFrame(movableShell)
                 }
                 UpdateDialog(graph, recheck = updateRecheck)
                 UpgradeSnackbar(graph, snackbarHostState)
