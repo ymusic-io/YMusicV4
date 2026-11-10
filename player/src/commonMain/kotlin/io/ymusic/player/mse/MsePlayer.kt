@@ -224,6 +224,7 @@ class MsePlayer internal constructor(
             if (hostLive()) videoSurface.setVolume(config.volume.coerceIn(0f, 1f))
         }
         applySurfaceAudio(previous, config)
+        applySurfaceVideo(previous, config)
         val width = viewportW
         val height = viewportH
         if (captionChanged(previous, config)) send { applyCaptionConfig(it, config) }
@@ -338,6 +339,7 @@ class MsePlayer internal constructor(
         activeSession.config = config
         activeSession.loop = loop
         applySurfaceAudio(previous, config)
+        applySurfaceVideo(previous, config)
         send { enginePlayer ->
             val previousQuality = previous?.preferVideoQuality?.first?.takeIf { it != VideoQualityState.AUDIO_ONLY }
                 ?: VideoQualityState.AUTO
@@ -634,6 +636,11 @@ class MsePlayer internal constructor(
                 config.preampDb.coerceIn(-12f, 12f),
             )
         }
+    }
+
+    private fun applySurfaceVideo(previous: PlaybackConfig?, config: PlaybackConfig) {
+        if (!hostLive()) return
+        if (previous == null || config.videoHidden != previous.videoHidden) videoSurface.setVideoHidden(config.videoHidden)
     }
 
     private fun captionChanged(previous: PlaybackConfig?, config: PlaybackConfig): Boolean =
