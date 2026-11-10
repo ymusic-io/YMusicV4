@@ -307,6 +307,10 @@ class UpdateService internal constructor(
                     log?.log(Logger.Level.WARN, "installing update ${update.versionCode} failed: storage is full", error)
                     DISK_FULL_CODE
                 }
+                error is PackageManagerBusyException -> {
+                    log?.log(Logger.Level.WARN, "installing update ${update.versionCode} failed: the package manager is busy", error)
+                    "E91006"
+                }
                 else -> {
                     log?.captureError(error, "installing update ${update.versionCode} failed")
                     "E91004"

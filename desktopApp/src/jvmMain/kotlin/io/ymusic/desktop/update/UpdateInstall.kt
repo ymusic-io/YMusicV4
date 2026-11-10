@@ -156,10 +156,14 @@ internal class LinuxDebInstaller(private val launcher: File?) : Installer {
 
     override suspend fun install(file: File, update: AppUpdate): Boolean = withContext(Dispatchers.IO) {
         val launcher = checkNotNull(launcher) { NOT_INSTALLED }
-        val result = exec(PKEXEC, APT_GET, "install", "-y", file.absolutePath)
+        // Wait for a background updater (PackageKit, unattended-upgrades) to release the dpkg lock
+        // instead of failing at once; an apt without the option ignores it.
+        val result = exec(PKEXEC, APT_GET, "-o", "DPkg::Lock::Timeout=$DPKG_LOCK_WAIT_S", "install", "-y", file.absolutePath)
         // pkexec: 126 = the user dismissed the prompt, 127 = not authorized.
         if (result.exitCode == 126 || result.exitCode == 127) return@withContext false
-        check(result.exitCode == 0) { "apt-get exited ${result.exitCode}: ${result.output.takeLast(2000)}" }
+        val failure = "apt-get exited ${result.exitCode}: ${result.output.takeLast(2000)}"
+        if (result.exitCode != 0 && "Could not get lock" in result.output) throw PackageManagerBusyException(failure)
+        check(result.exitCode == 0) { failure }
         ProcessBuilder(launcher.path).start()
         true
     }
@@ -167,8 +171,12 @@ internal class LinuxDebInstaller(private val launcher: File?) : Installer {
     private companion object {
         const val PKEXEC = "/usr/bin/pkexec"
         const val APT_GET = "/usr/bin/apt-get"
+        const val DPKG_LOCK_WAIT_S = 60
     }
 }
+
+/** Another package manager held the lock past our wait: the device's state, retried later. */
+internal class PackageManagerBusyException(message: String) : Exception(message)
 
 private class ExecResult(val exitCode: Int, val output: String)
 
