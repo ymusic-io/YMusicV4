@@ -59,7 +59,6 @@ import io.ymusic.ui.resources.sound_volume
 import org.jetbrains.compose.resources.stringResource
 
 private val BarInfoWidth = 300.dp
-private val BarInfoWidthNarrow = 220.dp
 private val BarSideWidth = 232.dp
 private val BarSeekMaxWidth = 560.dp
 
@@ -101,7 +100,7 @@ internal fun DesktopPlayerBar(
                     item,
                     surface,
                     onExpand,
-                    modifier = Modifier.width(if (full) BarInfoWidth else BarInfoWidthNarrow),
+                    modifier = Modifier.width(BarInfoWidth),
                 )
                 BarTransport(coordinator, Modifier.weight(1f))
                 if (full) BarSideControls(coordinator, Modifier.width(BarSideWidth))
