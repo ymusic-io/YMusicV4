@@ -82,6 +82,8 @@ void mse_host_remove(MseHost *h, int audio, double start, double end);
 void mse_host_abort(MseHost *h, int audio);
 void mse_host_change_type(MseHost *h, int audio);
 void mse_host_rest_video(MseHost *h, int on);
+/* The picture is off screen: rest the video decoder, keep buffering the chosen quality. */
+void mse_host_set_video_hidden(MseHost *h, int hidden);
 int mse_host_buffered(MseHost *h, int audio, double *pairs, int max_pairs);
 
 void mse_host_set_volume(MseHost *h, float vol);

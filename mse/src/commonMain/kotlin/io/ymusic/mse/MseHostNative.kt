@@ -31,6 +31,9 @@ expect object MseHostNative {
 
     fun setPreamp(handle: Long, db: Float)
 
+    /** The picture is off screen: rest the video decoder, keep buffering the chosen quality. */
+    fun setVideoHidden(handle: Long, hidden: Boolean)
+
     /** Fixed-position log-frequency bars in 0..1. Returns count written. */
     fun pcmLevels(handle: Long, out: FloatArray): Int
 }

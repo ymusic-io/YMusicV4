@@ -138,6 +138,9 @@ interface Player {
     /** Lowers playback further while voice input is listening, independent of [setDucked]. */
     fun setVoiceDucked(ducked: Boolean)
 
+    /** No view shows the picture: the engine rests its video decoder without touching [config]'s quality. */
+    fun setVideoHidden(hidden: Boolean)
+
     /** Last applied playback speed. Write pushes [PlaybackConfig]; not a flow. */
     var speed: Float
 

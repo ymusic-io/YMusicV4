@@ -79,6 +79,9 @@ data class PlaybackConfig(
     val loop: Boolean = false,
     val preferCaptionLanguage: Pair<String, Long> = UNDETERMINED_LANGUAGE to 0L,
     val scaleMode: ScaleMode = ScaleMode.CONTAIN,
+    /** The picture is off screen: the engine may rest its video decoder, keeping the chosen quality. Engine-only,
+     *  from [Player.setVideoHidden]; always false in [Player.config]. */
+    val videoHidden: Boolean = false,
 ) {
     init {
         require(volume in 0f..1f) { "volume out of range: $volume" }

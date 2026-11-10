@@ -421,7 +421,7 @@ private fun RailMiniExpanded(
     Column(Modifier.fillMaxWidth()) {
         Column(Modifier.fillMaxWidth().clickable(onClick = onExpand)) {
             Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RailThumbnailShape)) {
-                MiniArtTile(coordinator, item, surface, onExpand, Modifier.fillMaxSize())
+                MiniArtTile(coordinator, item, surface, onExpand, Modifier.fillMaxSize(), coverOnly = true)
                 Icon(
                     Icons.Default.ArrowOutward,
                     null,

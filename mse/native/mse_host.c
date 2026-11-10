@@ -119,6 +119,11 @@ struct MseHost {
     double v_start_t;
     /* Video woke from rest and has not reached the clock yet: audio plays on while it catches up. */
     int v_wake;
+    /* Rest reasons: JS audio-only (__mseRestVideo) and the shell's picture-hidden. The decoder sleeps
+       while either holds. rest_mu is outermost: never taken under mu, av_mu or the MseAv lock. */
+    pthread_mutex_t rest_mu;
+    int rest_js;
+    int rest_hidden;
     AudioFx *fx;
     int16_t *fx_pcm;
     size_t fx_pcm_n;
@@ -1245,6 +1250,7 @@ MseHost *mse_host_create(void)
     mse_caps_start();
     pthread_mutex_init(&h->mu, NULL);
     pthread_mutex_init(&h->av_mu, NULL);
+    pthread_mutex_init(&h->rest_mu, NULL);
     pthread_cond_init(&h->cv, NULL);
     h->av = mse_av_create();
     h->fx = audio_fx_create();
@@ -1397,6 +1403,7 @@ void mse_host_destroy(MseHost *h)
     audio_fx_destroy(h->fx);
     free(h->fx_pcm);
     pthread_mutex_destroy(&h->av_mu);
+    pthread_mutex_destroy(&h->rest_mu);
     pthread_mutex_destroy(&h->mu);
     pthread_cond_destroy(&h->cv);
     free(h);
@@ -1699,6 +1706,12 @@ void mse_host_reset(MseHost *h)
     pthread_mutex_unlock(&h->av_mu);
     pthread_cond_broadcast(&h->cv);
     pthread_mutex_unlock(&h->mu);
+    /* The new MseAv starts awake; JS re-rests it for audio-only after the load, the shell's reason stays. */
+    pthread_mutex_lock(&h->rest_mu);
+    h->rest_js = 0;
+    if (h->rest_hidden)
+        mse_av_rest_video(h->av, 1, 0);
+    pthread_mutex_unlock(&h->rest_mu);
     /* Outside the locks: MediaCodec can take seconds to stop, and the UI thread's surface calls wait on them.
        Still on this thread, so the next load can't race the old codec for the surface. */
     mse_av_destroy(old_av);
@@ -2159,12 +2172,11 @@ void mse_host_change_type(MseHost *h, int audio)
         mse_av_change_type(h->av, audio);
 }
 
-void mse_host_rest_video(MseHost *h, int on)
+/* rest_mu held. */
+static void apply_rest(MseHost *h)
 {
-    double clock = 0;
-    if (!h)
-        return;
-    clock = host_clock(h);
+    int on = h->rest_js || h->rest_hidden;
+    double clock = host_clock(h);
     mse_av_rest_video(h->av, on, clock);
     pthread_mutex_lock(&h->mu);
     h->v_wake = !on;
@@ -2172,6 +2184,29 @@ void mse_host_rest_video(MseHost *h, int on)
     pthread_mutex_unlock(&h->mu);
     if (on)
         show_black(h);
+}
+
+void mse_host_rest_video(MseHost *h, int on)
+{
+    if (!h)
+        return;
+    pthread_mutex_lock(&h->rest_mu);
+    h->rest_js = on ? 1 : 0;
+    apply_rest(h);
+    pthread_mutex_unlock(&h->rest_mu);
+}
+
+void mse_host_set_video_hidden(MseHost *h, int hidden)
+{
+    if (!h)
+        return;
+    pthread_mutex_lock(&h->rest_mu);
+    hidden = hidden ? 1 : 0;
+    if (h->rest_hidden != hidden) {
+        h->rest_hidden = hidden;
+        apply_rest(h);
+    }
+    pthread_mutex_unlock(&h->rest_mu);
 }
 
 int mse_host_buffered(MseHost *h, int audio, double *pairs, int max_pairs)
