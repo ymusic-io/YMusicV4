@@ -58,7 +58,10 @@ import io.ymusic.ui.resources.sound_eq
 import io.ymusic.ui.resources.sound_volume
 import org.jetbrains.compose.resources.stringResource
 
-private val BarInfoWidth = 300.dp
+private val BarInfoMinWidth = 300.dp
+
+/** Share of the bar each side takes once that beats [BarInfoMinWidth]; both sides match so the transport stays centred. */
+private const val BAR_SIDE_SHARE = 0.3f
 private val BarSideWidth = 232.dp
 private val BarSeekMaxWidth = 560.dp
 
@@ -90,6 +93,7 @@ internal fun DesktopPlayerBar(
         HorizontalDivider(color = DesignColors.Divider)
         BoxWithConstraints(Modifier.fillMaxWidth()) {
             val full = maxWidth >= BarFullMinWidth
+            val sideWidth = maxOf(BarInfoMinWidth, maxWidth * BAR_SIDE_SHARE)
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = DesignSpacing.Space16, vertical = DesignSpacing.Space8),
                 horizontalArrangement = Arrangement.spacedBy(DesignSpacing.Space16),
@@ -100,10 +104,14 @@ internal fun DesktopPlayerBar(
                     item,
                     surface,
                     onExpand,
-                    modifier = Modifier.width(BarInfoWidth),
+                    modifier = Modifier.width(sideWidth),
                 )
                 BarTransport(coordinator, Modifier.weight(1f))
-                if (full) BarSideControls(coordinator, Modifier.width(BarSideWidth))
+                if (full) {
+                    Box(Modifier.width(sideWidth), contentAlignment = Alignment.CenterEnd) {
+                        BarSideControls(coordinator, Modifier.width(BarSideWidth))
+                    }
+                }
             }
         }
     }
