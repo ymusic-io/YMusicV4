@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -18,6 +19,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -62,6 +65,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
@@ -905,7 +909,9 @@ private fun AppRoot(
             BoxWithConstraints(
                 Modifier.fillMaxSize().safeDrawingPadding(),
             ) {
-                val railWindow = windowUsesRail(maxWidth, maxHeight)
+                // The keyboard must not switch the layout: that re-composes the content and drops its state.
+                val layoutHeight = maxHeight + keyboardOverlap()
+                val railWindow = windowUsesRail(maxWidth, layoutHeight)
                 // Without the rail, desktop keeps the phone's mini player.
                 val playerBar = desktopLayoutHole && railWindow
                 val railStartsOpen = windowStartsRailOpen(maxWidth)
@@ -916,7 +922,7 @@ private fun AppRoot(
                 }
                 // design/final/home.html: landscape (or any window this wide) puts the tab row inline in the app bar.
                 val shellWidth = if (railWindow) maxWidth - DesignSpacing.RailExpandedWidth else maxWidth
-                val wide = shellWidth > maxHeight && shellWidth >= 600.dp || shellWidth >= 650.dp
+                val wide = shellWidth > layoutHeight && shellWidth >= 600.dp || shellWidth >= 650.dp
                 // Fully covering Now Playing is opaque: skip drawing the feed/mini-player under it
                 // (4× GPU overdraw). Draw them again as soon as the sheet peeks so dismiss reveals.
                 val drawShell = !nowPlayingOpen || nowPlayingPeeking
@@ -1012,7 +1018,7 @@ private fun AppRoot(
                     } else {
                         navFrame
                     }
-                    if (!shellHidden) shellFrame {
+                    val shellContent: @Composable () -> Unit = {
                         // Touch platforms scroll the toolbar row away (enter-always) while the tab row
                         // stays pinned; with the tabs inline (wide) the bar carries them, so it stays put.
                         // Only the tabbed sections collapse: without a tab row below, a vanishing toolbar
@@ -1286,6 +1292,11 @@ private fun AppRoot(
                             }
                         }
                     }
+                    // The rail and the drawer host the content at different tree positions: movable content
+                    // carries its remembered state across a switch instead of re-creating it.
+                    val latestShellContent by rememberUpdatedState(shellContent)
+                    val movableShell = remember { movableContentOf { latestShellContent() } }
+                    if (!shellHidden) shellFrame(movableShell)
                 }
                 UpdateDialog(graph, recheck = updateRecheck)
                 UpgradeSnackbar(graph, snackbarHostState)
@@ -1620,4 +1631,13 @@ private fun ComingSoon(section: AppSection) {
             )
         }
     }
+}
+
+/** The part of [WindowInsets.safeDrawing]'s bottom that only the keyboard takes. */
+@Composable
+private fun keyboardOverlap(): Dp {
+    val density = LocalDensity.current
+    val withKeyboard = WindowInsets.safeDrawing.getBottom(density)
+    val withoutKeyboard = WindowInsets.systemBars.union(WindowInsets.displayCutout).getBottom(density)
+    return with(density) { (withKeyboard - withoutKeyboard).coerceAtLeast(0).toDp() }
 }
