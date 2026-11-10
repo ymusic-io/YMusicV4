@@ -63,7 +63,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
-import projectcommon.log.captureUnlessNetwork
+import projectcommon.log.captureUnlessEnvironmental
 
 @Composable
 internal fun LinkDevicesRow(graph: AppGraph, signedIn: Boolean, onLogin: () -> Unit) {
@@ -130,7 +130,7 @@ private fun LinkDevicesDialog(
         } catch (c: CancellationException) {
             throw c
         } catch (t: Throwable) {
-            log?.captureUnlessNetwork(t, "device-link scan failed")
+            log?.captureUnlessEnvironmental(t, "device-link scan failed")
             error = deviceLinkErrorText(t)
         }
     }
@@ -164,7 +164,7 @@ private fun LinkDevicesDialog(
             if (t.message == "no-lock") {
                 log?.log(Logger.Level.WARN, "device-link send stopped: no screen lock", t)
             } else {
-                log?.captureUnlessNetwork(t, "device-link send failed")
+                log?.captureUnlessEnvironmental(t, "device-link send failed")
             }
             error = deviceLinkErrorText(t)
         } finally {

@@ -87,7 +87,7 @@ re-mints** (cause chain; the deepest code wins), so a user report is answered by
 Codes come in two kinds (AGENTS.md "Error Handling"):
 - **Categories** — the small shared vocabulary all tiers classify into, localized by the app:
   `network` (transport; retryable), `parse` (scraped shape not understood → ship new JS), `oom`
-  (engine gave out). Open set: an unknown category (newer remote JS/server than this app build)
+  (engine gave out), `disk_full` (a host store hit full device storage; minted host-side). Open set: an unknown category (newer remote JS/server than this app build)
   degrades to the generic message + code, never a crash.
 - **Site codes** — `E#####`, one hardcoded literal at one throw/classification site; grep is the
   registry. `E2xxxx` = `:dynamic-engine` incl. its remote JS, `E9xxxx` = server-minted. Reserved so

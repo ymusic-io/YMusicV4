@@ -5,6 +5,8 @@ import io.ymusic.download.db.DownloadDatabase
 import io.ymusic.download.internal.downloadDbDispatcher
 import kmpcommon.log.Logger
 import kotlinx.coroutines.withContext
+import projectcommon.error.TechnicalException
+import projectcommon.error.storageFault
 
 /**
  * Persistence for the download queue and the single source of truth — a thin suspend facade over the
@@ -17,20 +19,31 @@ class DownloadStore(driver: SqlDriver, logger: Logger? = null) {
     private val queries = DownloadDatabase(driver).downloadTaskQueries
     private val log = logger?.fork("download-store")
 
-    suspend fun all(): List<DownloadTask> = withContext(downloadDbDispatcher()) {
+    /** The queue is user data, not a cache: a corrupt or unreadable file surfaces as one code the user
+     *  can report. */
+    private suspend fun <T> db(block: () -> T): T = withContext(downloadDbDispatcher()) {
+        try {
+            block()
+        } catch (e: Exception) {
+            val fault = e.storageFault() ?: throw e
+            throw TechnicalException("E70080", "download database ${fault.name.lowercase()}", cause = e)
+        }
+    }
+
+    suspend fun all(): List<DownloadTask> = db {
         queries.selectAll(::mapRow).executeAsList()
     }
 
-    suspend fun get(id: String): DownloadTask? = withContext(downloadDbDispatcher()) {
+    suspend fun get(id: String): DownloadTask? = db {
         queries.selectById(id, ::mapRow).executeAsOneOrNull()
     }
 
     /** The oldest [DownloadState.QUEUED] task — what the worker runs next. */
-    suspend fun nextQueued(): DownloadTask? = withContext(downloadDbDispatcher()) {
+    suspend fun nextQueued(): DownloadTask? = db {
         queries.selectNextQueued(DownloadState.QUEUED.name, ::mapRow).executeAsOneOrNull()
     }
 
-    suspend fun upsert(task: DownloadTask): Unit = withContext(downloadDbDispatcher()) {
+    suspend fun upsert(task: DownloadTask): Unit = db {
         queries.upsert(
             id = task.id,
             video_id = task.videoId,
@@ -62,28 +75,28 @@ class DownloadStore(driver: SqlDriver, logger: Logger? = null) {
     }
 
     suspend fun updateState(id: String, state: DownloadState, error: DownloadError?, updatedAt: Long): Unit =
-        withContext(downloadDbDispatcher()) { queries.updateState(state.name, error?.userMessage, error?.code, updatedAt, id) }
+        db { queries.updateState(state.name, error?.userMessage, error?.code, updatedAt, id) }
 
     suspend fun updateStreams(id: String, format: DownloadFormat, audio: StreamId, video: StreamId?, updatedAt: Long): Unit =
-        withContext(downloadDbDispatcher()) {
+        db {
             queries.updateStreams(format.name, audio.itag.toLong(), audio.lmt, video?.itag?.toLong(), video?.lmt, updatedAt, id)
         }
 
     suspend fun updateProgress(id: String, downloaded: Long, total: Long, updatedAt: Long): Unit =
-        withContext(downloadDbDispatcher()) { queries.updateProgress(downloaded, total, updatedAt, id) }
+        db { queries.updateProgress(downloaded, total, updatedAt, id) }
 
     suspend fun updateCompleted(id: String, fileUri: String, bytes: Long, loudnessGainDb: Double?, updatedAt: Long): Unit =
-        withContext(downloadDbDispatcher()) {
+        db {
             queries.updateCompleted(DownloadState.COMPLETED.name, fileUri, bytes, bytes, loudnessGainDb, updatedAt, id)
         }
 
     /** Reset every in-flight or queued task to PAUSED in one statement — startup crash recovery. */
-    suspend fun pauseActiveAndQueued(updatedAt: Long): Unit = withContext(downloadDbDispatcher()) {
+    suspend fun pauseActiveAndQueued(updatedAt: Long): Unit = db {
         val states = DownloadState.entries.filter { it.isActive }.map { it.name }
         queries.pauseActiveAndQueued(paused = DownloadState.PAUSED.name, updatedAt = updatedAt, states = states)
     }
 
-    suspend fun delete(id: String): Unit = withContext(downloadDbDispatcher()) { queries.deleteById(id) }
+    suspend fun delete(id: String): Unit = db { queries.deleteById(id) }
 
     @Suppress("LongParameterList")
     private fun mapRow(

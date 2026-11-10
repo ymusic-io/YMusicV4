@@ -11,6 +11,7 @@ import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
+import android.os.SystemClock
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -28,6 +29,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
@@ -98,6 +100,9 @@ class DownloadForegroundService : Service() {
     private var pausedRun = 0
 
     private var lastSummarySignature = Int.MIN_VALUE
+    private var summaryPostedAt = 0L
+    private var summaryJob: Job? = null
+    private var pendingSummary: List<DownloadTask>? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -128,14 +133,19 @@ class DownloadForegroundService : Service() {
             return START_NOT_STICKY
         }
         // The startForegroundService contract: enter foreground now; the collector replaces this
-        // placeholder with real progress (or finishes) as soon as the graph is up.
-        startForeground(SUMMARY_NOTIFICATION_ID, placeholderSummary())
-        foreground = true
+        // placeholder with real progress (or finishes) as soon as the graph is up. Every task turning
+        // active restarts the service; once foreground there is no contract left (AMS drops fgRequired).
+        if (!foreground) {
+            startForeground(SUMMARY_NOTIFICATION_ID, placeholderSummary())
+            summaryPostedAt = SystemClock.uptimeMillis()
+            foreground = true
+        }
         return START_NOT_STICKY
     }
 
     /** Android 15's dataSync time cap: demote, never crash — the queue survives in the store. */
     override fun onTimeout(startId: Int, fgsType: Int) {
+        cancelSummary()
         stopForegroundSafely(ServiceCompat.STOP_FOREGROUND_DETACH, log)
         foreground = false
         stopSelf()
@@ -199,11 +209,29 @@ class DownloadForegroundService : Service() {
             // The summary is content-gated the same way as the cards.
             val summarySignature = owned.size * 100_000 + aggregatePermille(tasks)
             if (!foreground || summarySignature != lastSummarySignature) {
-                startForeground(SUMMARY_NOTIFICATION_ID, workingSummary(tasks))
+                scheduleSummary(tasks)
                 lastSummarySignature = summarySignature
             }
+        }
+    }
+
+    /** Posts the working summary at most once per [SUMMARY_MIN_INTERVAL_MS], always the latest. */
+    private fun scheduleSummary(tasks: List<DownloadTask>) {
+        pendingSummary = tasks
+        if (summaryJob?.isActive == true) return
+        summaryJob = serviceScope.launch {
+            delay(summaryPostedAt + SUMMARY_MIN_INTERVAL_MS - SystemClock.uptimeMillis())
+            val latest = pendingSummary ?: return@launch
+            pendingSummary = null
+            startForeground(SUMMARY_NOTIFICATION_ID, workingSummary(latest))
+            summaryPostedAt = SystemClock.uptimeMillis()
             foreground = true
         }
+    }
+
+    private fun cancelSummary() {
+        summaryJob?.cancel()
+        pendingSummary = null
     }
 
     /** Queue drained: drop the foreground contract but NEVER cancel the summary while this run's
@@ -211,6 +239,7 @@ class DownloadForegroundService : Service() {
      *  semantics). Morph it into the run's roll-up instead; remove it when this run produced
      *  nothing dismissible. */
     private fun finish() {
+        cancelSummary()
         releaseLocks()
         if (completedRun + failedRun + pausedRun > 0) {
             stopForegroundSafely(ServiceCompat.STOP_FOREGROUND_DETACH, log)
@@ -443,5 +472,9 @@ class DownloadForegroundService : Service() {
         const val OPEN_REQUEST_CODE = 201
         const val UPDATE_THROTTLE_MS = 500L
         const val THUMB_PX = 256
+
+        // Some OEM SystemUIs (One UI 7) race their own inflation of one notification against the
+        // next update of it and crash the app with "Couldn't inflate contentViews".
+        const val SUMMARY_MIN_INTERVAL_MS = 1_000L
     }
 }

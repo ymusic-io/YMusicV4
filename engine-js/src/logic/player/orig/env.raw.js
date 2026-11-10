@@ -4287,7 +4287,7 @@
     setImageRequest: function (fn) {
       imageRequest = fn;
     },
-    /* The interfaces these fill only exist once chrome_globals.raw.js has run. */
+    /* The interfaces these fill only exist once chrome_shapes.raw.js has run. */
     installChromeBackedApis: function () {
       nameClasses();
       [document.documentElement, document.head, document.body].forEach(function (el) {
