@@ -31,8 +31,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.selected
@@ -209,9 +207,9 @@ internal fun DrawerItem(
     section: AppSection,
     active: Boolean,
     focusRequester: FocusRequester? = null,
-    shape: Shape = RectangleShape,
+    iconStart: Dp = DrawerIconStart,
     onClick: () -> Unit,
-) = DrawerRow(section.icon, stringResource(section.label), active, focusRequester, shape, onClick)
+) = DrawerRow(section.icon, stringResource(section.label), active, focusRequester, iconStart, onClick)
 
 @Composable
 private fun DrawerRow(
@@ -219,14 +217,13 @@ private fun DrawerRow(
     label: String,
     active: Boolean,
     focusRequester: FocusRequester?,
-    shape: Shape,
+    iconStart: Dp,
     onClick: () -> Unit,
 ) {
     val scheme = androidx.compose.material3.MaterialTheme.colorScheme
     val focusMod = if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier
     Box(
         Modifier.fillMaxWidth().then(focusMod)
-            .clip(shape)
             .clickable(onClick = onClick)
             .semantics { selected = active }
             .background(if (active) scheme.primaryContainer else Color.Transparent),
@@ -235,20 +232,19 @@ private fun DrawerRow(
             Box(
                 Modifier
                     .align(Alignment.CenterStart)
-                    .padding(vertical = 8.dp)
                     .size(width = 3.dp, height = 33.dp)
                     .background(DesignColors.Accent, RoundedCornerShape(topEnd = 3.dp, bottomEnd = 3.dp)),
             )
         }
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 11.dp),
+            Modifier.fillMaxWidth().padding(start = iconStart, end = DrawerIconStart, top = 11.dp, bottom = 11.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
                 icon,
                 null,
-                Modifier.size(23.dp),
+                Modifier.size(DrawerIconSize),
                 tint = if (active) scheme.onPrimaryContainer else DesignColors.Ink,
             )
             val labelStyle = when {
@@ -259,3 +255,6 @@ private fun DrawerRow(
         }
     }
 }
+
+internal val DrawerIconSize = 23.dp
+private val DrawerIconStart = 20.dp
