@@ -114,8 +114,13 @@ private class RailBringIntoView(private val margin: Float) : BringIntoViewSpec {
     }
 }
 
-/** The section icons sit 28dp in (8dp list inset + the drawer row's 20dp); less the 8dp gap before the logo. */
-private val RailTvLogoInset = 20.dp
+// The toggle and every section icon share one vertical line in both states, so expanding moves none of them.
+private val RailIconCenter = DesignSpacing.RailCollapsedWidth / 2
+private val RailToggleStart = RailIconCenter - RailItemTarget / 2
+private val RailExpandedIconStart = RailIconCenter - DrawerIconSize / 2
+
+/** Lines the TV logo up with the section icons, less the 8dp gap before it. */
+private val RailTvLogoInset = RailExpandedIconStart - DesignSpacing.Space8
 private val RailOpenHintSize = DesignSpacing.Space24 + DesignSpacing.Space4
 private val RailOpenHintFill = Color.Black.copy(alpha = 0.6f)
 
@@ -340,7 +345,11 @@ private fun RailHeader(rail: RailContent, onToggle: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // Without the toggle, the logo lines up with the section icons below.
-        if (platformIsTelevision) Spacer(Modifier.width(RailTvLogoInset)) else RailToggle(rail, expanded = true, onToggle)
+        if (platformIsTelevision) {
+            Spacer(Modifier.width(RailTvLogoInset))
+        } else {
+            Box(Modifier.padding(start = RailToggleStart)) { RailToggle(rail, expanded = true, onToggle) }
+        }
         AppLogo(DesignSpacing.Space24)
         Column {
             Row(horizontalArrangement = Arrangement.spacedBy(DesignSpacing.Space8), verticalAlignment = Alignment.CenterVertically) {
@@ -516,26 +525,33 @@ private fun ColumnScope.RailSections(
     CompositionLocalProvider(LocalBringIntoViewSpec provides bringIntoView) {
         Column(
             Modifier.fillMaxWidth().weight(1f).verticalScroll(scroll).listKeyboardNavigation()
-                .padding(horizontal = DesignSpacing.Space8, vertical = DesignSpacing.Space4),
+                .padding(vertical = DesignSpacing.Space4),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            header()
+            Column(
+                Modifier.fillMaxWidth().padding(horizontal = DesignSpacing.Space8),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) { header() }
             rail.sections.groupBy { it.group }.entries.forEachIndexed { index, (_, sections) ->
                 if (index > 0) {
-                    HorizontalDivider(color = DesignColors.Divider, modifier = Modifier.padding(vertical = DesignSpacing.Space4))
+                    HorizontalDivider(
+                        color = DesignColors.Divider,
+                        modifier = Modifier.padding(horizontal = if (expanded) 0.dp else DesignSpacing.Space8, vertical = DesignSpacing.Space4),
+                    )
                 }
                 sections.forEach { section ->
                     val active = section == rail.section
                     val focus = if (active) activeItemFocus else null
                     if (expanded) {
-                        DrawerItem(section, active, focus, RailItemShape) { rail.onSelect(section) }
+                        DrawerItem(section, active, focus, RailExpandedIconStart) { rail.onSelect(section) }
                     } else {
                         RailIconItem(section, active, focus) { rail.onSelect(section) }
                     }
                 }
             }
             if (expanded) {
-                Box(Modifier.fillMaxWidth().padding(start = DesignSpacing.Space8)) {
+                // The link text, past HeaderLink's own 4dp, starts where the section icons do.
+                Box(Modifier.fillMaxWidth().padding(start = RailExpandedIconStart - DesignSpacing.Space4)) {
                     DrawerLinks(rail.onCheckUpdate, rail.updateWaiting, rail.websiteUrl)
                 }
             }
