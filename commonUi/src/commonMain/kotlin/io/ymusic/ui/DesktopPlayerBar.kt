@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -54,19 +55,23 @@ import io.ymusic.ui.resources.cd_pause
 import io.ymusic.ui.resources.cd_play
 import io.ymusic.ui.resources.cd_previous
 import io.ymusic.ui.resources.cd_shuffle
+import io.ymusic.ui.resources.menu_speed_pitch
 import io.ymusic.ui.resources.sound_eq
 import io.ymusic.ui.resources.sound_volume
 import org.jetbrains.compose.resources.stringResource
 
 private val BarInfoMinWidth = 300.dp
 
-/** Share of the bar each side takes once that beats [BarInfoMinWidth]; both sides match so the transport stays centred. */
-private const val BAR_SIDE_SHARE = 0.3f
-private val BarSideWidth = 232.dp
+/** Share of the bar the track info takes once that beats [BarInfoMinWidth]. */
+private const val BAR_INFO_SHARE = 0.3f
+private val BarVolumeWidth = 120.dp
 private val BarSeekMaxWidth = 560.dp
 
-/** Below this the side controls (equalizer, sleep timer, volume) drop out; Now Playing still has them. */
-private val BarFullMinWidth = 900.dp
+/** Below this the side controls drop out; Now Playing still has them. */
+private val BarSideMinWidth = 900.dp
+
+/** The sleep timer joins the side controls from this width. */
+private val BarSleepMinWidth = 1100.dp
 private val BarSmallIcon = 20.dp
 private val BarSmallHit = 36.dp
 private val BarPlaySize = 36.dp
@@ -92,8 +97,9 @@ internal fun DesktopPlayerBar(
     Column(modifier.fillMaxWidth().background(background)) {
         HorizontalDivider(color = DesignColors.Divider)
         BoxWithConstraints(Modifier.fillMaxWidth()) {
-            val full = maxWidth >= BarFullMinWidth
-            val sideWidth = maxOf(BarInfoMinWidth, maxWidth * BAR_SIDE_SHARE)
+            val side = maxWidth >= BarSideMinWidth
+            val sleep = maxWidth >= BarSleepMinWidth
+            val infoWidth = maxOf(BarInfoMinWidth, maxWidth * BAR_INFO_SHARE)
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = DesignSpacing.Space16, vertical = DesignSpacing.Space8),
                 horizontalArrangement = Arrangement.spacedBy(DesignSpacing.Space16),
@@ -104,14 +110,10 @@ internal fun DesktopPlayerBar(
                     item,
                     surface,
                     onExpand,
-                    modifier = Modifier.width(sideWidth),
+                    modifier = Modifier.width(infoWidth),
                 )
                 BarTransport(coordinator, Modifier.weight(1f))
-                if (full) {
-                    Box(Modifier.width(sideWidth), contentAlignment = Alignment.CenterEnd) {
-                        BarSideControls(coordinator, Modifier.width(BarSideWidth))
-                    }
-                }
+                if (side) BarSideControls(coordinator, sleep)
             }
         }
     }
@@ -223,16 +225,24 @@ private fun BarPlayPause(coordinator: PlaybackCoordinator, status: PlaybackStatu
     }
 }
 
-/** equalizer · sleep timer · volume. */
+/** equalizer · speed and pitch · [sleep timer] · volume. */
 @Composable
-private fun BarSideControls(coordinator: PlaybackCoordinator, modifier: Modifier) {
+private fun BarSideControls(coordinator: PlaybackCoordinator, sleep: Boolean) {
     val player = coordinator.player
     val config by player.config.collectAsState()
     val sleepMs by player.sleepTimerMs.collectAsState()
     var eqOpen by remember { mutableStateOf(false) }
-    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+    var speedOpen by remember { mutableStateOf(false) }
+    Row(verticalAlignment = Alignment.CenterVertically) {
         ActionIcon(Icons.Default.Tune, stringResource(Res.string.sound_eq), iconSize = BarSmallIcon, onClick = { eqOpen = true })
-        PlayerSleepTimerButton(coordinator, sleepMs)
+        ActionIcon(
+            Icons.Outlined.Speed,
+            stringResource(Res.string.menu_speed_pitch),
+            iconSize = BarSmallIcon,
+            tint = if (config.speed != 1f || config.pitchFactor != 1f) DesignColors.Accent else DesignColors.InkMuted,
+            onClick = { speedOpen = true },
+        )
+        if (sleep) PlayerSleepTimerButton(coordinator, sleepMs)
         val volume = config.volume
         Icon(
             when {
@@ -251,9 +261,10 @@ private fun BarSideControls(coordinator: PlaybackCoordinator, modifier: Modifier
             onSeek = { player.volume = it },
             onScrub = { fraction -> if (fraction != null) player.volume = fraction },
             trackColor = DesignColors.OutlineSoft,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.width(BarVolumeWidth),
             a11y = SliderA11y(null, volumeLabel, VOLUME_KEY_STEP),
         )
     }
     if (eqOpen) EqualizerFxSheet(coordinator.graph, onDismiss = { eqOpen = false })
+    if (speedOpen) PlaybackFxSheet(player, onDismiss = { speedOpen = false })
 }
