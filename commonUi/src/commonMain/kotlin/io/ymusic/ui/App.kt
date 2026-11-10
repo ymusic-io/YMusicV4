@@ -906,6 +906,8 @@ private fun AppRoot(
                 Modifier.fillMaxSize().safeDrawingPadding(),
             ) {
                 val railWindow = windowUsesRail(maxWidth, maxHeight)
+                // Without the rail, desktop keeps the phone's mini player.
+                val playerBar = desktopLayoutHole && railWindow
                 val railStartsOpen = windowStartsRailOpen(maxWidth)
                 val railExpanded = railToggled ?: railStartsOpen
                 SideEffect { usesRail = railWindow }
@@ -991,7 +993,7 @@ private fun AppRoot(
                         }
                     }
                     // Desktop docks the player as a bar under the rail and the content, on the rail's plane.
-                    val shellFrame: @Composable (@Composable () -> Unit) -> Unit = if (desktopLayoutHole) {
+                    val shellFrame: @Composable (@Composable () -> Unit) -> Unit = if (playerBar) {
                         { shell ->
                             Column(Modifier.fillMaxSize()) {
                                 Box(Modifier.weight(1f).fillMaxWidth()) { navFrame(shell) }
@@ -1251,8 +1253,12 @@ private fun AppRoot(
                                     )
                                 }
                                 if (desktopLayoutHole) {
-                                    Column(Modifier.fillMaxSize().padding(padding).background(DesignColors.Surface)) {
-                                        CompositionLocalProvider(LocalNestedBack provides nestedBack) { screens() }
+                                    Column(Modifier.fillMaxSize()) {
+                                        Column(
+                                            Modifier.weight(1f).fillMaxWidth().padding(padding)
+                                                .background(DesignColors.Surface),
+                                        ) { CompositionLocalProvider(LocalNestedBack provides nestedBack) { screens() } }
+                                        if (!railWindow) mini(Modifier.fillMaxWidth())
                                     }
                                 } else {
                                     val miniVisible = !railWindow && coordinator.player.queue.collectAsState().value.currentItem != null
