@@ -152,9 +152,8 @@ import okio.Path.Companion.toOkioPath
 import okio.Path.Companion.toPath
 import okio.sink
 import okio.source
-import projectcommon.error.DISK_FULL_CODE
 import projectcommon.error.TechnicalException
-import projectcommon.error.errorCode
+import projectcommon.log.captureUnlessEnvironmental
 import java.io.File
 import java.lang.ref.WeakReference
 import kotlin.math.roundToInt
@@ -219,8 +218,7 @@ class YMusicApplication : Application() {
 
     /** Escaped coroutine failures are still one job dying — capture, don't crash the process. */
     private fun uncaught(scopeName: String) = CoroutineExceptionHandler { _, e ->
-        val log = rootLogger.fork(scopeName).fork("uncaught")
-        if (e.errorCode() == DISK_FULL_CODE) log.log(Logger.Level.WARN, "storage is full", e) else log.captureError(e)
+        rootLogger.fork(scopeName).fork("uncaught").captureUnlessEnvironmental(e)
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default + uncaught("app-default"))
