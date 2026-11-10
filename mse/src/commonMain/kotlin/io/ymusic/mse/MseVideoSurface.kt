@@ -25,6 +25,9 @@ expect class MseVideoSurface {
     /** Fixed-position log-frequency bars in 0..1. Returns count written. */
     fun pcmLevels(out: FloatArray): Int
 
+    /** The picture is off screen: the host rests its video decoder, still buffering the chosen quality. */
+    fun setVideoHidden(hidden: Boolean)
+
     /** Android: the audio output's session id, for system audio effects. 0 = none (or not Android). */
     fun audioSessionId(): Int
 
