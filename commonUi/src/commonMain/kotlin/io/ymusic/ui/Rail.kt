@@ -43,7 +43,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.collectAsState
@@ -57,21 +56,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.ClipOp
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.drawscope.clipRect
-import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.layout
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.contentDescription
@@ -103,8 +94,6 @@ private val RailOpenWindowWidth = 1200.dp
 private val RailItemShape = RoundedCornerShape(DesignSpacing.Space8)
 private val RailThumbnailShape = RoundedCornerShape(DesignSpacing.Space8)
 
-/** Square on desktop: the native frame behind the window fills the whole tile, so round corners would show it. */
-private val RailVideoShape: Shape = if (desktopLayoutHole) RectangleShape else RailThumbnailShape
 private val RailCollapsedTile = DesignSpacing.RailCollapsedWidth - DesignSpacing.Space16
 private val RailItemTarget = DesignSpacing.Space48
 
@@ -179,8 +168,8 @@ internal class RailContent(
 )
 
 /**
- * The navigation shell of tablet and desktop windows: a left rail that replaces the drawer and carries the
- * mini player. The rail always sits beside [content]: expanding moves the content over.
+ * The navigation shell of tablet and desktop windows: a left rail that replaces the drawer and, off desktop, carries
+ * the mini player. The rail always sits beside [content]: expanding moves the content over.
  */
 @Composable
 internal fun AppRail(
@@ -310,21 +299,7 @@ private fun RailPanel(
     onEntryFailed: () -> Unit,
 ) {
     val width by animateDpAsState(if (expanded) DesignSpacing.RailExpandedWidth else DesignSpacing.RailCollapsedWidth)
-    var panel by remember { mutableStateOf<LayoutCoordinates?>(null) }
-    var tileBounds by remember { mutableStateOf(Rect.Zero) }
-    val placeTile: (LayoutCoordinates) -> Unit = { tile ->
-        panel?.takeIf { it.isAttached }?.let { tileBounds = it.localBoundingBoxOf(tile, clipBounds = true) }
-    }
-    Box(
-        Modifier.width(width).fillMaxHeight().clipToBounds()
-            .onGloballyPositioned { panel = it }
-            // On desktop the picture is a native frame behind the window: the tile stays glass.
-            .drawBehind {
-                clipRect(tileBounds.left, tileBounds.top, tileBounds.right, tileBounds.bottom, ClipOp.Difference) {
-                    drawRect(background)
-                }
-            },
-    ) {
+    Box(Modifier.width(width).fillMaxHeight().clipToBounds().background(background)) {
         // Laid out at the final width and clipped by the animated panel: the labels must not reflow on the way.
         Column(
             Modifier.wrapContentWidth(Alignment.Start, unbounded = true).fillMaxHeight()
@@ -343,12 +318,10 @@ private fun RailPanel(
             val playerFocus = remember { FocusRequester() }
             val entryFocus = if (platformIsTelevision && item != null) playerFocus else null
             RailSections(rail, expanded, entryFocus, onEntryFailed) {
-                if (item != null) {
-                    val holePunched = desktopLayoutHole && surface != null && expanded
-                    DisposableEffect(holePunched) { onDispose { tileBounds = Rect.Zero } }
+                // Desktop docks the player in DesktopPlayerBar instead.
+                if (item != null && !desktopLayoutHole) {
                     if (expanded) {
-                        val tile = if (holePunched) Modifier.onGloballyPositioned(placeTile) else Modifier
-                        RailMiniExpanded(coordinator, item, surface, onExpandPlayer, tile, playerFocus)
+                        RailMiniExpanded(coordinator, item, surface, onExpandPlayer, playerFocus)
                     } else {
                         RailMiniCollapsed(coordinator, item, surface, onExpandPlayer)
                     }
@@ -441,14 +414,13 @@ private fun RailMiniExpanded(
     item: PlayableItem,
     surface: (@Composable (Modifier) -> Unit)?,
     onExpand: () -> Unit,
-    tileModifier: Modifier,
     focusRequester: FocusRequester,
 ) {
     val status by coordinator.player.status.collectAsState()
     val progress by coordinator.player.progress.collectAsState()
     Column(Modifier.fillMaxWidth()) {
         Column(Modifier.fillMaxWidth().clickable(onClick = onExpand)) {
-            Box(tileModifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RailVideoShape)) {
+            Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RailThumbnailShape)) {
                 MiniArtTile(coordinator, item, surface, onExpand, Modifier.fillMaxSize())
                 Icon(
                     Icons.Default.ArrowOutward,
