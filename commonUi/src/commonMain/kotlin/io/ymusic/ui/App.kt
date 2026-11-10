@@ -908,6 +908,12 @@ private fun AppRoot(
                 val railWindow = windowUsesRail(maxWidth, maxHeight)
                 // Without the rail, desktop keeps the phone's mini player.
                 val playerBar = desktopLayoutHole && railWindow
+                // The bar shows the cover, never the picture.
+                val pictureHidden = playerBar && !nowPlayingOpen
+                DisposableEffect(pictureHidden) {
+                    graph.pip.pictureHidden.value = pictureHidden
+                    onDispose { graph.pip.pictureHidden.value = false }
+                }
                 val railStartsOpen = windowStartsRailOpen(maxWidth)
                 val railExpanded = railToggled ?: railStartsOpen
                 SideEffect { usesRail = railWindow }
