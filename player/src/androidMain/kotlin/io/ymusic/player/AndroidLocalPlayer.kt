@@ -99,6 +99,7 @@ internal class AndroidLocalPlayer(
 
     private var released = false
     private var audioOnly = false
+    private var videoHidden = false
     private var preferVideoQuality = VideoQualityState.AUTO
 
     /** The last-applied config; [setConfig] diffs against it so only changed fields re-touch ExoPlayer. */
@@ -237,6 +238,7 @@ internal class AndroidLocalPlayer(
         // Apply config before prepare so the first frame is already at the right settings.
         appliedConfig = config
         audioOnly = config.audioOnly
+        videoHidden = config.videoHidden
         preferVideoQuality = config.preferVideoQuality.first
         player.volume = config.volume.coerceIn(0f, 1f)
         player.playbackParameters = PlaybackParameters(
@@ -245,7 +247,7 @@ internal class AndroidLocalPlayer(
         )
         applyColor(config)
         player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
-            .setTrackTypeDisabled(C.TRACK_TYPE_VIDEO, config.audioOnly)
+            .setTrackTypeDisabled(C.TRACK_TYPE_VIDEO, config.audioOnly || config.videoHidden)
             .build()
         applyCaptions(config)
         _status.update {
@@ -374,6 +376,11 @@ internal class AndroidLocalPlayer(
         }
         if (config.preferVideoQuality.first != prev.preferVideoQuality.first) {
             applyVideoQuality(config.preferVideoQuality.first)
+        } else if (config.videoHidden != prev.videoHidden) {
+            videoHidden = config.videoHidden
+            player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
+                .setTrackTypeDisabled(C.TRACK_TYPE_VIDEO, audioOnly || videoHidden)
+                .build()
         }
         if (config.preferCaptionLanguage.first != prev.preferCaptionLanguage.first ||
             config.captionVisible != prev.captionVisible
@@ -389,9 +396,10 @@ internal class AndroidLocalPlayer(
         preferVideoQuality = quality
         val ao = quality == VideoQualityState.AUDIO_ONLY
         audioOnly = ao
+        videoHidden = appliedConfig.videoHidden
         val height = VideoQualityState.heightForQuality(quality)
         player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
-            .setTrackTypeDisabled(C.TRACK_TYPE_VIDEO, ao)
+            .setTrackTypeDisabled(C.TRACK_TYPE_VIDEO, ao || videoHidden)
             .apply { if (height != null) setMaxVideoSize(Int.MAX_VALUE, height) else clearVideoSizeConstraints() }
             .build()
         _status.update { it.copy(videoSize = if (ao) null else it.videoSize) }
