@@ -26,9 +26,12 @@ import kotlinx.coroutines.withContext
 import okio.FileSystem
 import okio.Path.Companion.toOkioPath
 import org.jetbrains.compose.resources.StringResource
+import projectcommon.error.DISK_FULL_CODE
 import projectcommon.error.NETWORK_CODE
 import projectcommon.error.errorCode
 import java.io.File
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 
 /** What the UI shows. A verified download survives a restart, so [Ready] can be the first state. */
 sealed interface UpdateState {
@@ -41,6 +44,9 @@ sealed interface UpdateState {
     data class Ready(val update: AppUpdate, val installer: File) : UpdateState
 
     data class Installing(val update: AppUpdate) : UpdateState
+
+    /** The installer is still downloaded and verified: [code] is shown, and installing can be retried. */
+    data class InstallFailed(val update: AppUpdate, val installer: File, val code: String) : UpdateState
 
     /** [code] is shown to the user. [trusted] false: [update]'s signature did not verify, so nothing
      *  of it may be downloaded or opened — only its version and notes are shown. */
@@ -88,6 +94,8 @@ class UpdateService internal constructor(
         data class Downloading(val done: Long, val total: Long) : Step
 
         data class Ready(val installer: File) : Step
+
+        data class InstallFailed(val installer: File, val code: String) : Step
 
         data class Failed(val code: String) : Step
     }
@@ -142,6 +150,7 @@ class UpdateService internal constructor(
             Step.Idle -> UpdateState.Available(update)
             is Step.Downloading -> UpdateState.Downloading(update, step.done, step.total)
             is Step.Ready -> UpdateState.Ready(update, step.installer)
+            is Step.InstallFailed -> UpdateState.InstallFailed(update, step.installer, step.code)
             is Step.Failed -> UpdateState.Failed(step.code, update)
         }
     }
@@ -210,7 +219,8 @@ class UpdateService internal constructor(
         releaseScope.launch {
             val claimed = synchronized(lock) {
                 val step = tracked.value?.takeIf { it.release == release }?.step
-                val busy = step is Step.Downloading || step is Step.Ready || installing.value != null
+                val busy = step is Step.Downloading || step is Step.Ready || step is Step.InstallFailed ||
+                    installing.value != null
                 if (offer.value?.update?.release != release || busy) {
                     false
                 } else {
@@ -220,7 +230,9 @@ class UpdateService internal constructor(
             }
             if (!claimed) return@launch
             try {
-                val file = withContext(Dispatchers.IO) { fetch(update) }
+                val file = withContext(Dispatchers.IO) {
+                    installerFile(update).takeIf { it.isFile && sha256Of(it) == update.sha256 } ?: fetch(update)
+                }
                 set(release, Step.Ready(file))
                 log?.log(Logger.Level.INFO, "update ${update.versionCode} downloaded and verified")
             } catch (cancel: CancellationException) {
@@ -237,6 +249,9 @@ class UpdateService internal constructor(
                 } else if (error is HttpStatusException) {
                     log?.log(Logger.Level.WARN, "downloading update ${update.versionCode} refused by the server", error)
                     set(release, Step.Failed("E91005"))
+                } else if (error.errorCode() == DISK_FULL_CODE) {
+                    log?.log(Logger.Level.WARN, "downloading update ${update.versionCode} failed: storage is full", error)
+                    set(release, Step.Failed(DISK_FULL_CODE))
                 } else if (error.errorCode() == NETWORK_CODE) {
                     log?.log(Logger.Level.WARN, "downloading update ${update.versionCode} hit a network failure", error)
                     set(release, Step.Failed(NETWORK_CODE))
@@ -257,7 +272,8 @@ class UpdateService internal constructor(
         downloadResumable(client, update.url, part.toOkioPath(), FileSystem.SYSTEM, update.size, update.sha256) { done ->
             set(update.release, Step.Downloading(done, update.size))
         }
-        check(part.renameTo(target)) { "could not move the installer into place" }
+        // A stale installer of the same versionCode (a re-published build) may sit at [target].
+        Files.move(part.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING)
         return target
     }
 
@@ -270,20 +286,40 @@ class UpdateService internal constructor(
         val (update, file) = synchronized(lock) {
             if (installing.value != null) return false
             val update = offer.value?.takeIf { it.trusted }?.update ?: return false
-            val ready = tracked.value?.takeIf { it.release == update.release }?.step as? Step.Ready ?: return false
+            val file = when (val step = tracked.value?.takeIf { it.release == update.release }?.step) {
+                is Step.Ready -> step.installer
+                is Step.InstallFailed -> step.installer
+                else -> return false
+            }
             installing.value = update
-            update to ready.installer
+            update to file
         }
         return try {
             installer.install(file, update).also { started ->
-                if (!started) installing.value = null
+                if (!started) {
+                    set(update.release, Step.Ready(file))
+                    installing.value = null
+                }
             }
         } catch (cancel: CancellationException) {
             installing.value = null
             throw cancel
         } catch (error: Exception) {
-            log?.captureError(error, "installing update ${update.versionCode} failed")
-            set(update.release, Step.Failed("E91004"))
+            val code = when {
+                error.errorCode() == DISK_FULL_CODE -> {
+                    log?.log(Logger.Level.WARN, "installing update ${update.versionCode} failed: storage is full", error)
+                    DISK_FULL_CODE
+                }
+                error is PackageManagerBusyException -> {
+                    log?.log(Logger.Level.WARN, "installing update ${update.versionCode} failed: the package manager is busy", error)
+                    "E91006"
+                }
+                else -> {
+                    log?.captureError(error, "installing update ${update.versionCode} failed")
+                    "E91004"
+                }
+            }
+            set(update.release, Step.InstallFailed(file, code))
             installing.value = null
             false
         }

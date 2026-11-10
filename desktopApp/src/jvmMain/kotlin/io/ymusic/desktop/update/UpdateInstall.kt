@@ -156,19 +156,43 @@ internal class LinuxDebInstaller(private val launcher: File?) : Installer {
 
     override suspend fun install(file: File, update: AppUpdate): Boolean = withContext(Dispatchers.IO) {
         val launcher = checkNotNull(launcher) { NOT_INSTALLED }
-        val result = exec(PKEXEC, APT_GET, "install", "-y", file.absolutePath)
+        // Wait for a background updater (PackageKit, unattended-upgrades) to release the dpkg lock
+        // instead of failing at once; an apt without the option ignores it.
+        val result = exec(PKEXEC, APT_GET, "-o", "DPkg::Lock::Timeout=$DPKG_LOCK_WAIT_S", "install", "-y", file.absolutePath)
         // pkexec: 126 = the user dismissed the prompt, 127 = not authorized.
         if (result.exitCode == 126 || result.exitCode == 127) return@withContext false
-        check(result.exitCode == 0) { "apt-get exited ${result.exitCode}: ${result.output.takeLast(2000)}" }
+        // apt also finishes whatever else is pending on the system and exits 100 when an unrelated
+        // package fails to configure, after ours is already installed.
+        if (result.exitCode != 0 && !isInstalled(update.versionName)) {
+            val failure = "apt-get exited ${result.exitCode}: ${result.output.takeLast(2000)}"
+            if ("Could not get lock" in result.output) throw PackageManagerBusyException(failure)
+            error(failure)
+        }
         ProcessBuilder(launcher.path).start()
         true
+    }
+
+    private fun isInstalled(versionName: String): Boolean {
+        val result = exec(DPKG_QUERY, "-W", "-f=\${Status} \${Version}", DEB_PACKAGE)
+        val status = result.output.trim()
+        if (result.exitCode != 0 || !status.startsWith("install ok installed ")) return false
+        val version = status.removePrefix("install ok installed ")
+        return version == versionName || version.startsWith("$versionName-")
     }
 
     private companion object {
         const val PKEXEC = "/usr/bin/pkexec"
         const val APT_GET = "/usr/bin/apt-get"
+        const val DPKG_LOCK_WAIT_S = 60
+        const val DPKG_QUERY = "/usr/bin/dpkg-query"
+
+        // jpackage names the .deb package after the lowercased packageName.
+        const val DEB_PACKAGE = "ymusic"
     }
 }
+
+/** Another package manager held the lock past our wait: the device's state, retried later. */
+internal class PackageManagerBusyException(message: String) : Exception(message)
 
 private class ExecResult(val exitCode: Int, val output: String)
 

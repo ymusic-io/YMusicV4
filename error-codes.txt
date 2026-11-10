@@ -181,6 +181,7 @@ E91002 D desktop update installer's size/sha256 differs from the signed entry (U
 E91003 D desktop update installer download failed (UpdateService.download)
 E91004 D desktop update installer failed to run (UpdateService.install)
 E91005 - desktop update installer download refused: the server answered a non-2xx HTTP status (UpdateService.download)
+E91006 - desktop update install refused: another package manager held the dpkg lock past the wait (UpdateService.install, Linux)
 E91011 D android update APK's size/sha256 differs from the config entry (AndroidAppUpdates.download)
 E91012 D android update APK download failed (AndroidAppUpdates.download)
 E91013 D android update APK could not be handed to PackageInstaller (AndroidAppUpdates.installAndRestart)
