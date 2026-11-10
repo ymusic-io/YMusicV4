@@ -278,9 +278,8 @@ private fun inlineControlsClipped(listState: LazyListState): Boolean {
 /**
  * The docked mini-player (design/final/library.html `.mini`): tap to expand to Now Playing.
  *
- * [surface] is the shared video container rendered as the 36dp art tile — only passed on platforms
- * whose surface tolerates thumbnail size ([AppGraph.surfaceScalesDown]); it keeps picture playing
- * while Now Playing is closed.
+ * [surface] is the shared video container, kept mounted under the cover so playback goes on while Now Playing is
+ * closed.
  */
 @Composable
 fun MiniPlayer(
@@ -313,7 +312,7 @@ fun MiniPlayer(
                 .clickable(onClick = onExpand),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            MiniArtTile(coordinator, item, surface, onExpand, Modifier.height(tileH).aspectRatio(16f / 9f))
+            MiniArtTile(coordinator, item, surface, onExpand, Modifier.height(tileH).aspectRatio(16f / 9f), coverOnly = true)
             Column(
                 Modifier.weight(1f)
                     .background(DesignColors.SurfaceDim)

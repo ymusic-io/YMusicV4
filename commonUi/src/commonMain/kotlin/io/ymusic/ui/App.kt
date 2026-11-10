@@ -883,6 +883,12 @@ private fun AppRoot(
         val quality by graph.player.videoQuality.collectAsState()
         val needsSurface = queue.currentItem is PlayableItem.YtMedia ||
             (queue.currentItem != null && showsVideo(playbackConfig, quality))
+        // Every mini player shows the cover over the hosted surface: only Now Playing (or PiP) shows the picture.
+        val pictureHidden = !nowPlayingOpen && !inPip
+        DisposableEffect(pictureHidden) {
+            graph.pip.pictureHidden.value = pictureHidden
+            onDispose { graph.pip.pictureHidden.value = false }
+        }
 
         // Without touch, nothing peeks at the shell under Now Playing: drop it so focus can't land behind.
         val shellHidden = nowPlayingOpen && (desktopLayoutHole || !platformUsesTouch)
@@ -908,12 +914,6 @@ private fun AppRoot(
                 val railWindow = windowUsesRail(maxWidth, maxHeight)
                 // Without the rail, desktop keeps the phone's mini player.
                 val playerBar = desktopLayoutHole && railWindow
-                // The bar shows the cover, never the picture.
-                val pictureHidden = playerBar && !nowPlayingOpen
-                DisposableEffect(pictureHidden) {
-                    graph.pip.pictureHidden.value = pictureHidden
-                    onDispose { graph.pip.pictureHidden.value = false }
-                }
                 val railStartsOpen = windowStartsRailOpen(maxWidth)
                 val railExpanded = railToggled ?: railStartsOpen
                 SideEffect { usesRail = railWindow }
