@@ -161,17 +161,33 @@ internal class LinuxDebInstaller(private val launcher: File?) : Installer {
         val result = exec(PKEXEC, APT_GET, "-o", "DPkg::Lock::Timeout=$DPKG_LOCK_WAIT_S", "install", "-y", file.absolutePath)
         // pkexec: 126 = the user dismissed the prompt, 127 = not authorized.
         if (result.exitCode == 126 || result.exitCode == 127) return@withContext false
-        val failure = "apt-get exited ${result.exitCode}: ${result.output.takeLast(2000)}"
-        if (result.exitCode != 0 && "Could not get lock" in result.output) throw PackageManagerBusyException(failure)
-        check(result.exitCode == 0) { failure }
+        // apt also finishes whatever else is pending on the system and exits 100 when an unrelated
+        // package fails to configure, after ours is already installed.
+        if (result.exitCode != 0 && !isInstalled(update.versionName)) {
+            val failure = "apt-get exited ${result.exitCode}: ${result.output.takeLast(2000)}"
+            if ("Could not get lock" in result.output) throw PackageManagerBusyException(failure)
+            error(failure)
+        }
         ProcessBuilder(launcher.path).start()
         true
+    }
+
+    private fun isInstalled(versionName: String): Boolean {
+        val result = exec(DPKG_QUERY, "-W", "-f=\${Status} \${Version}", DEB_PACKAGE)
+        val status = result.output.trim()
+        if (result.exitCode != 0 || !status.startsWith("install ok installed ")) return false
+        val version = status.removePrefix("install ok installed ")
+        return version == versionName || version.startsWith("$versionName-")
     }
 
     private companion object {
         const val PKEXEC = "/usr/bin/pkexec"
         const val APT_GET = "/usr/bin/apt-get"
         const val DPKG_LOCK_WAIT_S = 60
+        const val DPKG_QUERY = "/usr/bin/dpkg-query"
+
+        // jpackage names the .deb package after the lowercased packageName.
+        const val DEB_PACKAGE = "ymusic"
     }
 }
 
