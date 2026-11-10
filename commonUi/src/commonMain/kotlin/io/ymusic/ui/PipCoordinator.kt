@@ -49,6 +49,11 @@ class PipCoordinator(
         if (playingVideo()) demoteToAudioOnly()
     }
 
+    /** Desktop: the window is minimized or hidden, playing or not. [onEnterForeground] restores the quality. */
+    fun onWindowHidden() {
+        demoteToAudioOnly()
+    }
+
     fun onPipStarted() {
         inPip.value = true
     }
