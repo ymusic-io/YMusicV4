@@ -11,7 +11,7 @@ import {
   onLoopAtEnd,
   resetDrainCounts,
 } from "../../protocol/mse";
-import { applyNavigatorLanguages, endLayoutProbes, installOrigEnv } from "./env";
+import { applyChromeShapes, applyNavigatorLanguages, endLayoutProbes, installOrigEnv } from "./env";
 import { installMediaCapabilities } from "./media_caps";
 import { applyHostScreen } from "./device";
 import { installXhr } from "../yt/xhr";
@@ -731,6 +731,7 @@ class Player {
   private async doMinter(): Promise<Record<string, unknown>> {
     const cfg = await this.ensureConfig();
     const out: Record<string, unknown> = { "step": "minter" };
+    applyChromeShapes();
     this.mintFn = await initStep(minterFromConfig(cfg, out), "botguard", "E20156");
     endLayoutProbes();
     const self = this;

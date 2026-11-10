@@ -4,6 +4,7 @@
 import origEnvJs from "./orig/env.raw.js";
 import origIdlStubsJs from "./orig/idl_stubs.raw.js";
 import chromeGlobalsJs from "./orig/chrome_globals.raw.js";
+import chromeShapesJs from "./orig/chrome_shapes.raw.js";
 import { HttpRequest } from "../../protocol/http";
 import { executeWithCookies } from "../yt/cookies";
 import { DESKTOP_UA } from "../yt/session";
@@ -54,6 +55,16 @@ export function installOrigEnv(): void {
     ? origEnvHandle["installChromeBackedApis"]
     : undefined;
   if (typeof installChromeBackedApis === "function") (installChromeBackedApis as Function)();
+}
+
+let chromeShapesApplied = false;
+
+/** Must run after every env install that shapes interface prototypes and before BotGuard's
+ *  snapshot: BotGuard fingerprints their own-member lists, and a mismatch costs sps=2. */
+export function applyChromeShapes(): void {
+  if (chromeShapesApplied) return;
+  chromeShapesApplied = true;
+  (0, eval)(chromeShapesJs);
 }
 
 /** Layout getters answer 0 from now on: BotGuard only measures before its snapshot, and the player
