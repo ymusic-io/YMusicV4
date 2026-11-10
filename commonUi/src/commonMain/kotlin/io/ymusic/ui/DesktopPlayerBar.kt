@@ -2,6 +2,7 @@ package io.ymusic.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -35,11 +36,13 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -94,7 +97,12 @@ internal fun DesktopPlayerBar(
 ) {
     val queue by coordinator.player.queue.collectAsState()
     val item = queue.currentItem ?: return
-    Column(modifier.fillMaxWidth().background(background)) {
+    val expand by rememberUpdatedState(onExpand)
+    Column(
+        modifier.fillMaxWidth().background(background)
+            // A tap the controls leave unconsumed; not clickable(), which would merge the controls into one a11y node.
+            .pointerInput(Unit) { detectTapGestures { expand() } },
+    ) {
         HorizontalDivider(color = DesignColors.Divider)
         BoxWithConstraints(Modifier.fillMaxWidth()) {
             val side = maxWidth >= BarSideMinWidth
