@@ -74,7 +74,7 @@ private val BarSideWidth = 232.dp
 private val BarSeekMaxWidth = 560.dp
 
 /** Below this the side controls (equalizer, sleep timer, volume) drop out; Now Playing still has them. */
-private val BarFullMinWidth = 840.dp
+private val BarFullMinWidth = 850.dp
 private val BarSmallIcon = 20.dp
 private val BarSmallHit = 36.dp
 private val BarPlaySize = 36.dp
