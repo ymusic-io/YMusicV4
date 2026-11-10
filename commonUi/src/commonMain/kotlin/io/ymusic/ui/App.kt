@@ -906,6 +906,8 @@ private fun AppRoot(
                 Modifier.fillMaxSize().safeDrawingPadding(),
             ) {
                 val railWindow = windowUsesRail(maxWidth, maxHeight)
+                // Without the rail, desktop keeps the phone's mini player.
+                val playerBar = desktopLayoutHole && railWindow
                 val railStartsOpen = windowStartsRailOpen(maxWidth)
                 val railExpanded = railToggled ?: railStartsOpen
                 SideEffect { usesRail = railWindow }
@@ -941,7 +943,7 @@ private fun AppRoot(
                             scope.launch { drawer.close() }
                         }
                     }
-                    val shellFrame: @Composable (@Composable () -> Unit) -> Unit = if (railWindow) {
+                    val navFrame: @Composable (@Composable () -> Unit) -> Unit = if (railWindow) {
                         { shell ->
                             AppRail(
                                 rail = RailContent(
@@ -989,6 +991,26 @@ private fun AppRoot(
                                 content = shell,
                             )
                         }
+                    }
+                    // Desktop docks the player as a bar under the rail and the content, on the rail's plane.
+                    val shellFrame: @Composable (@Composable () -> Unit) -> Unit = if (playerBar) {
+                        { shell ->
+                            Column(Modifier.fillMaxSize()) {
+                                Box(Modifier.weight(1f).fillMaxWidth()) { navFrame(shell) }
+                                if (queue.currentItem != null) {
+                                    DisposableEffect(Unit) { onDispose { miniHeightPx = 0 } }
+                                    DesktopPlayerBar(
+                                        coordinator,
+                                        surface = if (needsSurface && !nowPlayingOpen) graph.playerSurface else null,
+                                        background = chromeTone(scrollHost.scrolled),
+                                        onExpand = { graph.pip.nowPlayingOpen.value = true },
+                                        modifier = Modifier.onSizeChanged { miniHeightPx = it.height },
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        navFrame
                     }
                     if (!shellHidden) shellFrame {
                         // Touch platforms scroll the toolbar row away (enter-always) while the tab row

@@ -237,6 +237,7 @@ import io.ymusic.ui.sponsorblock.SponsorBlockState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import projectcommon.error.Playability
@@ -1397,27 +1398,35 @@ private fun PlayerTopBar(coordinator: PlaybackCoordinator, sleepMs: Long?, onClo
                 },
             )
         }
-        val sleepAfterCurrent by player.sleepAfterCurrent.collectAsState()
-        val settings = coordinator.graph.settings
-        val lastSleepMinutes by remember(settings) { settings.flow(AppSettings.sleepTimerMinutes) }.collectAsState()
-        SleepTimerButton(
-            sleepMs = sleepMs,
-            afterCurrent = sleepAfterCurrent,
-            lastMinutes = lastSleepMinutes,
-        ) { choice ->
-            when (choice) {
-                is SleepChoice.Timer -> {
-                    player.setSleepTimer(choice.minutes * 60_000L)
-                    scope.launch { settings.put(AppSettings.sleepTimerMinutes, choice.minutes) }
-                }
-                SleepChoice.EndOfTrack -> player.setSleepAfterCurrent(true)
-                SleepChoice.Off -> player.setSleepTimer(null)
-            }
-        }
+        PlayerSleepTimerButton(coordinator, sleepMs)
         qualityChoices(player)?.let { choices ->
             QualityChip(choices.label, choices.options, choices.selectedId) { player.selectVideoQuality(it) }
         }
         PlayerMoreMenu(coordinator)
+    }
+}
+
+/** [SleepTimerButton] driving the player, remembering the last minutes chosen. */
+@Composable
+internal fun PlayerSleepTimerButton(coordinator: PlaybackCoordinator, sleepMs: Long?) {
+    val player = coordinator.player
+    val scope = rememberCoroutineScope()
+    val sleepAfterCurrent by player.sleepAfterCurrent.collectAsState()
+    val settings = coordinator.graph.settings
+    val lastSleepMinutes by remember(settings) { settings.flow(AppSettings.sleepTimerMinutes) }.collectAsState()
+    SleepTimerButton(
+        sleepMs = sleepMs,
+        afterCurrent = sleepAfterCurrent,
+        lastMinutes = lastSleepMinutes,
+    ) { choice ->
+        when (choice) {
+            is SleepChoice.Timer -> {
+                player.setSleepTimer(choice.minutes * 60_000L)
+                scope.launch { settings.put(AppSettings.sleepTimerMinutes, choice.minutes) }
+            }
+            SleepChoice.EndOfTrack -> player.setSleepAfterCurrent(true)
+            SleepChoice.Off -> player.setSleepTimer(null)
+        }
     }
 }
 
@@ -1769,7 +1778,7 @@ private fun SeekBar(player: io.ymusic.player.Player, progress: Progress) {
 }
 
 @Composable
-private fun DurationLabel(
+internal fun DurationLabel(
     player: io.ymusic.player.Player,
     progress: Progress,
     style: TextStyle,
@@ -1793,7 +1802,7 @@ private fun DurationLabel(
 /** The bare slider (3dp [trackColor] track, orange fill + thumb) — SeekBar's core, reused by the
  *  landscape video overlay. */
 @Composable
-private fun SeekSlider(
+internal fun SeekSlider(
     player: io.ymusic.player.Player,
     progress: Progress,
     trackColor: Color,
@@ -1865,7 +1874,7 @@ private fun Dp.evenPx(): Dp {
 
 /** Media controls and the seek bar stay left-to-right in RTL locales: time runs left to right. */
 @Composable
-private fun MediaLtr(content: @Composable () -> Unit) {
+internal fun MediaLtr(content: @Composable () -> Unit) {
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr, content = content)
 }
 
@@ -2024,23 +2033,9 @@ private fun QueueHeader(
         Box(Modifier.weight(1f))
         ActionIcon(
             if (loopMode == LoopMode.One) Icons.Default.RepeatOne else Icons.Default.Repeat,
-            stringResource(
-                when (loopMode) {
-                    LoopMode.None -> Res.string.cd_repeat_off
-                    LoopMode.All -> Res.string.cd_repeat_all
-                    LoopMode.One -> Res.string.cd_repeat_one
-                },
-            ),
+            stringResource(loopMode.label()),
             tint = if (loopMode != LoopMode.None) DesignColors.Accent else DesignColors.InkSoft,
-            onClick = {
-                player.setLoopMode(
-                    when (loopMode) {
-                        LoopMode.None -> LoopMode.All
-                        LoopMode.All -> LoopMode.One
-                        LoopMode.One -> LoopMode.None
-                    },
-                )
-            },
+            onClick = { player.setLoopMode(loopMode.cycled()) },
         )
         ToggleActionIcon(
             Icons.Default.Shuffle,
@@ -2050,6 +2045,18 @@ private fun QueueHeader(
             onCheckedChange = { player.setShuffle(it) },
         )
     }
+}
+
+internal fun LoopMode.label(): StringResource = when (this) {
+    LoopMode.None -> Res.string.cd_repeat_off
+    LoopMode.All -> Res.string.cd_repeat_all
+    LoopMode.One -> Res.string.cd_repeat_one
+}
+
+internal fun LoopMode.cycled(): LoopMode = when (this) {
+    LoopMode.None -> LoopMode.All
+    LoopMode.All -> LoopMode.One
+    LoopMode.One -> LoopMode.None
 }
 
 @Composable
