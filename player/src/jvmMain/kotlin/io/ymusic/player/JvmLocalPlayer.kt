@@ -337,7 +337,7 @@ internal class JvmLocalPlayer(
             }
         }
         val quality = config.preferVideoQuality.first
-        if (quality != prev.preferVideoQuality.first) {
+        if (quality != prev.preferVideoQuality.first || config.audioOnly != prev.audioOnly) {
             preferVideoQuality = quality
             audioOnly = config.audioOnly
             _status.update {
