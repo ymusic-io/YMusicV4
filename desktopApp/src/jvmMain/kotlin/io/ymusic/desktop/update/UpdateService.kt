@@ -30,6 +30,8 @@ import projectcommon.error.DISK_FULL_CODE
 import projectcommon.error.NETWORK_CODE
 import projectcommon.error.errorCode
 import java.io.File
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 
 /** What the UI shows. A verified download survives a restart, so [Ready] can be the first state. */
 sealed interface UpdateState {
@@ -270,7 +272,8 @@ class UpdateService internal constructor(
         downloadResumable(client, update.url, part.toOkioPath(), FileSystem.SYSTEM, update.size, update.sha256) { done ->
             set(update.release, Step.Downloading(done, update.size))
         }
-        check(part.renameTo(target)) { "could not move the installer into place" }
+        // A stale installer of the same versionCode (a re-published build) may sit at [target].
+        Files.move(part.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING)
         return target
     }
 
