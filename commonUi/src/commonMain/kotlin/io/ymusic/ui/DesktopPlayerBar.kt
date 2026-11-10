@@ -7,9 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -32,7 +30,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -41,14 +38,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.ClipOp
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.graphics.drawscope.clipRect
-import androidx.compose.ui.layout.LayoutCoordinates
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -74,7 +64,7 @@ private val BarSideWidth = 232.dp
 private val BarSeekMaxWidth = 560.dp
 
 /** Below this the side controls (equalizer, sleep timer, volume) drop out; Now Playing still has them. */
-private val BarFullMinWidth = 850.dp
+private val BarFullMinWidth = 900.dp
 private val BarSmallIcon = 20.dp
 private val BarSmallHit = 36.dp
 private val BarPlaySize = 36.dp
@@ -85,8 +75,7 @@ private const val VOLUME_KEY_STEP = 0.05f
  * The desktop mini player: a full-width bar under the rail and the content, in the rail's tone. What is playing on the
  * left (opens Now Playing), transport and seek in the middle, equalizer · sleep timer · volume on the right.
  *
- * [surface] is the shared video container shown as the art tile while the item has a picture; it is a native frame
- * behind the window, so the bar leaves the tile unpainted.
+ * [surface] is the shared video container: the art tile keeps it mounted so playback goes on, under the cover.
  */
 @Composable
 internal fun DesktopPlayerBar(
@@ -98,17 +87,7 @@ internal fun DesktopPlayerBar(
 ) {
     val queue by coordinator.player.queue.collectAsState()
     val item = queue.currentItem ?: return
-    var bar by remember { mutableStateOf<LayoutCoordinates?>(null) }
-    var tileBounds by remember { mutableStateOf(Rect.Zero) }
-    DisposableEffect(surface) { onDispose { tileBounds = Rect.Zero } }
-    Column(
-        modifier.fillMaxWidth()
-            .onGloballyPositioned { bar = it }
-            .drawBehind {
-                val hole = if (surface != null) tileBounds else Rect.Zero
-                clipRect(hole.left, hole.top, hole.right, hole.bottom, ClipOp.Difference) { drawRect(background) }
-            },
-    ) {
+    Column(modifier.fillMaxWidth().background(background)) {
         HorizontalDivider(color = DesignColors.Divider)
         BoxWithConstraints(Modifier.fillMaxWidth()) {
             val full = maxWidth >= BarFullMinWidth
@@ -122,9 +101,6 @@ internal fun DesktopPlayerBar(
                     item,
                     surface,
                     onExpand,
-                    onTilePlaced = { tile ->
-                        bar?.takeIf { it.isAttached }?.let { tileBounds = it.localBoundingBoxOf(tile, clipBounds = true) }
-                    },
                     modifier = Modifier.width(if (full) BarInfoWidth else BarInfoWidthNarrow),
                 )
                 BarTransport(coordinator, Modifier.weight(1f))
@@ -140,11 +116,9 @@ private fun BarNowPlaying(
     item: PlayableItem,
     surface: (@Composable (Modifier) -> Unit)?,
     onExpand: () -> Unit,
-    onTilePlaced: (LayoutCoordinates) -> Unit,
     modifier: Modifier,
 ) {
     val status by coordinator.player.status.collectAsState()
-    val picture = surface != null && !showsAudioOnly(coordinator.player)
     Row(
         modifier.clip(BarArtShape).clickable(onClick = onExpand),
         horizontalArrangement = Arrangement.spacedBy(DesignSpacing.Space8),
@@ -155,11 +129,8 @@ private fun BarNowPlaying(
             item,
             surface,
             onExpand,
-            Modifier.height(DesignSpacing.Space48)
-                .aspectRatio(if (picture) 16f / 9f else 1f)
-                // The picture is a native frame behind the window: round corners would show it.
-                .clip(if (picture) RectangleShape else BarArtShape)
-                .onGloballyPositioned(onTilePlaced),
+            Modifier.size(DesignSpacing.Space48).clip(BarArtShape),
+            coverOnly = true,
         )
         Column(Modifier.weight(1f)) {
             Text(
