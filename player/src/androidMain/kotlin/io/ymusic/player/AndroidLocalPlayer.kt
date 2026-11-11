@@ -374,7 +374,7 @@ internal class AndroidLocalPlayer(
         ) {
             applyColor(config)
         }
-        if (config.preferVideoQuality.first != prev.preferVideoQuality.first) {
+        if (config.preferVideoQuality.first != prev.preferVideoQuality.first || config.audioOnly != prev.audioOnly) {
             applyVideoQuality(config.preferVideoQuality.first)
         } else if (config.videoHidden != prev.videoHidden) {
             videoHidden = config.videoHidden
@@ -394,7 +394,7 @@ internal class AndroidLocalPlayer(
 
     private fun applyVideoQuality(quality: String) {
         preferVideoQuality = quality
-        val ao = quality == VideoQualityState.AUDIO_ONLY
+        val ao = appliedConfig.audioOnly || quality == VideoQualityState.AUDIO_ONLY
         audioOnly = ao
         videoHidden = appliedConfig.videoHidden
         val height = VideoQualityState.heightForQuality(quality)

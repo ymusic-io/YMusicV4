@@ -219,7 +219,7 @@ internal class AppleLocalPlayer(
                 player.setRate(desiredSpeed)
             }
         }
-        if (config.preferVideoQuality.first != prev.preferVideoQuality.first) {
+        if (config.preferVideoQuality.first != prev.preferVideoQuality.first || config.audioOnly != prev.audioOnly) {
             applyVideoQuality(config.preferVideoQuality.first)
         }
         if (config.videoHidden != prev.videoHidden) {
@@ -236,10 +236,10 @@ internal class AppleLocalPlayer(
     private fun applyVideoQuality(quality: String) {
         preferVideoQuality = quality
         // AVPlayer has no per-resolution selection for progressive files; audio-only is the honored axis.
-        val ao = quality == VideoQualityState.AUDIO_ONLY
+        val ao = appliedConfig.audioOnly || quality == VideoQualityState.AUDIO_ONLY
         audioOnly = ao
         applyAudioOnly()
-        _status.update { it.copy(videoSize = if (ao) null else it.videoSize) }
+        _status.update { it.copy(videoSize = if (ao) null else it.videoSize ?: player.currentItem?.videoSize()) }
         _videoQuality.update { state ->
             val video = state.options.firstOrNull { VideoQualityState.heightForQuality(it.quality) != null }
             val actual = when {
