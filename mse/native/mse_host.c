@@ -1710,7 +1710,7 @@ void mse_host_reset(MseHost *h)
     pthread_mutex_lock(&h->rest_mu);
     h->rest_js = 0;
     if (h->rest_hidden)
-        mse_av_rest_video(h->av, 1, 0);
+        mse_av_retire_decoder(mse_av_rest_video(h->av, 1, 0)); /* a fresh MseAv has no decoder yet */
     pthread_mutex_unlock(&h->rest_mu);
     /* Outside the locks: MediaCodec can take seconds to stop, and the UI thread's surface calls wait on them.
        Still on this thread, so the next load can't race the old codec for the surface. */
@@ -2172,41 +2172,49 @@ void mse_host_change_type(MseHost *h, int audio)
         mse_av_change_type(h->av, audio);
 }
 
-/* rest_mu held. */
-static void apply_rest(MseHost *h)
+/* rest_mu held. Returns the decoder to retire once rest_mu is released (see mse_av_rest_video). */
+static void *apply_rest(MseHost *h)
 {
     int on = h->rest_js || h->rest_hidden;
     double clock = host_clock(h);
-    mse_av_rest_video(h->av, on, clock);
+    void *retired = mse_av_rest_video(h->av, on, clock);
     pthread_mutex_lock(&h->mu);
     h->v_wake = !on;
     pthread_cond_broadcast(&h->cv);
     pthread_mutex_unlock(&h->mu);
     if (on)
         show_black(h);
+    return retired;
 }
 
+/* Each rest reason has one caller thread (JS: the engine thread; hidden: the shell's serial rest thread), and
+   only the thread that put the decoder to rest can lift its own reason, so a retired decoder is always
+   stopped before the window can take a new one. */
 void mse_host_rest_video(MseHost *h, int on)
 {
+    void *retired;
     if (!h)
         return;
     pthread_mutex_lock(&h->rest_mu);
     h->rest_js = on ? 1 : 0;
-    apply_rest(h);
+    retired = apply_rest(h);
     pthread_mutex_unlock(&h->rest_mu);
+    mse_av_retire_decoder(retired);
 }
 
 void mse_host_set_video_hidden(MseHost *h, int hidden)
 {
+    void *retired = NULL;
     if (!h)
         return;
     pthread_mutex_lock(&h->rest_mu);
     hidden = hidden ? 1 : 0;
     if (h->rest_hidden != hidden) {
         h->rest_hidden = hidden;
-        apply_rest(h);
+        retired = apply_rest(h);
     }
     pthread_mutex_unlock(&h->rest_mu);
+    mse_av_retire_decoder(retired);
 }
 
 int mse_host_buffered(MseHost *h, int audio, double *pairs, int max_pairs)

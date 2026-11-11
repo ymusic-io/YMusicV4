@@ -1168,6 +1168,29 @@ static void mc_hold_drop(MseAv *a, int render)
     a->mc_hold = 0;
 }
 
+/* Caller holds a->mu. Unhooks the codec from `a`; the caller stops it with mc_retire outside the lock. */
+static AMediaCodec *mc_detach(MseAv *a)
+{
+    AMediaCodec *mc = a->mc;
+    if (!mc)
+        return NULL;
+    mc_hold_drop(a, 0);
+    if (a->mc_bsf_out)
+        av_packet_unref(a->mc_bsf_out);
+    a->mc = NULL;
+    a->mc_eos = 0;
+    return mc;
+}
+
+static void mc_retire(AMediaCodec *mc)
+{
+    if (!mc)
+        return;
+    AMediaCodec_stop(mc);
+    AMediaCodec_delete(mc);
+    vlog("close mediacodec (retired)");
+}
+
 static void mc_close(MseAv *a)
 {
     if (!a->mc)
@@ -3290,20 +3313,24 @@ void mse_av_change_type(MseAv *a, int audio)
     av_unlock(a, audio);
 }
 
-void mse_av_rest_video(MseAv *a, int on, double clock)
+void *mse_av_rest_video(MseAv *a, int on, double clock)
 {
+    void *retired = NULL;
     if (!a)
-        return;
+        return NULL;
     pthread_mutex_lock(&a->mu);
     on = on ? 1 : 0;
     if (a->v_rest == on) {
         pthread_mutex_unlock(&a->mu);
-        return;
+        return NULL;
     }
     a->v_rest = on;
-    if (on)
+    if (on) {
+#ifdef __ANDROID__
+        retired = mc_detach(a);
+#endif
         close_video_decoder(a);
-    else {
+    } else {
         double t;
         cfb_drop_fake(&a->vf);
         /* v_sent froze at rest-on. Resync to the playhead. */
@@ -3323,6 +3350,16 @@ void mse_av_rest_video(MseAv *a, int on, double clock)
     }
     mse_critf(MSE_LOG_INFO, "mse-v rest-video %d vf=%zu clock=%.3f", on, a->vf.n, clock);
     pthread_mutex_unlock(&a->mu);
+    return retired;
+}
+
+void mse_av_retire_decoder(void *decoder)
+{
+#ifdef __ANDROID__
+    mc_retire((AMediaCodec *)decoder);
+#else
+    (void)decoder;
+#endif
 }
 
 int mse_av_video_resting(const MseAv *a)
