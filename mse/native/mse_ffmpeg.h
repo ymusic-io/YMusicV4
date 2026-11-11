@@ -68,8 +68,11 @@ void mse_av_flush(MseAv *a, int audio, int video);
 void mse_av_abort(MseAv *a, int audio);
 /* MSE changeType: reset parser + drop init for that track; leftover stays. */
 void mse_av_change_type(MseAv *a, int audio);
-/* Live audio-only: keep appending video leftover, do not decode. */
-void mse_av_rest_video(MseAv *a, int on, double clock);
+/* Live audio-only: keep appending video leftover, do not decode. Resting hands back the platform decoder
+   still running (Android MediaCodec, which can take seconds to stop): the caller passes it to
+   mse_av_retire_decoder once its own locks are released, before any wake. NULL when there is none. */
+void *mse_av_rest_video(MseAv *a, int on, double clock);
+void mse_av_retire_decoder(void *decoder);
 int mse_av_video_resting(const MseAv *a);
 #ifdef __APPLE__
 void mse_av_park_video(MseAv *a);

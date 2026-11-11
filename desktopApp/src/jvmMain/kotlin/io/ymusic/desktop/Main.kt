@@ -470,6 +470,11 @@ fun main(args: Array<String>) {
         LaunchedEffect(windowVisible, windowState.isMinimized) {
             videoUnderlay.shown = windowVisible && !windowState.isMinimized
         }
+        // Out of sight, video plays as audio only; the quality comes back with the window.
+        LaunchedEffect(graph, windowVisible, windowState.isMinimized) {
+            val pip = graph?.pip ?: return@LaunchedEffect
+            if (windowVisible && !windowState.isMinimized) pip.onEnterForeground() else pip.onWindowHidden()
+        }
         val volumeToastScope = rememberCoroutineScope()
         val showVolume: (Float) -> Unit = { volume ->
             volumeToastScope.launch {

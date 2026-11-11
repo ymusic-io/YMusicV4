@@ -18,7 +18,9 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.getString
+import projectcommon.error.DISK_FULL_CODE
 import projectcommon.error.errorCode
+import projectcommon.log.captureUnlessEnvironmental
 
 /**
  * App-level owner of a library scan/rescan, so it outlives the Library screen: a scan started from
@@ -67,8 +69,9 @@ internal class ScanController(private val scope: CoroutineScope, private val log
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            log?.captureError(e, "library scan failed")
-            _summaries.tryEmit(getString(Res.string.library_scan_failed, e.errorCode() ?: e.message ?: "$e"))
+            log?.captureUnlessEnvironmental(e, "library scan failed")
+            val code = e.errorCode() ?: "E50012"
+            _summaries.tryEmit(if (code == DISK_FULL_CODE) errorText(code).load() else getString(Res.string.library_scan_failed, code))
         }
     }
 }

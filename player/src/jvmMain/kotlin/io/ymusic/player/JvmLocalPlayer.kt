@@ -77,6 +77,8 @@ internal class JvmLocalPlayer(
 
     @Volatile private var audioOnly = true
 
+    @Volatile private var videoHidden = false
+
     @Volatile private var preferVideoQuality = VideoQualityState.AUDIO_ONLY
 
     @Volatile private var volume: Float = 1f
@@ -191,7 +193,7 @@ internal class JvmLocalPlayer(
             videoSurface?.claim(VideoEngine.LOCAL)
             FileAvNative.setVolume(handle, volume.toDouble())
             FileAvNative.setAudioIndex(handle, -1)
-            FileAvNative.setVideoEnabled(handle, !audioOnly)
+            FileAvNative.setVideoEnabled(handle, !audioOnly && !videoHidden)
             FileAvNative.setSpeed(handle, config.speed.coerceAtLeast(0.05f).toDouble())
             FileAvNative.setPitch(handle, config.pitchFactor.toDouble())
             FileAvNative.setEq(handle, FloatArray(10) { i -> config.eqBands.getOrElse(i) { 0f } })
@@ -337,15 +339,18 @@ internal class JvmLocalPlayer(
             }
         }
         val quality = config.preferVideoQuality.first
-        if (quality != prev.preferVideoQuality.first) {
+        if (quality != prev.preferVideoQuality.first || config.audioOnly != prev.audioOnly) {
             preferVideoQuality = quality
             audioOnly = config.audioOnly
             _status.update {
                 it.copy(videoSize = if (audioOnly) null else videoSizeFromStreams() ?: it.videoSize)
             }
             publishVideoQuality()
+        }
+        if (config.audioOnly != prev.audioOnly || config.videoHidden != prev.videoHidden) {
+            videoHidden = config.videoHidden
             dispatch {
-                if (handle != 0L) FileAvNative.setVideoEnabled(handle, !audioOnly)
+                if (handle != 0L) FileAvNative.setVideoEnabled(handle, !audioOnly && !videoHidden)
             }
         }
         if (config.preferCaptionLanguage != prev.preferCaptionLanguage ||
@@ -496,6 +501,7 @@ internal class JvmLocalPlayer(
     private fun applyConfigFlags(config: PlaybackConfig) {
         volume = config.volume.coerceIn(0f, 1f)
         audioOnly = config.audioOnly
+        videoHidden = config.videoHidden
         preferVideoQuality = config.preferVideoQuality.first
         loop = config.loop
     }

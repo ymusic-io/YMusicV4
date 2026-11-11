@@ -105,6 +105,9 @@ class MsePlayer internal constructor(
     /** Fire-and-forget teardown of abandoned sessions; deliberately outlives [release]. */
     private val cleanupScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
+    /** Serial, off the main thread: resting can wait on the decoder (Android's MediaCodec takes up to seconds to stop). */
+    private val videoRestDispatcher = Dispatchers.IO.limitedParallelism(1)
+
     private val _status = MutableStateFlow(
         PlaybackStatus(state = PlaybackState.Uninitialized(isInitializing = false)),
     )
@@ -137,6 +140,9 @@ class MsePlayer internal constructor(
         val startedAt = TimeSource.Monotonic.markNow()
         var player: DynamicEnginePlayer? = null
         var captionJob: Job? = null
+
+        /** The last video rest call; the host is destroyed only after it returns. */
+        var videoRestJob: Job? = null
 
         /** What this session has applied (JS + native audio); null until the first push, which sends everything. */
         var config: PlaybackConfig? = null
@@ -224,6 +230,7 @@ class MsePlayer internal constructor(
             if (hostLive()) videoSurface.setVolume(config.volume.coerceIn(0f, 1f))
         }
         applySurfaceAudio(previous, config)
+        applySurfaceVideo(previous, config)
         val width = viewportW
         val height = viewportH
         if (captionChanged(previous, config)) send { applyCaptionConfig(it, config) }
@@ -338,6 +345,7 @@ class MsePlayer internal constructor(
         activeSession.config = config
         activeSession.loop = loop
         applySurfaceAudio(previous, config)
+        applySurfaceVideo(previous, config)
         send { enginePlayer ->
             val previousQuality = previous?.preferVideoQuality?.first?.takeIf { it != VideoQualityState.AUDIO_ONLY }
                 ?: VideoQualityState.AUTO
@@ -513,7 +521,10 @@ class MsePlayer internal constructor(
                 if (session === newSession) fail(error, "mse init failed", needReset = true)
             } finally {
                 newSession.player = null
-                withContext(Dispatchers.Default + NonCancellable) { closeSessionEngine(builtPlayer, engineThread) }
+                withContext(Dispatchers.Default + NonCancellable) {
+                    newSession.videoRestJob?.join()
+                    closeSessionEngine(builtPlayer, engineThread)
+                }
             }
         }
     }
@@ -634,6 +645,14 @@ class MsePlayer internal constructor(
                 config.preampDb.coerceIn(-12f, 12f),
             )
         }
+    }
+
+    private fun applySurfaceVideo(previous: PlaybackConfig?, config: PlaybackConfig) {
+        if (!hostLive()) return
+        val activeSession = session ?: return
+        if (previous != null && config.videoHidden == previous.videoHidden) return
+        val hidden = config.videoHidden
+        activeSession.videoRestJob = cleanupScope.launch(videoRestDispatcher) { videoSurface.setVideoHidden(hidden) }
     }
 
     private fun captionChanged(previous: PlaybackConfig?, config: PlaybackConfig): Boolean =

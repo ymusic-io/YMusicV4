@@ -91,6 +91,9 @@ actual object MseHostNative {
     @JvmStatic
     actual external fun pcmLevels(handle: Long, out: FloatArray): Int
 
+    @JvmStatic
+    actual external fun setVideoHidden(handle: Long, hidden: Boolean)
+
     private fun loadLibrary() {
         if (!loaded.compareAndSet(false, true)) return
         try {

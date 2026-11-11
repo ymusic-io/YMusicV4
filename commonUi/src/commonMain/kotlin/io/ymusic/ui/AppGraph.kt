@@ -325,6 +325,7 @@ class AppGraph(
             }
         }
         bindPlayerConfig(bindings)
+        bindings.launch { pip.pictureHidden.collect { player.setVideoHidden(it) } }
         bindPlayerCacheLimit(bindings)
         SponsorBlockCoordinator(this, bindings)
         bindings.launch {

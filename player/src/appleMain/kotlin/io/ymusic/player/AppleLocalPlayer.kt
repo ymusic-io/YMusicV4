@@ -89,6 +89,7 @@ internal class AppleLocalPlayer(
 
     private var desiredSpeed: Float = 1f
     private var audioOnly = false
+    private var videoHidden = false
     private var released = false
     private var preferVideoQuality = VideoQualityState.AUTO
 
@@ -125,6 +126,7 @@ internal class AppleLocalPlayer(
         // Config applies before finalizeLoad (which calls applyAudioOnly on the new item).
         appliedConfig = config
         audioOnly = config.audioOnly
+        videoHidden = config.videoHidden
         preferVideoQuality = config.preferVideoQuality.first
         desiredSpeed = config.speed.coerceAtLeast(0.01f)
         player.setVolume(config.volume.coerceIn(0f, 1f))
@@ -217,8 +219,12 @@ internal class AppleLocalPlayer(
                 player.setRate(desiredSpeed)
             }
         }
-        if (config.preferVideoQuality.first != prev.preferVideoQuality.first) {
+        if (config.preferVideoQuality.first != prev.preferVideoQuality.first || config.audioOnly != prev.audioOnly) {
             applyVideoQuality(config.preferVideoQuality.first)
+        }
+        if (config.videoHidden != prev.videoHidden) {
+            videoHidden = config.videoHidden
+            applyAudioOnly()
         }
         if (config.preferCaptionLanguage.first != prev.preferCaptionLanguage.first ||
             config.captionVisible != prev.captionVisible
@@ -230,10 +236,10 @@ internal class AppleLocalPlayer(
     private fun applyVideoQuality(quality: String) {
         preferVideoQuality = quality
         // AVPlayer has no per-resolution selection for progressive files; audio-only is the honored axis.
-        val ao = quality == VideoQualityState.AUDIO_ONLY
+        val ao = appliedConfig.audioOnly || quality == VideoQualityState.AUDIO_ONLY
         audioOnly = ao
         applyAudioOnly()
-        _status.update { it.copy(videoSize = if (ao) null else it.videoSize) }
+        _status.update { it.copy(videoSize = if (ao) null else it.videoSize ?: player.currentItem?.videoSize()) }
         _videoQuality.update { state ->
             val video = state.options.firstOrNull { VideoQualityState.heightForQuality(it.quality) != null }
             val actual = when {
@@ -320,12 +326,12 @@ internal class AppleLocalPlayer(
         }
     }
 
-    /** Enable/disable the video item tracks so audio-only truly stops decoding video. */
+    /** Enable/disable the video item tracks so audio-only (or a hidden picture) truly stops decoding video. */
     private fun applyAudioOnly() {
         val item = player.currentItem ?: return
         item.tracks.forEach { element ->
             val track = element as? AVPlayerItemTrack ?: return@forEach
-            if (track.assetTrack?.mediaType == AVMediaTypeVideo) track.setEnabled(!audioOnly)
+            if (track.assetTrack?.mediaType == AVMediaTypeVideo) track.setEnabled(!audioOnly && !videoHidden)
         }
     }
 

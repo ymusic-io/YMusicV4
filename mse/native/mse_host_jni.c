@@ -456,6 +456,14 @@ Java_io_ymusic_mse_MseHostNative_setPreamp(JNIEnv *env, jclass cls, jlong handle
     mse_host_set_preamp((MseHost *)(intptr_t)handle, db);
 }
 
+JNIEXPORT void JNICALL
+Java_io_ymusic_mse_MseHostNative_setVideoHidden(JNIEnv *env, jclass cls, jlong handle, jboolean hidden)
+{
+    (void)env;
+    (void)cls;
+    mse_host_set_video_hidden((MseHost *)(intptr_t)handle, hidden ? 1 : 0);
+}
+
 JNIEXPORT jint JNICALL
 Java_io_ymusic_mse_MseHostNative_pcmLevels(JNIEnv *env, jclass cls, jlong handle, jfloatArray out)
 {

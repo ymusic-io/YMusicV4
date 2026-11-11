@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -18,6 +19,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -62,6 +65,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
@@ -114,6 +118,8 @@ import io.ymusic.dynamicengine.yt.extractTrendingMusicFeed
 import io.ymusic.dynamicengine.yt.getRecommendedFeed
 import io.ymusic.dynamicengine.yt.resolveLink
 import io.ymusic.player.PlayableItem
+import io.ymusic.player.isEnded
+import io.ymusic.player.isPlaying
 import io.ymusic.player.showsVideo
 import io.ymusic.settings.AppSettings
 import io.ymusic.settings.flow
@@ -325,6 +331,12 @@ private val AppLayer.log: kmpcommon.log.Logger?
         is AppLayer.LibrarySearch, is AppLayer.Login, is AppLayer.Verify, is AppLayer.PlaylistDownload -> null
     }
 
+/** Tells the player whether the picture is on screen. */
+@Composable
+private fun PictureHidden(graph: AppGraph, hidden: Boolean) {
+    SideEffect { graph.pip.pictureHidden.value = hidden }
+}
+
 @Composable
 private fun AppRoot(
     graph: AppGraph,
@@ -333,11 +345,18 @@ private fun AppRoot(
     uriFailures: Flow<String>,
     onSection: (AppSection) -> Unit,
 ) {
+    // Set here, not by the branches below: one branch handing over to the other must not flash a hidden picture.
+    DisposableEffect(graph) {
+        onDispose { graph.pip.pictureHidden.value = true }
+    }
     run {
         val scope = rememberCoroutineScope()
         val coordinator = graph.playback
         val inPip by graph.pip.inPip.collectAsState()
         if (inPip) {
+            val pipStatus by graph.player.status.collectAsState()
+            KeepScreenOn(pipStatus.state.isPlaying() && !pipStatus.state.isEnded() && !showsAudioOnly(graph.player))
+            PictureHidden(graph, hidden = false)
             Box(Modifier.fillMaxSize().background(Color.Black)) {
                 VideoHole(graph.player, graph.playerSurface, Modifier.fillMaxSize())
             }
@@ -883,6 +902,8 @@ private fun AppRoot(
         val quality by graph.player.videoQuality.collectAsState()
         val needsSurface = queue.currentItem is PlayableItem.YtMedia ||
             (queue.currentItem != null && showsVideo(playbackConfig, quality))
+        // Every mini player shows the cover over the hosted surface: only Now Playing (or PiP, above) shows the picture.
+        PictureHidden(graph, hidden = !nowPlayingOpen)
 
         // Without touch, nothing peeks at the shell under Now Playing: drop it so focus can't land behind.
         val shellHidden = nowPlayingOpen && (desktopLayoutHole || !platformUsesTouch)
@@ -905,7 +926,11 @@ private fun AppRoot(
             BoxWithConstraints(
                 Modifier.fillMaxSize().safeDrawingPadding(),
             ) {
-                val railWindow = windowUsesRail(maxWidth, maxHeight)
+                // The keyboard must not switch the layout: that re-composes the content and drops its state.
+                val layoutHeight = maxHeight + keyboardOverlap()
+                val railWindow = windowUsesRail(maxWidth, layoutHeight)
+                // Without the rail, desktop keeps the phone's mini player.
+                val playerBar = desktopLayoutHole && railWindow
                 val railStartsOpen = windowStartsRailOpen(maxWidth)
                 val railExpanded = railToggled ?: railStartsOpen
                 SideEffect { usesRail = railWindow }
@@ -914,7 +939,7 @@ private fun AppRoot(
                 }
                 // design/final/home.html: landscape (or any window this wide) puts the tab row inline in the app bar.
                 val shellWidth = if (railWindow) maxWidth - DesignSpacing.RailExpandedWidth else maxWidth
-                val wide = shellWidth > maxHeight && shellWidth >= 600.dp || shellWidth >= 650.dp
+                val wide = shellWidth > layoutHeight && shellWidth >= 600.dp || shellWidth >= 650.dp
                 // Fully covering Now Playing is opaque: skip drawing the feed/mini-player under it
                 // (4× GPU overdraw). Draw them again as soon as the sheet peeks so dismiss reveals.
                 val drawShell = !nowPlayingOpen || nowPlayingPeeking
@@ -941,7 +966,7 @@ private fun AppRoot(
                             scope.launch { drawer.close() }
                         }
                     }
-                    val shellFrame: @Composable (@Composable () -> Unit) -> Unit = if (railWindow) {
+                    val navFrame: @Composable (@Composable () -> Unit) -> Unit = if (railWindow) {
                         { shell ->
                             AppRail(
                                 rail = RailContent(
@@ -990,7 +1015,27 @@ private fun AppRoot(
                             )
                         }
                     }
-                    if (!shellHidden) shellFrame {
+                    // Desktop docks the player as a bar under the rail and the content, on the rail's plane.
+                    val shellFrame: @Composable (@Composable () -> Unit) -> Unit = if (playerBar) {
+                        { shell ->
+                            Column(Modifier.fillMaxSize()) {
+                                Box(Modifier.weight(1f).fillMaxWidth()) { navFrame(shell) }
+                                if (queue.currentItem != null) {
+                                    DisposableEffect(Unit) { onDispose { miniHeightPx = 0 } }
+                                    DesktopPlayerBar(
+                                        coordinator,
+                                        surface = if (needsSurface && !nowPlayingOpen) graph.playerSurface else null,
+                                        background = chromeTone(scrollHost.scrolled),
+                                        onExpand = { graph.pip.nowPlayingOpen.value = true },
+                                        modifier = Modifier.onSizeChanged { miniHeightPx = it.height },
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        navFrame
+                    }
+                    val shellContent: @Composable () -> Unit = {
                         // Touch platforms scroll the toolbar row away (enter-always) while the tab row
                         // stays pinned; with the tabs inline (wide) the bar carries them, so it stays put.
                         // Only the tabbed sections collapse: without a tab row below, a vanishing toolbar
@@ -1264,6 +1309,11 @@ private fun AppRoot(
                             }
                         }
                     }
+                    // The rail and the drawer host the content at different tree positions: movable content
+                    // carries its remembered state across a switch instead of re-creating it.
+                    val latestShellContent by rememberUpdatedState(shellContent)
+                    val movableShell = remember { movableContentOf { latestShellContent() } }
+                    if (!shellHidden) shellFrame(movableShell)
                 }
                 UpdateDialog(graph, recheck = updateRecheck)
                 UpgradeSnackbar(graph, snackbarHostState)
@@ -1598,4 +1648,13 @@ private fun ComingSoon(section: AppSection) {
             )
         }
     }
+}
+
+/** The part of [WindowInsets.safeDrawing]'s bottom that only the keyboard takes. */
+@Composable
+private fun keyboardOverlap(): Dp {
+    val density = LocalDensity.current
+    val withKeyboard = WindowInsets.safeDrawing.getBottom(density)
+    val withoutKeyboard = WindowInsets.systemBars.union(WindowInsets.displayCutout).getBottom(density)
+    return with(density) { (withKeyboard - withoutKeyboard).coerceAtLeast(0).toDp() }
 }

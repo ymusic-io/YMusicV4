@@ -3,7 +3,7 @@
 
 import origEnvJs from "./orig/env.raw.js";
 import origIdlStubsJs from "./orig/idl_stubs.raw.js";
-import chromeGlobalsJs from "./orig/chrome_globals.raw.js";
+import chromeShapesJs from "./orig/chrome_shapes.raw.js";
 import { HttpRequest } from "../../protocol/http";
 import { executeWithCookies } from "../yt/cookies";
 import { DESKTOP_UA } from "../yt/session";
@@ -40,6 +40,8 @@ function requestImage(url: string, done: () => void): void {
 let origEnvInstalled = false;
 /** The handle env.raw.js evaluates to: wire-shaped (quoted keys), never a global BotGuard can see. */
 let origEnvHandle: Record<string, unknown> | null = null;
+/** What chrome_shapes.raw.js evaluates to; applyChromeShapes runs it once. */
+let reshapeChromePrototypes: (() => void) | null = null;
 
 /** Player orig env+idl (DOM that Application.create needs). */
 export function installOrigEnv(): void {
@@ -49,11 +51,20 @@ export function installOrigEnv(): void {
   const setImageRequest = origEnvHandle ? origEnvHandle["setImageRequest"] : undefined;
   if (typeof setImageRequest === "function") (setImageRequest as Function)(requestImage);
   (0, eval)(origIdlStubsJs);
-  (0, eval)(chromeGlobalsJs);
+  const reshape = (0, eval)(chromeShapesJs) as unknown;
+  if (typeof reshape === "function") reshapeChromePrototypes = reshape as () => void;
   const installChromeBackedApis = origEnvHandle
     ? origEnvHandle["installChromeBackedApis"]
     : undefined;
   if (typeof installChromeBackedApis === "function") (installChromeBackedApis as Function)();
+}
+
+/** Must run after every env install that shapes interface prototypes and before BotGuard's
+ *  snapshot: BotGuard fingerprints their own-member lists, and a mismatch costs sps=2. */
+export function applyChromeShapes(): void {
+  const reshape = reshapeChromePrototypes;
+  reshapeChromePrototypes = null;
+  if (reshape) reshape();
 }
 
 /** Layout getters answer 0 from now on: BotGuard only measures before its snapshot, and the player

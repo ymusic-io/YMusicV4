@@ -104,12 +104,13 @@ internal class PlayerImpl(
 
     private var ducked = false
     private var voiceDucked = false
+    private var videoHidden = false
 
     /** [PlayableItem.loudnessScale] of the item last handed to an engine. */
     private var loudnessScale = 1f
 
     /** What the engines apply: [currentConfig] with the audio effects flattened while they are off
-     *  and the volume lowered while [ducked] or [voiceDucked] and scaled by [loudnessScale]. */
+     *  and the volume lowered while [ducked] or [voiceDucked] and scaled by [loudnessScale], plus [videoHidden]. */
     private val engineConfig: PlaybackConfig
         get() = currentConfig.let {
             if (it.inAppAudioFx) {
@@ -121,7 +122,7 @@ internal class PlayerImpl(
             val duck = minOf(if (ducked) DUCK_VOLUME else 1f, if (voiceDucked) VOICE_DUCK_VOLUME else 1f)
             it.copy(volume = it.volume * duck)
         }
-            .let { it.copy(volume = it.volume * loudnessScale) }
+            .let { it.copy(volume = it.volume * loudnessScale, videoHidden = videoHidden) }
 
     /** The engine bound to the current item — internal routing state; not exposed (the UI hands one
      *  video container to the engines and each owns its own surface, so it never needs this). */
@@ -365,6 +366,12 @@ internal class PlayerImpl(
     override fun setVoiceDucked(ducked: Boolean) {
         if (voiceDucked == ducked) return
         voiceDucked = ducked
+        _currentEngine.value?.setConfig(engineConfig)
+    }
+
+    override fun setVideoHidden(hidden: Boolean) {
+        if (videoHidden == hidden) return
+        videoHidden = hidden
         _currentEngine.value?.setConfig(engineConfig)
     }
 

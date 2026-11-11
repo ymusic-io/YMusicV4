@@ -152,9 +152,8 @@ import okio.Path.Companion.toOkioPath
 import okio.Path.Companion.toPath
 import okio.sink
 import okio.source
-import projectcommon.error.DISK_FULL_CODE
 import projectcommon.error.TechnicalException
-import projectcommon.error.errorCode
+import projectcommon.log.captureUnlessEnvironmental
 import java.io.File
 import java.lang.ref.WeakReference
 import kotlin.math.roundToInt
@@ -219,8 +218,7 @@ class YMusicApplication : Application() {
 
     /** Escaped coroutine failures are still one job dying — capture, don't crash the process. */
     private fun uncaught(scopeName: String) = CoroutineExceptionHandler { _, e ->
-        val log = rootLogger.fork(scopeName).fork("uncaught")
-        if (e.errorCode() == DISK_FULL_CODE) log.log(Logger.Level.WARN, "storage is full", e) else log.captureError(e)
+        rootLogger.fork(scopeName).fork("uncaught").captureUnlessEnvironmental(e)
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default + uncaught("app-default"))
@@ -912,6 +910,11 @@ class YMusicApplication : Application() {
             return@withContext probeFileFolder(File(checkNotNull(folder.path) { "file uri without a path: $folder" }), log)
         }
         if (checkCallingOrSelfUriPermission(folder, Intent.FLAG_GRANT_WRITE_URI_PERMISSION) != PackageManager.PERMISSION_GRANTED) {
+            val persisted = contentResolver.persistedUriPermissions.firstOrNull { it.uri == folder }
+            log.log(
+                Logger.Level.WARN,
+                "no write grant (persisted read=${persisted?.isReadPermission} write=${persisted?.isWritePermission})",
+            )
             return@withContext FolderWriteProblem.NoPermission
         }
         val parent = if (android.provider.DocumentsContract.isDocumentUri(this@YMusicApplication, folder)) {

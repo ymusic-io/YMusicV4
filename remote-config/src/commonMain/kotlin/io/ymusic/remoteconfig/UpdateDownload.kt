@@ -1,5 +1,6 @@
 package io.ymusic.remoteconfig
 
+import kmphttp.HttpStatusException
 import kmphttp.KmpHttpClient
 import kmphttp.RequestBuilder
 import kmphttp.asyncSource
@@ -22,9 +23,10 @@ class DownloadMismatchException(message: String) : Exception(message)
  * just verified.
  *
  * The finished file must be exactly [size] bytes hashing to [sha256] (hex), else
- * [DownloadMismatchException] and [part] is deleted, so the next attempt starts clean. Any other
- * failure leaves [part] for the next attempt to resume. Name [part] after the release's version
- * AND hash: bytes of one release must never be continued with another's.
+ * [DownloadMismatchException] and [part] is deleted, so the next attempt starts clean. A non-2xx
+ * answer throws [HttpStatusException]. Any other failure leaves [part] for the next attempt to
+ * resume. Name [part] after the release's version AND hash: bytes of one release must never be
+ * continued with another's.
  */
 suspend fun downloadResumable(
     client: KmpHttpClient,
@@ -61,7 +63,7 @@ suspend fun downloadResumable(
         response = request(0L)
     }
     try {
-        check(response.isSuccessful) { "HTTP ${response.code} fetching $url" }
+        if (!response.isSuccessful) throw HttpStatusException(response.code, "HTTP ${response.code} fetching $url")
         val body = response.body.asyncSource()
         (if (offset > 0) fileSystem.appendingSink(part) else fileSystem.sink(part)).buffer().use { out ->
             val chunk = Buffer()
@@ -90,7 +92,8 @@ suspend fun downloadResumable(
     }
 }
 
-private fun sha256Of(fileSystem: FileSystem, file: Path): String {
+/** Hex SHA-256 of [file], streamed: an installer is a few hundred MB. */
+fun sha256Of(fileSystem: FileSystem, file: Path): String {
     val hashing = HashingSink.sha256(blackholeSink())
     hashing.buffer().use { out -> fileSystem.source(file).use { out.writeAll(it) } }
     return hashing.hash.hex()

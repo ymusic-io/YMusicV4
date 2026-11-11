@@ -119,6 +119,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
@@ -237,6 +238,7 @@ import io.ymusic.ui.sponsorblock.SponsorBlockState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import projectcommon.error.Playability
@@ -277,9 +279,8 @@ private fun inlineControlsClipped(listState: LazyListState): Boolean {
 /**
  * The docked mini-player (design/final/library.html `.mini`): tap to expand to Now Playing.
  *
- * [surface] is the shared video container rendered as the 36dp art tile — only passed on platforms
- * whose surface tolerates thumbnail size ([AppGraph.surfaceScalesDown]); it keeps picture playing
- * while Now Playing is closed.
+ * [surface] is the shared video container, kept mounted under the cover so playback goes on while Now Playing is
+ * closed.
  */
 @Composable
 fun MiniPlayer(
@@ -312,7 +313,7 @@ fun MiniPlayer(
                 .clickable(onClick = onExpand),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            MiniArtTile(coordinator, item, surface, onExpand, Modifier.height(tileH).aspectRatio(16f / 9f))
+            MiniArtTile(coordinator, item, surface, onExpand, Modifier.height(tileH).aspectRatio(16f / 9f), coverOnly = true)
             Column(
                 Modifier.weight(1f)
                     .background(DesignColors.SurfaceDim)
@@ -499,15 +500,20 @@ fun NowPlayingScreen(
  * Without touch, focus must never fall out of Now Playing: when the focused control goes away (Full screen swaps the
  * layout, auto-hidden controls leave composition), a catcher takes focus so keys cannot reach anything else composed.
  * It can take focus only while armed, so it is never a D-pad target otherwise; any key on it brings the controls back
- * and moves focus to the first one.
+ * and moves focus to the first one, or to the seek bar for Left/Right.
  */
 /** The overlay control a [FocusCatcher] hands focus to: play/pause. */
 private val LocalOverlayEntryFocus = staticCompositionLocalOf<FocusRequester?> { null }
+
+/** The video overlay's seek bar, where a [FocusCatcher] sends Left/Right. */
+private val LocalOverlaySeekFocus = staticCompositionLocalOf<FocusRequester?> { null }
 
 @Composable
 private fun FocusCatcher(content: @Composable () -> Unit) {
     val catcher = remember { FocusRequester() }
     val entry = remember { FocusRequester() }
+    val seekBar = remember { FocusRequester() }
+    var enterSeekBar by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     var armed by remember { mutableStateOf(false) }
     var held by remember { mutableStateOf(false) }
@@ -518,6 +524,7 @@ private fun FocusCatcher(content: @Composable () -> Unit) {
         // The controls compose a frame or two after show(); hand focus over once play/pause exists.
         repeat(ENTRY_FOCUS_FRAMES) {
             withFrameNanos { }
+            if (enterSeekBar && seekBar.requestFocus(FocusDirection.Enter)) return@LaunchedEffect
             if (entry.requestFocus(FocusDirection.Enter)) return@LaunchedEffect
         }
     }
@@ -552,13 +559,14 @@ private fun FocusCatcher(content: @Composable () -> Unit) {
                 .onKeyEvent { event ->
                     if (event.type == KeyEventType.KeyDown) {
                         VideoOverlayNative.show()
+                        enterSeekBar = event.key == Key.DirectionLeft || event.key == Key.DirectionRight
                         enterControls++
                     }
                     true
                 }
                 .focusable(),
         )
-        CompositionLocalProvider(LocalOverlayEntryFocus provides entry) { content() }
+        CompositionLocalProvider(LocalOverlayEntryFocus provides entry, LocalOverlaySeekFocus provides seekBar) { content() }
     }
 }
 
@@ -1092,6 +1100,7 @@ private fun BoxScope.VideoOverlayControls(
             trackColor = Color.White.copy(alpha = 0.32f),
             bufferedColor = Color.White.copy(alpha = 0.55f),
             onScrubMs = { scrubMs = it },
+            modifier = LocalOverlaySeekFocus.current?.let { Modifier.focusRequester(it) } ?: Modifier,
         )
     }
 }
@@ -1397,27 +1406,35 @@ private fun PlayerTopBar(coordinator: PlaybackCoordinator, sleepMs: Long?, onClo
                 },
             )
         }
-        val sleepAfterCurrent by player.sleepAfterCurrent.collectAsState()
-        val settings = coordinator.graph.settings
-        val lastSleepMinutes by remember(settings) { settings.flow(AppSettings.sleepTimerMinutes) }.collectAsState()
-        SleepTimerButton(
-            sleepMs = sleepMs,
-            afterCurrent = sleepAfterCurrent,
-            lastMinutes = lastSleepMinutes,
-        ) { choice ->
-            when (choice) {
-                is SleepChoice.Timer -> {
-                    player.setSleepTimer(choice.minutes * 60_000L)
-                    scope.launch { settings.put(AppSettings.sleepTimerMinutes, choice.minutes) }
-                }
-                SleepChoice.EndOfTrack -> player.setSleepAfterCurrent(true)
-                SleepChoice.Off -> player.setSleepTimer(null)
-            }
-        }
+        PlayerSleepTimerButton(coordinator, sleepMs)
         qualityChoices(player)?.let { choices ->
             QualityChip(choices.label, choices.options, choices.selectedId) { player.selectVideoQuality(it) }
         }
         PlayerMoreMenu(coordinator)
+    }
+}
+
+/** [SleepTimerButton] driving the player, remembering the last minutes chosen. */
+@Composable
+internal fun PlayerSleepTimerButton(coordinator: PlaybackCoordinator, sleepMs: Long?) {
+    val player = coordinator.player
+    val scope = rememberCoroutineScope()
+    val sleepAfterCurrent by player.sleepAfterCurrent.collectAsState()
+    val settings = coordinator.graph.settings
+    val lastSleepMinutes by remember(settings) { settings.flow(AppSettings.sleepTimerMinutes) }.collectAsState()
+    SleepTimerButton(
+        sleepMs = sleepMs,
+        afterCurrent = sleepAfterCurrent,
+        lastMinutes = lastSleepMinutes,
+    ) { choice ->
+        when (choice) {
+            is SleepChoice.Timer -> {
+                player.setSleepTimer(choice.minutes * 60_000L)
+                scope.launch { settings.put(AppSettings.sleepTimerMinutes, choice.minutes) }
+            }
+            SleepChoice.EndOfTrack -> player.setSleepAfterCurrent(true)
+            SleepChoice.Off -> player.setSleepTimer(null)
+        }
     }
 }
 
@@ -1769,7 +1786,7 @@ private fun SeekBar(player: io.ymusic.player.Player, progress: Progress) {
 }
 
 @Composable
-private fun DurationLabel(
+internal fun DurationLabel(
     player: io.ymusic.player.Player,
     progress: Progress,
     style: TextStyle,
@@ -1793,12 +1810,13 @@ private fun DurationLabel(
 /** The bare slider (3dp [trackColor] track, orange fill + thumb) — SeekBar's core, reused by the
  *  landscape video overlay. */
 @Composable
-private fun SeekSlider(
+internal fun SeekSlider(
     player: io.ymusic.player.Player,
     progress: Progress,
     trackColor: Color,
     bufferedColor: Color = DesignColors.Accent.copy(alpha = 0.35f),
     onScrubMs: ((Long?) -> Unit)? = null,
+    modifier: Modifier = Modifier,
 ) {
     val durationMs = progress.durationMs
     val skipSegments by player.skipSegments.collectAsState()
@@ -1814,7 +1832,7 @@ private fun SeekSlider(
             onScrub = { f -> onScrubMs?.invoke(if (f == null || durationMs <= 0) null else (f * durationMs).toLong()) },
             trackColor = trackColor,
             skipFractions = skipSegmentFractions(skipSegments, durationMs),
-            modifier = Modifier.fillMaxWidth(),
+            modifier = modifier.fillMaxWidth(),
             a11y = seekBarA11y(progress),
         )
     }
@@ -1865,7 +1883,7 @@ private fun Dp.evenPx(): Dp {
 
 /** Media controls and the seek bar stay left-to-right in RTL locales: time runs left to right. */
 @Composable
-private fun MediaLtr(content: @Composable () -> Unit) {
+internal fun MediaLtr(content: @Composable () -> Unit) {
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr, content = content)
 }
 
@@ -2024,23 +2042,9 @@ private fun QueueHeader(
         Box(Modifier.weight(1f))
         ActionIcon(
             if (loopMode == LoopMode.One) Icons.Default.RepeatOne else Icons.Default.Repeat,
-            stringResource(
-                when (loopMode) {
-                    LoopMode.None -> Res.string.cd_repeat_off
-                    LoopMode.All -> Res.string.cd_repeat_all
-                    LoopMode.One -> Res.string.cd_repeat_one
-                },
-            ),
+            stringResource(loopMode.label()),
             tint = if (loopMode != LoopMode.None) DesignColors.Accent else DesignColors.InkSoft,
-            onClick = {
-                player.setLoopMode(
-                    when (loopMode) {
-                        LoopMode.None -> LoopMode.All
-                        LoopMode.All -> LoopMode.One
-                        LoopMode.One -> LoopMode.None
-                    },
-                )
-            },
+            onClick = { player.setLoopMode(loopMode.cycled()) },
         )
         ToggleActionIcon(
             Icons.Default.Shuffle,
@@ -2050,6 +2054,18 @@ private fun QueueHeader(
             onCheckedChange = { player.setShuffle(it) },
         )
     }
+}
+
+internal fun LoopMode.label(): StringResource = when (this) {
+    LoopMode.None -> Res.string.cd_repeat_off
+    LoopMode.All -> Res.string.cd_repeat_all
+    LoopMode.One -> Res.string.cd_repeat_one
+}
+
+internal fun LoopMode.cycled(): LoopMode = when (this) {
+    LoopMode.None -> LoopMode.All
+    LoopMode.All -> LoopMode.One
+    LoopMode.One -> LoopMode.None
 }
 
 @Composable
