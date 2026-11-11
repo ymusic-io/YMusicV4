@@ -145,8 +145,10 @@ class Pager(
             val emptyMessage: String? = null,
             val continuation: String?,
             val loadingMore: Boolean,
-            /** Pull-to-refresh in flight: the list stays on screen, only the pull indicator spins. */
+            /** A keep-content [reload] in flight: the list stays on screen until the new page lands. */
             val refreshing: Boolean = false,
+            /** The chip whose page that reload fetches: the chip spins instead of the pull indicator. */
+            val reloadingChipToken: String? = null,
             /** Search surfaces only: the server's filter submenu (empty elsewhere). */
             val filterGroups: List<io.ymusic.dynamicengine.yt.YtFilterGroup> = emptyList(),
             /** Detail surfaces only (channel / playlist browse). */
@@ -205,15 +207,17 @@ class Pager(
      *  null reloads the surface's default top-of-feed. */
     fun reload(chipToken: String? = null) {
         val source = reloadFetch ?: fetch
-        val current = _state.value as? State.Ready ?: return load(chipToken, source)
-        if (current.refreshing) return
+        val ready = _state.value as? State.Ready ?: return load(chipToken, source)
+        // Another chip takes over a chip reload; a pull, or the same chip again, waits for it.
+        if (ready.refreshing && (chipToken == null || chipToken == ready.reloadingChipToken)) return
+        val current = ready.copy(refreshing = false, reloadingChipToken = null)
         job?.cancel()
         val carryOver = chipToken != null
         val previousChips = if (carryOver) current.chips else emptyList()
         val previousSort = if (carryOver) current.sort else emptyList()
         val previousWrap = carryOver && current.chipsWrap
         val previousFilters = if (carryOver) current.filterGroups else emptyList()
-        _state.value = current.copy(refreshing = true)
+        _state.value = current.copy(refreshing = true, reloadingChipToken = chipToken)
         job = scope.launch {
             _state.value = try {
                 val page = withTimeout(fetchTimeoutMs) { source(chipToken) }
@@ -222,11 +226,11 @@ class Pager(
                 if (e !is TimeoutCancellationException) throw e
                 logger?.log(Logger.Level.WARN, "reload timed out after ${fetchTimeoutMs}ms", e)
                 _errors.tryEmit(TIMEOUT_CODE)
-                current.copy(refreshing = false)
+                current
             } catch (e: Exception) {
                 logger?.captureUnlessEnvironmental(e)
                 _errors.tryEmit(e.errorCode() ?: "E20033")
-                current.copy(refreshing = false)
+                current
             }
         }
     }
@@ -382,7 +386,7 @@ fun FeedList(
             errorCode = null
         }
     }
-    val refreshing = (state as? Pager.State.Ready)?.refreshing == true
+    val refreshing = (state as? Pager.State.Ready)?.let { it.refreshing && it.reloadingChipToken == null } == true
     PullToRefreshFeed(refreshing = refreshing, onRefresh = reload) {
         when (val s = state) {
             is Pager.State.Loading -> Column(modifier) {
@@ -429,8 +433,8 @@ class EmptyAction(val label: String, val onClick: () -> Unit)
 
 /** Touch platforms wrap the feed in Material's pull-to-refresh; desktop reloads via F5/Cmd+R
  *  instead (a mouse can't over-drag a list), so the wrapper is a no-op there. The indicator spins
- *  for any keep-content reload — a pull gesture or a chip tap — but not the first full-screen load
- *  (that state has no list to pull against and shows its own centered spinner). */
+ *  for a pull or F5 reload, not a chip tap (the chip spins) nor the first full-screen load (that
+ *  state has no list to pull against and shows its own centered spinner). */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PullToRefreshFeed(refreshing: Boolean, onRefresh: () -> Unit, content: @Composable () -> Unit) {
@@ -869,7 +873,7 @@ private fun rememberChannelSubscriber(coordinator: PlaybackCoordinator): ((chann
 @Composable
 private fun FeedChips(state: Pager.State.Ready, pager: Pager) {
     if (state.chips.isEmpty() && state.sort.isEmpty()) return
-    // Keep-content reload either way: the list stays put with the pull indicator spinning, so a
+    // Keep-content reload either way: the list stays put with the tapped chip spinning, so a
     // failed chip fetch keeps the current data (error → snackbar) instead of blanking the screen.
     if (state.chipsWrap) {
         androidx.compose.foundation.layout.FlowRow(
@@ -880,7 +884,7 @@ private fun FeedChips(state: Pager.State.Ready, pager: Pager) {
             verticalArrangement = Arrangement.spacedBy(DesignSpacing.Space8),
         ) {
             state.chips.forEach { chip ->
-                FeedChip(chip.title, selected = chip.selected) { pager.reload(chip.token) }
+                FeedChip(chip.title, selected = chip.selected, loading = chip.isReloading(state)) { pager.reload(chip.token) }
             }
             if (state.sort.isNotEmpty()) {
                 FeedSortMenu(state.sort) { token -> pager.reload(token) }
@@ -896,7 +900,7 @@ private fun FeedChips(state: Pager.State.Ready, pager: Pager) {
         horizontalArrangement = Arrangement.spacedBy(DesignSpacing.Space8),
     ) {
         items(state.chips) { chip ->
-            FeedChip(chip.title, selected = chip.selected) { pager.reload(chip.token) }
+            FeedChip(chip.title, selected = chip.selected, loading = chip.isReloading(state)) { pager.reload(chip.token) }
         }
         if (state.sort.isNotEmpty()) {
             item { FeedSortMenu(state.sort) { token -> pager.reload(token) } }
@@ -952,22 +956,31 @@ private fun FeedSortMenu(options: List<YtChip>, modifier: Modifier = Modifier, o
     }
 }
 
+private fun YtChip.isReloading(state: Pager.State.Ready): Boolean =
+    state.refreshing && token != null && token == state.reloadingChipToken
+
 /** One feed filter pill; [onClick] null = a non-interactive label in the same style. [choice] false
- *  when [selected] only emphasizes an action, so screen readers don't call it selected. */
+ *  when [selected] only emphasizes an action, so screen readers don't call it selected. [loading]
+ *  spins after the title while the page it filters to loads. */
 @Composable
-fun FeedChip(title: String, selected: Boolean, choice: Boolean = true, onClick: (() -> Unit)?) {
+fun FeedChip(title: String, selected: Boolean, choice: Boolean = true, loading: Boolean = false, onClick: (() -> Unit)?) {
+    val contentColor = if (selected) Color.White else DesignColors.InkSoft
     ChipTapArea(onClick, selected = selected.takeIf { choice }) { indication ->
-        Text(
-            title,
-            style = TextStyle(fontSize = ChipTextSize, color = if (selected) Color.White else DesignColors.InkSoft),
-            maxLines = 1,
-            modifier = Modifier
+        Row(
+            Modifier
                 .clip(RoundedCornerShape(999.dp))
                 .background(if (selected) DesignColors.Accent else Color.Transparent)
                 .border(1.dp, if (selected) DesignColors.Accent else DesignColors.Outline, RoundedCornerShape(999.dp))
                 .then(indication)
                 .chipPadding(),
-        )
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(DesignSpacing.Space8),
+        ) {
+            Text(title, style = TextStyle(fontSize = ChipTextSize, color = contentColor), maxLines = 1)
+            if (loading) {
+                CircularProgressIndicator(Modifier.size(12.dp), color = contentColor, strokeWidth = 2.dp)
+            }
+        }
     }
 }
 
