@@ -119,6 +119,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
@@ -499,15 +500,20 @@ fun NowPlayingScreen(
  * Without touch, focus must never fall out of Now Playing: when the focused control goes away (Full screen swaps the
  * layout, auto-hidden controls leave composition), a catcher takes focus so keys cannot reach anything else composed.
  * It can take focus only while armed, so it is never a D-pad target otherwise; any key on it brings the controls back
- * and moves focus to the first one.
+ * and moves focus to the first one, or to the seek bar for Left/Right.
  */
 /** The overlay control a [FocusCatcher] hands focus to: play/pause. */
 private val LocalOverlayEntryFocus = staticCompositionLocalOf<FocusRequester?> { null }
+
+/** The video overlay's seek bar, where a [FocusCatcher] sends Left/Right. */
+private val LocalOverlaySeekFocus = staticCompositionLocalOf<FocusRequester?> { null }
 
 @Composable
 private fun FocusCatcher(content: @Composable () -> Unit) {
     val catcher = remember { FocusRequester() }
     val entry = remember { FocusRequester() }
+    val seekBar = remember { FocusRequester() }
+    var enterSeekBar by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     var armed by remember { mutableStateOf(false) }
     var held by remember { mutableStateOf(false) }
@@ -518,6 +524,7 @@ private fun FocusCatcher(content: @Composable () -> Unit) {
         // The controls compose a frame or two after show(); hand focus over once play/pause exists.
         repeat(ENTRY_FOCUS_FRAMES) {
             withFrameNanos { }
+            if (enterSeekBar && seekBar.requestFocus(FocusDirection.Enter)) return@LaunchedEffect
             if (entry.requestFocus(FocusDirection.Enter)) return@LaunchedEffect
         }
     }
@@ -552,13 +559,14 @@ private fun FocusCatcher(content: @Composable () -> Unit) {
                 .onKeyEvent { event ->
                     if (event.type == KeyEventType.KeyDown) {
                         VideoOverlayNative.show()
+                        enterSeekBar = event.key == Key.DirectionLeft || event.key == Key.DirectionRight
                         enterControls++
                     }
                     true
                 }
                 .focusable(),
         )
-        CompositionLocalProvider(LocalOverlayEntryFocus provides entry) { content() }
+        CompositionLocalProvider(LocalOverlayEntryFocus provides entry, LocalOverlaySeekFocus provides seekBar) { content() }
     }
 }
 
@@ -1092,6 +1100,7 @@ private fun BoxScope.VideoOverlayControls(
             trackColor = Color.White.copy(alpha = 0.32f),
             bufferedColor = Color.White.copy(alpha = 0.55f),
             onScrubMs = { scrubMs = it },
+            modifier = LocalOverlaySeekFocus.current?.let { Modifier.focusRequester(it) } ?: Modifier,
         )
     }
 }
@@ -1807,6 +1816,7 @@ internal fun SeekSlider(
     trackColor: Color,
     bufferedColor: Color = DesignColors.Accent.copy(alpha = 0.35f),
     onScrubMs: ((Long?) -> Unit)? = null,
+    modifier: Modifier = Modifier,
 ) {
     val durationMs = progress.durationMs
     val skipSegments by player.skipSegments.collectAsState()
@@ -1822,7 +1832,7 @@ internal fun SeekSlider(
             onScrub = { f -> onScrubMs?.invoke(if (f == null || durationMs <= 0) null else (f * durationMs).toLong()) },
             trackColor = trackColor,
             skipFractions = skipSegmentFractions(skipSegments, durationMs),
-            modifier = Modifier.fillMaxWidth(),
+            modifier = modifier.fillMaxWidth(),
             a11y = seekBarA11y(progress),
         )
     }
