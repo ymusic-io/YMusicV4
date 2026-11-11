@@ -84,7 +84,10 @@ import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
 private const val SearchHistoryKey = "search.history"
-private const val HistoryLimit = 20
+private const val HistoryLimit = 500
+
+/** History rows shown above the live suggestions while typing, so a long history never buries them. */
+private const val TypedHistoryMatches = 5
 
 /**
  * The search layer's retained state — query, mode, results and scroll. Hoisted into the app's
@@ -291,7 +294,7 @@ fun SearchScreen(
                 }
                 else -> {
                     val typed = s.field.text.trim()
-                    val historyMatches = history.filter { it.contains(typed, ignoreCase = true) }
+                    val historyMatches = history.asSequence().filter { it.contains(typed, ignoreCase = true) }.take(TypedHistoryMatches).toList()
                     val newSuggestions = suggestions.filter { suggestion ->
                         historyMatches.none { it.equals(suggestion, ignoreCase = true) }
                     }
