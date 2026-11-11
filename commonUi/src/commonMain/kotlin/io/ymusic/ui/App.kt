@@ -118,6 +118,8 @@ import io.ymusic.dynamicengine.yt.extractTrendingMusicFeed
 import io.ymusic.dynamicengine.yt.getRecommendedFeed
 import io.ymusic.dynamicengine.yt.resolveLink
 import io.ymusic.player.PlayableItem
+import io.ymusic.player.isEnded
+import io.ymusic.player.isPlaying
 import io.ymusic.player.showsVideo
 import io.ymusic.settings.AppSettings
 import io.ymusic.settings.flow
@@ -342,6 +344,8 @@ private fun AppRoot(
         val coordinator = graph.playback
         val inPip by graph.pip.inPip.collectAsState()
         if (inPip) {
+            val pipStatus by graph.player.status.collectAsState()
+            KeepScreenOn(pipStatus.state.isPlaying() && !pipStatus.state.isEnded() && !showsAudioOnly(graph.player))
             Box(Modifier.fillMaxSize().background(Color.Black)) {
                 VideoHole(graph.player, graph.playerSurface, Modifier.fillMaxSize())
             }
