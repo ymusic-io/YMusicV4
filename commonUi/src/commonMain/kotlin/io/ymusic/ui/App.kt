@@ -331,6 +331,12 @@ private val AppLayer.log: kmpcommon.log.Logger?
         is AppLayer.LibrarySearch, is AppLayer.Login, is AppLayer.Verify, is AppLayer.PlaylistDownload -> null
     }
 
+/** Tells the player whether the picture is on screen. */
+@Composable
+private fun PictureHidden(graph: AppGraph, hidden: Boolean) {
+    SideEffect { graph.pip.pictureHidden.value = hidden }
+}
+
 @Composable
 private fun AppRoot(
     graph: AppGraph,
@@ -339,6 +345,10 @@ private fun AppRoot(
     uriFailures: Flow<String>,
     onSection: (AppSection) -> Unit,
 ) {
+    // Set here, not by the branches below: one branch handing over to the other must not flash a hidden picture.
+    DisposableEffect(graph) {
+        onDispose { graph.pip.pictureHidden.value = true }
+    }
     run {
         val scope = rememberCoroutineScope()
         val coordinator = graph.playback
@@ -346,6 +356,7 @@ private fun AppRoot(
         if (inPip) {
             val pipStatus by graph.player.status.collectAsState()
             KeepScreenOn(pipStatus.state.isPlaying() && !pipStatus.state.isEnded() && !showsAudioOnly(graph.player))
+            PictureHidden(graph, hidden = false)
             Box(Modifier.fillMaxSize().background(Color.Black)) {
                 VideoHole(graph.player, graph.playerSurface, Modifier.fillMaxSize())
             }
@@ -891,12 +902,8 @@ private fun AppRoot(
         val quality by graph.player.videoQuality.collectAsState()
         val needsSurface = queue.currentItem is PlayableItem.YtMedia ||
             (queue.currentItem != null && showsVideo(playbackConfig, quality))
-        // Every mini player shows the cover over the hosted surface: only Now Playing (or PiP) shows the picture.
-        val pictureHidden = !nowPlayingOpen && !inPip
-        DisposableEffect(pictureHidden) {
-            graph.pip.pictureHidden.value = pictureHidden
-            onDispose { graph.pip.pictureHidden.value = false }
-        }
+        // Every mini player shows the cover over the hosted surface: only Now Playing (or PiP, above) shows the picture.
+        PictureHidden(graph, hidden = !nowPlayingOpen)
 
         // Without touch, nothing peeks at the shell under Now Playing: drop it so focus can't land behind.
         val shellHidden = nowPlayingOpen && (desktopLayoutHole || !platformUsesTouch)
