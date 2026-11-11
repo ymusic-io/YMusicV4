@@ -4,6 +4,8 @@ import io.ymusic.dynamicengine.verifyBundleSignature
 import io.ymusic.remoteconfig.AppUpdate
 import io.ymusic.remoteconfig.DownloadMismatchException
 import io.ymusic.remoteconfig.downloadResumable
+import io.ymusic.remoteconfig.sha256Of
+import kmpcommon.WorkerThread
 import kmpcommon.log.Logger
 import kmphttp.HttpStatusException
 import kmphttp.KmpHttpClient
@@ -182,10 +184,9 @@ class UpdateService internal constructor(
     private suspend fun follow(release: String) = coroutineScope {
         val update = offer.value?.takeIf { it.trusted && it.update.release == release }?.update ?: return@coroutineScope
         following = Following(release, this)
-        val file = installerFile(update)
-        val downloaded = update.installInApp && withContext(Dispatchers.IO) { file.isFile && sha256Of(file) == update.sha256 }
-        set(release, if (downloaded) Step.Ready(file) else Step.Idle)
-        if (!downloaded && update.installInApp && autoDownload() && selfUpdateBlockedReason == null &&
+        val file = if (update.installInApp) withContext(Dispatchers.IO) { verifiedInstaller(update) } else null
+        set(release, if (file != null) Step.Ready(file) else Step.Idle)
+        if (file == null && update.installInApp && autoDownload() && selfUpdateBlockedReason == null &&
             update.sha256 != autoDownloadFailed()
         ) {
             start(update, auto = true)
@@ -231,7 +232,7 @@ class UpdateService internal constructor(
             if (!claimed) return@launch
             try {
                 val file = withContext(Dispatchers.IO) {
-                    installerFile(update).takeIf { it.isFile && sha256Of(it) == update.sha256 } ?: fetch(update)
+                    verifiedInstaller(update) ?: fetch(update)
                 }
                 set(release, Step.Ready(file))
                 log?.log(Logger.Level.INFO, "update ${update.versionCode} downloaded and verified")
@@ -340,6 +341,12 @@ class UpdateService internal constructor(
 
     private fun installerFile(update: AppUpdate) =
         File(downloadDir, "YMusic-${update.versionCode}.${installer.extension}")
+
+    /** [update]'s installer when it is already downloaded and matches the signed hash. */
+    @WorkerThread
+    private fun verifiedInstaller(update: AppUpdate): File? = installerFile(update).takeIf {
+        it.isFile && sha256Of(FileSystem.SYSTEM, it.toOkioPath()) == update.sha256
+    }
 }
 
 class UpdateVerificationException(message: String) : Exception(message)
