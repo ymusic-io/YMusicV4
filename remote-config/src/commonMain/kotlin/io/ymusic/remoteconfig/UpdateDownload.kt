@@ -92,7 +92,8 @@ suspend fun downloadResumable(
     }
 }
 
-private fun sha256Of(fileSystem: FileSystem, file: Path): String {
+/** Hex SHA-256 of [file], streamed: an installer is a few hundred MB. */
+fun sha256Of(fileSystem: FileSystem, file: Path): String {
     val hashing = HashingSink.sha256(blackholeSink())
     hashing.buffer().use { out -> fileSystem.source(file).use { out.writeAll(it) } }
     return hashing.hash.hex()

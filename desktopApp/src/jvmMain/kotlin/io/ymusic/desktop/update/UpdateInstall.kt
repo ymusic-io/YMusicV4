@@ -12,7 +12,6 @@ import kotlinx.coroutines.withContext
 import org.jetbrains.compose.resources.StringResource
 import java.io.File
 import java.nio.file.Files
-import java.security.MessageDigest
 
 /**
  * Runs a downloaded, verified installer over the running copy. Every platform installs the whole
@@ -205,18 +204,4 @@ private fun exec(vararg command: String): ExecResult {
 private fun run(vararg command: String) {
     val result = exec(*command)
     check(result.exitCode == 0) { "${command.first()} exited ${result.exitCode}: ${result.output.takeLast(2000)}" }
-}
-
-/** SHA-256 of a file, streamed — an installer is a few hundred MB. */
-internal fun sha256Of(file: File): String {
-    val md = MessageDigest.getInstance("SHA-256")
-    file.inputStream().buffered().use { ins ->
-        val buf = ByteArray(1 shl 16)
-        while (true) {
-            val n = ins.read(buf)
-            if (n <= 0) break
-            md.update(buf, 0, n)
-        }
-    }
-    return md.digest().joinToString("") { "%02x".format(it) }
 }
