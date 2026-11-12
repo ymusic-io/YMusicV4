@@ -4,7 +4,8 @@ Module detail for the one-line summary in the root [`AGENTS.md`](../AGENTS.md) â
 
 - **Binding** â€” our own QuickJS binding (vendored Bellard QuickJS, VERSION 2026-06-04, plus marked "YMusic
   patch" sites in `quickjs.c`: V8-shaped `Function.prototype.toString` / `Error.stack` / `eval(TrustedScript)` / error messages,
-  Chrome `Array#join` cycle guard, `JS_NewStringLatin1` for `atob`, and flat-string storage access
+  Chrome `Array#join` cycle guard, `JS_NewStringLatin1` for `atob`, ephemeron marking of weak map
+  values in the cycle collector (`gc_scan`, `js_map_mark`), and flat-string storage access
   for the JSON encoder at the end of the file; re-apply on upgrade) replacing the abandoned quickjs-kt.
   Host extras sit outside the vendor tree: `__nativeFn` (`quickjs_hostfn.c`), WHATWG
   `atob`/`btoa`/`TextEncoder`/`TextDecoder`/`performance` (`quickjs_web.c`), MSE trampolines
