@@ -28,31 +28,30 @@ static int lx_usable(const AVCodecParameters *par)
 
 static AVBufferRef *lx_device_ref(void)
 {
-    AVBufferRef *dev = mse_hwdev_get();
-    return dev ? av_buffer_ref(dev) : NULL;
+    return mse_hwdev_ref();
 }
 
 static VpHw g_hw;
-static pthread_once_t g_once = PTHREAD_ONCE_INIT;
-
-static void lx_init(void)
-{
-    if (!mse_hwdev_get())
-        return;
-    g_hw.name = mse_hwdev_name();
-    g_hw.pix_fmt = mse_hwdev_pix_fmt();
-    g_hw.readback_ok = 1;
-    g_hw.usable = lx_usable;
-    g_hw.decoder = lx_decoder;
-    g_hw.device_ref = lx_device_ref;
-    g_hw.get_format = mse_hwdev_get_format;
-    g_hw.reject = mse_hwdev_mark_failed;
-}
+static pthread_mutex_t g_mu = PTHREAD_MUTEX_INITIALIZER;
 
 const VpHw *vpipe_hw_linux(void)
 {
-    pthread_once(&g_once, lx_init);
-    return g_hw.usable ? &g_hw : NULL;
+    const VpHw *hw = NULL;
+    pthread_mutex_lock(&g_mu);
+    if (mse_hwdev_get()) {
+        g_hw.name = mse_hwdev_name();
+        g_hw.pix_fmt = mse_hwdev_pix_fmt();
+        /* Pictures on the renderer's device are drawn where they are, never read back. */
+        g_hw.readback_ok = !mse_hwdev_shared_generation();
+        g_hw.usable = lx_usable;
+        g_hw.decoder = lx_decoder;
+        g_hw.device_ref = lx_device_ref;
+        g_hw.get_format = mse_hwdev_get_format;
+        g_hw.reject = mse_hwdev_mark_failed;
+        hw = &g_hw;
+    }
+    pthread_mutex_unlock(&g_mu);
+    return hw;
 }
 
 #endif
