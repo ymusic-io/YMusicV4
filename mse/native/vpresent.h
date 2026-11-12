@@ -68,6 +68,45 @@ void vpresent_vt_set_hidden(VPresenter *p, int hidden);
 int vpresent_vt_picture_ok(VPresenter *p);
 void vpresent_vt_resume(VPresenter *p);
 #endif
+#if defined(__linux__) && !defined(__ANDROID__)
+/* Hands every picture as it is to a sink that draws it: a Vulkan image on the renderer's device
+   (mse_hwdev_use_vulkan: zero-copy), or the decoder's 4:2:0 CPU planes. */
+typedef struct VpPicture VpPicture;
+typedef struct {
+    /* Under present_mu. The sink owns `pic`: vp_picture_free, from any thread. */
+    void (*on_picture)(void *user, VpPicture *pic);
+    /* Under present_mu: nothing shows any more. */
+    void (*on_clear)(void *user);
+    /* The presenter is freed: the sink's last call. Not called when the create fails. */
+    void (*release)(void *user);
+    void *user;
+} VpFrameSink;
+VPresenter *vpresent_create_frames(const VpFrameSink *s);
+
+enum { VP_PIC_VULKAN = 1, VP_PIC_NV12 = 2, VP_PIC_I420 = 3, VP_PIC_I420P10 = 4 };
+typedef struct {
+    int kind;
+    /* Visible size. */
+    int width, height;
+    VpColor color;
+    /* VP_PIC_VULKAN: the image's size, VkFormat and device (mse_hwdev_vk_generation). */
+    int coded_width, coded_height;
+    int vk_format;
+    uint64_t generation;
+    /* Planes: plane i's rows are linesize[i] bytes apart. */
+    const uint8_t *data[3];
+    int linesize[3];
+} VpPictureInfo;
+void vp_picture_info(const VpPicture *pic, VpPictureInfo *out);
+/* VP_PIC_VULKAN: locks the image against the decoder. It is in `layout`, and the decoder is done
+   with it once `semaphore` (timeline) reaches `wait_value`. */
+void vp_picture_vk_acquire(VpPicture *pic, uint64_t *image, int32_t *layout, uint64_t *semaphore,
+                           uint64_t *wait_value);
+/* Unlocks it. `submitted`: a queue submission waits for wait_value, signals wait_value + 1 and
+   leaves the image in `layout`. */
+void vp_picture_vk_release(VpPicture *pic, int submitted, int32_t layout);
+void vp_picture_free(VpPicture *pic);
+#endif
 void vpresent_retain(VPresenter *p);
 void vpresent_release(VPresenter *p);
 /* Surface gone: drops it now; later shows are VP_DROPPED. */
