@@ -38,6 +38,10 @@ typedef struct {
     /* Composition presenters: the content's size after the swapchain's matrix, under present_mu
        (and once during the create); changes only with the picture's aspect. */
     void (*on_size)(void *user, int w, int h);
+    /* Composition presenters: a lost device's swapchain was replaced by this one (an
+       IDXGISwapChain1 reference the callee owns, vpresent_d3d11_swapchain_release); under the
+       d3d11 lock, so it must not call the presenter. */
+    void (*on_swapchain)(void *user, void *swapchain);
 } VpSink;
 
 VPresenter *vpresent_create_cpu(const VpSink *s);

@@ -49,7 +49,8 @@ int vp_retain_live(VPresenter *p);
 void vp_fit_size(VPresenter *p, int *w, int *h);
 
 #ifdef _WIN32
-/* mse_d3d11_check_lost: drops every D3D11 presenter's swapchain and turns it CPU. */
+/* mse_d3d11_check_lost: drops every D3D11 presenter's swapchain; HWND presenters turn CPU,
+   composition presenters recreate theirs on a device of their own. */
 void vpresent_d3d11_device_lost(void);
 #endif
 
