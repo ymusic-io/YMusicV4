@@ -63,6 +63,11 @@ typedef struct {
     size_t cap;
     size_t rd;
     size_t bytes;
+    /* Bumped by every change to f/n. f[span_lo..span_hi] is one contiguous run while span_gen
+       matches, so cfb_span, asked on every clock read, walks a run only after a change. */
+    uint64_t gen;
+    uint64_t span_gen;
+    size_t span_lo, span_hi;
 } Cfb;
 
 struct MseAv {
@@ -579,10 +584,14 @@ static int cf_cmp(const void *a, const void *b)
 static void cfb_free(Cfb *b)
 {
     size_t i;
+    uint64_t gen = b->gen;
     for (i = 0; i < b->n; i++)
         free(b->f[i].data);
     free(b->f);
     memset(b, 0, sizeof(*b));
+    /* Never back to a generation a cached span was taken at. */
+    b->gen = gen + 1;
+    b->span_gen = gen;
 }
 
 static int cfb_push(Cfb *b, double pts, double dts, double dur, int key, const uint8_t *p, size_t n)
@@ -611,6 +620,7 @@ static int cfb_push(Cfb *b, double pts, double dts, double dur, int key, const u
     b->f[b->n].n = n;
     b->n++;
     b->bytes += n;
+    b->gen++;
     return 0;
 }
 
@@ -631,6 +641,7 @@ static void cfb_drop(Cfb *b, double start, double end)
         b->f[w++] = b->f[i];
     }
     b->n = w;
+    b->gen++;
     if (b->rd > dropped_before)
         b->rd -= dropped_before;
     else
@@ -693,6 +704,7 @@ static void cfb_drop_fake(Cfb *b)
         b->f[w++] = b->f[i];
     }
     b->n = w;
+    b->gen++;
     if (b->rd > dropped_before)
         b->rd -= dropped_before;
     else
@@ -2879,6 +2891,7 @@ static void keep_coded(MseAv *a, int idx, Cfb *tmp, Cfb *dst, double win_start, 
             cfb_push(dst, kept.f[i].pts, kept.f[i].dts, kept.f[i].dur, kept.f[i].key,
                      kept.f[i].data, kept.f[i].n);
         qsort(dst->f, dst->n, sizeof(Cf), cf_cmp);
+        dst->gen++;
         if (sp) {
             double sent_max = -1e300;
             for (j = 0; j < nsp; j++) {
@@ -3433,6 +3446,7 @@ static void cfb_drop_span(Cfb *b, size_t from, size_t to)
     }
     memmove(&b->f[from], &b->f[to], (b->n - to) * sizeof(Cf));
     b->n -= to - from;
+    b->gen++;
     if (b->rd >= to)
         b->rd -= to - from;
     else if (b->rd > from)
@@ -3530,7 +3544,7 @@ void mse_av_flush(MseAv *a, int audio, int video)
 
 /* The buffered range around `at`: frames apart by up to MSE_SPAN_GAP_S count as one range. 0 when
    no range reaches within MSE_SPAN_EDGE_S of `at`. */
-static int cfb_span(const Cfb *b, double at, double *first, double *last)
+static int cfb_span(Cfb *b, double at, double *first, double *last)
 {
     size_t lo = 0, hi, i, j;
     if (!b->n || b->f[0].pts > at + MSE_SPAN_EDGE_S)
@@ -3543,12 +3557,20 @@ static int cfb_span(const Cfb *b, double at, double *first, double *last)
         else
             hi = mid;
     }
-    for (j = lo; j + 1 < b->n && b->f[j + 1].pts <= b->f[j].pts + b->f[j].dur + MSE_SPAN_GAP_S; j++)
-        ;
+    if (b->span_gen == b->gen && b->span_lo <= lo && lo <= b->span_hi && b->span_hi < b->n) {
+        i = b->span_lo;
+        j = b->span_hi;
+    } else {
+        for (j = lo; j + 1 < b->n && b->f[j + 1].pts <= b->f[j].pts + b->f[j].dur + MSE_SPAN_GAP_S; j++)
+            ;
+        for (i = lo; i > 0 && b->f[i].pts <= b->f[i - 1].pts + b->f[i - 1].dur + MSE_SPAN_GAP_S; i--)
+            ;
+        b->span_lo = i;
+        b->span_hi = j;
+        b->span_gen = b->gen;
+    }
     if (b->f[j].pts + b->f[j].dur + MSE_SPAN_EDGE_S < at)
         return 0;
-    for (i = lo; i > 0 && b->f[i].pts <= b->f[i - 1].pts + b->f[i - 1].dur + MSE_SPAN_GAP_S; i--)
-        ;
     *first = b->f[i].pts;
     *last = b->f[j].pts + b->f[j].dur;
     return 1;
