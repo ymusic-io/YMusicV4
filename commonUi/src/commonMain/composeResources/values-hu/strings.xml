@@ -658,4 +658,6 @@
     <string name="native_blocked">A Windows letiltotta a YMusic egy részét.</string>
     <string name="media_engine_unavailable">A zene és a videók itt nem játszhatók le, de továbbra is böngészhetsz és kereshetsz.</string>
     <string name="native_blocked_help">Munkahelyi vagy iskolai gépen kérd meg a rendszergazdát, hogy engedélyezze a YMusicot. A saját gépeden ellenőrizd a Smart App Control beállítást a Windows biztonságban.</string>
+    <!-- A feed reloading in place (desktop) -->
+    <string name="a11y_refreshing">Frissítés</string>
 </resources>

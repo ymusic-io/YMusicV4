@@ -658,4 +658,6 @@
     <string name="native_blocked">Windows විසින් YMusic හි කොටසක් අවහිර කර ඇත.</string>
     <string name="media_engine_unavailable">මෙහි සංගීතය සහ වීඩියෝ වාදනය කළ නොහැක, නමුත් ඔබට තවමත් පිරික්සීමට සහ සෙවීමට හැකිය.</string>
     <string name="native_blocked_help">කාර්යාල හෝ පාසල් PC එකක, YMusic ට ඉඩ දෙන ලෙස ඔබේ පරිපාලකගෙන් ඉල්ලන්න. ඔබේම PC එකේ, Windows Security හි Smart App Control පරීක්ෂා කරන්න.</string>
+    <!-- A feed reloading in place (desktop) -->
+    <string name="a11y_refreshing">නැවුම් කරමින්</string>
 </resources>

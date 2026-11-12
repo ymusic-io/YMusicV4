@@ -650,4 +650,6 @@
     <string name="native_blocked">Windows telah menyekat sebahagian YMusic.</string>
     <string name="media_engine_unavailable">Muzik dan video tidak boleh dimainkan di sini, tetapi anda masih boleh menyemak imbas dan mencari.</string>
     <string name="native_blocked_help">Pada PC kerja atau sekolah, minta pentadbir anda membenarkan YMusic. Pada PC anda sendiri, semak Smart App Control dalam Windows Security.</string>
+    <!-- A feed reloading in place (desktop) -->
+    <string name="a11y_refreshing">Memuat semula</string>
 </resources>

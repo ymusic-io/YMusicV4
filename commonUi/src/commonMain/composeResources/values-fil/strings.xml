@@ -658,4 +658,6 @@
     <string name="native_blocked">Hinarang ng Windows ang isang bahagi ng YMusic.</string>
     <string name="media_engine_unavailable">Hindi mape-play dito ang musika at mga video, pero puwede ka pa ring mag-browse at maghanap.</string>
     <string name="native_blocked_help">Sa PC sa trabaho o paaralan, hilingin sa administrator na payagan ang YMusic. Sa sarili mong PC, tingnan ang Smart App Control sa Windows Security.</string>
+    <!-- A feed reloading in place (desktop) -->
+    <string name="a11y_refreshing">Nire-refresh</string>
 </resources>

@@ -650,4 +650,6 @@
     <string name="native_blocked">Windows memblokir sebagian YMusic.</string>
     <string name="media_engine_unavailable">Musik dan video tidak dapat diputar di sini, tetapi Anda tetap dapat menjelajah dan mencari.</string>
     <string name="native_blocked_help">Di PC kantor atau sekolah, minta administrator untuk mengizinkan YMusic. Di PC Anda sendiri, periksa Smart App Control di Keamanan Windows.</string>
+    <!-- A feed reloading in place (desktop) -->
+    <string name="a11y_refreshing">Memuat ulang</string>
 </resources>

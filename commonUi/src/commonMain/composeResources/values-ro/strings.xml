@@ -666,4 +666,6 @@
     <string name="native_blocked">Windows a blocat o parte din YMusic.</string>
     <string name="media_engine_unavailable">Muzica și videoclipurile nu pot fi redate aici, dar poți în continuare să răsfoiești și să cauți.</string>
     <string name="native_blocked_help">Pe un PC de la serviciu sau școală, cere administratorului să permită YMusic. Pe PC-ul tău, verifică Smart App Control în Securitate Windows.</string>
+    <!-- A feed reloading in place (desktop) -->
+    <string name="a11y_refreshing">Se reîmprospătează</string>
 </resources>

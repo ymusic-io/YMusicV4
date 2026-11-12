@@ -674,4 +674,6 @@
     <string name="native_blocked">Windows заблокировала часть YMusic.</string>
     <string name="media_engine_unavailable">Здесь нельзя воспроизводить музыку и видео, но вы по-прежнему можете просматривать и искать.</string>
     <string name="native_blocked_help">На рабочем или учебном компьютере попросите администратора разрешить YMusic. На личном компьютере проверьте Smart App Control в разделе «Безопасность Windows».</string>
+    <!-- A feed reloading in place (desktop) -->
+    <string name="a11y_refreshing">Обновление</string>
 </resources>

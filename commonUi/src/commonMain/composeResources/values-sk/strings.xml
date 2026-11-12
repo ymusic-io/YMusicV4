@@ -674,4 +674,6 @@
     <string name="native_blocked">Systém Windows zablokoval časť aplikácie YMusic.</string>
     <string name="media_engine_unavailable">Hudbu a videá tu nemožno prehrávať, ale stále môžete prehliadať a vyhľadávať.</string>
     <string name="native_blocked_help">Na pracovnom alebo školskom počítači požiadajte správcu, aby povolil YMusic. Na vlastnom počítači skontrolujte Smart App Control v Zabezpečení Windows.</string>
+    <!-- A feed reloading in place (desktop) -->
+    <string name="a11y_refreshing">Obnovuje sa</string>
 </resources>

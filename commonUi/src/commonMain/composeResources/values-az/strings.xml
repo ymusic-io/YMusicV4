@@ -658,4 +658,6 @@
     <string name="native_blocked">Windows YMusic-in bir hissəsini blokladı.</string>
     <string name="media_engine_unavailable">Musiqi və videolar burada oxudula bilmir, amma yenə də baxa və axtarış edə bilərsiniz.</string>
     <string name="native_blocked_help">İş və ya məktəb kompüterində administratordan YMusic-ə icazə verməsini xahiş edin. Öz kompüterinizdə Windows Security bölməsində Smart App Control-u yoxlayın.</string>
+    <!-- A feed reloading in place (desktop) -->
+    <string name="a11y_refreshing">Yenilənir</string>
 </resources>

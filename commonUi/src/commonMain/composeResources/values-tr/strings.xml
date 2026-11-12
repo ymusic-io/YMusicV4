@@ -658,4 +658,6 @@
     <string name="native_blocked">Windows, YMusic'in bir bölümünü engelledi.</string>
     <string name="media_engine_unavailable">Müzik ve videolar burada oynatılamıyor ancak göz atmaya ve aramaya devam edebilirsiniz.</string>
     <string name="native_blocked_help">İş veya okul bilgisayarında yöneticinizden YMusic'e izin vermesini isteyin. Kendi bilgisayarınızda Windows Güvenliği'ndeki Akıllı Uygulama Denetimi'ni kontrol edin.</string>
+    <!-- A feed reloading in place (desktop) -->
+    <string name="a11y_refreshing">Yenileniyor</string>
 </resources>

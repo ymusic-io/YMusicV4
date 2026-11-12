@@ -658,4 +658,6 @@
     <string name="native_blocked">Windows એ YMusic નો એક ભાગ બ્લૉક કર્યો છે.</string>
     <string name="media_engine_unavailable">અહીં સંગીત અને વીડિયો ચાલી શકતા નથી, પણ તમે હજી પણ બ્રાઉઝ અને શોધ કરી શકો છો.</string>
     <string name="native_blocked_help">ઑફિસ કે શાળાના PC પર, તમારા ઍડમિનિસ્ટ્રેટરને YMusic ને મંજૂરી આપવા કહો. તમારા પોતાના PC પર, Windows Security માં Smart App Control તપાસો.</string>
+    <!-- A feed reloading in place (desktop) -->
+    <string name="a11y_refreshing">રિફ્રેશ થઈ રહ્યું છે</string>
 </resources>
