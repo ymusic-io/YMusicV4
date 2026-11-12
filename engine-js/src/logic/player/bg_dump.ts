@@ -3,6 +3,7 @@
 
 import { callHost } from "../../protocol/command";
 import { keepCount, scopedCache } from "../../protocol/cache";
+import { RemoteConfig } from "../../protocol/remote_config";
 import { open } from "../../transport";
 import { DESKTOP_UA } from "../yt/session";
 import { onShutdown } from "../../lifecycle";
@@ -10,6 +11,8 @@ import { onShutdown } from "../../lifecycle";
 const SCOPE = "yt.bg.session";
 const KEEP = 4;
 let dump: Pipe | null = null;
+/** Off until the session's minter reads the switch: no dump or E20088 report without it. */
+let dumpEnabled = false;
 let writeChain: Promise<void> = Promise.resolve();
 /** Shutdown acks on this and the runtime is freed right after: work not on it dies mid-flight. */
 let finishing: Promise<void> = Promise.resolve();
@@ -55,6 +58,7 @@ function abandon(pipe: Pipe, e: unknown, what: string): void {
 }
 
 function ensureDump(): Pipe | null {
+  if (!dumpEnabled) return null;
   if (dump) return dump;
   sessionKey = utcStamp();
   try {
@@ -169,8 +173,14 @@ function timeOriginMs(): number {
   return typeof n === "number" ? n : 0;
 }
 
+/** Remote `enable_bg_dump`: false = off, a number N = only player.js revisions >= N, else on. */
+export async function readBotguardDumpSwitch(): Promise<void> {
+  const value = await RemoteConfig.get<boolean | number>("enable_bg_dump", true);
+  dumpEnabled = typeof value === "number" ? BACKEND_VERSION >= value : value !== false;
+}
+
 export function recordBotguardEntropy(): void {
-  if (typeof __bgEntropyDump !== "function") return;
+  if (!dumpEnabled || typeof __bgEntropyDump !== "function") return;
   const ent = __bgEntropyDump();
   if (!(ent instanceof Uint8Array) || !ent.length) return;
   const pipe = ensureDump();
@@ -329,7 +339,7 @@ export function noteSps(sps: number, media: number): void {
   }
   lastSabrUrl = "";
   lastSabrBody = null;
-  if (sps === 1) {
+  if (sps === 1 || !dumpEnabled) {
     finishDump();
   } else {
     // The report waits on the put, and a later mint or entropy read opens the next session's dump.

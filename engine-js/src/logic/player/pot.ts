@@ -16,6 +16,7 @@ import { isAudioOnly, ymQuality } from "./audio_only";
 import { viewportHeight, viewportWidth } from "./viewport";
 import {
   finishBotguardDump,
+  readBotguardDumpSwitch,
   recordBotguardEntropy,
   recordBotguardInit,
   recordBotguardMint,
@@ -147,6 +148,7 @@ async function buildMinter(
   cfg: Record<string, unknown>,
   out: Record<string, unknown>,
 ): Promise<(id: Uint8Array) => unknown> {
+  await readBotguardDumpSwitch();
   const extras = asRec(__bgEntropyStart());
   const host = hostInfo(extras);
   overlayReplay(cfg, extras);
