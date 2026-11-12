@@ -89,6 +89,8 @@ struct MseHost {
     double origin_ns;
     double seek_base;
     double yt_dur;
+    /* dec_loop only: the clock at the last trim_played. */
+    double trimmed_at;
     MseAv *av;
     VPresenter *vp;
 #ifdef __APPLE__
@@ -526,6 +528,22 @@ static void hold_at_playhead(MseHost *h)
     if (h->playing && h->hold < t)
         rebase_hold(h, t);
     pthread_mutex_unlock(&h->mu);
+}
+
+/* Played media this far behind the playhead leaves the buffer, as Shaka's bufferBehind: the quota
+   GC alone keeps everything up to 150 MiB of video. A backward seek past it refetches. */
+#define MSE_KEEP_BEHIND_S 30.0
+#define MSE_TRIM_EVERY_S 5.0
+
+static void trim_played(MseHost *h, double clock)
+{
+    double before = clock - MSE_KEEP_BEHIND_S;
+    if (before <= 0 || (clock >= h->trimmed_at && clock - h->trimmed_at < MSE_TRIM_EVERY_S))
+        return;
+    h->trimmed_at = clock;
+    hold_at_playhead(h);
+    mse_av_evict_before(h->av, 1, before, SIZE_MAX);
+    mse_av_evict_before(h->av, 0, before, SIZE_MAX);
 }
 
 #ifdef MSE_DAC
@@ -1064,6 +1082,7 @@ static void *dec_loop(void *arg)
 #endif
         pthread_mutex_unlock(&h->mu);
         clock = host_clock(h);
+        trim_played(h, clock);
 
 #ifdef MSE_DAC
         /* Own thread: a late 4K GOP must not starve AudioQueue. */
