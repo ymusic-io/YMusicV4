@@ -11,7 +11,7 @@ import { onShutdown } from "../../lifecycle";
 const SCOPE = "yt.bg.session";
 const KEEP = 4;
 let dump: Pipe | null = null;
-/** Off until the session's minter reads the switch: no dump or E20088 report without it. */
+/** Off until the minter reads the switch; when off, E20088 still goes, without the dump. */
 let dumpEnabled = false;
 let writeChain: Promise<void> = Promise.resolve();
 /** Shutdown acks on this and the runtime is freed right after: work not on it dies mid-flight. */
@@ -148,12 +148,12 @@ onShutdown(function () {
 
 function captureReject(sps: number, key: string): Promise<void> {
   return callHost("log/capture", async function (pipe) {
-    let p = pipe.sink.writeObjectAsJson({
-      "code": "E20088",
-      "message": "PO rejected sps=" + sps,
-      "scope": SCOPE,
-      "key": key,
-    });
+    const head: Record<string, unknown> = { "code": "E20088", "message": "PO rejected sps=" + sps };
+    if (key) {
+      head["scope"] = SCOPE;
+      head["key"] = key;
+    }
+    let p = pipe.sink.writeObjectAsJson(head);
     if (p) await p;
     p = pipe.sink.close();
     if (p) await p;
@@ -339,11 +339,11 @@ export function noteSps(sps: number, media: number): void {
   }
   lastSabrUrl = "";
   lastSabrBody = null;
-  if (sps === 1 || !dumpEnabled) {
+  if (sps === 1) {
     finishDump();
   } else {
     // The report waits on the put, and a later mint or entropy read opens the next session's dump.
-    const key = sessionKey;
+    const key = dumpEnabled ? sessionKey : "";
     finishDump(function () {
       return captureReject(sps, key);
     });
