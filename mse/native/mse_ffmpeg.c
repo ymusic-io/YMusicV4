@@ -86,6 +86,10 @@ struct MseAv {
     int v_dead;
     /* Pts of the last packet vpipe took. */
     double v_fed;
+    /* The highest pts fed since the decoder last started at a keyframe, and how far it ran ahead
+       of the pictures coming out: the decoder's output delay (frame threads, reordering). */
+    double v_fed_hi;
+    double v_out_lag;
     SwrContext *swr;
     int swr_rate;
     int swr_ch;
@@ -241,6 +245,7 @@ static void maybe_apply_video_rep(MseAv *a);
 #define MC_OPEN_RETRY_US 300000
 #else
 #define MSE_SEND_AHEAD 0.08
+#define MSE_SEND_AHEAD_MAX 1.0
 #endif
 
 /* Coded frames further apart than this are separate buffered ranges (an old island left behind a seek). */
@@ -266,9 +271,22 @@ static double mc_send_ahead(const MseAv *a)
         ahead = 0.45;
     return ahead;
 #else
-    (void)a;
-    return MSE_SEND_AHEAD;
+    /* Ahead by the decoder's output delay as well, or a deep decoder (frame-threaded dav1d at a
+       low frame rate) hands back every picture late. */
+    double ahead = MSE_SEND_AHEAD + a->v_out_lag;
+    return ahead < MSE_SEND_AHEAD_MAX ? ahead : MSE_SEND_AHEAD_MAX;
 #endif
+}
+
+/* A picture at p came out of the decoder. Rises at once and decays slowly: sending early only
+   parks a picture in vhold, sending late drops it. */
+static void v_note_out(MseAv *a, double p)
+{
+    double lag;
+    if (a->v_fed_hi < 0 || p > a->v_fed_hi)
+        return;
+    lag = a->v_fed_hi - p;
+    a->v_out_lag = lag > a->v_out_lag ? lag : a->v_out_lag * 0.95 + lag * 0.05;
 }
 
 #ifdef __ANDROID__
@@ -2259,6 +2277,7 @@ MseAv *mse_av_create(void)
     pthread_mutex_init(&a->desc_mu, NULL);
     a->a_sent = -1;
     a->v_sent = -1;
+    a->v_fed_hi = -1;
     a->v_switch_pts = -1;
     a->v_err_key = -1;
     a->need_rap[0] = 1;
@@ -4175,11 +4194,13 @@ static int pull_video(MseAv *a, double clock, int *w, int *h, double *pts, VShow
     maybe_apply_video_rep(a);
     while (vf_skip_stale(a, clock))
         ;
-    /* A running MediaCodec takes the next GOP early; only a resync waits. */
+    /* A running decoder takes the next GOP early; only a resync waits. */
     if (a->vf.rd < a->vf.n && coded_is_rap(a, &a->vf.f[a->vf.rd]) &&
         a->vf.f[a->vf.rd].pts > clock + early
 #ifdef __ANDROID__
         && !(a->mc && !a->need_rap[0])
+#else
+        && !(vpipe_is_open(a->vpipe) && !a->need_rap[0])
 #endif
     ) {
         pthread_mutex_unlock(&a->mu);
@@ -4278,6 +4299,8 @@ static int pull_video(MseAv *a, double clock, int *w, int *h, double *pts, VShow
         if (got == 0) {
             double p = frame->pts != AV_NOPTS_VALUE ? frame->pts / 1000.0 : clock;
             double d = p - clock;
+            if (frame->pts != AV_NOPTS_VALUE)
+                v_note_out(a, p);
             if (p > clock + early && frame->pts != AV_NOPTS_VALUE) {
                 if (!a->vhold) {
                     a->vhold = av_frame_alloc();
@@ -4351,7 +4374,7 @@ static int pull_video(MseAv *a, double clock, int *w, int *h, double *pts, VShow
             vlog_starve_empty(a, clock, got);
             break;
         }
-        if (a->vf.f[a->vf.rd].pts > clock + MSE_SEND_AHEAD) {
+        if (a->vf.f[a->vf.rd].pts > clock + mc_send_ahead(a)) {
             vlog_starve_ahead(a, clock, a->vf.rd);
             break;
         }
@@ -4368,9 +4391,13 @@ static int pull_video(MseAv *a, double clock, int *w, int *h, double *pts, VShow
                 continue;
             }
             if (rap) {
+                if (a->need_rap[0])
+                    a->v_fed_hi = sp;
                 a->need_rap[0] = 0;
                 a->v_seen_idr = 1;
             }
+            if (sp > a->v_fed_hi)
+                a->v_fed_hi = sp;
             if (vdbg_ok())
                 vlog("send pts=%.3f rap=%d clock=%.3f", sp, rap, clock);
         }
