@@ -35,12 +35,20 @@ typedef struct {
     /* The presenter is freed: the sink's last call. Not called when the create fails. */
     void (*release)(void *user);
     void *user;
+    /* Composition presenters: the content's size after the swapchain's matrix, under present_mu
+       (and once during the create); changes only with the picture's aspect. */
+    void (*on_size)(void *user, int w, int h);
 } VpSink;
 
 VPresenter *vpresent_create_cpu(const VpSink *s);
 #ifdef _WIN32
 /* A swapchain on the HWND; NULL when D3D11 cannot present there. */
 VPresenter *vpresent_create_d3d11(void *hwnd, const VpSink *s);
+/* Draws into a composition swapchain for the caller to place in a DirectComposition visual (D3D11
+   frames zero-copy); black until the first picture. *swapchain gets an IDXGISwapChain1 reference
+   for vpresent_d3d11_swapchain_release. NULL without D3D11. */
+VPresenter *vpresent_create_d3d11_composition(const VpSink *s, void **swapchain);
+void vpresent_d3d11_swapchain_release(void *swapchain);
 #endif
 #ifdef __APPLE__
 /* Shows into a borrowed AVSampleBufferDisplayLayer (iOS: the Kotlin-owned one); never releases it. */

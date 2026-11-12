@@ -5,7 +5,7 @@
 #include "mse_ffmpeg.h"
 
 #include <d3d11.h>
-#include <dxgi1_2.h>
+#include <dxgi1_3.h>
 #include <d3dcompiler.h>
 
 #include <libavutil/frame.h>
@@ -79,11 +79,18 @@ static struct {
     ID3D11RasterizerState *rast;
 } g_pipe;
 
+/* Composition content height: the swapchain's matrix maps every picture to it, so the content's
+   size changes only with its aspect, never with an ABR resolution switch. */
+#define COMP_HEIGHT 1080
+
 /* Swapchain state; every field under the d3d11 lock. */
 typedef struct D3dPresent {
     struct D3dPresent *next;
     VPresenter *vp;
     HWND hwnd;
+    /* A composition swapchain: no HWND, the buffers follow the picture and DComp scales them. */
+    int comp;
+    int comp_w;
     IDXGISwapChain1 *swap;
     ID3D11RenderTargetView *rtv;
     int bb_w, bb_h;
@@ -156,6 +163,7 @@ static void release_swapchain(D3dPresent *d)
         }
     }
     d->hwnd = NULL;
+    d->comp_w = 0;
     d->bb_w = d->bb_h = 0;
     d->logged_present = 0;
     d->resize_failed = 0;
@@ -624,6 +632,110 @@ done:
     return ok ? 0 : -1;
 }
 
+static IDXGIFactory2 *device_factory(ID3D11Device *dev)
+{
+    IDXGIDevice *dxgiDev = NULL;
+    IDXGIAdapter *adapter = NULL;
+    IDXGIFactory2 *factory = NULL;
+    HRESULT hr = ID3D11Device_QueryInterface(dev, &IID_IDXGIDevice, (void **)&dxgiDev);
+    if (SUCCEEDED(hr))
+        hr = IDXGIDevice_GetAdapter(dxgiDev, &adapter);
+    if (SUCCEEDED(hr))
+        hr = IDXGIAdapter_GetParent(adapter, &IID_IDXGIFactory2, (void **)&factory);
+    if (FAILED(hr))
+        mse_critf(MSE_LOG_WARN, "d3d11 composition factory hr=0x%08lx", (unsigned long)hr);
+    if (adapter) IDXGIAdapter_Release(adapter);
+    if (dxgiDev) IDXGIDevice_Release(dxgiDev);
+    return SUCCEEDED(hr) ? factory : NULL;
+}
+
+/* Maps the w × h buffers to COMP_HEIGHT and reports the content size when its aspect changed. */
+static void comp_scale(D3dPresent *d, int w, int h)
+{
+    IDXGISwapChain2 *swap2 = NULL;
+    DXGI_MATRIX_3X2_F m;
+    int content_w = (int)(((int64_t)w * COMP_HEIGHT + h / 2) / h);
+    HRESULT hr = IDXGISwapChain1_QueryInterface(d->swap, &IID_IDXGISwapChain2, (void **)&swap2);
+    if (SUCCEEDED(hr)) {
+        memset(&m, 0, sizeof(m));
+        m._11 = (float)COMP_HEIGHT / (float)h;
+        m._22 = m._11;
+        hr = IDXGISwapChain2_SetMatrixTransform(swap2, &m);
+        IDXGISwapChain2_Release(swap2);
+    }
+    if (FAILED(hr))
+        present_fail(d, "SetMatrixTransform", hr);
+    if (content_w != d->comp_w) {
+        d->comp_w = content_w;
+        if (d->vp->sink.on_size)
+            d->vp->sink.on_size(d->vp->sink.user, content_w, COMP_HEIGHT);
+    }
+}
+
+static int create_comp_swapchain(D3dPresent *d, ID3D11Device *dev)
+{
+    IDXGIFactory2 *factory = device_factory(dev);
+    ID3D11DeviceContext *ctx = mse_d3d11_context();
+    DXGI_SWAP_CHAIN_DESC1 scd;
+    HRESULT hr;
+    if (!factory)
+        return -1;
+    memset(&scd, 0, sizeof(scd));
+    scd.Width = 16;
+    scd.Height = 9;
+    scd.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+    scd.SampleDesc.Count = 1;
+    scd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+    scd.BufferCount = 2;
+    scd.Scaling = DXGI_SCALING_STRETCH;
+    scd.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+    scd.AlphaMode = DXGI_ALPHA_MODE_IGNORE;
+    hr = IDXGIFactory2_CreateSwapChainForComposition(factory, (IUnknown *)dev, &scd, NULL, &d->swap);
+    if (FAILED(hr)) {
+        scd.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
+        hr = IDXGIFactory2_CreateSwapChainForComposition(factory, (IUnknown *)dev, &scd, NULL,
+                                                         &d->swap);
+    }
+    IDXGIFactory2_Release(factory);
+    if (FAILED(hr)) {
+        mse_critf(MSE_LOG_WARN, "d3d11 CreateSwapChainForComposition hr=0x%08lx", (unsigned long)hr);
+        return -1;
+    }
+    d->bb_w = (int)scd.Width;
+    d->bb_h = (int)scd.Height;
+    if (ensure_backbuffer_rtv(d, dev) != 0)
+        return -1;
+    comp_scale(d, d->bb_w, d->bb_h);
+    clear_backbuffer(d, ctx);
+    hr = IDXGISwapChain1_Present(d->swap, 0, 0);
+    if (FAILED(hr))
+        present_fail(d, "Present", hr);
+    mse_critf(MSE_LOG_INFO, "d3d11 composition swapchain %p", (void *)d->swap);
+    return 0;
+}
+
+/* Composition: the buffers become the picture's size. */
+static void resize_comp(D3dPresent *d, int w, int h)
+{
+    HRESULT hr;
+    if (w == d->bb_w && h == d->bb_h)
+        return;
+    unbind_rtv(d);
+    release_views(d);
+    hr = IDXGISwapChain1_ResizeBuffers(d->swap, 0, (UINT)w, (UINT)h, DXGI_FORMAT_UNKNOWN, 0);
+    if (FAILED(hr)) {
+        if (!d->resize_failed) {
+            d->resize_failed = 1;
+            mse_critf(MSE_LOG_WARN, "d3d11 ResizeBuffers %dx%d hr=0x%08lx", w, h, (unsigned long)hr);
+        }
+        return;
+    }
+    d->bb_w = w;
+    d->bb_h = h;
+    d->resize_failed = 0;
+    comp_scale(d, w, h);
+}
+
 /* Follows the HWND's client rect. */
 static void resize_backbuffer(D3dPresent *d)
 {
@@ -726,8 +838,8 @@ static int d3d_show(VPresenter *p, const AVFrame *f, VpColor c)
         /* Other formats convert to BGRA, at most backbuffer-sized, before the d3d11 lock. */
         int fit_w, fit_h;
         mse_d3d11_lock();
-        fit_w = d->bb_w;
-        fit_h = d->bb_h;
+        fit_w = d->comp ? 0 : d->bb_w;
+        fit_h = d->comp ? 0 : d->bb_h;
         mse_d3d11_unlock();
         if (!p->cpu)
             p->cpu = vp_cpu_create();
@@ -741,7 +853,10 @@ static int d3d_show(VPresenter *p, const AVFrame *f, VpColor c)
         mse_d3d11_unlock();
         return VP_DROPPED;
     }
-    resize_backbuffer(d);
+    if (d->comp)
+        resize_comp(d, ps == PS_BGRA ? bw : src_w, ps == PS_BGRA ? bh : src_h);
+    else
+        resize_backbuffer(d);
     if (ensure_backbuffer_rtv(d, dev) != 0)
         goto out;
     if (tex) {
@@ -774,7 +889,8 @@ static void d3d_flush(VPresenter *p)
         return;
     mse_d3d11_lock();
     if (d->swap) {
-        resize_backbuffer(d);
+        if (!d->comp)
+            resize_backbuffer(d);
         if (ensure_backbuffer_rtv(d, dev) == 0) {
             clear_backbuffer(d, ctx);
             hr = IDXGISwapChain1_Present(d->swap, 1, 0);
@@ -851,6 +967,48 @@ VPresenter *vpresent_create_d3d11(void *hwnd, const VpSink *s)
         return NULL;
     }
     return p;
+}
+
+VPresenter *vpresent_create_d3d11_composition(const VpSink *s, void **swapchain)
+{
+    ID3D11Device *dev = mse_d3d11_device();
+    D3dPresent *d;
+    VPresenter *p;
+    int ok;
+    if (!swapchain || !dev || mse_d3d11_lost())
+        return NULL;
+    d = calloc(1, sizeof(*d));
+    if (!d)
+        return NULL;
+    p = vp_alloc(&k_d3d11_ops, d, s, VP_MODE_GPU);
+    if (!p) {
+        free(d);
+        return NULL;
+    }
+    d->vp = p;
+    d->comp = 1;
+    mse_d3d11_lock();
+    ok = build_pipeline(dev) == 0 && create_comp_swapchain(d, dev) == 0;
+    if (ok) {
+        d->next = g_live;
+        g_live = d;
+        IDXGISwapChain1_AddRef(d->swap);
+        *swapchain = d->swap;
+    } else {
+        release_swapchain(d);
+    }
+    mse_d3d11_unlock();
+    if (!ok) {
+        vp_discard(p);
+        return NULL;
+    }
+    return p;
+}
+
+void vpresent_d3d11_swapchain_release(void *swapchain)
+{
+    if (swapchain)
+        IDXGISwapChain1_Release((IDXGISwapChain1 *)swapchain);
 }
 
 void vpresent_d3d11_device_lost(void)
