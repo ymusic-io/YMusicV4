@@ -83,6 +83,11 @@ int has_suffix(const char *str, const char *suffix)
 
 static void *dbuf_default_realloc(void *opaque, void *ptr, size_t size)
 {
+    /* dbuf_free passes 0: macOS realloc(p, 0) frees p but returns a new minimum-size block */
+    if (size == 0) {
+        free(ptr);
+        return NULL;
+    }
     return realloc(ptr, size);
 }
 
