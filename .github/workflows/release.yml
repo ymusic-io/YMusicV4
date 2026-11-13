@@ -493,6 +493,7 @@ jobs:
         run: |
           set -euo pipefail
           export YMUSIC_V4_DIR="$GITHUB_WORKSPACE/YMusicV4"
+          export FFMPEG_BUILD_DIR="$GITHUB_WORKSPACE/ffmpeg-build"
           if [ -z "${CODESIGN_IDENTITY:-}" ]; then
             tools/bundle-macos.sh --dmg --out "$GITHUB_WORKSPACE/dist"
             exit 0
@@ -647,6 +648,7 @@ jobs:
         run: |
           set -euo pipefail
           export YMUSIC_V4_DIR="$GITHUB_WORKSPACE/YMusicV4"
+          export FFMPEG_BUILD_DIR="$GITHUB_WORKSPACE/ffmpeg-build"
           PATH="$(cygpath -u "$MINGW_HOME")/bin:$PATH" tools/package-windows.sh --setup --out "$GITHUB_WORKSPACE/dist"
 
       - name: Discard secrets
@@ -738,6 +740,7 @@ jobs:
         working-directory: YMusicV4/ymusic-desktop
         run: |
           export YMUSIC_V4_DIR="$GITHUB_WORKSPACE/YMusicV4"
+          export FFMPEG_BUILD_DIR="$GITHUB_WORKSPACE/ffmpeg-build"
           APPIMAGETOOL="$RUNNER_TEMP/appimage/appimagetool" APPIMAGE_RUNTIME="$RUNNER_TEMP/appimage/runtime" \
             tools/package-linux.sh --deb --appimage --out "$GITHUB_WORKSPACE/dist"
 
