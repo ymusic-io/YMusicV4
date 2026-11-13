@@ -49,6 +49,7 @@ import androidx.compose.material.icons.filled.Whatshot
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -72,8 +73,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -321,95 +325,98 @@ fun LibraryScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
                     LibraryTabRow(tab, tabDrag) { tab = it }
                     HorizontalDivider(color = DesignColors.Divider)
                 }
-                CompositionLocalProvider(LocalLibraryReveal provides reveal) {
-                    val openDrawer = LocalOpenNavDrawer.current
-                    SwipeTabSwitcher(
-                        tab,
-                        LibraryTab.entries,
-                        onSelect = { tab = it },
-                        onDragProgress = { tabDrag = it },
-                        leadingEdgeReserve = NavDrawerEdgeReserve,
-                        onLeadingEdgeSwipe = openDrawer,
-                    ) { current ->
-                        tabStateHolder.SaveableStateProvider(current.name) {
-                            when (current) {
-                                // Its songs are already shown in their folder: no "Show in folder".
-                                LibraryTab.Folders -> CompositionLocalProvider(LocalLibraryReveal provides null) {
-                                    FoldersTab(
-                                        store,
-                                        loaded,
-                                        coordinator,
-                                        graph.scanLibraryFolder,
-                                        graph.rescanLibrary,
-                                        scanController,
-                                        revealBucket,
-                                        onRevealHandled = { revealBucket = null },
-                                        downloadLocation = downloadLocation,
-                                        onToggleDownloadLocation = onToggleDownloadLocation,
-                                        settings = graph.settings,
-                                    )
-                                }
-                                LibraryTab.Playlists -> PlaylistsTab(store, graph, loaded, coordinator, graph.playHistory)
-                                LibraryTab.Songs -> if (loaded.songs.isEmpty()) {
-                                    EmptyState(stringResource(Res.string.library_no_songs), onReload = null)
-                                } else {
-                                    val sort = rememberSortState("songs", graph.settings)
-                                    val songs = sort.sort(loaded.songs, songSortOptions)
-                                    SongList(
-                                        songs,
-                                        coordinator,
-                                        header = {
-                                            SortBar(songSortOptions.map { it.label }, sort) {
-                                                LibraryChip(stringResource(Res.string.shuffle_all), selected = false, icon = Icons.Default.Shuffle) {
-                                                    coordinator.playLocal(songs, songs.indices.random(), shuffle = true)
+                Box(Modifier.weight(1f)) {
+                    CompositionLocalProvider(LocalLibraryReveal provides reveal) {
+                        val openDrawer = LocalOpenNavDrawer.current
+                        SwipeTabSwitcher(
+                            tab,
+                            LibraryTab.entries,
+                            onSelect = { tab = it },
+                            onDragProgress = { tabDrag = it },
+                            leadingEdgeReserve = NavDrawerEdgeReserve,
+                            onLeadingEdgeSwipe = openDrawer,
+                        ) { current ->
+                            tabStateHolder.SaveableStateProvider(current.name) {
+                                when (current) {
+                                    // Its songs are already shown in their folder: no "Show in folder".
+                                    LibraryTab.Folders -> CompositionLocalProvider(LocalLibraryReveal provides null) {
+                                        FoldersTab(
+                                            store,
+                                            loaded,
+                                            coordinator,
+                                            graph.scanLibraryFolder,
+                                            graph.rescanLibrary,
+                                            scanController,
+                                            revealBucket,
+                                            onRevealHandled = { revealBucket = null },
+                                            downloadLocation = downloadLocation,
+                                            onToggleDownloadLocation = onToggleDownloadLocation,
+                                            settings = graph.settings,
+                                        )
+                                    }
+                                    LibraryTab.Playlists -> PlaylistsTab(store, graph, loaded, coordinator, graph.playHistory)
+                                    LibraryTab.Songs -> if (loaded.songs.isEmpty()) {
+                                        EmptyState(stringResource(Res.string.library_no_songs), onReload = null)
+                                    } else {
+                                        val sort = rememberSortState("songs", graph.settings)
+                                        val songs = sort.sort(loaded.songs, songSortOptions)
+                                        SongList(
+                                            songs,
+                                            coordinator,
+                                            header = {
+                                                SortBar(songSortOptions.map { it.label }, sort) {
+                                                    LibraryChip(stringResource(Res.string.shuffle_all), selected = false, icon = Icons.Default.Shuffle) {
+                                                        coordinator.playLocal(songs, songs.indices.random(), shuffle = true)
+                                                    }
                                                 }
-                                            }
-                                        },
-                                    )
-                                }
-                                LibraryTab.Artists -> if (loaded.songs.isEmpty()) {
-                                    EmptyState(stringResource(Res.string.library_no_artists), onReload = null)
-                                } else {
-                                    GroupedList(
-                                        loaded.songs,
-                                        Icons.Default.Person,
-                                        stringResource(Res.string.unknown_artist),
-                                        coordinator,
-                                        sortId = "artists",
-                                        settings = graph.settings,
-                                        reveal = revealGroup?.takeIf { it.kind == LibraryGroupKind.Artist },
-                                        onRevealHandled = { revealGroup = null },
-                                    ) { it.artist }
-                                }
-                                LibraryTab.Albums -> if (loaded.songs.isEmpty()) {
-                                    EmptyState(stringResource(Res.string.library_no_albums), onReload = null)
-                                } else {
-                                    GroupedList(
-                                        loaded.songs,
-                                        Icons.Default.Album,
-                                        stringResource(Res.string.unknown_album),
-                                        coordinator,
-                                        sortId = "albums",
-                                        settings = graph.settings,
-                                        reveal = revealGroup?.takeIf { it.kind == LibraryGroupKind.Album },
-                                        onRevealHandled = { revealGroup = null },
-                                    ) { it.album }
-                                }
-                                LibraryTab.Genres -> if (loaded.songs.isEmpty()) {
-                                    EmptyState(stringResource(Res.string.library_no_genres), onReload = null)
-                                } else {
-                                    GroupedList(
-                                        loaded.songs,
-                                        Icons.Default.Category,
-                                        stringResource(Res.string.unknown_genre),
-                                        coordinator,
-                                        sortId = "genres",
-                                        settings = graph.settings,
-                                    ) { it.genre }
+                                            },
+                                        )
+                                    }
+                                    LibraryTab.Artists -> if (loaded.songs.isEmpty()) {
+                                        EmptyState(stringResource(Res.string.library_no_artists), onReload = null)
+                                    } else {
+                                        GroupedList(
+                                            loaded.songs,
+                                            Icons.Default.Person,
+                                            stringResource(Res.string.unknown_artist),
+                                            coordinator,
+                                            sortId = "artists",
+                                            settings = graph.settings,
+                                            reveal = revealGroup?.takeIf { it.kind == LibraryGroupKind.Artist },
+                                            onRevealHandled = { revealGroup = null },
+                                        ) { it.artist }
+                                    }
+                                    LibraryTab.Albums -> if (loaded.songs.isEmpty()) {
+                                        EmptyState(stringResource(Res.string.library_no_albums), onReload = null)
+                                    } else {
+                                        GroupedList(
+                                            loaded.songs,
+                                            Icons.Default.Album,
+                                            stringResource(Res.string.unknown_album),
+                                            coordinator,
+                                            sortId = "albums",
+                                            settings = graph.settings,
+                                            reveal = revealGroup?.takeIf { it.kind == LibraryGroupKind.Album },
+                                            onRevealHandled = { revealGroup = null },
+                                        ) { it.album }
+                                    }
+                                    LibraryTab.Genres -> if (loaded.songs.isEmpty()) {
+                                        EmptyState(stringResource(Res.string.library_no_genres), onReload = null)
+                                    } else {
+                                        GroupedList(
+                                            loaded.songs,
+                                            Icons.Default.Category,
+                                            stringResource(Res.string.unknown_genre),
+                                            coordinator,
+                                            sortId = "genres",
+                                            settings = graph.settings,
+                                        ) { it.genre }
+                                    }
                                 }
                             }
                         }
                     }
+                    ScanProgressLine(scanController, Modifier.align(Alignment.TopCenter))
                 }
             }
         }
@@ -419,14 +426,31 @@ fun LibraryScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
 /** First-open state: nothing indexed yet — just the scan call-to-action. */
 @Composable
 private fun EmptyLibrary(scan: ScanAction?, controller: ScanController?) {
-    CenteredBox {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Text(stringResource(Res.string.library_empty), color = MaterialTheme.colorScheme.onSurfaceVariant)
-            if (scan == null || controller == null) return@Column
-            ScanPill(scan, controller, label = stringResource(Res.string.library_scan_folder))
-            if (controller.running) CircularProgressIndicator(Modifier.size(22.dp))
+    Box(Modifier.fillMaxSize()) {
+        CenteredBox {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Text(stringResource(Res.string.library_empty), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (scan == null || controller == null) return@Column
+                ScanPill(scan, controller, label = stringResource(Res.string.library_scan_folder))
+            }
         }
+        ScanProgressLine(controller, Modifier.align(Alignment.TopCenter))
     }
+}
+
+/** A running scan's progress, shown over the Library on every tab: a thin indeterminate line, as the
+ *  Rust desktop app's. */
+@Composable
+private fun ScanProgressLine(controller: ScanController?, modifier: Modifier = Modifier) {
+    if (controller?.running != true) return
+    val label = stringResource(Res.string.library_scanning)
+    LinearProgressIndicator(
+        modifier = modifier.fillMaxWidth().height(2.dp).semantics { contentDescription = label },
+        color = DesignColors.Accent,
+        trackColor = Color.Transparent,
+        strokeCap = StrokeCap.Butt,
+        gapSize = 0.dp,
+    )
 }
 
 // ---- folders ----
@@ -1473,14 +1497,13 @@ private fun FoldersToolbar(
 
 @Composable
 private fun RescanButton(rescan: ScanAction, controller: ScanController) {
-    if (controller.running) {
-        Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(Modifier.size(20.dp))
-        }
-    } else {
-        ActionIcon(Icons.Default.Refresh, stringResource(Res.string.library_rescan), tint = DesignColors.InkSoft) {
-            controller.start(rescan)
-        }
+    ActionIcon(
+        Icons.Default.Refresh,
+        stringResource(Res.string.library_rescan),
+        tint = DesignColors.InkSoft,
+        enabled = !controller.running,
+    ) {
+        controller.start(rescan)
     }
 }
 
