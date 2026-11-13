@@ -97,6 +97,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -336,21 +337,21 @@ internal fun AppBarRow(content: @Composable RowScope.() -> Unit) {
     )
 }
 
-/** The bar-title text role; [fill] claims the remaining row width (off when inline content follows).
- *  [reserveWidthOf] pads the slot to the widest of these labels so trailing inline content keeps a
- *  fixed position while the title text changes underneath it. */
+/** The bar-title text role, the page's heading; [fill] claims the remaining row width (off when
+ *  inline content follows). [reserveWidthOf] pads the slot to the widest of these labels so trailing
+ *  inline content keeps a fixed position while the title text changes underneath it. */
 @Composable
 internal fun RowScope.AppBarTitle(text: String, fill: Boolean = true, reserveWidthOf: List<String> = emptyList()) {
     val style = TextStyle(fontSize = 17.sp, fontWeight = FontWeight.Bold, color = DesignColors.Ink)
     val modifier = if (fill) Modifier.weight(1f) else Modifier
     if (reserveWidthOf.isEmpty()) {
-        Text(text, style = style, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = modifier)
+        Text(text, style = style, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = modifier.semantics { heading() })
     } else {
         Box(modifier, contentAlignment = Alignment.CenterStart) {
             for (label in reserveWidthOf) {
                 Text(label, style = style, maxLines = 1, modifier = Modifier.alpha(0f).clearAndSetSemantics {})
             }
-            Text(text, style = style, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(text, style = style, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.semantics { heading() })
         }
     }
 }

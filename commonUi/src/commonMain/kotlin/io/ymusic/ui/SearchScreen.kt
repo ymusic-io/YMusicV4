@@ -43,6 +43,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextRange
@@ -440,7 +442,7 @@ private fun FilterDialog(
                         color = DesignColors.InkSecondary,
                         letterSpacing = 0.4.sp,
                     ),
-                    modifier = Modifier.padding(top = 16.dp, bottom = 8.dp),
+                    modifier = Modifier.semantics { heading() }.padding(top = 16.dp, bottom = 8.dp),
                 )
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),

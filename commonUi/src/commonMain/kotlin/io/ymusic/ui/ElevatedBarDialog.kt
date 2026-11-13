@@ -42,6 +42,8 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -127,6 +129,7 @@ fun ElevatedBarDialog(
                                 style = TextStyle(fontSize = 17.sp, fontWeight = FontWeight.Bold, color = DesignColors.Ink),
                                 modifier = Modifier
                                     .weight(1f)
+                                    .semantics { heading() }
                                     .focusRequester(titleFocus)
                                     .onFocusChanged {
                                         if (it.isFocused) titleHadFocus = true else if (titleHadFocus) titleFocusable = false
