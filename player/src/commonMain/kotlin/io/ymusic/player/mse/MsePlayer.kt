@@ -779,6 +779,8 @@ class MsePlayer internal constructor(
         } else if (videoId != loadedVideoId) {
             return
         }
+        // A failed video has no play-head until the next load resets the engine (see applyState).
+        if (_status.value.state is PlaybackState.Error) return
         val durationMs = json.longOrNull("duration") ?: json.longOrNull("durationMs") ?: 0L
         val seekableStartMs = json.longOrNull("seekableStartMs") ?: 0L
         val seekableEndMs = json.longOrNull("seekableEndMs") ?: 0L
@@ -819,6 +821,8 @@ class MsePlayer internal constructor(
         if (state is PlaybackState.Error) {
             loadTimeoutJob?.cancel()
             loadTimeoutJob = null
+            // Its last progress (an unplayable recording's length, say) must not stay up.
+            _progress.value = Progress()
         }
         _status.update { it.copy(state = state, live = live) }
     }
