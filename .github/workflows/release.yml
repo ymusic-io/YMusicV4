@@ -19,6 +19,8 @@ concurrency:
 env:
   # Read by every Gradle run as -PsentryEnvironment.
   ORG_GRADLE_PROJECT_sentryEnvironment: ${{ startsWith(github.ref_name, 'prerelease-') && 'beta' || 'production' }}
+  # The same for the Rust desktop app's cargo builds (ymusic-desktop reads it at compile time).
+  YMUSIC_SENTRY_ENVIRONMENT: ${{ startsWith(github.ref_name, 'prerelease-') && 'beta' || 'production' }}
   # The ffmpeg-build commit the apps link against. Bumping it rebuilds every ffmpeg pack once;
   # otherwise each pack comes from the cache keyed on this ref.
   FFMPEG_BUILD_REPO: ymusic-io/ffmpeg-build
