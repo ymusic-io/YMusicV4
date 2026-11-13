@@ -1,5 +1,6 @@
 package io.ymusic.desktop.update
 
+import io.ymusic.desktop.isWindows
 import io.ymusic.remoteconfig.AppUpdate
 import io.ymusic.ui.resources.Res
 import io.ymusic.ui.resources.update_blocked_folder_read_only
@@ -26,10 +27,11 @@ internal interface Installer {
     val blockedReason: StringResource?
 
     /**
-     * Install [file], already checked against [update]'s signed hash. True: the new version is
+     * Install [file], already checked against [update]'s signed hash. [beforeRelaunch] runs once the
+     * install is certain to go ahead, before the new version can start. True: the new version is
      * starting and this process must exit now. False: the user declined the admin prompt.
      */
-    suspend fun install(file: File, update: AppUpdate): Boolean
+    suspend fun install(file: File, update: AppUpdate, beforeRelaunch: () -> Unit): Boolean
 }
 
 /** `macos-arm64`, `windows-x64`, `linux-x64`: the key the config service publishes releases by. */
@@ -65,7 +67,7 @@ internal class MacDmgInstaller(private val bundle: File?) : Installer {
             else -> null
         }
 
-    override suspend fun install(file: File, update: AppUpdate): Boolean = withContext(Dispatchers.IO) {
+    override suspend fun install(file: File, update: AppUpdate, beforeRelaunch: () -> Unit): Boolean = withContext(Dispatchers.IO) {
         val bundle = checkNotNull(bundle) { NOT_INSTALLED }
         // Same volume as the install, so the exchange is one rename.
         val staged = File(bundle.parentFile, ".${bundle.name}.new-${update.versionCode}")
@@ -93,8 +95,9 @@ internal class MacDmgInstaller(private val bundle: File?) : Installer {
             throw error
         }
         staged.deleteRecursively() // now the superseded version
+        beforeRelaunch()
         // `open -n`: the new app must not be a child that dies with this process.
-        ProcessBuilder("open", "-n", bundle.path).start()
+        startDetached("open", "-n", bundle.path)
         true
     }
 
@@ -116,7 +119,7 @@ internal class WindowsSetupInstaller(private val launcher: File?) : Installer {
 
     override val blockedReason: StringResource? get() = if (launcher == null) Res.string.update_blocked_not_installed else null
 
-    override suspend fun install(file: File, update: AppUpdate): Boolean = withContext(Dispatchers.IO) {
+    override suspend fun install(file: File, update: AppUpdate, beforeRelaunch: () -> Unit): Boolean = withContext(Dispatchers.IO) {
         val launcher = checkNotNull(launcher) { NOT_INSTALLED }
         val script = File(file.parentFile, "install-update.ps1")
         script.writeText(
@@ -130,13 +133,15 @@ internal class WindowsSetupInstaller(private val launcher: File?) : Installer {
             Start-Process -FilePath ${'$'}Launcher
             """.trimIndent(),
         )
-        ProcessBuilder(
+        startDetached(
             "powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
             "-WindowStyle", "Hidden", "-File", script.path,
             "-WaitPid", ProcessHandle.current().pid().toString(),
             "-Setup", file.path,
             "-Launcher", launcher.path,
-        ).start()
+        )
+        // The step waits for this process to exit, so nothing starts before the hook has run.
+        beforeRelaunch()
         true
     }
 }
@@ -153,7 +158,7 @@ internal class LinuxDebInstaller(private val launcher: File?) : Installer {
             else -> null
         }
 
-    override suspend fun install(file: File, update: AppUpdate): Boolean = withContext(Dispatchers.IO) {
+    override suspend fun install(file: File, update: AppUpdate, beforeRelaunch: () -> Unit): Boolean = withContext(Dispatchers.IO) {
         val launcher = checkNotNull(launcher) { NOT_INSTALLED }
         // Wait for a background updater (PackageKit, unattended-upgrades) to release the dpkg lock
         // instead of failing at once; an apt without the option ignores it.
@@ -167,7 +172,8 @@ internal class LinuxDebInstaller(private val launcher: File?) : Installer {
             if ("Could not get lock" in result.output) throw PackageManagerBusyException(failure)
             error(failure)
         }
-        ProcessBuilder(launcher.path).start()
+        beforeRelaunch()
+        startDetached(launcher.path)
         true
     }
 
@@ -194,6 +200,15 @@ internal class LinuxDebInstaller(private val launcher: File?) : Installer {
 internal class PackageManagerBusyException(message: String) : Exception(message)
 
 private class ExecResult(val exitCode: Int, val output: String)
+
+/** Starts [command] on none of this process's pipes: it outlives this process, whose pipes close as it exits. */
+private fun startDetached(vararg command: String) {
+    ProcessBuilder(*command)
+        .redirectInput(ProcessBuilder.Redirect.from(File(if (isWindows) "NUL" else "/dev/null")))
+        .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+        .redirectError(ProcessBuilder.Redirect.DISCARD)
+        .start()
+}
 
 private fun exec(vararg command: String): ExecResult {
     val process = ProcessBuilder(*command).redirectErrorStream(true).start()
