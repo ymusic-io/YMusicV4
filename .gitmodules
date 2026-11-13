@@ -1,0 +1,3 @@
+[submodule "ymusic-desktop"]
+	path = ymusic-desktop
+	url = https://github.com/ymusic-io/ymusic-desktop.git
