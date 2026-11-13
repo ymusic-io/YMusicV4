@@ -37,7 +37,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -270,6 +273,7 @@ fun CookieSignInScreen(
                             }
                         }
                         val sas = offer?.takeUnless { qrEnded }?.let { deviceLinkSas(it.key) }
+                        val sasHint = stringResource(Res.string.signin_qr_sas_hint)
                         Column(
                             Modifier.fillMaxWidth(),
                             horizontalAlignment = Alignment.CenterHorizontally,
@@ -285,9 +289,18 @@ fun CookieSignInScreen(
                                     color = if (sas != null) DesignColors.Ink else Color.Transparent,
                                 ),
                                 textAlign = TextAlign.Center,
+                                // Announced with its hint when it appears; the blank placeholder only holds the room.
+                                modifier = if (sas != null) {
+                                    Modifier.semantics {
+                                        contentDescription = "$sas. $sasHint"
+                                        liveRegion = LiveRegionMode.Polite
+                                    }
+                                } else {
+                                    Modifier.clearAndSetSemantics {}
+                                },
                             )
                             Text(
-                                stringResource(Res.string.signin_qr_sas_hint),
+                                sasHint,
                                 style = TextStyle(fontSize = 13.sp, color = DesignColors.InkMuted),
                                 textAlign = TextAlign.Center,
                             )
@@ -301,13 +314,13 @@ fun CookieSignInScreen(
                                     offerError!!,
                                     style = TextStyle(fontSize = 13.sp, color = MaterialTheme.colorScheme.error),
                                     textAlign = TextAlign.Center,
-                                    modifier = Modifier.fillMaxWidth(),
+                                    modifier = Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Assertive },
                                 )
                                 pasteError != null -> Text(
                                     pasteError!!,
                                     style = TextStyle(fontSize = 13.sp, color = MaterialTheme.colorScheme.error),
                                     textAlign = TextAlign.Center,
-                                    modifier = Modifier.fillMaxWidth(),
+                                    modifier = Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Assertive },
                                 )
                                 !finished && !importing -> Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -321,6 +334,7 @@ fun CookieSignInScreen(
                                     Text(
                                         stringResource(Res.string.signin_qr_waiting),
                                         style = TextStyle(fontSize = 13.sp, color = DesignColors.InkMuted),
+                                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                                     )
                                 }
                             }
