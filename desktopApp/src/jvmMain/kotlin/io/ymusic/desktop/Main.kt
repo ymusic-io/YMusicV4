@@ -815,13 +815,6 @@ fun main(args: Array<String>) {
                     windowVisible = true
                     miniOpen = false
                 },
-                onDismiss = {
-                    // End the listening session: the queue clears (which retires the tray icon),
-                    // and with no window left the app exits; an open window keeps running.
-                    miniOpen = false
-                    g.player.clearQueue()
-                    if (!windowVisible) quit()
-                },
                 onClose = { miniOpen = false },
             )
         }
