@@ -316,6 +316,14 @@ fun main(args: Array<String>) {
     } else {
         null
     }
+
+    fun stopInstanceListening() {
+        try {
+            instance?.stopListening()
+        } catch (e: java.io.IOException) {
+            rootLogger.fork("instance").log(Logger.Level.WARN, "instance stop listening failed", e)
+        }
+    }
     IncomingFiles.open(launchFiles)
     useBundledMseNatives()
     QuickJsRuntime.hostVersions = hostVersions()
@@ -423,11 +431,7 @@ fun main(args: Array<String>) {
             if (!frame.fullscreen) {
                 saveWindowPrefs(frame.persistSize(), frame.persistPosition())
             }
-            try {
-                instance?.stopListening()
-            } catch (e: java.io.IOException) {
-                rootLogger.fork("instance").log(Logger.Level.WARN, "instance stop listening failed", e)
-            }
+            stopInstanceListening()
             windowVisible = false
             graph?.player?.clearQueue()
             quitScope.launch {
@@ -679,7 +683,7 @@ fun main(args: Array<String>) {
                         val log = rootLogger.fork("boot")
                         try {
                             val session = open() ?: return
-                            graph = buildGraph(settings, session, mediaProblem)
+                            graph = buildGraph(settings, session, mediaProblem, beforeRelaunch = ::stopInstanceListening)
                         } catch (c: kotlinx.coroutines.CancellationException) {
                             throw c // the effect was disposed — not a boot failure
                         } catch (t: Throwable) {
@@ -824,7 +828,12 @@ fun main(args: Array<String>) {
     }
 }
 
-private suspend fun buildGraph(settings: AppStoreSettings, session: CookieSession, mediaProblem: NativeLoadProblem?): AppGraph {
+private suspend fun buildGraph(
+    settings: AppStoreSettings,
+    session: CookieSession,
+    mediaProblem: NativeLoadProblem?,
+    beforeRelaunch: () -> Unit,
+): AppGraph {
     val dataDir = ymusicDataDir().apply { mkdirs() }
     // File-backed jar for YouTube (engine cookie/get|set + player + proxy) and the YMusic API.
     // Desktop has no WebView cookie store: sign-in imports cookies from a phone QR or a browser paste.
@@ -1134,6 +1143,7 @@ private suspend fun buildGraph(settings: AppStoreSettings, session: CookieSessio
             updateScope,
             freshConfig = { remoteConfig.awaitFresh(timeoutMs = 3_000L) },
             downloadSite = { remoteConfig.config.value.features.downloadPageUrl },
+            beforeRelaunch = beforeRelaunch,
         )
     } else {
         null

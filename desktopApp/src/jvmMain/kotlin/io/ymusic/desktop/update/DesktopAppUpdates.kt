@@ -26,6 +26,8 @@ class DesktopAppUpdates(
     private val freshConfig: suspend () -> RemoteConfigData?,
     /** The config's official download site, if it names one. */
     private val downloadSite: () -> String?,
+    /** Stops single-instance hand-offs: the new version must wait for this process to exit, not hand its launch to it. */
+    private val beforeRelaunch: () -> Unit,
 ) : AppUpdates {
 
     private val _status = MutableStateFlow<AppUpdateStatus>(AppUpdateStatus.None)
@@ -71,6 +73,6 @@ class DesktopAppUpdates(
     override fun installAndRestart() {
         // The new version is already starting; this process must go, or two copies fight over
         // the data dir — and on Windows the installer waits for it.
-        scope.launch { if (service.install()) exitProcess(0) }
+        scope.launch { if (service.install(beforeRelaunch)) exitProcess(0) }
     }
 }
