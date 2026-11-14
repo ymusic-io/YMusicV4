@@ -1,6 +1,7 @@
 package io.ymusic.telemetry
 
 import io.sentry.kotlin.multiplatform.Sentry
+import io.sentry.kotlin.multiplatform.protocol.User
 import io.ymusic.remoteconfig.RemoteConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -15,6 +16,8 @@ private var remoteTags: Map<String, String> = emptyMap()
  *  sessions, "how many devices" triage). No-op until Sentry.init ran. */
 fun installSentryDeviceId(id: String) {
     Sentry.configureScope { scope ->
+        // Sentry's user counts must match the dashboard's active devices, which are keyed by this id.
+        scope.user = User(id = id)
         scope.setContext("DEVICE_ID", id)
         // A tag too: contexts aren't searchable, and a user quotes this id on GitHub or by email.
         scope.setTag(DEVICE_ID_TAG, id)
