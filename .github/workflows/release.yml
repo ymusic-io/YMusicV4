@@ -5,9 +5,11 @@ name: release
 # compat check as well as the builds.
 # A prerelease-v* tag is a test build: the same full set of artifacts in a draft prerelease, no
 # CHANGELOG section in its notes, and Sentry environment "beta".
+# A push to a ci/* branch runs every build and test with Sentry environment "beta" and makes no release.
 on:
   push:
     tags: ['release-*', 'prerelease-*']
+    branches: ['ci/**']
 
 permissions:
   contents: read
@@ -18,9 +20,9 @@ concurrency:
 
 env:
   # Read by every Gradle run as -PsentryEnvironment.
-  ORG_GRADLE_PROJECT_sentryEnvironment: ${{ startsWith(github.ref_name, 'prerelease-') && 'beta' || 'production' }}
+  ORG_GRADLE_PROJECT_sentryEnvironment: ${{ startsWith(github.ref, 'refs/tags/release-') && 'production' || 'beta' }}
   # The same for the Rust desktop app's cargo builds (ymusic-desktop reads it at compile time).
-  YMUSIC_SENTRY_ENVIRONMENT: ${{ startsWith(github.ref_name, 'prerelease-') && 'beta' || 'production' }}
+  YMUSIC_SENTRY_ENVIRONMENT: ${{ startsWith(github.ref, 'refs/tags/release-') && 'production' || 'beta' }}
   # The Rust desktop build fails without its release keys (update key, Sentry DSN, config service):
   # a build without the update key could never update itself again.
   YMUSIC_REQUIRE_SECRETS: '1'
@@ -887,6 +889,7 @@ jobs:
   # reviewed and published by hand.
   release:
     needs: [android, macos, windows, linux, test, compat]
+    if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-24.04
     env:
       # Only whether secrets.enc can be opened: the passphrase itself goes to the Restore secrets step alone.
