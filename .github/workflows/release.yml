@@ -21,6 +21,9 @@ env:
   ORG_GRADLE_PROJECT_sentryEnvironment: ${{ startsWith(github.ref_name, 'prerelease-') && 'beta' || 'production' }}
   # The same for the Rust desktop app's cargo builds (ymusic-desktop reads it at compile time).
   YMUSIC_SENTRY_ENVIRONMENT: ${{ startsWith(github.ref_name, 'prerelease-') && 'beta' || 'production' }}
+  # The Rust desktop build fails without its release keys (update key, Sentry DSN, config service):
+  # a build without the update key could never update itself again.
+  YMUSIC_REQUIRE_SECRETS: '1'
   # The ffmpeg-build commit the apps link against. Bumping it rebuilds every ffmpeg pack once;
   # otherwise each pack comes from the cache keyed on this ref.
   FFMPEG_BUILD_REPO: ymusic-io/ffmpeg-build
@@ -378,9 +381,9 @@ jobs:
   # development only). It builds against this checkout (YMUSIC_V4_DIR: C sources, strings, icons,
   # the version line) and ../ffmpeg-build, as on a developer machine.
   #
-  # The DMG. With the Developer ID (MACOS_CERT_P12) it is the shipped bundle (--release: the JVM
-  # app's bundle id, which its updater and Keychain item follow, hardened runtime, notarized with
-  # secrets.enc's mac.notarization.*); without it, an ad-hoc signed DMG of the dev bundle.
+  # The DMG: the shipped bundle (--release: the JVM app's bundle id, which its updater and Keychain
+  # item follow, the Developer ID from MACOS_CERT_P12, hardened runtime, notarized with secrets.enc's
+  # mac.notarization.*). Any of them missing fails the job.
   macos:
     name: macos ${{ matrix.slug }}
     needs: [engine-js, ffmpeg-macos]
@@ -423,8 +426,7 @@ jobs:
           restore-keys: cargo-${{ matrix.slug }}-
 
       # secrets.enc → secrets.properties + signing/; the Rust build reads its keys from
-      # secret.properties. Without SECRETS_PASSPHRASE it builds on its defaults: embedded bundles, no
-      # service, no self-update, no Sentry.
+      # secret.properties and fails without them (YMUSIC_REQUIRE_SECRETS).
       - name: Restore secrets
         if: env.HAS_SECRETS == 'true'
         working-directory: YMusicV4
@@ -438,7 +440,7 @@ jobs:
       #   MACOS_CERT_P12       Developer ID .p12, base64:  base64 -i cert.p12 | pbcopy
       #   MACOS_CERT_PASSWORD  its export password
       # The identity goes into a throwaway keychain, and its name becomes CODESIGN_IDENTITY for the
-      # bundle script. Without the secret CODESIGN_IDENTITY stays unset: ad-hoc signed.
+      # bundle script.
       - name: Import signing identity
         env:
           MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
@@ -446,8 +448,8 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "$MACOS_CERT_P12" ]; then
-            echo "no signing identity: the DMG will hold an ad-hoc signed dev bundle"
-            exit 0
+            echo "no MACOS_CERT_P12: the 4.0.x updater installs only a DMG signed by the YMusic team" >&2
+            exit 1
           fi
           KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
           KEYCHAIN_PASSWORD="$(uuidgen)"
@@ -494,10 +496,6 @@ jobs:
           set -euo pipefail
           export YMUSIC_V4_DIR="$GITHUB_WORKSPACE/YMusicV4"
           export FFMPEG_BUILD_DIR="$GITHUB_WORKSPACE/ffmpeg-build"
-          if [ -z "${CODESIGN_IDENTITY:-}" ]; then
-            tools/bundle-macos.sh --dmg --out "$GITHUB_WORKSPACE/dist"
-            exit 0
-          fi
           property() { sed -n "s/^$1=//p" "$YMUSIC_V4_DIR/secrets.properties" 2>/dev/null | head -n 1; }
           YMUSIC_MAC_APPLE_ID="$(property mac.notarization.appleId)" \
           YMUSIC_MAC_APPLE_PASSWORD="$(property mac.notarization.password)" \
