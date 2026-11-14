@@ -40,6 +40,9 @@ env:
   RUST_TOOLCHAIN: 1.99.1
   APPIMAGETOOL_VERSION: '1.9.1'
   APPIMAGE_RUNTIME_VERSION: '20251108'
+  # The sentry-cli the release job uploads the desktop debug files with, checked by SHA-256.
+  SENTRY_CLI_VERSION: '3.8.2'
+  SENTRY_CLI_SHA256: c958865f9d4000183509ea21b1f04925d5390de6d8d87386b9e69f2b305070c3
 
 jobs:
   # The checkouts sit side by side (YMusicV4/ + ffmpeg-build/): the Gradle and desktop builds read
@@ -513,6 +516,11 @@ jobs:
           name: ${{ matrix.slug }}-dmg
           path: dist/*.dmg
           if-no-files-found: error
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ${{ matrix.slug }}-debug
+          path: dist/debug
+          if-no-files-found: error
 
   # The Inno Setup installer (YMusic-<version>-windows-<x64|arm64>-setup.exe), unsigned. x86_64 on
   # the windows-gnu Rust host with MSYS2's MinGW gcc; arm64 on the aarch64-pc-windows-gnullvm host
@@ -753,6 +761,11 @@ jobs:
             dist/*.deb
             dist/*.AppImage
           if-no-files-found: error
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ${{ matrix.slug }}-debug
+          path: dist/debug
+          if-no-files-found: error
 
   # Every module's JVM tests; JUnit aborts any test past 30 s (root build.gradle.kts).
   test:
@@ -925,6 +938,24 @@ jobs:
         env:
           SECRETS_PASSPHRASE: ${{ secrets.SECRETS_PASSPHRASE }}
         run: ./decrypt.sh
+
+      # The Rust desktop app's macOS dSYMs and unstripped Linux binaries (its packaging scripts'
+      # <out>/debug), so its panic frames symbolicate with file:line. Windows has none yet.
+      - name: Upload the desktop debug files to Sentry
+        env:
+          SENTRY_ORG: na-6d
+          SENTRY_PROJECT: ymusic-kmp
+        run: |
+          set -euo pipefail
+          token="$(sed -n 's/^sentry\.auth\.token=//p' YMusicV4/secrets.properties 2>/dev/null | head -n 1)"
+          [ -n "$token" ] || { echo "no sentry.auth.token in secrets.properties" >&2; exit 1; }
+          echo "::add-mask::$token"
+          cli="$RUNNER_TEMP/sentry-cli"
+          curl -fsSL --retry 3 -o "$cli" "https://github.com/getsentry/sentry-cli/releases/download/$SENTRY_CLI_VERSION/sentry-cli-Linux-x86_64"
+          echo "$SENTRY_CLI_SHA256  $cli" | sha256sum -c -
+          chmod +x "$cli"
+          SENTRY_AUTH_TOKEN="$token" "$cli" debug-files upload --type dsym --type elf \
+            artifacts/macos-arm64-debug artifacts/macos-x86_64-debug artifacts/linux-x86_64-debug artifacts/linux-arm64-debug
 
       - name: Build the update config
         env:
