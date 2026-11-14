@@ -19,7 +19,8 @@ import { installFetch } from "../yt/fetch";
 import { executeWithCookies } from "../yt/cookies";
 import { HttpRequest } from "../../protocol/http";
 import { utf8Encode } from "../../transport";
-import { minterFromConfig } from "./pot";
+import { minterFromConfig, remint } from "./pot";
+import { setRemintHook } from "./bg_dump";
 import { installPlayerAdStrip } from "./skip_ads";
 import { installSabrIntercept } from "../yt/sabr_http";
 import { installAdaptiveFormatsHeader } from "../yt/sabr_af";
@@ -538,9 +539,11 @@ function baseJsHead(res: HttpResponse): string {
   );
 }
 
-async function fetchPlayerConfig(): Promise<Record<string, unknown>> {
+async function fetchPlayerConfig(
+  fresh: boolean = freshPlayerConfig,
+): Promise<Record<string, unknown>> {
   return callMain("get_player_config", async (pipe) => {
-    const w = pipe.sink.writeObjectAsJson(freshPlayerConfig ? { "maxAge": 0 } : {});
+    const w = pipe.sink.writeObjectAsJson(fresh ? { "maxAge": 0 } : {});
     if (w) await w;
     const c = pipe.sink.close();
     if (c) await c;
@@ -733,6 +736,11 @@ class Player {
     const out: Record<string, unknown> = { "step": "minter" };
     applyChromeShapes();
     this.mintFn = await initStep(minterFromConfig(cfg, out), "botguard", "E20156");
+    setRemintHook(function () {
+      return remint(function () {
+        return fetchPlayerConfig(true);
+      });
+    });
     endLayoutProbes();
     const self = this;
     installCaptionMinter(function (id: string) {

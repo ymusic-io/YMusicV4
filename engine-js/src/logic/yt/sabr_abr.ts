@@ -13,10 +13,13 @@ const INITIALIZED_FORMAT_IDS = 2;
 const BUFFERED_RANGES = 3;
 const PLAYABLE_AUDIO_FORMAT_IDS = 16;
 const PLAYABLE_VIDEO_FORMAT_IDS = 17;
+const STREAMER_CONTEXT = 19;
+const STREAMER_CONTEXT_PO_TOKEN = 2;
 
 import { debug } from "../../debug";
 import { isAudioOnly } from "../player/audio_only";
 import { ITAG_144P, is144pItag, pickFake144 } from "../player/itag_144";
+import { remintedPoToken } from "../player/pot";
 import type { Fake144Row } from "../player/itag_144";
 import { isYmLive, playingVideoId } from "../player/live";
 import { videoIdForSabrUrl } from "../player/player_res";
@@ -488,6 +491,24 @@ function bestPlayableAudioItag(fs: Field[]): number {
   return best >= 0 ? AUDIO_ITAG_RANK[best]! : -1;
 }
 
+/** The streamer context with its PO token swapped for the re-minted one; null when nothing was
+ *  re-minted. base.js keeps sending the token it minted before the re-mint. */
+function withRemintedPoToken(context: Uint8Array, videoId: string): Uint8Array | null {
+  const token = remintedPoToken(videoId);
+  const fields = token ? readFields(context) : null;
+  if (!token || !fields) return null;
+  const out: Field[] = [];
+  for (let i = 0; i < fields.length; i++) {
+    const f = fields[i]!;
+    out.push(
+      f.field === STREAMER_CONTEXT_PO_TOKEN && f.wire === 2
+        ? { field: f.field, wire: 2, value: token }
+        : f,
+    );
+  }
+  return writeFields(out);
+}
+
 function rewriteAbr(
   u: Uint8Array,
   videoId: string,
@@ -542,6 +563,14 @@ function rewriteAbr(
         has144Buffered = true;
         const end = r.startMs + r.durationMs;
         if (end > buffered144End) buffered144End = end;
+        stripped = true;
+        continue;
+      }
+    }
+    if (f.field === STREAMER_CONTEXT && f.wire === 2 && f.value instanceof Uint8Array) {
+      const context = withRemintedPoToken(f.value, videoId);
+      if (context) {
+        out.push({ field: STREAMER_CONTEXT, wire: 2, value: context });
         stripped = true;
         continue;
       }
