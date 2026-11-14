@@ -932,7 +932,7 @@ static int d3d_show(VPresenter *p, const AVFrame *f, VpColor c)
     }
 
     mse_d3d11_lock();
-    if (d->comp && !d->swap && mse_d3d11_lost())
+    if (d->comp && (d->own_dev ? dev_lost(d) : (!d->swap && mse_d3d11_lost())))
         comp_recover(d);
     dev = dev_of(d);
     ctx = ctx_of(d);
