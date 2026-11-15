@@ -1,81 +1,51 @@
 # desktopRust
 
-The YMusicV4 desktop app, written in Rust.
+The YMusic desktop app for macOS, Windows and Linux, written in Rust. Downloads and the setup shared
+with the other apps (JDK, Node.js, ffmpeg-build) are in the [root README](../README.md).
 
-## Download
+## Run
 
-From the [YMusicV4 releases](https://github.com/ymusic-io/YMusicV4/releases/latest):
-
-| Platform | Architectures | Package |
-| --- | --- | --- |
-| macOS 11 or later | Apple silicon, Intel | `.dmg` |
-| Windows 10 or later | x64, arm64 | `-setup.exe` |
-| Linux, glibc 2.35 or later (Ubuntu 22.04, Debian 12) | x86_64, arm64 | `.deb`, `.AppImage` |
-
-## Build
-
-This workspace lives inside the YMusicV4 checkout; ffmpeg-build sits beside it:
-
-```
-projects/
-├── ffmpeg-build/        the libav the app links and the ffmpeg it packs
-└── YMusicV4/            C sources, engine bundles, strings, version
-    └── desktopRust/     this workspace
-```
-
-### 1. ffmpeg
+Build the engine bundles from the YMusicV4 root once (again after changing `engine-js/`), then run the app:
 
 ```sh
-git clone --recursive --shallow-submodules https://github.com/ymusic-io/ffmpeg-build.git
-cd ffmpeg-build && scripts/build-desktop.sh      # → out/<os>-<arch>
+./gradlew :engine-js:closureJs :engine-js:closurePlayerJs
+cd desktopRust && cargo run -p ymusic
 ```
 
-Needs nasm, autoconf, automake, libtool, pkg-config, meson and ninja. On Windows, run it in MSYS2
-MINGW64 (arm64: CLANGARM64 with `HOST_CC=clang`).
-
-### 2. Engine bundles
-
-```sh
-git clone https://github.com/ymusic-io/YMusicV4.git
-cd YMusicV4 && ./gradlew :engine-js:closureJs :engine-js:closurePlayerJs      # → engine-js/build/dist
-```
-
-Needs JDK 21, Node 22 and the Android SDK.
-
-### 3. The app
-
-```sh
-cd YMusicV4/desktopRust && cargo run -p ymusic
-```
-
-Needs Rust 1.99.1, and:
+Needs the Rust toolchain CI uses (`RUST_TOOLCHAIN` in [`release.yml`](../.github/workflows/release.yml)), and:
 
 - **macOS**: Xcode with its Metal toolchain.
-- **Linux**: `libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev libxcb1-dev libfreetype-dev libfontconfig-dev libpulse-dev libvulkan-dev`.
-- **Windows**: the `x86_64-pc-windows-gnu` toolchain with MSYS2's MinGW gcc on `PATH` (arm64: `aarch64-pc-windows-gnullvm` with CLANGARM64's clang).
+- **Linux**: `sudo apt install build-essential cmake libpulse-dev libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev libxcb1-dev libfreetype-dev libfontconfig-dev libvulkan-dev`.
+- **Windows**: the `x86_64-pc-windows-gnu` toolchain with MSYS2's MinGW gcc on `PATH` (ARM64:
+  `aarch64-pc-windows-gnullvm` with CLANGARM64's clang).
 
-YMusicV4 and ffmpeg-build are found through `YMUSIC_V4_DIR` and `FFMPEG_BUILD_DIR`, set in
-`.cargo/config.toml` to `..` and `../../ffmpeg-build`; an environment variable of the same name
-points elsewhere.
+The build reads the YMusicV4 checkout (C sources, engine bundles, strings, the version) from
+`YMUSIC_V4_DIR` and links ffmpeg-build's `out/<os>-<arch>` from `FFMPEG_BUILD_DIR`. They default to `..`
+and `../../ffmpeg-build` (`.cargo/config.toml`); an environment variable of the same name overrides them.
 
-Debug builds keep their own data dir, apart from the installed app's `~/.ymusic`; `YMUSIC_DATA_DIR`
-picks another. Without YMusicV4's `secrets.properties` (its `remote.config.url`, `bundle.signing.public.key`,
-`update.public.key`, `sentry.dsn`) the app runs on
-its embedded bundles, with no config service, QR sign-in, self-update or crash reports.
+Debug builds keep their data in `YMusicRust` under the OS's local data dir, apart from the installed
+app's `~/.ymusic`; `YMUSIC_DATA_DIR` picks another. Without YMusicV4's `secrets.properties` (its
+`remote.config.url`, `bundle.signing.public.key`, `update.public.key`, `sentry.dsn`) the app runs on its
+embedded bundles, with no config service, QR sign-in, self-update or crash reports.
 
-## Release
+## Package
 
-YMusicV4's GitHub Actions build and publish the desktop packages from this workspace. The scripts
-they run package a local build too:
+The release workflow builds every package with these scripts; they package a local build too:
 
 ```sh
-tools/bundle-macos.sh --dmg                 # DMG
-tools/package-linux.sh --deb --appimage     # .deb + AppImage
-tools/package-windows.sh --setup            # installer, needs Inno Setup
+tools/bundle-macos.sh --dmg                 # .dmg
+tools/package-linux.sh --deb --appimage     # .deb and .AppImage
+tools/package-windows.sh --setup            # installer
 ```
+
+- The AppImage needs [appimagetool](https://github.com/AppImage/appimagetool) (`APPIMAGETOOL`, or on
+  `PATH`) and its type2 runtime (`APPIMAGE_RUNTIME`); CI pins both (`APPIMAGETOOL_VERSION`,
+  `APPIMAGE_RUNTIME_VERSION`).
+- The `.deb` needs only `dpkg-deb` (no fakeroot).
+- The Windows installer needs [Inno Setup 6](https://jrsoftware.org/isinfo.php), found where it installs
+  or through `ISCC`.
 
 ## License
 
-The desktop app is open source under the [GNU General Public License v3.0](LICENSE), like YMusicV4,
-whose native player, engine bundles and strings it builds in. The vendored gpui crates in `vendor/`
-keep their own Apache-2.0 license ([vendor/README.md](vendor/README.md)).
+GPL-3.0 ([LICENSE](LICENSE)), like the rest of YMusicV4. The vendored gpui crates in `vendor/` keep
+their own Apache-2.0 license ([vendor/README.md](vendor/README.md)).

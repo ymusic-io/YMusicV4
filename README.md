@@ -53,7 +53,7 @@ from inside the app; the `.AppImage` runs without installing — `chmod +x YMusi
 
 Every platform needs **JDK 17+** (CI uses 21), **Node.js** (CI uses 22) and **CMake 3.20+**, plus FFmpeg from
 [ffmpeg-build](https://github.com/ymusic-io/ffmpeg-build) checked out next to this repository. The desktop app
-also needs **Rust** (the version in [`desktopRust/README.md`](desktopRust/README.md)).
+also needs **Rust** and a few system libraries: [`desktopRust/README.md`](desktopRust/README.md).
 
 ```sh
 ./gradlew :androidApp:installDebug   # Android, on a connected device
@@ -96,20 +96,16 @@ The desktop app is built on, and for, the machine's own OS and CPU. Packaging it
 
 - **macOS** — Xcode with its Metal toolchain (the desktop app, its natives and the iOS app). ffmpeg-build:
   `brew install nasm automake autoconf libtool pkg-config meson ninja`.
-- **Linux** (Debian/Ubuntu) — the app:
-  `sudo apt install build-essential cmake libpulse-dev libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev libxcb1-dev libfreetype-dev libfontconfig-dev libvulkan-dev`.
-  Packaging the AppImage needs [appimagetool](https://github.com/AppImage/appimagetool) and its type2 runtime.
-  ffmpeg-build: `sudo apt install nasm automake autoconf libtool pkg-config meson ninja-build patchelf`.
+- **Linux** (Debian/Ubuntu) — the app: `sudo apt install build-essential cmake libpulse-dev`, plus the desktop
+  app's libraries in [`desktopRust/README.md`](desktopRust/README.md). ffmpeg-build:
+  `sudo apt install nasm automake autoconf libtool pkg-config meson ninja-build patchelf`.
 - **Windows** — [MSYS2](https://www.msys2.org). The app's native libraries are GCC/Clang-only C, so they
-  build with MinGW-w64, not MSVC. The desktop app uses Rust's `x86_64-pc-windows-gnu` toolchain
-  (`aarch64-pc-windows-gnullvm` on ARM) with MSYS2's MinGW on `PATH`; the Gradle build finds MinGW in
-  `C:/msys64/mingw64` (`C:/msys64/clangarm64` on ARM), or wherever `mingw.dir` in `local.properties` or
-  `MINGW_HOME` points.
+  build with MinGW-w64, not MSVC. The Gradle build finds it in `C:/msys64/mingw64` (`C:/msys64/clangarm64`
+  on ARM), or wherever `mingw.dir` in `local.properties` or `MINGW_HOME` points; the desktop app's Rust
+  toolchain is in [`desktopRust/README.md`](desktopRust/README.md).
   - x64, in the MSYS2 MINGW64 shell: `pacman -S git make diffutils autoconf automake libtool patch mingw-w64-x86_64-toolchain mingw-w64-x86_64-make mingw-w64-x86_64-nasm mingw-w64-x86_64-pkgconf mingw-w64-x86_64-meson mingw-w64-x86_64-ninja mingw-w64-x86_64-zlib`
   - ARM64, in the CLANGARM64 shell: the same with `mingw-w64-clang-aarch64-` packages (no nasm), and
     `HOST_CC=clang` when running `scripts/build-desktop.sh`.
-  - The installer needs [Inno Setup 6](https://jrsoftware.org/isinfo.php), found where it installs or
-    through `ISCC`.
 - **Android** — the Android SDK with NDK r28 (`28.2.13676358`). ffmpeg-build needs `ANDROID_NDK_ROOT`
   pointing at it, `nasm`, the autotools and `patchelf`.
 
