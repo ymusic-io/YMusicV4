@@ -75,8 +75,10 @@ fn main() {
     let files = [v4.join("secrets.properties"), v4.join("local.properties")];
     let mut text = String::new();
     for file in &files {
+        // A missing path counts as changed on every build; a file added later needs a touch of build.rs.
+        let Ok(content) = std::fs::read_to_string(file) else { continue };
         println!("cargo:rerun-if-changed={}", file.display());
-        text.push_str(&std::fs::read_to_string(file).unwrap_or_default());
+        text.push_str(&content);
         text.push('\n');
     }
     let mut missing = Vec::new();

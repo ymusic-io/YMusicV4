@@ -129,7 +129,7 @@ class YtStreamDownloader(
         downloadTracks(
             spec, audioFmt, videoFmt, audioScratch, videoScratch, onProgress,
             reAttest = { spec = resolveSpec(task.videoId).spec; spec },
-            remint = { resolver.remint(task.videoId).also { if (it is SpecRemint.Minted) spec = it.video.spec } },
+            remint = { remintSpec(task.videoId).also { if (it is SpecRemint.Minted) spec = it.video.spec } },
         )
 
         // Captions are KB-scale; fetched after the media, whole (no range-resume), not folded into progress.
@@ -160,9 +160,13 @@ class YtStreamDownloader(
         scratch.delete()
     }
 
-    private suspend fun resolveSpec(videoId: String): ResolvedVideo =
+    private suspend fun resolveSpec(videoId: String): ResolvedVideo = noSabrStreamCoded(videoId) { resolver.resolve(videoId) }
+
+    private suspend fun remintSpec(videoId: String): SpecRemint = noSabrStreamCoded(videoId) { resolver.remint(videoId) }
+
+    private suspend fun <T> noSabrStreamCoded(videoId: String, block: suspend () -> T): T =
         try {
-            resolver.resolve(videoId)
+            block()
         } catch (e: IllegalStateException) {
             // SabrSpecBuilder throws this when the response carries no serverAbrStreamingUrl.
             if (e.message?.contains("serverAbrStreamingUrl") == true) {

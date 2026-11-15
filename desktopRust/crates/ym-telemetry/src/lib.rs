@@ -213,7 +213,8 @@ impl Telemetry {
         // Before init: the session init starts takes its user from the scope. Sentry's user counts
         // must match the dashboard's active devices, which are keyed by this id.
         let user = sentry::User { id: Some(config.device_id.clone()), ..Default::default() };
-        sentry::configure_scope(|scope| scope.set_user(Some(user)));
+        // The hub's own configure_scope: sentry::configure_scope does nothing until a client is bound.
+        sentry::Hub::current().configure_scope(|scope| scope.set_user(Some(user)));
         set_app_tag(DEVICE_ID_TAG, config.device_id);
         let guard = sentry::init((config.dsn.as_str(), options));
         Some(Self { _guard: guard })
