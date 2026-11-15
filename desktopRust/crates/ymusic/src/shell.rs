@@ -1121,14 +1121,18 @@ impl Shell {
             let text = tokio::fs::read_to_string(&path).await.unwrap_or_default();
             let cookies = ym_signin::parse_cookie_paste(&text);
             log.info(&format!("paste parsed {} cookies", cookies.len()));
-            match crate::signin::sign_in_with_cookies(cookies, jar, engines, &log).await {
-                Ok(account) => log.info(&format!("signed in as {}", account.name.unwrap_or_default())),
-                Err(error) => log.warn("sign-in failed", Some(&error)),
+            let result = crate::signin::sign_in_with_cookies(cookies, jar, engines, &log).await;
+            if let Err(error) = &result {
+                log.warn("sign-in failed", Some(error));
             }
+            result.is_ok()
         });
-        cx.spawn(async move |this, cx| {
-            done.await;
-            this.update(cx, |shell, cx| shell.account_changed(cx)).ok();
+        cx.spawn(async move |_, cx| {
+            if done.await == Some(true) {
+                cx.update(|cx| {
+                    AccountController::global(cx).update(cx, |controller, cx| controller.on_login_complete(cx))
+                });
+            }
         })
         .detach();
     }
@@ -1305,7 +1309,7 @@ impl Shell {
                 Ok(offer) => {
                     log.info(&format!("scan {} and confirm {}", offer.qr_payload(), offer.confirmation_code()));
                     match crate::signin::await_device_link(service, offer, jar, engines, &log).await {
-                        Ok(account) => log.info(&format!("signed in as {}", account.name.unwrap_or_default())),
+                        Ok(()) => log.info("signed in"),
                         Err(error) => log.warn("device link failed", Some(&error)),
                     }
                 }
