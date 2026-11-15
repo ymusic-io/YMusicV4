@@ -3,7 +3,9 @@
 # files under Open With at rank Alternate), the icon, the libav dylibs in Contents/Frameworks and the
 # packed ffmpeg next to the executable (where downloads look for it), relinked to load only from
 # inside the bundle, then signed. --dmg also packs it into the disk image the JVM app's updater
-# installs (MacDmgInstaller: the one .app at the image root, copied out and swapped in).
+# installs (MacDmgInstaller: the one .app at the image root, copied out and swapped in), laid out
+# over tools/dmg/background.png (@2x beside it; both rendered from background.svg) by dmgbuild,
+# from PATH or a venv in the target dir.
 #
 # usage: tools/bundle-macos.sh [--no-build] [--debug] [--dmg] [--release] [--out <dir>]
 #   --debug    bundle target/debug/ymusic (local update tests; dev hooks stay on)
@@ -250,13 +252,20 @@ echo "$app ($version / $version_code, $bundle_id, macOS $min_os+): $(du -sh "$ap
 dmg_arch=intel
 [[ $arch == arm64 ]] && dmg_arch=arm64
 dmg_file=$out/$APP_NAME-$version-macos-$dmg_arch.dmg
-staging=$(mktemp -d "${TMPDIR:-/tmp}/ymusic-dmg.XXXXXX")
-trap 'rm -rf "$staging"' EXIT
-# One .app at the image root: the JVM updater copies out the first one it finds.
-ditto "$app" "$staging/$APP_NAME.app"
-ln -s /Applications "$staging/Applications"
+# dmgbuild writes the Finder layout (background, icon places) itself, with no Finder scripting.
+dmgbuild=$(command -v dmgbuild || true)
+if [[ -z $dmgbuild ]]; then
+    venv=$target_dir/dmgbuild-venv
+    [[ -x $venv/bin/dmgbuild ]] || {
+        python3 -m venv "$venv"
+        "$venv/bin/pip" install --quiet --disable-pip-version-check dmgbuild==1.6.5 ds-store==1.3.1 mac-alias==2.2.2
+    }
+    dmgbuild=$venv/bin/dmgbuild
+fi
 rm -f "$dmg_file"
-hdiutil create -quiet -volname "$APP_NAME" -srcfolder "$staging" -fs HFS+ -format UDZO -ov "$dmg_file"
+# One .app at the image root: the JVM updater copies out the first one it finds.
+"$dmgbuild" -s "$root/tools/dmg/settings.py" -D app="$app" -D icon="$contents/Resources/YMusic.icns" \
+    -D background="$root/tools/dmg/background.png" "$APP_NAME" "$dmg_file"
 if [[ $identity != - ]]; then
     codesign --force --sign "$identity" --timestamp "$dmg_file"
 fi
