@@ -247,7 +247,8 @@ pub fn pick_download_folder(window: &mut Window, cx: &mut App) -> impl Future<Ou
 fn usable_folder(settings: &dyn SettingsStore, media: &MediaStore, log: &Logger) -> Option<PathBuf> {
     let folder = download_folder(settings).filter(|folder| folder.is_dir())?;
     match media.find_bucket_by_uri(&folder.to_string_lossy()) {
-        Ok(Some(bucket)) if !bucket.excluded => Some(folder),
+        // The JVM hasUsableDownloadLocation also needs the folder writable (canWriteFolder).
+        Ok(Some(bucket)) if !bucket.excluded && probe_download_folder(&folder).is_ok() => Some(folder),
         Ok(_) => None,
         Err(error) => {
             log.warn("the download folder's Library entry could not be read", Some(&error));
