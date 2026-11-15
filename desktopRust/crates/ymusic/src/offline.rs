@@ -1,16 +1,12 @@
-//! Which YouTube videos are already saved (Library files tagged with their id, finished
-//! downloads), for the "downloaded" mark on feed items. One set per app, re-read when a download
-//! finishes or is removed, when the media store changes, and when a surface asks (a new feed).
+//! Which YouTube videos are already saved (Library files tagged with their id), for the
+//! "downloaded" mark on feed items. One set per app, re-read when the media store changes (a
+//! finished download lands there) and when a surface asks (a new feed).
 
 use std::collections::HashSet;
 
-use futures::StreamExt;
-use futures::channel::mpsc;
 use gpui_kit::*;
-use ym_download::DownloadChange;
 
 use crate::downloads::offline_ids;
-use crate::graph::{AppGraph, on_core};
 
 pub struct OfflineMarks {
     ids: HashSet<String>,
@@ -29,7 +25,6 @@ impl OfflineMarks {
         }
         let marks = cx.new(|cx| {
             let mut marks = Self { ids: HashSet::new(), generation: 0 };
-            marks.watch_downloads(cx);
             crate::library::on_library_change(cx, Self::reload);
             marks.reload(cx);
             marks
@@ -62,33 +57,6 @@ impl OfflineMarks {
                 }
             })
             .ok();
-        })
-        .detach();
-    }
-
-    fn watch_downloads(&mut self, cx: &mut Context<Self>) {
-        let (sender, mut receiver) = mpsc::unbounded::<()>();
-        let mut changes = cx.global::<AppGraph>().downloads.subscribe();
-        let forward = on_core(cx, async move {
-            loop {
-                match changes.recv().await {
-                    Ok(DownloadChange::Completed { .. } | DownloadChange::Removed { .. }) => {
-                        if sender.unbounded_send(()).is_err() {
-                            return;
-                        }
-                    }
-                    Ok(_) | Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {}
-                    Err(tokio::sync::broadcast::error::RecvError::Closed) => return,
-                }
-            }
-        });
-        cx.background_executor().spawn(forward).detach();
-        cx.spawn(async move |this, cx| {
-            while receiver.next().await.is_some() {
-                if this.update(cx, |marks, cx| marks.reload(cx)).is_err() {
-                    return;
-                }
-            }
         })
         .detach();
     }

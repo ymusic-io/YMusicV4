@@ -12,7 +12,7 @@ use serde_json::Value;
 use ym_common::log::Logger;
 use ym_download::spec::ResolvedVideo;
 use ym_download::streams::{SpecRemint, SpecResolver};
-use ym_download::{DownloadConfig, DownloadError, DownloadService, DownloadState};
+use ym_download::{DownloadConfig, DownloadError, DownloadService};
 use ym_engine::CookieJar;
 use ym_engine::player::ContentPoRemint;
 use ym_i18n::{Str, t, tf};
@@ -293,22 +293,17 @@ pub fn offer_download_location(folder: ym_store::Bucket, window: &mut Window, cx
         .open(window, cx, move |_, cx| save_download_folder(&path, cx));
 }
 
-/// Video ids already saved: Library files tagged with their YouTube id, and finished downloads.
+/// Video ids already saved: Library files tagged with their YouTube id (the JVM
+/// `rememberAvailableOffline`, `store.youtubeVideoIds()`).
 pub fn offline_ids(cx: &App) -> impl Future<Output = HashSet<String>> + use<> {
     let graph = cx.global::<AppGraph>();
-    let (media, service, log) = (graph.media.clone(), graph.downloads.clone(), graph.log.fork("available-offline"));
+    let (media, log) = (graph.media.clone(), graph.log.fork("available-offline"));
     let load = on_core(cx, async move {
         let mut ids = HashSet::new();
         match tokio::task::spawn_blocking(move || media.youtube_video_ids()).await {
             Ok(Ok(library)) => ids.extend(library),
             Ok(Err(error)) => log.warn("library video ids could not be read", Some(&error)),
             Err(error) => log.warn("library video ids could not be read", Some(&error)),
-        }
-        match service.snapshot().await {
-            Ok(tasks) => ids.extend(
-                tasks.into_iter().filter(|task| task.state == DownloadState::Completed).map(|task| task.video_id),
-            ),
-            Err(error) => log.warn("finished downloads could not be read", Some(&error)),
         }
         ids
     });
