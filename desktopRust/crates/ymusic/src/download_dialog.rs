@@ -22,6 +22,7 @@ use ym_download::{AudioQuality, DownloadError, DownloadFormat, DownloadRequest, 
 use ym_i18n::{Str, t, tf};
 
 use crate::a11y::FocusList;
+use crate::account::AccountController;
 use crate::action_icon::action_icon;
 use crate::downloads::{download_folder, offline_ids, pick_download_folder, usable_download_folder};
 use crate::downloads_view::{Playability, playability};
@@ -268,7 +269,11 @@ impl DownloadPicker {
         match playability(&code) {
             Some(Playability::SignInRequired) => (
                 t(Str::PlaybackSignInRequired).to_owned(),
-                if graph.guest { FailAction::Retry } else { FailAction::SignIn },
+                if graph.guest || AccountController::global(cx).read(cx).signed_in {
+                    FailAction::Retry
+                } else {
+                    FailAction::SignIn
+                },
             ),
             // YouTube's verdict, not a fault: a re-probe gets the same answer.
             Some(Playability::Unavailable) => (t(Str::PlaybackUnavailable).to_owned(), FailAction::None),

@@ -3,6 +3,7 @@
 
 mod a11y;
 mod accent;
+mod account;
 mod account_view;
 mod action_icon;
 mod app_update;
