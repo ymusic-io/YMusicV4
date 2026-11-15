@@ -35,6 +35,8 @@ pub const QUALITY_AUDIO_ONLY: &str = "zero";
 const LOCAL_POLL: Duration = Duration::from_millis(250);
 const MIN_SKIP_MS: i64 = 1_000;
 const OUTRO_TOLERANCE_MS: i64 = 1_000;
+/// Cue the next item this close to the end (the JVM `PRELOAD_LEAD_MS`).
+const PRELOAD_LEAD_MS: i64 = 10_000;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum PlayState {
@@ -281,6 +283,11 @@ pub struct Playback {
     skip_segments: Option<(String, Vec<(i64, i64)>)>,
     /// The span last skipped, so a late position report doesn't skip it twice.
     skipped: Option<(String, i64)>,
+    /// The item an auto-advance plays: peeked once per load or queue change, so a shuffle pick is
+    /// drawn once and the preloaded item is the one that plays (the JVM prepareNextIndex).
+    prepare_next_index: Option<usize>,
+    /// The preload for `prepare_next_index` ran or was ruled out.
+    prepare_next_armed: bool,
     queue_continuation: Option<String>,
     loading_queue: bool,
     pub state: PlayState,
@@ -374,6 +381,8 @@ impl Playback {
             start_position_ms: 0,
             skip_segments: None,
             skipped: None,
+            prepare_next_index: None,
+            prepare_next_armed: false,
             queue_continuation: None,
             loading_queue: false,
             state: PlayState::Idle,
@@ -570,6 +579,7 @@ impl Playback {
         let at = self.nav.add_next(self.index);
         self.queue.insert(at, item);
         self.queue_revision += 1;
+        self.refresh_prepare_next(cx);
         cx.notify();
     }
 
@@ -585,6 +595,7 @@ impl Playback {
             self.index = moved_index(self.index, from, to);
         }
         self.queue_revision += 1;
+        self.refresh_prepare_next(cx);
         cx.notify();
     }
 
@@ -596,6 +607,7 @@ impl Playback {
         }
         self.queue.push(item);
         self.queue_revision += 1;
+        self.refresh_prepare_next(cx);
         cx.notify();
     }
 
@@ -609,6 +621,7 @@ impl Playback {
         self.index = moved_index(self.index, from, to);
         self.nav.moved(from, to);
         self.queue_revision += 1;
+        self.refresh_prepare_next(cx);
         cx.notify();
     }
 
@@ -665,6 +678,7 @@ impl Playback {
         self.command(cx, |engine, log| async move { engine.player_stop(&log).await });
         self.state = PlayState::Idle;
         self.nav.reset(self.index);
+        self.refresh_prepare_next(cx);
         cx.notify();
     }
 
@@ -690,9 +704,12 @@ impl Playback {
                 self.loaded_video = None;
                 self.command(cx, |engine, log| async move { engine.player_stop(&log).await });
                 self.state = PlayState::Idle;
+                self.refresh_prepare_next(cx);
             } else {
                 self.load_current(cx);
             }
+        } else {
+            self.refresh_prepare_next(cx);
         }
         cx.notify();
     }
@@ -914,7 +931,7 @@ impl Playback {
                 return;
             }
         }
-        match self.nav.peek_next(false, self.index, self.queue.len()) {
+        match self.prepare_next_index {
             Some(next) if next == self.index && self.play_when_ready => {
                 self.seek(0, cx);
                 self.play(cx);
@@ -979,12 +996,14 @@ impl Playback {
     pub fn set_loop_mode(&mut self, mode: LoopMode, cx: &mut Context<Self>) {
         self.nav.loop_mode = mode;
         self.save_setting(LOOP_MODE_KEY, mode.name().to_owned(), cx);
+        self.refresh_prepare_next(cx);
         cx.notify();
     }
 
     pub fn set_shuffle(&mut self, shuffle: bool, cx: &mut Context<Self>) {
         self.nav.set_shuffle(shuffle, self.index);
         self.save_setting(SHUFFLE_KEY, if shuffle { "1" } else { "0" }.to_owned(), cx);
+        self.refresh_prepare_next(cx);
         cx.notify();
     }
 
@@ -1266,6 +1285,73 @@ impl Playback {
         }
     }
 
+    /// The JVM `contentEndMs`: the duration pulled in to the start of a chain of spans running out
+    /// the track.
+    fn content_end_ms(&self, duration_ms: i64) -> i64 {
+        let segments = self.skip_segments();
+        let mut spans: Vec<(i64, i64)> = segments
+            .iter()
+            .enumerate()
+            .filter(|(at, (start, _))| !segments[at + 1..].iter().any(|(later, _)| later / 1000 == start / 1000))
+            .map(|(_, span)| *span)
+            .collect();
+        spans.sort_by_key(|(start, _)| std::cmp::Reverse(*start));
+        let mut end = duration_ms;
+        for (start, stop) in spans {
+            if stop < end - OUTRO_TOLERANCE_MS {
+                break;
+            }
+            end = end.min(start);
+        }
+        end
+    }
+
+    /// The JVM refreshPrepareNext: peeks the item an auto-advance plays and re-arms its preload.
+    fn refresh_prepare_next(&mut self, cx: &mut Context<Self>) {
+        self.prepare_next_index = self.nav.peek_next(false, self.index, self.queue.len());
+        self.prepare_next_armed = false;
+        self.maybe_preload_next(cx);
+    }
+
+    /// The JVM maybePreloadNext: in the last 10 s of the content, playing, cue the next item on its
+    /// engine, once; never for a live item or under Loop One. A YouTube item is cued with the bundle's
+    /// `player/preload`, booting the session first when there is none; the local player has no
+    /// second-item cue (the JVM JvmLocalPlayer's is a no-op), so it is only started.
+    fn maybe_preload_next(&mut self, cx: &mut Context<Self>) {
+        if self.prepare_next_armed {
+            return;
+        }
+        let Some(next_index) = self.prepare_next_index else { return };
+        if self.live || self.nav.loop_mode == LoopMode::One {
+            self.prepare_next_armed = true;
+            return;
+        }
+        if self.active.is_none() || self.state != PlayState::Playing {
+            return;
+        }
+        let duration = self.duration_ms;
+        if duration <= 0 {
+            return;
+        }
+        if self.position_ms > duration || self.content_end_ms(duration) - self.position_ms > PRELOAD_LEAD_MS {
+            return;
+        }
+        let Some(next) = self.queue.get(next_index) else { return };
+        match next.source.clone() {
+            Source::YouTube(video_id) => {
+                if self.session.is_some() {
+                    self.command(cx, move |engine, log| async move {
+                        engine.player_preload(&video_id, &log).await.map(|_| ())
+                    });
+                } else {
+                    self.boot(false, cx);
+                }
+            }
+            Source::Local(_) => self.start_local(),
+        }
+        self.prepare_next_armed = true;
+    }
+
     /// Takes the pending start position.
     fn load_request(&mut self, video_id: &str) -> LoadRequest {
         let mut request = LoadRequest::audio(video_id);
@@ -1290,6 +1376,7 @@ impl Playback {
         self.duration_ms = item.duration_ms.unwrap_or(0);
         self.live = false;
         self.seekable = true;
+        self.refresh_prepare_next(cx);
         cx.notify();
         match item.source {
             Source::YouTube(video_id) => {
@@ -1325,11 +1412,7 @@ impl Playback {
                     self.loaded_video = None;
                     self.command(cx, |engine, log| async move { engine.player_stop(&log).await });
                 }
-                if self.local.is_none() {
-                    self.local = LocalEngine::start();
-                    self.apply_volume();
-                    self.send_local(LocalCommand::Effects(self.effects));
-                }
+                self.start_local();
                 if self.local.is_none() {
                     self.state = PlayState::Failed(PlaybackFailure::code("R90007"));
                     return;
@@ -1358,6 +1441,14 @@ impl Playback {
                 }
                 self.poll_local(cx);
             }
+        }
+    }
+
+    fn start_local(&mut self) {
+        if self.local.is_none() {
+            self.local = LocalEngine::start();
+            self.apply_volume();
+            self.send_local(LocalCommand::Effects(self.effects));
         }
     }
 
@@ -1411,6 +1502,7 @@ impl Playback {
         }
         self.state = if status.playing { PlayState::Playing } else { PlayState::Paused };
         self.check_skip(cx);
+        self.maybe_preload_next(cx);
         cx.notify();
         true
     }
@@ -1736,6 +1828,9 @@ impl Playback {
             }
         }
         self.check_skip(cx);
+        if self.state != PlayState::Ended {
+            self.maybe_preload_next(cx);
+        }
         if let Some(watch_next) = status.get("watchNext") {
             self.harvest_watch_next(watch_next, cx);
         }
@@ -1793,6 +1888,7 @@ impl Playback {
                     playback.queue.extend(items);
                     playback.queue_revision += 1;
                     playback.queue_continuation = page.continuation;
+                    playback.refresh_prepare_next(cx);
                     cx.notify();
                 }
             })
@@ -1824,6 +1920,7 @@ impl Playback {
                     playback.queue.extend(items);
                     playback.queue_revision += 1;
                     playback.queue_continuation = page.continuation;
+                    playback.refresh_prepare_next(cx);
                     cx.notify();
                 }
             })
