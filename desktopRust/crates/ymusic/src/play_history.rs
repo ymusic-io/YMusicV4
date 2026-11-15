@@ -11,6 +11,7 @@ use serde_json::{Value, json};
 use ym_common::log::Logger;
 use ym_engine::yt::YtThumb;
 use ym_history::{PlayAgainSession, PlayHistory, VideoMetadata};
+use ym_store::MediaStore;
 
 use crate::graph::AppGraph;
 use crate::playback::{PlayState, Playback, QueueItem, Source};
@@ -45,7 +46,7 @@ pub fn encode_items(items: &[QueueItem]) -> String {
                 Source::Local(path) => {
                     row["type"] = json!("local");
                     row["uri"] = json!(ym_common::file_uri::to_file_uri(&path.to_string_lossy()));
-                    row["mediaId"] = Value::Null;
+                    row["mediaId"] = json!(item.media_id);
                     row["album"] = Value::Null;
                     row["code"] = json!(item.history_code);
                     row["videoId"] = json!(item.youtube_vid);
@@ -99,6 +100,7 @@ pub fn decode_items(text: &str) -> Result<Vec<QueueItem>, String> {
                 duration_ms: row.get("durationMs").and_then(Value::as_i64),
                 duration_label: string("duration"),
                 thumbs,
+                media_id: if local { row.get("mediaId").and_then(Value::as_i64) } else { None },
                 history_code: if local { string("code") } else { None },
                 youtube_vid: if local { string("videoId") } else { None },
                 loudness_gain_db: if local { gain } else { None },
@@ -123,7 +125,7 @@ enum Write {
 
 /// One thread applies every write in order.
 /// A guest's YouTube plays are not kept.
-fn start_writer(history: Arc<PlayHistory>, guest: bool, log: Logger) -> mpsc::Sender<Write> {
+fn start_writer(history: Arc<PlayHistory>, media: Arc<MediaStore>, guest: bool, log: Logger) -> mpsc::Sender<Write> {
     let (sender, receiver) = mpsc::channel::<Write>();
     std::thread::Builder::new()
         .name("play-history".into())
@@ -134,7 +136,7 @@ fn start_writer(history: Arc<PlayHistory>, guest: bool, log: Logger) -> mpsc::Se
                         let _ = done.send(());
                         continue;
                     }
-                    Write::Watch { item, watch_ms } => record_watch(&history, &item, watch_ms, guest),
+                    Write::Watch { item, watch_ms } => record_watch(&history, &media, &item, watch_ms, guest),
                     Write::Session { session, items: Some(items) } => {
                         history.save_session(&session, &items).map_err(|error| error.to_string())
                     }
@@ -154,22 +156,33 @@ fn start_writer(history: Arc<PlayHistory>, guest: bool, log: Logger) -> mpsc::Se
     sender
 }
 
-fn record_watch(history: &PlayHistory, item: &QueueItem, watch_ms: i64, guest: bool) -> Result<(), String> {
-    record_watch_rows(history, item, watch_ms, guest).map_err(|error| error.to_string())
+fn record_watch(
+    history: &PlayHistory,
+    media: &MediaStore,
+    item: &QueueItem,
+    watch_ms: i64,
+    guest: bool,
+) -> Result<(), String> {
+    let row = match (&item.source, item.media_id) {
+        (Source::Local(_), Some(media_id)) => media.item(media_id).map_err(|error| error.to_string())?,
+        _ => None,
+    };
+    record_watch_rows(history, item, row.as_ref(), watch_ms, guest).map_err(|error| error.to_string())
 }
 
+/// A local file earns time only as a live Library row (`row`), under that row's own code.
 fn record_watch_rows(
     history: &PlayHistory,
     item: &QueueItem,
+    row: Option<&ym_store::MediaItem>,
     watch_ms: i64,
     guest: bool,
 ) -> Result<(), ym_history::StoreError> {
     match &item.source {
         Source::Local(_) => {
-            if let Some(code) = &item.history_code {
-                history.track_local(code, watch_ms)?;
-            }
-            if let Some(video_id) = item.youtube_vid.as_ref().filter(|_| !guest) {
+            let Some(row) = row else { return Ok(()) };
+            history.track_local(&row.playlist_code(), watch_ms)?;
+            if let Some(video_id) = row.youtube_vid.as_ref().filter(|_| !guest) {
                 history.track_youtube(video_id, watch_ms)?;
             }
             Ok(())
@@ -215,7 +228,7 @@ impl HistoryRecorder {
     pub fn new(playback: Entity<Playback>, cx: &mut Context<Self>) -> Self {
         let graph = cx.global::<AppGraph>();
         let guest = graph.guest;
-        let writes = start_writer(graph.history.clone(), guest, graph.log.fork("play-history"));
+        let writes = start_writer(graph.history.clone(), graph.media.clone(), guest, graph.log.fork("play-history"));
         let observe = cx.observe(&playback, |recorder, playback, cx| recorder.observe(&playback, cx));
         let quit = cx.on_app_quit(|recorder, cx| {
             recorder.flush(cx);

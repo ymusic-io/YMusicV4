@@ -150,7 +150,7 @@ fn describe_file(store: &ym_store::MediaStore, path: PathBuf, log: &ym_common::l
             if let Some(code) = described.probe_error {
                 log.warn(&format!("opened file probe failed (libav {code}): playing it under its name"), None);
             }
-            Some(QueueItem::from_local(&described.item))
+            Some(QueueItem::from_file(&described.item))
         }
         Err(error) => {
             log.warn(&format!("opened file could not be read: {}", path.display()), Some(&error));
