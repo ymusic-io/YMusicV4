@@ -8,7 +8,7 @@ use tokio::runtime::Handle;
 use ym_common::log::{Level, Logger};
 use ym_engine::{DynamicEngine, EngineConfig, EngineError, MseAttachment};
 use ym_mse::MseHost;
-use ym_remote_config::{BundleSource, VerifiedBundle};
+use ym_remote_config::{BundleSource, BundleVersion, VerifiedBundle};
 
 /// The engine closes before its host: JS calls straight into the C host.
 pub struct YoutubeSession {
@@ -21,6 +21,8 @@ pub type CandidateSource = Arc<dyn Fn() -> Vec<(String, Option<VerifiedBundle>)>
 pub type VersionSink = Arc<dyn Fn(i64) + Send + Sync>;
 /// Refreshes a stale config on each use of the session (the JVM MsePlayer's playerJs.checkUpdate).
 pub type ConfigCheck = Arc<dyn Fn() + Send + Sync>;
+/// Told each staged (newly downloaded) player bundle that would not boot: it is not downloaded again.
+pub type RejectSink = Arc<dyn Fn(BundleVersion) + Send + Sync>;
 
 /// How long player/init gets before the boot fails (the JVM MsePlayer's INIT_TIMEOUT_MS).
 const PLAYER_INIT_DEADLINE: Duration = Duration::from_secs(30);
@@ -37,6 +39,7 @@ pub struct YoutubeSessions {
     player_source: Arc<BundleSource>,
     player_running: VersionSink,
     check_config: ConfigCheck,
+    reject_staged: RejectSink,
     log: Logger,
 }
 
@@ -47,6 +50,7 @@ impl YoutubeSessions {
         player_source: Arc<BundleSource>,
         player_running: VersionSink,
         check_config: ConfigCheck,
+        reject_staged: RejectSink,
         log: Logger,
     ) -> Self {
         Self {
@@ -57,6 +61,7 @@ impl YoutubeSessions {
             player_source,
             player_running,
             check_config,
+            reject_staged,
             log,
         }
     }
@@ -117,6 +122,9 @@ impl YoutubeSessions {
                 Ok(engine) => Arc::new(engine),
                 Err(error) => {
                     self.log.warn("a player bundle did not load", Some(&error));
+                    if let Some(bundle) = staged {
+                        (self.reject_staged)(bundle.remote);
+                    }
                     last_error = Some(error);
                     continue;
                 }
@@ -129,6 +137,9 @@ impl YoutubeSessions {
                 Err(error) => {
                     self.log.warn("a player bundle failed its health check", Some(&error));
                     engine.close().await;
+                    if let Some(bundle) = staged {
+                        (self.reject_staged)(bundle.remote);
+                    }
                     last_error = Some(error);
                     continue;
                 }

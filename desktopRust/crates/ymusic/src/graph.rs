@@ -13,7 +13,9 @@ use ym_engine::{
     CookieJar, DEFAULT_HTTP_CACHE_BYTES, DiskCacheStore, DynamicEngine, EngineConfig, EngineError, EngineManager,
     HttpCache,
 };
-use ym_remote_config::{ApiIdentity, BundleSource, RemoteConfig, StatUsage, VerifiedBundle};
+use ym_remote_config::{
+    ApiIdentity, BundleError, BundleSource, BundleVersion, RemoteConfig, StatUsage, VerifiedBundle,
+};
 use ym_settings::{AppDb, SettingsStore};
 use ym_store::MediaStore;
 
@@ -186,6 +188,7 @@ impl AppGraph {
         engine_running(&remote, &settings, engines.backend_version(), &log);
 
         let pending_player: Arc<Mutex<Option<VerifiedBundle>>> = Arc::new(Mutex::new(None));
+        let rejected_player: Arc<Mutex<Vec<BundleVersion>>> = Arc::default();
         let media = Arc::new(media);
         let mut player_config = template_for("player", &http, &http_cache, &log, &cookies, &settings, &cache, &remote);
         player_config.main = Some({
@@ -224,12 +227,17 @@ impl AppGraph {
                 tokio.spawn(async move { remote.check_update(BUNDLE_CONFIG_MAX_AGE).await });
             })
         };
+        let reject_staged: crate::youtube_session::RejectSink = {
+            let rejected = rejected_player.clone();
+            Arc::new(move |bundle| rejected.lock().unwrap().push(bundle))
+        };
         let youtube = Arc::new(YoutubeSessions::new(
             player_config,
             candidates,
             player_source.clone(),
             player_running,
             check_config,
+            reject_staged,
             log.fork("youtube"),
         ));
         let download_inputs = DownloadInputs {
@@ -300,7 +308,7 @@ impl AppGraph {
             sponsor_block,
             updates,
         };
-        graph.follow_published_bundles(engine_source);
+        graph.follow_published_bundles(engine_source, rejected_player);
         Ok(graph)
     }
 
@@ -314,7 +322,11 @@ impl AppGraph {
 
     /// Refreshes the config, then swaps in a newer published engine bundle (cached once it
     /// booted) and stages a newer player bundle for the next playback session.
-    fn follow_published_bundles(&self, engine_source: Arc<BundleSource>) {
+    fn follow_published_bundles(
+        &self,
+        engine_source: Arc<BundleSource>,
+        rejected_player: Arc<Mutex<Vec<BundleVersion>>>,
+    ) {
         let (remote, engines, player_source, pending, settings) = (
             self.remote.clone(),
             self.engines.clone(),
@@ -326,45 +338,66 @@ impl AppGraph {
         self.tokio.spawn(async move {
             let mut published = remote.subscribe();
             remote.check_update(ym_remote_config::REMOTE_CONFIG_MIN_INTERVAL).await;
-            // Each published bundle is acted on once, as the JVM per-bundle flows are distinctUntilChanged:
-            // one that would not download or boot waits for the next publication, not the next fetch.
-            let (mut handled_engine, mut handled_player) = (None, None);
+            // Each bundle ref is acted on when it changes (the JVM per-bundle flows are
+            // distinctUntilChanged); one that failed its signature or boot is never tried again.
+            let (mut seen_engine, mut seen_player) = (None, None);
+            let mut rejected_engine: Vec<BundleVersion> = Vec::new();
             loop {
                 let config = published.borrow_and_update().clone();
-                if let Some(remote_engine) = config.engine_js.filter(|bundle| {
-                    bundle.version > i64::from(engines.backend_version()) && handled_engine != Some(bundle.version)
-                }) {
-                    handled_engine = Some(remote_engine.version);
-                    match engine_source.download(&remote_engine).await {
-                        Ok(bundle) => match engines.swap(bundle.source.clone()).await {
-                            Ok(version) => {
-                                let source = engine_source.clone();
-                                let _ = tokio::task::spawn_blocking(move || source.store(&bundle)).await;
-                                engine_running(&remote, &settings, version, &log);
+                let engine_ref = engine_source.published(config.engine_js);
+                if engine_ref != seen_engine {
+                    seen_engine = engine_ref.clone();
+                    if let Some(remote_engine) = engine_ref.filter(|bundle| {
+                        !rejected_engine.contains(bundle) && bundle.version > i64::from(engines.backend_version())
+                    }) {
+                        match engine_source.download(&remote_engine).await {
+                            Ok(bundle) => match engines.swap(bundle.source.clone()).await {
+                                Ok(version) => {
+                                    let source = engine_source.clone();
+                                    let _ = tokio::task::spawn_blocking(move || source.store(&bundle)).await;
+                                    engine_running(&remote, &settings, version, &log);
+                                }
+                                Err(error) => {
+                                    rejected_engine.push(remote_engine.clone());
+                                    log.warn(
+                                        &format!("R90012 engine v{} did not boot", remote_engine.version),
+                                        Some(&error),
+                                    )
+                                }
+                            },
+                            Err(error) => {
+                                if matches!(error, BundleError::Signature { .. }) {
+                                    rejected_engine.push(remote_engine.clone());
+                                }
+                                log.warn(&format!("R90012 engine v{} not taken", remote_engine.version), Some(&error))
                             }
-                            Err(error) => log
-                                .warn(&format!("R90012 engine v{} did not boot", remote_engine.version), Some(&error)),
-                        },
-                        Err(error) => {
-                            log.warn(&format!("R90012 engine v{} not taken", remote_engine.version), Some(&error))
                         }
                     }
                 }
-                let source = player_source.clone();
-                let cached_player = tokio::task::spawn_blocking(move || source.cached().map(|(_, version)| version))
-                    .await
-                    .ok()
-                    .flatten();
-                let local_player = player_source.embedded().1.max(cached_player.unwrap_or(0));
-                if let Some(remote_player) = config
-                    .player_js
-                    .filter(|bundle| bundle.version > local_player && handled_player != Some(bundle.version))
-                {
-                    handled_player = Some(remote_player.version);
-                    match player_source.download(&remote_player).await {
-                        Ok(bundle) => *pending.lock().unwrap() = Some(bundle),
-                        Err(error) => {
-                            log.warn(&format!("R90012 player v{} not taken", remote_player.version), Some(&error))
+                let player_ref = player_source.published(config.player_js);
+                if player_ref != seen_player {
+                    seen_player = player_ref.clone();
+                    let source = player_source.clone();
+                    let cached_player =
+                        tokio::task::spawn_blocking(move || source.cached().map(|(_, version)| version))
+                            .await
+                            .ok()
+                            .flatten();
+                    let local_player = player_source.embedded().1.max(cached_player.unwrap_or(0));
+                    let staged = pending.lock().unwrap().as_ref().map(|bundle| bundle.remote.clone());
+                    if let Some(remote_player) = player_ref.filter(|bundle| {
+                        !rejected_player.lock().unwrap().contains(bundle)
+                            && staged.as_ref() != Some(bundle)
+                            && bundle.version > local_player
+                    }) {
+                        match player_source.download(&remote_player).await {
+                            Ok(bundle) => *pending.lock().unwrap() = Some(bundle),
+                            Err(error) => {
+                                if matches!(error, BundleError::Signature { .. }) {
+                                    rejected_player.lock().unwrap().push(remote_player.clone());
+                                }
+                                log.warn(&format!("R90012 player v{} not taken", remote_player.version), Some(&error))
+                            }
                         }
                     }
                 }
