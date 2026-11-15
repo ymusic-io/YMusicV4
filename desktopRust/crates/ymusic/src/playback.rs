@@ -262,6 +262,20 @@ fn quality_for_side(side: i32) -> (String, String) {
     ((*quality).to_owned(), (*label).to_owned())
 }
 
+/// An audio track (dub language) the item offers.
+#[derive(Clone, Debug, PartialEq)]
+pub struct AudioTrack {
+    pub id: String,
+    pub display_name: String,
+}
+
+/// The JVM `AudioTrackState`: the item's audio tracks and the selected one's id.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct AudioTrackState {
+    pub tracks: Vec<AudioTrack>,
+    pub selected: Option<String>,
+}
+
 /// A caption track the playing video offers.
 #[derive(Clone, Debug, PartialEq)]
 pub struct CaptionTrack {
@@ -373,6 +387,8 @@ pub struct Playback {
     /// The YouTube engine's qualities from its catalog (the JVM `MsePlayer.applyCatalog`); no options
     /// until it reports.
     youtube_quality: VideoQualityState,
+    /// The YouTube engine's audio tracks from its catalog, kept until the next catalog.
+    youtube_audio_tracks: AudioTrackState,
     /// The quality loads ask for while video is on.
     pub quality_preferred: String,
     /// The last video box Now Playing reported, sent again once a session starts.
@@ -425,6 +441,7 @@ impl Playback {
             load_timeout_video: None,
             _load_timeout: None,
             youtube_quality: VideoQualityState::empty(QUALITY_AUTO, QUALITY_AUTO),
+            youtube_audio_tracks: AudioTrackState::default(),
             viewport: None,
             quality_preferred: cx
                 .global::<AppGraph>()
@@ -542,6 +559,45 @@ impl Playback {
             }
             _ => VideoQualityState::empty(QUALITY_AUTO, QUALITY_AUTO),
         }
+    }
+
+    /// The current engine's audio tracks (the JVM `Player.audioTracks`).
+    pub fn audio_tracks(&self) -> AudioTrackState {
+        match (self.active, self.current().map(|item| &item.source)) {
+            (Some(Active::YouTube), Some(Source::YouTube(_))) => self.youtube_audio_tracks.clone(),
+            (Some(Active::Local), Some(Source::Local(path))) => self
+                .local
+                .as_ref()
+                .and_then(|local| {
+                    let status = local.status.lock().unwrap();
+                    status.video_track.as_ref().filter(|(open, _)| open == path).map(|_| AudioTrackState {
+                        tracks: status.audio_tracks.clone(),
+                        selected: status.audio_track_selected.clone(),
+                    })
+                })
+                .unwrap_or_default(),
+            _ => AudioTrackState::default(),
+        }
+    }
+
+    /// Switches the current item to this audio track: a one-shot pick, never saved (the JVM
+    /// `Player.selectAudioTrack`).
+    pub fn select_audio_track(&mut self, id: String, cx: &mut Context<Self>) {
+        match self.active {
+            Some(Active::YouTube) => {
+                self.youtube_audio_tracks.selected = Some(id.clone());
+                self.command(cx, move |engine, log| async move { engine.player_set_audio_track(&id, &log).await });
+            }
+            Some(Active::Local) => {
+                let Ok(index) = id.parse::<i32>() else { return };
+                if let Some(local) = &self.local {
+                    local.status.lock().unwrap().audio_track_selected = Some(id);
+                }
+                self.send_local(LocalCommand::AudioTrack(index));
+            }
+            None => return,
+        }
+        cx.notify();
     }
 
     /// Plays a feed video. A `section` queue plays in order; without one the engine's radio for
@@ -905,6 +961,21 @@ impl Playback {
         }
         self.youtube_quality =
             VideoQualityState { options, actual: actual.to_owned(), preferred: preferred.to_owned() };
+        let audio_tracks = catalog
+            .get("audioTracks")
+            .and_then(Value::as_array)
+            .map(|rows| {
+                rows.iter()
+                    .filter_map(|row| {
+                        let id = row.get("id").and_then(Value::as_str)?;
+                        let name = row.get("displayName").and_then(Value::as_str).unwrap_or(id);
+                        Some(AudioTrack { id: id.to_owned(), display_name: name.to_owned() })
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        self.youtube_audio_tracks =
+            AudioTrackState { tracks: audio_tracks, selected: text("audioTrack").map(str::to_owned) };
         cx.notify();
     }
 

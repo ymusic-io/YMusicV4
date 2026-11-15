@@ -1198,7 +1198,7 @@ impl NowPlaying {
         let queue_playback = self.playback.clone();
         let more = sized_action_icon("np-more", IconName::EllipsisVertical, t(Str::CdMore), ICON, HIT)
             .track_focus(&self.bar_focus.handle(STOP_MORE, cx))
-            .dropdown_menu_with_anchor(Anchor::TopRight, move |mut menu, _, cx| {
+            .dropdown_menu_with_anchor(Anchor::TopRight, move |mut menu, window, cx| {
                 let icon = |name: Lucide| Icon::new(name);
                 if let Some(target) = &more_target {
                     let (details, video_id) = (view.clone(), target.video_id.clone());
@@ -1264,6 +1264,39 @@ impl NowPlaying {
                             equalizer.update(cx, |_, cx| cx.emit(NowPlayingEvent::OpenEqualizer)).ok();
                         },
                     ));
+                let audio = queue_playback.read(cx).audio_tracks();
+                if audio.tracks.len() > 1 {
+                    let current = audio
+                        .tracks
+                        .iter()
+                        .find(|track| audio.selected.as_ref() == Some(&track.id))
+                        .map(|track| track.display_name.clone());
+                    let title = match current {
+                        Some(name) => format!("{} · {name}", t(Str::DownloadAudioTrack)),
+                        None => t(Str::DownloadAudioTrack).to_owned(),
+                    };
+                    let (tracks, selected, target) = (audio.tracks, audio.selected, queue_playback.clone());
+                    menu = menu.submenu_with_icon(
+                        Some(icon(Lucide::AudioLines)),
+                        title,
+                        window,
+                        cx,
+                        move |mut submenu, _, _| {
+                            for track in &tracks {
+                                let (playback, id) = (target.clone(), track.id.clone());
+                                submenu = submenu.item(
+                                    PopupMenuItem::new(track.display_name.clone())
+                                        .checked(selected.as_ref() == Some(&track.id))
+                                        .on_click(move |_, _, cx| {
+                                            playback
+                                                .update(cx, |playback, cx| playback.select_audio_track(id.clone(), cx))
+                                        }),
+                                );
+                            }
+                            submenu
+                        },
+                    );
+                }
                 let reload = queue_playback.clone();
                 menu.item(crate::settings_view::menu_divider()).item(
                     PopupMenuItem::new(t(Str::MenuReloadPlayer))
