@@ -467,7 +467,11 @@ pub struct Shell {
 
 impl Shell {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let playback = cx.new(|cx| Playback::new(cx));
+        let playback = cx.new(|cx| {
+            let playback = Playback::new(cx);
+            Playback::warm_up_later(cx);
+            playback
+        });
         let mini_player = cx.new(|cx| MiniPlayer::new(playback.clone(), window, cx));
         let sponsor_block = cx.new(|cx| SponsorBlock::new(playback.clone(), cx));
         let now_playing = cx.new(|cx| NowPlaying::new(playback.clone(), sponsor_block.clone(), window, cx));

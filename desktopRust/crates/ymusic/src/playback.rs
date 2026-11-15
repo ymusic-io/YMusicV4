@@ -65,6 +65,7 @@ const SMART_PREVIOUS_MS: i64 = 3_000;
 /// (the JVM MsePlayer's LOAD_TIMEOUT_MS).
 const LOAD_TIMEOUT: Duration = Duration::from_secs(5);
 const LOAD_STALLED: &str = "R90032";
+const WARM_UP_AFTER: Duration = Duration::from_secs(3);
 
 type PlayerJob = Box<dyn FnOnce(Arc<DynamicEngine>) -> futures::future::BoxFuture<'static, ()> + Send>;
 
@@ -1419,6 +1420,22 @@ impl Playback {
                 })
                 .ok();
             }
+        })
+        .detach();
+    }
+
+    /// Boots the YouTube session shortly after launch, so the first play does not wait for the whole
+    /// player boot (the JVM PlayerImpl.init's prepareYoutubeEngine after 3 s).
+    pub fn warm_up_later(cx: &mut Context<Self>) {
+        let executor = cx.background_executor().clone();
+        cx.spawn(async move |this, cx| {
+            executor.timer(WARM_UP_AFTER).await;
+            this.update(cx, |playback, cx| {
+                if playback.session.is_none() {
+                    playback.boot(false, cx);
+                }
+            })
+            .ok();
         })
         .detach();
     }
