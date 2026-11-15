@@ -178,13 +178,13 @@ import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import projectcommon.error.errorCode
 
-private enum class LibraryTab(val label: StringResource) {
-    Folders(Res.string.library_tab_folders),
-    Playlists(Res.string.library_tab_playlists),
-    Songs(Res.string.library_tab_songs),
-    Artists(Res.string.library_tab_artists),
-    Albums(Res.string.library_tab_albums),
-    Genres(Res.string.library_tab_genres),
+private enum class LibraryTab(val id: Int, val label: StringResource) {
+    Folders(1, Res.string.library_tab_folders),
+    Playlists(2, Res.string.library_tab_playlists),
+    Songs(3, Res.string.library_tab_songs),
+    Artists(4, Res.string.library_tab_artists),
+    Albums(5, Res.string.library_tab_albums),
+    Genres(6, Res.string.library_tab_genres),
 }
 
 /** Everything the tabs render from, reloaded on any items/buckets change. Identity doubles as the
@@ -278,7 +278,11 @@ fun LibraryScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
                     }
                 }
             }
-            var tab by rememberSaveable { mutableStateOf(LibraryTab.Folders) }
+            var tab by rememberSaveable {
+                val saved = graph.settings.flow(AppSettings.lastLibraryTab).value
+                mutableStateOf(LibraryTab.entries.firstOrNull { it.id == saved } ?: LibraryTab.Folders)
+            }
+            LaunchedEffect(tab) { graph.settings.put(AppSettings.lastLibraryTab, tab.id) }
             DisposableEffect(Unit) {
                 val entries = LibraryTab.entries
                 val remove = GlobalShortcutActions.pushTabHandler { i ->
