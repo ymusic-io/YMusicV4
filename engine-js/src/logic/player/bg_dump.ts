@@ -289,8 +289,9 @@ export function setPoRejectedHook(hook: (() => void) | null): void {
 
 let remintHook: (() => Promise<void>) | null = null;
 let remints = 0;
-let remintInFlight = false;
+let remintRun: Promise<boolean> | null = null;
 let roundsSinceRemint = 0;
+let tokenAccepted = false;
 const MAX_REMINTS = 3;
 /** Withheld rounds a re-minted token gets before the next re-roll: its verdict can lag a round. */
 const ROUNDS_BEFORE_NEXT_REMINT = 2;
@@ -300,32 +301,60 @@ const ROUNDS_BEFORE_NEXT_REMINT = 2;
 export function setRemintHook(hook: (() => Promise<void>) | null): void {
   remintHook = hook;
   remints = 0;
-  remintInFlight = false;
+  remintRun = null;
   roundsSinceRemint = 0;
+  tokenAccepted = false;
+}
+
+/** One re-mint out of the session's [MAX_REMINTS]; null when none is left. Resolves false when
+ *  it failed. */
+function runRemint(reason: string): Promise<boolean> | null {
+  const hook = remintHook;
+  if (!hook || remints >= MAX_REMINTS) return null;
+  remints++;
+  console.info("bg remint try=" + remints + " " + reason);
+  const run = hook()
+    .then(
+      function () {
+        tokenAccepted = false;
+        roundsSinceRemint = 0;
+        withheldRounds = 0;
+        return true;
+      },
+      function (e: unknown) {
+        roundsSinceRemint = ROUNDS_BEFORE_NEXT_REMINT;
+        console.warn("bg remint failed: " + (e instanceof Error ? e.message : String(e)));
+        return false;
+      },
+    )
+    .then(function (ok) {
+      remintRun = null;
+      return ok;
+    });
+  remintRun = run;
+  return run;
 }
 
 function startRemint(): void {
-  const hook = remintHook;
-  if (!hook || remintInFlight || remints >= MAX_REMINTS) return;
+  if (remintRun) return;
   if (remints > 0 && roundsSinceRemint < ROUNDS_BEFORE_NEXT_REMINT) return;
-  remints++;
-  remintInFlight = true;
-  console.info("bg remint try=" + remints + " after " + withheldRounds + " withheld rounds");
-  hook().then(
-    function () {
-      remintInFlight = false;
-      roundsSinceRemint = 0;
-      withheldRounds = 0;
-    },
-    function (e: unknown) {
-      remintInFlight = false;
-      roundsSinceRemint = ROUNDS_BEFORE_NEXT_REMINT;
-      console.warn("bg remint failed: " + (e instanceof Error ? e.message : String(e)));
-    },
-  );
+  runRemint("after " + withheldRounds + " withheld rounds");
+}
+
+/**
+ * A download's request for a new content token. "accepted": the player's current token plays
+ * (googlevideo answered it sps=1), so the VM is left alone and the download's own requests are at
+ * fault. "spent": no re-mint left, or it failed. A re-mint already running for playback is shared.
+ */
+export async function remintForDownload(): Promise<string> {
+  if (tokenAccepted) return "accepted";
+  const run = remintRun || runRemint("for a download");
+  if (!run) return "spent";
+  return (await run) ? "reminted" : "spent";
 }
 
 export function noteSps(sps: number, media: number): void {
+  if (sps === 1) tokenAccepted = true;
   if (media > 0 || sps === 1) withheldRounds = 0;
   else if (sps === 2) {
     withheldRounds++;
@@ -337,7 +366,7 @@ export function noteSps(sps: number, media: number): void {
     loggedSps = sps;
     console.info("bg sps=" + sps);
   }
-  const remintLeft = remintInFlight || (remintHook !== null && remints < MAX_REMINTS);
+  const remintLeft = remintRun !== null || (remintHook !== null && remints < MAX_REMINTS);
   if (sps === 3 || (withheldRounds > MAX_WITHHELD_ROUNDS && !remintLeft)) {
     if (sps === 2) console.warn("bg sps=2 withheld media for " + withheldRounds + " rounds");
     withheldRounds = 0;

@@ -20,7 +20,7 @@ import { executeWithCookies } from "../yt/cookies";
 import { HttpRequest } from "../../protocol/http";
 import { utf8Encode } from "../../transport";
 import { minterFromConfig, remint } from "./pot";
-import { setRemintHook } from "./bg_dump";
+import { remintForDownload, setRemintHook } from "./bg_dump";
 import { installPlayerAdStrip } from "./skip_ads";
 import { installSabrIntercept } from "../yt/sabr_http";
 import { installAdaptiveFormatsHeader } from "../yt/sabr_af";
@@ -1024,6 +1024,15 @@ class Player {
     return out;
   }
 
+  /** A download's one re-mint: a new content token, or why the VM was left alone. */
+  async remintPo(videoId: string): Promise<Record<string, unknown>> {
+    await withinInitDeadline(this.ensureMinter(), "po token minter");
+    const status = await remintForDownload();
+    const result: Record<string, unknown> = { "videoId": videoId, "status": status };
+    if (status === "reminted") result["contentPoToken"] = await this.mintToken(videoId);
+    return result;
+  }
+
   async mintPo(videoId: string): Promise<Record<string, unknown>> {
     const minterOut = await withinInitDeadline(this.ensureMinter(), "po token minter");
     const token = await this.mintToken(videoId);
@@ -1527,6 +1536,10 @@ export function setPlayerQuality(quality: string, audioOnly: boolean): void {
 
 export function mintPlayerPo(videoId: string): Promise<Record<string, unknown>> {
   return ytPlayer.mintPo(videoId);
+}
+
+export function remintPlayerPo(videoId: string): Promise<Record<string, unknown>> {
+  return ytPlayer.remintPo(videoId);
 }
 
 export function setPlayerAudioTrack(id: string): void {
