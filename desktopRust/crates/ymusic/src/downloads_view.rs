@@ -12,7 +12,7 @@ use gpui_kit::component::progress::Progress;
 use gpui_kit::component::{ActiveTheme, Icon, IconName, Selectable, Sizable, StyledExt, WindowExt, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
-use ym_download::{DownloadChange, DownloadService, DownloadState, DownloadTask, TaskError};
+use ym_download::{DownloadChange, DownloadFormat, DownloadService, DownloadState, DownloadTask, TaskError};
 use ym_i18n::{Str, t, tf};
 
 use crate::a11y::{DragRow, FocusList, announced, announced_as, heading, list_item};
@@ -427,6 +427,18 @@ pub fn task_error_text(error: &TaskError) -> String {
     }
 }
 
+/// A distinct tint per format so the type reads at a glance; white text sits on all of them.
+fn format_badge_color(format: DownloadFormat) -> Hsla {
+    rgb(match format {
+        DownloadFormat::Mp3 => 0x2e7d32,
+        DownloadFormat::M4a => 0x1565c0,
+        DownloadFormat::AudioWebm => 0x00695c,
+        DownloadFormat::VideoMp4 => 0x6a1b9a,
+        DownloadFormat::VideoWebm => 0xb23c17,
+    })
+    .into()
+}
+
 fn state_label(state: DownloadState) -> &'static str {
     t(match state {
         DownloadState::Queued => Str::DownloadsStateQueued,
@@ -583,7 +595,6 @@ impl DownloadsView {
             .thumbnail_url
             .clone()
             .unwrap_or_else(|| format!("https://i.ytimg.com/vi/{}/mqdefault.jpg", task.video_id));
-        let active = task.state.is_active() || task.state == DownloadState::Paused;
         let fraction = task.progress();
         let percent =
             fraction.filter(|_| task.state.is_active()).map(|value| format!("{}%", (value * 100.).round() as i32));
@@ -591,24 +602,36 @@ impl DownloadsView {
             || (matches!(task.state, DownloadState::Downloading | DownloadState::Processing | DownloadState::Paused)
                 && fraction.is_some());
         let failed = task.state == DownloadState::Failed;
+        let tones = *cx.global::<crate::settings_view::CardTones>();
+        let dark = theme.mode.is_dark();
+        let soft = |color: Hsla| color.opacity(if dark { 0.16 } else { 0.14 });
         let (pill_bg, pill_fg) = match task.state {
-            DownloadState::Failed => (theme.danger, theme.danger_foreground),
-            DownloadState::Completed => (theme.secondary, theme.foreground),
-            _ if active => (theme.primary, theme.primary_foreground),
-            _ => (theme.secondary, theme.muted_foreground),
+            DownloadState::Queued | DownloadState::Canceled => (theme.muted, tones.ink),
+            DownloadState::Paused => {
+                let amber: Hsla = rgb(if dark { 0xe3a63e } else { 0xb5720f }).into();
+                (soft(amber), amber)
+            }
+            DownloadState::Completed => {
+                let green: Hsla = rgb(if dark { 0x57c983 } else { 0x288a50 }).into();
+                (soft(green), green)
+            }
+            DownloadState::Failed => (theme.danger.opacity(0.12), theme.danger),
+            _ => (theme.primary.opacity(0.16), theme.primary),
         };
+        let mono = theme.mono_font_family.clone();
         let status = state_label(task.state);
         let detail: AnyElement = match task.state {
             DownloadState::Downloading | DownloadState::Paused if task.total_bytes > 0 => div()
                 .text_xs()
-                .text_color(theme.muted_foreground)
+                .text_color(tones.ink)
+                .font_family(mono.clone())
                 .child(format!("{} / {}", size_label(task.downloaded_bytes), size_label(task.total_bytes)))
                 .into_any_element(),
             DownloadState::Completed => h_flex()
-                .gap_3()
+                .gap_2()
                 .text_xs()
-                .text_color(theme.muted_foreground)
-                .child(size_label(task.total_bytes))
+                .text_color(tones.ink)
+                .child(div().font_family(mono.clone()).child(size_label(task.total_bytes)))
                 .when_some(short_date(task.updated_at), |row, date| row.child(date))
                 .into_any_element(),
             DownloadState::Failed => {
@@ -631,7 +654,7 @@ impl DownloadsView {
                             .trailing_button(
                                 row,
                                 1,
-                                Button::new(("retry", row)).outline().xsmall().rounded_full().label(t(Str::Retry)),
+                                Button::new(("retry", row)).primary().xsmall().rounded_full().label(t(Str::Retry)),
                                 cx,
                             )
                             .on_click(cx.listener(move |view, _, window, cx| {
@@ -649,8 +672,9 @@ impl DownloadsView {
         self.focus
             .item(row, list_item(v_flex().id(("download", row)), row).aria_label(label), cx)
             .rounded(px(6.))
+            .bg(if failed { theme.danger.opacity(0.12) } else { tones.ground })
             .border_1()
-            .border_color(theme.border)
+            .border_color(if failed { theme.danger.opacity(0.4) } else { theme.border })
             .p(px(14.))
             .gap_2()
             .child(
@@ -689,7 +713,13 @@ impl DownloadsView {
                                             .child(status),
                                     )
                                     .when_some(percent, |row, percent| {
-                                        row.child(div().text_xs().text_color(theme.muted_foreground).child(percent))
+                                        row.child(
+                                            div()
+                                                .text_xs()
+                                                .text_color(tones.ink)
+                                                .font_family(mono.clone())
+                                                .child(percent),
+                                        )
                                     }),
                             ),
                     )
@@ -697,9 +727,11 @@ impl DownloadsView {
             )
             .when(show_bar, |card| {
                 card.child(
-                    div()
-                        .pl(px(THUMB + 12.))
-                        .child(Progress::new(("progress", row)).value(fraction.unwrap_or(0.) * 100.)),
+                    div().pl(px(THUMB + 12.)).child(
+                        Progress::new(("progress", row))
+                            .value(fraction.unwrap_or(0.) * 100.)
+                            .when(task.state == DownloadState::Paused, |bar| bar.color(tones.ink)),
+                    ),
                 )
             })
             .child(
@@ -710,11 +742,11 @@ impl DownloadsView {
                         div().w(px(THUMB)).flex().justify_center().child(
                             div()
                                 .px_1()
+                                .py(px(2.))
                                 .rounded(px(3.))
-                                .border_1()
-                                .border_color(theme.border)
+                                .bg(format_badge_color(task.format))
                                 .text_xs()
-                                .text_color(theme.muted_foreground)
+                                .text_color(white())
                                 .child(task.format.extension().to_uppercase()),
                         ),
                     )

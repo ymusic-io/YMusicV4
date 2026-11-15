@@ -63,6 +63,7 @@ fn apply_theme(choice: &str, accent: &str, cx: &mut App) {
     let mut tones = ChromeTones { flat: black(), lifted: black(), dialog: black() };
     let mut stack = StackTones { near: black(), far: black(), tab: black() };
     let mut container = AccentTones { ground: black(), ink: black() };
+    let mut card = CardTones { ground: black(), ink: black() };
     Theme::update(cx, |theme| {
         if let Some(font) = ui_font {
             theme.font_family = font;
@@ -113,6 +114,7 @@ fn apply_theme(choice: &str, accent: &str, cx: &mut App) {
         let dialog = if theme.mode.is_dark() { palette.surface_dim } else { palette.surface_elevated };
         tones = ChromeTones { flat: palette.surface, lifted: palette.surface_elevated, dialog };
         stack = StackTones { near: palette.stack_near, far: palette.stack_far, tab: palette.stack_tab };
+        card = CardTones { ground: palette.surface_dim, ink: palette.ink_muted };
         container = if theme.mode.is_dark() {
             AccentTones { ground: oklab_lerp(palette.surface, accent, 0.3), ink: oklab_lerp(accent, white(), 0.35) }
         } else {
@@ -122,6 +124,7 @@ fn apply_theme(choice: &str, accent: &str, cx: &mut App) {
     cx.set_global(tones);
     cx.set_global(stack);
     cx.set_global(container);
+    cx.set_global(card);
 }
 
 /// The JVM app's `primaryContainer` / `onPrimaryContainer`: a selected rail or drawer entry, the
@@ -161,6 +164,15 @@ pub fn menu_divider() -> PopupMenuItem {
     PopupMenuItem::element(|_, cx| div().w_full().h(px(1.)).bg(cx.global::<StackTones>().near)).disabled(true)
 }
 
+/// The JVM app's `SurfaceDim` / `InkMuted`: a card lifted off the page and its secondary text.
+#[derive(Clone, Copy)]
+pub struct CardTones {
+    pub ground: Hsla,
+    pub ink: Hsla,
+}
+
+impl Global for CardTones {}
+
 /// The JVM app's `DesignPalette` grounds and inks (commonUi Theme.kt), per mode.
 struct Palette {
     surface: Hsla,
@@ -174,6 +186,7 @@ struct Palette {
     outline: Hsla,
     divider: Hsla,
     ink: Hsla,
+    ink_muted: Hsla,
     ink_secondary: Hsla,
 }
 
@@ -192,6 +205,7 @@ impl Palette {
                 outline: rgb(0x5c5c5c).into(),
                 divider: rgb(0x2a2a2a).into(),
                 ink: rgb(0xe2e2e2).into(),
+                ink_muted: rgb(0xc6c6c6).into(),
                 ink_secondary: rgb(0x9a9a9a).into(),
             }
         } else {
@@ -207,6 +221,7 @@ impl Palette {
                 outline: rgb(0xcfcfcf).into(),
                 divider: rgb(0xe6e6e6).into(),
                 ink: rgb(0x333333).into(),
+                ink_muted: rgb(0x555555).into(),
                 ink_secondary: rgb(0x8a8a8a).into(),
             }
         };
