@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.getAndUpdate
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.sync.Mutex
@@ -39,8 +40,8 @@ abstract class StringBackedSettingsStore : SettingsStore {
     override suspend fun putInt(key: String, value: Int) = put(key, value.toString())
 
     private suspend fun put(key: String, value: String) {
-        data.update { it + (key to value) }
-        commit(key)
+        val before = data.getAndUpdate { it + (key to value) }
+        if (before[key] != value) commit(key)
     }
 
     override suspend fun remove(key: String) {
