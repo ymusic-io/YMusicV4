@@ -581,7 +581,7 @@ fn spoken(title: &str, value: &str) -> String {
     if value.is_empty() || value == title { title.to_owned() } else { format!("{title}, {value}") }
 }
 
-fn language_name(tag: &str) -> String {
+pub(crate) fn language_name(tag: &str) -> String {
     let base = tag.split(['-', '_']).next().unwrap_or(tag);
     let name = match base {
         "en" => "English",

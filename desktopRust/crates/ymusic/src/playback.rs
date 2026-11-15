@@ -18,7 +18,7 @@ use ym_mse::Presenter;
 
 use crate::audio_effects::AudioEffects;
 use crate::graph::{AppGraph, on_core};
-use crate::local_engine::{LocalCommand, LocalEngine, LocalLevelTap};
+use crate::local_engine::{CaptionPrefs, LocalCommand, LocalEngine, LocalLevelTap};
 use crate::queue_nav::{LoopMode, QueueNav, moved_index};
 use crate::youtube_session::YoutubeSession;
 
@@ -306,6 +306,9 @@ pub struct Playback {
     pub caption_tracks: Vec<CaptionTrack>,
     /// The track the bundle shows (a vssId or a language code), from the catalog stream.
     pub caption_selected: Option<String>,
+    /// The track the user last picked, any engine's (the JVM `PlaybackConfig.preferCaptionLanguage`);
+    /// a local file shows it when it has one.
+    caption_language: String,
     /// The cues on screen now, oldest first: (cue id, text with hard breaks).
     pub caption_lines: Vec<(i64, String)>,
     caption_stream: Option<(tokio::task::JoinHandle<()>, Task<()>)>,
@@ -389,6 +392,7 @@ impl Playback {
             captions: false,
             caption_tracks: Vec::new(),
             caption_selected: None,
+            caption_language: crate::local_captions::UNDETERMINED_LANGUAGE.to_owned(),
             caption_lines: Vec::new(),
             caption_stream: None,
             _catalog: None,
@@ -640,21 +644,34 @@ impl Playback {
         self.seek(target, cx);
     }
 
-    /// YouTube captions on or off; the bundle keeps the choice across videos.
+    /// Captions on or off, on the active engine; the YouTube bundle keeps the choice across videos.
     pub fn set_captions(&mut self, visible: bool, cx: &mut Context<Self>) {
         self.captions = visible;
-        self.command(cx, move |engine, log| async move { engine.player_set_caption(None, visible, &log).await });
+        if self.active == Some(Active::Local) {
+            self.send_local(LocalCommand::Captions(self.local_caption_prefs()));
+        } else {
+            self.command(cx, move |engine, log| async move { engine.player_set_caption(None, visible, &log).await });
+        }
         self.sync_caption_stream(cx);
         cx.notify();
     }
 
-    /// Shows captions from the track with this vssId (or language code).
+    /// Shows captions from the track with this id (a YouTube vssId or language code, a local track id).
     pub fn select_caption(&mut self, id: String, cx: &mut Context<Self>) {
         self.captions = true;
         self.caption_selected = Some(id.clone());
-        self.command(cx, move |engine, log| async move { engine.player_set_caption(Some(&id), true, &log).await });
+        self.caption_language = id.clone();
+        if self.active == Some(Active::Local) {
+            self.send_local(LocalCommand::Captions(self.local_caption_prefs()));
+        } else {
+            self.command(cx, move |engine, log| async move { engine.player_set_caption(Some(&id), true, &log).await });
+        }
         self.sync_caption_stream(cx);
         cx.notify();
+    }
+
+    fn local_caption_prefs(&self) -> CaptionPrefs {
+        CaptionPrefs { visible: self.captions, language: self.caption_language.clone() }
     }
 
     /// The cue stream runs only while captions are on: closing it pauses the bundle's caption work.
@@ -699,7 +716,7 @@ impl Playback {
                     })
                     .unwrap_or_default();
                 let applied = this.update(cx, |playback, cx| {
-                    if playback.captions {
+                    if playback.captions && playback.active == Some(Active::YouTube) {
                         playback.caption_lines = lines;
                         cx.notify();
                     }
@@ -1220,11 +1237,15 @@ impl Playback {
                 }
                 self.active = Some(Active::Local);
                 self.loading_video = None;
+                self.caption_lines.clear();
+                self.caption_tracks.clear();
+                self.caption_selected = None;
                 self.local_gain = item.loudness_gain_db.map_or(1.0, |db| 10f64.powf(db.min(0.0) / 20.0) as f32);
                 self.apply_volume();
                 self.local_generation += 1;
                 self.bind_presenter();
-                self.send_local(LocalCommand::Load { path, video: self.local_video() });
+                let captions = self.local_caption_prefs();
+                self.send_local(LocalCommand::Load { path, video: self.local_video(), captions });
                 let start = std::mem::take(&mut self.start_position_ms);
                 if start > 0 {
                     self.send_local(LocalCommand::Seek(start));
@@ -1261,6 +1282,9 @@ impl Playback {
         let Some(local) = &self.local else { return false };
         let status = local.status.lock().unwrap().clone();
         self.position_ms = status.position_ms;
+        self.caption_tracks = status.caption_tracks;
+        self.caption_selected = status.caption_selected;
+        self.caption_lines = status.caption_lines;
         if status.duration_ms > 0 {
             self.duration_ms = status.duration_ms;
         }
