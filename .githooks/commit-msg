@@ -7,14 +7,11 @@
 # Merge commits are exempt. Setup (once per clone): git config core.hooksPath .githooks
 
 msg_file="$1"
+# Any merge, default or custom message, conflicted or not: git writes MERGE_HEAD before this runs.
 git_dir=$(git rev-parse --git-dir)
 [ -f "$git_dir/MERGE_HEAD" ] && exit 0
 
 body=$(grep -v '^#' "$msg_file")
-first=$(printf '%s\n' "$body" | sed -n '/[^[:space:]]/{p;q;}')
-case "$first" in
-    "Merge "*) exit 0 ;;
-esac
 
 rust_lines=$(printf '%s\n' "$body" | grep -c '^Rust:')
 valid=$(printf '%s\n' "$body" | grep -cE '^Rust: (ported|n/a\. +[^[:space:]].*)[[:space:]]*$')
