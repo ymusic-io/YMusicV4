@@ -13,6 +13,7 @@
 - A stream replay showed "Top chat replay" and "Live chat replay" as feed chips that did nothing ([169444841](https://github.com/ymusic-io/YMusicV4/commit/1694448411b8ec7db7607187dbeb2514c7c074d8))
 - Desktop: with speed or pitch changed, the first video could show an error (E20082) before it played ([7f45c9350](https://github.com/ymusic-io/YMusicV4/commit/7f45c9350568b5e0e610a720eb34c3f840387968))
 - macOS 14 and later: Open in the tray, the Dock and an update left the window behind the app in front ([9bda684d5](https://github.com/ymusic-io/YMusicV4/commit/9bda684d5b6de3b7f4631e419d7c721ea4a5ca9d))
+- Desktop: Pause or a seek pressed while the first video was still starting was ignored, and the video played from the start ([19accaa7a](https://github.com/ymusic-io/YMusicV4/commit/19accaa7a98fa3175adae3ca5e2c4a77837c66b9))
 
 ### IMPROVED
 - The app reopens on the tab you left in the Library and YT Music, as it already did for the page and the Discover tab. After this update it opens once on Discover ([#290](https://github.com/ymusic-io/YMusicV4/issues/290), [2c76395db](https://github.com/ymusic-io/YMusicV4/commit/2c76395db2af872bc41cff00bb5fbb00917f46d2), [aa1d42903](https://github.com/ymusic-io/YMusicV4/commit/aa1d42903e08bc0d26bee97e9957ab2ebcdeaa27), [a3b26455d](https://github.com/ymusic-io/YMusicV4/commit/a3b26455d3a5438750c758f964f11d954770980d), [5906be4d7](https://github.com/ymusic-io/YMusicV4/commit/5906be4d7d7f1763c2076baf53bea7311d9d2466))
@@ -21,6 +22,7 @@
 
 ### INTERNAL
 - Saved page and tab choices are stored by fixed name instead of a number, so adding or reordering tabs can't reopen the wrong one; the old number settings are deleted at start (R90204 if that fails on desktop), and settings can now delete a key ([a3b26455d](https://github.com/ymusic-io/YMusicV4/commit/a3b26455d3a5438750c758f964f11d954770980d), [5906be4d7](https://github.com/ymusic-io/YMusicV4/commit/5906be4d7d7f1763c2076baf53bea7311d9d2466), [05323c8fc](https://github.com/ymusic-io/YMusicV4/commit/05323c8fc23234263a276ddcd48d2c6a50518aac))
+- Downloads send the User-Agent the player bundle names, so a remotely updated bundle can change it; the one built into the app is only a fallback for older bundles ([5f4b613fb](https://github.com/ymusic-io/YMusicV4/commit/5f4b613fbc85b5437bf0ed89a082cdaa99f7283c), [9049d9207](https://github.com/ymusic-io/YMusicV4/commit/9049d9207a541d9be86fea29cf6955d928a8cd53))
 - The draft GitHub release notes end with a Downloads table ([74639d5dc](https://github.com/ymusic-io/YMusicV4/commit/74639d5dc10906bc7d6b06f4735fa63be44eec83))
 
 ## 4.0.22
