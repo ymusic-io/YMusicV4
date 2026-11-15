@@ -9,3 +9,8 @@ pub mod proxy;
 pub mod sabr;
 pub mod segment_index;
 pub mod ump;
+
+/// The User-Agent every host-made YouTube / googlevideo request sends. Must equal `DESKTOP_UA` in
+/// YMusicV4 `engine-js/src/logic/yt/session.ts`: the PO token is minted under that UA.
+pub const YOUTUBE_USER_AGENT: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 \
+    (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36";

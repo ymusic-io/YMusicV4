@@ -7,3 +7,4 @@ import "./protocol/http";
 import "./protocol/mse";
 import "./lifecycle";
 import "./logic/player";
+import "./logic/yt/user_agent";

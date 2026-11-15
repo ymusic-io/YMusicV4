@@ -21,7 +21,6 @@ import android.view.Surface
 import android.view.TextureView
 import android.view.View
 import android.view.ViewGroup
-import android.webkit.WebSettings
 import android.widget.FrameLayout
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.collectAsState
@@ -111,6 +110,7 @@ import io.ymusic.ui.playhistory.playHistoryAndroidDriver
 import io.ymusic.ui.registerCompletedDownload
 import io.ymusic.ui.sponsorblock.SqliteSponsorBlockStore
 import io.ymusic.ui.sponsorblock.sponsorBlockAndroidDriver
+import io.ymusic.ytmedia.YOUTUBE_USER_AGENT
 import io.ymusic.ytmedia.cache.DiskMediaBlobCache
 import io.ymusic.ytmedia.cache.MediaCache
 import io.ymusic.ytmedia.cache.SqlDelightBlobIndex
@@ -608,7 +608,7 @@ class YMusicApplication : Application() {
         val mediaProxy = LocalMediaProxy(
             playerCache,
             mediaProxyClient,
-            userAgent = WebSettings.getDefaultUserAgent(applicationContext),
+            userAgent = YOUTUBE_USER_AGENT,
             logger = rootLogger,
             // Per-request media-path logging — debug builds only, it narrates the hot path.
             verbose = BuildConfig.DEBUG,
@@ -679,7 +679,7 @@ class YMusicApplication : Application() {
                 now = { System.currentTimeMillis() },
                 resolver = ytResolver,
                 client = sabrClient,
-                userAgent = WebSettings.getDefaultUserAgent(applicationContext),
+                userAgent = YOUTUBE_USER_AGENT,
                 ffmpeg = ffmpegBin?.let { bin -> io.ymusic.download.Ffmpeg(bin) },
                 // Handles file:// (app dirs) via okio and user-picked SAF folders (content://) via SAF.
                 // App data, not cacheDir (trimmed mid-download under storage pressure); no_backup keeps
