@@ -104,6 +104,7 @@ Never leave a working tree of mixed experiments uncommitted: later we cannot
 tell what used to work, what broke it, or why (engine-js vs native MSE vs player vs UI).
 
 - Message: what changed and why, not a diary of tool calls.
+- **Every commit message carries one `Rust:` line** — `Rust: ported` (its desktopRust/ side is in this commit or this branch) or `Rust: n/a. <why it does not apply>`. There is no todo: port it in the same branch. The commit-msg hook (`.githooks/commit-msg`) rejects anything else; merge commits are exempt.
 - Do not mix unrelated work (engine-js vs `:mse` host vs player vs UI) in one commit.
 - Do not `git push` unless the user asks.
 - Do not commit secrets or session dumps (`log*.txt`, cookies, captured `base.js`, mitm traffic).
