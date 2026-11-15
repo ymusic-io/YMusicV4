@@ -345,8 +345,9 @@ export function noteSps(sps: number, media: number): void {
   }
   if (dumpFinished) return;
   if (typeof __bgEntropyStop === "function") __bgEntropyStop();
-  // 2 = attestation pending, not a verdict: googlevideo follows up with 1 (ok) or 3 (rejected).
-  if (sps === 2) return;
+  // 2 with media is attestation pending, not a verdict yet. 2 without media is this mint failing:
+  // the dump closes on it, before a re-mint's token is judged in its place.
+  if (sps === 2 && media > 0) return;
   dumpFinished = true;
   if (sps !== 1) {
     const url = lastSabrUrl;
