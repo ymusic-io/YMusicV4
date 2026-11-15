@@ -361,16 +361,27 @@ impl MediaStore {
         Ok(db.query_row(&sql, params![uri_of(path)], bucket_from_row).optional()?)
     }
 
-    /// The bucket for `uri`, created (or revived from a tombstone) under `parent_id`.
+    /// The bucket for `uri`, created (or revived from a tombstone) under `parent_id`. A removed
+    /// parent is no parent; `None` keeps an existing row's parent while that parent is live.
     pub fn upsert_bucket(&self, uri: &str, name: &str, parent_id: Option<i64>) -> Result<i64, StoreError> {
         let uri = &uri_of(uri);
         let db = self.db.lock().unwrap();
         let now = now_millis();
+        let parent_id = match parent_id {
+            Some(id) => db
+                .query_row("SELECT id FROM bucket WHERE id = ?1 AND deleted = 0", params![id], |row| {
+                    row.get::<_, i64>(0)
+                })
+                .optional()?,
+            None => None,
+        };
         if let Some(id) =
             db.query_row("SELECT id FROM bucket WHERE uri = ?1", params![uri], |row| row.get::<_, i64>(0)).optional()?
         {
             db.execute(
-                "UPDATE bucket SET parentId = ?1, name = ?2, deleted = 0, updatedAt = ?3 WHERE id = ?4",
+                "UPDATE bucket SET parentId = COALESCE(?1, (SELECT parent.id FROM bucket AS parent \
+                 WHERE parent.id = bucket.parentId AND parent.deleted = 0)), \
+                 name = ?2, deleted = 0, updatedAt = ?3 WHERE id = ?4",
                 params![parent_id, name, now, id],
             )?;
             self.changed();

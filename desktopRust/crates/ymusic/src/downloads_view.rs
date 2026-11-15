@@ -318,6 +318,7 @@ impl DownloadsView {
             duration_ms: None,
             duration_label: None,
             thumbs: Vec::new(),
+            media_id: None,
             history_code: None,
             youtube_vid: Some(task.video_id.clone()),
             loudness_gain_db: task.loudness_gain_db,

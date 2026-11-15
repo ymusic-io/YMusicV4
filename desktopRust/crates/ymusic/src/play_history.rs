@@ -1,9 +1,11 @@
 //! Records playback into the history store: watch time while an item plays, and the queue as a
 //! "Play again" session when it starts, changes item or items, pauses, and every 30 s of playing.
 
+use std::borrow::Cow;
+use std::collections::HashSet;
 use std::path::PathBuf;
-use std::sync::Arc;
 use std::sync::mpsc;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use gpui_kit::*;
@@ -11,6 +13,7 @@ use serde_json::{Value, json};
 use ym_common::log::Logger;
 use ym_engine::yt::YtThumb;
 use ym_history::{PlayAgainSession, PlayHistory, VideoMetadata};
+use ym_store::MediaStore;
 
 use crate::graph::AppGraph;
 use crate::playback::{PlayState, Playback, QueueItem, Source};
@@ -45,7 +48,7 @@ pub fn encode_items(items: &[QueueItem]) -> String {
                 Source::Local(path) => {
                     row["type"] = json!("local");
                     row["uri"] = json!(ym_common::file_uri::to_file_uri(&path.to_string_lossy()));
-                    row["mediaId"] = Value::Null;
+                    row["mediaId"] = json!(item.media_id);
                     row["album"] = Value::Null;
                     row["code"] = json!(item.history_code);
                     row["videoId"] = json!(item.youtube_vid);
@@ -99,6 +102,7 @@ pub fn decode_items(text: &str) -> Result<Vec<QueueItem>, String> {
                 duration_ms: row.get("durationMs").and_then(Value::as_i64),
                 duration_label: string("duration"),
                 thumbs,
+                media_id: if local { row.get("mediaId").and_then(Value::as_i64) } else { None },
                 history_code: if local { string("code") } else { None },
                 youtube_vid: if local { string("videoId") } else { None },
                 loudness_gain_db: if local { gain } else { None },
@@ -123,7 +127,7 @@ enum Write {
 
 /// One thread applies every write in order.
 /// A guest's YouTube plays are not kept.
-fn start_writer(history: Arc<PlayHistory>, guest: bool, log: Logger) -> mpsc::Sender<Write> {
+fn start_writer(history: Arc<PlayHistory>, media: Arc<MediaStore>, guest: bool, log: Logger) -> mpsc::Sender<Write> {
     let (sender, receiver) = mpsc::channel::<Write>();
     std::thread::Builder::new()
         .name("play-history".into())
@@ -134,7 +138,7 @@ fn start_writer(history: Arc<PlayHistory>, guest: bool, log: Logger) -> mpsc::Se
                         let _ = done.send(());
                         continue;
                     }
-                    Write::Watch { item, watch_ms } => record_watch(&history, &item, watch_ms, guest),
+                    Write::Watch { item, watch_ms } => record_watch(&history, &media, &item, watch_ms, guest),
                     Write::Session { session, items: Some(items) } => {
                         history.save_session(&session, &items).map_err(|error| error.to_string())
                     }
@@ -154,22 +158,33 @@ fn start_writer(history: Arc<PlayHistory>, guest: bool, log: Logger) -> mpsc::Se
     sender
 }
 
-fn record_watch(history: &PlayHistory, item: &QueueItem, watch_ms: i64, guest: bool) -> Result<(), String> {
-    record_watch_rows(history, item, watch_ms, guest).map_err(|error| error.to_string())
+fn record_watch(
+    history: &PlayHistory,
+    media: &MediaStore,
+    item: &QueueItem,
+    watch_ms: i64,
+    guest: bool,
+) -> Result<(), String> {
+    let row = match (&item.source, item.media_id) {
+        (Source::Local(_), Some(media_id)) => media.item(media_id).map_err(|error| error.to_string())?,
+        _ => None,
+    };
+    record_watch_rows(history, item, row.as_ref(), watch_ms, guest).map_err(|error| error.to_string())
 }
 
+/// A local file earns time only as a live Library row (`row`), under that row's own code.
 fn record_watch_rows(
     history: &PlayHistory,
     item: &QueueItem,
+    row: Option<&ym_store::MediaItem>,
     watch_ms: i64,
     guest: bool,
 ) -> Result<(), ym_history::StoreError> {
     match &item.source {
         Source::Local(_) => {
-            if let Some(code) = &item.history_code {
-                history.track_local(code, watch_ms)?;
-            }
-            if let Some(video_id) = item.youtube_vid.as_ref().filter(|_| !guest) {
+            let Some(row) = row else { return Ok(()) };
+            history.track_local(&row.playlist_code(), watch_ms)?;
+            if let Some(video_id) = row.youtube_vid.as_ref().filter(|_| !guest) {
                 history.track_youtube(video_id, watch_ms)?;
             }
             Ok(())
@@ -195,6 +210,7 @@ struct Snapshot {
     index: usize,
     session: PlayAgainSession,
     playing: bool,
+    item_duration_ms: i64,
 }
 
 pub struct HistoryRecorder {
@@ -207,6 +223,8 @@ pub struct HistoryRecorder {
     playback: Entity<Playback>,
     /// A guest records no Play again sessions.
     guest: bool,
+    /// Left out of the saved queue; a queue of only these is not saved.
+    temporary: Arc<Mutex<HashSet<PathBuf>>>,
     _observe: Subscription,
     _quit: Subscription,
 }
@@ -215,7 +233,8 @@ impl HistoryRecorder {
     pub fn new(playback: Entity<Playback>, cx: &mut Context<Self>) -> Self {
         let graph = cx.global::<AppGraph>();
         let guest = graph.guest;
-        let writes = start_writer(graph.history.clone(), guest, graph.log.fork("play-history"));
+        let temporary = graph.temporary_uris.clone();
+        let writes = start_writer(graph.history.clone(), graph.media.clone(), guest, graph.log.fork("play-history"));
         let observe = cx.observe(&playback, |recorder, playback, cx| recorder.observe(&playback, cx));
         let quit = cx.on_app_quit(|recorder, cx| {
             recorder.flush(cx);
@@ -230,6 +249,7 @@ impl HistoryRecorder {
             last_write_at: Instant::now(),
             playback,
             guest,
+            temporary,
             _observe: observe,
             _quit: quit,
         }
@@ -239,8 +259,8 @@ impl HistoryRecorder {
     fn flush(&mut self, cx: &mut Context<Self>) {
         self.track_watch(None, false);
         let playback = self.playback.read(cx);
-        if let Some(item) = playback.current().cloned() {
-            let snapshot = snapshot(playback, &item, false);
+        let snapshot = snapshot(playback, false, &self.temporary.lock().unwrap());
+        if let Some(snapshot) = snapshot {
             self.last_written = None;
             self.write(&snapshot, playback);
         }
@@ -256,19 +276,19 @@ impl HistoryRecorder {
         let playing = playback.state == PlayState::Playing;
         let current = playback.current().cloned();
         self.track_watch(current.as_ref(), playing);
-        let item_duration = current.as_ref().and_then(|item| item.duration_ms).unwrap_or(0);
-        let next = current.map(|item| snapshot(playback, &item, playing));
+        let next = snapshot(playback, playing, &self.temporary.lock().unwrap());
         let previous = self.current.take();
         match (&previous, &next) {
             (_, Some(next)) if previous.as_ref().is_none_or(|previous| previous.queue_id != next.queue_id) => {
                 if let Some(previous) = &previous {
                     self.write(previous, playback);
                 }
-                self.write(&at_item_start(next, item_duration), playback);
+                self.write(&at_item_start(next, next.item_duration_ms), playback);
             }
+            (Some(previous), None) => self.write(previous, playback),
             (Some(previous), Some(next)) => {
                 if next.index != previous.index {
-                    self.write(&at_item_start(next, item_duration), playback);
+                    self.write(&at_item_start(next, next.item_duration_ms), playback);
                 } else if next.revision != previous.revision
                     || (previous.playing && !next.playing)
                     || (next.playing && self.last_write_at.elapsed() >= PROGRESS_EVERY)
@@ -313,7 +333,12 @@ impl HistoryRecorder {
             return;
         }
         // Only the queue it describes may be encoded: a snapshot of a replaced queue sends progress.
-        let items = (!saved && playback.queue_id == snapshot.queue_id).then(|| encode_items(&playback.queue));
+        let items = if !saved && playback.queue_id == snapshot.queue_id {
+            let temporary = self.temporary.lock().unwrap();
+            persistable(&playback.queue, playback.index, &temporary).map(|(queue, _)| encode_items(&queue))
+        } else {
+            None
+        };
         if !saved && items.is_none() {
             return;
         }
@@ -324,32 +349,56 @@ impl HistoryRecorder {
     }
 }
 
-fn snapshot(playback: &Playback, item: &QueueItem, playing: bool) -> Snapshot {
-    let size = playback.queue.len();
-    let strip_start = PlayAgainSession::strip_start(playback.index, size);
+/// The JVM recorder's `persistable`: the queue without its temporary items, the index moved onto
+/// what is kept; `None` when nothing is kept.
+fn persistable<'queue>(
+    queue: &'queue [QueueItem],
+    index: usize,
+    temporary: &HashSet<PathBuf>,
+) -> Option<(Cow<'queue, [QueueItem]>, usize)> {
+    let is_temporary = |item: &QueueItem| matches!(&item.source, Source::Local(path) if temporary.contains(path));
+    if index >= queue.len() || !queue.iter().any(is_temporary) {
+        return Some((Cow::Borrowed(queue), index));
+    }
+    let kept: Vec<QueueItem> = queue.iter().filter(|item| !is_temporary(item)).cloned().collect();
+    if kept.is_empty() {
+        return None;
+    }
+    let kept_before = queue[..index].iter().filter(|item| !is_temporary(item)).count();
+    let index = kept_before.min(kept.len() - 1);
+    Some((Cow::Owned(kept), index))
+}
+
+/// The session of the persistable queue; `None` when there is no current item or nothing is kept.
+fn snapshot(playback: &Playback, playing: bool, temporary: &HashSet<PathBuf>) -> Option<Snapshot> {
+    let (queue, index) = persistable(&playback.queue, playback.index, temporary)?;
+    let item = queue.get(index)?;
+    let size = queue.len();
+    let strip_start = PlayAgainSession::strip_start(index, size);
     let duration = if playback.duration_ms > 0 { playback.duration_ms } else { item.duration_ms.unwrap_or(0) };
-    Snapshot {
+    Some(Snapshot {
         queue_id: playback.queue_id.clone(),
         revision: playback.queue_revision,
-        index: playback.index,
+        index,
         session: PlayAgainSession {
             queue_id: playback.queue_id.clone(),
             title: item.title.clone(),
             subtitle: item.artist.clone(),
             thumbnail_url: item.thumb(480).map(|url| crate::local_art::to_jvm_art(&url)),
-            queue_index: playback.index,
+            queue_index: index,
             queue_size: size,
             position_ms: playback.position_ms.max(0),
             duration_ms: duration,
             strip_start,
-            strip_thumbs: playback.queue[strip_start..(strip_start + PlayAgainSession::STRIP_SIZE).min(size)]
+            strip_thumbs: queue[strip_start..(strip_start + PlayAgainSession::STRIP_SIZE).min(size)]
                 .iter()
                 .map(|item| item.thumb(120).map(|url| crate::local_art::to_jvm_art(&url)))
                 .collect(),
             source_token: None,
         },
         playing,
-    }
+        item_duration_ms: item.duration_ms.unwrap_or(0),
+    })
 }
 
 /// A track change: the play-head and length may still be the previous item's, so the new item's own
@@ -364,5 +413,6 @@ fn at_item_start(snapshot: &Snapshot, item_duration_ms: i64) -> Snapshot {
         index: snapshot.index,
         session,
         playing: snapshot.playing,
+        item_duration_ms: snapshot.item_duration_ms,
     }
 }

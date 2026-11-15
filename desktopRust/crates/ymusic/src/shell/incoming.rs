@@ -14,7 +14,7 @@ use crate::desktop::TrayCommand;
 use crate::feed::FeedSource;
 use crate::graph::{AppGraph, on_core};
 use crate::instance::{Command, Inbox, Request};
-use crate::playback::QueueItem;
+use crate::playback::{QueueItem, Source};
 
 impl Shell {
     /// Takes the requests queued since launch, then each later one as it arrives.
@@ -93,7 +93,7 @@ impl Shell {
     }
 
     /// Plays `paths` as the queue: a file in the Library as that item, any other described by its
-    /// own tags (or its name when it can't be probed).
+    /// own tags (or its name when it can't be probed) and kept out of Play again.
     fn open_files(&mut self, paths: Vec<PathBuf>, window: &mut Window, cx: &mut Context<Self>) {
         let graph = cx.global::<AppGraph>();
         let (store, log) = (graph.media.clone(), graph.log.fork("open-file"));
@@ -121,6 +121,11 @@ impl Shell {
                     window.push_notification(tf(Str::ErrorGeneric, &[&"R96002"]), cx);
                     return;
                 }
+                let loose = items.iter().filter(|item| item.media_id.is_none()).filter_map(|item| match &item.source {
+                    Source::Local(path) => Some(path.clone()),
+                    Source::YouTube(_) => None,
+                });
+                cx.global::<AppGraph>().temporary_uris.lock().unwrap().extend(loose);
                 shell.playback.update(cx, |playback, cx| playback.play_queue(items, 0, cx));
                 shell.now_playing_open = true;
                 shell.show_window(cx);
@@ -149,7 +154,7 @@ fn describe_file(store: &ym_store::MediaStore, path: PathBuf, log: &ym_common::l
             if let Some(code) = described.probe_error {
                 log.warn(&format!("opened file probe failed (libav {code}): playing it under its name"), None);
             }
-            Some(QueueItem::from_local(&described.item))
+            Some(QueueItem::from_file(&described.item))
         }
         Err(error) => {
             log.warn(&format!("opened file could not be read: {}", path.display()), Some(&error));

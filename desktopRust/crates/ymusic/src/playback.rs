@@ -122,6 +122,8 @@ pub struct QueueItem {
     pub duration_ms: Option<i64>,
     pub duration_label: Option<String>,
     pub thumbs: Vec<YtThumb>,
+    /// The Library row a local file plays as; `None` for a file outside the Library.
+    pub media_id: Option<i64>,
     /// A local file's play-history key: its YouTube id when tagged, else size and length.
     pub history_code: Option<String>,
     /// A local file downloaded from YouTube (its `composer` tag).
@@ -139,13 +141,20 @@ impl QueueItem {
             duration_ms: item.duration_ms,
             duration_label: item.duration.clone(),
             thumbs: item.thumbs.clone(),
+            media_id: None,
             history_code: None,
             youtube_vid: None,
             loudness_gain_db: None,
         }
     }
 
+    /// A Library item.
     pub fn from_local(item: &ym_store::MediaItem) -> Self {
+        Self { media_id: Some(item.id), ..Self::from_file(item) }
+    }
+
+    /// A file outside the Library, described by its own tags (the JVM `looseFile`).
+    pub fn from_file(item: &ym_store::MediaItem) -> Self {
         Self {
             source: Source::Local(PathBuf::from(&item.uri)),
             title: item.title.clone(),
@@ -153,6 +162,7 @@ impl QueueItem {
             duration_ms: item.duration_ms,
             duration_label: item.duration_ms.map(crate::mini_player::clock),
             thumbs: crate::local_art::queue_thumbs(item),
+            media_id: None,
             history_code: Some(
                 item.youtube_vid
                     .clone()
