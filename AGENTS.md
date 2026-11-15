@@ -114,7 +114,7 @@ tell what used to work, what broke it, or why (engine-js vs native MSE vs player
 
 ### Release flow
 On the current working branch:
-1. Bump `ymusic.versionName` (`gradle.properties`) and versionCode +1 in `androidApp/build.gradle.kts`, `desktopApp/build.gradle.kts` (`desktopVersionCode`, which the Rust desktop app reports too), `iosApp/iosApp/Info.plist`.
+1. Bump `ymusic.versionName` and `ymusic.versionCode` +1 in `gradle.properties` — the one version for Android, desktop (the Rust app reports it too) and iOS.
 2. In `CHANGELOG.md`, rename `## Unreleased` to the version. It covers the desktop app in `desktopRust/` too.
 3. In `error-codes.txt` and `desktopRust/error-codes.txt`, flip shipped `-` rows to `D`.
 4. Tag the commit: `hotfix-v<version>` for a hotfix, `release-v<version>` for a release, `prerelease-v<version>` for a test build (same full artifact set in a draft GitHub prerelease, no CHANGELOG section, Sentry environment `beta`; steps 1–3 don't apply). The tag message is the update dialog's release notes, **per platform**: each platform's lines go under its `[android]` / `[macos]` / `[windows]` / `[linux]` header (repeat a line under each header it applies to); a message without headers goes to every platform, and an unknown header fails the release job. Each platform's notes: at most 7 lines of ≤40 chars (the dialog cuts off the rest), no title (the dialog shows the version); when there is more, the last line says so and points to the full changelog:

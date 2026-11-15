@@ -34,12 +34,11 @@ fn main() {
         println!("cargo:rustc-env={variable}={value}");
     }
     // The app's version continues the JVM desktop line: YMusicV4's ymusic.versionName and
-    // desktopVersionCode, which the update feed compares; YMUSIC_VERSION_NAME / YMUSIC_VERSION_CODE
+    // ymusic.versionCode, which the update feed compares; YMUSIC_VERSION_NAME / YMUSIC_VERSION_CODE
     // override them for a release that runs ahead of that checkout.
-    let gradle = v4.join("desktopApp/build.gradle.kts");
     let properties = v4.join("gradle.properties");
     for (variable, file, prefix) in [
-        ("YMUSIC_VERSION_CODE", &gradle, "val desktopVersionCode = "),
+        ("YMUSIC_VERSION_CODE", &properties, "ymusic.versionCode="),
         ("YMUSIC_VERSION_NAME", &properties, "ymusic.versionName="),
     ] {
         println!("cargo:rerun-if-env-changed={variable}");
