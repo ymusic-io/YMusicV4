@@ -64,6 +64,7 @@ const OVERLAY_SEEK: usize = 10;
 const OVERLAY_SIGN_IN: usize = 11;
 const OVERLAY_RETRY: usize = 12;
 const OVERLAY_LIVE: usize = 13;
+const OVERLAY_FILL: usize = 14;
 const MENU_CAPTIONS: u8 = 1;
 const MENU_QUALITY: u8 = 2;
 const MENU_MORE: u8 = 4;
@@ -136,6 +137,9 @@ pub struct NowPlaying {
     /// A video control held keyboard focus at the last render: the controls stay up meanwhile.
     keyboard_in_controls: Cell<bool>,
     fullscreen: bool,
+    /// The JVM `videoFillScreen`: full screen takes the whole screen as the picture; never saved, off
+    /// whenever full screen ends.
+    video_fill: bool,
     _subscriptions: Vec<Subscription>,
     _controls_timer: Task<()>,
 }
@@ -388,6 +392,7 @@ impl NowPlaying {
             overlay_focus: FocusList::new(None),
             keyboard_in_controls: Cell::new(false),
             fullscreen: false,
+            video_fill: false,
             _subscriptions: subscriptions,
             _controls_timer: controls_timer,
         }
@@ -547,6 +552,9 @@ impl NowPlaying {
 
     fn toggle_fullscreen(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.fullscreen = !self.fullscreen;
+        if !self.fullscreen {
+            self.video_fill = false;
+        }
         window.toggle_fullscreen();
         self.show_controls(cx);
     }
@@ -743,6 +751,24 @@ impl NowPlaying {
             .children(actions)
             .when_some(self.caption_button(glyph, hit, cx), |row, button| {
                 row.child(self.overlay_focus.wrap_for(OVERLAY_CAPTIONS, &self.caption_focus, button, cx))
+            })
+            .when(fullscreen, |row| {
+                let fill = self.video_fill;
+                let toggle = sized_action_icon(
+                    "np-fill",
+                    if fill { Lucide::Shrink } else { Lucide::Scan },
+                    t(if fill { Str::CdFitVideo } else { Str::CdFillVideo }),
+                    glyph,
+                    hit,
+                );
+                row.child(self.overlay_focus.button(
+                    OVERLAY_FILL,
+                    on_video(toggle, cx).on_click(cx.listener(|view, _, _, cx| {
+                        view.video_fill = !view.video_fill;
+                        cx.notify();
+                    })),
+                    cx,
+                ))
             })
             .child(
                 self.overlay_focus.button(
@@ -986,9 +1012,9 @@ impl NowPlaying {
         } else {
             0.1 + 0.1 * ((width - 600.) / (1920. - 600.)).clamp(0., 1.)
         };
-        // The picture is contain-fit: captions go in the bar under it when two rows fit there clear
-        // of the controls, else over its bottom.
-        let (picture_width, picture_height) = if audio_only {
+        // The picture is contain-fit (the whole box when it fills): captions go in the bar under it when
+        // two rows fit there clear of the controls, else over its bottom.
+        let (picture_width, picture_height) = if audio_only || self.video_fill {
             (width, height)
         } else if width / height.max(1.) <= VIDEO_RATIO {
             (width, width / VIDEO_RATIO)
@@ -1714,6 +1740,7 @@ impl Render for NowPlaying {
         let Some(current) = self.playback.read(cx).current().cloned() else { return div().into_any_element() };
         if self.fullscreen && !window.is_fullscreen() {
             self.fullscreen = false;
+            self.video_fill = false;
         }
         if self.fullscreen {
             return div()
