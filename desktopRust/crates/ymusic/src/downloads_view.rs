@@ -88,6 +88,8 @@ pub struct DownloadsView {
     chip_drag: DragRow,
     /// Sign-in-required failures to re-run once the account signs in.
     retry_after_sign_in: Vec<String>,
+    /// The list could not be read; the screen says so with Retry (the JVM ErrorState).
+    load_error: Option<&'static str>,
     _changes: Task<()>,
 }
 
@@ -135,6 +137,7 @@ impl DownloadsView {
             fab_focus: FocusList::new(None),
             chip_drag: DragRow::default(),
             retry_after_sign_in: Vec::new(),
+            load_error: None,
             _changes: changes,
         };
         view.refresh(cx);
@@ -151,9 +154,13 @@ impl DownloadsView {
                     Some(Ok(mut tasks)) => {
                         tasks.reverse();
                         view.tasks = tasks;
+                        view.load_error = None;
                     }
                     Some(Err(error)) => {
-                        cx.global::<AppGraph>().log.warn("the download list could not be read", Some(&error));
+                        cx.global::<AppGraph>()
+                            .log
+                            .warn(&format!("{LOAD_FAILED} the download list could not be read"), Some(&error));
+                        view.load_error = Some(LOAD_FAILED);
                     }
                     None => {}
                 }
@@ -464,6 +471,7 @@ fn state_label(state: DownloadState) -> &'static str {
     })
 }
 
+const LOAD_FAILED: &str = "R90034";
 const CARD_MIN: f32 = 340.;
 const THUMB: f32 = 56.;
 
@@ -793,6 +801,21 @@ impl Render for DownloadsView {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         crate::shell::track_scroll(&self.scroll, cx);
         let theme = cx.theme().clone();
+        if let Some(code) = self.load_error {
+            return v_flex()
+                .size_full()
+                .items_center()
+                .justify_center()
+                .gap_3()
+                .p_6()
+                .child(crate::a11y::alert("downloads-error", tf(Str::ErrorGeneric, &[&code])).text_center())
+                .child(
+                    Button::new("downloads-retry")
+                        .label(t(Str::Retry))
+                        .on_click(cx.listener(|view, _, _, cx| view.refresh(cx))),
+                )
+                .into_any_element();
+        }
         if self.tasks.iter().all(|task| task.state == DownloadState::Canceled) {
             return v_flex()
                 .size_full()
