@@ -300,6 +300,10 @@ pub struct Playback {
     /// The next YouTube load starts a new session (the JVM `needReset` errors, reload and
     /// `refreshOnNext` after a sign-in change).
     reset_session: bool,
+    /// Bumped by every load; `ended_generation` is the load whose end was already handled (the JVM
+    /// loadGeneration / advancedGeneration).
+    load_generation: u64,
+    ended_generation: Option<u64>,
     /// The video whose acknowledged load still waits for progress or details.
     load_timeout_video: Option<String>,
     _load_timeout: Option<Task<()>>,
@@ -381,6 +385,8 @@ impl Playback {
             loading_video: None,
             loaded_video: None,
             reset_session: false,
+            load_generation: 0,
+            ended_generation: None,
             load_timeout_video: None,
             _load_timeout: None,
             quality_options: Vec::new(),
@@ -864,24 +870,36 @@ impl Playback {
     }
 
     /// The current item finished on its own.
+    /// The JVM PlayerImpl.onTrackEnded: each load ends at most once. "Stop after current" leaves the
+    /// next item loaded and paused (with Loop One, the same item at 0:00).
     fn track_ended(&mut self, cx: &mut Context<Self>) {
+        if self.ended_generation == Some(self.load_generation) {
+            return;
+        }
         if self.sleep_after_current {
             self.sleep_after_current = false;
             self.play_when_ready = false;
-            self.state = PlayState::Ended;
-            return;
+            if self.nav.loop_mode == LoopMode::One {
+                self.ended_generation = Some(self.load_generation);
+                self.load_current(cx);
+                return;
+            }
         }
         match self.nav.peek_next(false, self.index, self.queue.len()) {
-            Some(next) if next == self.index => {
+            Some(next) if next == self.index && self.play_when_ready => {
                 self.seek(0, cx);
                 self.play(cx);
             }
             Some(next) => {
+                self.ended_generation = Some(self.load_generation);
                 self.nav.commit(next, self.queue.len());
                 self.index = next;
                 self.load_current(cx);
             }
-            None => self.state = PlayState::Ended,
+            None => {
+                self.ended_generation = Some(self.load_generation);
+                self.state = PlayState::Ended;
+            }
         }
         self.extend_queue_if_near_end(cx);
     }
@@ -1236,6 +1254,7 @@ impl Playback {
 
     fn load_current(&mut self, cx: &mut Context<Self>) {
         let Some(item) = self.current().cloned() else { return };
+        self.load_generation += 1;
         self.state = PlayState::Buffering;
         self.position_ms = 0;
         self.buffered_ms = 0;
