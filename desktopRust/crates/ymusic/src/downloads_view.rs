@@ -407,8 +407,20 @@ pub fn size_label(bytes: i64) -> String {
     }
 }
 
-/// A failure as the user reads it: a category they can act on, else the code.
-pub fn task_error_text(error: &TaskError) -> String {
+/// A failure as the user reads it (the JVM `downloadErrorUiText`): no code reads its message or
+/// "Download failed"; then the folder category, a playability verdict, the message with its code,
+/// else the code.
+pub fn task_error_text(error: Option<&TaskError>) -> String {
+    let Some(error) = error.filter(|error| !error.code.is_empty()) else {
+        return error
+            .and_then(|error| error.user_message.clone())
+            .unwrap_or_else(|| t(Str::DownloadsFailed).to_owned());
+    };
+    if error.code == ym_download::error::FOLDER_ACCESS_CODE
+        || error.code == ym_download::error::LEGACY_FOLDER_ACCESS_CODE
+    {
+        return t(Str::DownloadsErrorFolderAccess).to_owned();
+    }
     match playability(&error.code) {
         Some(Playability::SignInRequired) => return t(Str::PlaybackSignInRequired).to_owned(),
         Some(Playability::Unavailable) => return t(Str::PlaybackUnavailable).to_owned(),
@@ -421,9 +433,6 @@ pub fn task_error_text(error: &TaskError) -> String {
     match error.code.as_str() {
         "network" => t(Str::ErrorNetwork).to_owned(),
         "disk_full" => t(Str::ErrorDiskFull).to_owned(),
-        ym_download::error::FOLDER_ACCESS_CODE | ym_download::error::LEGACY_FOLDER_ACCESS_CODE => {
-            t(Str::DownloadsErrorFolderAccess).to_owned()
-        }
         "live" => t(Str::DownloadLiveUnsupported).to_owned(),
         "processing" => t(Str::ErrorLiveStillProcessing).to_owned(),
         code => tf(Str::ErrorGeneric, &[&code]),
@@ -657,7 +666,7 @@ impl DownloadsView {
                             .text_xs()
                             .text_color(theme.danger)
                             .line_clamp(2)
-                            .child(task.error.as_ref().map(task_error_text).unwrap_or_default()),
+                            .child(task_error_text(task.error.as_ref())),
                     )
                     .child(
                         self.focus
