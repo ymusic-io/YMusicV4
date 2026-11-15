@@ -103,13 +103,11 @@ internal fun DownloadDialogHost(graph: AppGraph, pending: YtFeedItem?, onDismiss
     val onDownload = { if (alreadyDownloaded) confirming = true else start() }
     val onPickLocation: () -> Unit = { scope.launch { pickDownloadFolder(graph, snackbar, scans) } }
     val onRetry: () -> Unit = { scope.launch { state.load(log) } }
-    // Signed out: sign in, then reopen these options for a fresh probe under the account.
     val signIn = LocalSignInResolver.current?.takeIf { !it.signedIn }
-    val launcher = LocalDownloadLauncher.current
     val onSignIn: (() -> Unit)? = signIn?.let { resolver ->
         {
             onDismiss()
-            resolver.signIn { launcher?.launch(video) }
+            resolver.signIn {}
         }
     }
     val window = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.toSize().toDpSize() }
