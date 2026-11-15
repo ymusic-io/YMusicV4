@@ -287,6 +287,9 @@ pub struct Playback {
     /// Whether the play-head may move; a live head without DVR may not.
     pub seekable: bool,
     loading_video: Option<String>,
+    /// The YouTube video whose progress the player last confirmed; None after a stop (the JVM
+    /// MsePlayer's loadedVideoId).
+    loaded_video: Option<String>,
     gain: f32,
     /// The local item's attenuate-only loudness gain.
     local_gain: f32,
@@ -365,6 +368,7 @@ impl Playback {
             live: false,
             seekable: true,
             loading_video: None,
+            loaded_video: None,
             quality_options: Vec::new(),
             viewport: None,
             quality_actual: None,
@@ -607,6 +611,7 @@ impl Playback {
         self.queue_revision += 1;
         self.index = 0;
         self.send_local(LocalCommand::Stop);
+        self.loaded_video = None;
         self.command(cx, |engine, log| async move { engine.player_stop(&log).await });
         self.state = PlayState::Idle;
         self.nav.reset(self.index);
@@ -632,6 +637,7 @@ impl Playback {
             if self.queue.is_empty() {
                 self.index = 0;
                 self.send_local(LocalCommand::Stop);
+                self.loaded_video = None;
                 self.command(cx, |engine, log| async move { engine.player_stop(&log).await });
                 self.state = PlayState::Idle;
             } else {
@@ -1211,6 +1217,11 @@ impl Playback {
                 self.quality_actual = None;
                 self.active = Some(Active::YouTube);
                 self.bind_presenter();
+                // base.js pushes the new video's gain once it picks a format; until then play at the user's volume.
+                if self.loaded_video.as_deref() != Some(video_id.as_str()) && self.gain != 1.0 {
+                    self.gain = 1.0;
+                    self.apply_volume();
+                }
                 self.loading_video = Some(video_id.clone());
                 if self.session.is_none() {
                     self.pending = Some(video_id);
@@ -1228,6 +1239,7 @@ impl Playback {
             }
             Source::Local(path) => {
                 if self.active == Some(Active::YouTube) {
+                    self.loaded_video = None;
                     self.command(cx, |engine, log| async move { engine.player_stop(&log).await });
                 }
                 if self.local.is_none() {
@@ -1473,6 +1485,7 @@ impl Playback {
             let failed = matches!(self.state, PlayState::Failed(_));
             if video_id.is_some() && video_id == current && !failed {
                 self.loading_video = None;
+                self.loaded_video = video_id;
                 self.position_ms = field_i64(progress, &["progress", "positionMs"]);
                 self.buffered_ms = field_i64(progress, &["bufferedMs"]);
                 let duration = field_i64(progress, &["duration", "durationMs"]);
