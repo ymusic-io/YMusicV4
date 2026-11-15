@@ -1145,7 +1145,6 @@ impl NowPlaying {
         let target = current.video_id().map(|video_id| DownloadTarget {
             video_id: video_id.to_owned(),
             title: current.title.clone(),
-            artist: current.artist.clone(),
             thumbnail_url: current.thumb(640).map(|url| url.to_string()),
         });
 
@@ -1397,7 +1396,6 @@ impl NowPlaying {
                         let target = DownloadTarget {
                             video_id: video_id.clone(),
                             title: item.title.clone(),
-                            artist: item.artist.clone(),
                             thumbnail_url: item.thumb(640).map(|url| url.to_string()),
                         };
                         let download = view.clone();

@@ -904,7 +904,6 @@ impl Shell {
                 let target = DownloadTarget {
                     video_id: video_id.to_owned(),
                     title: video_id.to_owned(),
-                    artist: None,
                     thumbnail_url: None,
                 };
                 window.defer(cx, move |window, cx| crate::quick_download::launch(target, window, cx));
@@ -917,7 +916,6 @@ impl Shell {
                 self.pending_download = Some(DownloadTarget {
                     video_id: video_id.to_owned(),
                     title: video_id.to_owned(),
-                    artist: None,
                     thumbnail_url: Some(format!("https://i.ytimg.com/vi/{video_id}/hqdefault.jpg")),
                 });
             }
@@ -1370,7 +1368,6 @@ impl Shell {
                     shell.pending_download = Some(DownloadTarget {
                         video_id: item.id.clone(),
                         title: item.title.clone(),
-                        artist: item.channel_title.clone().or_else(|| item.subtitle_line1.clone()),
                         thumbnail_url: item.thumbs.last().map(|thumb| {
                             if thumb.url.starts_with("//") { format!("https:{}", thumb.url) } else { thumb.url.clone() }
                         }),

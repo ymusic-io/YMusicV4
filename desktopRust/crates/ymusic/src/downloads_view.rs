@@ -302,7 +302,6 @@ impl DownloadsView {
             DownloadTarget {
                 video_id: task.video_id.clone(),
                 title: task.title.clone(),
-                artist: task.artist.clone(),
                 thumbnail_url: task.thumbnail_url.clone(),
             },
             window,

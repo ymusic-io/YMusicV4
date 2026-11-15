@@ -34,7 +34,6 @@ use crate::quick_download::{QuickPreset, confirm_redownload, save_preset, saved_
 pub struct DownloadTarget {
     pub video_id: String,
     pub title: String,
-    pub artist: Option<String>,
     pub thumbnail_url: Option<String>,
 }
 
@@ -43,7 +42,6 @@ impl DownloadTarget {
         Self {
             video_id: item.id.clone(),
             title: item.title.clone(),
-            artist: item.channel_title.clone().or_else(|| item.subtitle_line1.clone()),
             thumbnail_url: item.thumbs.last().map(|thumb| {
                 if thumb.url.starts_with("//") { format!("https:{}", thumb.url) } else { thumb.url.clone() }
             }),
@@ -479,7 +477,7 @@ impl DownloadPicker {
         self.service.enqueue(DownloadRequest {
             video_id: target.video_id,
             title: target.title,
-            artist: target.artist,
+            artist: None,
             thumbnail_url: target.thumbnail_url,
             format,
             requested_height: if format.is_video() { self.height } else { None },
