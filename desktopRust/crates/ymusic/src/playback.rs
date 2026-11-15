@@ -1296,13 +1296,16 @@ impl Playback {
                 self.local_generation += 1;
                 self.bind_presenter();
                 let captions = self.local_caption_prefs();
-                self.send_local(LocalCommand::Load { path, video: self.local_video(), captions });
-                let start = std::mem::take(&mut self.start_position_ms);
-                if start > 0 {
-                    self.send_local(LocalCommand::Seek(start));
-                }
-                if !self.play_when_ready {
-                    self.send_local(LocalCommand::Pause);
+                let start_ms = std::mem::take(&mut self.start_position_ms);
+                let play_when_ready = self.play_when_ready;
+                self.send_local(LocalCommand::Load {
+                    path,
+                    video: self.local_video(),
+                    captions,
+                    start_ms,
+                    play_when_ready,
+                });
+                if !play_when_ready {
                     self.state = PlayState::Paused;
                 }
                 self.poll_local(cx);

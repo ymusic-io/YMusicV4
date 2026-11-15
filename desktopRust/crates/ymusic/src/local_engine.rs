@@ -20,10 +20,13 @@ pub struct CaptionPrefs {
 }
 
 pub enum LocalCommand {
+    /// Opens `path` at `start_ms`, then plays or stays paused (the JVM JvmLocalPlayer.load).
     Load {
         path: PathBuf,
         video: bool,
         captions: CaptionPrefs,
+        start_ms: i64,
+        play_when_ready: bool,
     },
     Captions(CaptionPrefs),
     Play,
@@ -281,7 +284,7 @@ fn run(mut player: LocalAv, commands: mpsc::Receiver<LocalCommand>, status: Arc<
         };
         match next {
             Ok(command) => match command {
-                LocalCommand::Load { path, video, captions: prefs } => {
+                LocalCommand::Load { path, video, captions: prefs, start_ms, play_when_ready } => {
                     player.close();
                     player.set_video_enabled(video);
                     captions.clear(&mut player);
@@ -297,15 +300,22 @@ fn run(mut player: LocalAv, commands: mpsc::Receiver<LocalCommand>, status: Arc<
                     match player.open(&path) {
                         Ok(()) => {
                             captions.open(&mut player, &path);
-                            captions.publish(&mut status, 0.0);
                             status.video_track = Some((path, player.has_video()));
                             player.set_speed_pitch(f64::from(effects.speed), f64::from(effects.pitch));
                             player.set_tone(&effects.tone);
                             loaded = true;
-                            playing = true;
-                            player.play();
+                            let start_ms = start_ms.max(0);
+                            player.seek(start_ms as f64 / 1000.0);
+                            status.position_ms = start_ms;
+                            captions.publish(&mut status, start_ms as f64 / 1000.0);
+                            if play_when_ready {
+                                player.play();
+                            } else {
+                                player.pause();
+                            }
+                            playing = play_when_ready;
                             status.duration_ms = (player.duration() * 1000.0) as i64;
-                            status.playing = true;
+                            status.playing = play_when_ready;
                             status.error = None;
                         }
                         Err(message) => {
