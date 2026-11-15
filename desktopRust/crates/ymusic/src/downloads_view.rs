@@ -575,9 +575,16 @@ impl DownloadsView {
                             .item(crate::settings_view::menu_divider())
                             .item(act(t(Str::MenuRemove), DownloadService::remove))
                             .item(PopupMenuItem::new(t(Str::MenuRemoveFromDisk)).on_click(move |_, window, cx| {
-                                disk_view
-                                    .update(cx, |view, cx| view.remove_from_disk(disk_task.clone(), window, cx))
-                                    .ok();
+                                let (view, task) = (disk_view.clone(), disk_task.clone());
+                                crate::elevated_dialog::ConfirmDialog::new(
+                                    t(Str::DeleteFromDiskTitle),
+                                    tf(Str::DeleteFromDiskMessage, &[&task.title]),
+                                    t(Str::DeleteFromDiskConfirm),
+                                )
+                                .destructive()
+                                .open(window, cx, move |window, cx| {
+                                    view.update(cx, |view, cx| view.remove_from_disk(task.clone(), window, cx)).ok();
+                                });
                             }));
                     }
                     DownloadState::Canceled => {
