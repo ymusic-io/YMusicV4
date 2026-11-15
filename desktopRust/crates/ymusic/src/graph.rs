@@ -31,6 +31,10 @@ pub const APP_VERSION: i32 = version_code(env!("YM_VERSION_CODE"));
 pub const APP_VERSION_NAME: &str = env!("YM_VERSION_NAME");
 /// A bundle in use refreshes a config older than this.
 const BUNDLE_CONFIG_MAX_AGE: Duration = Duration::from_secs(10 * 60);
+/// The newest bundle revisions this device ran (the JVM AppSettings.lastLoaded*JsVer): the floor the
+/// config service is told before a bundle boots.
+const LAST_LOADED_ENGINE_KEY: &str = "telemetry.lastLoadedEngineJsVer";
+const LAST_LOADED_PLAYER_KEY: &str = "telemetry.lastLoadedPlayerJsVer";
 
 pub struct AppGraph {
     pub engines: Arc<EngineManager>,
@@ -130,6 +134,11 @@ impl AppGraph {
                 .await
                 .map_err(|error| boot_error("R90011", "remote config")(error.to_string()))?,
         );
+        let floor = |embedded: &str, key: &str| {
+            i64::from(embedded.parse::<i32>().unwrap_or(0).max(settings.int(key, 0).unwrap_or(0)))
+        };
+        remote.set_running_engine(floor(ENGINE_JS_VERSION, LAST_LOADED_ENGINE_KEY));
+        remote.set_running_player(floor(PLAYER_JS_VERSION, LAST_LOADED_PLAYER_KEY));
         let stats_settings = settings.clone();
         let stats = StatUsage::start(
             remote.clone(),
@@ -174,8 +183,7 @@ impl AppGraph {
         }
         candidates.push((ENGINE_JS.to_owned(), format!("embedded v{ENGINE_JS_VERSION}")));
         let engines = Arc::new(EngineManager::start(candidates, template).await?);
-        remote.set_running_engine(i64::from(engines.backend_version()));
-        ym_telemetry::set_engine_version(engines.backend_version());
+        engine_running(&remote, &settings, engines.backend_version(), &log);
 
         let pending_player: Arc<Mutex<Option<VerifiedBundle>>> = Arc::new(Mutex::new(None));
         let media = Arc::new(media);
@@ -202,13 +210,12 @@ impl AppGraph {
             let (pending, source) = (pending_player.clone(), player_source.clone());
             Arc::new(move || player_candidates(&pending, &source))
         };
-        let floor_source = player_source.clone();
-        let cached_player =
-            tokio::task::spawn_blocking(move || floor_source.cached().map(|(_, version)| version)).await.ok().flatten();
-        remote.set_running_player(player_source.embedded().1.max(cached_player.unwrap_or(0)));
         let player_running: crate::youtube_session::VersionSink = {
-            let remote = remote.clone();
-            Arc::new(move |version| remote.set_running_player(version))
+            let (remote, settings, log) = (remote.clone(), settings.clone(), log.clone());
+            Arc::new(move |version| {
+                remote.set_running_player(version);
+                remember_loaded(&settings, LAST_LOADED_PLAYER_KEY, version, &log);
+            })
         };
         let check_config: crate::youtube_session::ConfigCheck = {
             let (remote, tokio) = (remote.clone(), tokio.clone());
@@ -308,8 +315,13 @@ impl AppGraph {
     /// Refreshes the config, then swaps in a newer published engine bundle (cached once it
     /// booted) and stages a newer player bundle for the next playback session.
     fn follow_published_bundles(&self, engine_source: Arc<BundleSource>) {
-        let (remote, engines, player_source, pending) =
-            (self.remote.clone(), self.engines.clone(), self.player_source.clone(), self.pending_player.clone());
+        let (remote, engines, player_source, pending, settings) = (
+            self.remote.clone(),
+            self.engines.clone(),
+            self.player_source.clone(),
+            self.pending_player.clone(),
+            self.settings.clone(),
+        );
         let log = self.log.fork("bundles");
         self.tokio.spawn(async move {
             let mut published = remote.subscribe();
@@ -328,8 +340,7 @@ impl AppGraph {
                             Ok(version) => {
                                 let source = engine_source.clone();
                                 let _ = tokio::task::spawn_blocking(move || source.store(&bundle)).await;
-                                remote.set_running_engine(i64::from(version));
-                                ym_telemetry::set_engine_version(version);
+                                engine_running(&remote, &settings, version, &log);
                             }
                             Err(error) => log
                                 .warn(&format!("R90012 engine v{} did not boot", remote_engine.version), Some(&error)),
@@ -363,6 +374,24 @@ impl AppGraph {
             }
         });
     }
+}
+
+/// An engine bundle went live (the JVM onBackendVersion): the config service, every Sentry event
+/// and the next launch's floor name it.
+fn engine_running(remote: &RemoteConfig, settings: &Arc<dyn SettingsStore>, version: i32, log: &Logger) {
+    remote.set_running_engine(i64::from(version));
+    ym_telemetry::set_engine_version(version);
+    remember_loaded(settings, LAST_LOADED_ENGINE_KEY, i64::from(version), log);
+}
+
+fn remember_loaded(settings: &Arc<dyn SettingsStore>, key: &'static str, version: i64, log: &Logger) {
+    let Ok(version) = i32::try_from(version) else { return };
+    let (settings, log) = (settings.clone(), log.clone());
+    tokio::task::spawn_blocking(move || {
+        if let Err(error) = settings.put(key, ym_settings::SettingValue::Int(version)) {
+            log.warn(&format!("{key} not saved"), Some(error.as_ref()));
+        }
+    });
 }
 
 /// The player bundles to try, best first: a staged newer one, the cached one, the embedded one.
