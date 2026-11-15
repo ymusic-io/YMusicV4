@@ -1661,7 +1661,7 @@ private fun MoreMenuItem(
 
 @Composable
 private fun MoreMenuDivider() {
-    HorizontalDivider(Modifier.padding(vertical = DesignSpacing.Space4), color = DesignColors.StackNear)
+    HorizontalDivider(Modifier.padding(vertical = DesignSpacing.Space4), color = DesignColors.Divider)
 }
 
 /** The ⋮ menu, grouped: this video + queue · sound · player. Captions live on the video CC control;

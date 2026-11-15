@@ -283,7 +283,6 @@ impl DiscoverTab {
             .collect()
     }
 
-    /// The persisted id (the Compose `DiscoverTab.id`).
     fn id(self) -> i32 {
         match self {
             DiscoverTab::Home => 1,
@@ -2068,13 +2067,13 @@ impl Shell {
         view
     }
 
-    /// Recommended and Top tracks are built from local play, so they rebuild on every visit; the
-    /// Account tab re-checks who is signed in.
     fn set_music_tab(&mut self, tab: MusicTab, cx: &mut Context<Self>) {
         self.music_tab = tab;
         persist_setting(cx, LAST_YTMUSIC_TAB_KEY, tab.key().to_owned());
     }
 
+    /// Recommended and Top tracks are built from local play, so they rebuild on every visit; the
+    /// Account tab re-checks who is signed in.
     fn set_discover_tab(&mut self, tab: DiscoverTab, cx: &mut Context<Self>) {
         self.discover_tab = tab;
         persist_setting(cx, LAST_DISCOVER_TAB_KEY, tab.key().to_owned());
@@ -2303,7 +2302,7 @@ fn page<V: Render>(view: Entity<V>, window: &Window) -> AnyElement {
 }
 
 /// Writes a setting off the UI thread; a failed write is logged, the UI state stands.
-fn persist_setting(cx: &App, key: &'static str, value: String) {
+pub(crate) fn persist_setting(cx: &App, key: &'static str, value: String) {
     let graph = cx.global::<AppGraph>();
     let (settings, log) = (graph.settings.clone(), graph.log.clone());
     graph.tokio.spawn_blocking(move || {
