@@ -139,6 +139,10 @@ impl ReportPolicy for RemotePolicy {
     fn error_sample_rate(&self) -> f64 {
         self.config().error_sample_rate()
     }
+
+    fn error_filters(&self) -> Vec<String> {
+        self.config().error_filters()
+    }
 }
 
 /// Keeps reporting alive for the app's lifetime; [`Self::follow`] hands it the booted graph.

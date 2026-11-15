@@ -164,6 +164,39 @@ pub trait ReportPolicy: Send + Sync {
     fn error_log_lines(&self) -> i64;
     /// The share of non-fatal errors sent, 0..=1.
     fn error_sample_rate(&self) -> f64;
+    /// Regex patterns whose match keeps a non-fatal error out of Sentry.
+    fn error_filters(&self) -> Vec<String> {
+        Vec::new()
+    }
+}
+
+/// How many errors down the source chain the filters look (the JVM ErrorPolicy's MAX_CAUSE_DEPTH).
+const FILTER_CAUSE_DEPTH: usize = 5;
+/// The longest text a filter runs on, bounding a careless pattern's backtracking (MAX_SUBJECT_CHARS).
+const FILTER_SUBJECT_CHARS: usize = 512;
+
+/// The JVM ErrorPolicy.matchesFilter: any pattern found in the text of the error or one of its
+/// sources. Rust errors have no class name, so the text alone is the subject; an invalid pattern is
+/// skipped.
+fn matches_filter(filters: &[String], error: &(dyn std::error::Error + 'static)) -> bool {
+    let patterns: Vec<regex::Regex> = filters.iter().filter_map(|pattern| regex::Regex::new(pattern).ok()).collect();
+    if patterns.is_empty() {
+        return false;
+    }
+    let mut cause: Option<&(dyn std::error::Error + 'static)> = Some(error);
+    let mut depth = 0;
+    while let Some(current) = cause {
+        if depth == FILTER_CAUSE_DEPTH {
+            break;
+        }
+        depth += 1;
+        let subject: String = current.to_string().chars().take(FILTER_SUBJECT_CHARS).collect();
+        if patterns.iter().any(|pattern| pattern.is_match(&subject)) {
+            return true;
+        }
+        cause = current.source();
+    }
+    false
 }
 
 pub struct Telemetry {
@@ -297,6 +330,9 @@ impl LogSink for SentrySink {
         let description = error.to_string();
         let code = error_code(&description).or_else(|| error_code(message));
         if code.as_deref().is_some_and(|code| IGNORED_CATEGORIES.contains(&code)) {
+            return;
+        }
+        if matches_filter(&self.policy.error_filters(), error) {
             return;
         }
         let rate = self.policy.error_sample_rate().clamp(0.0, 1.0);

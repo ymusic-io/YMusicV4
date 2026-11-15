@@ -93,6 +93,14 @@ impl RemoteConfigData {
     pub fn error_sample_rate(&self) -> f64 {
         self.feature("errorSampleRate").and_then(Value::as_f64).unwrap_or(1.0)
     }
+
+    /// Regex patterns whose match keeps a non-fatal error out of Sentry (the JVM `errorFilters`).
+    pub fn error_filters(&self) -> Vec<String> {
+        self.feature("errorFilters")
+            .and_then(Value::as_array)
+            .map(|patterns| patterns.iter().filter_map(Value::as_str).map(str::to_owned).collect())
+            .unwrap_or_default()
+    }
 }
 
 /// What every request to the service carries.
