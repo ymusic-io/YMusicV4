@@ -104,6 +104,8 @@ pub struct ApiIdentity {
     pub os: String,
     pub os_version: String,
     pub arch: String,
+    /// `appimage` for a build that is not its platform's default package: the release is keyed by it.
+    pub package: Option<String>,
     pub app_version_code: i32,
     pub app_version_name: String,
     pub device_id: String,
@@ -261,6 +263,9 @@ impl RemoteConfig {
             .header("x-app-ver-name", &identity.app_version_name)
             .header("x-device-id", &identity.device_id)
             .header("x-arch", &identity.arch);
+        if let Some(package) = &identity.package {
+            request = request.header("x-package", package);
+        }
         if let Some(key) = &identity.api_key {
             request = request.header("x-api-key", key);
         }
@@ -381,6 +386,9 @@ impl RemoteConfig {
             .header("x-app-ver-name", &identity.app_version_name)
             .header("x-device-id", &identity.device_id)
             .header("x-arch", &identity.arch);
+        if let Some(package) = &identity.package {
+            request = request.header("x-package", package);
+        }
         if let Some(key) = &identity.api_key {
             request = request.header("x-api-key", key);
         }
