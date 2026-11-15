@@ -226,6 +226,42 @@ enum Active {
     Local,
 }
 
+/// The JVM `VideoQualityState`: the chip's choices (token, label), empty while the item offers none,
+/// the quality playing and the preferred one.
+#[derive(Clone, Debug, PartialEq)]
+pub struct VideoQualityState {
+    pub options: Vec<(String, String)>,
+    pub actual: String,
+    pub preferred: String,
+}
+
+impl VideoQualityState {
+    fn empty(actual: &str, preferred: &str) -> Self {
+        Self { options: Vec::new(), actual: actual.to_owned(), preferred: preferred.to_owned() }
+    }
+}
+
+/// The JVM `VideoQualityState.LADDER`: tiers keyed by a picture's smaller side, ascending.
+const QUALITY_LADDER: [(&str, &str, i32); 10] = [
+    ("tiny", "144p", 144),
+    ("small", "240p", 240),
+    ("medium", "360p", 360),
+    ("large", "480p", 480),
+    ("hd720", "720p", 720),
+    ("hd1080", "1080p", 1080),
+    ("hd1440", "1440p", 1440),
+    ("hd2160", "4K", 2160),
+    ("hd2880", "5K", 2880),
+    ("highres", "8K", 4320),
+];
+
+/// The JVM `optionForHeight`: the nearest tier at or below `side`.
+fn quality_for_side(side: i32) -> (String, String) {
+    let (quality, label, _) =
+        QUALITY_LADDER.iter().rev().find(|(_, _, height)| side >= *height).unwrap_or(&QUALITY_LADDER[0]);
+    ((*quality).to_owned(), (*label).to_owned())
+}
+
 /// A caption track the playing video offers.
 #[derive(Clone, Debug, PartialEq)]
 pub struct CaptionTrack {
@@ -334,10 +370,9 @@ pub struct Playback {
     _sleep: Option<Task<()>>,
     /// Video on: loads request pictures and the presenter shows them; off: audio only.
     pub video: bool,
-    /// The video's qualities (token, label) from the catalog, best first; empty until it reports.
-    pub quality_options: Vec<(String, String)>,
-    /// The quality playing now, as the catalog reports it.
-    pub quality_actual: Option<String>,
+    /// The YouTube engine's qualities from its catalog (the JVM `MsePlayer.applyCatalog`); no options
+    /// until it reports.
+    youtube_quality: VideoQualityState,
     /// The quality loads ask for while video is on.
     pub quality_preferred: String,
     /// The last video box Now Playing reported, sent again once a session starts.
@@ -389,9 +424,8 @@ impl Playback {
             ended_generation: None,
             load_timeout_video: None,
             _load_timeout: None,
-            quality_options: Vec::new(),
+            youtube_quality: VideoQualityState::empty(QUALITY_AUTO, QUALITY_AUTO),
             viewport: None,
-            quality_actual: None,
             quality_preferred: cx
                 .global::<AppGraph>()
                 .settings
@@ -471,12 +505,42 @@ impl Playback {
                 let status = self.local.as_ref()?.status.lock().unwrap();
                 status.video_track.as_ref().filter(|(open, _)| open == path).map(|(_, video)| *video)
             }
-            (Active::YouTube, Source::YouTube(_)) => match self.quality_actual.as_deref() {
-                Some(QUALITY_AUDIO_ONLY) => Some(false),
-                None if self.quality_options.is_empty() => None,
-                _ => Some(true),
-            },
+            (Active::YouTube, Source::YouTube(_)) if self.youtube_quality.options.is_empty() => None,
+            (Active::YouTube, Source::YouTube(_)) => Some(self.youtube_quality.actual != QUALITY_AUDIO_ONLY),
             _ => None,
+        }
+    }
+
+    /// The current engine's qualities (the JVM `Player.videoQuality`): a local file with a picture
+    /// offers its resolution tier, audio only and Auto.
+    pub fn video_quality(&self) -> VideoQualityState {
+        let preferred = self.quality_preferred.as_str();
+        match (self.active, self.current().map(|item| &item.source)) {
+            (Some(Active::YouTube), Some(Source::YouTube(_))) => self.youtube_quality.clone(),
+            (Some(Active::Local), Some(Source::Local(path))) => {
+                let side = self.local.as_ref().and_then(|local| {
+                    let status = local.status.lock().unwrap();
+                    status.video_track.as_ref().filter(|(open, _)| open == path).map(|_| status.video_side)
+                });
+                match side {
+                    None => VideoQualityState::empty(QUALITY_AUTO, preferred),
+                    Some(side) if side <= 0 => VideoQualityState::empty(QUALITY_AUDIO_ONLY, preferred),
+                    Some(side) => {
+                        let tier = quality_for_side(side);
+                        let actual = if self.video { tier.0.clone() } else { QUALITY_AUDIO_ONLY.to_owned() };
+                        VideoQualityState {
+                            options: vec![
+                                tier,
+                                (QUALITY_AUDIO_ONLY.to_owned(), "Audio-only".to_owned()),
+                                (QUALITY_AUTO.to_owned(), "Auto".to_owned()),
+                            ],
+                            actual,
+                            preferred: preferred.to_owned(),
+                        }
+                    }
+                }
+            }
+            _ => VideoQualityState::empty(QUALITY_AUTO, QUALITY_AUTO),
         }
     }
 
@@ -810,7 +874,14 @@ impl Playback {
             .unwrap_or_default();
         self.caption_tracks = tracks;
         self.caption_selected = catalog.get("caption").and_then(Value::as_str).map(str::to_owned);
-        self.quality_options = catalog
+        let audio_only = catalog.get("audioOnly").and_then(Value::as_bool).unwrap_or(false);
+        let text = |key: &str| catalog.get(key).and_then(Value::as_str);
+        let (actual, preferred) = if audio_only {
+            (QUALITY_AUDIO_ONLY, QUALITY_AUDIO_ONLY)
+        } else {
+            (text("quality").unwrap_or(QUALITY_AUTO), text("preferQuality").unwrap_or(&self.quality_preferred))
+        };
+        let engine_options: Vec<(String, String)> = catalog
             .get("qualities")
             .and_then(Value::as_array)
             .map(|rows| {
@@ -826,7 +897,14 @@ impl Playback {
                     .collect()
             })
             .unwrap_or_default();
-        self.quality_actual = catalog.get("quality").and_then(Value::as_str).map(str::to_owned);
+        let mut options = vec![(QUALITY_AUDIO_ONLY.to_owned(), "Audio-only".to_owned())];
+        if engine_options.is_empty() {
+            options.push((QUALITY_AUTO.to_owned(), "Auto".to_owned()));
+        } else {
+            options.extend(engine_options);
+        }
+        self.youtube_quality =
+            VideoQualityState { options, actual: actual.to_owned(), preferred: preferred.to_owned() };
         cx.notify();
     }
 
@@ -1298,8 +1376,7 @@ impl Playback {
                 }
                 self.caption_lines.clear();
                 self.caption_tracks.clear();
-                self.quality_options.clear();
-                self.quality_actual = None;
+                self.youtube_quality = VideoQualityState::empty(QUALITY_AUTO, QUALITY_AUTO);
                 self.active = Some(Active::YouTube);
                 self.bind_presenter();
                 // base.js pushes the new video's gain once it picks a format; until then play at the user's volume.

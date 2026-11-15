@@ -291,6 +291,13 @@ fn menu_value_item(label: &'static str, value: String) -> PopupMenuItem {
     })
 }
 
+/// The quality chip's text, its menu's choices (token, label) and the preferred token.
+struct QualityChoices {
+    label: String,
+    options: Vec<(String, String)>,
+    selected: String,
+}
+
 /// How much the video overlay's chrome grows with the video box: 1× up to a 400 px short side, then
 /// up to 1.3×.
 fn overlay_scale((width, height): (i32, i32)) -> f32 {
@@ -1050,42 +1057,34 @@ impl NowPlaying {
         )
     }
 
-    /// The quality menu's choices (token, label), the preferred token and the playing quality's label.
-    fn quality_choices(&self, cx: &App) -> (Vec<(String, String)>, String, String) {
-        let playback = self.playback.read(cx);
-        let label = |quality: &str, fallback: &str| match quality {
+    /// The JVM `qualityChoices`: None while the item offers no choice.
+    fn quality_choices(&self, cx: &App) -> Option<QualityChoices> {
+        let quality = self.playback.read(cx).video_quality();
+        if quality.options.is_empty() {
+            return None;
+        }
+        let label = |token: &str, fallback: &str| match token {
             QUALITY_AUTO => t(Str::VideoQualityAuto).to_owned(),
             QUALITY_AUDIO_ONLY => t(Str::AudioOnly).to_owned(),
             _ => fallback.to_owned(),
         };
-        let mut choices = vec![(QUALITY_AUDIO_ONLY.to_owned(), t(Str::AudioOnly).to_owned())];
-        if playback.quality_options.is_empty() {
-            choices.push((QUALITY_AUTO.to_owned(), t(Str::VideoQualityAuto).to_owned()));
-        } else {
-            choices
-                .extend(playback.quality_options.iter().map(|(quality, text)| (quality.clone(), label(quality, text))));
-        }
-        let selected = if playback.video { playback.quality_preferred.clone() } else { QUALITY_AUDIO_ONLY.to_owned() };
-        let current = if !playback.video {
-            t(Str::AudioOnly).to_owned()
-        } else {
-            let actual = playback.quality_actual.clone().unwrap_or_else(|| QUALITY_AUTO.to_owned());
-            choices
-                .iter()
-                .find(|(quality, _)| *quality == actual)
-                .map(|(_, text)| text.clone())
-                .unwrap_or_else(|| label(&actual, &actual))
-        };
-        (choices, selected, current)
+        let choices: Vec<(String, String)> =
+            quality.options.iter().map(|(token, text)| (token.clone(), label(token, text))).collect();
+        let current = choices
+            .iter()
+            .find(|(token, _)| *token == quality.actual)
+            .map(|(_, text)| text.clone())
+            .unwrap_or_else(|| label(&quality.actual, &quality.actual));
+        Some(QualityChoices { label: current, options: choices, selected: quality.preferred })
     }
 
-    /// The quality chip and its menu; over the video (`Some(scale)`) it is drawn in the overlay's ink at
-    /// the overlay's scale.
-    fn quality_chip(&self, focus: Option<FocusHandle>, over_video: Option<f32>, cx: &App) -> AnyElement {
-        let (choices, selected, current) = self.quality_choices(cx);
+    /// The quality chip and its menu, None while there is no choice; over the video (`Some(scale)`) it is
+    /// drawn in the overlay's ink at the overlay's scale.
+    fn quality_chip(&self, focus: Option<FocusHandle>, over_video: Option<f32>, cx: &App) -> Option<AnyElement> {
+        let QualityChoices { label: current, options: choices, selected } = self.quality_choices(cx)?;
         let playback = self.playback.clone();
         let ink: Hsla = rgb(OVERLAY_INK).into();
-        Button::new(if over_video.is_some() { "np-quality-overlay" } else { "np-quality" })
+        let chip = Button::new(if over_video.is_some() { "np-quality-overlay" } else { "np-quality" })
             .when_some(focus, |chip, focus| chip.track_focus(&focus))
             .outline()
             .xsmall()
@@ -1108,15 +1107,18 @@ impl NowPlaying {
                     menu
                 },
             )
-            .on_open_change(self.hold_while_open(MENU_QUALITY))
-            .into_any_element()
+            .on_open_change(self.hold_while_open(MENU_QUALITY));
+        Some(chip.into_any_element())
     }
 
     /// Full screen has no top bar, so its quality chip, details and speed come onto the controls.
     fn overlay_player_actions(&self, current: &QueueItem, scale: f32, cx: &mut Context<Self>) -> Vec<AnyElement> {
         let (glyph, hit) = (ICON * scale, HIT * scale);
         let quality = self.quality_chip(Some(self.overlay_focus.handle(OVERLAY_QUALITY, cx)), Some(scale), cx);
-        let mut actions = vec![self.overlay_focus.wrap(OVERLAY_QUALITY, quality, cx).into_any_element()];
+        let mut actions: Vec<AnyElement> = quality
+            .map(|chip| self.overlay_focus.wrap(OVERLAY_QUALITY, chip, cx).into_any_element())
+            .into_iter()
+            .collect();
         if let Some(video_id) = current.video_id().map(str::to_owned) {
             let details =
                 on_video(sized_action_icon("np-details", Lucide::Info, t(Str::MenuDetailsComments), glyph, hit), cx)
@@ -1176,7 +1178,9 @@ impl NowPlaying {
             cx,
         );
 
-        let quality = self.quality_chip(Some(self.bar_focus.handle(STOP_QUALITY, cx)), None, cx);
+        let quality = self
+            .quality_chip(Some(self.bar_focus.handle(STOP_QUALITY, cx)), None, cx)
+            .map(|chip| self.bar_focus.wrap(STOP_QUALITY, chip, cx));
 
         let view = cx.entity().downgrade();
         let more_target = target.clone();
@@ -1315,7 +1319,7 @@ impl NowPlaying {
                 )
             })
             .child(sleep)
-            .child(self.bar_focus.wrap(STOP_QUALITY, quality, cx))
+            .children(quality)
             .child(self.bar_focus.wrap(STOP_MORE, more, cx))
             .into_any_element()
     }

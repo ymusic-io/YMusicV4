@@ -54,6 +54,8 @@ pub struct LocalStatus {
     pub error: Option<String>,
     /// The open file and whether it has a picture stream.
     pub video_track: Option<(PathBuf, bool)>,
+    /// The smaller side of the open file's first picture stream, 0 without one (its quality tier).
+    pub video_side: i32,
     pub caption_tracks: Vec<CaptionTrack>,
     /// The shown track's id while captions are on.
     pub caption_selected: Option<String>,
@@ -294,6 +296,7 @@ fn run(mut player: LocalAv, commands: mpsc::Receiver<LocalCommand>, status: Arc<
                     status.ended = false;
                     status.position_ms = 0;
                     status.video_track = None;
+                    status.video_side = 0;
                     status.caption_tracks.clear();
                     status.caption_selected = None;
                     status.caption_lines.clear();
@@ -301,6 +304,11 @@ fn run(mut player: LocalAv, commands: mpsc::Receiver<LocalCommand>, status: Arc<
                         Ok(()) => {
                             captions.open(&mut player, &path);
                             status.video_track = Some((path, player.has_video()));
+                            status.video_side = player
+                                .streams()
+                                .iter()
+                                .find(|stream| stream.kind == StreamKind::Video)
+                                .map_or(0, |stream| stream.width.min(stream.height));
                             player.set_speed_pitch(f64::from(effects.speed), f64::from(effects.pitch));
                             player.set_tone(&effects.tone);
                             loaded = true;
