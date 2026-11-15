@@ -1745,11 +1745,5 @@ fn remember_translation(recent: &RefCell<Vec<String>>, code: String, cx: &App) {
         recent.truncate(RECENT_TRANSLATIONS);
         recent.clone()
     };
-    let graph = cx.global::<AppGraph>();
-    let (settings, log) = (graph.settings.clone(), graph.log.fork("settings"));
-    graph.tokio.spawn_blocking(move || {
-        if let Err(error) = settings.put_raw(RECENT_TRANSLATIONS_KEY, codes.join("\n")) {
-            log.warn(&format!("{RECENT_TRANSLATIONS_KEY} could not be saved: {error}"), None);
-        }
-    });
+    crate::shell::persist_setting(cx, RECENT_TRANSLATIONS_KEY, codes.join("\n"));
 }

@@ -520,13 +520,7 @@ impl LibraryView {
             return;
         }
         self.tab = tab;
-        let graph = cx.global::<AppGraph>();
-        let (settings, log) = (graph.settings.clone(), graph.log.fork("settings"));
-        graph.tokio.spawn_blocking(move || {
-            if let Err(error) = settings.put_raw(LAST_LIBRARY_TAB_KEY, tab.key().to_owned()) {
-                log.warn(&format!("{LAST_LIBRARY_TAB_KEY} could not be saved: {error}"), None);
-            }
-        });
+        crate::shell::persist_setting(cx, LAST_LIBRARY_TAB_KEY, tab.key().to_owned());
     }
 
     fn sort_state(&self, id: &'static str) -> SortState {
