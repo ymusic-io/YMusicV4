@@ -1688,7 +1688,6 @@ impl Playback {
                 }
                 self.caption_lines.clear();
                 self.caption_tracks.clear();
-                self.youtube_quality = VideoQualityState::empty(QUALITY_AUTO, QUALITY_AUTO);
                 self.active = Some(Active::YouTube);
                 self.bind_presenter();
                 // base.js pushes the new video's gain once it picks a format; until then play at the user's volume.
