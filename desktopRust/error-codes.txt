@@ -34,7 +34,7 @@ R20020 D player main-proxy: no main engine, or the main engine refused the comma
 R20021 D player/mintPo answered without a content PO token
 R20022 D engine manager: no engine bundle candidate to boot
 R20023 D log/capture: the cache entry the bundle named (the bg-session dump) could not be read; the report goes without it (logged)
-R20024 - player/remintPo answered "reminted" without a content PO token
+R20024 D player/remintPo answered "reminted" without a content PO token
 R30001 D remote config: the cached config was unreadable and was dropped (logged; defaults used)
 R30002 D remote config: the fetched config could not be written to the cache (logged)
 R30003 D remote config: fetching /v1/config failed (logged; the held config stays)
@@ -113,7 +113,7 @@ R70034 D download: a scratch file could not be removed
 R70035 D download: the download run panicked
 R70036 D download: the download store (SQLite) failed (not disk full)
 R70037 D download: the video scratch file could not be opened
-R70038 - download: googlevideo withheld media from or rejected the download (StreamProtectionStatus 2/3) while it accepts the player's PO token, so the download's own SABR requests are at fault
+R70038 D download: googlevideo withheld media from or rejected the download (StreamProtectionStatus 2/3) while it accepts the player's PO token, so the download's own SABR requests are at fault
 R90015 D app boot: the download stores (downloads.db / download-segments.db) could not be opened
 R90016 D app boot: play-history.db could not be opened
 R90017 D play again: the saved queues could not be read or decoded
