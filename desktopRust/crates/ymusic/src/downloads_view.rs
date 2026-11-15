@@ -526,6 +526,15 @@ impl DownloadsView {
                         view.update(cx, |view, _| action(&view.service, &id)).ok();
                     })
                 };
+                let share = || {
+                    let video_id = task.video_id.clone();
+                    PopupMenuItem::new(t(Str::CdShare)).on_click(move |_, window, cx| {
+                        if let Some(link) = crate::feed::youtube_share_link("video", &video_id) {
+                            cx.write_to_clipboard(ClipboardItem::new_string(link));
+                            window.push_notification(t(Str::LinkCopied), cx);
+                        }
+                    })
+                };
                 let other_format = || {
                     let task = task.clone();
                     PopupMenuItem::new(t(Str::DownloadOtherFormat))
@@ -552,6 +561,7 @@ impl DownloadsView {
                                 retry_view.update(cx, |view, cx| view.retry(&retry_task, window, cx)).ok();
                             }))
                             .item(other_format())
+                            .item(share())
                             .item(act(t(Str::MenuRemove), DownloadService::remove));
                     }
                     DownloadState::Completed => {
@@ -582,6 +592,7 @@ impl DownloadsView {
                                     RenameFileDialog::open(renamed.clone(), None, window, cx)
                                 }));
                         }
+                        menu = menu.item(share());
                         let (disk_view, disk_task) = (view.clone(), task.clone());
                         menu = menu
                             .item(crate::settings_view::menu_divider())
@@ -600,7 +611,10 @@ impl DownloadsView {
                             }));
                     }
                     DownloadState::Canceled => {
-                        menu = menu.item(other_format()).item(act(t(Str::MenuRemove), DownloadService::remove));
+                        menu = menu
+                            .item(other_format())
+                            .item(share())
+                            .item(act(t(Str::MenuRemove), DownloadService::remove));
                     }
                 }
                 menu
