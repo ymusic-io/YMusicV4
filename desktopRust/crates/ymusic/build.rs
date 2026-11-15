@@ -57,8 +57,9 @@ fn main() {
     }
     // The Sentry release names the commit a build was cut from, as the JVM app's.
     println!("cargo:rustc-env=YM_GIT_COMMIT={}", git_commit());
-    // Private release inputs; empty leaves the app on its embedded bundles and defaults. The
-    // environment wins over the gitignored secret.properties at the workspace root.
+    // Private release inputs; empty leaves the app on its embedded bundles and defaults. Read as
+    // Gradle's localProp does: YMusicV4's gitignored secrets.properties, then local.properties,
+    // which wins; the environment wins over both.
     for variable in [
         "YMUSIC_REMOTE_CONFIG_URL",
         "YMUSIC_BUNDLE_PUBLIC_KEY",
@@ -71,9 +72,13 @@ fn main() {
     // Set by YMusicV4's release workflow: a shipped build without these could never update again.
     println!("cargo:rerun-if-env-changed=YMUSIC_REQUIRE_SECRETS");
     let require = std::env::var("YMUSIC_REQUIRE_SECRETS").is_ok_and(|value| value == "1");
-    let secrets = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap()).join("../../secret.properties");
-    println!("cargo:rerun-if-changed={}", secrets.display());
-    let text = std::fs::read_to_string(&secrets).unwrap_or_default();
+    let files = [v4.join("secrets.properties"), v4.join("local.properties")];
+    let mut text = String::new();
+    for file in &files {
+        println!("cargo:rerun-if-changed={}", file.display());
+        text.push_str(&std::fs::read_to_string(file).unwrap_or_default());
+        text.push('\n');
+    }
     let mut missing = Vec::new();
     for (key, variable, required) in [
         ("remote.config.url", "YMUSIC_REMOTE_CONFIG_URL", true),
@@ -88,7 +93,7 @@ fn main() {
             }
             continue;
         }
-        let value = text.lines().find_map(|line| {
+        let value = text.lines().rev().find_map(|line| {
             let (name, value) = line.split_once('=')?;
             (name.trim() == key).then(|| unescape(value.trim()))
         });
@@ -101,7 +106,7 @@ fn main() {
     if require && !missing.is_empty() {
         panic!(
             "YMUSIC_REQUIRE_SECRETS=1, but {} has no {} (nor the matching YMUSIC_* environment variable)",
-            secrets.display(),
+            files[0].display(),
             missing.join(", ")
         );
     }

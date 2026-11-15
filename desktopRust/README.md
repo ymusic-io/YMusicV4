@@ -59,7 +59,8 @@ YMusicV4 and ffmpeg-build are found through `YMUSIC_V4_DIR` and `FFMPEG_BUILD_DI
 points elsewhere.
 
 Debug builds keep their own data dir, apart from the installed app's `~/.ymusic`; `YMUSIC_DATA_DIR`
-picks another. Without a `secret.properties` (keys in `secret.properties.example`) the app runs on
+picks another. Without YMusicV4's `secrets.properties` (its `remote.config.url`, `bundle.signing.public.key`,
+`update.public.key`, `sentry.dsn`) the app runs on
 its embedded bundles, with no config service, QR sign-in, self-update or crash reports.
 
 ## Release
