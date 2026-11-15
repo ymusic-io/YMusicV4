@@ -1261,7 +1261,7 @@ private fun CaptionToggle(
                             Text(
                                 stringResource(Res.string.captions_recent_languages),
                                 style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = DesignColors.InkSecondary,
                                 modifier = Modifier.padding(horizontal = DesignSpacing.Space16, vertical = DesignSpacing.Space8)
                                     .semantics { heading() },
                             )
@@ -1274,7 +1274,7 @@ private fun CaptionToggle(
                                 trailingIcon = selectedCheck(isOn(track)),
                             )
                         }
-                        item(key = "recent-divider") { HorizontalDivider(Modifier.padding(vertical = DesignSpacing.Space4)) }
+                        item(key = "recent-divider") { HorizontalDivider(Modifier.padding(vertical = DesignSpacing.Space4), color = DesignColors.Divider) }
                     }
                     items(translations, key = { it.id }) { track ->
                         DropdownMenuItem(
