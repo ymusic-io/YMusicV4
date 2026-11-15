@@ -162,6 +162,8 @@ const TOOL_SORT_DIRECTION: usize = 3;
 const TOOL_NEW_PLAYLIST: usize = 4;
 const TOOL_PLAYLIST_MENU: usize = 5;
 const TOOL_EMPTY_RESTORE: usize = 6;
+/// Shared with the JVM app: the Library tab a restart resumes, by [Tab::id].
+const LAST_LIBRARY_TAB_KEY: &str = "app.lastLibraryTab";
 const TOOL_RESCAN: usize = 7;
 const TOOL_SCAN_EMPTY: usize = 8;
 
@@ -177,6 +179,21 @@ enum Tab {
 
 impl Tab {
     const ALL: [Tab; 6] = [Tab::Folders, Tab::Playlists, Tab::Songs, Tab::Artists, Tab::Albums, Tab::Genres];
+
+    fn id(self) -> i32 {
+        match self {
+            Tab::Folders => 1,
+            Tab::Playlists => 2,
+            Tab::Songs => 3,
+            Tab::Artists => 4,
+            Tab::Albums => 5,
+            Tab::Genres => 6,
+        }
+    }
+
+    fn from_id(id: i32) -> Option<Self> {
+        Self::ALL.into_iter().find(|tab| tab.id() == id)
+    }
 
     fn label(self) -> &'static str {
         t(match self {
@@ -320,11 +337,12 @@ impl LibraryView {
                 (id, SortState::decode(raw.as_deref(), default))
             })
             .collect();
+        let tab = settings.int(LAST_LIBRARY_TAB_KEY, 0).ok().and_then(Tab::from_id).unwrap_or(Tab::Folders);
         let scroll = ScrollHandle::new();
         let mut view = Self {
             store,
             history,
-            tab: Tab::Folders,
+            tab,
             loaded: Loaded::default(),
             group: None,
             open_playlist: None,
@@ -352,6 +370,9 @@ impl LibraryView {
             transfer: PlaylistTransfer::default(),
         };
         view.refresh(cx);
+        if view.tab != Tab::Folders {
+            view.refresh_all(cx);
+        }
         on_library_change(cx, |view, cx| {
             view.refresh(cx);
             if view.tab != Tab::Folders {
@@ -421,7 +442,7 @@ impl LibraryView {
     }
 
     fn select_tab(&mut self, tab: Tab, cx: &mut Context<Self>) {
-        self.tab = tab;
+        self.set_tab(tab, cx);
         self.group = None;
         self.open_playlist = None;
         if tab == Tab::Folders {
@@ -485,6 +506,20 @@ impl LibraryView {
             .ok();
         })
         .detach();
+    }
+
+    fn set_tab(&mut self, tab: Tab, cx: &mut Context<Self>) {
+        if self.tab == tab {
+            return;
+        }
+        self.tab = tab;
+        let graph = cx.global::<AppGraph>();
+        let (settings, log) = (graph.settings.clone(), graph.log.fork("settings"));
+        graph.tokio.spawn_blocking(move || {
+            if let Err(error) = settings.put_raw(LAST_LIBRARY_TAB_KEY, tab.id().to_string()) {
+                log.warn(&format!("{LAST_LIBRARY_TAB_KEY} could not be saved: {error}"), None);
+            }
+        });
     }
 
     fn sort_state(&self, id: &'static str) -> SortState {
@@ -867,7 +902,10 @@ impl LibraryView {
         if self.scanning {
             return;
         }
-        let pick = crate::desktop::file_dialog(rfd::AsyncFileDialog::new().set_title(t(Str::FolderPickerTitle)).pick_folder(), cx);
+        let pick = crate::desktop::file_dialog(
+            rfd::AsyncFileDialog::new().set_title(t(Str::FolderPickerTitle)).pick_folder(),
+            cx,
+        );
         cx.spawn(async move |this, cx| {
             let Some(folder) = pick.await else { return };
             this.update(cx, |view, cx| view.scan_path(folder.path().to_path_buf(), false, cx)).ok();
@@ -998,7 +1036,7 @@ impl LibraryView {
 
     /// Opens the artist's or album's songs in its tab ("Go to artist / album").
     pub fn reveal_group(&mut self, kind: GroupKind, name: String, cx: &mut Context<Self>) {
-        self.tab = if kind == GroupKind::Artist { Tab::Artists } else { Tab::Albums };
+        self.set_tab(if kind == GroupKind::Artist { Tab::Artists } else { Tab::Albums }, cx);
         self.open_playlist = None;
         self.group = Some(if name.trim().is_empty() { self.tab.unknown_group().to_owned() } else { name });
         self.scroll.set_offset(point(px(0.), px(0.)));
@@ -1013,7 +1051,7 @@ impl LibraryView {
             let result = request.await;
             this.update(cx, |view, cx| match result {
                 Ok(chain) => {
-                    view.tab = Tab::Folders;
+                    view.set_tab(Tab::Folders, cx);
                     view.group = None;
                     view.open_playlist = None;
                     view.path = chain;

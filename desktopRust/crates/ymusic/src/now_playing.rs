@@ -3,7 +3,7 @@
 //! Narrow: top bar, video full width, title, then the queue.
 //! The video box is painted by `video_layer`: a native view behind the window on macOS, CPU pictures elsewhere.
 
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 use std::time::{Duration, Instant};
 
@@ -125,6 +125,8 @@ pub struct NowPlaying {
     /// A press on the bare picture, toggling the controls on its release.
     picture_pressed: bool,
     caption_focus: FocusHandle,
+    /// Auto-translate languages last picked, most recent first: language codes.
+    recent_translations: Rc<RefCell<Vec<String>>>,
     play_focus: FocusHandle,
     overlay_focus: FocusList,
     /// A video control held keyboard focus at the last render: the controls stay up meanwhile.
@@ -367,6 +369,7 @@ impl NowPlaying {
             held_menus: Rc::default(),
             picture_pressed: false,
             caption_focus: cx.focus_handle(),
+            recent_translations: Rc::new(RefCell::new(load_recent_translations(cx))),
             play_focus: cx.focus_handle(),
             overlay_focus: FocusList::new(None),
             keyboard_in_controls: Cell::new(false),
@@ -828,6 +831,7 @@ impl NowPlaying {
         let state = on_track.unwrap_or_else(|| t(Str::CaptionsOff).to_owned());
         let label = format!("{}, {state}", t(Str::CdCaptions));
         let target = self.playback.clone();
+        let recent_codes = self.recent_translations.clone();
         Some(
             on_video_menu(sized_action_icon("np-captions", Lucide::Captions, label, glyph, hit), cx)
                 .track_focus(&self.caption_focus)
@@ -841,8 +845,15 @@ impl NowPlaying {
                     );
                     let pick = |track: &CaptionTrack| {
                         let (playback, id) = (target.clone(), track.vss_id.clone());
+                        let translation = (track.kind == AUTO_TRANSLATE_KIND)
+                            .then(|| (recent_codes.clone(), track.language_code.clone()));
                         PopupMenuItem::new(track.display_name.clone()).checked(is_on(track)).on_click(
-                            move |_, _, cx| playback.update(cx, |playback, cx| playback.select_caption(id.clone(), cx)),
+                            move |_, _, cx| {
+                                playback.update(cx, |playback, cx| playback.select_caption(id.clone(), cx));
+                                if let Some((recent, code)) = &translation {
+                                    remember_translation(recent, code.clone(), cx);
+                                }
+                            },
                         )
                     };
                     for track in &tracks {
@@ -855,7 +866,23 @@ impl NowPlaying {
                             Some(name) => format!("{} · {name}", t(Str::CaptionsAutoTranslate)),
                             None => t(Str::CaptionsAutoTranslate).to_owned(),
                         };
-                        let items: Vec<PopupMenuItem> = translations.iter().map(&pick).collect();
+                        let mut items = Vec::new();
+                        let recent: Vec<&CaptionTrack> = recent_codes
+                            .borrow()
+                            .iter()
+                            .filter_map(|code| translations.iter().find(|track| &track.language_code == code))
+                            .collect();
+                        if !recent.is_empty() {
+                            items.extend(recent.into_iter().map(&pick));
+                            // The stock separator draws theme.border, which barely shows on the dark menu.
+                            items.push(
+                                PopupMenuItem::element(|_, cx| {
+                                    div().w_full().h(px(1.)).bg(cx.global::<crate::settings_view::StackTones>().near)
+                                })
+                                .disabled(true),
+                            );
+                        }
+                        items.extend(translations.iter().map(&pick));
                         let items = std::rc::Rc::new(std::cell::RefCell::new(Some(items)));
                         menu = menu.submenu(title, window, cx, move |mut submenu, _, _| {
                             for item in items.borrow_mut().take().into_iter().flatten() {
@@ -1697,4 +1724,30 @@ impl Render for NowPlaying {
             )
             .into_any_element()
     }
+}
+
+/// Shared with the JVM app: one language code per line, most recent first.
+const RECENT_TRANSLATIONS_KEY: &str = "captions.recentTranslateLanguages";
+const RECENT_TRANSLATIONS: usize = 3;
+
+fn load_recent_translations(cx: &App) -> Vec<String> {
+    let raw = cx.global::<AppGraph>().settings.get_raw(RECENT_TRANSLATIONS_KEY).ok().flatten().unwrap_or_default();
+    raw.lines().filter(|code| !code.is_empty()).map(str::to_owned).collect()
+}
+
+fn remember_translation(recent: &RefCell<Vec<String>>, code: String, cx: &App) {
+    let codes = {
+        let mut recent = recent.borrow_mut();
+        recent.retain(|known| *known != code);
+        recent.insert(0, code);
+        recent.truncate(RECENT_TRANSLATIONS);
+        recent.clone()
+    };
+    let graph = cx.global::<AppGraph>();
+    let (settings, log) = (graph.settings.clone(), graph.log.fork("settings"));
+    graph.tokio.spawn_blocking(move || {
+        if let Err(error) = settings.put_raw(RECENT_TRANSLATIONS_KEY, codes.join("\n")) {
+            log.warn(&format!("{RECENT_TRANSLATIONS_KEY} could not be saved: {error}"), None);
+        }
+    });
 }

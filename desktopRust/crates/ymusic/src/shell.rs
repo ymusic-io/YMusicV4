@@ -1812,7 +1812,7 @@ impl Shell {
             .on_click(cx.listener(move |shell, _, _, cx| shell.select_section(section, cx)));
         let position = Section::groups(self.guest).iter().flatten().position(|entry| *entry == section);
         let entry = self.nav_focus.item(position.unwrap_or(0), entry, cx);
-        let tint = if selected { theme.primary } else { theme.foreground };
+        let tint = if selected { container.ink } else { theme.foreground };
         if !labelled {
             return entry
                 .size(px(48.))

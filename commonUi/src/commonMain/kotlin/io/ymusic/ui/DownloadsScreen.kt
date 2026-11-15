@@ -111,6 +111,10 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.conflate
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.Instant
@@ -442,8 +446,13 @@ private class CompletedFileActions(
 private fun completedFileActions(graph: AppGraph, task: DownloadTask, service: DownloadService, onRename: () -> Unit): CompletedFileActions {
     val store = graph.mediaStore
     val songActions = LocalSongActions.current
+    // The service registers the file in the Library only after the task turns COMPLETED.
     val libraryItem by produceState<MediaStoreItem?>(null, store, task.state, task.fileUri) {
-        value = if (store != null && task.state == DownloadState.COMPLETED) libraryItemOf(store, task) else null
+        if (store == null || task.state != DownloadState.COMPLETED) {
+            value = null
+            return@produceState
+        }
+        value = store.itemsChanges().onStart { emit(Unit) }.conflate().mapNotNull { libraryItemOf(store, task) }.first()
     }
     val item = libraryItem
     val fileUri = task.fileUri
