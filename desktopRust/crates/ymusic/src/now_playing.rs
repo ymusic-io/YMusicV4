@@ -731,7 +731,12 @@ impl NowPlaying {
                         self.playback.read(cx).buffered_fraction(),
                         cx.theme().primary,
                     ))
-                    .child(Slider::new(&self.seek).h(px(20.)).accessibility_label(t(Str::A11yPlaybackPosition))),
+                    .child(Slider::new(&self.seek).h(px(20.)).accessibility_label(t(Str::A11yPlaybackPosition)))
+                    .child(crate::sponsor_block::skip_marks(
+                        self.playback.read(cx).skip_segments(),
+                        duration,
+                        self.seek.read(cx).percentage().end,
+                    )),
                 cx,
             )
             .block_mouse_except_scroll();

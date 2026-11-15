@@ -41,6 +41,7 @@ struct Shown {
     second: i64,
     duration_ms: i64,
     buffered_second: i64,
+    skip_segments: Vec<(i64, i64)>,
     has_next: bool,
     loop_mode: LoopMode,
     shuffle: bool,
@@ -58,6 +59,7 @@ impl Shown {
             second: playback.position_ms / 1000,
             duration_ms: playback.duration_ms,
             buffered_second: playback.buffered_ms / 1000,
+            skip_segments: playback.skip_segments().to_vec(),
             has_next: playback.has_next(),
             loop_mode: playback.nav.loop_mode,
             shuffle: playback.nav.shuffle,
@@ -99,7 +101,11 @@ impl MiniPlayer {
                 cx.notify();
             }),
             cx.subscribe(&seek, |player, _, event: &SliderEvent, cx| match event {
-                SliderEvent::Change(_) => player.dragging_seek = true,
+                // A redraw moves the skip marks' gap with the dragged thumb.
+                SliderEvent::Change(_) => {
+                    player.dragging_seek = true;
+                    cx.notify();
+                }
                 SliderEvent::Release(value) => {
                     player.dragging_seek = false;
                     let fraction = value.end();
@@ -381,7 +387,12 @@ impl MiniPlayer {
                         let slider = div()
                             .relative()
                             .child(crate::playback::buffered_band(buffered, theme.primary))
-                            .child(Slider::new(&self.seek).accessibility_label(t(Str::A11yPlaybackPosition)));
+                            .child(Slider::new(&self.seek).accessibility_label(t(Str::A11yPlaybackPosition)))
+                            .child(crate::sponsor_block::skip_marks(
+                                self.playback.read(cx).skip_segments(),
+                                duration,
+                                self.seek.read(cx).percentage().end,
+                            ));
                         self.focus.slider(STOP_SEEK, &self.seek, stop, slider, cx).flex_1()
                     })
                     .child(
