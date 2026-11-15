@@ -221,7 +221,6 @@
     <string name="video_quality_auto">ස්වයංක්‍රීය</string>
     <string name="captions_off">උපසිරැසි අක්‍රිය</string>
     <string name="captions_auto_translate">ස්වයංක්‍රීය පරිවර්තනය</string>
-    <string name="captions_recent_languages">මෑත</string>
     <string name="up_next">ඊළඟට</string>
     <string name="queue_load_more">තව පූරණය කරන්න</string>
     <string name="queue_loading_more">තව පූරණය වෙමින්…</string>

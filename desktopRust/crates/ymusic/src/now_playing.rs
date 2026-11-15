@@ -873,7 +873,6 @@ impl NowPlaying {
                             .filter_map(|code| translations.iter().find(|track| &track.language_code == code))
                             .collect();
                         if !recent.is_empty() {
-                            items.push(PopupMenuItem::label(t(Str::CaptionsRecentLanguages)));
                             items.extend(recent.into_iter().map(&pick));
                             // The stock separator draws theme.border, which barely shows on the dark menu.
                             items.push(

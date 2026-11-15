@@ -225,7 +225,6 @@
     <string name="video_quality_auto">אוטומטי</string>
     <string name="captions_off">כתוביות כבויות</string>
     <string name="captions_auto_translate">תרגום אוטומטי</string>
-    <string name="captions_recent_languages">אחרונות</string>
     <string name="up_next">הבא בתור</string>
     <string name="queue_load_more">טען עוד</string>
     <string name="queue_loading_more">טוען עוד…</string>

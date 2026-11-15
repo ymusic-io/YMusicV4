@@ -221,7 +221,6 @@
     <string name="video_quality_auto">ഓട്ടോ</string>
     <string name="captions_off">അടിക്കുറിപ്പ് ഓഫ്</string>
     <string name="captions_auto_translate">സ്വയമേവ വിവർത്തനം</string>
-    <string name="captions_recent_languages">സമീപകാലം</string>
     <string name="up_next">അടുത്തത്</string>
     <string name="queue_load_more">കൂടുതൽ ലോഡ് ചെയ്യുക</string>
     <string name="queue_loading_more">കൂടുതൽ ലോഡ് ചെയ്യുന്നു…</string>

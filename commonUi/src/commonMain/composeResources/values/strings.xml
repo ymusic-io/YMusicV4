@@ -272,7 +272,6 @@
     <string name="video_quality_auto">Auto</string>
     <string name="captions_off">CC off</string>
     <string name="captions_auto_translate">Auto-translate</string>
-    <string name="captions_recent_languages">Recent</string>
     <string name="up_next">Up next</string>
     <string name="queue_load_more">Load more</string>
     <string name="queue_loading_more">Loading more…</string>

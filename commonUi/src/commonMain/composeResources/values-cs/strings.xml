@@ -229,7 +229,6 @@
     <string name="video_quality_auto">Auto</string>
     <string name="captions_off">Titulky vyp.</string>
     <string name="captions_auto_translate">Automatický překlad</string>
-    <string name="captions_recent_languages">Nedávné</string>
     <string name="up_next">Další</string>
     <string name="queue_load_more">Načíst další</string>
     <string name="queue_loading_more">Načítání…</string>

@@ -248,7 +248,6 @@
     <string name="video_quality_auto">Tự động</string>
     <string name="captions_off">Tắt phụ đề</string>
     <string name="captions_auto_translate">Tự động dịch</string>
-    <string name="captions_recent_languages">Gần đây</string>
     <string name="up_next">Tiếp theo</string>
     <string name="queue_load_more">Tải thêm</string>
     <string name="queue_loading_more">Đang tải thêm…</string>

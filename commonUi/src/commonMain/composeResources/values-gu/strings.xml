@@ -221,7 +221,6 @@
     <string name="video_quality_auto">ઑટો</string>
     <string name="captions_off">કૅપ્શન બંધ</string>
     <string name="captions_auto_translate">સ્વતઃ અનુવાદ</string>
-    <string name="captions_recent_languages">તાજેતરની</string>
     <string name="up_next">આગળ</string>
     <string name="queue_load_more">વધુ લોડ કરો</string>
     <string name="queue_loading_more">વધુ લોડ થઈ રહ્યું છે…</string>

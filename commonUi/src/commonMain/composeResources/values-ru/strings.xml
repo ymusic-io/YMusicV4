@@ -229,7 +229,6 @@
     <string name="video_quality_auto">Авто</string>
     <string name="captions_off">Субтитры выкл.</string>
     <string name="captions_auto_translate">Автоперевод</string>
-    <string name="captions_recent_languages">Недавние</string>
     <string name="up_next">Далее</string>
     <string name="queue_load_more">Загрузить ещё</string>
     <string name="queue_loading_more">Загрузка…</string>

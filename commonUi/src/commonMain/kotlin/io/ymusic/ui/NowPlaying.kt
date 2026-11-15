@@ -82,7 +82,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
@@ -174,7 +173,6 @@ import io.ymusic.ui.resources.audio_only
 import io.ymusic.ui.resources.badge_live
 import io.ymusic.ui.resources.captions_auto_translate
 import io.ymusic.ui.resources.captions_off
-import io.ymusic.ui.resources.captions_recent_languages
 import io.ymusic.ui.resources.cd_captions
 import io.ymusic.ui.resources.cd_close
 import io.ymusic.ui.resources.cd_download
@@ -1257,15 +1255,6 @@ private fun CaptionToggle(
                 val recent = recentLanguages.mapNotNull { code -> translations.firstOrNull { it.languageCode == code } }
                 LazyColumn(Modifier.size(width = 240.dp, height = 360.dp)) {
                     if (recent.isNotEmpty()) {
-                        item(key = "recent-header") {
-                            Text(
-                                stringResource(Res.string.captions_recent_languages),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = DesignColors.InkSecondary,
-                                modifier = Modifier.padding(horizontal = DesignSpacing.Space16, vertical = DesignSpacing.Space8)
-                                    .semantics { heading() },
-                            )
-                        }
                         items(recent, key = { "recent-${it.id}" }) { track ->
                             DropdownMenuItem(
                                 text = { Text(track.displayName) },

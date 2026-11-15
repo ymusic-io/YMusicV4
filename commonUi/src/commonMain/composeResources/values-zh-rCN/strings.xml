@@ -217,7 +217,6 @@
     <string name="video_quality_auto">自动</string>
     <string name="captions_off">关闭字幕</string>
     <string name="captions_auto_translate">自动翻译</string>
-    <string name="captions_recent_languages">最近使用</string>
     <string name="up_next">接下来播放</string>
     <string name="queue_load_more">加载更多</string>
     <string name="queue_loading_more">正在加载更多…</string>

@@ -268,7 +268,6 @@
     <string name="video_quality_auto">تلقائي</string>
     <string name="captions_off">إيقاف الترجمة</string>
     <string name="captions_auto_translate">ترجمة تلقائية</string>
-    <string name="captions_recent_languages">الأخيرة</string>
     <string name="up_next">التالي في القائمة</string>
     <string name="queue_load_more">تحميل المزيد</string>
     <string name="queue_loading_more">جارٍ تحميل المزيد…</string>

@@ -221,7 +221,6 @@
     <string name="video_quality_auto">Automatikoa</string>
     <string name="captions_off">Azpitituluak desaktibatuta</string>
     <string name="captions_auto_translate">Itzulpen automatikoa</string>
-    <string name="captions_recent_languages">Azkenak</string>
     <string name="up_next">Hurrengoa</string>
     <string name="queue_load_more">Kargatu gehiago</string>
     <string name="queue_loading_more">Gehiago kargatzen…</string>

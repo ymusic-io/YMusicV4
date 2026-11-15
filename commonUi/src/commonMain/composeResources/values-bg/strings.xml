@@ -221,7 +221,6 @@
     <string name="video_quality_auto">Авто</string>
     <string name="captions_off">Без субтитри</string>
     <string name="captions_auto_translate">Автоматичен превод</string>
-    <string name="captions_recent_languages">Последни</string>
     <string name="up_next">Следват</string>
     <string name="queue_load_more">Зареди още</string>
     <string name="queue_loading_more">Зареждане…</string>
