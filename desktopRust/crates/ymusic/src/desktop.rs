@@ -283,9 +283,9 @@ pub fn sync_desktop_entry() -> anyhow::Result<()> {
         .ok_or_else(|| anyhow::anyhow!("no home directory"))?;
     let entry_file = data_home.join("applications").join(format!("{APP_ID}.desktop"));
     let icon_file = data_home.join("icons/hicolor/512x512/apps").join(format!("{APP_ID}.png"));
-    // An AppImage runs from a temporary mount; `APPIMAGE` names the image file that launches it.
-    let exe = match std::env::var_os("APPIMAGE").filter(|image| !image.is_empty()) {
-        Some(image) => PathBuf::from(image),
+    // An AppImage runs from a temporary mount; the entry launches the image file.
+    let exe = match ym_update::appimage_file() {
+        Some(image) => image,
         None => std::env::current_exe()?,
     };
     if exe.starts_with("/opt") || exe.starts_with("/usr") {

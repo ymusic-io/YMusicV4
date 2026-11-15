@@ -117,6 +117,7 @@ impl AppGraph {
             os: ym_update::os_key().to_owned(),
             os_version: crate::desktop::os_version(),
             arch: ym_update::arch_key().to_owned(),
+            package: ym_update::package_key().map(str::to_owned),
             app_version_code: APP_VERSION,
             app_version_name: APP_VERSION_NAME.to_owned(),
             device_id,

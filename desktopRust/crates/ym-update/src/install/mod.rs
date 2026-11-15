@@ -1,16 +1,18 @@
 //! Runs a downloaded, verified installer over the running copy. Every platform installs the whole
 //! build, in the shapes the JVM app's installers use, so either app can update into the other:
-//! macOS swaps the .app, Windows and Linux hand the package to the OS installer, which asks for
-//! admin rights.
+//! macOS swaps the .app, Windows and the Linux .deb hand the package to the OS installer, which
+//! asks for admin rights; a Linux AppImage replaces its own file.
 
+mod appimage;
 mod linux;
 mod mac;
 mod windows;
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::Arc;
 
+pub use appimage::LinuxAppImageInstaller;
 pub use linux::LinuxDebInstaller;
 pub use mac::MacDmgInstaller;
 pub use windows::WindowsSetupInstaller;
@@ -52,9 +54,27 @@ pub trait Installer: Send + Sync {
     fn install(&self, file: &Path, update: &AppUpdate, before_relaunch: &dyn Fn()) -> Result<bool, InstallError>;
 }
 
-/// `macos-arm64`, `windows-x64`, `linux-x64`: the key the config service publishes releases by.
+/// `macos-arm64`, `windows-x64`, `linux-x64`, `linux-x64-appimage`: the key the config service
+/// publishes releases by, and part of the signed message.
 pub fn platform_key() -> String {
-    format!("{}-{}", os_key(), arch_key())
+    match package_key() {
+        Some(package) => format!("{}-{}-{package}", os_key(), arch_key()),
+        None => format!("{}-{}", os_key(), arch_key()),
+    }
+}
+
+/// The `x-package` the config service picks this build's release by, for a build that is not the
+/// platform's default package.
+pub fn package_key() -> Option<&'static str> {
+    appimage_file().map(|_| "appimage")
+}
+
+/// The image file a running AppImage was launched from: its runtime sets `APPIMAGE`.
+pub fn appimage_file() -> Option<PathBuf> {
+    if !cfg!(target_os = "linux") {
+        return None;
+    }
+    std::env::var_os("APPIMAGE").filter(|image| !image.is_empty()).map(PathBuf::from)
 }
 
 pub fn os_key() -> &'static str {
@@ -78,7 +98,10 @@ pub fn installer_for_current(relaunch_env: Vec<String>) -> Arc<dyn Installer> {
     match os_key() {
         "macos" => Arc::new(MacDmgInstaller::new(executable.as_deref(), relaunch_env)),
         "windows" => Arc::new(WindowsSetupInstaller::new(executable)),
-        _ => Arc::new(LinuxDebInstaller::new(executable)),
+        _ => match appimage_file() {
+            Some(image) => Arc::new(LinuxAppImageInstaller::new(image)),
+            None => Arc::new(LinuxDebInstaller::new(executable)),
+        },
     }
 }
 
@@ -107,4 +130,17 @@ fn tail(text: &str) -> &str {
     let start = text.len().saturating_sub(2000);
     let start = (start..text.len()).find(|index| text.is_char_boundary(*index)).unwrap_or(text.len());
     &text[start..]
+}
+
+#[cfg(unix)]
+fn writable(folder: &Path) -> bool {
+    use std::os::unix::ffi::OsStrExt;
+    let Ok(path) = std::ffi::CString::new(folder.as_os_str().as_bytes()) else { return false };
+    // SAFETY: `path` is a valid NUL-terminated string for the call's duration.
+    unsafe { libc::access(path.as_ptr(), libc::W_OK) == 0 }
+}
+
+#[cfg(not(unix))]
+fn writable(_folder: &Path) -> bool {
+    false
 }

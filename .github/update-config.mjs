@@ -98,6 +98,8 @@ const INSTALLERS = [
   { platform: 'windows-arm64', file: 'windows-arm64-setup.exe', versionCode },
   { platform: 'linux-x64', file: 'linux-x86_64.deb', versionCode },
   { platform: 'linux-arm64', file: 'linux-arm64.deb', versionCode },
+  { platform: 'linux-x64-appimage', file: 'linux-x86_64.AppImage', versionCode },
+  { platform: 'linux-arm64-appimage', file: 'linux-arm64.AppImage', versionCode },
 ]
 
 // The oldest build per platform that can install a new one in place; older builds get the release

@@ -3,7 +3,7 @@ use std::process::Command;
 
 use ym_remote_config::AppUpdate;
 
-use super::{Blocked, InstallError, Installer, exec, run};
+use super::{Blocked, InstallError, Installer, exec, run, writable};
 
 /// Copies the .app out of the DMG beside the installed one, checks it is signed by the installed
 /// one's team, swaps the two atomically and relaunches. Nothing is ever written inside a bundle:
@@ -116,19 +116,6 @@ fn remove_tree(path: &Path) -> std::io::Result<()> {
         Err(error) if error.kind() != std::io::ErrorKind::NotFound => Err(error),
         _ => Ok(()),
     }
-}
-
-#[cfg(target_os = "macos")]
-fn writable(folder: &Path) -> bool {
-    use std::os::unix::ffi::OsStrExt;
-    let Ok(path) = std::ffi::CString::new(folder.as_os_str().as_bytes()) else { return false };
-    // SAFETY: `path` is a valid NUL-terminated string for the call's duration.
-    unsafe { libc::access(path.as_ptr(), libc::W_OK) == 0 }
-}
-
-#[cfg(not(target_os = "macos"))]
-fn writable(_folder: &Path) -> bool {
-    false
 }
 
 /// Trades `installed` and `staged` atomically (`renamex_np` with `RENAME_SWAP`, macOS 10.12+): there
