@@ -116,7 +116,14 @@ impl FeedSource {
         match &self {
             Self::TopTracks => top_tracks(history).await,
             Self::Account => engine.account_library(continuation, &log).await,
-            Self::Home => engine.home_feed(continuation, refresh, &log).await,
+            // Home is a music app's front door: music first, per section (across sections would tear
+            // headers off their items).
+            Self::Home => engine.home_feed(continuation, refresh, &log).await.map(|mut page| {
+                for section in &mut page.sections {
+                    section.items = rank_music_first(std::mem::take(&mut section.items));
+                }
+                page
+            }),
             Self::Trending => engine.trending_music_feed(&log).await,
             Self::Recommended => engine.recommended_feed(&log).await,
             Self::MusicHome => engine.music_home(continuation, refresh, &log).await,
@@ -1809,6 +1816,30 @@ enum MenuAction {
 
 fn share_link(item: &YtFeedItem) -> Option<String> {
     youtube_share_link(&item.kind, &item.id)
+}
+
+/// The JVM `rankMusicFirst`: YouTube Mixes (RD radios), then music videos, then videos from an
+/// official artist channel, then verified channels, then the rest; every other item keeps its slot
+/// while the ranked ones reorder through the remaining slots, stable within each band.
+fn rank_music_first(items: Vec<YtFeedItem>) -> Vec<YtFeedItem> {
+    fn band(item: &YtFeedItem) -> Option<u8> {
+        if item.kind == "playlist" && item.id.starts_with("RD") {
+            return Some(0);
+        }
+        if item.kind != "video" {
+            return None;
+        }
+        Some(match item.owner_badge.as_deref() {
+            _ if item.music_video => 1,
+            Some("artist") => 2,
+            Some("verified") => 3,
+            _ => 4,
+        })
+    }
+    let mut movable: Vec<YtFeedItem> = items.iter().filter(|item| band(item).is_some()).cloned().collect();
+    movable.sort_by_key(band);
+    let mut ranked = movable.into_iter();
+    items.into_iter().map(|item| if band(&item).is_some() { ranked.next().unwrap_or(item) } else { item }).collect()
 }
 
 /// The JVM `youtubeShareLink`: the YouTube web link of a video, playlist or channel on the app's own
