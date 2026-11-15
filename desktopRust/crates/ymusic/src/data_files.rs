@@ -105,8 +105,17 @@ fn remove_if_exists(path: &Path) -> std::io::Result<()> {
 /// Settings earlier builds kept under their own keys, moved to the JVM app's: `(old, new)`.
 const RENAMED_SETTINGS: [(&str, &str); 1] = [("playback.volume", "player.volume")];
 
+/// Settings no build reads any more; both apps delete them.
+const RETIRED_SETTINGS: [&str; 4] =
+    ["app.lastSection", "app.lastDiscoverTab", "app.lastLibraryTab", "app.lastYtMusicTab"];
+
 /// Blocking.
 pub fn adopt_jvm_settings(app_db: &AppDb, log: &Logger) {
+    for key in RETIRED_SETTINGS {
+        if let Err(error) = app_db.delete_setting(key) {
+            log.warn(&format!("R90204 the retired setting {key} could not be removed"), Some(&error));
+        }
+    }
     for (old, new) in RENAMED_SETTINGS {
         let Ok(Some(value)) = app_db.get_raw(old) else { continue };
         let moved = match app_db.get_raw(new) {

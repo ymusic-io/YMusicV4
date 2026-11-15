@@ -136,6 +136,7 @@ R90200 D data dir: a database this app's earlier builds named differently could 
 R90201 D data dir: the window bounds kept in app.db could not move to window.properties (logged)
 R90202 D data dir: the old window.bounds setting could not be removed from app.db (logged)
 R90203 D data dir: a setting kept under an earlier build's key could not move to the JVM app's key (logged)
+R90204 - data dir: a setting no build reads any more could not be removed from app.db (logged)
 R90400 D data dir: the 4.0.6-and-earlier settings.properties could not be read (logged; imported as no settings, then removed, as the JVM app does)
 R90401 D data dir: a 4.0.6-and-earlier loose cookie file could not be read (logged; the import is retried next launch)
 R90402 D data dir: the 4.0.6-and-earlier loose files could not be imported into app.db (logged; retried next launch)
