@@ -302,7 +302,7 @@ impl Render for TrayPopup {
                     )
                     .child(
                         sized_action_icon("tray-next", Lucide::SkipForward, t(Str::CdNext), SKIP_ICON, SKIP_HIT)
-                                                        .on_click(cx.listener(|popup, _, _, cx| {
+                            .on_click(cx.listener(|popup, _, _, cx| {
                                 popup.playback.update(cx, |playback, cx| playback.next(cx))
                             })),
                     ),

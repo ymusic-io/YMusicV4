@@ -644,11 +644,9 @@ impl MiniPlayer {
                             })
                             .child(self.focus.button(
                                 STOP_NEXT,
-                                action_icon("next", Lucide::SkipForward, t(Str::CdNext)).on_click(
-                                    cx.listener(|player, _, _, cx| {
-                                        player.playback.update(cx, |playback, cx| playback.next(cx))
-                                    }),
-                                ),
+                                action_icon("next", Lucide::SkipForward, t(Str::CdNext)).on_click(cx.listener(
+                                    |player, _, _, cx| player.playback.update(cx, |playback, cx| playback.next(cx)),
+                                )),
                                 cx,
                             )),
                     ),
