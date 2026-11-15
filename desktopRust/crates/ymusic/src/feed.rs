@@ -1186,7 +1186,7 @@ impl FeedView {
                 }
                 if video && downloaded {
                     let video_id = target.id.clone();
-                    menu = menu.separator().label(t(Str::SectionLibrary)).item(
+                    menu = menu.item(crate::settings_view::menu_divider()).label(t(Str::SectionLibrary)).item(
                         PopupMenuItem::new(t(Str::CdAddToPlaylist)).on_click(move |_, window, cx| {
                             crate::library_playlist::AddToLocalPlaylist::open(vec![video_id.clone()], None, window, cx);
                         }),

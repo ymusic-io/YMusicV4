@@ -559,13 +559,14 @@ impl DownloadsView {
                                 }));
                         }
                         let (disk_view, disk_task) = (view.clone(), task.clone());
-                        menu = menu.separator().item(act(t(Str::MenuRemove), DownloadService::remove)).item(
-                            PopupMenuItem::new(t(Str::MenuRemoveFromDisk)).on_click(move |_, window, cx| {
+                        menu = menu
+                            .item(crate::settings_view::menu_divider())
+                            .item(act(t(Str::MenuRemove), DownloadService::remove))
+                            .item(PopupMenuItem::new(t(Str::MenuRemoveFromDisk)).on_click(move |_, window, cx| {
                                 disk_view
                                     .update(cx, |view, cx| view.remove_from_disk(disk_task.clone(), window, cx))
                                     .ok();
-                            }),
-                        );
+                            }));
                     }
                     DownloadState::Canceled => {
                         menu = menu.item(other_format()).item(act(t(Str::MenuRemove), DownloadService::remove));

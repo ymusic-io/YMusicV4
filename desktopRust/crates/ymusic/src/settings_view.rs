@@ -156,6 +156,11 @@ pub struct StackTones {
 
 impl Global for StackTones {}
 
+/// Every menu's divider: the stock separator draws theme.border, which barely shows on the dark menu.
+pub fn menu_divider() -> PopupMenuItem {
+    PopupMenuItem::element(|_, cx| div().w_full().h(px(1.)).bg(cx.global::<StackTones>().near)).disabled(true)
+}
+
 /// The JVM app's `DesignPalette` grounds and inks (commonUi Theme.kt), per mode.
 struct Palette {
     surface: Hsla,
