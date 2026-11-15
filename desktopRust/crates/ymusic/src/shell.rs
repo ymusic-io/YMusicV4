@@ -1430,6 +1430,7 @@ impl Shell {
             return;
         }
         if self.stacks.entry(self.section).or_default().pushed.pop().is_some() {
+            self.rebuild_local_discover(cx);
             cx.notify();
             return;
         }
@@ -1605,6 +1606,7 @@ impl Shell {
         }
         self.now_playing_open = false;
         self.drawer_open = false;
+        let previous = self.section;
         self.section = section;
         if section == Section::PlayAgain
             && let Some(view) = &self.play_again
@@ -1613,6 +1615,9 @@ impl Shell {
         }
         if RESUMABLE_SECTIONS.contains(&section) {
             persist_setting(cx, LAST_SECTION_KEY, section.key().to_owned());
+        }
+        if previous != section {
+            self.rebuild_local_discover(cx);
         }
         cx.notify();
     }
@@ -2114,12 +2119,21 @@ impl Shell {
         {
             view.update(cx, |view, cx| view.refresh(cx));
         }
-        if matches!(tab, DiscoverTab::Recommended | DiscoverTab::TopTracks)
-            && let Some(view) = self.roots.get(&tab.source())
+        self.rebuild_local_discover(cx);
+        cx.notify();
+    }
+
+    /// Recommended and Top tracks rebuild whenever they come into view: a tab switch, a return to
+    /// Discover, or the page above them closing (the JVM DiscoverFeed's fresh local session).
+    fn rebuild_local_discover(&mut self, cx: &mut Context<Self>) {
+        let showing = self.section == Section::Discover
+            && self.stacks.get(&Section::Discover).is_none_or(|stack| stack.pushed.is_empty());
+        if showing
+            && matches!(self.discover_tab, DiscoverTab::Recommended | DiscoverTab::TopTracks)
+            && let Some(view) = self.roots.get(&self.discover_tab.source())
         {
             view.update(cx, |view, cx| view.reload(cx));
         }
-        cx.notify();
     }
 
     fn select_tab(&mut self, index: usize, cx: &mut Context<Self>) {
