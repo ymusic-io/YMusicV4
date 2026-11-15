@@ -88,11 +88,14 @@ impl AccountView {
                         header.into()
                     });
                     view.feed.update(cx, |feed, cx| {
+                        feed.open_gate(true);
                         feed.set_top(top);
                         if changed {
                             feed.reload(cx);
                         }
                     });
+                } else {
+                    view.feed.update(cx, |feed, _| feed.open_gate(false));
                 }
                 view.account = Some(account);
                 cx.notify();

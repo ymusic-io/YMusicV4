@@ -276,6 +276,9 @@ pub struct FeedView {
     offline: Entity<OfflineMarks>,
     /// Channel items offer Subscribe / Unsubscribe only when signed in.
     signed_in: bool,
+    /// False for a signed-in-only feed until its owner confirms a sign-in: it fetches nothing before
+    /// (the JVM Account and YT Music Library tabs build their session only once signed in).
+    gate_open: bool,
     _offline: Subscription,
 }
 
@@ -298,6 +301,7 @@ impl EventEmitter<ItemAction> for FeedView {}
 
 impl FeedView {
     pub fn new(source: FeedSource, title: Option<SharedString>, cx: &mut Context<Self>) -> Self {
+        let source_needs_sign_in = matches!(source, FeedSource::Account | FeedSource::MusicLibrary);
         let scroll = ScrollHandle::new();
         OfflineMarks::refresh(cx);
         let offline = OfflineMarks::shared(cx);
@@ -327,10 +331,18 @@ impl FeedView {
             carousel_drags: Default::default(),
             offline,
             signed_in: false,
+            gate_open: !source_needs_sign_in,
             _offline: observe_offline,
         };
-        view.reload(cx);
+        if view.gate_open {
+            view.reload(cx);
+        }
         view
+    }
+
+    /// Lets a signed-in-only feed fetch (true) or holds it (false).
+    pub fn open_gate(&mut self, open: bool) {
+        self.gate_open = open;
     }
 
     pub fn title(&self) -> Option<SharedString> {
@@ -503,6 +515,9 @@ impl FeedView {
 
     pub fn reload(&mut self, cx: &mut Context<Self>) {
         self.phase = Phase::Loading;
+        if !self.gate_open {
+            return;
+        }
         self.fetch(None, false, cx);
     }
 
@@ -510,6 +525,9 @@ impl FeedView {
     /// filter, the current list staying up under the loading line until the new one lands; a
     /// failure keeps it and says why.
     pub fn refresh(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if !self.gate_open {
+            return;
+        }
         if !matches!(self.phase, Phase::Ready) {
             return self.reload(cx);
         }
