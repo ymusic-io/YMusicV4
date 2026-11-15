@@ -1501,7 +1501,7 @@ impl FeedView {
                     .ghost()
                     .small()
                     .label(label)
-                    .icon(Icon::new(IconName::ChevronRight))
+                    .icon(crate::action_icon::auto_mirrored(IconName::ChevronRight))
                     .on_click(cx.listener(move |view, _, _, cx| view.open_link(&link, title.clone(), cx)));
                 row.child(self.controls.button(section_index * 3, button, cx))
             })

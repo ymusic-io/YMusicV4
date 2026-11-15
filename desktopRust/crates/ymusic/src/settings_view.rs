@@ -553,7 +553,7 @@ fn button_row(
 
 /// The end of a row that opens a panel or a page.
 fn chevron(cx: &App) -> Icon {
-    Icon::new(IconName::ChevronRight).text_color(cx.theme().muted_foreground)
+    crate::action_icon::auto_mirrored(IconName::ChevronRight).text_color(cx.theme().muted_foreground)
 }
 
 /// A control's spoken name: the row's title, then the value it shows.

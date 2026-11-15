@@ -223,7 +223,7 @@ impl Render for SearchView {
             .child(
                 self.bar_focus.button(
                     0,
-                    action_icon("search-back", IconName::ArrowLeft, t(Str::CdBack))
+                    action_icon("search-back", crate::action_icon::auto_mirrored(IconName::ArrowLeft), t(Str::CdBack))
                         .on_click(cx.listener(|_, _, _, cx| cx.emit(SearchEvent::Back))),
                     cx,
                 ),

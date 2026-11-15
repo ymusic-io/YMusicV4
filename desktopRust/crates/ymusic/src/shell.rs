@@ -1618,7 +1618,7 @@ impl Shell {
             .child(
                 self.chrome_focus.button(
                     CHROME_BACK,
-                    action_icon("layer-back", Icon::new(IconName::ArrowLeft), t(Str::CdBack))
+                    action_icon("layer-back", crate::action_icon::auto_mirrored(IconName::ArrowLeft), t(Str::CdBack))
                         .on_click(cx.listener(|shell, _, _, cx| shell.back(cx))),
                     cx,
                 ),

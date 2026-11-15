@@ -1541,7 +1541,9 @@ impl DownloadPicker {
                             .child(value),
                     )
                     .child(
-                        Icon::new(IconName::ChevronRight).size(px(16.)).text_color(theme.muted_foreground.opacity(0.8)),
+                        crate::action_icon::auto_mirrored(IconName::ChevronRight)
+                            .size(px(16.))
+                            .text_color(theme.muted_foreground.opacity(0.8)),
                     ),
             )
     }

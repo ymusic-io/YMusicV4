@@ -1615,7 +1615,11 @@ impl LibraryView {
             },
         ));
         bar.child(self.crumb_focus.item(0, link, cx))
-            .child(Icon::new(IconName::ChevronRight).size(px(16.)).text_color(theme.muted_foreground))
+            .child(
+                crate::action_icon::auto_mirrored(IconName::ChevronRight)
+                    .size(px(16.))
+                    .text_color(theme.muted_foreground),
+            )
             .child(div().text_sm().font_semibold().truncate().child(title))
             .when(has_songs, |bar| bar.child(self.shuffle_chip(cx)))
     }
@@ -1663,8 +1667,11 @@ impl LibraryView {
                 let last = self.path.len() - 1;
                 for (depth, bucket) in self.path.iter().enumerate() {
                     let name = bucket.display_name().to_owned();
-                    crumbs = crumbs
-                        .child(Icon::new(IconName::ChevronRight).size(px(16.)).text_color(theme.muted_foreground));
+                    crumbs = crumbs.child(
+                        crate::action_icon::auto_mirrored(IconName::ChevronRight)
+                            .size(px(16.))
+                            .text_color(theme.muted_foreground),
+                    );
                     crumbs = crumbs.child(if depth == last {
                         div().flex_shrink_0().px_1().text_sm().font_semibold().child(name).into_any_element()
                     } else {
