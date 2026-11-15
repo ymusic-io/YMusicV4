@@ -1725,7 +1725,11 @@ impl Shell {
                 .relative()
                 .cursor_pointer()
                 .hover(|style| style.bg(theme.primary.opacity(HOVER_ALPHA)))
-                .child(Icon::new(tab.icon()).text_color(if selected { theme.primary } else { theme.muted_foreground }))
+                .child(Icon::new(tab.icon()).size(px(24.)).text_color(if selected {
+                    theme.primary
+                } else {
+                    theme.muted_foreground
+                }))
                 .when(selected, |cell| {
                     cell.child(div().absolute().bottom_0().left_2().right_2().h(px(2.)).bg(theme.primary))
                 })
@@ -1820,7 +1824,7 @@ impl Shell {
                 .flex()
                 .items_center()
                 .justify_center()
-                .child(Icon::new(section.icon()).text_color(tint))
+                .child(Icon::new(section.icon()).size(px(24.)).text_color(tint))
                 .into_any_element();
         }
         entry
@@ -1832,7 +1836,7 @@ impl Shell {
                     .pr(px(DRAWER_ICON_START))
                     .py(px(11.))
                     .items_center()
-                    .child(Icon::new(section.icon()).text_color(tint))
+                    .child(Icon::new(section.icon()).size(px(23.)).text_color(tint))
                     .child(
                         div()
                             .flex_1()
