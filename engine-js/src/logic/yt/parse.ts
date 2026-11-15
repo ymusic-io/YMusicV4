@@ -1042,6 +1042,8 @@ export function collectPage(
       // The playlist panel / watch card were pre-extracted — don't re-collect their items.
       if (panelWrapper !== undefined && value === panelWrapper) return true;
       if (cardWrapper !== undefined && value === cardWrapper) return true;
+      // A stream replay's live chat: its Top/Live chat replay selector is a sortFilterSubMenuRenderer.
+      if (key === "conversationBar") return true;
       // A grid container switches the loose section to grid layout (its items render as grid cells).
       if (key === "richGridRenderer" || key === "gridRenderer") {
         looseLayout = "grid";
