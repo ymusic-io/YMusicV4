@@ -316,31 +316,55 @@ impl DownloadsView {
         );
     }
 
+    /// The JVM PlaybackCoordinator.playDownloads: the finished downloads the filter shows, in order,
+    /// from `task`; each is its Library item when the store has indexed it, else the file.
     fn play(&mut self, task: &DownloadTask, cx: &mut Context<Self>) {
-        let Some(path) = file_path(task) else { return };
-        let media = cx.global::<AppGraph>().media.clone();
-        let lookup_path = path.to_string_lossy().into_owned();
-        let lookup =
-            on_core(cx, async move { tokio::task::spawn_blocking(move || media.find_item_by_uri(&lookup_path)).await });
-        let fallback = QueueItem {
-            source: Source::Local(path),
-            title: task.title.clone(),
-            artist: task.artist.clone(),
-            duration_ms: None,
-            duration_label: None,
-            thumbs: Vec::new(),
-            history_code: None,
-            youtube_vid: Some(task.video_id.clone()),
-            loudness_gain_db: task.loudness_gain_db,
-        };
+        let filter = self.filter;
+        let finished: Vec<(DownloadTask, PathBuf)> = self
+            .tasks
+            .iter()
+            .filter(|shown| filter.matches(shown.state) && shown.state == DownloadState::Completed)
+            .filter_map(|shown| file_path(shown).map(|path| (shown.clone(), path)))
+            .collect();
+        let Some(index) = finished.iter().position(|(shown, _)| shown.id == task.id) else { return };
+        let graph = cx.global::<AppGraph>();
+        let (media, log) = (graph.media.clone(), graph.log.fork("play-downloads"));
+        let lookup = on_core(cx, async move {
+            tokio::task::spawn_blocking(move || {
+                finished
+                    .into_iter()
+                    .map(|(task, path)| match media.find_item_by_uri(&path.to_string_lossy()) {
+                        Ok(Some((item, _))) => QueueItem::from_local(&item),
+                        Ok(None) => download_item(&task, path),
+                        Err(error) => {
+                            log.warn("library lookup failed", Some(&error));
+                            download_item(&task, path)
+                        }
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .await
+        });
         cx.spawn(async move |this, cx| {
-            let item = match lookup.await {
-                Some(Ok(Ok(Some((item, _))))) => QueueItem::from_local(&item),
-                _ => fallback,
-            };
-            this.update(cx, |_, cx| cx.emit(PlayLocal { items: vec![item], index: 0, shuffle: None })).ok();
+            let Some(Ok(items)) = lookup.await else { return };
+            this.update(cx, |_, cx| cx.emit(PlayLocal { items, index, shuffle: None })).ok();
         })
         .detach();
+    }
+}
+
+/// A finished download the Library has not indexed: the file, named as the task.
+fn download_item(task: &DownloadTask, path: PathBuf) -> QueueItem {
+    QueueItem {
+        source: Source::Local(path),
+        title: task.title.clone(),
+        artist: task.artist.clone(),
+        duration_ms: None,
+        duration_label: None,
+        thumbs: Vec::new(),
+        history_code: None,
+        youtube_vid: Some(task.video_id.clone()),
+        loudness_gain_db: task.loudness_gain_db,
     }
 }
 
