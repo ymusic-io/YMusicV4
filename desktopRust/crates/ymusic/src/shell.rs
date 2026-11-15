@@ -104,6 +104,8 @@ const BAR_PAD_BOTTOM: f32 = 3.;
 /// Shared with the JVM app: the section and Discover tab a restart resumes, by their keys.
 const LAST_SECTION_KEY: &str = "nav.lastSection";
 const LAST_DISCOVER_TAB_KEY: &str = "discover.lastTab";
+/// The sections a restart resumes; any other resumes the last of these (the JVM `ResumableSections`).
+const RESUMABLE_SECTIONS: [Section; 3] = [Section::Discover, Section::Library, Section::YtMusic];
 /// Shared with the JVM app: the YT Music tab a restart resumes, by [MusicTab::key].
 const LAST_YTMUSIC_TAB_KEY: &str = "ytmusic.lastTab";
 const SEEK_STEP_MS: i64 = 10_000;
@@ -487,6 +489,7 @@ impl Shell {
                     shell.push(source, Some(SharedString::from(title.clone())), cx);
                 }
                 NowPlayingEvent::LibraryGroup { album, name } => {
+                    shell.stacks.entry(Section::Library).or_default().pushed.clear();
                     shell.select_section(Section::Library, cx);
                     let view = shell.library_view(cx);
                     let (album, name) = (*album, name.clone());
@@ -572,7 +575,7 @@ impl Shell {
             .flatten()
             .as_deref()
             .and_then(Section::from_key)
-            .filter(|section| !guest || *section != Section::PlayAgain)
+            .filter(|section| RESUMABLE_SECTIONS.contains(section))
             .unwrap_or(Section::Discover);
         let discover_tab = settings
             .get_raw(LAST_DISCOVER_TAB_KEY)
@@ -581,7 +584,8 @@ impl Shell {
             .as_deref()
             .and_then(DiscoverTab::from_key)
             .filter(|tab| DiscoverTab::listed(guest).contains(tab))
-            .unwrap_or(DiscoverTab::Home);
+            // Trending music on a fresh install: Home stays empty until YouTube has watch history.
+            .unwrap_or(DiscoverTab::Trending);
         let music_tab = settings
             .get_raw(LAST_YTMUSIC_TAB_KEY)
             .ok()
@@ -1579,17 +1583,15 @@ impl Shell {
         }
         self.now_playing_open = false;
         self.drawer_open = false;
-        if self.section == section {
-            // Re-selecting the current section returns to its root.
-            self.stacks.entry(section).or_default().pushed.clear();
-        }
         self.section = section;
         if section == Section::PlayAgain
             && let Some(view) = &self.play_again
         {
             view.update(cx, |view, cx| view.refresh(cx));
         }
-        persist_setting(cx, LAST_SECTION_KEY, section.key().to_owned());
+        if RESUMABLE_SECTIONS.contains(&section) {
+            persist_setting(cx, LAST_SECTION_KEY, section.key().to_owned());
+        }
         cx.notify();
     }
 
