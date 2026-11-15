@@ -417,8 +417,8 @@ impl Playback {
         }
     }
 
-    /// A YouTube video waits for the session to boot: there is no player to command yet, so a pause or
-    /// seek rides on the pending load instead.
+    /// A YouTube video waits for the session to boot: there is no player to command yet, so a pause
+    /// rides on the pending load instead, as the JVM PlayerImpl's playWhenReadyIntent does.
     fn awaiting_session(&self) -> bool {
         self.active == Some(Active::YouTube) && self.session.is_none() && self.pending.is_some()
     }
@@ -786,7 +786,6 @@ impl Playback {
         self.position_ms = position_ms;
         match self.active {
             Some(Active::Local) => self.send_local(LocalCommand::Seek(position_ms)),
-            _ if self.awaiting_session() => self.start_position_ms = position_ms,
             _ => self.command(cx, move |engine, log| async move { engine.player_seek(position_ms, &log).await }),
         }
         cx.notify();
