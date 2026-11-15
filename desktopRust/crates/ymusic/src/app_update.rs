@@ -109,12 +109,14 @@ pub fn show_upgrade_notice(window: &mut Window, cx: &mut App) {
         .message(tf(Str::UpgradedMessage, &[&crate::graph::APP_VERSION_NAME]))
         .action(move |_, _, cx| {
             let changelog = changelog.clone();
-            Button::new("upgrade-changelog").primary().label(t(Str::UpgradedViewChangelog)).on_click(cx.listener(
-                move |notification, _, window, cx| {
+            Button::new("upgrade-changelog")
+                .ghost()
+                .text_color(cx.theme().primary)
+                .label(t(Str::UpgradedViewChangelog))
+                .on_click(cx.listener(move |notification, _, window, cx| {
                     cx.open_url(&changelog);
                     notification.dismiss(window, cx);
-                },
-            ))
+                }))
         })
         // `action` turns autohide off; a hover or keyboard focus on the toast still pauses it.
         .autohide(true);
