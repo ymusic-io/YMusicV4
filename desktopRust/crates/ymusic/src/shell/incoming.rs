@@ -78,8 +78,7 @@ impl Shell {
                 return;
             }
             YtLinkTarget::Search(query) => {
-                self.select_section(Section::Discover, cx);
-                self.show_results(query, cx);
+                self.search_online(query, window, cx);
                 return;
             }
             YtLinkTarget::Playlist(url) | YtLinkTarget::Channel(url) | YtLinkTarget::MusicBrowse(url) => url,

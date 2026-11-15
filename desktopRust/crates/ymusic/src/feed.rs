@@ -349,6 +349,11 @@ impl FeedView {
         self.title.clone().or_else(|| self.page.page_header.as_ref()?.title.clone().map(Into::into))
     }
 
+    /// A YouTube Music page (album, artist, playlist), whose search is music search.
+    pub fn is_music_page(&self) -> bool {
+        matches!(self.source, FeedSource::MusicBrowse(_))
+    }
+
     /// Playlists title their bar "Playlist", not with the playlist's name.
     pub fn is_playlist_page(&self) -> bool {
         self.header_kind() == HeaderKind::Playlist
@@ -779,6 +784,13 @@ impl FeedView {
             self.source = source;
             self.phase = Phase::Loading;
             self.fetch(None, false, cx);
+        }
+    }
+
+    /// The Ctrl/Cmd+digit handler of a page with its own tab row (a channel's).
+    pub fn select_page_tab(&mut self, index: usize, cx: &mut Context<Self>) {
+        if let Some(url) = self.page.page_tabs.get(index).and_then(|tab| tab.url.clone()) {
+            self.open_tab(url, cx);
         }
     }
 }

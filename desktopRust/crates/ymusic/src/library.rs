@@ -450,7 +450,9 @@ impl LibraryView {
     }
 
     pub fn select_tab_index(&mut self, index: usize, cx: &mut Context<Self>) {
-        self.select_tab(Tab::ALL[index.min(Tab::ALL.len() - 1)], cx);
+        if let Some(tab) = Tab::ALL.get(index).copied() {
+            self.select_tab(tab, cx);
+        }
     }
 
     /// Each tab keeps its open group, and the Playlists tab its open playlist, across switches (the
