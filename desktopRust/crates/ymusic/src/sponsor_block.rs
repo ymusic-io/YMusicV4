@@ -16,6 +16,11 @@ use crate::playback::{Playback, QueueItem};
 
 pub const SPONSOR_BLOCK_KEY: &str = "playback.sponsorBlock";
 const CACHE_TTL: Duration = Duration::from_secs(6 * 60);
+/// The JVM app's `DefaultSkipSegmentColor`.
+const SKIP_SEGMENT_COLOR: u32 = 0xFFC107;
+/// gpui-component's slider: a 6 high bar centered in its track, a 16 wide thumb.
+const SLIDER_BAR_HEIGHT: f32 = 6.;
+const THUMB_RADIUS: f32 = 8.;
 
 pub struct SponsorBlock {
     playback: Entity<Playback>,
@@ -59,7 +64,12 @@ impl SponsorBlock {
                 .iter()
                 .map(|segment| ((segment.start_time * 1000.0) as i64, (segment.end_time * 1000.0) as i64))
                 .collect();
-            target.update(cx, |playback, _| playback.set_skip_segments(key.clone(), spans)).ok();
+            target
+                .update(cx, |playback, cx| {
+                    playback.set_skip_segments(key.clone(), spans);
+                    cx.notify();
+                })
+                .ok();
             this.update(cx, |sponsor, cx| {
                 if sponsor.armed_for.as_deref() == Some(key.as_str()) {
                     sponsor.current = (whitelisted || !segments.is_empty()).then_some((video_id, whitelisted));
@@ -97,6 +107,59 @@ impl SponsorBlock {
         })
         .detach();
     }
+}
+
+/// SponsorBlock spans (start, end ms) as track fractions (the JVM app's `skipSegmentFractions`): one
+/// ending within a second of the end runs to it.
+fn segment_fractions(segments: &[(i64, i64)], duration_ms: i64) -> Vec<(f32, f32)> {
+    if duration_ms <= 0 {
+        return Vec::new();
+    }
+    let fraction = |ms: i64| (ms as f32 / duration_ms as f32).clamp(0., 1.);
+    segments
+        .iter()
+        .map(|&(start, end)| (fraction(start), if end >= duration_ms - 1_000 { 1. } else { fraction(end) }))
+        .filter(|(start, end)| end > start)
+        .collect()
+}
+
+/// The skip spans painted over a gpui-component slider's bar and played fill, as the JVM
+/// `SlimSeekBar` paints them, leaving a gap around the thumb at `thumb` (0..1). A child of the
+/// slider's `relative()` parent, after the slider.
+pub fn skip_marks(segments: &[(i64, i64)], duration_ms: i64, thumb: f32) -> Div {
+    let segments = segment_fractions(segments, duration_ms);
+    let marks = canvas(
+        |_, _, _| {},
+        move |bounds, _, window, _| {
+            let width = f32::from(bounds.size.width);
+            let thumb_x = width * thumb;
+            let radius = px(SLIDER_BAR_HEIGHT / 2.);
+            for &(start, end) in &segments {
+                let (left, right) = (width * start, width * end);
+                for (from, to) in [(left, right.min(thumb_x - THUMB_RADIUS)), (left.max(thumb_x + THUMB_RADIUS), right)]
+                {
+                    if to <= from {
+                        continue;
+                    }
+                    let (left_round, right_round) = (from <= 0., to >= width);
+                    let corners = Corners {
+                        top_left: if left_round { radius } else { px(0.) },
+                        bottom_left: if left_round { radius } else { px(0.) },
+                        top_right: if right_round { radius } else { px(0.) },
+                        bottom_right: if right_round { radius } else { px(0.) },
+                    };
+                    let mark = Bounds::new(
+                        point(bounds.left() + px(from), bounds.top()),
+                        size(px(to - from), bounds.size.height),
+                    );
+                    window.paint_quad(fill(mark, rgb(SKIP_SEGMENT_COLOR)).corner_radii(corners));
+                }
+            }
+        },
+    )
+    .w_full()
+    .h(px(SLIDER_BAR_HEIGHT));
+    div().absolute().inset_0().flex().items_center().child(marks)
 }
 
 fn youtube_id(item: &QueueItem) -> Option<String> {

@@ -22,7 +22,7 @@ use crate::action_icon::{HIT, glyph_action_icon, lucide_size, sized_action_icon}
 use crate::audio_only::AudioOnlyArt;
 use crate::download_dialog::DownloadTarget;
 use crate::graph::{AppGraph, on_core};
-use crate::mini_player::{clock, duration_clock};
+use crate::mini_player::{PlayClock, clock};
 use crate::playback::{
     AUTO_TRANSLATE_KIND, CaptionTrack, PlayState, Playback, QUALITY_AUDIO_ONLY, QUALITY_AUTO, QueueItem, Source,
 };
@@ -61,6 +61,7 @@ const OVERLAY_FULLSCREEN: usize = 9;
 const OVERLAY_SEEK: usize = 10;
 const OVERLAY_SIGN_IN: usize = 11;
 const OVERLAY_RETRY: usize = 12;
+const OVERLAY_LIVE: usize = 13;
 const MENU_CAPTIONS: u8 = 1;
 const MENU_QUALITY: u8 = 2;
 const MENU_MORE: u8 = 4;
@@ -576,12 +577,14 @@ impl NowPlaying {
         let playback = self.playback.read(cx);
         let playing = playback.is_playing();
         let buffering = playback.state == PlayState::Buffering;
-        let (position, duration) = (playback.position_ms, playback.duration_ms);
+        let play_clock = PlayClock::of(playback);
+        let (duration, seekable) = (playback.duration_ms, playback.seekable);
         let layer = self.video_layer.clone();
         let video_box = self.video_box.clone();
         let show_video = !audio_only && layer.is_some();
         let controls = self.controls_shown;
-        let overlay = controls.then(|| self.render_overlay(current, playing, buffering, (position, duration), cx));
+        let overlay =
+            controls.then(|| self.render_overlay(current, playing, buffering, (&play_clock, duration, seekable), cx));
 
         div()
             .id("video-area")
@@ -636,7 +639,7 @@ impl NowPlaying {
         current: &QueueItem,
         playing: bool,
         buffering: bool,
-        (position, duration): (i64, i64),
+        (play_clock, duration, seekable): (&PlayClock, i64, bool),
         cx: &mut Context<Self>,
     ) -> Div {
         let fullscreen = self.fullscreen;
@@ -684,11 +687,36 @@ impl NowPlaying {
                 ));
 
         let actions = if fullscreen { self.overlay_player_actions(current, scale, cx) } else { Vec::new() };
-        let time = format!("{} / {}", clock(position), duration_clock(duration));
+        let time_size = px(10. * scale);
+        let elapsed = play_clock.elapsed.as_ref().map(|elapsed| format!("{elapsed} / "));
+        let total_color = play_clock.total_color(cx.theme().primary, rgb(OVERLAY_INK).into());
+        let total = match play_clock.live_button("np-live", seekable, &self.playback) {
+            Some(button) => self
+                .overlay_focus
+                .button(
+                    OVERLAY_LIVE,
+                    button
+                        .h(px(20. * scale))
+                        .px(px(4. * scale))
+                        .text_size(time_size)
+                        .font_bold()
+                        .text_color(total_color),
+                    cx,
+                )
+                .into_any_element(),
+            None => div().text_color(total_color).child(play_clock.total.clone()).into_any_element(),
+        };
+        let time = h_flex()
+            .items_center()
+            .text_size(time_size)
+            .font_bold()
+            .text_color(rgb(OVERLAY_INK))
+            .when_some(elapsed, |row, elapsed| row.child(elapsed))
+            .child(total);
         let bottom_row = h_flex()
             .gap(px(4.))
             .items_center()
-            .child(div().text_size(px(10. * scale)).font_bold().text_color(rgb(OVERLAY_INK)).child(time))
+            .child(time)
             .child(div().flex_1())
             .children(actions)
             .when_some(self.caption_button(glyph, hit, cx), |row, button| {
@@ -713,7 +741,7 @@ impl NowPlaying {
             );
         let playback = self.playback.clone();
         let seek_stop = SliderStop {
-            value_text: Some(format!("{} / {}", clock(position), duration_clock(duration)).into()),
+            value_text: Some(play_clock.spoken.clone().into()),
             on_step: Some(Rc::new(move |delta, _, cx| {
                 playback.update(cx, |playback, cx| playback.seek_by(delta as i64 * SKIP_MS, cx))
             })),
@@ -731,7 +759,17 @@ impl NowPlaying {
                         self.playback.read(cx).buffered_fraction(),
                         cx.theme().primary,
                     ))
-                    .child(Slider::new(&self.seek).h(px(20.)).accessibility_label(t(Str::A11yPlaybackPosition))),
+                    .child(
+                        Slider::new(&self.seek)
+                            .h(px(20.))
+                            .accessibility_label(t(Str::A11yPlaybackPosition))
+                            .disabled(!seekable || duration <= 0),
+                    )
+                    .child(crate::sponsor_block::skip_marks(
+                        self.playback.read(cx).skip_segments(),
+                        duration,
+                        self.seek.read(cx).percentage().end,
+                    )),
                 cx,
             )
             .block_mouse_except_scroll();
