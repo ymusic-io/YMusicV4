@@ -746,17 +746,35 @@ thread_local! {
 /// that have no `Window` (the Dock's reopen, the tray popup) while other windows stay up.
 #[cfg(target_os = "macos")]
 pub fn remember_main_window(window: &Window) {
-    use objc2::msg_send;
-    use objc2::rc::Retained;
-    use objc2::runtime::AnyObject;
-    use raw_window_handle::{HasWindowHandle, RawWindowHandle};
-    let Ok(handle) = HasWindowHandle::window_handle(window) else { return };
-    let RawWindowHandle::AppKit(appkit) = handle.as_raw() else { return };
-    let view = appkit.ns_view.as_ptr().cast::<AnyObject>();
-    // SAFETY: gpui's live NSView, on the main thread.
-    let ns_window: Option<Retained<AnyObject>> = unsafe { msg_send![view, window] };
+    let ns_window = ns_window(window);
     MAIN_WINDOW.with(|main| *main.borrow_mut() = ns_window);
 }
+
+#[cfg(target_os = "macos")]
+fn ns_window(window: &Window) -> Option<objc2::rc::Retained<objc2::runtime::AnyObject>> {
+    use objc2::msg_send;
+    use objc2::runtime::AnyObject;
+    use raw_window_handle::{HasWindowHandle, RawWindowHandle};
+    let handle = HasWindowHandle::window_handle(window).ok()?;
+    let RawWindowHandle::AppKit(appkit) = handle.as_raw() else { return None };
+    let view = appkit.ns_view.as_ptr().cast::<AnyObject>();
+    // SAFETY: gpui's live NSView, on the main thread.
+    unsafe { msg_send![view, window] }
+}
+
+/// Takes `window` off screen now; gpui closes a removed window's NSWindow only on a later turn.
+#[cfg(target_os = "macos")]
+pub fn order_out_now(window: &Window) {
+    use objc2::msg_send;
+    let Some(ns_window) = ns_window(window) else { return };
+    // SAFETY: gpui's live NSWindow, on the main thread.
+    unsafe {
+        let _: () = msg_send![&*ns_window, orderOut: std::ptr::null_mut::<objc2::runtime::AnyObject>()];
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+pub fn order_out_now(_window: &Window) {}
 
 #[cfg(target_os = "windows")]
 thread_local! {
