@@ -287,23 +287,96 @@ export function setPoRejectedHook(hook: (() => void) | null): void {
   poRejectedHook = hook;
 }
 
+let remintHook: (() => Promise<void>) | null = null;
+let remints = 0;
+let remintRun: Promise<boolean> | null = null;
+let roundsSinceRemint = 0;
+let tokenAccepted = false;
+const MAX_REMINTS = 3;
+/** Withheld rounds a re-minted token gets before the next re-roll: its verdict can lag a round. */
+const ROUNDS_BEFORE_NEXT_REMINT = 2;
+
+/** Re-mints the session's content token when googlevideo withholds media (sps=2, no media);
+ *  installed per minter, so the counts start over with each player session. */
+export function setRemintHook(hook: (() => Promise<void>) | null): void {
+  remintHook = hook;
+  remints = 0;
+  remintRun = null;
+  roundsSinceRemint = 0;
+  tokenAccepted = false;
+}
+
+/** One re-mint out of the session's [MAX_REMINTS]; null when none is left. Resolves false when
+ *  it failed. */
+function runRemint(reason: string): Promise<boolean> | null {
+  const hook = remintHook;
+  if (!hook || remints >= MAX_REMINTS) return null;
+  remints++;
+  console.info("bg remint try=" + remints + " " + reason);
+  const run = hook()
+    .then(
+      function () {
+        tokenAccepted = false;
+        roundsSinceRemint = 0;
+        withheldRounds = 0;
+        return true;
+      },
+      function (e: unknown) {
+        roundsSinceRemint = ROUNDS_BEFORE_NEXT_REMINT;
+        console.warn("bg remint failed: " + (e instanceof Error ? e.message : String(e)));
+        return false;
+      },
+    )
+    .then(function (ok) {
+      remintRun = null;
+      return ok;
+    });
+  remintRun = run;
+  return run;
+}
+
+function startRemint(): void {
+  if (remintRun) return;
+  if (remints > 0 && roundsSinceRemint < ROUNDS_BEFORE_NEXT_REMINT) return;
+  runRemint("after " + withheldRounds + " withheld rounds");
+}
+
+/**
+ * A download's request for a new content token. "accepted": the player's current token plays
+ * (googlevideo answered it sps=1), so the VM is left alone and the download's own requests are at
+ * fault. "spent": no re-mint left, or it failed. A re-mint already running for playback is shared.
+ */
+export async function remintForDownload(): Promise<string> {
+  if (tokenAccepted) return "accepted";
+  const run = remintRun || runRemint("for a download");
+  if (!run) return "spent";
+  return (await run) ? "reminted" : "spent";
+}
+
 export function noteSps(sps: number, media: number): void {
+  if (sps === 1) tokenAccepted = true;
   if (media > 0 || sps === 1) withheldRounds = 0;
-  else if (sps === 2) withheldRounds++;
+  else if (sps === 2) {
+    withheldRounds++;
+    roundsSinceRemint++;
+    startRemint();
+  }
   if (!(sps > 0)) return;
   if (loggedSps !== sps) {
     loggedSps = sps;
     console.info("bg sps=" + sps);
   }
-  if (sps === 3 || withheldRounds > MAX_WITHHELD_ROUNDS) {
+  const remintLeft = remintRun !== null || (remintHook !== null && remints < MAX_REMINTS);
+  if (sps === 3 || (withheldRounds > MAX_WITHHELD_ROUNDS && !remintLeft)) {
     if (sps === 2) console.warn("bg sps=2 withheld media for " + withheldRounds + " rounds");
     withheldRounds = 0;
     if (poRejectedHook) poRejectedHook();
   }
   if (dumpFinished) return;
   if (typeof __bgEntropyStop === "function") __bgEntropyStop();
-  // 2 = attestation pending, not a verdict: googlevideo follows up with 1 (ok) or 3 (rejected).
-  if (sps === 2) return;
+  // 2 with media is attestation pending, not a verdict yet. 2 without media is this mint failing:
+  // the dump closes on it, before a re-mint's token is judged in its place.
+  if (sps === 2 && media > 0) return;
   dumpFinished = true;
   if (sps !== 1) {
     const url = lastSabrUrl;

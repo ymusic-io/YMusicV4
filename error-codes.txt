@@ -158,6 +158,7 @@ E70050 D googlevideo rejected the download's PO token again after a re-attest (d
 E70051 D SABR withheld media while attestation stayed pending (StreamProtectionStatus=2) (download YtStreamDownloader.sabrFailure)
 E70052 D googlevideo answered a SABR error part (UMP 44) to a download (download YtStreamDownloader.sabrFailure)
 E70053 D a SABR download failed with an otherwise uncoded error (download YtStreamDownloader.sabrFailure)
+E70054 - googlevideo withheld media from or rejected a download (StreamProtectionStatus 2/3) while it accepts the player's PO token: the download's own SABR requests are at fault (download YtStreamDownloader.specOnNewToken)
 E70060 D could not create the download scratch directory, volume not full (download DefaultDownloadScratch)
 E70070 D renaming a completed download's file failed with an uncoded error (commonUi DownloadsScreen.kt RenameDownloadDialog)
 E70071 D reading a completed download's file name for Rename failed with an uncoded error (commonUi DownloadsScreen.kt RenameDownloadDialog)

@@ -19,7 +19,8 @@ import { installFetch } from "../yt/fetch";
 import { executeWithCookies } from "../yt/cookies";
 import { HttpRequest } from "../../protocol/http";
 import { utf8Encode } from "../../transport";
-import { minterFromConfig } from "./pot";
+import { minterFromConfig, remint } from "./pot";
+import { remintForDownload, setRemintHook } from "./bg_dump";
 import { installPlayerAdStrip } from "./skip_ads";
 import { installSabrIntercept } from "../yt/sabr_http";
 import { installAdaptiveFormatsHeader } from "../yt/sabr_af";
@@ -538,9 +539,11 @@ function baseJsHead(res: HttpResponse): string {
   );
 }
 
-async function fetchPlayerConfig(): Promise<Record<string, unknown>> {
+async function fetchPlayerConfig(
+  fresh: boolean = freshPlayerConfig,
+): Promise<Record<string, unknown>> {
   return callMain("get_player_config", async (pipe) => {
-    const w = pipe.sink.writeObjectAsJson(freshPlayerConfig ? { "maxAge": 0 } : {});
+    const w = pipe.sink.writeObjectAsJson(fresh ? { "maxAge": 0 } : {});
     if (w) await w;
     const c = pipe.sink.close();
     if (c) await c;
@@ -733,6 +736,11 @@ class Player {
     const out: Record<string, unknown> = { "step": "minter" };
     applyChromeShapes();
     this.mintFn = await initStep(minterFromConfig(cfg, out), "botguard", "E20156");
+    setRemintHook(function () {
+      return remint(function () {
+        return fetchPlayerConfig(true);
+      });
+    });
     endLayoutProbes();
     const self = this;
     installCaptionMinter(function (id: string) {
@@ -1014,6 +1022,15 @@ class Player {
     console.info("mse preload " + videoId);
     out["ok"] = true;
     return out;
+  }
+
+  /** A download's one re-mint: a new content token, or why the VM was left alone. */
+  async remintPo(videoId: string): Promise<Record<string, unknown>> {
+    await withinInitDeadline(this.ensureMinter(), "po token minter");
+    const status = await remintForDownload();
+    const result: Record<string, unknown> = { "videoId": videoId, "status": status };
+    if (status === "reminted") result["contentPoToken"] = await this.mintToken(videoId);
+    return result;
   }
 
   async mintPo(videoId: string): Promise<Record<string, unknown>> {
@@ -1519,6 +1536,10 @@ export function setPlayerQuality(quality: string, audioOnly: boolean): void {
 
 export function mintPlayerPo(videoId: string): Promise<Record<string, unknown>> {
   return ytPlayer.mintPo(videoId);
+}
+
+export function remintPlayerPo(videoId: string): Promise<Record<string, unknown>> {
+  return ytPlayer.remintPo(videoId);
 }
 
 export function setPlayerAudioTrack(id: string): void {
