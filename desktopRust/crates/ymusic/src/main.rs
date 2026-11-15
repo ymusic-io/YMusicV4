@@ -34,6 +34,7 @@ mod library;
 mod library_playlist;
 mod library_search;
 mod local_art;
+mod local_captions;
 mod local_engine;
 mod local_playlist;
 mod media_session;
