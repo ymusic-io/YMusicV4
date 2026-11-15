@@ -24,7 +24,7 @@ use crate::store::DownloadStore;
 use crate::streams::{PlayerGate, RunObserver, SpecResolver, StreamDownloader};
 
 pub type FolderSource = Arc<dyn Fn() -> Option<PathBuf> + Send + Sync>;
-pub type CompletedHook = Arc<dyn Fn(DownloadTask, PipelineResult) + Send + Sync>;
+pub type CompletedHook = Arc<dyn Fn(DownloadTask, PipelineResult) -> BoxFuture<'static, ()> + Send + Sync>;
 
 pub struct DownloadConfig {
     pub tokio: Handle,
@@ -41,7 +41,7 @@ pub struct DownloadConfig {
     pub max_concurrent: usize,
     /// The user's download folder, read at publish time.
     pub folder: FolderSource,
-    /// Registers a finished file in the library.
+    /// Registers a finished file in the library; the task's slot frees once it is done.
     pub on_completed: Option<CompletedHook>,
     pub log: Logger,
 }
@@ -65,6 +65,8 @@ struct Inner {
     max_concurrent: usize,
     folder: FolderSource,
     on_completed: Option<CompletedHook>,
+    /// Each finished task's library registration, awaited by its supervisor; never aborted.
+    completions: std::sync::Mutex<HashMap<String, tokio::task::JoinHandle<()>>>,
     changes: broadcast::Sender<DownloadChange>,
     slots: Mutex<Slots>,
     initialized: OnceCell<()>,
@@ -105,6 +107,7 @@ impl DownloadService {
                 max_concurrent: config.max_concurrent.max(1),
                 folder: config.folder,
                 on_completed: config.on_completed,
+                completions: std::sync::Mutex::new(HashMap::new()),
                 changes: broadcast::channel(256).0,
                 slots: Mutex::new(Slots::default()),
                 initialized: OnceCell::new(),
@@ -424,6 +427,12 @@ impl Inner {
                 (Some(task_error(&error)), false)
             }
         };
+        let registering = self.completions.lock().unwrap().remove(&task.id);
+        if let Some(registering) = registering
+            && let Err(error) = registering.await
+        {
+            self.task_log(&task).capture_error("registering a finished download in the library failed", &error);
+        }
         {
             let mut slots = self.slots.lock().await;
             let target = slots.interrupts.remove(&task.id);
@@ -488,7 +497,10 @@ impl Inner {
                 });
                 if let Some(hook) = &self.on_completed {
                     match self.store.get(&task.id) {
-                        Ok(Some(row)) => hook(row, published),
+                        Ok(Some(row)) => {
+                            let registering = self.tokio.spawn(hook(row, published));
+                            self.completions.lock().unwrap().insert(task.id.clone(), registering);
+                        }
                         Ok(None) => {}
                         Err(error) => log.warn("the completed task could not be read for the library", Some(&error)),
                     }
