@@ -1215,7 +1215,7 @@ impl Playback {
                 }
                 let request = self.load_request(&video_id);
                 let stop_first = std::mem::take(&mut self.stop_before_load);
-                self.command(cx, move |engine, log| async move {
+                self.load_command(cx, move |engine, log| async move {
                     if stop_first {
                         engine.player_stop(&log).await?;
                     }
@@ -1313,7 +1313,25 @@ impl Playback {
         true
     }
 
+    /// A player command whose failure is only logged, as the JVM MsePlayer's command loop does.
     fn command<F, Fut>(&mut self, cx: &mut Context<Self>, run: F)
+    where
+        F: FnOnce(Arc<DynamicEngine>, ym_common::log::Logger) -> Fut + Send + 'static,
+        Fut: Future<Output = Result<(), EngineError>> + Send + 'static,
+    {
+        self.queue_command(cx, false, run);
+    }
+
+    /// A load: its failure fails the item, as the JVM MsePlayer.load's does.
+    fn load_command<F, Fut>(&mut self, cx: &mut Context<Self>, run: F)
+    where
+        F: FnOnce(Arc<DynamicEngine>, ym_common::log::Logger) -> Fut + Send + 'static,
+        Fut: Future<Output = Result<(), EngineError>> + Send + 'static,
+    {
+        self.queue_command(cx, true, run);
+    }
+
+    fn queue_command<F, Fut>(&mut self, cx: &mut Context<Self>, fails_item: bool, run: F)
     where
         F: FnOnce(Arc<DynamicEngine>, ym_common::log::Logger) -> Fut + Send + 'static,
         Fut: Future<Output = Result<(), EngineError>> + Send + 'static,
@@ -1332,7 +1350,11 @@ impl Playback {
         }
         cx.spawn(async move |this, cx| {
             if let Ok(Err(error)) = done.await {
-                log.capture_error("player command failed", &error);
+                if !fails_item {
+                    log.warn("player command failed", Some(&error));
+                    return;
+                }
+                log.capture_error("player load failed", &error);
                 this.update(cx, |playback, cx| {
                     playback.state = PlayState::Failed(PlaybackFailure::engine(&error));
                     cx.notify();
@@ -1369,7 +1391,7 @@ impl Playback {
                         {
                             playback.loading_video = Some(video_id.clone());
                             let request = playback.load_request(&video_id);
-                            playback.command(cx, move |engine, log| async move {
+                            playback.load_command(cx, move |engine, log| async move {
                                 engine.player_load(&request, &log).await.map(|_| ())
                             });
                         }
