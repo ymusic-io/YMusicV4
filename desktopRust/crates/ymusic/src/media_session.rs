@@ -112,12 +112,12 @@ impl MediaSession {
                 }
                 let applied = target.update(cx, |playback, cx| match command {
                     Command::Toggle => playback.toggle(cx),
-                    Command::Play if !playback.is_playing() => playback.toggle(cx),
-                    Command::Pause if playback.is_playing() => playback.toggle(cx),
+                    Command::Play => playback.play(cx),
+                    Command::Pause => playback.pause(cx),
                     Command::Next => playback.next(cx),
                     Command::Previous => playback.previous(cx),
                     Command::SeekTo(position_ms) => playback.seek(position_ms.max(0), cx),
-                    Command::Play | Command::Pause | Command::Raise => {}
+                    Command::Raise => {}
                 });
                 if applied.is_err() {
                     return;

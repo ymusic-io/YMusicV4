@@ -432,8 +432,10 @@ impl Playback {
         self.active == Some(Active::YouTube) && self.session.is_none() && self.pending.is_some()
     }
 
+    /// What the play/pause controls and the OS session show: the user's intent, not the engine's
+    /// buffering (the JVM `showsPause`, `playWhenReady && !ended`).
     pub fn is_playing(&self) -> bool {
-        matches!(self.state, PlayState::Playing | PlayState::Buffering)
+        self.play_when_ready && !matches!(self.state, PlayState::Ended)
     }
 
     pub fn level_tap(&self) -> Option<LevelTap> {
@@ -791,25 +793,18 @@ impl Playback {
     }
 
     /// Nothing queued: a no-op, as the YouTube engine keeps a stopped video that play would revive unseen.
+    /// The JVM PlayerImpl.togglePlay: an ended item restarts from 0, otherwise the intent flips.
     pub fn toggle(&mut self, cx: &mut Context<Self>) {
         if self.current().is_none() {
             return;
         }
-        let playing = self.is_playing();
-        self.play_when_ready = !playing;
-        match self.active {
-            Some(Active::Local) => {
-                self.send_local(if playing { LocalCommand::Pause } else { LocalCommand::Play });
-                self.state = if playing { PlayState::Paused } else { PlayState::Playing };
-                cx.notify();
-            }
-            _ if self.awaiting_session() => {
-                self.state = if playing { PlayState::Paused } else { PlayState::Buffering };
-                cx.notify();
-            }
-            _ => self.command(cx, move |engine, log| async move {
-                if playing { engine.player_pause(&log).await } else { engine.player_play(&log).await }
-            }),
+        if matches!(self.state, PlayState::Ended) {
+            self.seek(0, cx);
+            self.play(cx);
+        } else if self.play_when_ready {
+            self.pause(cx);
+        } else {
+            self.play(cx);
         }
     }
 
@@ -865,7 +860,7 @@ impl Playback {
         match self.nav.peek_next(false, self.index, self.queue.len()) {
             Some(next) if next == self.index => {
                 self.seek(0, cx);
-                self.resume(cx);
+                self.play(cx);
             }
             Some(next) => {
                 self.nav.commit(next, self.queue.len());
@@ -877,21 +872,44 @@ impl Playback {
         self.extend_queue_if_near_end(cx);
     }
 
-    fn resume(&mut self, cx: &mut Context<Self>) {
+    /// The JVM PlayerImpl.play: the intent goes to playing; a retryable failure or an unloaded item
+    /// loads again, anything else resumes in place.
+    pub fn play(&mut self, cx: &mut Context<Self>) {
         self.play_when_ready = true;
+        match &self.state {
+            PlayState::Failed(failure) => {
+                if failure.retry && self.current().is_some() {
+                    self.start_position_ms = self.position_ms.max(0);
+                    self.load_current(cx);
+                }
+                return;
+            }
+            PlayState::Idle if self.current().is_some() && self.active.is_none() => {
+                self.load_current(cx);
+                return;
+            }
+            _ => {}
+        }
         match self.active {
-            Some(Active::Local) => self.send_local(LocalCommand::Play),
+            Some(Active::Local) => {
+                self.send_local(LocalCommand::Play);
+                self.state = PlayState::Playing;
+            }
+            _ if self.awaiting_session() => {}
             _ => self.command(cx, |engine, log| async move { engine.player_play(&log).await }),
         }
+        cx.notify();
     }
 
-    fn pause(&mut self, cx: &mut Context<Self>) {
+    /// The JVM PlayerImpl.pause: the intent goes to paused whatever state the engine is in.
+    pub fn pause(&mut self, cx: &mut Context<Self>) {
         self.play_when_ready = false;
         match self.active {
             Some(Active::Local) => {
                 self.send_local(LocalCommand::Pause);
                 self.state = PlayState::Paused;
             }
+            _ if self.awaiting_session() => {}
             _ => self.command(cx, |engine, log| async move { engine.player_pause(&log).await }),
         }
         cx.notify();
