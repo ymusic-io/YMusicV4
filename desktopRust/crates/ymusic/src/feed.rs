@@ -192,6 +192,9 @@ pub struct Play {
     pub item: YtFeedItem,
     pub queue: Option<Vec<YtFeedItem>>,
     pub shuffle: bool,
+    /// The playlist page whose list the queue continues past the loaded videos (the JVM
+    /// `queueSource` of a playlist page).
+    pub playlist: Option<String>,
 }
 
 /// Something to do with a video besides opening it.
@@ -365,7 +368,18 @@ impl FeedView {
             return;
         }
         let start = if shuffle { rand::Rng::random_range(&mut rand::rng(), 0..videos.len()) } else { 0 };
-        cx.emit(Play { item: videos[start].clone(), queue: Some(videos), shuffle });
+        cx.emit(Play { item: videos[start].clone(), queue: Some(videos), shuffle, playlist: self.playlist_url() });
+    }
+
+    /// A playlist page's link, which its queue continues from.
+    fn playlist_url(&self) -> Option<String> {
+        if self.header_kind() != HeaderKind::Playlist {
+            return None;
+        }
+        match &self.source {
+            FeedSource::Playlist(url) | FeedSource::MusicBrowse(url) => Some(url.clone()),
+            _ => None,
+        }
     }
 
     fn share_page(&self) -> Option<String> {
@@ -708,7 +722,11 @@ impl FeedView {
         let title = Some(SharedString::from(item.title.clone()));
         let source = match item.kind.as_str() {
             "video" => {
-                cx.emit(Play { item: item.clone(), queue, shuffle: false });
+                // On a playlist page a tap plays the page's list from that video (the JVM playAll with
+                // the page's queue source); elsewhere a section's own queue, or a radio.
+                let playlist = self.playlist_url();
+                let queue = if playlist.is_some() { Some(self.videos()) } else { queue };
+                cx.emit(Play { item: item.clone(), queue, shuffle: false, playlist });
                 return;
             }
             "playlist" => item
@@ -1225,7 +1243,9 @@ impl FeedView {
 
     fn menu_action(&mut self, item: YtFeedItem, action: MenuAction, window: &mut Window, cx: &mut Context<Self>) {
         match action {
-            MenuAction::PlaySingle => cx.emit(Play { item: item.clone(), queue: Some(vec![item]), shuffle: false }),
+            MenuAction::PlaySingle => {
+                cx.emit(Play { item: item.clone(), queue: Some(vec![item]), shuffle: false, playlist: None })
+            }
             MenuAction::Feed(action) => cx.emit(ItemAction { item, action }),
             MenuAction::Share => {
                 if let Some(link) = share_link(&item) {

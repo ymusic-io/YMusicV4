@@ -1348,10 +1348,15 @@ impl Shell {
         });
         let play = cx.subscribe(&view, |shell, _, event: &Play, cx| {
             let (item, queue, shuffle) = (event.item.clone(), event.queue.clone(), event.shuffle);
+            let playlist = event.playlist.clone();
             shell.playback.update(cx, |playback, cx| {
-                playback.play_feed(item, queue, cx);
+                // The JVM playAll sets the shuffle mode before the queue starts.
                 if shuffle {
                     playback.set_shuffle(true, cx);
+                }
+                match (playlist, queue) {
+                    (Some(url), Some(items)) => playback.play_playlist(item, items, url, cx),
+                    (_, queue) => playback.play_feed(item, queue, cx),
                 }
             });
         });

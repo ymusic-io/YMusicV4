@@ -482,6 +482,20 @@ impl Playback {
 
     /// Plays a feed video. A `section` queue plays in order; without one the engine's radio for
     /// the video becomes the queue.
+    /// A playlist page's videos from `item`, the rest of the list loading as the queue goes (the JVM
+    /// playAll with NextQueueSource.playlist: /next from the last loaded video).
+    pub fn play_playlist(&mut self, item: YtFeedItem, videos: Vec<YtFeedItem>, url: String, cx: &mut Context<Self>) {
+        let videos: Vec<YtFeedItem> = videos.into_iter().filter(|video| video.kind == "video").collect();
+        let Some(last) = videos.last().map(|video| (video.id.clone(), videos.len() as i64 - 1)) else { return };
+        self.queue_continuation = None;
+        self.index = videos.iter().position(|candidate| candidate.id == item.id).unwrap_or(0);
+        self.queue = videos.iter().map(QueueItem::from_feed).collect();
+        self.new_queue();
+        self.play_when_ready = true;
+        self.load_current(cx);
+        self.fetch_queue_page(last.0, Some((url, last.1)), cx);
+    }
+
     pub fn play_feed(&mut self, item: YtFeedItem, section: Option<Vec<YtFeedItem>>, cx: &mut Context<Self>) {
         self.queue_continuation = None;
         match section {
@@ -492,7 +506,7 @@ impl Playback {
             None => {
                 self.queue = vec![QueueItem::from_feed(&item)];
                 self.index = 0;
-                self.fetch_radio(item.id.clone(), None, cx);
+                self.fetch_queue_page(item.id.clone(), None, cx);
             }
         }
         self.new_queue();
@@ -511,7 +525,7 @@ impl Playback {
         self.queue_continuation = None;
         self.queue = vec![QueueItem::from_feed(&item)];
         self.index = 0;
-        self.fetch_radio(item.id.clone(), playlist_url, cx);
+        self.fetch_queue_page(item.id.clone(), playlist_url.map(|url| (url, 0)), cx);
         self.new_queue();
         self.start_position_ms = start_ms.unwrap_or(0).max(0);
         self.play_when_ready = true;
@@ -604,7 +618,7 @@ impl Playback {
         self.queue_continuation = None;
         self.queue = vec![item];
         self.index = 0;
-        self.fetch_radio(video_id, None, cx);
+        self.fetch_queue_page(video_id, None, cx);
         self.new_queue();
         self.play_when_ready = true;
         self.load_current(cx);
@@ -1751,13 +1765,15 @@ impl Playback {
     }
 
     /// The queue after `video_id`: `playlist`'s items when it came from one, else its radio.
-    fn fetch_radio(&mut self, video_id: String, playlist: Option<String>, cx: &mut Context<Self>) {
+    /// The queue's first /next page: `video_id`'s radio, or the playlist at `(url, index)` from it.
+    /// Videos already queued are left out (the JVM NextQueueSource's seen set).
+    fn fetch_queue_page(&mut self, video_id: String, playlist: Option<(String, i64)>, cx: &mut Context<Self>) {
         let graph = cx.global::<AppGraph>();
         let (engine, log) = (graph.engine(), graph.log.fork("queue"));
         self.loading_queue = true;
         let fetch = on_core(cx, async move {
             match playlist {
-                Some(url) => engine.playlist_queue(&url, &video_id, 0, &log).await,
+                Some((url, index)) => engine.playlist_queue(&url, &video_id, index, &log).await,
                 None => engine.start_radio_queue(&video_id, &log).await,
             }
         });
@@ -1766,13 +1782,14 @@ impl Playback {
             this.update(cx, |playback, cx| {
                 playback.loading_queue = false;
                 if let Some(Ok(page)) = result {
-                    let current = playback.current().map(QueueItem::key);
-                    let items = page
+                    let queued: std::collections::HashSet<String> = playback.queue.iter().map(QueueItem::key).collect();
+                    let items: Vec<QueueItem> = page
                         .sections
                         .iter()
                         .flat_map(|section| section.items.iter())
-                        .filter(|item| item.kind == "video" && Some(&item.id) != current.as_ref())
-                        .map(QueueItem::from_feed);
+                        .filter(|item| item.kind == "video" && !queued.contains(&item.id))
+                        .map(QueueItem::from_feed)
+                        .collect();
                     playback.queue.extend(items);
                     playback.queue_revision += 1;
                     playback.queue_continuation = page.continuation;
