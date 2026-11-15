@@ -60,6 +60,8 @@ const SIGN_IN_STATUSES: [&str; 3] = ["LOGIN_REQUIRED", "AGE_CHECK_REQUIRED", "AG
 const FILE_MISSING: &str = "file_missing";
 const PO_TOKEN_REJECTED: &str = "E60065";
 
+type PlayerJob = Box<dyn FnOnce(Arc<DynamicEngine>) -> futures::future::BoxFuture<'static, ()> + Send>;
+
 impl PlaybackFailure {
     pub fn code(code: &str) -> Self {
         Self { code: code.to_owned(), user_message: None, retry: true }
@@ -238,8 +240,22 @@ pub struct MediaDetails {
     pub channel_url: Option<String>,
 }
 
+/// Ends when the sender is dropped.
+fn start_commands(session: &YoutubeSession, cx: &App) -> mpsc::UnboundedSender<PlayerJob> {
+    let (sender, mut receiver) = mpsc::unbounded::<PlayerJob>();
+    let engine = session.engine.clone();
+    cx.global::<AppGraph>().tokio.spawn(async move {
+        while let Some(job) = receiver.next().await {
+            job(engine.clone()).await;
+        }
+    });
+    sender
+}
+
 pub struct Playback {
     session: Option<Arc<YoutubeSession>>,
+    /// The session's player commands, run one at a time in call order.
+    commands: Option<mpsc::UnboundedSender<PlayerJob>>,
     booting: bool,
     /// What to load once the YouTube session is up.
     pending: Option<String>,
@@ -323,6 +339,7 @@ impl Playback {
             cx.global::<AppGraph>().settings.string(VOLUME_KEY, "1").ok().and_then(|raw| raw.parse::<f32>().ok());
         Self {
             session: None,
+            commands: None,
             booting: false,
             pending: None,
             local: None,
@@ -1041,7 +1058,7 @@ impl Playback {
         if let Some(session) = &self.session {
             session.host.set_tone(&effects.tone);
         }
-        if speed_changed {
+        if speed_changed && self.active == Some(Active::YouTube) {
             let (speed, pitch) = (effects.speed, effects.pitch);
             self.command(cx, move |engine, log| async move { engine.player_set_speed_pitch(speed, pitch, &log).await });
         }
@@ -1057,13 +1074,9 @@ impl Playback {
         cx.notify();
     }
 
-    fn apply_youtube_effects(&mut self, cx: &mut Context<Self>) {
+    fn apply_youtube_tone(&self) {
         let Some(session) = &self.session else { return };
         session.host.set_tone(&self.effects.tone);
-        let (speed, pitch) = (self.effects.speed, self.effects.pitch);
-        if (speed, pitch) != (1.0, 1.0) {
-            self.command(cx, move |engine, log| async move { engine.player_set_speed_pitch(speed, pitch, &log).await });
-        }
     }
 
     fn apply_volume(&self) {
@@ -1259,11 +1272,20 @@ impl Playback {
         F: FnOnce(Arc<DynamicEngine>, ym_common::log::Logger) -> Fut + Send + 'static,
         Fut: Future<Output = Result<(), EngineError>> + Send + 'static,
     {
-        let Some(session) = self.session.clone() else { return };
+        let Some(commands) = &self.commands else { return };
         let log = cx.global::<AppGraph>().log.fork("playback");
-        let done = on_core(cx, run(session.engine.clone(), log.clone()));
+        let (result, done) = futures::channel::oneshot::channel();
+        let job_log = log.clone();
+        let job: PlayerJob = Box::new(move |engine| {
+            Box::pin(async move {
+                let _ = result.send(run(engine, job_log).await);
+            })
+        });
+        if commands.unbounded_send(job).is_err() {
+            return;
+        }
         cx.spawn(async move |this, cx| {
-            if let Some(Err(error)) = done.await {
+            if let Ok(Err(error)) = done.await {
                 log.capture_error("player command failed", &error);
                 this.update(cx, |playback, cx| {
                     playback.state = PlayState::Failed(PlaybackFailure::engine(&error));
@@ -1289,9 +1311,10 @@ impl Playback {
                 playback.booting = false;
                 match result {
                     Some(Ok(session)) => {
+                        playback.commands = Some(start_commands(&session, cx));
                         playback.session = Some(session);
                         playback.apply_volume();
-                        playback.apply_youtube_effects(cx);
+                        playback.apply_youtube_tone();
                         playback.apply_youtube_video_hidden(cx);
                         playback.bind_presenter();
                         playback.listen(cx);
