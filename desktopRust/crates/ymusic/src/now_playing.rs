@@ -875,7 +875,13 @@ impl NowPlaying {
                         if !recent.is_empty() {
                             items.push(PopupMenuItem::label(t(Str::CaptionsRecentLanguages)));
                             items.extend(recent.into_iter().map(&pick));
-                            items.push(PopupMenuItem::separator());
+                            // The stock separator draws theme.border, which barely shows on the dark menu.
+                            items.push(
+                                PopupMenuItem::element(|_, cx| {
+                                    div().w_full().h(px(1.)).bg(cx.global::<crate::settings_view::StackTones>().near)
+                                })
+                                .disabled(true),
+                            );
                         }
                         items.extend(translations.iter().map(&pick));
                         let items = std::rc::Rc::new(std::cell::RefCell::new(Some(items)));
