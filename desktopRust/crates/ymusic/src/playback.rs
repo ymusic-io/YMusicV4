@@ -281,8 +281,11 @@ pub struct Playback {
     start_position_ms: i64,
     /// SponsorBlock spans (start, end ms) for the item with this key.
     skip_segments: Option<(String, Vec<(i64, i64)>)>,
-    /// The span last skipped, so a late position report doesn't skip it twice.
-    skipped: Option<(String, i64)>,
+    /// The span last skipped and the item it was skipped in, until the play-head leaves its start
+    /// second (the JVM skipSponsorLoop's skippedSeg and lastItem).
+    skipped: Option<(String, (i64, i64))>,
+    /// A skip waiting for its span's start; position reports wait with it.
+    skip_timer: Option<Task<()>>,
     /// The item an auto-advance plays: peeked once per load or queue change, so a shuffle pick is
     /// drawn once and the preloaded item is the one that plays (the JVM prepareNextIndex).
     prepare_next_index: Option<usize>,
@@ -381,6 +384,7 @@ impl Playback {
             start_position_ms: 0,
             skip_segments: None,
             skipped: None,
+            skip_timer: None,
             prepare_next_index: None,
             prepare_next_armed: false,
             queue_continuation: None,
@@ -1248,9 +1252,15 @@ impl Playback {
         }
     }
 
+    /// The span starting in this second; a later one of the same second wins (the JVM segments map,
+    /// keyed by start second).
+    fn skip_span_at(&self, second: i64) -> Option<(i64, i64)> {
+        self.skip_segments().iter().rev().find(|(start, _)| start / 1000 == second).copied()
+    }
+
     /// The JVM `skipRestartMs`: where a restart lands, past a skip span starting in the first second.
     fn skip_restart_ms(&self) -> i64 {
-        self.skip_segments().iter().find(|(start, _)| start / 1000 == 0).map_or(0, |(_, end)| *end)
+        self.skip_span_at(0).map_or(0, |(_, end)| end)
     }
 
     /// Spans to skip in the item with `key`; spans under a second are ignored.
@@ -1259,29 +1269,78 @@ impl Playback {
         self.skip_segments = (!usable.is_empty()).then_some((key, usable));
     }
 
-    /// Seeks past a span the play-head entered; a span running out the track ends it.
+    /// The JVM skipSponsorLoop: a span is skipped when the play-head is in its start second (or
+    /// position / 3000, so a late fetch still catches an intro), the seek timed to its start; it is
+    /// remembered until the play-head leaves that second, so seeking back or a replay skips it again.
     fn check_skip(&mut self, cx: &mut Context<Self>) {
-        if self.state != PlayState::Playing {
+        if self.skip_timer.is_some() {
             return;
         }
-        let Some(key) = self.current().map(QueueItem::key) else { return };
-        let Some((owner, segments)) = &self.skip_segments else { return };
-        if *owner != key {
+        let Some(key) = self.current().map(QueueItem::key) else {
+            self.skipped = None;
+            return;
+        };
+        if self.skipped.as_ref().is_some_and(|(item, _)| *item != key) || self.skip_segments.is_none() {
+            self.skipped = None;
+        }
+        if !matches!(&self.skip_segments, Some((owner, _)) if *owner == key) {
             return;
         }
         let position = self.position_ms;
-        let Some(&(start, end)) = segments.iter().find(|(start, end)| position >= *start && position < *end) else {
-            return;
-        };
-        if self.skipped.as_ref() == Some(&(key.clone(), start)) {
+        let nearest = self.skip_span_at(position / 1000).or_else(|| self.skip_span_at(position / 3000));
+        if let Some(span) = nearest
+            && self.skipped == Some((key.clone(), span))
+        {
             return;
         }
-        self.skipped = Some((key, start));
-        if self.duration_ms > 0 && end >= self.duration_ms - OUTRO_TOLERANCE_MS {
-            self.state = PlayState::Ended;
+        self.skipped = None;
+        let Some((start, end)) = nearest else { return };
+        if position >= end {
+            return;
+        }
+        if start > position {
+            let executor = cx.background_executor().clone();
+            self.skip_timer = Some(cx.spawn(async move |this, cx| {
+                executor.timer(Duration::from_millis((start - position) as u64)).await;
+                this.update(cx, |playback, cx| {
+                    playback.skip_timer = None;
+                    playback.skip_span((start, end), cx);
+                })
+                .ok();
+            }));
+            return;
+        }
+        self.skip_span((start, end), cx);
+    }
+
+    fn skip_span(&mut self, span: (i64, i64), cx: &mut Context<Self>) {
+        let Some(key) = self.current().map(QueueItem::key) else { return };
+        if !self.engine_playing() || !matches!(&self.skip_segments, Some((owner, _)) if *owner == key) {
+            return;
+        }
+        let duration = self.duration_ms;
+        if self.finishes_track(span, duration) {
             self.track_ended(cx);
+        } else if self.loops_track(span, duration) {
+            self.seek(self.skip_restart_ms(), cx);
         } else {
-            self.seek(end, cx);
+            self.seek(span.1, cx);
+        }
+        self.skipped = Some((key, span));
+    }
+
+    /// The JVM `PlaybackState.isPlaying`: the engine holds the item and means to play it, buffering
+    /// or not.
+    fn engine_playing(&self) -> bool {
+        match self.state {
+            PlayState::Playing => true,
+            PlayState::Buffering => {
+                self.play_when_ready
+                    && self.active == Some(Active::YouTube)
+                    && self.loaded_video.is_some()
+                    && self.loaded_video.as_deref() == self.current().and_then(QueueItem::video_id)
+            }
+            _ => false,
         }
     }
 
@@ -1304,6 +1363,23 @@ impl Playback {
             end = end.min(start);
         }
         end
+    }
+
+    /// The JVM `finishesTrack`: an outro span advances to the queued next item.
+    fn finishes_track(&self, (_, end): (i64, i64), duration_ms: i64) -> bool {
+        if duration_ms <= 0 || end < duration_ms - OUTRO_TOLERANCE_MS {
+            return false;
+        }
+        self.nav.loop_mode != LoopMode::One && !self.live && self.prepare_next_index.is_some()
+    }
+
+    /// The JVM `loopsTrack`: Loop One restarts at an outro span, since a seek onto the MSE tail stalls
+    /// paused instead of ending.
+    fn loops_track(&self, (_, end): (i64, i64), duration_ms: i64) -> bool {
+        if duration_ms <= 0 || end < duration_ms - OUTRO_TOLERANCE_MS || self.live {
+            return false;
+        }
+        self.nav.loop_mode == LoopMode::One && !self.sleep_after_current
     }
 
     /// The JVM refreshPrepareNext: peeks the item an auto-advance plays and re-arms its preload.
