@@ -5,7 +5,6 @@
 use futures::channel::mpsc::UnboundedSender;
 use gpui_kit::assets::IconName as Lucide;
 use gpui_kit::base::slider::{SliderEvent, SliderState};
-use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::slider::Slider;
 use gpui_kit::component::{ActiveTheme, Disableable, Icon, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
@@ -14,7 +13,7 @@ use ym_i18n::{Str, t};
 
 use crate::action_icon::{hit_target, lucide_size, sized_action_icon};
 use crate::desktop::TrayCommand;
-use crate::mini_player::clock;
+use crate::mini_player::PlayClock;
 use crate::playback::{PlayState, Playback};
 use crate::spinner::Spinner;
 
@@ -28,8 +27,6 @@ const SKIP_ICON: f32 = 20.;
 const SKIP_HIT: f32 = 32.;
 const PLAY_ICON: f32 = 26.;
 const PLAY_HIT: f32 = 36.;
-/// Within this of the live head a live stream counts as at it (the JVM app's `LIVE_HEAD_MS`).
-const LIVE_HEAD_MS: i64 = 2_000;
 /// The JVM app's `DefaultSkipSegmentColor`.
 const SKIP_SEGMENT_COLOR: u32 = 0xFFC107;
 /// gpui-component's slider: a 6 high bar centered in its 24 high track, a 16 wide thumb.
@@ -169,40 +166,12 @@ impl Render for TrayPopup {
                 frame.child(img(url).absolute().inset_0().size_full().rounded(px(5.)).object_fit(ObjectFit::Cover))
             });
         let play_label = t(if playing { Str::CdPause } else { Str::CdPlay });
-        // The JVM app's captions: a live stream shows how far behind the head it is (nothing at the
-        // head) and LIVE, in the accent at the head, which jumps there when the stream seeks.
-        let at_live_head = live && duration - position <= LIVE_HEAD_MS;
-        let elapsed = if live {
-            if at_live_head { String::new() } else { format!("-{}", clock((duration - position).max(0))) }
-        } else if duration > 0 || position > 0 {
-            clock(position)
-        } else {
-            String::new()
-        };
-        let live_color = if at_live_head { theme.primary } else { theme.muted_foreground };
-        let total = if live && seekable {
-            Button::new("tray-live")
-                .ghost()
-                .h(px(20.))
-                .px(px(4.))
-                .text_xs()
-                .text_color(live_color)
-                .label(t(Str::BadgeLive))
-                .on_click(cx.listener(|popup, _, _, cx| {
-                    popup.playback.update(cx, |playback, cx| playback.seek(playback.duration_ms.max(0), cx))
-                }))
-                .into_any_element()
-        } else {
-            let text = match (live, duration > 0) {
-                (true, _) => t(Str::BadgeLive).to_owned(),
-                (false, true) => clock(duration),
-                (false, false) => "--:--".to_owned(),
-            };
-            div()
-                .text_xs()
-                .text_color(if live { live_color } else { theme.muted_foreground })
-                .child(text)
-                .into_any_element()
+        let play_clock = PlayClock::new(position, duration, live);
+        let elapsed = play_clock.elapsed.clone().unwrap_or_default();
+        let total_color = play_clock.total_color(theme.primary, theme.muted_foreground);
+        let total = match play_clock.live_button("tray-live", seekable, &self.playback) {
+            Some(button) => button.h(px(20.)).px(px(4.)).text_xs().text_color(total_color).into_any_element(),
+            None => div().text_xs().text_color(total_color).child(play_clock.total.clone()).into_any_element(),
         };
         // Over the played fill, as the JVM app paints them; the thumb above them is the gap they leave.
         let thumb = self.seek.read(cx).percentage().end;

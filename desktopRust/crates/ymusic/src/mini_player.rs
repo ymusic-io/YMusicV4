@@ -4,6 +4,7 @@ use std::rc::Rc;
 
 use gpui_kit::assets::IconName as Lucide;
 use gpui_kit::base::slider::{SliderEvent, SliderState};
+use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::slider::Slider;
 use gpui_kit::component::{ActiveTheme, Disableable, Icon, StyledExt, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
@@ -41,6 +42,8 @@ struct Shown {
     second: i64,
     duration_ms: i64,
     buffered_second: i64,
+    live: bool,
+    seekable: bool,
     skip_segments: Vec<(i64, i64)>,
     has_next: bool,
     loop_mode: LoopMode,
@@ -59,6 +62,8 @@ impl Shown {
             second: playback.position_ms / 1000,
             duration_ms: playback.duration_ms,
             buffered_second: playback.buffered_ms / 1000,
+            live: playback.live,
+            seekable: playback.seekable,
             skip_segments: playback.skip_segments().to_vec(),
             has_next: playback.has_next(),
             loop_mode: playback.nav.loop_mode,
@@ -144,6 +149,7 @@ const STOP_SPEED: usize = 7;
 const STOP_SLEEP: usize = 8;
 const STOP_SEEK: usize = 9;
 const STOP_VOLUME: usize = 10;
+const STOP_LIVE: usize = 11;
 /// One arrow press on the bar's seek slider and volume.
 const SEEK_STEP_MS: i64 = 10_000;
 const VOLUME_STEP: f32 = 0.05;
@@ -179,6 +185,65 @@ pub fn clock(ms: i64) -> String {
 /// A duration as the JVM app shows it: `--:--` until it is known.
 pub fn duration_clock(ms: i64) -> String {
     if ms > 0 { clock(ms) } else { "--:--".to_owned() }
+}
+
+/// Within this of the live head a live stream counts as at it (the JVM app's `LIVE_HEAD_MS`).
+const LIVE_HEAD_MS: i64 = 2_000;
+
+/// The play-head captions as the JVM app's `Progress` words them: a live stream shows how far
+/// behind the head it is (nothing at the head) and LIVE in place of the duration.
+pub struct PlayClock {
+    pub live: bool,
+    pub at_live_head: bool,
+    pub elapsed: Option<String>,
+    pub total: String,
+    /// The seek bar's spoken value.
+    pub spoken: String,
+}
+
+impl PlayClock {
+    pub fn new(position: i64, duration: i64, live: bool) -> Self {
+        let at_live_head = live && duration.max(0) - position <= LIVE_HEAD_MS;
+        let behind = clock((duration - position).max(0));
+        let elapsed = if at_live_head {
+            None
+        } else if live {
+            Some(format!("-{behind}"))
+        } else if duration > 0 || position > 0 {
+            Some(clock(position))
+        } else {
+            None
+        };
+        let total = if live { t(Str::BadgeLive).to_owned() } else { duration_clock(duration) };
+        let spoken = if at_live_head {
+            t(Str::BadgeLive).to_owned()
+        } else if live {
+            tf(Str::A11yBehindLive, &[&behind])
+        } else {
+            format!("{} / {}", clock(position), duration_clock(duration))
+        };
+        Self { live, at_live_head, elapsed, total, spoken }
+    }
+
+    pub fn of(playback: &Playback) -> Self {
+        Self::new(playback.position_ms, playback.duration_ms, playback.live)
+    }
+
+    /// The duration caption's color: the accent on LIVE at the head.
+    pub fn total_color(&self, accent: Hsla, otherwise: Hsla) -> Hsla {
+        if self.at_live_head { accent } else { otherwise }
+    }
+
+    /// LIVE as a button jumping to the head, when the stream can seek there; None otherwise.
+    pub fn live_button(&self, id: &'static str, seekable: bool, playback: &Entity<Playback>) -> Option<Button> {
+        if !self.live || !seekable {
+            return None;
+        }
+        let playback = playback.clone();
+        Some(Button::new(id).ghost().label(self.total.clone()).on_click(move |_, _, cx| {
+            playback.update(cx, |playback, cx| playback.seek(playback.duration_ms.max(0), cx))
+        }))
+    }
 }
 
 /// The track info takes this share of the bar once that beats `BAR_INFO_MIN`.
@@ -263,7 +328,9 @@ impl MiniPlayer {
         let playback = self.playback.read(cx);
         let theme = cx.theme().clone();
         let state = playback.state.clone();
-        let (position, duration) = (playback.position_ms, playback.duration_ms);
+        let duration = playback.duration_ms;
+        let play_clock = PlayClock::of(playback);
+        let seekable = playback.seekable;
         let buffered = playback.buffered_fraction();
         let has_next = playback.has_next();
         let (loop_mode, shuffle) = (playback.nav.loop_mode, playback.nav.shuffle);
@@ -374,11 +441,17 @@ impl MiniPlayer {
                     .max_w(px(BAR_SEEK_MAX))
                     .gap_2()
                     .items_center()
-                    .child(div().text_xs().font_semibold().text_color(theme.muted_foreground).child(clock(position)))
+                    .child(
+                        div()
+                            .text_xs()
+                            .font_semibold()
+                            .text_color(theme.muted_foreground)
+                            .child(play_clock.elapsed.clone().unwrap_or_default()),
+                    )
                     .child({
                         let playback = self.playback.clone();
                         let stop = SliderStop {
-                            value_text: Some(format!("{} / {}", clock(position), duration_clock(duration)).into()),
+                            value_text: Some(play_clock.spoken.clone().into()),
                             on_step: Some(Rc::new(move |delta, _, cx| {
                                 playback.update(cx, |playback, cx| playback.seek_by(delta as i64 * SEEK_STEP_MS, cx))
                             })),
@@ -387,7 +460,11 @@ impl MiniPlayer {
                         let slider = div()
                             .relative()
                             .child(crate::playback::buffered_band(buffered, theme.primary))
-                            .child(Slider::new(&self.seek).accessibility_label(t(Str::A11yPlaybackPosition)))
+                            .child(
+                                Slider::new(&self.seek)
+                                    .accessibility_label(t(Str::A11yPlaybackPosition))
+                                    .disabled(!seekable || duration <= 0),
+                            )
                             .child(crate::sponsor_block::skip_marks(
                                 self.playback.read(cx).skip_segments(),
                                 duration,
@@ -395,13 +472,25 @@ impl MiniPlayer {
                             ));
                         self.focus.slider(STOP_SEEK, &self.seek, stop, slider, cx).flex_1()
                     })
-                    .child(
-                        div()
-                            .text_xs()
-                            .font_semibold()
-                            .text_color(theme.muted_foreground)
-                            .child(duration_clock(duration)),
-                    ),
+                    .child({
+                        let color = play_clock.total_color(theme.primary, theme.muted_foreground);
+                        match play_clock.live_button("bar-live", seekable, &self.playback) {
+                            Some(button) => self
+                                .focus
+                                .button(
+                                    STOP_LIVE,
+                                    button.h(px(20.)).px(px(4.)).text_xs().font_semibold().text_color(color),
+                                    cx,
+                                )
+                                .into_any_element(),
+                            None => div()
+                                .text_xs()
+                                .font_semibold()
+                                .text_color(color)
+                                .child(play_clock.total.clone())
+                                .into_any_element(),
+                        }
+                    }),
             );
         let side_controls = side.then(|| {
             h_flex()
