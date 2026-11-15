@@ -1180,6 +1180,17 @@ impl NowPlaying {
 
         let view = cx.entity().downgrade();
         let more_target = target.clone();
+        // Share for any item with a YouTube id (a downloaded file's too) and lyrics for any item, the
+        // local artist in the query (the JVM ⋮ menu; a YouTube item's artist is its uploader).
+        let share_id = current.video_id().map(str::to_owned).or_else(|| current.youtube_vid.clone());
+        let lyrics_query = match &current.source {
+            crate::playback::Source::Local(_) => {
+                [current.artist.clone(), Some(current.title.clone())].into_iter().flatten().collect::<Vec<_>>()
+            }
+            crate::playback::Source::YouTube(_) => vec![current.title.clone()],
+        }
+        .join(" ")
+            + " lyrics";
         let queue_playback = self.playback.clone();
         let more = sized_action_icon("np-more", IconName::EllipsisVertical, t(Str::CdMore), ICON, HIT)
             .track_focus(&self.bar_focus.handle(STOP_MORE, cx))
@@ -1198,7 +1209,8 @@ impl NowPlaying {
                         menu.item(PopupMenuItem::new(t(Str::CdAddToPlaylist)).icon(icon(Lucide::ListPlus)).on_click(
                             move |_, window, cx| crate::yt_playlist::AddToPlaylist::open(video_id.clone(), window, cx),
                         ));
-                    let link = crate::feed::youtube_share_link("video", &target.video_id).unwrap_or_default();
+                }
+                if let Some(link) = share_id.as_deref().and_then(|id| crate::feed::youtube_share_link("video", id)) {
                     menu = menu.item(PopupMenuItem::new(t(Str::CdShare)).icon(icon(Lucide::Share2)).on_click(
                         move |_, window, cx| {
                             cx.write_to_clipboard(ClipboardItem::new_string(link.clone()));
@@ -1224,16 +1236,13 @@ impl NowPlaying {
                         },
                     ),
                 );
-                if let Some(target) = &more_target {
-                    let query = format!("{} lyrics", target.title);
-                    menu =
-                        menu.item(PopupMenuItem::new(t(Str::MenuSearchLyrics)).icon(icon(Lucide::MicVocal)).on_click(
-                            move |_, _, cx| {
-                                let encoded: String = url::form_urlencoded::byte_serialize(query.as_bytes()).collect();
-                                cx.open_url(&format!("https://www.google.com/search?q={encoded}"));
-                            },
-                        ));
-                }
+                let query = lyrics_query.clone();
+                menu = menu.item(PopupMenuItem::new(t(Str::MenuSearchLyrics)).icon(icon(Lucide::MicVocal)).on_click(
+                    move |_, _, cx| {
+                        let encoded: String = url::form_urlencoded::byte_serialize(query.as_bytes()).collect();
+                        cx.open_url(&format!("https://www.google.com/search?q={encoded}"));
+                    },
+                ));
                 menu = menu.item(crate::settings_view::menu_divider());
                 let effects = queue_playback.read(cx).effects;
                 let speed = format!("{}×", crate::speed_pitch::trimmed(effects.speed));
