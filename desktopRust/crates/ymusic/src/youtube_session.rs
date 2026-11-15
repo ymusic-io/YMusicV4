@@ -19,6 +19,8 @@ pub struct YoutubeSession {
 pub type CandidateSource = Arc<dyn Fn() -> Vec<(String, Option<VerifiedBundle>)> + Send + Sync>;
 /// Told the version of each player bundle that boots.
 pub type VersionSink = Arc<dyn Fn(i64) + Send + Sync>;
+/// Refreshes a stale config on each use of the session (the JVM MsePlayer's playerJs.checkUpdate).
+pub type ConfigCheck = Arc<dyn Fn() + Send + Sync>;
 
 /// How long player/init gets before the boot fails (the JVM MsePlayer's INIT_TIMEOUT_MS).
 const PLAYER_INIT_DEADLINE: Duration = Duration::from_secs(30);
@@ -34,6 +36,7 @@ pub struct YoutubeSessions {
     candidates: CandidateSource,
     player_source: Arc<BundleSource>,
     player_running: VersionSink,
+    check_config: ConfigCheck,
     log: Logger,
 }
 
@@ -43,6 +46,7 @@ impl YoutubeSessions {
         candidates: CandidateSource,
         player_source: Arc<BundleSource>,
         player_running: VersionSink,
+        check_config: ConfigCheck,
         log: Logger,
     ) -> Self {
         Self {
@@ -52,6 +56,7 @@ impl YoutubeSessions {
             candidates,
             player_source,
             player_running,
+            check_config,
             log,
         }
     }
@@ -69,6 +74,7 @@ impl YoutubeSessions {
     /// The session, booting it on the first call; concurrent callers share one boot, and a failed
     /// boot is retried by the next call.
     pub async fn get(&self) -> Result<Arc<YoutubeSession>, EngineError> {
+        (self.check_config)();
         let mut slot = self.session.lock().await;
         if let Some(session) = slot.as_ref() {
             return Ok(session.clone());

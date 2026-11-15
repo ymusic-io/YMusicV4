@@ -210,11 +210,19 @@ impl AppGraph {
             let remote = remote.clone();
             Arc::new(move |version| remote.set_running_player(version))
         };
+        let check_config: crate::youtube_session::ConfigCheck = {
+            let (remote, tokio) = (remote.clone(), tokio.clone());
+            Arc::new(move || {
+                let remote = remote.clone();
+                tokio.spawn(async move { remote.check_update(BUNDLE_CONFIG_MAX_AGE).await });
+            })
+        };
         let youtube = Arc::new(YoutubeSessions::new(
             player_config,
             candidates,
             player_source.clone(),
             player_running,
+            check_config,
             log.fork("youtube"),
         ));
         let download_inputs = DownloadInputs {
@@ -305,7 +313,7 @@ impl AppGraph {
         let log = self.log.fork("bundles");
         self.tokio.spawn(async move {
             let mut published = remote.subscribe();
-            remote.check_update(BUNDLE_CONFIG_MAX_AGE).await;
+            remote.check_update(ym_remote_config::REMOTE_CONFIG_MIN_INTERVAL).await;
             // Each published bundle is acted on once, as the JVM per-bundle flows are distinctUntilChanged:
             // one that would not download or boot waits for the next publication, not the next fetch.
             let (mut handled_engine, mut handled_player) = (None, None);

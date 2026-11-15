@@ -10,8 +10,9 @@ use ym_common::log::{Logger, now_millis};
 
 use crate::stats::{PULSE_MAX_EVENTS, PulseEvent};
 
-/// Hammering `check_update` from every screen costs at most one request per interval.
-const MIN_INTERVAL: Duration = Duration::from_secs(5 * 60);
+/// What app open accepts (the JVM REMOTE_CONFIG_MIN_INTERVAL_MS): hammering `check_update` from every
+/// screen costs one request, and a scraping fix still reaches a running app.
+pub const REMOTE_CONFIG_MIN_INTERVAL: Duration = Duration::from_secs(5 * 60);
 
 fn null_default<'de, D: Deserializer<'de>, T: Default + Deserialize<'de>>(deserializer: D) -> Result<T, D::Error> {
     Ok(Option::<T>::deserialize(deserializer)?.unwrap_or_default())
@@ -155,7 +156,6 @@ pub struct RemoteConfig {
     cache_file: PathBuf,
     sender: watch::Sender<RemoteConfigData>,
     in_flight: tokio::sync::Mutex<()>,
-    last_attempt: Mutex<i64>,
     /// Bundle revisions running now, reported as headers.
     running_bundles: Mutex<(Option<i64>, Option<i64>)>,
     log: Logger,
@@ -181,7 +181,6 @@ impl RemoteConfig {
             cache_file,
             sender,
             in_flight: tokio::sync::Mutex::new(()),
-            last_attempt: Mutex::new(0),
             running_bundles: Mutex::new((None, None)),
             log,
         }
@@ -206,30 +205,30 @@ impl RemoteConfig {
         self.running_bundles.lock().unwrap().1 = Some(player);
     }
 
-    /// Fetches when the held config is older than `max_age` (throttled); otherwise returns.
+    /// Fetches when the held config is older than `max_age` and no fetch is in flight; otherwise
+    /// returns. Only a successful fetch moves `updated_at`, so a failed one is retried by the next call.
     pub async fn check_update(&self, max_age: Duration) {
         let Some(identity) = &self.identity else { return };
-        let now = now_millis();
-        if now - self.sender.borrow().updated_at < max_age.as_millis() as i64 {
+        if self.is_fresh(max_age) {
             return;
         }
         let Ok(_guard) = self.in_flight.try_lock() else { return };
-        {
-            let mut last = self.last_attempt.lock().unwrap();
-            if now - *last < MIN_INTERVAL.as_millis() as i64 {
-                return;
-            }
-            *last = now;
+        // Re-checked under the lock: a fetch may have just landed.
+        if self.is_fresh(max_age) {
+            return;
         }
         self.fetch_and_publish(identity).await;
     }
 
-    /// For a person waiting on an answer ("Check for update"): fetches now, past the age check and
-    /// the throttle. `None` when the fetch failed or this build has no service.
+    fn is_fresh(&self, max_age: Duration) -> bool {
+        now_millis() - self.sender.borrow().updated_at < max_age.as_millis() as i64
+    }
+
+    /// For a person waiting on an answer ("Check for update"): fetches now, past the age check, after
+    /// any fetch in flight. `None` when the fetch failed or this build has no service.
     pub async fn fetch_now(&self) -> Option<RemoteConfigData> {
         let identity = self.identity.as_ref()?;
         let _guard = self.in_flight.lock().await;
-        *self.last_attempt.lock().unwrap() = now_millis();
         self.fetch_and_publish(identity).await
     }
 
