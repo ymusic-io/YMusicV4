@@ -501,7 +501,7 @@ async function interpreterFor(bg: Record<string, unknown>, ctx: RemintContext): 
  */
 export async function remint(rescrape: () => Promise<Record<string, unknown>>): Promise<void> {
   const ctx = remintContext;
-  if (!ctx) return;
+  if (!ctx) throw new JsEngineErrorImpl("re-mint before the session's first mint", "E20165");
   const t0 = Date.now();
   let source = "att";
   let bg = ctx.eacrToken ? await attChallenge(ctx) : null;
@@ -552,8 +552,14 @@ export function remintedPoToken(videoId: string): Uint8Array | null {
   if (remintGeneration === 0 || !activeMint || !videoId) return null;
   const held = remintedTokens.get(videoId);
   if (held) return held;
-  const token = activeMint(new TextEncoder().encode(videoId));
-  if (!(token instanceof Uint8Array)) return null;
+  const minted = activeMint(new TextEncoder().encode(videoId));
+  const token =
+    minted instanceof Uint8Array
+      ? minted
+      : typeof minted === "string" && minted
+        ? b64ToU8(minted.replace(/-/g, "+").replace(/_/g, "/"))
+        : null;
+  if (!token) return null;
   remintedTokens.set(videoId, token);
   return token;
 }
