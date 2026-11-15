@@ -293,11 +293,15 @@ impl AppGraph {
         self.tokio.spawn(async move {
             let mut published = remote.subscribe();
             remote.check_update(BUNDLE_CONFIG_MAX_AGE).await;
+            // Each published bundle is acted on once, as the JVM per-bundle flows are distinctUntilChanged:
+            // one that would not download or boot waits for the next publication, not the next fetch.
+            let (mut handled_engine, mut handled_player) = (None, None);
             loop {
                 let config = published.borrow_and_update().clone();
-                if let Some(remote_engine) =
-                    config.engine_js.filter(|bundle| bundle.version > i64::from(engines.backend_version()))
-                {
+                if let Some(remote_engine) = config.engine_js.filter(|bundle| {
+                    bundle.version > i64::from(engines.backend_version()) && handled_engine != Some(bundle.version)
+                }) {
+                    handled_engine = Some(remote_engine.version);
                     match engine_source.download(&remote_engine).await {
                         Ok(bundle) => match engines.swap(bundle.source.clone()).await {
                             Ok(version) => {
@@ -314,8 +318,17 @@ impl AppGraph {
                         }
                     }
                 }
-                let embedded_player = player_source.embedded().1;
-                if let Some(remote_player) = config.player_js.filter(|bundle| bundle.version > embedded_player) {
+                let source = player_source.clone();
+                let cached_player = tokio::task::spawn_blocking(move || source.cached().map(|(_, version)| version))
+                    .await
+                    .ok()
+                    .flatten();
+                let local_player = player_source.embedded().1.max(cached_player.unwrap_or(0));
+                if let Some(remote_player) = config
+                    .player_js
+                    .filter(|bundle| bundle.version > local_player && handled_player != Some(bundle.version))
+                {
+                    handled_player = Some(remote_player.version);
                     match player_source.download(&remote_player).await {
                         Ok(bundle) => *pending.lock().unwrap() = Some(bundle),
                         Err(error) => {
