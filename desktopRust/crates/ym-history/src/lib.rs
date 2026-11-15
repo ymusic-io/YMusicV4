@@ -193,9 +193,9 @@ impl PlayHistory {
         Ok(())
     }
 
-    /// A snapshot for the YouTube chart; a card without a duration only fills in what is missing.
-    pub fn save_youtube_metadata(&self, video: &VideoMetadata) -> rusqlite::Result<()> {
-        if video.video_id.is_empty() || video.title.is_empty() {
+    /// A snapshot for the YouTube chart, live streams left out; a card without a duration only fills in what is missing.
+    pub fn save_youtube_metadata(&self, video: &VideoMetadata, live: bool) -> rusqlite::Result<()> {
+        if live || video.video_id.is_empty() || video.title.is_empty() {
             return Ok(());
         }
         let connection = self.connection.lock().unwrap();

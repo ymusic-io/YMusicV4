@@ -192,14 +192,17 @@ fn record_watch_rows(
         }
         Source::YouTube(_) if guest => Ok(()),
         Source::YouTube(video_id) => {
-            history.save_youtube_metadata(&VideoMetadata {
-                video_id: video_id.clone(),
-                title: if item.title.is_empty() { video_id.clone() } else { item.title.clone() },
-                artist: item.artist.clone(),
-                thumbnail_url: item.thumb(i32::MAX).map(|url| url.to_string()),
-                duration: item.duration_label.clone(),
-                duration_ms: item.duration_ms,
-            })?;
+            history.save_youtube_metadata(
+                &VideoMetadata {
+                    video_id: video_id.clone(),
+                    title: if item.title.is_empty() { video_id.clone() } else { item.title.clone() },
+                    artist: item.artist.clone(),
+                    thumbnail_url: item.thumb(i32::MAX).map(|url| url.to_string()),
+                    duration: item.duration_label.clone(),
+                    duration_ms: item.duration_ms,
+                },
+                item.live,
+            )?;
             history.track_youtube(video_id, watch_ms)
         }
     }
