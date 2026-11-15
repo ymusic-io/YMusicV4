@@ -256,6 +256,8 @@ fn main() {
         cx.set_global(upgrade_notice);
         let options = WindowOptions {
             window_bounds: Some(window_bounds),
+            // Same floor as the JVM app: small enough to float as a mini video player.
+            window_min_size: Some(size(px(275.), px(170.))),
             // Windows hides the native caption: the app draws its title bar (`win_title_bar`).
             titlebar: Some(TitlebarOptions {
                 title: Some(t(Str::AppName).into()),

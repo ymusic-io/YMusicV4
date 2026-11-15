@@ -15,11 +15,11 @@ import java.awt.GraphicsEnvironment
 import java.awt.Toolkit
 import java.awt.Window
 
-internal const val MIN_WINDOW_WIDTH = 320
-internal const val MIN_WINDOW_HEIGHT = 480
+internal const val MIN_WINDOW_WIDTH = 275
+internal const val MIN_WINDOW_HEIGHT = 170
 
 /** Compose's undecorated resize handles have no floor of their own, and AWT cannot paint a zero-size translucent window. */
-internal fun minimumWindowSize(): Dimension = Dimension(1, 1)
+internal fun minimumWindowSize(): Dimension = Dimension(MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT)
 
 /**
  * Floating, zoom (fit the work area), and fullscreen: native on macOS, the window manager's on Linux,
