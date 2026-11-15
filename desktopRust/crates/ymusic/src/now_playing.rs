@@ -101,6 +101,9 @@ pub enum NowPlayingEvent {
 
 pub struct NowPlaying {
     playback: Entity<Playback>,
+    /// Queue items' Library rows by media id, as the JVM Up next menu looks them up: `None` while
+    /// the lookup runs, `Some(false)` when the row is gone.
+    live_rows: std::cell::RefCell<std::collections::HashMap<i64, Option<bool>>>,
     sponsor_block: Entity<SponsorBlock>,
     queue_scroll: ScrollHandle,
     queue_focus: FocusList,
@@ -393,6 +396,7 @@ impl NowPlaying {
             keyboard_in_controls: Cell::new(false),
             fullscreen: false,
             video_fill: false,
+            live_rows: Default::default(),
             _subscriptions: subscriptions,
             _controls_timer: controls_timer,
         }
@@ -1446,6 +1450,7 @@ impl NowPlaying {
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
         let (playback, view, item) = (self.playback.clone(), cx.entity().downgrade(), item.clone());
+        let live_row = item.media_id.is_some_and(|media_id| self.live_row(media_id, cx));
         let more =
             sized_action_icon(("np-queue-more", position), IconName::EllipsisVertical, t(Str::CdMore), ICON, HIT);
         self.queue_focus
@@ -1491,7 +1496,7 @@ impl NowPlaying {
                             window.push_notification(t(Str::LinkCopied), cx);
                         }));
                     }
-                    (None, Source::Local(path)) if item.media_id.is_some() => {
+                    (None, Source::Local(path)) if live_row => {
                         if let Some(code) = item.history_code.clone().or_else(|| item.youtube_vid.clone()) {
                             menu = menu.item(PopupMenuItem::new(t(Str::MenuAddToPlaylist)).on_click(
                                 move |_, window, cx| {
@@ -1520,6 +1525,43 @@ impl NowPlaying {
                         .on_click(move |_, _, cx| remove.update(cx, |playback, cx| playback.remove_at(position, cx))),
                 )
             })
+    }
+
+    fn live_row(&self, media_id: i64, cx: &mut Context<Self>) -> bool {
+        if let Some(known) = self.live_rows.borrow().get(&media_id) {
+            return known.unwrap_or(false);
+        }
+        self.live_rows.borrow_mut().insert(media_id, None);
+        let media = cx.global::<AppGraph>().media.clone();
+        let lookup = on_core(cx, async move { tokio::task::spawn_blocking(move || media.item(media_id)).await });
+        cx.spawn(async move |this, cx| {
+            let result = lookup.await;
+            this.update(cx, |view, cx| {
+                let live = match result {
+                    Some(Ok(Ok(row))) => row.is_some(),
+                    Some(Ok(Err(error))) => {
+                        cx.global::<AppGraph>()
+                            .log
+                            .fork("now-playing")
+                            .warn("queue item row lookup failed", Some(&error));
+                        false
+                    }
+                    Some(Err(error)) => {
+                        cx.global::<AppGraph>()
+                            .log
+                            .fork("now-playing")
+                            .warn("queue item row lookup failed", Some(&error));
+                        false
+                    }
+                    None => return,
+                };
+                view.live_rows.borrow_mut().insert(media_id, Some(live));
+                cx.notify();
+            })
+            .ok();
+        })
+        .detach();
+        false
     }
 
     /// Looks up the local file at `uri` and opens its artist (or album) in the Library.
