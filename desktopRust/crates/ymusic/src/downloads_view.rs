@@ -289,7 +289,7 @@ impl DownloadsView {
             "removedisk" => self.remove_from_disk(task, window, cx),
             "rename" => {
                 if let Some(file) = file_path(&task) {
-                    RenameFileDialog::open(file, None, window, cx);
+                    RenameFileDialog::open(file, window, cx);
                 }
             }
             _ => {}
@@ -597,7 +597,7 @@ impl DownloadsView {
                                         .on_click(move |_, _, cx| cx.reveal_path(&path)),
                                 )
                                 .item(PopupMenuItem::new(t(Str::MenuRename)).on_click(move |_, window, cx| {
-                                    RenameFileDialog::open(renamed.clone(), None, window, cx)
+                                    RenameFileDialog::open(renamed.clone(), window, cx)
                                 }));
                         }
                         menu = menu.item(share());

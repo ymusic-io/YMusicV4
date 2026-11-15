@@ -21,7 +21,6 @@ use ym_store::{Bucket, MediaItem, MediaStore, Playlist, PlaylistItemDetail};
 
 use crate::a11y::{DragRow, FocusList, ListStops, announced, heading, label, list_item};
 use crate::action_icon::action_icon;
-use crate::file_rename::RenameFileDialog;
 use crate::graph::{AppGraph, on_core};
 use crate::library_playlist::{self, AddToLocalPlaylist, ArrangePlaylist, Changed, NameMode, PlaylistNameDialog};
 use crate::mini_player::clock;
@@ -1154,11 +1153,6 @@ impl LibraryView {
                     "album" => SongAction::GoTo(GroupKind::Album, item.album.clone().unwrap_or_default()),
                     "folder" => SongAction::ShowInFolder(item.bucket_id.unwrap_or_default()),
                     "unlist" => SongAction::RemoveFromPlaylist(item),
-                    "rename" => {
-                        let changed = self.changed(cx);
-                        RenameFileDialog::open(PathBuf::from(&item.uri), Some(changed), window, cx);
-                        return;
-                    }
                     "deletefile" => {
                         let changed = self.changed(cx);
                         library_playlist::confirm_delete_from_disk(item, Some(changed), window, cx);
@@ -1364,8 +1358,7 @@ pub fn song_cell<V: SongMenuHost>(
                     view.update(cx, |view, cx| view.song_action(SongAction::Changed, window, cx)).ok();
                 })
             };
-            let (playlist_changed, delete_changed, rename_changed) = (changed.clone(), changed.clone(), changed);
-            let renamed = path.clone();
+            let (playlist_changed, delete_changed) = (changed.clone(), changed);
             let (code, doomed) = (song.playlist_code(), song.clone());
             let mut menu_list = menu_list
                 .item(PopupMenuItem::new(t(Str::MenuPlay)).on_click(move |_, _, cx| {
@@ -1413,9 +1406,6 @@ pub fn song_cell<V: SongMenuHost>(
             menu_list
                 .item(crate::settings_view::menu_divider())
                 .item(PopupMenuItem::new(reveal_label()).on_click(move |_, _, cx| cx.reveal_path(&path)))
-                .item(PopupMenuItem::new(t(Str::MenuRename)).on_click(move |_, window, cx| {
-                    RenameFileDialog::open(renamed.clone(), Some(rename_changed.clone()), window, cx);
-                }))
                 .item(PopupMenuItem::new(t(Str::MenuRemoveFromDisk)).on_click(move |_, window, cx| {
                     library_playlist::confirm_delete_from_disk(
                         doomed.clone(),
