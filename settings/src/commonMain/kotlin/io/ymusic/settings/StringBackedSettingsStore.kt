@@ -40,13 +40,18 @@ abstract class StringBackedSettingsStore : SettingsStore {
 
     private suspend fun put(key: String, value: String) {
         data.update { it + (key to value) }
-        // The value is read under the lock, so whichever write commits last commits the latest value.
-        writeMutex.withLock { persist(key, data.value.getValue(key)) }
+        commit(key)
     }
 
     override suspend fun remove(key: String) {
         data.update { it - key }
-        writeMutex.withLock { if (key !in data.value) erase(key) }
+        commit(key)
+    }
+
+    /** Writes [key]'s current state under the lock, so whichever put or remove commits last leaves the latest one on disk. */
+    private suspend fun commit(key: String) = writeMutex.withLock {
+        val current = data.value[key]
+        if (current != null) persist(key, current) else erase(key)
     }
 
     /** Stores the one [key] a write changed, on the writer's coroutine. In-memory stores keep the no-op. */
