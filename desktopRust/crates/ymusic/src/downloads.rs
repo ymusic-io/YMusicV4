@@ -93,10 +93,9 @@ pub fn open(inputs: DownloadInputs) -> Result<DownloadService, String> {
     }
     let cookies = inputs.cookies;
     let settings = inputs.settings;
-    let folder_settings = settings.clone();
+    let (folder_settings, completion_settings) = (settings.clone(), settings.clone());
     let media = inputs.media;
     let completion_log = log.fork("download-library");
-    let completion_tokio = inputs.tokio.clone();
     Ok(DownloadService::new(DownloadConfig {
         tokio: inputs.tokio,
         store: Arc::new(store),
@@ -120,10 +119,19 @@ pub fn open(inputs: DownloadInputs) -> Result<DownloadService, String> {
         on_completed: Some(Arc::new(move |_, result| {
             let Some(file) = url::Url::parse(&result.uri).ok().and_then(|uri| uri.to_file_path().ok()) else {
                 completion_log.warn(&format!("a finished download has no file path: {}", result.uri), None);
-                return;
+                return Box::pin(async {});
             };
-            let (media, log) = (media.clone(), completion_log.clone());
-            completion_tokio.spawn_blocking(move || add_to_library(&media, &file, &log));
+            let (media, settings, log) = (media.clone(), completion_settings.clone(), completion_log.clone());
+            Box::pin(async move {
+                let blocking_log = log.clone();
+                let registered = tokio::task::spawn_blocking(move || {
+                    add_to_library(&media, settings.as_ref(), &file, &blocking_log)
+                })
+                .await;
+                if let Err(error) = registered {
+                    log.capture_error("registering a finished download in the library failed", &error);
+                }
+            })
         })),
         log,
     }))
@@ -311,16 +319,14 @@ pub fn offline_ids(cx: &App) -> impl Future<Output = HashSet<String>> + use<> {
     async move { load.await.unwrap_or_default() }
 }
 
-/// Files a finished download under its folder's Library bucket, probed like a scanned file; a
-/// folder outside the Library adds nothing (the JVM app's `registerCompletedDownload`).
-fn add_to_library(media: &MediaStore, file: &Path, log: &Logger) {
-    let Some(folder) = file.parent() else { return };
+/// Files a finished download under the download location's Library bucket, probed like a scanned
+/// file; no download location or no bucket for it adds nothing (the JVM app's
+/// `registerCompletedDownload`).
+fn add_to_library(media: &MediaStore, settings: &dyn SettingsStore, file: &Path, log: &Logger) {
+    let Some(folder) = download_folder(settings) else { return };
     let bucket = match media.find_bucket_by_uri(&folder.to_string_lossy()) {
-        Ok(Some(bucket)) if !bucket.excluded => bucket,
-        Ok(_) => {
-            log.info("a finished download is outside the Library folders");
-            return;
-        }
+        Ok(Some(bucket)) => bucket,
+        Ok(None) => return,
         Err(error) => {
             log.capture_error("registering a finished download in the library failed", &error);
             return;

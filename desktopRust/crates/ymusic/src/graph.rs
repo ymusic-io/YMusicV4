@@ -1,5 +1,6 @@
 //! The app's long-lived services, shared by every view through a gpui global.
 
+use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -62,6 +63,8 @@ pub struct AppGraph {
     pub player_cache: Option<Arc<ym_ytmedia::cache::MediaCache>>,
     pub downloads: DownloadService,
     pub history: Arc<ym_history::PlayHistory>,
+    /// Files opened from outside the Library (Open with), kept out of Play again for the process.
+    pub temporary_uris: Arc<Mutex<HashSet<PathBuf>>>,
     pub sponsor_block: Arc<ym_history::sponsor::SponsorBlockStore>,
     /// The self-updater; `None` in a build without the update key.
     pub updates: Option<Arc<ym_update::UpdateService>>,
@@ -117,7 +120,6 @@ impl AppGraph {
             os: ym_update::os_key().to_owned(),
             os_version: crate::desktop::os_version(),
             arch: ym_update::arch_key().to_owned(),
-            package: ym_update::package_key().map(str::to_owned),
             app_version_code: APP_VERSION,
             app_version_name: APP_VERSION_NAME.to_owned(),
             device_id,
@@ -282,6 +284,7 @@ impl AppGraph {
             player_cache,
             downloads,
             history,
+            temporary_uris: Arc::default(),
             sponsor_block,
             updates,
         };

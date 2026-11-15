@@ -27,6 +27,9 @@ actions!(
         SelectTab4,
         SelectTab5,
         SelectTab6,
+        SelectTab7,
+        SelectTab8,
+        SelectTab9,
         ShowShortcuts,
         /// Reload the feed on screen (F5, or Ctrl / Cmd+R as in the JVM app).
         Refresh,
@@ -77,7 +80,7 @@ pub const HELP: &[HelpRow] = &[
     row(&[secondary!("n")], Str::ShortcutsNowPlaying),
     row(&[secondary!("m")], Str::ShortcutsNavMenu),
     row(&[secondary!("f")], Str::CdSearch),
-    HelpRow { keys: &[secondary!("1"), secondary!("6")], range: true, label: Str::ShortcutsSwitchTabs },
+    HelpRow { keys: &[secondary!("1"), secondary!("9")], range: true, label: Str::ShortcutsSwitchTabs },
     row(&["escape"], Str::ShortcutsEscape),
     row(&["escape escape"], Str::CdBack),
     row(&["f1"], Str::ShortcutsHelp),
@@ -114,5 +117,8 @@ pub fn bind(cx: &mut App) {
         KeyBinding::new(secondary!("4"), SelectTab4, context),
         KeyBinding::new(secondary!("5"), SelectTab5, context),
         KeyBinding::new(secondary!("6"), SelectTab6, context),
+        KeyBinding::new(secondary!("7"), SelectTab7, context),
+        KeyBinding::new(secondary!("8"), SelectTab8, context),
+        KeyBinding::new(secondary!("9"), SelectTab9, context),
     ]);
 }

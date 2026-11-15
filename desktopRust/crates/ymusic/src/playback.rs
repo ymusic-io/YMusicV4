@@ -36,6 +36,8 @@ pub const QUALITY_AUDIO_ONLY: &str = "zero";
 const LOCAL_POLL: Duration = Duration::from_millis(250);
 const MIN_SKIP_MS: i64 = 1_000;
 const OUTRO_TOLERANCE_MS: i64 = 1_000;
+/// Cue the next item this close to the end (the JVM `PRELOAD_LEAD_MS`).
+const PRELOAD_LEAD_MS: i64 = 10_000;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum PlayState {
@@ -124,6 +126,8 @@ pub struct QueueItem {
     pub duration_ms: Option<i64>,
     pub duration_label: Option<String>,
     pub thumbs: Vec<YtThumb>,
+    /// The Library row a local file plays as; `None` for a file outside the Library.
+    pub media_id: Option<i64>,
     /// A local file's play-history key: its YouTube id when tagged, else size and length.
     pub history_code: Option<String>,
     /// A local file downloaded from YouTube (its `composer` tag).
@@ -141,13 +145,20 @@ impl QueueItem {
             duration_ms: item.duration_ms,
             duration_label: item.duration.clone(),
             thumbs: item.thumbs.clone(),
+            media_id: None,
             history_code: None,
             youtube_vid: None,
             loudness_gain_db: None,
         }
     }
 
+    /// A Library item.
     pub fn from_local(item: &ym_store::MediaItem) -> Self {
+        Self { media_id: Some(item.id), ..Self::from_file(item) }
+    }
+
+    /// A file outside the Library, described by its own tags (the JVM `looseFile`).
+    pub fn from_file(item: &ym_store::MediaItem) -> Self {
         Self {
             source: Source::Local(PathBuf::from(&item.uri)),
             title: item.title.clone(),
@@ -155,6 +166,7 @@ impl QueueItem {
             duration_ms: item.duration_ms,
             duration_label: item.duration_ms.map(crate::mini_player::clock),
             thumbs: crate::local_art::queue_thumbs(item),
+            media_id: None,
             history_code: Some(
                 item.youtube_vid
                     .clone()
@@ -283,8 +295,16 @@ pub struct Playback {
     start_position_ms: i64,
     /// SponsorBlock spans (start, end ms) for the item with this key.
     skip_segments: Option<(String, Vec<(i64, i64)>)>,
-    /// The span last skipped, so a late position report doesn't skip it twice.
-    skipped: Option<(String, i64)>,
+    /// The span last skipped and the item it was skipped in, until the play-head leaves its start
+    /// second (the JVM skipSponsorLoop's skippedSeg and lastItem).
+    skipped: Option<(String, (i64, i64))>,
+    /// A skip waiting for its span's start; position reports wait with it.
+    skip_timer: Option<Task<()>>,
+    /// The item an auto-advance plays: peeked once per load or queue change, so a shuffle pick is
+    /// drawn once and the preloaded item is the one that plays (the JVM prepareNextIndex).
+    prepare_next_index: Option<usize>,
+    /// The preload for `prepare_next_index` ran or was ruled out.
+    prepare_next_armed: bool,
     /// Where the queue grows from (the JVM PlayerImpl.source).
     source: Option<NextQueueSource>,
     /// The source's side of the queue (the JVM QueueMore); None without a source.
@@ -383,6 +403,9 @@ impl Playback {
             start_position_ms: 0,
             skip_segments: None,
             skipped: None,
+            skip_timer: None,
+            prepare_next_index: None,
+            prepare_next_armed: false,
             source: None,
             more: None,
             _source_page: None,
@@ -696,6 +719,7 @@ impl Playback {
         self.command(cx, |engine, log| async move { engine.player_stop(&log).await });
         self.state = PlayState::Idle;
         self.nav.reset(self.index);
+        self.publish_queue(true, cx);
         cx.notify();
     }
 
@@ -722,6 +746,7 @@ impl Playback {
                 self.loaded_video = None;
                 self.command(cx, |engine, log| async move { engine.player_stop(&log).await });
                 self.state = PlayState::Idle;
+                self.refresh_prepare_next(cx);
             } else {
                 self.load_current(cx);
             }
@@ -945,7 +970,7 @@ impl Playback {
                 return;
             }
         }
-        match self.nav.peek_next(false, self.index, self.queue.len()) {
+        match self.prepare_next_index {
             Some(next) if next == self.index && self.play_when_ready => {
                 self.seek(0, cx);
                 self.play(cx);
@@ -1010,12 +1035,14 @@ impl Playback {
     pub fn set_loop_mode(&mut self, mode: LoopMode, cx: &mut Context<Self>) {
         self.nav.loop_mode = mode;
         self.save_setting(LOOP_MODE_KEY, mode.name().to_owned(), cx);
+        self.publish_queue(true, cx);
         cx.notify();
     }
 
     pub fn set_shuffle(&mut self, shuffle: bool, cx: &mut Context<Self>) {
         self.nav.set_shuffle(shuffle, self.index);
         self.save_setting(SHUFFLE_KEY, if shuffle { "1" } else { "0" }.to_owned(), cx);
+        self.publish_queue(true, cx);
         cx.notify();
     }
 
@@ -1260,9 +1287,15 @@ impl Playback {
         }
     }
 
+    /// The span starting in this second; a later one of the same second wins (the JVM segments map,
+    /// keyed by start second).
+    fn skip_span_at(&self, second: i64) -> Option<(i64, i64)> {
+        self.skip_segments().iter().rev().find(|(start, _)| start / 1000 == second).copied()
+    }
+
     /// The JVM `skipRestartMs`: where a restart lands, past a skip span starting in the first second.
     fn skip_restart_ms(&self) -> i64 {
-        self.skip_segments().iter().find(|(start, _)| start / 1000 == 0).map_or(0, |(_, end)| *end)
+        self.skip_span_at(0).map_or(0, |(_, end)| end)
     }
 
     /// Spans to skip in the item with `key`; spans under a second are ignored.
@@ -1271,30 +1304,170 @@ impl Playback {
         self.skip_segments = (!usable.is_empty()).then_some((key, usable));
     }
 
-    /// Seeks past a span the play-head entered; a span running out the track ends it.
+    /// The JVM skipSponsorLoop: a span is skipped when the play-head is in its start second (or
+    /// position / 3000, so a late fetch still catches an intro), the seek timed to its start; it is
+    /// remembered until the play-head leaves that second, so seeking back or a replay skips it again.
     fn check_skip(&mut self, cx: &mut Context<Self>) {
-        if self.state != PlayState::Playing {
+        if self.skip_timer.is_some() {
             return;
         }
-        let Some(key) = self.current().map(QueueItem::key) else { return };
-        let Some((owner, segments)) = &self.skip_segments else { return };
-        if *owner != key {
+        let Some(key) = self.current().map(QueueItem::key) else {
+            self.skipped = None;
+            return;
+        };
+        if self.skipped.as_ref().is_some_and(|(item, _)| *item != key) || self.skip_segments.is_none() {
+            self.skipped = None;
+        }
+        if !matches!(&self.skip_segments, Some((owner, _)) if *owner == key) {
             return;
         }
         let position = self.position_ms;
-        let Some(&(start, end)) = segments.iter().find(|(start, end)| position >= *start && position < *end) else {
-            return;
-        };
-        if self.skipped.as_ref() == Some(&(key.clone(), start)) {
+        let nearest = self.skip_span_at(position / 1000).or_else(|| self.skip_span_at(position / 3000));
+        if let Some(span) = nearest
+            && self.skipped == Some((key.clone(), span))
+        {
             return;
         }
-        self.skipped = Some((key, start));
-        if self.duration_ms > 0 && end >= self.duration_ms - OUTRO_TOLERANCE_MS {
-            self.state = PlayState::Ended;
+        self.skipped = None;
+        let Some((start, end)) = nearest else { return };
+        if position >= end {
+            return;
+        }
+        if start > position {
+            let executor = cx.background_executor().clone();
+            self.skip_timer = Some(cx.spawn(async move |this, cx| {
+                executor.timer(Duration::from_millis((start - position) as u64)).await;
+                this.update(cx, |playback, cx| {
+                    playback.skip_timer = None;
+                    playback.skip_span((start, end), cx);
+                })
+                .ok();
+            }));
+            return;
+        }
+        self.skip_span((start, end), cx);
+    }
+
+    fn skip_span(&mut self, span: (i64, i64), cx: &mut Context<Self>) {
+        let Some(key) = self.current().map(QueueItem::key) else { return };
+        if !self.engine_playing() || !matches!(&self.skip_segments, Some((owner, _)) if *owner == key) {
+            return;
+        }
+        let duration = self.duration_ms;
+        if self.finishes_track(span, duration) {
             self.track_ended(cx);
+        } else if self.loops_track(span, duration) {
+            self.seek(self.skip_restart_ms(), cx);
         } else {
-            self.seek(end, cx);
+            self.seek(span.1, cx);
         }
+        self.skipped = Some((key, span));
+    }
+
+    /// The JVM `PlaybackState.isPlaying`: the engine holds the item and means to play it, buffering
+    /// or not.
+    fn engine_playing(&self) -> bool {
+        match self.state {
+            PlayState::Playing => true,
+            PlayState::Buffering => {
+                self.play_when_ready
+                    && self.active == Some(Active::YouTube)
+                    && self.loaded_video.is_some()
+                    && self.loaded_video.as_deref() == self.current().and_then(QueueItem::video_id)
+            }
+            _ => false,
+        }
+    }
+
+    /// The JVM `contentEndMs`: the duration pulled in to the start of a chain of spans running out
+    /// the track.
+    fn content_end_ms(&self, duration_ms: i64) -> i64 {
+        let segments = self.skip_segments();
+        let mut spans: Vec<(i64, i64)> = segments
+            .iter()
+            .enumerate()
+            .filter(|(at, (start, _))| !segments[at + 1..].iter().any(|(later, _)| later / 1000 == start / 1000))
+            .map(|(_, span)| *span)
+            .collect();
+        spans.sort_by_key(|(start, _)| std::cmp::Reverse(*start));
+        let mut end = duration_ms;
+        for (start, stop) in spans {
+            if stop < end - OUTRO_TOLERANCE_MS {
+                break;
+            }
+            end = end.min(start);
+        }
+        end
+    }
+
+    /// The JVM `finishesTrack`: an outro span advances to the queued next item.
+    fn finishes_track(&self, (_, end): (i64, i64), duration_ms: i64) -> bool {
+        if duration_ms <= 0 || end < duration_ms - OUTRO_TOLERANCE_MS {
+            return false;
+        }
+        self.nav.loop_mode != LoopMode::One && !self.live && self.prepare_next_index.is_some()
+    }
+
+    /// The JVM `loopsTrack`: Loop One restarts at an outro span, since a seek onto the MSE tail stalls
+    /// paused instead of ending.
+    fn loops_track(&self, (_, end): (i64, i64), duration_ms: i64) -> bool {
+        if duration_ms <= 0 || end < duration_ms - OUTRO_TOLERANCE_MS || self.live {
+            return false;
+        }
+        self.nav.loop_mode == LoopMode::One && !self.sleep_after_current
+    }
+
+    /// The JVM refreshPrepareNext: peeks the item an auto-advance plays and re-arms its preload; on a
+    /// new track a failed page is cleared (retried once per track, not in a loop).
+    fn refresh_prepare_next(&mut self, cx: &mut Context<Self>) {
+        self.prepare_next_index = self.nav.peek_next(false, self.index, self.queue.len());
+        self.prepare_next_armed = false;
+        if self.rolled_generation != Some(self.load_generation) {
+            self.rolled_generation = Some(self.load_generation);
+            if let Some(more) = &mut self.more {
+                more.error = None;
+            }
+        }
+        self.maybe_preload_next(cx);
+    }
+
+    /// The JVM maybePreloadNext: in the last 10 s of the content, playing, cue the next item on its
+    /// engine, once; never for a live item or under Loop One. A YouTube item is cued with the bundle's
+    /// `player/preload`, booting the session first when there is none; the local player has no
+    /// second-item cue (the JVM JvmLocalPlayer's is a no-op), so it is only started.
+    fn maybe_preload_next(&mut self, cx: &mut Context<Self>) {
+        if self.prepare_next_armed {
+            return;
+        }
+        let Some(next_index) = self.prepare_next_index else { return };
+        if self.live || self.nav.loop_mode == LoopMode::One {
+            self.prepare_next_armed = true;
+            return;
+        }
+        if self.active.is_none() || self.state != PlayState::Playing {
+            return;
+        }
+        let duration = self.duration_ms;
+        if duration <= 0 {
+            return;
+        }
+        if self.position_ms > duration || self.content_end_ms(duration) - self.position_ms > PRELOAD_LEAD_MS {
+            return;
+        }
+        let Some(next) = self.queue.get(next_index) else { return };
+        match next.source.clone() {
+            Source::YouTube(video_id) => {
+                if self.session.is_some() {
+                    self.command(cx, move |engine, log| async move {
+                        engine.player_preload(&video_id, &log).await.map(|_| ())
+                    });
+                } else {
+                    self.boot(false, cx);
+                }
+            }
+            Source::Local(_) => self.start_local(),
+        }
+        self.prepare_next_armed = true;
     }
 
     /// Takes the pending start position.
@@ -1315,13 +1488,13 @@ impl Playback {
     fn load_current(&mut self, cx: &mut Context<Self>) {
         let Some(item) = self.current().cloned() else { return };
         self.load_generation += 1;
-        self.retry_failed_page_once_per_track();
         self.state = PlayState::Buffering;
         self.position_ms = 0;
         self.buffered_ms = 0;
         self.duration_ms = item.duration_ms.unwrap_or(0);
         self.live = false;
         self.seekable = true;
+        self.refresh_prepare_next(cx);
         cx.notify();
         match item.source {
             Source::YouTube(video_id) => {
@@ -1357,11 +1530,7 @@ impl Playback {
                     self.loaded_video = None;
                     self.command(cx, |engine, log| async move { engine.player_stop(&log).await });
                 }
-                if self.local.is_none() {
-                    self.local = LocalEngine::start();
-                    self.apply_volume();
-                    self.send_local(LocalCommand::Effects(self.effects));
-                }
+                self.start_local();
                 if self.local.is_none() {
                     self.state = PlayState::Failed(PlaybackFailure::code("R90007"));
                     return;
@@ -1390,6 +1559,14 @@ impl Playback {
                 }
                 self.poll_local(cx);
             }
+        }
+    }
+
+    fn start_local(&mut self) {
+        if self.local.is_none() {
+            self.local = LocalEngine::start();
+            self.apply_volume();
+            self.send_local(LocalCommand::Effects(self.effects));
         }
     }
 
@@ -1443,6 +1620,7 @@ impl Playback {
         }
         self.state = if status.playing { PlayState::Playing } else { PlayState::Paused };
         self.check_skip(cx);
+        self.maybe_preload_next(cx);
         cx.notify();
         true
     }
@@ -1768,6 +1946,9 @@ impl Playback {
             }
         }
         self.check_skip(cx);
+        if self.state != PlayState::Ended {
+            self.maybe_preload_next(cx);
+        }
         if let Some(watch_next) = status.get("watchNext") {
             self.harvest_watch_next(watch_next, cx);
         }
@@ -1809,22 +1990,13 @@ impl Playback {
         self.source = source;
     }
 
-    /// The JVM publishQueue's source side: `refresh_next` for a change that keeps the current item.
+    /// The JVM publishQueue: `refresh_next` for a change that keeps the current item (a load
+    /// refreshes on its own).
     fn publish_queue(&mut self, refresh_next: bool, cx: &mut Context<Self>) {
         if refresh_next {
-            self.retry_failed_page_once_per_track();
+            self.refresh_prepare_next(cx);
         }
         self.maybe_load_ahead(cx);
-    }
-
-    /// The JVM refreshPrepareNext's rolledGeneration step.
-    fn retry_failed_page_once_per_track(&mut self) {
-        if self.rolled_generation != Some(self.load_generation) {
-            self.rolled_generation = Some(self.load_generation);
-            if let Some(more) = &mut self.more {
-                more.error = None;
-            }
-        }
     }
 
     /// Loads the queue's next page now: Load more, or Retry after a failed page.

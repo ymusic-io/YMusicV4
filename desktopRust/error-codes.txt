@@ -158,7 +158,8 @@ R90751 D usage stats: POST /v1/pulse failed (logged; the queue waits for the nex
 R90752 D usage stats: stat-queue.json was not rewritten after a send (logged; a restart may resend)
 R90753 D usage stats: stat-queue.json could not be read (logged; removed, queue starts over)
 R90754 D usage stats: the unreadable stat-queue.json could not be removed (logged)
-R92000 D playlist download: the downloads could not be added to the chosen Library playlist
+R91100 - app boot: the seeded UI language could not be saved to app.db (JVM ensureUiLanguage)
+R92000D playlist download: the downloads could not be added to the chosen Library playlist
 R92001 D Library playlist: a new playlist could not be created
 R92002 D local playlist from downloads: the playlist could not be created or filled
 R93000 D settings: a setting could not be saved

@@ -276,12 +276,11 @@ pub struct FeedView {
     tabs_drag: DragRow,
     carousel_drags: std::cell::RefCell<std::collections::HashMap<usize, DragRow>>,
     offline: Entity<OfflineMarks>,
-    /// Channel items offer Subscribe / Unsubscribe only when signed in.
-    signed_in: bool,
     /// False for a signed-in-only feed until its owner confirms a sign-in: it fetches nothing before
     /// (the JVM Account and YT Music Library tabs build their session only once signed in).
     gate_open: bool,
     _offline: Subscription,
+    _accounts: Subscription,
 }
 
 /// Which page header a detail page shows.
@@ -308,6 +307,7 @@ impl FeedView {
         OfflineMarks::refresh(cx);
         let offline = OfflineMarks::shared(cx);
         let observe_offline = cx.observe(&offline, |_, _, cx| cx.notify());
+        let observe_accounts = cx.observe(&crate::account::AccountController::global(cx), |_, _, cx| cx.notify());
         let mut view = Self {
             source,
             title,
@@ -332,9 +332,9 @@ impl FeedView {
             tabs_drag: DragRow::default(),
             carousel_drags: Default::default(),
             offline,
-            signed_in: false,
             gate_open: !source_needs_sign_in,
             _offline: observe_offline,
+            _accounts: observe_accounts,
         };
         if view.gate_open {
             view.reload(cx);
@@ -349,6 +349,11 @@ impl FeedView {
 
     pub fn title(&self) -> Option<SharedString> {
         self.title.clone().or_else(|| self.page.page_header.as_ref()?.title.clone().map(Into::into))
+    }
+
+    /// A YouTube Music page (album, artist, playlist), whose search is music search.
+    pub fn is_music_page(&self) -> bool {
+        matches!(self.source, FeedSource::MusicBrowse(_))
     }
 
     /// Playlists title their bar "Playlist", not with the playlist's name.
@@ -659,7 +664,6 @@ impl FeedView {
                     Some(Ok(page)) if append => view.append(page),
                     Some(Ok(page)) => {
                         view.replace(page, false);
-                        view.check_signed_in(cx);
                     }
                     Some(Err(error)) if append => view.more_failed = Some(error),
                     Some(Err(error)) => view.phase = Phase::Failed(error),
@@ -693,34 +697,6 @@ impl FeedView {
         self.page = page;
         self.phase = Phase::Ready;
         self.more_failed = None;
-    }
-
-    /// Reads the cookie-only sign-in gate when the page has channel items to offer Subscribe on.
-    fn check_signed_in(&mut self, cx: &mut Context<Self>) {
-        let has_channels =
-            self.page.sections.iter().any(|section| section.items.iter().any(|item| item.kind == "channel"));
-        if !has_channels {
-            return;
-        }
-        let graph = cx.global::<AppGraph>();
-        let (engine, log) = (graph.engine(), graph.log.fork("feed-signed-in"));
-        let status = on_core(cx, async move {
-            let status = engine.login_status(&log).await;
-            if let Err(error) = &status {
-                log.warn("sign-in status could not be read", Some(error));
-            }
-            status
-        });
-        cx.spawn(async move |this, cx| {
-            if let Some(Ok(signed_in)) = status.await {
-                this.update(cx, |view, cx| {
-                    view.signed_in = signed_in;
-                    cx.notify();
-                })
-                .ok();
-            }
-        })
-        .detach();
     }
 
     /// Subscribe / Unsubscribe from a channel item's menu, reported by notification.
@@ -787,6 +763,13 @@ impl FeedView {
             self.source = source;
             self.phase = Phase::Loading;
             self.fetch(None, false, cx);
+        }
+    }
+
+    /// The Ctrl/Cmd+digit handler of a page with its own tab row (a channel's).
+    pub fn select_page_tab(&mut self, index: usize, cx: &mut Context<Self>) {
+        if let Some(url) = self.page.page_tabs.get(index).and_then(|tab| tab.url.clone()) {
+            self.open_tab(url, cx);
         }
     }
 }
@@ -1185,7 +1168,8 @@ impl FeedView {
         let target = item.clone();
         let top_tracks = matches!(self.source, FeedSource::TopTracks);
         let downloaded = self.downloaded(item, cx);
-        let channel_id = (item.kind == "channel" && self.signed_in)
+        let signed_in = crate::account::AccountController::global(cx).read(cx).signed_in;
+        let channel_id = (item.kind == "channel" && signed_in)
             .then(|| item.channel_id.clone().unwrap_or_else(|| item.id.clone()))
             .filter(|id| !id.is_empty());
         let more = action_icon(

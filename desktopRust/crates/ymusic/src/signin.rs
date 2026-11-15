@@ -1,10 +1,9 @@
 //! Signing in: session cookies from a paste or from the phone app's device link go into the
-//! shared cookie jar, then the engine refreshes its session under the new identity.
+//! shared cookie jar, then the engine's cookie-only gate says whether they sign in.
 
 use std::sync::Arc;
 
 use ym_common::log::Logger;
-use ym_engine::yt::YtAccountInfo;
 use ym_engine::{CookieJar, EngineError, EngineManager};
 use ym_remote_config::RemoteConfig;
 use ym_signin::{DeviceLinkOffer, LinkError, SessionCookie, to_set_cookie};
@@ -25,13 +24,33 @@ pub enum SignInError {
     Store(String),
 }
 
-/// Stores `cookies` as if their sites had set them, then asks the engine who is signed in.
+/// Stores `cookies` as if their sites had set them, then reads the engine's cookie-only gate. No
+/// network call before the gate passes: YouTube answers one by revoking a half-set jar.
 pub async fn sign_in_with_cookies(
     cookies: Vec<SessionCookie>,
     jar: Arc<dyn CookieJar>,
     engines: Arc<EngineManager>,
     log: &Logger,
-) -> Result<YtAccountInfo, SignInError> {
+) -> Result<(), SignInError> {
+    let result = import_and_check(cookies, jar, engines, log).await;
+    match &result {
+        Err(SignInError::Engine(error)) if error.kind == ym_engine::ErrorKind::Network => {
+            log.warn("cookie import failed", Some(error));
+        }
+        Err(error @ (SignInError::Engine(_) | SignInError::Store(_))) => {
+            log.capture_error("cookie import failed", error)
+        }
+        _ => {}
+    }
+    result
+}
+
+async fn import_and_check(
+    cookies: Vec<SessionCookie>,
+    jar: Arc<dyn CookieJar>,
+    engines: Arc<EngineManager>,
+    log: &Logger,
+) -> Result<(), SignInError> {
     if !ym_signin::looks_signed_in(&cookies) {
         return Err(SignInError::NotSignedIn);
     }
@@ -46,13 +65,10 @@ pub async fn sign_in_with_cookies(
     .await
     .map_err(|error| SignInError::Store(error.to_string()))?
     .map_err(SignInError::Store)?;
-    let engine = engines.current();
-    engine.refresh_session(log).await?;
-    let account = engine.account_info(true, log).await?;
-    if !account.signed_in {
+    if !engines.current().login_status(log).await? {
         return Err(SignInError::NotSignedIn);
     }
-    Ok(account)
+    Ok(())
 }
 
 /// Opens a relay slot for the phone app: show `offer.qr_payload()` as a QR and
@@ -68,10 +84,11 @@ pub async fn await_device_link(
     jar: Arc<dyn CookieJar>,
     engines: Arc<EngineManager>,
     log: &Logger,
-) -> Result<YtAccountInfo, SignInError> {
+) -> Result<(), SignInError> {
     let received = ym_signin::await_cookies(&service, &offer).await;
     ym_signin::close_offer(&service, &offer).await;
-    sign_in_with_cookies(received?, jar, engines, log).await
+    let cookies = received.inspect_err(|error| log.warn("device-link offer/poll failed", Some(error)))?;
+    sign_in_with_cookies(cookies, jar, engines, log).await
 }
 
 /// The JVM AccountController.signOut: the bundle's logout (it drops the auth cookies and keeps the

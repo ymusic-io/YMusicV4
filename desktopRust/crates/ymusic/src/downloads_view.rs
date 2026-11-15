@@ -16,6 +16,7 @@ use ym_download::{DownloadChange, DownloadFormat, DownloadService, DownloadState
 use ym_i18n::{Str, t, tf};
 
 use crate::a11y::{DragRow, FocusList, announced, announced_as, heading, list_item};
+use crate::account::AccountController;
 use crate::action_icon::action_icon;
 use crate::download_dialog::{DownloadPicker, DownloadTarget};
 use crate::downloads::pick_download_folder;
@@ -214,22 +215,10 @@ impl DownloadsView {
         let code = task.error.as_ref().map(|error| error.code.clone()).unwrap_or_default();
         let id = task.id.clone();
         match playability(&code) {
-            Some(Playability::SignInRequired) => {
-                let graph = cx.global::<AppGraph>();
-                let (engine, log) = (graph.engine(), graph.log.fork("downloads"));
-                let account = on_core(cx, async move { engine.account_info(false, &log).await });
-                cx.spawn_in(window, async move |this, cx| {
-                    let signed_in = matches!(account.await, Some(Ok(account)) if account.signed_in);
-                    this.update_in(cx, |view, window, cx| {
-                        if signed_in {
-                            view.service.retry(&id);
-                        } else {
-                            view.sign_in_dialog(id, window, cx);
-                        }
-                    })
-                    .ok();
-                })
-                .detach();
+            Some(Playability::SignInRequired)
+                if !cx.global::<AppGraph>().guest && !AccountController::global(cx).read(cx).signed_in =>
+            {
+                self.sign_in_dialog(id, window, cx)
             }
             Some(Playability::Unavailable) => self.unavailable_dialog(id, window, cx),
             None if code == ym_download::error::FOLDER_ACCESS_CODE
@@ -289,7 +278,7 @@ impl DownloadsView {
             "removedisk" => self.remove_from_disk(task, window, cx),
             "rename" => {
                 if let Some(file) = file_path(&task) {
-                    RenameFileDialog::open(file, None, window, cx);
+                    RenameFileDialog::open(file, window, cx);
                 }
             }
             _ => {}
@@ -362,6 +351,7 @@ fn download_item(task: &DownloadTask, path: PathBuf) -> QueueItem {
         duration_ms: None,
         duration_label: None,
         thumbs: Vec::new(),
+        media_id: None,
         history_code: None,
         youtube_vid: Some(task.video_id.clone()),
         loudness_gain_db: task.loudness_gain_db,
@@ -621,7 +611,7 @@ impl DownloadsView {
                                         .on_click(move |_, _, cx| cx.reveal_path(&path)),
                                 )
                                 .item(PopupMenuItem::new(t(Str::MenuRename)).on_click(move |_, window, cx| {
-                                    RenameFileDialog::open(renamed.clone(), None, window, cx)
+                                    RenameFileDialog::open(renamed.clone(), window, cx)
                                 }));
                         }
                         menu = menu.item(share());

@@ -1433,7 +1433,7 @@ impl NowPlaying {
                             window.push_notification(t(Str::LinkCopied), cx);
                         }));
                     }
-                    (None, Source::Local(path)) => {
+                    (None, Source::Local(path)) if item.media_id.is_some() => {
                         if let Some(code) = item.history_code.clone().or_else(|| item.youtube_vid.clone()) {
                             menu = menu.item(PopupMenuItem::new(t(Str::MenuAddToPlaylist)).on_click(
                                 move |_, window, cx| {
@@ -1454,7 +1454,7 @@ impl NowPlaying {
                             }));
                         }
                     }
-                    (None, Source::YouTube(_)) => {}
+                    (None, _) => {}
                 }
                 let remove = playback.clone();
                 menu.item(
