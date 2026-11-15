@@ -264,16 +264,96 @@ pub fn save_setting(key: &'static str, value: String, cx: &mut App) {
     .detach();
 }
 
-/// The saved UI language, else the system's.
-pub fn apply_language(settings: &dyn SettingsStore) {
-    match settings.get_raw(LANGUAGE_KEY).ok().flatten().filter(|tag| !tag.is_empty()) {
-        Some(tag) => {
-            ym_i18n::set_locale(&tag);
+/// The languages the picker offers (JVM `UiLanguages`): tag and the language's own name. A tag
+/// doubles as YouTube's hl, so it uses YouTube's codes (Hebrew `iw`, Chinese `zh-CN` / `zh-TW`).
+const UI_LANGUAGES: &[(&str, &str)] = &[
+    ("en", "English"),
+    ("af", "Afrikaans"),
+    ("az", "Azərbaycan"),
+    ("id", "Bahasa Indonesia"),
+    ("ms", "Bahasa Melayu"),
+    ("ca", "Català"),
+    ("cs", "Čeština"),
+    ("de", "Deutsch"),
+    ("et", "Eesti"),
+    ("es", "Español"),
+    ("eu", "Euskara"),
+    ("fil", "Filipino"),
+    ("fr", "Français"),
+    ("hr", "Hrvatski"),
+    ("sw", "Kiswahili"),
+    ("hu", "Magyar"),
+    ("nl", "Nederlands"),
+    ("pl", "Polski"),
+    ("pt", "Português"),
+    ("ro", "Română"),
+    ("sk", "Slovenčina"),
+    ("so", "Soomaali"),
+    ("it", "Italiano"),
+    ("vi", "Tiếng Việt"),
+    ("tr", "Türkçe"),
+    ("el", "Ελληνικά"),
+    ("bg", "Български"),
+    ("mk", "Македонски"),
+    ("ru", "Русский"),
+    ("sr", "Српски"),
+    ("uk", "Українська"),
+    ("hy", "Հայերեն"),
+    ("iw", "עברית"),
+    ("ar", "العربية"),
+    ("fa", "فارسی"),
+    ("ne", "नेपाली"),
+    ("mr", "मराठी"),
+    ("hi", "हिन्दी"),
+    ("bn", "বাংলা"),
+    ("gu", "ગુજરાતી"),
+    ("ta", "தமிழ்"),
+    ("kn", "ಕನ್ನಡ"),
+    ("ml", "മലയാളം"),
+    ("si", "සිංහල"),
+    ("th", "ไทย"),
+    ("ko", "한국어"),
+    ("ja", "日本語"),
+    ("zh-CN", "简体中文"),
+    ("zh-TW", "繁體中文"),
+];
+
+/// JVM `uiLanguageFor`: a device locale tag onto a [`UI_LANGUAGES`] tag, else English.
+fn ui_language_for(locale_tag: &str) -> &'static str {
+    let normalized = locale_tag.replace('_', "-");
+    let parts: Vec<&str> = normalized.split('-').filter(|part| !part.is_empty()).collect();
+    let primary = parts.first().map(|part| part.to_lowercase()).unwrap_or_default();
+    let language = match primary.as_str() {
+        "he" => "iw".to_owned(),
+        "in" => "id".to_owned(),
+        "tl" => "fil".to_owned(),
+        "zh" => {
+            let traditional = parts.iter().skip(1).any(|part| {
+                part.eq_ignore_ascii_case("Hant") || ["TW", "HK", "MO"].contains(&part.to_uppercase().as_str())
+            });
+            (if traditional { "zh-TW" } else { "zh-CN" }).to_owned()
         }
-        None => {
-            ym_i18n::use_system_locale();
-        }
+        _ => primary,
+    };
+    UI_LANGUAGES.iter().find(|(tag, _)| *tag == language).map_or("en", |(tag, _)| tag)
+}
+
+/// JVM `ensureUiLanguage(::defaultUiLanguageTag)`: a blank saved language is seeded from the OS
+/// language and persisted, so the key is never blank for any reader (the engine's hl included).
+fn ensure_ui_language(settings: &dyn SettingsStore) -> Result<String, ym_settings::SettingsError> {
+    let held = settings.get_raw(LANGUAGE_KEY)?.unwrap_or_default();
+    if !held.trim().is_empty() {
+        return Ok(held);
     }
+    let resolved = ui_language_for(&ym_i18n::system_locale_tag()).to_owned();
+    settings.put_raw(LANGUAGE_KEY, resolved.clone())?;
+    Ok(resolved)
+}
+
+/// Seeds the UI language when unset and shows the UI in it; before the engine starts.
+pub fn apply_language(settings: &dyn SettingsStore) -> Result<(), ym_settings::SettingsError> {
+    ym_i18n::set_locale(&ensure_ui_language(settings)?);
+    Ok(())
 }
 
 /// Mirrors the layout for a right-to-left UI language.
@@ -438,11 +518,7 @@ impl SettingsView {
     }
 
     fn set_language(&mut self, tag: String, window: &mut Window, cx: &mut Context<Self>) {
-        if tag.is_empty() {
-            ym_i18n::use_system_locale();
-        } else {
-            ym_i18n::set_locale(&tag);
-        }
+        ym_i18n::set_locale(&tag);
         apply_layout_direction(cx);
         // Saved before the notify: the engine re-reads the language from settings.
         let graph = cx.global::<AppGraph>();
@@ -697,8 +773,11 @@ impl Render for SettingsView {
             });
         let accent_row = self.wide(self.focus.row_button(next(), accent_row, cx));
 
-        let language_label =
-            if language.is_empty() { t(Str::SettingsThemeSystem).to_owned() } else { language_name(&language) };
+        let language_label = UI_LANGUAGES
+            .iter()
+            .find(|(tag, _)| *tag == language)
+            .map_or(language.as_str(), |(_, name)| name)
+            .to_owned();
         let entity = cx.entity().downgrade();
         let language_stop = next();
         let language_row = button_row("language", t(Str::SettingsLanguage), None, language_label.clone(), cx)
@@ -706,13 +785,9 @@ impl Render for SettingsView {
             .track_focus(&self.focus.handle(language_stop, cx))
             .dropdown_menu_with_anchor(Anchor::TopRight, move |mut menu, _, _| {
                 menu = menu.scrollable(true).max_h(px(360.));
-                let system = entity.clone();
-                menu = menu.item(PopupMenuItem::new(t(Str::SettingsThemeSystem)).on_click(move |_, window, cx| {
-                    system.update(cx, |view, cx| view.set_language(String::new(), window, cx)).ok();
-                }));
-                for tag in ym_i18n::available_locales() {
+                for &(tag, name) in UI_LANGUAGES {
                     let view = entity.clone();
-                    menu = menu.item(PopupMenuItem::new(language_name(tag)).on_click(move |_, window, cx| {
+                    menu = menu.item(PopupMenuItem::new(name).on_click(move |_, window, cx| {
                         view.update(cx, |view, cx| view.set_language(tag.to_owned(), window, cx)).ok();
                     }));
                 }
