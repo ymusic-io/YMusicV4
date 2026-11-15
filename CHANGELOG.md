@@ -1,5 +1,28 @@
 # Changelog
 
+## Unreleased
+
+### NEW
+- Captions: the auto-translate list starts with the last 3 languages you picked, above a divider, so the usual ones need no scrolling through 150 languages ([#298](https://github.com/ymusic-io/YMusicV4/issues/298), [74b4e9e76](https://github.com/ymusic-io/YMusicV4/commit/74b4e9e7667105258d1dd7a31412e05bcac1e6bc), [25c181c33](https://github.com/ymusic-io/YMusicV4/commit/25c181c33ac364954601f988947dec3a3cd1c7c6), [dab9c071e](https://github.com/ymusic-io/YMusicV4/commit/dab9c071e13458761d064dd60ed2db54c2588b58), [babc44ad3](https://github.com/ymusic-io/YMusicV4/commit/babc44ad3a3cd20a5ef1b450d551d4f311e61358))
+- Linux: the AppImage updates itself in place, with no admin prompt ([cf7895567](https://github.com/ymusic-io/YMusicV4/commit/cf789556765865e0fef7a0c3217fe0deb831386d), [5b7b5c04b](https://github.com/ymusic-io/YMusicV4/commit/5b7b5c04bc626cbec4eb93c17de65f11c729a3e9))
+- Desktop: Arabic, Persian, Hebrew and Urdu lay the app out right to left, as on the phone; media controls and sliders stay left to right ([e49c2ef84](https://github.com/ymusic-io/YMusicV4/commit/e49c2ef844935cb1c5862f753aa21553aba20141), [42f411019](https://github.com/ymusic-io/YMusicV4/commit/42f4110197d085bcbf1598bad0731746dc0a0a23), [2dc69008b](https://github.com/ymusic-io/YMusicV4/commit/2dc69008bd019555ef9c775073bcdbbac3586d15), [04dddbf59](https://github.com/ymusic-io/YMusicV4/commit/04dddbf593744936e04b0b068f809a6d5f9fc9b2), [e679072a3](https://github.com/ymusic-io/YMusicV4/commit/e679072a361bf75900ffa53ae2b429a27965bfd3), [d7124ddc2](https://github.com/ymusic-io/YMusicV4/commit/d7124ddc201faf7d8ae94bd3e8a250698dfad676), [8196fcd51](https://github.com/ymusic-io/YMusicV4/commit/8196fcd51e2536268f7dc15674932e4c62f8ff37))
+
+### FIXED
+- YouTube requests, video streams and downloads now all present the same browser to YouTube. Some went as a different client from the one the playback token was made for, which can get a session flagged ([a8b819c7f](https://github.com/ymusic-io/YMusicV4/commit/a8b819c7fe51134f1cd06a0e70e3bdd96c798a65), [c48a3c059](https://github.com/ymusic-io/YMusicV4/commit/c48a3c059926eeabac3691946f5d56f570bc4899), [a45302259](https://github.com/ymusic-io/YMusicV4/commit/a4530225982fd4409494e196c50cbaa035381c61))
+- Downloads: a finished download's menu lacked Add to playlist and Remove from disk until the Downloads screen was opened again ([#297](https://github.com/ymusic-io/YMusicV4/issues/297), [7aaab949e](https://github.com/ymusic-io/YMusicV4/commit/7aaab949e386bfbf372ea5bf0acc806848e00a91))
+- A stream replay showed "Top chat replay" and "Live chat replay" as feed chips that did nothing ([169444841](https://github.com/ymusic-io/YMusicV4/commit/1694448411b8ec7db7607187dbeb2514c7c074d8))
+- Desktop: with speed or pitch changed, the first video could show an error (E20082) before it played ([7f45c9350](https://github.com/ymusic-io/YMusicV4/commit/7f45c9350568b5e0e610a720eb34c3f840387968))
+- macOS 14 and later: Open in the tray, the Dock and an update left the window behind the app in front ([9bda684d5](https://github.com/ymusic-io/YMusicV4/commit/9bda684d5b6de3b7f4631e419d7c721ea4a5ca9d))
+
+### IMPROVED
+- The app reopens on the tab you left in the Library and YT Music, as it already did for the page and the Discover tab. After this update it opens once on Discover ([#290](https://github.com/ymusic-io/YMusicV4/issues/290), [2c76395db](https://github.com/ymusic-io/YMusicV4/commit/2c76395db2af872bc41cff00bb5fbb00917f46d2), [aa1d42903](https://github.com/ymusic-io/YMusicV4/commit/aa1d42903e08bc0d26bee97e9957ab2ebcdeaa27), [a3b26455d](https://github.com/ymusic-io/YMusicV4/commit/a3b26455d3a5438750c758f964f11d954770980d), [5906be4d7](https://github.com/ymusic-io/YMusicV4/commit/5906be4d7d7f1763c2076baf53bea7311d9d2466))
+- macOS: the installer image opens on the drag-to-Applications layout ([8daaf1f55](https://github.com/ymusic-io/YMusicV4/commit/8daaf1f554291312f01b87eaf7f631bb844973da))
+- Desktop matches the phone app more closely: the selected tab and side-menu entry use the accent, side-menu and Discover tab icons are full size, and dialog buttons show focus as a tinted pill ([c69ebbad8](https://github.com/ymusic-io/YMusicV4/commit/c69ebbad8ffb92e90b2c4ea259a1999289772c26), [2075178e5](https://github.com/ymusic-io/YMusicV4/commit/2075178e5ee5eee9aef077400dc0ddda6838616d), [81cbe49ba](https://github.com/ymusic-io/YMusicV4/commit/81cbe49ba96fd11f3ba1f03751879585174ee238), [8e454b240](https://github.com/ymusic-io/YMusicV4/commit/8e454b24045954d77fc30e43452dcff7d3700544), [0ac31bebd](https://github.com/ymusic-io/YMusicV4/commit/0ac31bebdf5537f988c3573b3ee196b3e246e1b9), [62725ae59](https://github.com/ymusic-io/YMusicV4/commit/62725ae59813a9b367b1e524757793a2f5a26143))
+
+### INTERNAL
+- Saved page and tab choices are stored by fixed name instead of a number, so adding or reordering tabs can't reopen the wrong one; the old number settings are deleted at start (R90204 if that fails on desktop), and settings can now delete a key ([a3b26455d](https://github.com/ymusic-io/YMusicV4/commit/a3b26455d3a5438750c758f964f11d954770980d), [5906be4d7](https://github.com/ymusic-io/YMusicV4/commit/5906be4d7d7f1763c2076baf53bea7311d9d2466), [05323c8fc](https://github.com/ymusic-io/YMusicV4/commit/05323c8fc23234263a276ddcd48d2c6a50518aac))
+- The draft GitHub release notes end with a Downloads table ([74639d5dc](https://github.com/ymusic-io/YMusicV4/commit/74639d5dc10906bc7d6b06f4735fa63be44eec83))
+
 ## 4.0.22
 
 ### NEW
