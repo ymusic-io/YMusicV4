@@ -295,8 +295,9 @@ pub struct Playback {
     pub nav: QueueNav,
     /// The loaded video's channel, once the player reports it.
     details: Option<MediaDetails>,
-    /// The next load starts paused, once.
-    start_paused: bool,
+    /// Whether a loaded item should play: what the user last asked for (the JVM PlayerImpl's
+    /// playWhenReadyIntent). Every load reads it.
+    play_when_ready: bool,
     /// The next YouTube load stops the player first, in the same command.
     stop_before_load: bool,
     sleep_deadline: Option<Instant>,
@@ -381,7 +382,7 @@ impl Playback {
                 QueueNav::new(LoopMode::from_name(&saved(LOOP_MODE_KEY)), saved(SHUFFLE_KEY) == "1")
             },
             details: None,
-            start_paused: false,
+            play_when_ready: true,
             stop_before_load: false,
             sleep_deadline: None,
             sleep_after_current: false,
@@ -417,8 +418,8 @@ impl Playback {
         }
     }
 
-    /// A YouTube video waits for the session to boot: there is no player to command yet, so a pause
-    /// rides on the pending load instead, as the JVM PlayerImpl's playWhenReadyIntent does.
+    /// A YouTube video waits for the session to boot: there is no player to command yet, and the
+    /// pending load takes [Self::play_when_ready] when it is sent.
     fn awaiting_session(&self) -> bool {
         self.active == Some(Active::YouTube) && self.session.is_none() && self.pending.is_some()
     }
@@ -483,6 +484,7 @@ impl Playback {
         self.fetch_radio(item.id.clone(), playlist_url, cx);
         self.new_queue();
         self.start_position_ms = start_ms.unwrap_or(0).max(0);
+        self.play_when_ready = true;
         self.load_current(cx);
     }
 
@@ -511,6 +513,7 @@ impl Playback {
         self.queue_revision += 1;
         self.nav.reset(self.index);
         self.start_position_ms = start_ms.max(0);
+        self.play_when_ready = true;
         self.load_current(cx);
     }
 
@@ -558,16 +561,17 @@ impl Playback {
         self.index = 0;
         self.fetch_radio(video_id, None, cx);
         self.new_queue();
+        self.play_when_ready = true;
         self.load_current(cx);
     }
 
-    /// Stops the current item's engine and loads the item again where it was, keeping play or pause:
-    /// recovers a wedged player.
+    /// Stops the current item's engine and loads the item again where it was, playing: recovers a
+    /// wedged player.
     pub fn reload(&mut self, cx: &mut Context<Self>) {
         if self.current().is_none() {
             return;
         }
-        self.start_paused = !self.is_playing() && !matches!(self.state, PlayState::Failed(_));
+        self.play_when_ready = true;
         self.start_position_ms = self.position_ms.max(0);
         match self.active {
             Some(Active::Local) => self.send_local(LocalCommand::Stop),
@@ -585,6 +589,7 @@ impl Playback {
 
     /// Loads the current item again after a failure.
     pub fn retry(&mut self, cx: &mut Context<Self>) {
+        self.play_when_ready = true;
         self.load_current(cx);
     }
 
@@ -596,6 +601,7 @@ impl Playback {
         self.queue.clear();
         self.queue_revision += 1;
         self.index = 0;
+        self.play_when_ready = false;
         self.send_local(LocalCommand::Stop);
         self.command(cx, |engine, log| async move { engine.player_stop(&log).await });
         self.state = PlayState::Idle;
@@ -753,6 +759,7 @@ impl Playback {
         self.index = index.min(items.len().saturating_sub(1));
         self.queue = items;
         self.new_queue();
+        self.play_when_ready = true;
         self.load_current(cx);
     }
 
@@ -762,6 +769,7 @@ impl Playback {
             return;
         }
         let playing = self.is_playing();
+        self.play_when_ready = !playing;
         match self.active {
             Some(Active::Local) => {
                 self.send_local(if playing { LocalCommand::Pause } else { LocalCommand::Play });
@@ -769,7 +777,6 @@ impl Playback {
                 cx.notify();
             }
             _ if self.awaiting_session() => {
-                self.start_paused = playing;
                 self.state = if playing { PlayState::Paused } else { PlayState::Buffering };
                 cx.notify();
             }
@@ -824,6 +831,7 @@ impl Playback {
     fn track_ended(&mut self, cx: &mut Context<Self>) {
         if self.sleep_after_current {
             self.sleep_after_current = false;
+            self.play_when_ready = false;
             self.state = PlayState::Ended;
             return;
         }
@@ -843,6 +851,7 @@ impl Playback {
     }
 
     fn resume(&mut self, cx: &mut Context<Self>) {
+        self.play_when_ready = true;
         match self.active {
             Some(Active::Local) => self.send_local(LocalCommand::Play),
             _ => self.command(cx, |engine, log| async move { engine.player_play(&log).await }),
@@ -850,6 +859,7 @@ impl Playback {
     }
 
     fn pause(&mut self, cx: &mut Context<Self>) {
+        self.play_when_ready = false;
         match self.active {
             Some(Active::Local) => {
                 self.send_local(LocalCommand::Pause);
@@ -927,6 +937,7 @@ impl Playback {
         if index < self.queue.len() && index != self.index {
             self.nav.commit(index, self.queue.len());
             self.index = index;
+            self.play_when_ready = true;
             self.load_current(cx);
             self.extend_queue_if_near_end(cx);
         }
@@ -1149,7 +1160,7 @@ impl Playback {
         let mut request = LoadRequest::audio(video_id);
         request.start_position_ms = std::mem::take(&mut self.start_position_ms);
         request.viewport = self.viewport;
-        request.play_when_ready = !std::mem::take(&mut self.start_paused);
+        request.play_when_ready = self.play_when_ready;
         request.speed = self.effects.speed;
         request.pitch = self.effects.pitch;
         if self.video {
@@ -1218,7 +1229,7 @@ impl Playback {
                 if start > 0 {
                     self.send_local(LocalCommand::Seek(start));
                 }
-                if std::mem::take(&mut self.start_paused) {
+                if !self.play_when_ready {
                     self.send_local(LocalCommand::Pause);
                     self.state = PlayState::Paused;
                 }
