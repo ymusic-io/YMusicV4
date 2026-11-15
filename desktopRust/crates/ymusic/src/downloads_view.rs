@@ -330,7 +330,7 @@ impl DownloadsView {
                 Some(Ok(Ok(Some((item, _))))) => QueueItem::from_local(&item),
                 _ => fallback,
             };
-            this.update(cx, |_, cx| cx.emit(PlayLocal { items: vec![item], index: 0 })).ok();
+            this.update(cx, |_, cx| cx.emit(PlayLocal { items: vec![item], index: 0, shuffle: None })).ok();
         })
         .detach();
     }

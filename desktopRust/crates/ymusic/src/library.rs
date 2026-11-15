@@ -62,6 +62,8 @@ pub fn on_library_change<V: 'static>(cx: &mut Context<V>, reload: impl Fn(&mut V
 pub struct PlayLocal {
     pub items: Vec<QueueItem>,
     pub index: usize,
+    /// Sets the player's shuffle mode first (the JVM PlaybackCoordinator.playLocal's `shuffle`).
+    pub shuffle: Option<bool>,
 }
 
 /// Put a local file next in the queue, or at its end.
@@ -87,7 +89,7 @@ pub enum SongAction {
 }
 
 /// A view whose song cells carry the song menu.
-pub trait SongMenuHost: EventEmitter<QueueLocal> + Sized + 'static {
+pub trait SongMenuHost: EventEmitter<QueueLocal> + EventEmitter<PlayLocal> + Sized + 'static {
     fn song_action(&mut self, action: SongAction, window: &mut Window, cx: &mut Context<Self>);
 }
 
@@ -735,13 +737,15 @@ impl LibraryView {
         details.into_iter().map(|detail| detail.item).collect()
     }
 
+    /// The JVM `playLocal(songs, songs.indices.random(), shuffle = true)`: shuffle mode on, the list
+    /// in its order, from a random song.
     fn shuffle_all(&mut self, cx: &mut Context<Self>) {
-        let mut items: Vec<QueueItem> = self.shown_items().iter().map(QueueItem::from_local).collect();
+        let items: Vec<QueueItem> = self.shown_items().iter().map(QueueItem::from_local).collect();
         if items.is_empty() {
             return;
         }
-        rand::seq::SliceRandom::shuffle(items.as_mut_slice(), &mut rand::rng());
-        cx.emit(PlayLocal { items, index: 0 });
+        let index = rand::Rng::random_range(&mut rand::rng(), 0..items.len());
+        cx.emit(PlayLocal { items, index, shuffle: Some(true) });
     }
 
     /// Re-scans every root folder.
@@ -1032,7 +1036,7 @@ impl LibraryView {
 
     fn play(&mut self, index: usize, cx: &mut Context<Self>) {
         let items = self.shown_items().iter().map(QueueItem::from_local).collect();
-        cx.emit(PlayLocal { items, index });
+        cx.emit(PlayLocal { items, index, shuffle: None });
     }
 
     /// Opens the artist's or album's songs in its tab ("Go to artist / album").
@@ -1339,7 +1343,7 @@ pub fn song_cell<V: SongMenuHost>(
                 }
             };
             let (play_view, next, last) = (view.clone(), view.clone(), view.clone());
-            let (next_item, last_item) = (local.clone(), local);
+            let (next_item, last_item, single) = (local.clone(), local.clone(), local);
             let changed: Changed = {
                 let view = view.clone();
                 Rc::new(move |window, cx| {
@@ -1351,7 +1355,10 @@ pub fn song_cell<V: SongMenuHost>(
             let (code, doomed) = (song.playlist_code(), song.clone());
             let mut menu_list = menu_list
                 .item(PopupMenuItem::new(t(Str::MenuPlay)).on_click(move |_, _, cx| {
-                    play_view.update(cx, |view, cx| play(view, index, cx)).ok();
+                    let item = single.clone();
+                    play_view
+                        .update(cx, |_, cx| cx.emit(PlayLocal { items: vec![item], index: 0, shuffle: None }))
+                        .ok();
                 }))
                 .item(PopupMenuItem::new(t(Str::QueueNext)).on_click(move |_, _, cx| {
                     next.update(cx, |_, cx| cx.emit(QueueLocal { item: next_item.clone(), next: true })).ok();
