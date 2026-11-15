@@ -634,7 +634,7 @@ impl Shell {
         // Back to a regular app before activating: AppKit can drop an activation made as an accessory app.
         self.window_shown(cx);
         crate::desktop::show_main_window();
-        cx.activate(true);
+        crate::desktop::activate_app(cx);
     }
 
     fn window_shown(&mut self, cx: &mut Context<Self>) {

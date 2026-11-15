@@ -235,6 +235,7 @@ pub fn sync_prompt(window: &mut Window, cx: &mut App) {
 /// starts: it must wait for this process to exit, not hand its launch to it.
 fn install_and_restart(cx: &mut App) {
     let Some(service) = cx.global::<AppGraph>().updates.clone() else { return };
+    crate::desktop::yield_activation_to_relaunch();
     let started = on_core(cx, async move { service.install(crate::instance::stop_accepting).await });
     cx.spawn(async move |cx| {
         if started.await == Some(true) {
