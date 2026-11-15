@@ -7,8 +7,9 @@
     <key>CFBundleName</key><string>$(PRODUCT_NAME)</string>
     <key>CFBundleDisplayName</key><string>YMusic</string>
     <key>CFBundlePackageType</key><string>APPL</string>
-    <key>CFBundleShortVersionString</key><string>4.0.21</string>
-    <key>CFBundleVersion</key><string>29</string>
+    <!-- Stamped from gradle.properties' ymusic.versionName / ymusic.versionCode at build time. -->
+    <key>CFBundleShortVersionString</key><string>0</string>
+    <key>CFBundleVersion</key><string>0</string>
     <key>LSRequiresIPhoneOS</key><true/>
     <!-- ymusic:// links open the app at the matching page (iOSApp.swift onOpenURL). -->
     <key>CFBundleURLTypes</key>

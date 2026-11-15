@@ -33,8 +33,7 @@ const match = (path, regex, what) => {
 }
 
 const versionName = match('gradle.properties', /^ymusic\.versionName=(.+)$/m, 'ymusic.versionName').trim()
-const androidVersionCode = Number(match('androidApp/build.gradle.kts', /^\s*versionCode = (\d+)/m, 'versionCode'))
-const desktopVersionCode = Number(match('desktopApp/build.gradle.kts', /^val desktopVersionCode = (\d+)/m, 'desktopVersionCode'))
+const versionCode = Number(match('gradle.properties', /^ymusic\.versionCode=(\d+)\s*$/m, 'ymusic.versionCode'))
 const engineVersion = Number(match('buildSrc/src/main/kotlin/Dependencies.kt', /const val engineJsVersion = (\d+)L/, 'engineJsVersion'))
 const playerVersion = Number(match('buildSrc/src/main/kotlin/Dependencies.kt', /const val playerJsVersion = (\d+)L/, 'playerJsVersion'))
 
@@ -89,16 +88,16 @@ const sha256Of = async (path) => {
 }
 
 const INSTALLERS = [
-  { platform: 'android-armeabi-v7a', file: 'android-armv7.apk', versionCode: androidVersionCode },
-  { platform: 'android-arm64-v8a', file: 'android-arm64.apk', versionCode: androidVersionCode },
-  { platform: 'android-x86', file: 'android-x86.apk', versionCode: androidVersionCode },
-  { platform: 'android-x86_64', file: 'android-x86_64.apk', versionCode: androidVersionCode },
-  { platform: 'macos-arm64', file: 'macos-arm64.dmg', versionCode: desktopVersionCode },
-  { platform: 'macos-x64', file: 'macos-intel.dmg', versionCode: desktopVersionCode },
-  { platform: 'windows-x64', file: 'windows-x64-setup.exe', versionCode: desktopVersionCode },
-  { platform: 'windows-arm64', file: 'windows-arm64-setup.exe', versionCode: desktopVersionCode },
-  { platform: 'linux-x64', file: 'linux-x86_64.deb', versionCode: desktopVersionCode },
-  { platform: 'linux-arm64', file: 'linux-arm64.deb', versionCode: desktopVersionCode },
+  { platform: 'android-armeabi-v7a', file: 'android-armv7.apk', versionCode },
+  { platform: 'android-arm64-v8a', file: 'android-arm64.apk', versionCode },
+  { platform: 'android-x86', file: 'android-x86.apk', versionCode },
+  { platform: 'android-x86_64', file: 'android-x86_64.apk', versionCode },
+  { platform: 'macos-arm64', file: 'macos-arm64.dmg', versionCode },
+  { platform: 'macos-x64', file: 'macos-intel.dmg', versionCode },
+  { platform: 'windows-x64', file: 'windows-x64-setup.exe', versionCode },
+  { platform: 'windows-arm64', file: 'windows-arm64-setup.exe', versionCode },
+  { platform: 'linux-x64', file: 'linux-x86_64.deb', versionCode },
+  { platform: 'linux-arm64', file: 'linux-arm64.deb', versionCode },
 ]
 
 // The oldest build per platform that can install a new one in place; older builds get the release

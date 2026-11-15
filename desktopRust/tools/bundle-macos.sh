@@ -80,8 +80,8 @@ if [[ $profile == release ]]; then
 fi
 # The version line the binary reports (crates/ymusic/build.rs reads the same inputs).
 version=${YMUSIC_VERSION_NAME:-$(sed -n 's/^ymusic\.versionName=//p' "$v4/gradle.properties" | tr -d '[:space:]')}
-version_code=${YMUSIC_VERSION_CODE:-$(sed -n 's/^val desktopVersionCode = \([0-9]*\).*/\1/p' "$v4/desktopApp/build.gradle.kts")}
-[[ -n $version && -n $version_code ]] || die "no version in $v4 (gradle.properties / desktopApp/build.gradle.kts)"
+version_code=${YMUSIC_VERSION_CODE:-$(sed -n 's/^ymusic\.versionCode=//p' "$v4/gradle.properties" | tr -d '[:space:]')}
+[[ -n $version && -n $version_code ]] || die "no version in $v4/gradle.properties"
 
 app=$out/$APP_NAME.app
 contents=$app/Contents

@@ -59,14 +59,17 @@ gradle_phase.shell_script = <<~SH
 SH
 target.build_phases.unshift(target.build_phases.delete(gradle_phase))
 
-# Last, after Info.plist is processed: the version name is gradle.properties' ymusic.versionName,
-# shared with Android and desktop.
-version_phase = target.new_shell_script_build_phase("Stamp version name from gradle.properties")
+# Last, after Info.plist is processed: the version is gradle.properties' ymusic.versionName and
+# ymusic.versionCode, shared with Android and desktop.
+version_phase = target.new_shell_script_build_phase("Stamp version from gradle.properties")
 version_phase.shell_script = <<~'SH'
 set -e
 v=$(sed -n 's/^ymusic\.versionName=//p' "$SRCROOT/../gradle.properties")
+c=$(sed -n 's/^ymusic\.versionCode=//p' "$SRCROOT/../gradle.properties")
 [ -n "$v" ] || { echo "error: ymusic.versionName missing from gradle.properties"; exit 1; }
+[ -n "$c" ] || { echo "error: ymusic.versionCode missing from gradle.properties"; exit 1; }
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $v" "$TARGET_BUILD_DIR/$INFOPLIST_PATH"
+/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $c" "$TARGET_BUILD_DIR/$INFOPLIST_PATH"
 SH
 
 target.build_configurations.each do |config|
