@@ -87,7 +87,7 @@ impl PlayAgainView {
             if let Some(Ok(Ok(sessions))) = load.await
                 && let Some(newest) = sessions.into_iter().next()
             {
-                this.update(cx, |view, cx| view.resume(newest, cx)).ok();
+                this.update(cx, |view, cx| view.resume(newest, false, cx)).ok();
             }
         })
         .detach();
@@ -117,7 +117,9 @@ impl PlayAgainView {
         })
     }
 
-    fn resume(&mut self, session: PlayAgainSession, cx: &mut Context<Self>) {
+    /// The JVM PlaybackCoordinator.playAgain: the saved item, mid-item only for long content unless
+    /// `from_beginning`.
+    fn resume(&mut self, session: PlayAgainSession, from_beginning: bool, cx: &mut Context<Self>) {
         let (history, media) = (self.history.clone(), cx.global::<AppGraph>().media.clone());
         let queue_id = session.queue_id.clone();
         let load = on_core(cx, async move {
@@ -133,7 +135,7 @@ impl PlayAgainView {
             this.update(cx, |view, cx| match loaded {
                 Some(Ok(Ok(Some((saved, decoded))))) => match decoded {
                     Ok(items) if !items.is_empty() => {
-                        let start_ms = if saved.resumes_mid_item() { saved.position_ms } else { 0 };
+                        let start_ms = if !from_beginning && saved.resumes_mid_item() { saved.position_ms } else { 0 };
                         let index = saved.queue_index.min(items.len() - 1);
                         cx.emit(ResumeQueue { queue_id: saved.queue_id, items, index, start_ms });
                     }
@@ -161,7 +163,7 @@ const MORE_LABEL: f32 = 32.;
 
 impl PlayAgainView {
     fn play_from_beginning(&mut self, session: PlayAgainSession, cx: &mut Context<Self>) {
-        self.resume(PlayAgainSession { queue_index: 0, position_ms: 0, ..session }, cx);
+        self.resume(session, true, cx);
     }
 
     fn remove(&mut self, queue_id: String, cx: &mut Context<Self>) {
@@ -289,7 +291,7 @@ impl PlayAgainView {
                         .rounded_full()
                         .icon(Lucide::Play)
                         .label(t(Str::PlayAgainResume))
-                        .on_click(cx.listener(move |view, _, _, cx| view.resume(target.clone(), cx))),
+                        .on_click(cx.listener(move |view, _, _, cx| view.resume(target.clone(), false, cx))),
                 ),
             )
             .into_any_element()
