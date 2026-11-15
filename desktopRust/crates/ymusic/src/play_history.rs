@@ -43,7 +43,7 @@ pub fn encode_items(items: &[QueueItem]) -> String {
                     row["videoId"] = json!(video_id);
                     row["duration"] = json!(item.duration_label);
                     row["channelUrl"] = Value::Null;
-                    row["live"] = json!(false);
+                    row["live"] = json!(item.live);
                 }
                 Source::Local(path) => {
                     row["type"] = json!("local");
@@ -106,6 +106,7 @@ pub fn decode_items(text: &str) -> Result<Vec<QueueItem>, String> {
                 history_code: if local { string("code") } else { None },
                 youtube_vid: if local { string("videoId") } else { None },
                 loudness_gain_db: if local { gain } else { None },
+                live: !local && row.get("live").and_then(Value::as_bool).unwrap_or(false),
                 source,
             })
         })
