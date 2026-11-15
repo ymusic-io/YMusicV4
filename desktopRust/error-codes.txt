@@ -35,6 +35,7 @@ R20021 D player/mintPo answered without a content PO token
 R20022 D engine manager: no engine bundle candidate to boot
 R20023 D log/capture: the cache entry the bundle named (the bg-session dump) could not be read; the report goes without it (logged)
 R20024 D player/remintPo answered "reminted" without a content PO token
+R20025 - engine manager: a remote (untrusted) bundle did not boot and pass its health check within 10 s; the next candidate boots, or the swap is dropped (the JVM E20022)
 R30001 D remote config: the cached config was unreadable and was dropped (logged; defaults used)
 R30002 D remote config: the fetched config could not be written to the cache (logged)
 R30003 D remote config: fetching /v1/config failed (logged; the held config stays)
@@ -132,6 +133,7 @@ R90029 D Sentry Logs: delivered log lines could not be marked sent in logs.db (l
 R90030 D media session: an update could not be published to MPRIS (property change or Seeked signal on the session bus; logged)
 R90031 D media session: an update could not be posted to the Windows SMTC thread (logged)
 R90032 - playback: a YouTube load the player took showed neither progress nor details within 5 s (the JVM E60051); the item fails and the next load starts a new session (logged)
+R90033 - player session: player/init was not done within 30 s; the boot fails and the engine closes (the JVM E60066)
 R90040 D Linux file dialog: the Tokio task driving the portal dialog failed (logged; treated as canceled)
 R90200 D data dir: a database this app's earlier builds named differently could not take the JVM app's name (logged; retried next launch)
 R90201 D data dir: the window bounds kept in app.db could not move to window.properties (logged)

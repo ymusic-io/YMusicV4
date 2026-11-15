@@ -20,6 +20,9 @@ pub type CandidateSource = Arc<dyn Fn() -> Vec<(String, Option<VerifiedBundle>)>
 /// Told the version of each player bundle that boots.
 pub type VersionSink = Arc<dyn Fn(i64) + Send + Sync>;
 
+/// How long player/init gets before the boot fails (the JVM MsePlayer's INIT_TIMEOUT_MS).
+const PLAYER_INIT_DEADLINE: Duration = Duration::from_secs(30);
+
 /// How long quit waits for the player engine to free its JS heap.
 const QUIT_CLOSE_WAIT: Duration = Duration::from_secs(2);
 
@@ -137,7 +140,18 @@ impl YoutubeSessions {
                 }
             });
             let fresh = self.fresh_next.load(std::sync::atomic::Ordering::Relaxed);
-            engine.player_init(None, fresh, &self.log).await?;
+            match tokio::time::timeout(PLAYER_INIT_DEADLINE, engine.player_init(None, fresh, &self.log)).await {
+                Ok(result) => {
+                    result?;
+                }
+                Err(_) => {
+                    engine.close().await;
+                    return Err(EngineError::site(
+                        "R90033",
+                        format!("player/init not done within {PLAYER_INIT_DEADLINE:?}"),
+                    ));
+                }
+            }
             self.fresh_next.store(false, std::sync::atomic::Ordering::Relaxed);
             return Ok(YoutubeSession { engine, host });
         }
