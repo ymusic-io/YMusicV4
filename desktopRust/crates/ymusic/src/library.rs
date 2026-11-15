@@ -749,8 +749,12 @@ impl LibraryView {
     }
 
     /// Re-scans every root folder.
+    /// The JVM scopedRescan: the open folder, or every root at the top level.
     fn rescan(&mut self, cx: &mut Context<Self>) {
-        self.rescan_where(cx, |_| true);
+        match self.path.last() {
+            Some(open) => self.scan_paths(vec![PathBuf::from(&open.uri)], false, cx),
+            None => self.rescan_where(cx, |_| true),
+        }
     }
 
     fn rescan_where(&mut self, cx: &mut Context<Self>, keep: impl Fn(&Bucket) -> bool + Send + 'static) {
@@ -844,7 +848,7 @@ impl LibraryView {
     }
 
     /// Remove (a root), Exclude / Include (a subfolder): the store cascades, then the list reloads.
-    /// Including clears the flag first, then rescans the root, since scans skip excluded folders.
+    /// Including clears the flag first, then rescans that folder, since scans skip excluded folders.
     fn folder_change(&mut self, bucket: Bucket, change: FolderChange, window: &mut Window, cx: &mut Context<Self>) {
         let id = bucket.id;
         let request = library_playlist::store_call(cx, move |store| match change {
@@ -852,15 +856,13 @@ impl LibraryView {
             FolderChange::Exclude => store.set_bucket_excluded(id, true),
             FolderChange::Include => store.set_bucket_excluded(id, false),
         });
-        let root = self.path.first().map(|root| root.id);
+        let included = PathBuf::from(&bucket.uri);
         cx.spawn_in(window, async move |this, cx| {
             let result = request.await;
             this.update_in(cx, |view, window, cx| match result {
                 Ok(()) => {
-                    if change == FolderChange::Include
-                        && let Some(root) = root
-                    {
-                        view.rescan_where(cx, move |bucket| bucket.id == root);
+                    if change == FolderChange::Include {
+                        view.scan_paths(vec![included], false, cx);
                     }
                     view.reload(cx);
                 }
