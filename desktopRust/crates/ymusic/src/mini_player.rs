@@ -25,6 +25,8 @@ pub struct MiniPlayer {
     seek: Entity<SliderState>,
     volume: Entity<SliderState>,
     dragging_seek: bool,
+    /// Where a seek-bar drag points; the clock shows it while dragging (the JVM scrubMs).
+    scrub_ms: Option<i64>,
     /// What the bar last drew from playback.
     shown: Option<Shown>,
     /// Arrow keys move between the bar's controls.
@@ -107,12 +109,14 @@ impl MiniPlayer {
             }),
             cx.subscribe(&seek, |player, _, event: &SliderEvent, cx| match event {
                 // A redraw moves the skip marks' gap with the dragged thumb.
-                SliderEvent::Change(_) => {
+                SliderEvent::Change(value) => {
                     player.dragging_seek = true;
+                    player.scrub_ms = Some((player.playback.read(cx).duration_ms as f32 * value.end()) as i64);
                     cx.notify();
                 }
                 SliderEvent::Release(value) => {
                     player.dragging_seek = false;
+                    player.scrub_ms = None;
                     let fraction = value.end();
                     player.playback.update(cx, |playback, cx| {
                         let target = (playback.duration_ms as f32 * fraction) as i64;
@@ -131,6 +135,7 @@ impl MiniPlayer {
             seek,
             volume,
             dragging_seek: false,
+            scrub_ms: None,
             shown: None,
             focus: FocusList::new(None),
             _subscriptions: subscriptions,
@@ -329,7 +334,10 @@ impl MiniPlayer {
         let theme = cx.theme().clone();
         let state = playback.state.clone();
         let duration = playback.duration_ms;
-        let play_clock = PlayClock::of(playback);
+        let play_clock = match self.scrub_ms {
+            Some(scrub) => PlayClock::new(scrub, playback.duration_ms, playback.live),
+            None => PlayClock::of(playback),
+        };
         let seekable = playback.seekable;
         let buffered = playback.buffered_fraction();
         let (loop_mode, shuffle) = (playback.nav.loop_mode, playback.nav.shuffle);

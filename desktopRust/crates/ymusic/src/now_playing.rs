@@ -118,6 +118,8 @@ pub struct NowPlaying {
     reported_box: (i32, i32),
     seek: Entity<SliderState>,
     dragging_seek: bool,
+    /// Where a seek-bar drag points; the clock shows it while dragging (the JVM scrubMs).
+    scrub_ms: Option<i64>,
     /// The video controls are up: a click on the picture toggles them, a key or the seek bar shows
     /// them, and they hide `CONTROLS_HIDE_AFTER` past `shown_at` while playing.
     controls_shown: bool,
@@ -323,12 +325,14 @@ impl NowPlaying {
                 cx.notify();
             }),
             cx.subscribe(&seek, |view, _, event: &SliderEvent, cx| match event {
-                SliderEvent::Change(_) => {
+                SliderEvent::Change(value) => {
                     view.dragging_seek = true;
+                    view.scrub_ms = Some((view.playback.read(cx).duration_ms as f32 * value.end()) as i64);
                     view.show_controls(cx);
                 }
                 SliderEvent::Release(value) => {
                     view.dragging_seek = false;
+                    view.scrub_ms = None;
                     let fraction = value.end();
                     view.playback.update(cx, |playback, cx| {
                         let target = (playback.duration_ms as f32 * fraction) as i64;
@@ -366,6 +370,7 @@ impl NowPlaying {
             reported_box: (0, 0),
             seek,
             dragging_seek: false,
+            scrub_ms: None,
             controls_shown: true,
             shown_at: Rc::new(Cell::new(Instant::now())),
             held_menus: Rc::default(),
@@ -582,7 +587,10 @@ impl NowPlaying {
         let playback = self.playback.read(cx);
         let playing = playback.is_playing();
         let buffering = playback.state == PlayState::Buffering;
-        let play_clock = PlayClock::of(playback);
+        let play_clock = match self.scrub_ms {
+            Some(scrub) => PlayClock::new(scrub, playback.duration_ms, playback.live),
+            None => PlayClock::of(playback),
+        };
         let (duration, seekable) = (playback.duration_ms, playback.seekable);
         let layer = self.video_layer.clone();
         let video_box = self.video_box.clone();
