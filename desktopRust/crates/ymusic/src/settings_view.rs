@@ -260,7 +260,12 @@ pub fn save_setting(key: &'static str, value: String, cx: &mut App) {
             Ok(Err(error)) => log.warn(&format!("R93000 setting {key} not saved"), Some(error.as_ref())),
             Err(error) => log.warn(&format!("R93000 setting {key} not saved"), Some(&error)),
         }
-        cx.update(|cx| cx.refresh_windows());
+        cx.update(|cx| {
+            if key == SPONSOR_BLOCK_KEY {
+                crate::sponsor_block::setting_changed(cx);
+            }
+            cx.refresh_windows();
+        });
     })
     .detach();
 }
