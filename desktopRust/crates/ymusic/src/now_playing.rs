@@ -651,6 +651,7 @@ impl NowPlaying {
         let transport =
             h_flex()
                 .w_full()
+                .layout_direction(LayoutDirection::Ltr)
                 .max_w(px(480. * scale))
                 .px(px(20.))
                 .py(px(14.))
@@ -708,6 +709,7 @@ impl NowPlaying {
         };
         let time = h_flex()
             .items_center()
+            .layout_direction(LayoutDirection::Ltr)
             .text_size(time_size)
             .font_bold()
             .text_color(rgb(OVERLAY_INK))

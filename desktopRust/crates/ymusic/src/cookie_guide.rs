@@ -218,10 +218,12 @@ impl CookieGuide {
                     .justify_center()
                     .child(Icon::new(Lucide::Play).size(px(20.)).text_color(rgb(chrome::HEADER))),
             );
+        // A picture of the browser, which lays out left to right in every UI language.
         let mut frame = div()
             .relative()
             .w_full()
             .h(px(WINDOW_HEIGHT))
+            .layout_direction(LayoutDirection::Ltr)
             .overflow_hidden()
             .rounded(px(INNER_RADIUS + 1.))
             .border_1()

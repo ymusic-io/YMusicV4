@@ -513,6 +513,7 @@ impl FocusList {
         let element = div()
             .id(spec.id)
             .role(Role::Slider)
+            .layout_direction(LayoutDirection::Ltr)
             .aria_label(spec.label)
             .aria_numeric_value(value as f64)
             .aria_min_numeric_value(min as f64)

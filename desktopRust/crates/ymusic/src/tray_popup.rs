@@ -257,6 +257,7 @@ impl Render for TrayPopup {
                 h_flex()
                     .gap_2()
                     .items_center()
+                    .layout_direction(LayoutDirection::Ltr)
                     .child(div().text_xs().text_color(theme.muted_foreground).child(elapsed))
                     .child(
                         div()
@@ -276,6 +277,7 @@ impl Render for TrayPopup {
                     .justify_center()
                     .items_center()
                     .gap(px(14.))
+                    .layout_direction(LayoutDirection::Ltr)
                     .child(
                         sized_action_icon("tray-previous", Lucide::SkipBack, t(Str::CdPrevious), SKIP_ICON, SKIP_HIT)
                             .disabled(item.is_none())
