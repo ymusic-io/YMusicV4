@@ -49,6 +49,8 @@ interface RemintContext {
 let activeMint: Minter | null = null;
 let remintContext: RemintContext | null = null;
 let remintGeneration = 0;
+/** Bumps with every minter, first or re-minted, and never resets, unlike [remintGeneration]. */
+let minterId = 0;
 let remintedTokens = new Map<string, Uint8Array>();
 
 function waaHeaders(): Record<string, string> {
@@ -260,6 +262,7 @@ async function buildMinter(
   activeMint = await minterFor(run.webPo, integrityToken);
   console.info("bg mint");
   remintGeneration = 0;
+  minterId++;
   remintedTokens = new Map();
   remintContext = {
     vmA: vmA as VmEntry,
@@ -533,6 +536,7 @@ export async function remint(rescrape: () => Promise<Record<string, unknown>>): 
   const integrityToken = await generateIntegrityToken(run.snapshot, out);
   activeMint = await minterFor(run.webPo, integrityToken);
   remintGeneration++;
+  minterId++;
   remintedTokens = new Map();
   console.info(
     "bg remint source=" +
@@ -548,6 +552,11 @@ export async function remint(rescrape: () => Promise<Record<string, unknown>>): 
 
 /** After a re-mint, the content token for [videoId] from the new minter: base.js may still send the
  *  one it minted before. Null before any re-mint. */
+/** Which minter content tokens come from now; a token minted under a smaller id is from an older one. */
+export function currentMinterId(): number {
+  return minterId;
+}
+
 export function remintedPoToken(videoId: string): Uint8Array | null {
   if (remintGeneration === 0 || !activeMint || !videoId) return null;
   const held = remintedTokens.get(videoId);
