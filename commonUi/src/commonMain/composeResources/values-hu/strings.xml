@@ -221,6 +221,7 @@
     <string name="video_quality_auto">Automatikus</string>
     <string name="captions_off">Feliratok ki</string>
     <string name="captions_auto_translate">Automatikus fordítás</string>
+    <string name="captions_recent_languages">Legutóbbiak</string>
     <string name="up_next">Következik</string>
     <string name="queue_load_more">Továbbiak betöltése</string>
     <string name="queue_loading_more">Továbbiak betöltése…</string>

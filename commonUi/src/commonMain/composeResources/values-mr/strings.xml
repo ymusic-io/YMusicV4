@@ -221,6 +221,7 @@
     <string name="video_quality_auto">ऑटो</string>
     <string name="captions_off">कॅप्शन बंद</string>
     <string name="captions_auto_translate">ऑटो-भाषांतर</string>
+    <string name="captions_recent_languages">अलीकडील</string>
     <string name="up_next">पुढे</string>
     <string name="queue_load_more">अधिक लोड करा</string>
     <string name="queue_loading_more">अधिक लोड करत आहे…</string>

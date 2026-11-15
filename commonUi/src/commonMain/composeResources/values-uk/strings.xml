@@ -271,6 +271,7 @@
     <string name="video_quality_auto">Авто</string>
     <string name="captions_off">Субтитри вимк.</string>
     <string name="captions_auto_translate">Автопереклад</string>
+    <string name="captions_recent_languages">Нещодавні</string>
     <string name="up_next">Далі</string>
     <string name="queue_load_more">Завантажити ще</string>
     <string name="queue_loading_more">Завантаження…</string>

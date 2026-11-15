@@ -221,6 +221,7 @@
     <string name="video_quality_auto">தானியங்கு</string>
     <string name="captions_off">வசனங்கள் முடக்கம்</string>
     <string name="captions_auto_translate">தானியங்கு மொழிபெயர்ப்பு</string>
+    <string name="captions_recent_languages">சமீபத்தியவை</string>
     <string name="up_next">அடுத்து</string>
     <string name="queue_load_more">மேலும் ஏற்று</string>
     <string name="queue_loading_more">மேலும் ஏற்றுகிறது…</string>

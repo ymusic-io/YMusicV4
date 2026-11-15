@@ -217,6 +217,7 @@
     <string name="video_quality_auto">อัตโนมัติ</string>
     <string name="captions_off">ปิดคำบรรยาย</string>
     <string name="captions_auto_translate">แปลอัตโนมัติ</string>
+    <string name="captions_recent_languages">ล่าสุด</string>
     <string name="up_next">ถัดไป</string>
     <string name="queue_load_more">โหลดเพิ่ม</string>
     <string name="queue_loading_more">กำลังโหลดเพิ่ม…</string>

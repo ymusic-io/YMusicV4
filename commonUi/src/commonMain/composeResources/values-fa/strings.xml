@@ -221,6 +221,7 @@
     <string name="video_quality_auto">خودکار</string>
     <string name="captions_off">زیرنویس خاموش</string>
     <string name="captions_auto_translate">ترجمه خودکار</string>
+    <string name="captions_recent_languages">اخیر</string>
     <string name="up_next">بعدی</string>
     <string name="queue_load_more">بارگذاری بیشتر</string>
     <string name="queue_loading_more">در حال بارگذاری بیشتر…</string>

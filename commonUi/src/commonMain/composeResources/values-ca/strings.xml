@@ -225,6 +225,7 @@
     <string name="video_quality_auto">Automàtica</string>
     <string name="captions_off">Subtítols desactivats</string>
     <string name="captions_auto_translate">Traducció automàtica</string>
+    <string name="captions_recent_languages">Recents</string>
     <string name="up_next">A continuació</string>
     <string name="queue_load_more">Carrega'n més</string>
     <string name="queue_loading_more">S'estan carregant més…</string>

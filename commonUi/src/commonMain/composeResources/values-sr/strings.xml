@@ -225,6 +225,7 @@
     <string name="video_quality_auto">Аутоматски</string>
     <string name="captions_off">Без титлова</string>
     <string name="captions_auto_translate">Аутоматски превод</string>
+    <string name="captions_recent_languages">Недавно</string>
     <string name="up_next">Следеће</string>
     <string name="queue_load_more">Учитај још</string>
     <string name="queue_loading_more">Учитавање…</string>

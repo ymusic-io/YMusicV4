@@ -221,6 +221,7 @@
     <string name="video_quality_auto">Otomatiki</string>
     <string name="captions_off">Manukuu yamezimwa</string>
     <string name="captions_auto_translate">Tafsiri kiotomatiki</string>
+    <string name="captions_recent_languages">Za hivi karibuni</string>
     <string name="up_next">Inayofuata</string>
     <string name="queue_load_more">Pakia zaidi</string>
     <string name="queue_loading_more">Inapakia zaidi…</string>

@@ -221,6 +221,7 @@
     <string name="video_quality_auto">Αυτόματα</string>
     <string name="captions_off">Υπότιτλοι ανενεργοί</string>
     <string name="captions_auto_translate">Αυτόματη μετάφραση</string>
+    <string name="captions_recent_languages">Πρόσφατες</string>
     <string name="up_next">Επόμενα</string>
     <string name="queue_load_more">Φόρτωση περισσότερων</string>
     <string name="queue_loading_more">Φόρτωση περισσότερων…</string>

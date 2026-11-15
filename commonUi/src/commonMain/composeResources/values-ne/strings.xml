@@ -221,6 +221,7 @@
     <string name="video_quality_auto">स्वतः</string>
     <string name="captions_off">क्याप्सन बन्द</string>
     <string name="captions_auto_translate">स्वतः अनुवाद</string>
+    <string name="captions_recent_languages">हालैका</string>
     <string name="up_next">अर्को</string>
     <string name="queue_load_more">थप लोड गर्नुहोस्</string>
     <string name="queue_loading_more">थप लोड हुँदैछ…</string>

@@ -221,6 +221,7 @@
     <string name="video_quality_auto">Automaatne</string>
     <string name="captions_off">Subtiitrid väljas</string>
     <string name="captions_auto_translate">Automaatne tõlge</string>
+    <string name="captions_recent_languages">Hiljutised</string>
     <string name="up_next">Järgmisena</string>
     <string name="queue_load_more">Laadi rohkem</string>
     <string name="queue_loading_more">Laadimine…</string>

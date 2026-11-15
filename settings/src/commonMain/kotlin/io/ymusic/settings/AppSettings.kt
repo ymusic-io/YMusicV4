@@ -111,6 +111,9 @@ object AppSettings {
     /** The Discover tab the app reopens on: a DiscoverTab id, 0 = none yet. */
     val lastDiscoverTab = IntSetting("app.lastDiscoverTab", 0)
 
+    /** Auto-translate caption languages last picked, most recent first: language codes. */
+    val recentTranslateLanguages = StringSetSetting("captions.recentTranslateLanguages")
+
     /** The Library tab the app reopens on: a LibraryTab id, 0 = none yet. */
     val lastLibraryTab = IntSetting("app.lastLibraryTab", 0)
 

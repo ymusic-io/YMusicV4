@@ -221,6 +221,7 @@
     <string name="video_quality_auto">Auto</string>
     <string name="captions_off">Naka-off ang CC</string>
     <string name="captions_auto_translate">Awtomatikong isalin</string>
+    <string name="captions_recent_languages">Kamakailan</string>
     <string name="up_next">Susunod</string>
     <string name="queue_load_more">Mag-load pa</string>
     <string name="queue_loading_more">Naglo-load pa…</string>

@@ -221,6 +221,7 @@
     <string name="video_quality_auto">Ավտոմատ</string>
     <string name="captions_off">Ենթագրերն անջատված են</string>
     <string name="captions_auto_translate">Ավտոմատ թարգմանություն</string>
+    <string name="captions_recent_languages">Վերջինները</string>
     <string name="up_next">Հաջորդը</string>
     <string name="queue_load_more">Բեռնել ավելին</string>
     <string name="queue_loading_more">Բեռնվում է ավելին…</string>

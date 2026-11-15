@@ -221,6 +221,7 @@
     <string name="video_quality_auto">Automatisch</string>
     <string name="captions_off">Ondertiteling uit</string>
     <string name="captions_auto_translate">Automatisch vertalen</string>
+    <string name="captions_recent_languages">Recent</string>
     <string name="up_next">Hierna</string>
     <string name="queue_load_more">Meer laden</string>
     <string name="queue_loading_more">Meer laden…</string>

@@ -221,6 +221,7 @@
     <string name="video_quality_auto">Otomatik</string>
     <string name="captions_off">Altyazı kapalı</string>
     <string name="captions_auto_translate">Otomatik çeviri</string>
+    <string name="captions_recent_languages">Son kullanılanlar</string>
     <string name="up_next">Sıradaki</string>
     <string name="queue_load_more">Daha fazla yükle</string>
     <string name="queue_loading_more">Daha fazlası yükleniyor…</string>

@@ -82,6 +82,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
@@ -160,6 +161,7 @@ import io.ymusic.player.VideoQualityState
 import io.ymusic.player.isEnded
 import io.ymusic.player.isPlaying
 import io.ymusic.settings.AppSettings
+import io.ymusic.settings.SettingsStore
 import io.ymusic.settings.flow
 import io.ymusic.settings.put
 import io.ymusic.ui.resources.Res
@@ -172,6 +174,7 @@ import io.ymusic.ui.resources.audio_only
 import io.ymusic.ui.resources.badge_live
 import io.ymusic.ui.resources.captions_auto_translate
 import io.ymusic.ui.resources.captions_off
+import io.ymusic.ui.resources.captions_recent_languages
 import io.ymusic.ui.resources.cd_captions
 import io.ymusic.ui.resources.cd_close
 import io.ymusic.ui.resources.cd_download
@@ -720,7 +723,7 @@ private fun PortraitNowPlaying(
                         Modifier.align(Alignment.BottomEnd).padding(end = 6.dp, bottom = 4.dp),
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
-                        CaptionToggle(player, offTint = Color(0xFFDCDCDC))
+                        CaptionToggle(player, graph.settings, offTint = Color(0xFFDCDCDC))
                         ActionIcon(
                             Icons.Default.Fullscreen,
                             stringResource(Res.string.cd_fullscreen),
@@ -1064,7 +1067,7 @@ private fun BoxScope.VideoOverlayControls(
             if (isFullscreen) {
                 OverlayPlayerActions(coordinator, tint = Color(0xFFEEEEEE), iconSize = iconSize, hitSize = hitSize, scale = scale)
             }
-            CaptionToggle(player, offTint = Color(0xFFEEEEEE), iconSize = iconSize, hitSize = hitSize)
+            CaptionToggle(player, coordinator.graph.settings, offTint = Color(0xFFEEEEEE), iconSize = iconSize, hitSize = hitSize)
             if (onToggleRotationLock != null) {
                 ActionIcon(
                     if (rotationLocked) Icons.Default.ScreenLockRotation else Icons.Default.ScreenRotation,
@@ -1177,9 +1180,17 @@ private fun BoxScope.PlayerCaptionOverlay(
  * captions are on. Picking a language turns captions on and selects it; Off hides them.
  */
 @Composable
-private fun CaptionToggle(player: io.ymusic.player.Player, offTint: Color, iconSize: Dp = 24.dp, hitSize: Dp = 40.dp) {
+private fun CaptionToggle(
+    player: io.ymusic.player.Player,
+    settings: SettingsStore,
+    offTint: Color,
+    iconSize: Dp = 24.dp,
+    hitSize: Dp = 40.dp,
+) {
     val captions by player.captions.collectAsState()
     val config by player.config.collectAsState()
+    val recentLanguages by remember(settings) { settings.flow(AppSettings.recentTranslateLanguages) }.collectAsState()
+    val scope = rememberCoroutineScope()
     if (captions.tracks.isEmpty()) return
     var open by remember { mutableStateOf(false) }
     var translateOpen by remember { mutableStateOf(false) }
@@ -1192,6 +1203,10 @@ private fun CaptionToggle(player: io.ymusic.player.Player, offTint: Color, iconS
         player.setCaptionVisible(true)
         open = false
         translateOpen = false
+        if (track.kind == AUTO_TRANSLATE_KIND) {
+            val recent = (listOf(track.languageCode) + recentLanguages).distinct().take(RECENT_TRANSLATE_LANGUAGES)
+            scope.launch { settings.put(AppSettings.recentTranslateLanguages, recent.toSet()) }
+        }
     }
     val onTrack = tracks.firstOrNull { isOn(it) } ?: translations.firstOrNull { isOn(it) }
     val captionState = onTrack?.displayName ?: stringResource(Res.string.captions_off)
@@ -1239,7 +1254,28 @@ private fun CaptionToggle(player: io.ymusic.player.Player, offTint: Color, iconS
         // ~150 languages: a lazy list, so opening it does not compose every row.
         if (translateOpen) {
             DropdownMenu(expanded = true, onDismissRequest = { translateOpen = false }) {
+                val recent = recentLanguages.mapNotNull { code -> translations.firstOrNull { it.languageCode == code } }
                 LazyColumn(Modifier.size(width = 240.dp, height = 360.dp)) {
+                    if (recent.isNotEmpty()) {
+                        item(key = "recent-header") {
+                            Text(
+                                stringResource(Res.string.captions_recent_languages),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = DesignSpacing.Space16, vertical = DesignSpacing.Space8)
+                                    .semantics { heading() },
+                            )
+                        }
+                        items(recent, key = { "recent-${it.id}" }) { track ->
+                            DropdownMenuItem(
+                                text = { Text(track.displayName) },
+                                onClick = { pick(track) },
+                                modifier = Modifier.menuChoice(isOn(track)),
+                                trailingIcon = selectedCheck(isOn(track)),
+                            )
+                        }
+                        item(key = "recent-divider") { HorizontalDivider(Modifier.padding(vertical = DesignSpacing.Space4)) }
+                    }
                     items(translations, key = { it.id }) { track ->
                         DropdownMenuItem(
                             text = { Text(track.displayName) },
@@ -1256,6 +1292,8 @@ private fun CaptionToggle(player: io.ymusic.player.Player, offTint: Color, iconS
 
 /** Engine track kind for YouTube auto-translate languages (clones of a source track, one per language). */
 private const val AUTO_TRANSLATE_KIND = "asrt"
+
+private const val RECENT_TRANSLATE_LANGUAGES = 3
 
 /** A playback failure for the user: a known category, the text the source gave for it (YouTube's own words
  *  for a playability verdict), else our message for the verdict, else "Playback failed (code)". */
