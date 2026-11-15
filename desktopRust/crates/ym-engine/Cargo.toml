@@ -1,0 +1,32 @@
+[package]
+name = "ym-engine"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+ym-common = { path = "../ym-common" }
+ym-quickjs = { path = "../ym-quickjs" }
+tokio.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+reqwest.workspace = true
+bytes.workspace = true
+futures.workspace = true
+url.workspace = true
+rusqlite.workspace = true
+ym-settings = { path = "../ym-settings" }
+cookie_store = "0.22"
+time = "0.3"
+sha2 = "0.11"
+hex = "0.4"
+md-5 = "0.10"
+base64 = "0.22"
+flate2 = "1"
+httpdate = "1"
+indexmap = "2"
+
+[lints]
+workspace = true

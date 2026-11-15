@@ -1,0 +1,93 @@
+[package]
+name = "ymusic"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+gpui-kit.workspace = true
+ym-common = { path = "../ym-common" }
+ym-engine = { path = "../ym-engine" }
+ym-i18n = { path = "../ym-i18n" }
+ym-settings = { path = "../ym-settings" }
+ym-mse = { path = "../ym-mse" }
+serde_json.workspace = true
+tokio.workspace = true
+rusqlite.workspace = true
+reqwest.workspace = true
+bytes.workspace = true
+futures.workspace = true
+anyhow = "1"
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
+thiserror.workspace = true
+url.workspace = true
+log = "0.4"
+dirs = "6"
+raw-window-handle = "0.6"
+ym-store = { path = "../ym-store" }
+ym-remote-config = { path = "../ym-remote-config" }
+ym-logstore = { path = "../ym-logstore" }
+ym-signin = { path = "../ym-signin" }
+ym-telemetry = { path = "../ym-telemetry" }
+ym-download = { path = "../ym-download" }
+ym-ytmedia = { path = "../ym-ytmedia" }
+ym-history = { path = "../ym-history" }
+ym-update = { path = "../ym-update" }
+qrcode = { version = "0.14", default-features = false }
+rand = "0.9"
+uuid = { version = "1", features = ["v4"] }
+rfd = { version = "0.15", default-features = false, features = ["tokio"] }
+resvg = { version = "0.46", default-features = false }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[target.'cfg(any(target_os = "macos", target_os = "windows"))'.dependencies]
+tray-icon = "0.21"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.62", features = [
+    "Foundation",
+    "Media",
+    "Storage_Streams",
+    "Win32_Foundation",
+    "Win32_Graphics_Gdi",
+    "Win32_Storage_FileSystem",
+    "Win32_System_Com",
+    "Win32_System_Com_StructuredStorage",
+    "Win32_System_LibraryLoader",
+    "Win32_System_Threading",
+    "Win32_System_Variant",
+    "Win32_System_WinRT",
+    "Win32_UI_HiDpi",
+    "Win32_UI_Shell",
+    "Win32_UI_Shell_Common",
+    "Win32_UI_Shell_PropertiesSystem",
+    "Win32_UI_WindowsAndMessaging",
+] }
+gpui-pre-windows = "=0.3.12"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-core-foundation = { version = "0.3", default-features = false, features = ["std", "CFCGTypes"] }
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSString", "NSValue"] }
+block2 = "0.6"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+gpui-pre-wgpu = "=0.3.12"
+ashpd = { version = "0.13", default-features = false, features = ["async-io", "settings"] }
+zbus = { version = "5", default-features = false, features = ["async-io", "blocking-api"] }
+rfd = { version = "0.15", default-features = false, features = ["tokio", "xdg-portal"] }
+ksni = "=0.3.6"
+
+[features]
+# Shipped builds (the packaging scripts' release profile), as the JVM app's -Pproduction.
+production = ["ym-common/production"]
+
+[lints]
+workspace = true
+
+[build-dependencies]
+embed-resource = "3"

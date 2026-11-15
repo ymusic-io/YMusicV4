@@ -1,0 +1,1 @@
+# The vendored crates keep their own style: rustfmt defaults, not the workspace's settings.

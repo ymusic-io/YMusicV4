@@ -16,6 +16,9 @@ scripts
 tools
 test-cache
 ymusic-android
+# desktopRust ships its packaging scripts and vendored docs; the rules above are for private root folders.
+!/desktopRust/tools/
+!/desktopRust/vendor/gpui-pre/docs/
 
 # test-server (local HTTPS test server) - generated/machine-specific artifacts
 kmpHttp/test-server/node_modules/
