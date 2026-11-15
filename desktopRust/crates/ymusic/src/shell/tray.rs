@@ -58,7 +58,13 @@ impl Shell {
     /// Closes the popup; false when none was open.
     pub(super) fn close_tray_popup(&mut self, cx: &mut Context<Self>) -> bool {
         let Some(handle) = self.tray_popup.take() else { return false };
-        handle.update(cx, |_, window, _| window.remove_window()).is_ok()
+        handle
+            .update(cx, |_, window, _| {
+                // Gone before the app activates: a still-key nonactivating panel keeps the main window from key.
+                crate::desktop::order_out_now(window);
+                window.remove_window();
+            })
+            .is_ok()
     }
 
     /// Debug: `YMUSIC_DEV_TRAY_POPUP=1` opens the popup after 6 s as if the tray icon sat at the
