@@ -291,6 +291,8 @@ pub struct LibraryView {
     loaded: Loaded,
     /// The artist, album or genre opened from its tab.
     group: Option<String>,
+    /// The open group of each grouped tab that is not showing.
+    tab_groups: HashMap<&'static str, String>,
     open_playlist: Option<OpenPlaylist>,
     /// The open folder chain; empty is the root.
     path: Vec<Bucket>,
@@ -354,6 +356,7 @@ impl LibraryView {
             tab,
             loaded: Loaded::default(),
             group: None,
+            tab_groups: HashMap::new(),
             open_playlist: None,
             path: Vec::new(),
             folders: Vec::new(),
@@ -450,10 +453,14 @@ impl LibraryView {
         self.select_tab(Tab::ALL[index.min(Tab::ALL.len() - 1)], cx);
     }
 
+    /// Each tab keeps its open group, and the Playlists tab its open playlist, across switches (the
+    /// JVM tabs' saveable state).
     fn select_tab(&mut self, tab: Tab, cx: &mut Context<Self>) {
+        if let Some(group) = self.group.take() {
+            self.tab_groups.insert(self.tab.key(), group);
+        }
         self.set_tab(tab, cx);
-        self.group = None;
-        self.open_playlist = None;
+        self.group = self.tab_groups.remove(tab.key());
         if tab == Tab::Folders {
             self.refresh(cx);
         } else {
@@ -837,8 +844,9 @@ impl LibraryView {
     pub fn back(&mut self, cx: &mut Context<Self>) -> bool {
         if self.tab == Tab::Folders && !self.path.is_empty() {
             self.open_crumb(self.path.len() - 1, cx);
-        } else if self.open_playlist.is_some() || self.group.is_some() {
+        } else if self.tab == Tab::Playlists && self.open_playlist.is_some() {
             self.open_playlist = None;
+        } else if self.group.is_some() {
             self.group = None;
         } else {
             return false;
@@ -2077,7 +2085,8 @@ impl Render for LibraryView {
         };
         let shown = self.shown_items();
         let song_stops = self.song_focus.list_stops(0..shown.len(), window, cx);
-        let song_list_label: SharedString = match (&self.open_playlist, &self.group, self.path.last()) {
+        let open_playlist = self.open_playlist.as_ref().filter(|_| self.tab == Tab::Playlists);
+        let song_list_label: SharedString = match (open_playlist, &self.group, self.path.last()) {
             (Some(open), _, _) => open.title().into(),
             (None, Some(group), _) => group.clone().into(),
             (None, None, Some(folder)) => folder.display_name().to_owned().into(),
