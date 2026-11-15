@@ -1,0 +1,32 @@
+#!/bin/sh
+# Every commit states whether its change reaches desktopRust/ (the Rust desktop app), so a Kotlin
+# or engine change is never left un-ported by accident. The message needs exactly one line:
+#   Rust: ported
+#   Rust: n/a. <why it does not apply>
+# There is no "todo": port it in the same branch, or say why it does not apply.
+# Merge commits are exempt. Setup (once per clone): git config core.hooksPath .githooks
+
+msg_file="$1"
+# Any merge, default or custom message, conflicted or not: git writes MERGE_HEAD before this runs.
+git_dir=$(git rev-parse --git-dir)
+[ -f "$git_dir/MERGE_HEAD" ] && exit 0
+
+body=$(grep -v '^#' "$msg_file")
+
+rust_lines=$(printf '%s\n' "$body" | grep -c '^Rust:')
+valid=$(printf '%s\n' "$body" | grep -cE '^Rust: (ported|n/a\. +[^[:space:]].*)[[:space:]]*$')
+[ "$rust_lines" -eq 1 ] && [ "$valid" -eq 1 ] && exit 0
+
+{
+    echo "commit-msg: the message needs exactly one of these lines:"
+    echo "    Rust: ported"
+    echo "    Rust: n/a. <why it does not apply to desktopRust>"
+    if printf '%s\n' "$body" | grep -qiE '^Rust: *todo'; then
+        echo "\"Rust: todo\" is not accepted: port it in this branch, or explain why it does not apply."
+    elif [ "$rust_lines" -gt 1 ]; then
+        echo "Found $rust_lines \"Rust:\" lines; keep one."
+    elif [ "$rust_lines" -eq 1 ]; then
+        echo "Found: $(printf '%s\n' "$body" | grep '^Rust:')"
+    fi
+} >&2
+exit 1

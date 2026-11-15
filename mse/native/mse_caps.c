@@ -28,6 +28,10 @@
 #define MAX_CODECS 4
 #define SW_MAX_W 8192
 #define SW_MAX_H 4352
+/* AV1 in software only up to SD, as YouTube's "Prefer AV1 for SD": above it the same video comes as
+   VP9/H.264, on the GPU where there is one, at a fraction of libdav1d's CPU. */
+#define SW_AV1_MAX_W 854
+#define SW_AV1_MAX_H 480
 #define SW_MAX_THREADS 16
 
 enum { ST_EMPTY, ST_BUILDING, ST_READY };
@@ -137,14 +141,16 @@ static int cpu_threads(void)
 
 static int add_sw(MseCapRow *r, int cap, int n, int codec, int bits, int chroma, double px_per_s)
 {
+    int w = codec == MSE_CAP_AV1 ? SW_AV1_MAX_W : SW_MAX_W;
+    int h = codec == MSE_CAP_AV1 ? SW_AV1_MAX_H : SW_MAX_H;
     if (n >= cap)
         return n;
     r[n].codec = codec;
     r[n].max_bits = bits;
     r[n].chroma = chroma;
-    r[n].max_w = SW_MAX_W;
-    r[n].max_h = SW_MAX_H;
-    r[n].max_fps = px_per_s / ((double)SW_MAX_W * SW_MAX_H);
+    r[n].max_w = w;
+    r[n].max_h = h;
+    r[n].max_fps = px_per_s / ((double)w * h);
     r[n].hw = 0;
     return n + 1;
 }

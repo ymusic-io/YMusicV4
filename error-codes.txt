@@ -50,7 +50,7 @@ E20084 D player/stop before Application.create (engine-js logic/player/boot.ts)
 E20085 D player/setQuality missing quality, before create, or no setPlaybackQualityRange (engine-js logic/player/boot.ts)
 E20086 D player/caption busy (engine-js logic/player/captions.ts)
 E20087 D player/playerResponse: /player or its decoded SABR URL not captured in time (engine-js logic/player/player_res.ts)
-E20088 D googlevideo answered StreamProtectionStatus=3 (PO token rejected) to the session's minted token; bg-session dump attached (engine-js logic/player/bg_dump.ts)
+E20088 D googlevideo answered StreamProtectionStatus=3 (PO token rejected) to the session's minted token; bg-session dump attached unless remote enable_bg_dump turns it off (engine-js logic/player/bg_dump.ts)
 E20089 D listen/player/status busy (engine-js logic/player/push.ts)
 E20090 D listen/player/catalog busy (engine-js logic/player/push.ts)
 E20091 D player/preload missing videoId (engine-js logic/player.ts)
@@ -101,6 +101,7 @@ E20161 D subscribing/unsubscribing from a channel row menu failed with an uncode
 E20162 D player/setAudioTrack: the video has no audio track with the requested id, or base.js lacks setAudioTrack (engine-js logic/player/boot.ts)
 E20163 D player/setAudioTrack called without an id (engine-js logic/player.ts)
 E20164 D player/setAudioTrack before Application.create (no movie_player) (engine-js logic/player/boot.ts)
+E20165 D a PO token re-mint ran before the player session's first mint left anything to re-mint from (engine-js logic/player/pot.ts remint)
 E24242 - (example) dynamic-engine HostCommandTest fixture
 E29999 - (example) EngineErrorDecodeTest / HOST_PROTOCOLS.md fixture
 
@@ -158,6 +159,7 @@ E70050 D googlevideo rejected the download's PO token again after a re-attest (d
 E70051 D SABR withheld media while attestation stayed pending (StreamProtectionStatus=2) (download YtStreamDownloader.sabrFailure)
 E70052 D googlevideo answered a SABR error part (UMP 44) to a download (download YtStreamDownloader.sabrFailure)
 E70053 D a SABR download failed with an otherwise uncoded error (download YtStreamDownloader.sabrFailure)
+E70054 D googlevideo withheld media from or rejected a download (StreamProtectionStatus 2/3) while it accepts the player's PO token: the download's own SABR requests are at fault (download YtStreamDownloader.specOnNewToken)
 E70060 D could not create the download scratch directory, volume not full (download DefaultDownloadScratch)
 E70070 D renaming a completed download's file failed with an uncoded error (commonUi DownloadsScreen.kt RenameDownloadDialog)
 E70071 D reading a completed download's file name for Rename failed with an uncoded error (commonUi DownloadsScreen.kt RenameDownloadDialog)

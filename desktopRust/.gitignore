@@ -1,0 +1,7 @@
+/target
+.DS_Store
+.idea
+.claude
+log*.txt
+# The old per-workspace secrets file (release keys): never tracked; the build reads YMusicV4's secrets.properties.
+secret.properties

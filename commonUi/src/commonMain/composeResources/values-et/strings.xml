@@ -658,4 +658,6 @@
     <string name="native_blocked">Windows blokeeris osa YMusicust.</string>
     <string name="media_engine_unavailable">Muusikat ja videoid ei saa siin esitada, kuid saate endiselt sirvida ja otsida.</string>
     <string name="native_blocked_help">Töö- või koolisarvutis paluge administraatoril YMusic lubada. Oma arvutis kontrollige Smart App Controli jaotises Windowsi turve.</string>
+    <!-- A feed reloading in place (desktop) -->
+    <string name="a11y_refreshing">Värskendamine</string>
 </resources>

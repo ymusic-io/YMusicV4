@@ -1,0 +1,6 @@
+[env]
+# The YMusicV4 checkout this workspace sits in: its C sources (quickjs, mse) and engine-js bundle.
+YMUSIC_V4_DIR = { value = "..", relative = true, force = false }
+# The ffmpeg-build checkout whose out/<os>-<arch> holds the libav this workspace links and the ffmpeg
+# it packs.
+FFMPEG_BUILD_DIR = { value = "../../ffmpeg-build", relative = true, force = false }

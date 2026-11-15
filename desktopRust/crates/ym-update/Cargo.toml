@@ -1,0 +1,21 @@
+[package]
+name = "ym-update"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+ym-common = { path = "../ym-common" }
+ym-remote-config = { path = "../ym-remote-config" }
+reqwest.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+sha2 = "0.11"
+hex = "0.4"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+libc = "0.2"
+
+[lints]
+workspace = true

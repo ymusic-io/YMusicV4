@@ -35,11 +35,11 @@ ID3D11DeviceContext *mse_d3d11_context(void);
 void mse_d3d11_lock(void);
 void mse_d3d11_unlock(void);
 /* 1 once the device was removed or reset (TDR, driver update): no new D3D11 decoders or
-   swapchains for the rest of the process. Recreating the device is not supported. */
+   swapchains on it for the rest of the process. Recreating the device is not supported. */
 int mse_d3d11_lost(void);
 /* Asks the device (GetDeviceRemovedReason); the first removal seen logs it once, latches
-   mse_d3d11_lost and drops every swapchain (each D3D11 presenter turns CPU). Returns
-   mse_d3d11_lost(). */
+   mse_d3d11_lost and drops every swapchain (each HWND D3D11 presenter turns CPU, a composition
+   one moves to a device of its own). Returns mse_d3d11_lost(). */
 int mse_d3d11_check_lost(void);
 
 /* Fresh AVBufferRef wrapping the shared d3d11va hwdevice; NULL = no device.

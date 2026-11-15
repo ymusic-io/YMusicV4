@@ -658,4 +658,6 @@
     <string name="native_blocked">Windows het 'n deel van YMusic geblokkeer.</string>
     <string name="media_engine_unavailable">Musiek en video's kan nie hier speel nie, maar jy kan steeds blaai en soek.</string>
     <string name="native_blocked_help">Op 'n werk- of skoolrekenaar, vra jou administrateur om YMusic toe te laat. Op jou eie rekenaar, gaan Smart App Control in Windows Security na.</string>
+    <!-- A feed reloading in place (desktop) -->
+    <string name="a11y_refreshing">Verfris tans</string>
 </resources>

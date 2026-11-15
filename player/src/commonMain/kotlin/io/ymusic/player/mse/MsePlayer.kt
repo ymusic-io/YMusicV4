@@ -7,6 +7,7 @@ import io.ymusic.dynamicengine.JsSourceProvider
 import io.ymusic.dynamicengine.SignedBundleRef
 import io.ymusic.dynamicengine.VerifiedBundle
 import io.ymusic.dynamicengine.embeddedPlayerJsSource
+import io.ymusic.dynamicengine.player.ContentPoRemint
 import io.ymusic.dynamicengine.player.DynamicEnginePlayer
 import io.ymusic.mse.MseVideoSurface
 import io.ymusic.player.AudioSessionSource
@@ -396,6 +397,9 @@ class MsePlayer internal constructor(
     override suspend fun requestPoToken(videoId: String): String =
         readyPlayer().mintContentPoToken(videoId, log)
 
+    override suspend fun remintPoToken(videoId: String): ContentPoRemint =
+        readyPlayer().remintContentPoToken(videoId, log)
+
     override fun pcmLevels(out: FloatArray): Int =
         if (!hostLive() || out.isEmpty()) 0 else videoSurface.pcmLevels(out)
 
@@ -779,6 +783,8 @@ class MsePlayer internal constructor(
         } else if (videoId != loadedVideoId) {
             return
         }
+        // A failed video has no play-head until the next load resets the engine (see applyState).
+        if (_status.value.state is PlaybackState.Error) return
         val durationMs = json.longOrNull("duration") ?: json.longOrNull("durationMs") ?: 0L
         val seekableStartMs = json.longOrNull("seekableStartMs") ?: 0L
         val seekableEndMs = json.longOrNull("seekableEndMs") ?: 0L
@@ -819,6 +825,8 @@ class MsePlayer internal constructor(
         if (state is PlaybackState.Error) {
             loadTimeoutJob?.cancel()
             loadTimeoutJob = null
+            // Its last progress (an unplayable recording's length, say) must not stay up.
+            _progress.value = Progress()
         }
         _status.update { it.copy(state = state, live = live) }
     }

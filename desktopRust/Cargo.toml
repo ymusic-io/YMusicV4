@@ -1,0 +1,41 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+exclude = ["vendor"]
+
+[workspace.package]
+edition = "2024"
+license = "GPL-3.0"
+publish = false
+
+[workspace.dependencies]
+gpui-kit = "=0.9.1"
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "sync", "time", "macros", "fs", "io-util"] }
+thiserror = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+reqwest = { version = "0.13", default-features = false, features = ["rustls", "http2", "gzip", "stream", "charset", "system-proxy"] }
+bytes = "1"
+futures = "0.3"
+url = "2"
+rusqlite = { version = "0.41", features = ["bundled"] }
+
+[patch.crates-io]
+gpui-pre = { path = "vendor/gpui-pre" }
+gpui-pre-wgpu = { path = "vendor/gpui-pre-wgpu" }
+gpui-pre-windows = { path = "vendor/gpui-pre-windows" }
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+undocumented_unsafe_blocks = "warn"
+
+# gpui's layout and painting run every frame; unoptimized they lag on each mouse move.
+[profile.dev.package."*"]
+opt-level = 2
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+# Symbols stay: Sentry names panic frames from them in-process. The packaging scripts add line
+# tables and keep them apart for the Sentry upload (macOS dSYM, Linux unstripped binary).
+strip = "debuginfo"

@@ -3,6 +3,7 @@
 
 import { callHost } from "../../protocol/command";
 import { keepCount, scopedCache } from "../../protocol/cache";
+import { RemoteConfig } from "../../protocol/remote_config";
 import { open } from "../../transport";
 import { DESKTOP_UA } from "../yt/session";
 import { onShutdown } from "../../lifecycle";
@@ -10,6 +11,8 @@ import { onShutdown } from "../../lifecycle";
 const SCOPE = "yt.bg.session";
 const KEEP = 4;
 let dump: Pipe | null = null;
+/** Off until the minter reads the switch; when off, E20088 still goes, without the dump. */
+let dumpEnabled = false;
 let writeChain: Promise<void> = Promise.resolve();
 /** Shutdown acks on this and the runtime is freed right after: work not on it dies mid-flight. */
 let finishing: Promise<void> = Promise.resolve();
@@ -55,6 +58,7 @@ function abandon(pipe: Pipe, e: unknown, what: string): void {
 }
 
 function ensureDump(): Pipe | null {
+  if (!dumpEnabled) return null;
   if (dump) return dump;
   sessionKey = utcStamp();
   try {
@@ -144,12 +148,12 @@ onShutdown(function () {
 
 function captureReject(sps: number, key: string): Promise<void> {
   return callHost("log/capture", async function (pipe) {
-    let p = pipe.sink.writeObjectAsJson({
-      "code": "E20088",
-      "message": "PO rejected sps=" + sps,
-      "scope": SCOPE,
-      "key": key,
-    });
+    const head: Record<string, unknown> = { "code": "E20088", "message": "PO rejected sps=" + sps };
+    if (key) {
+      head["scope"] = SCOPE;
+      head["key"] = key;
+    }
+    let p = pipe.sink.writeObjectAsJson(head);
     if (p) await p;
     p = pipe.sink.close();
     if (p) await p;
@@ -169,8 +173,14 @@ function timeOriginMs(): number {
   return typeof n === "number" ? n : 0;
 }
 
+/** Remote `enable_bg_dump`: false = off, a number N = only player.js revisions >= N, else on. */
+export async function readBotguardDumpSwitch(): Promise<void> {
+  const value = await RemoteConfig.get<boolean | number>("enable_bg_dump", true);
+  dumpEnabled = typeof value === "number" ? BACKEND_VERSION >= value : value !== false;
+}
+
 export function recordBotguardEntropy(): void {
-  if (typeof __bgEntropyDump !== "function") return;
+  if (!dumpEnabled || typeof __bgEntropyDump !== "function") return;
   const ent = __bgEntropyDump();
   if (!(ent instanceof Uint8Array) || !ent.length) return;
   const pipe = ensureDump();
@@ -271,29 +281,108 @@ let poRejectedHook: (() => void) | null = null;
 /** Same limit as the download's SabrSession.maxConsecutiveEmptyRounds. */
 const MAX_WITHHELD_ROUNDS = 3;
 
-/** Called on StreamProtectionStatus 3 (googlevideo rejected this session's PO token), or when
- *  googlevideo keeps withholding media while attestation stays pending (2). */
+/** Called when googlevideo keeps rejecting this session's PO token (StreamProtectionStatus 3) or
+ *  withholding media while attestation stays pending (2), once the session's re-mints are spent. */
 export function setPoRejectedHook(hook: (() => void) | null): void {
   poRejectedHook = hook;
 }
 
+let remintHook: (() => Promise<void>) | null = null;
+let remints = 0;
+let remintRun: Promise<boolean> | null = null;
+let roundsSinceRemint = 0;
+let tokenAccepted = false;
+const MAX_REMINTS = 3;
+/** Withheld rounds a re-minted token gets before the next re-roll: its verdict can lag a round. */
+const ROUNDS_BEFORE_NEXT_REMINT = 2;
+
+/** Re-mints the session's content token when googlevideo withholds media (sps=2, no media) or
+ *  rejects the token (sps=3); installed per minter, so the counts start over with each player session. */
+export function setRemintHook(hook: (() => Promise<void>) | null): void {
+  remintHook = hook;
+  remints = 0;
+  remintRun = null;
+  roundsSinceRemint = 0;
+  tokenAccepted = false;
+}
+
+/** One re-mint out of the session's [MAX_REMINTS]; null when none is left. Resolves false when
+ *  it failed. */
+function runRemint(reason: string): Promise<boolean> | null {
+  const hook = remintHook;
+  if (!hook || remints >= MAX_REMINTS) return null;
+  remints++;
+  console.info("bg remint try=" + remints + " " + reason);
+  const run = hook()
+    .then(
+      function () {
+        tokenAccepted = false;
+        roundsSinceRemint = 0;
+        withheldRounds = 0;
+        return true;
+      },
+      function (e: unknown) {
+        roundsSinceRemint = ROUNDS_BEFORE_NEXT_REMINT;
+        console.warn("bg remint failed: " + (e instanceof Error ? e.message : String(e)));
+        return false;
+      },
+    )
+    .then(function (ok) {
+      remintRun = null;
+      return ok;
+    });
+  remintRun = run;
+  return run;
+}
+
+function startRemint(): void {
+  if (remintRun) return;
+  if (remints > 0 && roundsSinceRemint < ROUNDS_BEFORE_NEXT_REMINT) return;
+  runRemint("after " + withheldRounds + " withheld rounds");
+}
+
+/**
+ * A download's request for a new content token. "accepted": the player's current token plays
+ * (googlevideo answered it sps=1), so the VM is left alone and the download's own requests are at
+ * fault. "spent": no re-mint left, or it failed. A re-mint already running for playback is shared.
+ */
+export async function remintForDownload(): Promise<string> {
+  if (tokenAccepted) return "accepted";
+  const run = remintRun || runRemint("for a download");
+  if (!run) return "spent";
+  return (await run) ? "reminted" : "spent";
+}
+
 export function noteSps(sps: number, media: number): void {
+  if (sps === 1) tokenAccepted = true;
   if (media > 0 || sps === 1) withheldRounds = 0;
-  else if (sps === 2) withheldRounds++;
+  else if (sps === 2) {
+    withheldRounds++;
+    roundsSinceRemint++;
+    startRemint();
+  }
+  if (sps === 3) {
+    roundsSinceRemint++;
+    startRemint();
+  }
   if (!(sps > 0)) return;
   if (loggedSps !== sps) {
     loggedSps = sps;
     console.info("bg sps=" + sps);
   }
-  if (sps === 3 || withheldRounds > MAX_WITHHELD_ROUNDS) {
+  const remintLeft = remintRun !== null || (remintHook !== null && remints < MAX_REMINTS);
+  // A verdict can lag a round: the last re-minted token is judged before the session ends.
+  const lastTokenJudged = remints === 0 || roundsSinceRemint >= ROUNDS_BEFORE_NEXT_REMINT;
+  if ((sps === 3 || withheldRounds > MAX_WITHHELD_ROUNDS) && !remintLeft && lastTokenJudged) {
     if (sps === 2) console.warn("bg sps=2 withheld media for " + withheldRounds + " rounds");
     withheldRounds = 0;
     if (poRejectedHook) poRejectedHook();
   }
   if (dumpFinished) return;
   if (typeof __bgEntropyStop === "function") __bgEntropyStop();
-  // 2 = attestation pending, not a verdict: googlevideo follows up with 1 (ok) or 3 (rejected).
-  if (sps === 2) return;
+  // 2 with media is attestation pending, not a verdict yet. 2 without media is this mint failing:
+  // the dump closes on it, before a re-mint's token is judged in its place.
+  if (sps === 2 && media > 0) return;
   dumpFinished = true;
   if (sps !== 1) {
     const url = lastSabrUrl;
@@ -333,7 +422,7 @@ export function noteSps(sps: number, media: number): void {
     finishDump();
   } else {
     // The report waits on the put, and a later mint or entropy read opens the next session's dump.
-    const key = sessionKey;
+    const key = dumpEnabled ? sessionKey : "";
     finishDump(function () {
       return captureReject(sps, key);
     });

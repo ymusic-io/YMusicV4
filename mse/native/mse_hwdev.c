@@ -12,13 +12,21 @@
 #include "mse_ffmpeg.h"
 
 #define MAX_FAILED 8
+#define MAX_ROWS 8
 
 static pthread_once_t g_once = PTHREAD_ONCE_INIT;
+
+static pthread_mutex_t g_mu = PTHREAD_MUTEX_INITIALIZER;
+/* g_mu */
 static AVBufferRef *g_dev;
 static enum AVPixelFormat g_pix = AV_PIX_FMT_NONE;
 static const char *g_name = "none";
-
-static pthread_mutex_t g_mu = PTHREAD_MUTEX_INITIALIZER;
+/* The renderer picked the device (mse_hwdev_adopt): the process opens none of its own. */
+static int g_adopted;
+static uint32_t g_vk_ops;
+static uint64_t g_generation;
+static int g_mask_known;
+static unsigned g_mask;
 static enum AVCodecID g_failed[MAX_FAILED];
 static int g_failed_n;
 
@@ -34,19 +42,33 @@ static void hwdev_init(void)
     };
     const char *want = getenv("YMUSIC_HWDEC");
     size_t i;
+    int adopted;
+    pthread_mutex_lock(&g_mu);
+    adopted = g_adopted;
+    pthread_mutex_unlock(&g_mu);
+    if (adopted)
+        return;
     if (want && strcmp(want, "none") == 0) {
         mse_critf(MSE_LOG_INFO, "hwdec off (YMUSIC_HWDEC=none)");
         return;
     }
     for (i = 0; i < sizeof(kinds) / sizeof(kinds[0]); i++) {
+        AVBufferRef *dev = NULL;
         int err;
         if (want && *want && strcmp(want, kinds[i].name) != 0)
             continue;
-        err = av_hwdevice_ctx_create(&g_dev, kinds[i].type, NULL, NULL, 0);
+        err = av_hwdevice_ctx_create(&dev, kinds[i].type, NULL, NULL, 0);
         if (err >= 0) {
-            g_pix = kinds[i].pix;
-            g_name = kinds[i].name;
-            mse_critf(MSE_LOG_INFO, "hwdec device %s", g_name);
+            pthread_mutex_lock(&g_mu);
+            if (!g_adopted) {
+                g_dev = dev;
+                dev = NULL;
+                g_pix = kinds[i].pix;
+                g_name = kinds[i].name;
+            }
+            pthread_mutex_unlock(&g_mu);
+            av_buffer_unref(&dev);
+            mse_critf(MSE_LOG_INFO, "hwdec device %s", kinds[i].name);
             return;
         }
         mse_critf(MSE_LOG_INFO, "hwdec %s unavailable (%s)", kinds[i].name, av_err2str(err));
@@ -54,28 +76,125 @@ static void hwdev_init(void)
     mse_critf(MSE_LOG_INFO, "hwdec none: software decode");
 }
 
+void mse_hwdev_adopt(AVBufferRef *dev, uint32_t decode_ops, uint64_t generation)
+{
+    AVBufferRef *old;
+    pthread_mutex_lock(&g_mu);
+    old = g_dev;
+    g_dev = dev;
+    g_pix = dev ? AV_PIX_FMT_VULKAN : AV_PIX_FMT_NONE;
+    g_name = dev ? "vulkan" : "none";
+    g_adopted = 1;
+    g_vk_ops = dev ? decode_ops : 0;
+    g_generation = dev ? generation : 0;
+    g_mask_known = 0;
+    g_failed_n = 0;
+    pthread_mutex_unlock(&g_mu);
+    av_buffer_unref(&old);
+    if (dev)
+        mse_critf(MSE_LOG_INFO, "hwdec device vulkan: the renderer's (decode ops 0x%x)", decode_ops);
+    else
+        mse_critf(MSE_LOG_INFO, "hwdec none: the renderer shares no decode device");
+}
+
+uint64_t mse_hwdev_shared_generation(void)
+{
+    uint64_t generation;
+    pthread_mutex_lock(&g_mu);
+    generation = g_generation;
+    pthread_mutex_unlock(&g_mu);
+    return generation;
+}
+
+AVBufferRef *mse_hwdev_ref(void)
+{
+    AVBufferRef *dev;
+    pthread_once(&g_once, hwdev_init);
+    pthread_mutex_lock(&g_mu);
+    dev = g_dev ? av_buffer_ref(g_dev) : NULL;
+    pthread_mutex_unlock(&g_mu);
+    return dev;
+}
+
 AVBufferRef *mse_hwdev_get(void)
 {
+    AVBufferRef *dev;
     pthread_once(&g_once, hwdev_init);
-    return g_dev;
+    pthread_mutex_lock(&g_mu);
+    dev = g_dev;
+    pthread_mutex_unlock(&g_mu);
+    return dev;
 }
 
 enum AVPixelFormat mse_hwdev_pix_fmt(void)
 {
+    enum AVPixelFormat pix;
     pthread_once(&g_once, hwdev_init);
-    return g_pix;
+    pthread_mutex_lock(&g_mu);
+    pix = g_pix;
+    pthread_mutex_unlock(&g_mu);
+    return pix;
 }
 
 const char *mse_hwdev_name(void)
 {
+    const char *name;
     pthread_once(&g_once, hwdev_init);
-    return g_name;
+    pthread_mutex_lock(&g_mu);
+    name = g_name;
+    pthread_mutex_unlock(&g_mu);
+    return name;
+}
+
+static int cap_of(enum AVCodecID id)
+{
+    switch (id) {
+    case AV_CODEC_ID_H264:
+        return MSE_CAP_H264;
+    case AV_CODEC_ID_HEVC:
+        return MSE_CAP_HEVC;
+    case AV_CODEC_ID_VP8:
+        return MSE_CAP_VP8;
+    case AV_CODEC_ID_VP9:
+        return MSE_CAP_VP9;
+    case AV_CODEC_ID_AV1:
+        return MSE_CAP_AV1;
+    default:
+        return 0;
+    }
+}
+
+/* Bit per MSE_CAP_* codec with a hardware caps row on the current device. */
+static unsigned hw_mask(void)
+{
+    MseCapRow rows[MAX_ROWS];
+    const AVBufferRef *seen;
+    unsigned mask;
+    int known, i, n;
+    pthread_mutex_lock(&g_mu);
+    known = g_mask_known;
+    mask = g_mask;
+    seen = g_dev;
+    pthread_mutex_unlock(&g_mu);
+    if (known)
+        return mask;
+    n = mse_hwdev_caps(rows, MAX_ROWS);
+    mask = 0;
+    for (i = 0; i < n; i++)
+        mask |= 1u << rows[i].codec;
+    pthread_mutex_lock(&g_mu);
+    if (g_dev == seen) {
+        g_mask = mask;
+        g_mask_known = 1;
+    }
+    pthread_mutex_unlock(&g_mu);
+    return mask;
 }
 
 int mse_hwdev_usable(enum AVCodecID id)
 {
-    int i, ok;
-    if (!mse_hwdev_get())
+    int i, ok, cap = cap_of(id);
+    if (!mse_hwdev_get() || !cap || !(hw_mask() & (1u << cap)))
         return 0;
     pthread_mutex_lock(&g_mu);
     ok = 1;
@@ -100,7 +219,7 @@ void mse_hwdev_mark_failed(enum AVCodecID id)
     if (g_failed_n < MAX_FAILED)
         g_failed[g_failed_n++] = id;
     pthread_mutex_unlock(&g_mu);
-    mse_critf(MSE_LOG_WARN, "hwdec %s rejected codec %s: software from now on", g_name,
+    mse_critf(MSE_LOG_WARN, "hwdec %s rejected codec %s: software from now on", mse_hwdev_name(),
               avcodec_get_name(id));
 }
 
@@ -108,8 +227,9 @@ enum AVPixelFormat mse_hwdev_get_format(AVCodecContext *ctx, const enum AVPixelF
 {
     const enum AVPixelFormat *p;
     if (mse_hwdev_usable(ctx->codec_id)) {
+        enum AVPixelFormat pix = mse_hwdev_pix_fmt();
         for (p = fmts; *p != AV_PIX_FMT_NONE; p++) {
-            if (*p == g_pix)
+            if (*p == pix)
                 return *p;
         }
         /* libavcodec re-offers the list without the device format after its hwaccel init failed. */
@@ -171,11 +291,12 @@ static const struct {
     const char *decoder;
     int cuvid;
     const char *vk_ext;
+    uint32_t vk_op;
 } k_hw_codecs[] = {
-    { MSE_CAP_H264, "h264", 4, "VK_KHR_video_decode_h264" },
-    { MSE_CAP_HEVC, "hevc", 8, "VK_KHR_video_decode_h265" },
-    { MSE_CAP_VP9, "vp9", 10, "VK_KHR_video_decode_vp9" },
-    { MSE_CAP_AV1, "av1", 11, "VK_KHR_video_decode_av1" },
+    { MSE_CAP_H264, "h264", 4, "VK_KHR_video_decode_h264", 0x1 },
+    { MSE_CAP_HEVC, "hevc", 8, "VK_KHR_video_decode_h265", 0x2 },
+    { MSE_CAP_VP9, "vp9", 10, "VK_KHR_video_decode_vp9", 0x8 },
+    { MSE_CAP_AV1, "av1", 11, "VK_KHR_video_decode_av1", 0x4 },
 };
 
 static int has_hwaccel(const char *decoder, enum AVHWDeviceType type)
@@ -190,12 +311,34 @@ static int has_hwaccel(const char *decoder, enum AVHWDeviceType type)
     return 0;
 }
 
-static int cuda_caps(MseCapRow *rows, int cap)
+static void vulkan_row(MseCapRow *row, int codec)
+{
+    row->codec = codec;
+    row->max_bits = 8;
+    row->chroma = MSE_CAP_420;
+    row->max_w = 4096;
+    row->max_h = 2304;
+    row->max_fps = 0;
+    row->hw = 1;
+}
+
+static int shared_caps(uint32_t ops, MseCapRow *rows, int cap)
+{
+    size_t k;
+    int n = 0;
+    for (k = 0; k < sizeof(k_hw_codecs) / sizeof(k_hw_codecs[0]) && n < cap; k++) {
+        if ((ops & k_hw_codecs[k].vk_op) && has_hwaccel(k_hw_codecs[k].decoder, AV_HWDEVICE_TYPE_VULKAN))
+            vulkan_row(&rows[n++], k_hw_codecs[k].cap);
+    }
+    return n;
+}
+
+static int cuda_caps(AVBufferRef *dev, MseCapRow *rows, int cap)
 {
     void *cuda = dlopen("libcuda.so.1", RTLD_NOW | RTLD_LOCAL);
     void *cuvid = dlopen("libnvcuvid.so.1", RTLD_NOW | RTLD_LOCAL);
     /* AVCUDADeviceContext.cuda_ctx is its first member. */
-    void *ctx = *(void **)((AVHWDeviceContext *)g_dev->data)->hwctx;
+    void *ctx = *(void **)((AVHWDeviceContext *)dev->data)->hwctx;
     CuCtxPushFn push = NULL;
     CuCtxPopFn pop = NULL;
     CuvidGetDecoderCapsFn get_caps = NULL;
@@ -266,9 +409,9 @@ out:
     return n;
 }
 
-static int vulkan_caps(MseCapRow *rows, int cap)
+static int vulkan_caps(AVBufferRef *dev, MseCapRow *rows, int cap)
 {
-    const VkDeviceHead *d = (const VkDeviceHead *)((AVHWDeviceContext *)g_dev->data)->hwctx;
+    const VkDeviceHead *d = (const VkDeviceHead *)((AVHWDeviceContext *)dev->data)->hwctx;
     VkEnumDeviceExtFn en = (VkEnumDeviceExtFn)d->get_proc_addr(d->inst,
                                                                "vkEnumerateDeviceExtensionProperties");
     VkExtProps *ext;
@@ -300,14 +443,7 @@ static int vulkan_caps(MseCapRow *rows, int cap)
         for (i = 0; i < count; i++) {
             if (strncmp(ext[i].name, k_hw_codecs[k].vk_ext, sizeof(ext[i].name)) != 0)
                 continue;
-            rows[n].codec = k_hw_codecs[k].cap;
-            rows[n].max_bits = 8;
-            rows[n].chroma = MSE_CAP_420;
-            rows[n].max_w = 4096;
-            rows[n].max_h = 2304;
-            rows[n].max_fps = 0;
-            rows[n].hw = 1;
-            n++;
+            vulkan_row(&rows[n++], k_hw_codecs[k].cap);
             break;
         }
     }
@@ -317,11 +453,25 @@ static int vulkan_caps(MseCapRow *rows, int cap)
 
 int mse_hwdev_caps(MseCapRow *rows, int cap)
 {
-    if (!mse_hwdev_get())
+    AVBufferRef *dev;
+    enum AVPixelFormat pix;
+    uint32_t ops;
+    int adopted, n = 0;
+    pthread_once(&g_once, hwdev_init);
+    pthread_mutex_lock(&g_mu);
+    dev = g_dev ? av_buffer_ref(g_dev) : NULL;
+    pix = g_pix;
+    ops = g_vk_ops;
+    adopted = g_adopted;
+    pthread_mutex_unlock(&g_mu);
+    if (!dev)
         return 0;
-    if (g_pix == AV_PIX_FMT_CUDA)
-        return cuda_caps(rows, cap);
-    if (g_pix == AV_PIX_FMT_VULKAN)
-        return vulkan_caps(rows, cap);
-    return 0;
+    if (adopted)
+        n = shared_caps(ops, rows, cap);
+    else if (pix == AV_PIX_FMT_CUDA)
+        n = cuda_caps(dev, rows, cap);
+    else if (pix == AV_PIX_FMT_VULKAN)
+        n = vulkan_caps(dev, rows, cap);
+    av_buffer_unref(&dev);
+    return n;
 }

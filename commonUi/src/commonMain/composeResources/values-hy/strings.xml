@@ -658,4 +658,6 @@
     <string name="native_blocked">Windows-ն արգելափակել է YMusic-ի մի մասը։</string>
     <string name="media_engine_unavailable">Երաժշտությունն ու տեսանյութերն այստեղ չեն կարող նվագարկվել, բայց դուք դեռ կարող եք դիտել և որոնել։</string>
     <string name="native_blocked_help">Աշխատանքային կամ դպրոցական համակարգչում խնդրեք ադմինիստրատորին թույլատրել YMusic-ը։ Ձեր համակարգչում ստուգեք Smart App Control-ը Windows Security-ում։</string>
+    <!-- A feed reloading in place (desktop) -->
+    <string name="a11y_refreshing">Թարմացվում է</string>
 </resources>

@@ -279,11 +279,12 @@ class UpdateService internal constructor(
     }
 
     /**
-     * Run the downloaded installer. True: the new version is starting and the caller must exit
+     * Run the downloaded installer. [beforeRelaunch] runs once the install is certain to go ahead,
+     * before the new version can start. True: the new version is starting and the caller must exit
      * at once. False: nothing changed (not ready, or the user declined the admin prompt), and the
      * state is again whatever the config offers now.
      */
-    suspend fun install(): Boolean {
+    suspend fun install(beforeRelaunch: () -> Unit): Boolean {
         val (update, file) = synchronized(lock) {
             if (installing.value != null) return false
             val update = offer.value?.takeIf { it.trusted }?.update ?: return false
@@ -296,7 +297,7 @@ class UpdateService internal constructor(
             update to file
         }
         return try {
-            installer.install(file, update).also { started ->
+            installer.install(file, update, beforeRelaunch).also { started ->
                 if (!started) {
                     set(update.release, Step.Ready(file))
                     installing.value = null

@@ -813,4 +813,6 @@
     <string name="native_blocked">Windows blocked part of YMusic from running.</string>
     <string name="media_engine_unavailable">Music and videos can't play here, but you can still browse and search.</string>
     <string name="native_blocked_help">On a work or school PC, ask your administrator to allow YMusic. On your own PC, check Smart App Control in Windows Security.</string>
+    <!-- A feed reloading in place (desktop) -->
+    <string name="a11y_refreshing">Refreshing</string>
 </resources>

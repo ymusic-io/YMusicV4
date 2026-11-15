@@ -19,7 +19,8 @@ import { installFetch } from "../yt/fetch";
 import { executeWithCookies } from "../yt/cookies";
 import { HttpRequest } from "../../protocol/http";
 import { utf8Encode } from "../../transport";
-import { minterFromConfig } from "./pot";
+import { currentMinterId, minterFromConfig, remint } from "./pot";
+import { remintForDownload, setRemintHook } from "./bg_dump";
 import { installPlayerAdStrip } from "./skip_ads";
 import { installSabrIntercept } from "../yt/sabr_http";
 import { installAdaptiveFormatsHeader } from "../yt/sabr_af";
@@ -538,9 +539,11 @@ function baseJsHead(res: HttpResponse): string {
   );
 }
 
-async function fetchPlayerConfig(): Promise<Record<string, unknown>> {
+async function fetchPlayerConfig(
+  fresh: boolean = freshPlayerConfig,
+): Promise<Record<string, unknown>> {
   return callMain("get_player_config", async (pipe) => {
-    const w = pipe.sink.writeObjectAsJson(freshPlayerConfig ? { "maxAge": 0 } : {});
+    const w = pipe.sink.writeObjectAsJson(fresh ? { "maxAge": 0 } : {});
     if (w) await w;
     const c = pipe.sink.close();
     if (c) await c;
@@ -674,6 +677,8 @@ class Player {
   /** The live seek bar's 0, in media ms, as last reported: a bar position is relative to it. */
   private barStartMs = 0;
   private mintFn: ((id: Uint8Array) => unknown) | null = null;
+  /** The minter each download's content token came from, by videoId. */
+  private downloadMinters = new Map<string, number>();
   private configP: Promise<Record<string, unknown>> | null = null;
   private minterP: Promise<Record<string, unknown>> | null = null;
   private initP: Promise<Record<string, unknown>> | null = null;
@@ -733,6 +738,11 @@ class Player {
     const out: Record<string, unknown> = { "step": "minter" };
     applyChromeShapes();
     this.mintFn = await initStep(minterFromConfig(cfg, out), "botguard", "E20156");
+    setRemintHook(function () {
+      return remint(function () {
+        return fetchPlayerConfig(true);
+      });
+    });
     endLayoutProbes();
     const self = this;
     installCaptionMinter(function (id: string) {
@@ -1016,9 +1026,26 @@ class Player {
     return out;
   }
 
+  /** A download's one re-mint: a new content token, or why the VM was left alone. */
+  async remintPo(videoId: string): Promise<Record<string, unknown>> {
+    await withinInitDeadline(this.ensureMinter(), "po token minter");
+    const used = this.downloadMinters.get(videoId);
+    // Its token came from a minter playback has since replaced: try the current one first, for free.
+    const status =
+      used !== undefined && used < currentMinterId() ? "reminted" : await remintForDownload();
+    const result: Record<string, unknown> = { "videoId": videoId, "status": status };
+    if (status === "reminted") result["contentPoToken"] = await this.downloadToken(videoId);
+    return result;
+  }
+
+  private downloadToken(videoId: string): Promise<string> {
+    this.downloadMinters.set(videoId, currentMinterId());
+    return this.mintToken(videoId);
+  }
+
   async mintPo(videoId: string): Promise<Record<string, unknown>> {
     const minterOut = await withinInitDeadline(this.ensureMinter(), "po token minter");
-    const token = await this.mintToken(videoId);
+    const token = await this.downloadToken(videoId);
     return {
       "videoId": videoId,
       "contentPoToken": token,
@@ -1519,6 +1546,10 @@ export function setPlayerQuality(quality: string, audioOnly: boolean): void {
 
 export function mintPlayerPo(videoId: string): Promise<Record<string, unknown>> {
   return ytPlayer.mintPo(videoId);
+}
+
+export function remintPlayerPo(videoId: string): Promise<Record<string, unknown>> {
+  return ytPlayer.remintPo(videoId);
 }
 
 export function setPlayerAudioTrack(id: string): void {

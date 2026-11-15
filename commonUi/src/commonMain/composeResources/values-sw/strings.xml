@@ -658,4 +658,6 @@
     <string name="native_blocked">Windows imezuia sehemu ya YMusic.</string>
     <string name="media_engine_unavailable">Muziki na video haviwezi kuchezwa hapa, lakini bado unaweza kuvinjari na kutafuta.</string>
     <string name="native_blocked_help">Kwenye kompyuta ya kazini au shuleni, muombe msimamizi wako aruhusu YMusic. Kwenye kompyuta yako, angalia Smart App Control katika Windows Security.</string>
+    <!-- A feed reloading in place (desktop) -->
+    <string name="a11y_refreshing">Inaonyesha upya</string>
 </resources>

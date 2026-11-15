@@ -5,7 +5,7 @@
 #include "mse_ffmpeg.h"
 
 #include <d3d11.h>
-#include <dxgi1_2.h>
+#include <dxgi1_3.h>
 #include <d3dcompiler.h>
 
 #include <libavutil/frame.h>
@@ -69,21 +69,31 @@ static const char kShaderHlsl[] =
 enum { PS_NV12, PS_I420, PS_BGRA, PS_N };
 static const char *const kPsEntry[PS_N] = { "PSNV12", "PSI420", "PSBGRA" };
 
-/* Device-scoped: one process-wide device, so one pipeline. d3d11 lock. */
-static struct {
+/* Device-scoped. d3d11 lock. */
+typedef struct {
     ID3D11VertexShader *vs;
     ID3D11PixelShader *ps[PS_N];
     ID3D11SamplerState *samp;
     ID3D11Buffer *cb;
     ID3D11BlendState *blend;
     ID3D11RasterizerState *rast;
-} g_pipe;
+} D3dPipe;
+
+/* The process-wide device's pipeline. */
+static D3dPipe g_pipe;
+
+/* Composition content height: the swapchain's matrix maps every picture to it, so the content's
+   size changes only with its aspect, never with an ABR resolution switch. */
+#define COMP_HEIGHT 1080
 
 /* Swapchain state; every field under the d3d11 lock. */
 typedef struct D3dPresent {
     struct D3dPresent *next;
     VPresenter *vp;
     HWND hwnd;
+    /* A composition swapchain: no HWND, the buffers follow the picture and DComp scales them. */
+    int comp;
+    int comp_w;
     IDXGISwapChain1 *swap;
     ID3D11RenderTargetView *rtv;
     int bb_w, bb_h;
@@ -95,6 +105,13 @@ typedef struct D3dPresent {
     ID3D11Texture2D *up[3];
     ID3D11ShaderResourceView *up_srv[3];
     int up_ps, up_w, up_h;
+    /* A composition presenter past a loss of the process-wide device: a device of its own, which
+       only software pictures reach. */
+    ID3D11Device *own_dev;
+    ID3D11DeviceContext *own_ctx;
+    D3dPipe own_pipe;
+    ULONGLONG recover_at;
+    int recover_logged;
 } D3dPresent;
 
 /* Live presenters, so a device loss reaches every swapchain. d3d11 lock. */
@@ -109,6 +126,27 @@ static void present_fail(D3dPresent *d, const char *what, HRESULT hr)
     mse_critf(MSE_LOG_WARN, "d3d11 %s hr=0x%08lx", what, (unsigned long)hr);
 }
 
+static ID3D11Device *dev_of(const D3dPresent *d)
+{
+    return d->own_dev ? d->own_dev : mse_d3d11_device();
+}
+
+static ID3D11DeviceContext *ctx_of(const D3dPresent *d)
+{
+    return d->own_dev ? d->own_ctx : mse_d3d11_context();
+}
+
+static D3dPipe *pipe_of(D3dPresent *d)
+{
+    return d->own_dev ? &d->own_pipe : &g_pipe;
+}
+
+/* The device d draws with was removed. */
+static int dev_lost(const D3dPresent *d)
+{
+    return d->own_dev ? ID3D11Device_GetDeviceRemovedReason(d->own_dev) != S_OK : mse_d3d11_lost();
+}
+
 static void release_views(D3dPresent *d)
 {
     if (d->rtv) {
@@ -119,7 +157,7 @@ static void release_views(D3dPresent *d)
 
 static void unbind_rtv(D3dPresent *d)
 {
-    ID3D11DeviceContext *ctx = mse_d3d11_context();
+    ID3D11DeviceContext *ctx = ctx_of(d);
     if (ctx && d->rtv)
         ID3D11DeviceContext_OMSetRenderTargets(ctx, 0, NULL, NULL);
 }
@@ -142,7 +180,7 @@ static void release_upload(D3dPresent *d)
 
 static void release_swapchain(D3dPresent *d)
 {
-    ID3D11DeviceContext *ctx = mse_d3d11_context();
+    ID3D11DeviceContext *ctx = ctx_of(d);
     unbind_rtv(d);
     release_views(d);
     release_upload(d);
@@ -156,40 +194,41 @@ static void release_swapchain(D3dPresent *d)
         }
     }
     d->hwnd = NULL;
+    d->comp_w = 0;
     d->bb_w = d->bb_h = 0;
     d->logged_present = 0;
     d->resize_failed = 0;
     d->fail_logged = 0;
 }
 
-static void release_pipeline(void)
+static void release_pipeline(D3dPipe *pipe)
 {
     int i;
-    if (g_pipe.cb) {
-        ID3D11Buffer_Release(g_pipe.cb);
-        g_pipe.cb = NULL;
+    if (pipe->cb) {
+        ID3D11Buffer_Release(pipe->cb);
+        pipe->cb = NULL;
     }
-    if (g_pipe.samp) {
-        ID3D11SamplerState_Release(g_pipe.samp);
-        g_pipe.samp = NULL;
+    if (pipe->samp) {
+        ID3D11SamplerState_Release(pipe->samp);
+        pipe->samp = NULL;
     }
     for (i = 0; i < PS_N; i++) {
-        if (g_pipe.ps[i]) {
-            ID3D11PixelShader_Release(g_pipe.ps[i]);
-            g_pipe.ps[i] = NULL;
+        if (pipe->ps[i]) {
+            ID3D11PixelShader_Release(pipe->ps[i]);
+            pipe->ps[i] = NULL;
         }
     }
-    if (g_pipe.vs) {
-        ID3D11VertexShader_Release(g_pipe.vs);
-        g_pipe.vs = NULL;
+    if (pipe->vs) {
+        ID3D11VertexShader_Release(pipe->vs);
+        pipe->vs = NULL;
     }
-    if (g_pipe.blend) {
-        ID3D11BlendState_Release(g_pipe.blend);
-        g_pipe.blend = NULL;
+    if (pipe->blend) {
+        ID3D11BlendState_Release(pipe->blend);
+        pipe->blend = NULL;
     }
-    if (g_pipe.rast) {
-        ID3D11RasterizerState_Release(g_pipe.rast);
-        g_pipe.rast = NULL;
+    if (pipe->rast) {
+        ID3D11RasterizerState_Release(pipe->rast);
+        pipe->rast = NULL;
     }
 }
 
@@ -230,7 +269,7 @@ static ID3DBlob *compile(const char *entry, const char *target)
     return blob;
 }
 
-static int build_pipeline(ID3D11Device *dev)
+static int build_pipeline(D3dPipe *pipe, ID3D11Device *dev)
 {
     ID3DBlob *blob;
     D3D11_SAMPLER_DESC sd;
@@ -241,8 +280,7 @@ static int build_pipeline(ID3D11Device *dev)
     HRESULT hr;
     int i;
 
-    if (g_pipe.vs && g_pipe.ps[PS_N - 1] && g_pipe.samp && g_pipe.cb && g_pipe.blend &&
-        g_pipe.rast)
+    if (pipe->vs && pipe->ps[PS_N - 1] && pipe->samp && pipe->cb && pipe->blend && pipe->rast)
         return 0;
 
     blob = compile("VSMain", "vs_4_0");
@@ -250,7 +288,7 @@ static int build_pipeline(ID3D11Device *dev)
         return -1;
     what = "CreateVertexShader";
     hr = ID3D11Device_CreateVertexShader(dev, ID3D10Blob_GetBufferPointer(blob),
-                                         ID3D10Blob_GetBufferSize(blob), NULL, &g_pipe.vs);
+                                         ID3D10Blob_GetBufferSize(blob), NULL, &pipe->vs);
     ID3D10Blob_Release(blob);
     if (FAILED(hr))
         goto fail;
@@ -258,11 +296,11 @@ static int build_pipeline(ID3D11Device *dev)
     for (i = 0; i < PS_N; i++) {
         blob = compile(kPsEntry[i], "ps_4_0");
         if (!blob) {
-            release_pipeline();
+            release_pipeline(pipe);
             return -1;
         }
         hr = ID3D11Device_CreatePixelShader(dev, ID3D10Blob_GetBufferPointer(blob),
-                                            ID3D10Blob_GetBufferSize(blob), NULL, &g_pipe.ps[i]);
+                                            ID3D10Blob_GetBufferSize(blob), NULL, &pipe->ps[i]);
         ID3D10Blob_Release(blob);
         if (FAILED(hr))
             goto fail;
@@ -277,7 +315,7 @@ static int build_pipeline(ID3D11Device *dev)
     sd.MinLOD = 0;
     sd.MaxLOD = D3D11_FLOAT32_MAX;
     what = "CreateSamplerState";
-    hr = ID3D11Device_CreateSamplerState(dev, &sd, &g_pipe.samp);
+    hr = ID3D11Device_CreateSamplerState(dev, &sd, &pipe->samp);
     if (FAILED(hr))
         goto fail;
 
@@ -286,7 +324,7 @@ static int build_pipeline(ID3D11Device *dev)
     bd.Usage = D3D11_USAGE_DEFAULT;
     bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
     what = "CreateBuffer";
-    hr = ID3D11Device_CreateBuffer(dev, &bd, NULL, &g_pipe.cb);
+    hr = ID3D11Device_CreateBuffer(dev, &bd, NULL, &pipe->cb);
     if (FAILED(hr))
         goto fail;
 
@@ -294,7 +332,7 @@ static int build_pipeline(ID3D11Device *dev)
     blendDesc.RenderTarget[0].BlendEnable = FALSE;
     blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
     what = "CreateBlendState";
-    hr = ID3D11Device_CreateBlendState(dev, &blendDesc, &g_pipe.blend);
+    hr = ID3D11Device_CreateBlendState(dev, &blendDesc, &pipe->blend);
     if (FAILED(hr))
         goto fail;
 
@@ -303,7 +341,7 @@ static int build_pipeline(ID3D11Device *dev)
     rsDesc.CullMode = D3D11_CULL_NONE;
     rsDesc.DepthClipEnable = TRUE;
     what = "CreateRasterizerState";
-    hr = ID3D11Device_CreateRasterizerState(dev, &rsDesc, &g_pipe.rast);
+    hr = ID3D11Device_CreateRasterizerState(dev, &rsDesc, &pipe->rast);
     if (FAILED(hr))
         goto fail;
 
@@ -311,7 +349,7 @@ static int build_pipeline(ID3D11Device *dev)
 
 fail:
     mse_critf(MSE_LOG_WARN, "d3d11 %s hr=0x%08lx", what, (unsigned long)hr);
-    release_pipeline();
+    release_pipeline(pipe);
     return -1;
 }
 
@@ -372,6 +410,7 @@ static void draw(D3dPresent *d, ID3D11DeviceContext *ctx, int ps,
                  int src_w, int src_h, VpColor c)
 {
     ID3D11ShaderResourceView *none[3] = { NULL, NULL, NULL };
+    D3dPipe *pipe = pipe_of(d);
     D3D11_VIEWPORT vp;
     float k[16];
     int vw = d->bb_w, vh = d->bb_h;
@@ -390,7 +429,7 @@ static void draw(D3dPresent *d, ID3D11DeviceContext *ctx, int ps,
     k[2] = 0.0f;
     k[3] = 0.0f;
     yuv_rows(c, k + 4);
-    ID3D11DeviceContext_UpdateSubresource(ctx, (ID3D11Resource *)g_pipe.cb, 0, NULL, k, 0, 0);
+    ID3D11DeviceContext_UpdateSubresource(ctx, (ID3D11Resource *)pipe->cb, 0, NULL, k, 0, 0);
 
     memset(&vp, 0, sizeof(vp));
     vp.TopLeftX = (float)((d->bb_w - vw) / 2);
@@ -399,17 +438,17 @@ static void draw(D3dPresent *d, ID3D11DeviceContext *ctx, int ps,
     vp.Height = (float)vh;
     vp.MaxDepth = 1.0f;
     ID3D11DeviceContext_RSSetViewports(ctx, 1, &vp);
-    ID3D11DeviceContext_RSSetState(ctx, g_pipe.rast);
+    ID3D11DeviceContext_RSSetState(ctx, pipe->rast);
     ID3D11DeviceContext_OMSetRenderTargets(ctx, 1, &d->rtv, NULL);
-    ID3D11DeviceContext_OMSetBlendState(ctx, g_pipe.blend, NULL, 0xffffffff);
+    ID3D11DeviceContext_OMSetBlendState(ctx, pipe->blend, NULL, 0xffffffff);
     ID3D11DeviceContext_IASetPrimitiveTopology(ctx, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     ID3D11DeviceContext_IASetInputLayout(ctx, NULL);
-    ID3D11DeviceContext_VSSetShader(ctx, g_pipe.vs, NULL, 0);
-    ID3D11DeviceContext_VSSetConstantBuffers(ctx, 0, 1, &g_pipe.cb);
-    ID3D11DeviceContext_PSSetShader(ctx, g_pipe.ps[ps], NULL, 0);
-    ID3D11DeviceContext_PSSetConstantBuffers(ctx, 0, 1, &g_pipe.cb);
+    ID3D11DeviceContext_VSSetShader(ctx, pipe->vs, NULL, 0);
+    ID3D11DeviceContext_VSSetConstantBuffers(ctx, 0, 1, &pipe->cb);
+    ID3D11DeviceContext_PSSetShader(ctx, pipe->ps[ps], NULL, 0);
+    ID3D11DeviceContext_PSSetConstantBuffers(ctx, 0, 1, &pipe->cb);
     ID3D11DeviceContext_PSSetShaderResources(ctx, 0, (UINT)n, srvs);
-    ID3D11DeviceContext_PSSetSamplers(ctx, 0, 1, &g_pipe.samp);
+    ID3D11DeviceContext_PSSetSamplers(ctx, 0, 1, &pipe->samp);
     ID3D11DeviceContext_Draw(ctx, 3, 0);
 
     /* Unbind the views so a later decode into the same array slice does not fight an input
@@ -624,6 +663,110 @@ done:
     return ok ? 0 : -1;
 }
 
+static IDXGIFactory2 *device_factory(ID3D11Device *dev)
+{
+    IDXGIDevice *dxgiDev = NULL;
+    IDXGIAdapter *adapter = NULL;
+    IDXGIFactory2 *factory = NULL;
+    HRESULT hr = ID3D11Device_QueryInterface(dev, &IID_IDXGIDevice, (void **)&dxgiDev);
+    if (SUCCEEDED(hr))
+        hr = IDXGIDevice_GetAdapter(dxgiDev, &adapter);
+    if (SUCCEEDED(hr))
+        hr = IDXGIAdapter_GetParent(adapter, &IID_IDXGIFactory2, (void **)&factory);
+    if (FAILED(hr))
+        mse_critf(MSE_LOG_WARN, "d3d11 composition factory hr=0x%08lx", (unsigned long)hr);
+    if (adapter) IDXGIAdapter_Release(adapter);
+    if (dxgiDev) IDXGIDevice_Release(dxgiDev);
+    return SUCCEEDED(hr) ? factory : NULL;
+}
+
+/* Maps the w × h buffers to COMP_HEIGHT and reports the content size when its aspect changed. */
+static void comp_scale(D3dPresent *d, int w, int h)
+{
+    IDXGISwapChain2 *swap2 = NULL;
+    DXGI_MATRIX_3X2_F m;
+    int content_w = (int)(((int64_t)w * COMP_HEIGHT + h / 2) / h);
+    HRESULT hr = IDXGISwapChain1_QueryInterface(d->swap, &IID_IDXGISwapChain2, (void **)&swap2);
+    if (SUCCEEDED(hr)) {
+        memset(&m, 0, sizeof(m));
+        m._11 = (float)COMP_HEIGHT / (float)h;
+        m._22 = m._11;
+        hr = IDXGISwapChain2_SetMatrixTransform(swap2, &m);
+        IDXGISwapChain2_Release(swap2);
+    }
+    if (FAILED(hr))
+        present_fail(d, "SetMatrixTransform", hr);
+    if (content_w != d->comp_w) {
+        d->comp_w = content_w;
+        if (d->vp->sink.on_size)
+            d->vp->sink.on_size(d->vp->sink.user, content_w, COMP_HEIGHT);
+    }
+}
+
+static int create_comp_swapchain(D3dPresent *d, ID3D11Device *dev)
+{
+    IDXGIFactory2 *factory = device_factory(dev);
+    ID3D11DeviceContext *ctx = ctx_of(d);
+    DXGI_SWAP_CHAIN_DESC1 scd;
+    HRESULT hr;
+    if (!factory)
+        return -1;
+    memset(&scd, 0, sizeof(scd));
+    scd.Width = 16;
+    scd.Height = 9;
+    scd.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+    scd.SampleDesc.Count = 1;
+    scd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+    scd.BufferCount = 2;
+    scd.Scaling = DXGI_SCALING_STRETCH;
+    scd.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+    scd.AlphaMode = DXGI_ALPHA_MODE_IGNORE;
+    hr = IDXGIFactory2_CreateSwapChainForComposition(factory, (IUnknown *)dev, &scd, NULL, &d->swap);
+    if (FAILED(hr)) {
+        scd.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
+        hr = IDXGIFactory2_CreateSwapChainForComposition(factory, (IUnknown *)dev, &scd, NULL,
+                                                         &d->swap);
+    }
+    IDXGIFactory2_Release(factory);
+    if (FAILED(hr)) {
+        mse_critf(MSE_LOG_WARN, "d3d11 CreateSwapChainForComposition hr=0x%08lx", (unsigned long)hr);
+        return -1;
+    }
+    d->bb_w = (int)scd.Width;
+    d->bb_h = (int)scd.Height;
+    if (ensure_backbuffer_rtv(d, dev) != 0)
+        return -1;
+    comp_scale(d, d->bb_w, d->bb_h);
+    clear_backbuffer(d, ctx);
+    hr = IDXGISwapChain1_Present(d->swap, 0, 0);
+    if (FAILED(hr))
+        present_fail(d, "Present", hr);
+    mse_critf(MSE_LOG_INFO, "d3d11 composition swapchain %p", (void *)d->swap);
+    return 0;
+}
+
+/* Composition: the buffers become the picture's size. */
+static void resize_comp(D3dPresent *d, int w, int h)
+{
+    HRESULT hr;
+    if (w == d->bb_w && h == d->bb_h)
+        return;
+    unbind_rtv(d);
+    release_views(d);
+    hr = IDXGISwapChain1_ResizeBuffers(d->swap, 0, (UINT)w, (UINT)h, DXGI_FORMAT_UNKNOWN, 0);
+    if (FAILED(hr)) {
+        if (!d->resize_failed) {
+            d->resize_failed = 1;
+            mse_critf(MSE_LOG_WARN, "d3d11 ResizeBuffers %dx%d hr=0x%08lx", w, h, (unsigned long)hr);
+        }
+        return;
+    }
+    d->bb_w = w;
+    d->bb_h = h;
+    d->resize_failed = 0;
+    comp_scale(d, w, h);
+}
+
 /* Follows the HWND's client rect. */
 static void resize_backbuffer(D3dPresent *d)
 {
@@ -696,20 +839,72 @@ static int present_swap(D3dPresent *d, int src_w, int src_h, const char *path)
     return VP_OK;
 }
 
+static void release_own(D3dPresent *d)
+{
+    release_pipeline(&d->own_pipe);
+    if (d->own_ctx) {
+        ID3D11DeviceContext_ClearState(d->own_ctx);
+        ID3D11DeviceContext_Release(d->own_ctx);
+        d->own_ctx = NULL;
+    }
+    if (d->own_dev) {
+        ID3D11Device_Release(d->own_dev);
+        d->own_dev = NULL;
+    }
+}
+
+/* A composition presenter whose device was removed: a device of its own and a new swapchain on it,
+   handed to the sink (on_swapchain). Retried at most once a second; 0 while it fails. */
+static int comp_recover(D3dPresent *d)
+{
+    static const D3D_FEATURE_LEVEL want[] = { D3D_FEATURE_LEVEL_11_1, D3D_FEATURE_LEVEL_11_0 };
+    ID3D11Device *dev = NULL;
+    ID3D11DeviceContext *ctx = NULL;
+    ULONGLONG now = GetTickCount64();
+    HRESULT hr;
+    if (now < d->recover_at)
+        return 0;
+    d->recover_at = now + 1000;
+    release_swapchain(d);
+    release_own(d);
+    hr = D3D11CreateDevice(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, D3D11_CREATE_DEVICE_BGRA_SUPPORT,
+                           want, (UINT)(sizeof(want) / sizeof(want[0])), D3D11_SDK_VERSION, &dev,
+                           NULL, &ctx);
+    if (SUCCEEDED(hr)) {
+        d->own_dev = dev;
+        d->own_ctx = ctx;
+        if (build_pipeline(&d->own_pipe, dev) != 0 || create_comp_swapchain(d, dev) != 0)
+            hr = E_FAIL;
+    }
+    if (FAILED(hr)) {
+        if (!d->recover_logged)
+            mse_critf(MSE_LOG_WARN, "d3d11 composition recover hr=0x%08lx", (unsigned long)hr);
+        d->recover_logged = 1;
+        release_swapchain(d);
+        release_own(d);
+        return 0;
+    }
+    d->recover_logged = 0;
+    mse_critf(MSE_LOG_WARN, "d3d11 composition presenter on a new device (software pictures)");
+    if (d->vp->sink.on_swapchain) {
+        IDXGISwapChain1_AddRef(d->swap);
+        d->vp->sink.on_swapchain(d->vp->sink.user, d->swap);
+    }
+    return 1;
+}
+
 static int d3d_show(VPresenter *p, const AVFrame *f, VpColor c)
 {
     static const char *const kPath[PS_N] = { "nv12", "i420", "bgra" };
     D3dPresent *d = p->impl;
-    ID3D11Device *dev = mse_d3d11_device();
-    ID3D11DeviceContext *ctx = mse_d3d11_context();
+    ID3D11Device *dev;
+    ID3D11DeviceContext *ctx;
     ID3D11Texture2D *tex = NULL;
     D3D11_TEXTURE2D_DESC td;
     const uint8_t *bgra = NULL;
     int src_w = f->width, src_h = f->height, bw = 0, bh = 0, ps;
     int r = VP_FAIL;
 
-    if (!dev || !ctx || mse_d3d11_lost())
-        return VP_DROPPED;
     if (src_w <= 0 || src_h <= 0)
         return VP_FAIL;
     if (f->format == AV_PIX_FMT_D3D11) {
@@ -726,8 +921,8 @@ static int d3d_show(VPresenter *p, const AVFrame *f, VpColor c)
         /* Other formats convert to BGRA, at most backbuffer-sized, before the d3d11 lock. */
         int fit_w, fit_h;
         mse_d3d11_lock();
-        fit_w = d->bb_w;
-        fit_h = d->bb_h;
+        fit_w = d->comp ? 0 : d->bb_w;
+        fit_h = d->comp ? 0 : d->bb_h;
         mse_d3d11_unlock();
         if (!p->cpu)
             p->cpu = vp_cpu_create();
@@ -737,11 +932,19 @@ static int d3d_show(VPresenter *p, const AVFrame *f, VpColor c)
     }
 
     mse_d3d11_lock();
-    if (!d->swap) {
+    if (d->comp && (d->own_dev ? dev_lost(d) : (!d->swap && mse_d3d11_lost())))
+        comp_recover(d);
+    dev = dev_of(d);
+    ctx = ctx_of(d);
+    /* Decoder textures live on the process-wide device, which a recovered presenter left. */
+    if (!d->swap || !dev || !ctx || dev_lost(d) || (tex && d->own_dev)) {
         mse_d3d11_unlock();
         return VP_DROPPED;
     }
-    resize_backbuffer(d);
+    if (d->comp)
+        resize_comp(d, ps == PS_BGRA ? bw : src_w, ps == PS_BGRA ? bh : src_h);
+    else
+        resize_backbuffer(d);
     if (ensure_backbuffer_rtv(d, dev) != 0)
         goto out;
     if (tex) {
@@ -758,8 +961,11 @@ static int d3d_show(VPresenter *p, const AVFrame *f, VpColor c)
     }
     r = present_swap(d, src_w, src_h, tex ? "d3d11" : kPath[ps]);
 out:
-    if (r != VP_OK && mse_d3d11_check_lost())
+    if (r != VP_OK && (d->own_dev ? dev_lost(d) : mse_d3d11_check_lost())) {
+        if (d->own_dev)
+            comp_recover(d);
         r = VP_DROPPED;
+    }
     mse_d3d11_unlock();
     return r;
 }
@@ -767,14 +973,15 @@ out:
 static void d3d_flush(VPresenter *p)
 {
     D3dPresent *d = p->impl;
-    ID3D11Device *dev = mse_d3d11_device();
-    ID3D11DeviceContext *ctx = mse_d3d11_context();
+    ID3D11Device *dev;
+    ID3D11DeviceContext *ctx;
     HRESULT hr;
-    if (!dev || !ctx || mse_d3d11_lost())
-        return;
     mse_d3d11_lock();
-    if (d->swap) {
-        resize_backbuffer(d);
+    dev = dev_of(d);
+    ctx = ctx_of(d);
+    if (d->swap && dev && ctx && !dev_lost(d)) {
+        if (!d->comp)
+            resize_backbuffer(d);
         if (ensure_backbuffer_rtv(d, dev) == 0) {
             clear_backbuffer(d, ctx);
             hr = IDXGISwapChain1_Present(d->swap, 1, 0);
@@ -795,7 +1002,7 @@ static void d3d_detach(VPresenter *p)
 static int d3d_zero_copy(VPresenter *p, int av_pix_fmt)
 {
     (void)p;
-    return av_pix_fmt == AV_PIX_FMT_D3D11;
+    return av_pix_fmt == AV_PIX_FMT_D3D11 && !mse_d3d11_lost();
 }
 
 static void d3d_destroy(VPresenter *p)
@@ -809,6 +1016,7 @@ static void d3d_destroy(VPresenter *p)
         }
     }
     release_swapchain(d);
+    release_own(d);
     mse_d3d11_unlock();
     free(d);
 }
@@ -840,7 +1048,7 @@ VPresenter *vpresent_create_d3d11(void *hwnd, const VpSink *s)
     }
     d->vp = p;
     mse_d3d11_lock();
-    ok = build_pipeline(dev) == 0 && create_swapchain(d, dev, (HWND)hwnd) == 0;
+    ok = build_pipeline(&g_pipe, dev) == 0 && create_swapchain(d, dev, (HWND)hwnd) == 0;
     if (ok) {
         d->next = g_live;
         g_live = d;
@@ -851,6 +1059,48 @@ VPresenter *vpresent_create_d3d11(void *hwnd, const VpSink *s)
         return NULL;
     }
     return p;
+}
+
+VPresenter *vpresent_create_d3d11_composition(const VpSink *s, void **swapchain)
+{
+    ID3D11Device *dev = mse_d3d11_device();
+    D3dPresent *d;
+    VPresenter *p;
+    int ok;
+    if (!swapchain || !dev || mse_d3d11_lost())
+        return NULL;
+    d = calloc(1, sizeof(*d));
+    if (!d)
+        return NULL;
+    p = vp_alloc(&k_d3d11_ops, d, s, VP_MODE_GPU);
+    if (!p) {
+        free(d);
+        return NULL;
+    }
+    d->vp = p;
+    d->comp = 1;
+    mse_d3d11_lock();
+    ok = build_pipeline(&g_pipe, dev) == 0 && create_comp_swapchain(d, dev) == 0;
+    if (ok) {
+        d->next = g_live;
+        g_live = d;
+        IDXGISwapChain1_AddRef(d->swap);
+        *swapchain = d->swap;
+    } else {
+        release_swapchain(d);
+    }
+    mse_d3d11_unlock();
+    if (!ok) {
+        vp_discard(p);
+        return NULL;
+    }
+    return p;
+}
+
+void vpresent_d3d11_swapchain_release(void *swapchain)
+{
+    if (swapchain)
+        IDXGISwapChain1_Release((IDXGISwapChain1 *)swapchain);
 }
 
 void vpresent_d3d11_device_lost(void)
@@ -866,6 +1116,12 @@ void vpresent_d3d11_device_lost(void)
     n = 0;
     for (d = g_live; d; d = d->next) {
         release_swapchain(d);
+        /* A composition presenter has no CPU sink: it stays GPU and draws on a device of its own. */
+        if (d->comp) {
+            d->recover_at = 0;
+            comp_recover(d);
+            continue;
+        }
         if (lost && vp_retain_live(d->vp))
             lost[n++] = d->vp;
     }

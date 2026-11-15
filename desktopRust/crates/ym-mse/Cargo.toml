@@ -1,0 +1,13 @@
+[package]
+name = "ym-mse"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+links = "msehost"
+
+[build-dependencies]
+cc = "1"
+
+[lints]
+workspace = true

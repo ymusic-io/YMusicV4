@@ -650,4 +650,6 @@
     <string name="native_blocked">Windows 阻止了 YMusic 的部分组件。</string>
     <string name="media_engine_unavailable">此处无法播放音乐和视频，但你仍可以浏览和搜索。</string>
     <string name="native_blocked_help">如果是工作或学校的电脑，请让管理员允许 YMusic。如果是自己的电脑，请在 Windows 安全中心查看智能应用控制。</string>
+    <!-- A feed reloading in place (desktop) -->
+    <string name="a11y_refreshing">正在刷新</string>
 </resources>

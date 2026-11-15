@@ -666,4 +666,6 @@
     <string name="native_blocked">Windows חסמה חלק מ-YMusic.</string>
     <string name="media_engine_unavailable">לא ניתן להשמיע כאן מוזיקה וסרטונים, אבל עדיין אפשר לעיין ולחפש.</string>
     <string name="native_blocked_help">במחשב של העבודה או בית הספר, בקש ממנהל המערכת לאפשר את YMusic. במחשב שלך, בדוק את Smart App Control באבטחת Windows.</string>
+    <!-- A feed reloading in place (desktop) -->
+    <string name="a11y_refreshing">מרענן</string>
 </resources>

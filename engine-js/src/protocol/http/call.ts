@@ -126,7 +126,10 @@ export class HttpCallImpl implements HttpCall {
       const bodyCmd = "http/body/" + io.id;
       head["bodyCmd"] = bodyCmd;
       this._bodyReg = onAccept(bodyCmd, async function (bp) {
+        // One-shot: a registration left in the accept table keeps this whole call alive.
+        const reg = self._bodyReg;
         self._bodyReg = null;
+        if (reg) reg.remove();
         self._bodyPipe = bp;
         let p: MaybePromise;
         if (self._kind === "text") {

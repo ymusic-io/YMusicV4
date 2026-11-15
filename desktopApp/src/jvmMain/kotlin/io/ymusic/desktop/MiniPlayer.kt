@@ -51,12 +51,12 @@ import io.ymusic.ui.SlimSeekBar
 import io.ymusic.ui.a11yActionLabel
 import io.ymusic.ui.resources.Res
 import io.ymusic.ui.resources.badge_live
+import io.ymusic.ui.resources.cd_close
 import io.ymusic.ui.resources.cd_next
 import io.ymusic.ui.resources.cd_open_app
 import io.ymusic.ui.resources.cd_pause
 import io.ymusic.ui.resources.cd_play
 import io.ymusic.ui.resources.cd_previous
-import io.ymusic.ui.resources.cd_stop_dismiss
 import io.ymusic.ui.resources.mini_player_nothing_playing
 import io.ymusic.ui.seekBarA11y
 import io.ymusic.ui.skipSegmentFractions
@@ -78,16 +78,14 @@ import javax.swing.WindowConstants
 /**
  * The tray's notification-style popup: a small always-on-top card near the tray corner with the
  * current media info and transport — art, title/artist, prev / play-pause / next, a seek bar,
- * "open the app", and ✕ = [onDismiss] (end the listening session: clear the queue — which removes
- * the tray — and exit the app when no window is left). Dismisses itself when it loses focus
- * (click-away), like a system notification.
+ * "open the app", and ✕ = [onClose] (closes the popup; playback and the queue carry on). Dismisses
+ * itself when it loses focus (click-away), like a system notification.
  */
 @Composable
 fun ApplicationScope.MiniPlayerWindow(
     graph: AppGraph,
     anchor: Point? = null,
     onOpenApp: () -> Unit,
-    onDismiss: () -> Unit,
     onClose: () -> Unit,
 ) {
     val currentOnClose by rememberUpdatedState(onClose)
@@ -128,7 +126,7 @@ fun ApplicationScope.MiniPlayerWindow(
             tonalElevation = 6.dp,
             shadowElevation = 8.dp,
         ) {
-            MiniPlayerContent(graph, onOpenApp, onDismiss)
+            MiniPlayerContent(graph, onOpenApp, onClose)
         }
     }
 }
@@ -171,7 +169,7 @@ private fun miniPlayerPosition(anchor: Point?): Point {
 private enum class TrayEdge { Top, Bottom, Left, Right }
 
 @Composable
-private fun MiniPlayerContent(graph: AppGraph, onOpenApp: () -> Unit, onDismiss: () -> Unit) {
+private fun MiniPlayerContent(graph: AppGraph, onOpenApp: () -> Unit, onClose: () -> Unit) {
     val player = graph.player
     val status by player.status.collectAsState()
     val progress by player.progress.collectAsState()
@@ -221,7 +219,7 @@ private fun MiniPlayerContent(graph: AppGraph, onOpenApp: () -> Unit, onDismiss:
             IconButton(onClick = onOpenApp, modifier = Modifier.size(30.dp).a11yActionLabel(stringResource(Res.string.cd_open_app))) {
                 Icon(Icons.AutoMirrored.Filled.OpenInNew, null, Modifier.size(16.dp))
             }
-            IconButton(onClick = onDismiss, modifier = Modifier.size(30.dp).a11yActionLabel(stringResource(Res.string.cd_stop_dismiss))) {
+            IconButton(onClick = onClose, modifier = Modifier.size(30.dp).a11yActionLabel(stringResource(Res.string.cd_close))) {
                 Icon(Icons.Default.Close, null, Modifier.size(16.dp))
             }
         }

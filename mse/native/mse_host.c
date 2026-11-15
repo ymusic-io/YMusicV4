@@ -89,6 +89,8 @@ struct MseHost {
     double origin_ns;
     double seek_base;
     double yt_dur;
+    /* dec_loop only: the clock at the last trim_played. */
+    double trimmed_at;
     MseAv *av;
     VPresenter *vp;
 #ifdef __APPLE__
@@ -381,6 +383,26 @@ static void rebase_hold(MseHost *h, double t)
 #endif
 }
 
+/* h->mu held. Linear play stays inside leftover, `keep` behind its end (the live head of what we have) so
+   SABR can fetch and parse the next second before we empty. */
+static double linear_cap(MseHost *h, double first, double last, int has_video)
+{
+    double span = last - first, keep;
+    /* VOD catching the real end — not live leftover past a stale
+       MediaSource duration (log23 recreate: yt_dur=17253, vf to 17266). */
+    /* Audio-only leftover often ends ~0.5–1s before yt_dur (fake-144
+       cover is 0..dur; audio last is short). 0.5s was too tight. */
+    int near_eos = h->yt_dur > 0 && last + 1.5 >= h->yt_dur && last <= h->yt_dur + 0.75;
+    /* Audio-only (no C video) must play to audio last or the clock freezes
+       1s early and SABR audio never appends (log2: clock=570.884). */
+    if (near_eos || !has_video)
+        return last;
+    /* Live leftover is often ~2s. Keep 1s video readahead on long
+       VOD; 0.35s on a short live window so we do not starve-empty. */
+    keep = span >= 4.0 ? 1.0 : 0.35;
+    return span > keep ? last - keep : last;
+}
+
 static double clock_with_span(MseHost *h, int have, double first, double last, int has_video)
 {
     double t, hold;
@@ -406,6 +428,7 @@ static double clock_with_span(MseHost *h, int have, double first, double last, i
 #endif
     } else {
         int wait_audio = 0;
+        int dac_clock = 0;
 #ifdef MSE_DAC
         /* After a flush, a stream with audio holds the clock until the device starts (Chrome keeps
            currentTime until audio covers it) rather than running ahead on wall time: the audio
@@ -438,6 +461,7 @@ static double clock_with_span(MseHost *h, int have, double first, double last, i
                 h->origin_ns = now_ns();
             dac += sink_tick_extra_s(h) * sp;
             t = dac_handover(h, dac);
+            dac_clock = 1;
         } else {
             h->clk_dac = 0;
         }
@@ -448,39 +472,23 @@ static double clock_with_span(MseHost *h, int have, double first, double last, i
                          dac_media_s(h, (double)(h->samples_played - aq_latency_frames(h)), sp);
             dac += aq_tick_extra_s(h) * sp;
             t = dac_handover(h, dac);
+            dac_clock = 1;
         } else {
             h->clk_dac = 0;
         }
 #endif
 #endif
-        /* Linear play: stay inside leftover. Sit 1s behind leftover end
-           (live head of what we have) so SABR can fetch+parse the next
-           second before we empty. Rebase origin on clamp or wall time
-           accrues through the wait and the next chunk is recv-late. */
+        /* A wall clock rebases on clamp, or wall time accrues through the wait and the next chunk is
+           recv-late. A device clock must not: the device plays on what it holds, and a rebase drops that
+           audio from the clock for good. The decode loop stops audio at the cap instead. */
         if (have) {
-            double cap = last;
-            /* VOD catching the real end — not live leftover past a stale
-               MediaSource duration (log23 recreate: yt_dur=17253, vf to 17266). */
-            /* Audio-only leftover often ends ~0.5–1s before yt_dur (fake-144
-               cover is 0..dur; audio last is short). 0.5s was too tight. */
-            int near_eos = h->yt_dur > 0 && last + 1.5 >= h->yt_dur &&
-                           last <= h->yt_dur + 0.75;
-            /* 1s behind leftover end is for video readahead. Audio-only
-               (no C video) must play to audio last or the clock freezes
-               1s early and SABR audio never appends (log2: clock=570.884). */
-            /* Live leftover is often ~2s. Keep 1s video readahead on long
-               VOD; 0.35s on a short live window so we do not starve-empty. */
-            if (!near_eos && has_video) {
-                double span = last - first;
-                double keep = span >= 4.0 ? 1.0 : 0.35;
-                if (span > keep)
-                    cap = last - keep;
-            }
+            double cap = linear_cap(h, first, last, has_video);
             if (t < first)
                 t = first;
             else if (t > cap) {
                 t = cap;
-                rebase_hold(h, cap);
+                if (!dac_clock)
+                    rebase_hold(h, cap);
             }
         }
     }
@@ -526,6 +534,22 @@ static void hold_at_playhead(MseHost *h)
     if (h->playing && h->hold < t)
         rebase_hold(h, t);
     pthread_mutex_unlock(&h->mu);
+}
+
+/* Played media this far behind the playhead leaves the buffer, as Shaka's bufferBehind: the quota
+   GC alone keeps everything up to 150 MiB of video. A backward seek past it refetches. */
+#define MSE_KEEP_BEHIND_S 30.0
+#define MSE_TRIM_EVERY_S 5.0
+
+static void trim_played(MseHost *h, double clock)
+{
+    double before = clock - MSE_KEEP_BEHIND_S;
+    if (before <= 0 || (clock >= h->trimmed_at && clock - h->trimmed_at < MSE_TRIM_EVERY_S))
+        return;
+    h->trimmed_at = clock;
+    hold_at_playhead(h);
+    mse_av_evict_before(h->av, 1, before, SIZE_MAX);
+    mse_av_evict_before(h->av, 0, before, SIZE_MAX);
 }
 
 #ifdef MSE_DAC
@@ -1041,6 +1065,8 @@ static void *dec_loop(void *arg)
 #ifdef MSE_DAC
         int filled;
         int ring_at_wake;
+        double span_first = 0, span_last = 0;
+        int span_have, span_video;
 #ifdef MSE_AQ
         AudioQueueRef start_q = NULL;
 #endif
@@ -1064,8 +1090,11 @@ static void *dec_loop(void *arg)
 #endif
         pthread_mutex_unlock(&h->mu);
         clock = host_clock(h);
+        trim_played(h, clock);
 
 #ifdef MSE_DAC
+        span_have = mse_av_span(h->av, hold_of(h), &span_first, &span_last) && span_last > span_first;
+        span_video = mse_av_has_video(h->av);
         /* Own thread: a late 4K GOP must not starve AudioQueue. */
         filled = 0;
         while (filled < 8) {
@@ -1077,7 +1106,7 @@ static void *dec_loop(void *arg)
             double from = clock;
             double vend = 0, starved_ms = 0, resume_s;
             int vhave = mse_av_video_end(h->av, &vend);
-            int starve;
+            int starve, device_runs;
             pthread_mutex_lock(&h->mu);
             want = ring_ms(h) < 400;
             gen = h->ring_gen;
@@ -1104,6 +1133,18 @@ static void *dec_loop(void *arg)
                 from = h->seek_base;
 #endif
             until = video_bound(h, clock, until, vhave, vend, &starve);
+            /* The clock holds at the cap while the device runs (clock_with_span): audio past it would
+               play ahead of the picture. */
+#ifdef __ANDROID__
+            device_runs = h->dac_live;
+#else
+            device_runs = h->aq_started;
+#endif
+            if (span_have && device_runs) {
+                double cap = linear_cap(h, span_first, span_last, span_video);
+                if (until > cap)
+                    until = cap;
+            }
             if (starve == STARVE_END) {
                 h->v_starve_end_ns = now_ns();
                 starved_ms = (h->v_starve_end_ns - h->v_starve_ns) / 1e6;

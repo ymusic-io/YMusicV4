@@ -1080,6 +1080,7 @@ struct JSObject {
 typedef struct JSMapRecord {
     int ref_count; /* used during enumeration to avoid freeing the record */
     BOOL empty : 8; /* TRUE if the record is deleted */
+    uint8_t gc_marked; /* patch: weak map value kept by the current gc_scan */
     struct list_head link;
     struct JSMapRecord *hash_next;
     JSValue key;
@@ -1088,6 +1089,7 @@ typedef struct JSMapRecord {
 
 typedef struct JSMapState {
     BOOL is_weak; /* TRUE if WeakSet/WeakMap */
+    BOOL gc_scanned; /* patch: weak map reached by the current gc_scan */
     struct list_head records; /* list of JSMapRecord.link */
     uint32_t record_count;
     JSMapRecord **hash_table;
@@ -1389,6 +1391,7 @@ static JSValue JS_InstantiateFunctionListItem2(JSContext *ctx, JSObject *p,
 static JSValue js_object_groupBy(JSContext *ctx, JSValueConst this_val,
                                  int argc, JSValueConst *argv, int is_map);
 static void map_delete_weakrefs(JSRuntime *rt, JSWeakRefHeader *wh);
+static BOOL js_weakref_is_live(JSValueConst val);
 static void weakref_delete_weakref(JSRuntime *rt, JSWeakRefHeader *wh);
 static void finrec_delete_weakref(JSRuntime *rt, JSWeakRefHeader *wh);
 static void JS_RunGCInternal(JSRuntime *rt, BOOL remove_weak_objects);
@@ -6734,18 +6737,91 @@ static void gc_scan_incref_child2(JSRuntime *rt, JSGCObjectHeader *p)
     js_rc(p)->ref_count++;
 }
 
+/* BEGIN patch: ephemerons. A weak map value stays reachable only through its key: while gc_scan
+   keeps the reachable objects, js_map_mark skips the values of a weak map and only flags it;
+   gc_scan_weak_values then keeps the values whose key turned out reachable, until no more do.
+   Without this a value referring to its own key (or to another entry's key) kept both forever. */
+static BOOL gc_scan_weak_values(JSRuntime *rt)
+{
+    struct list_head *el, *el1;
+    BOOL changed = FALSE;
+
+    list_for_each(el, &rt->weakref_list) {
+        JSWeakRefHeader *wh = list_entry(el, JSWeakRefHeader, link);
+        JSMapState *s;
+        if (wh->weakref_type != JS_WEAKREF_TYPE_MAP)
+            continue;
+        s = container_of(wh, JSMapState, weakref_header);
+        if (!s->gc_scanned)
+            continue;
+        list_for_each(el1, &s->records) {
+            JSMapRecord *mr = list_entry(el1, JSMapRecord, link);
+            if (mr->empty || mr->gc_marked || !js_weakref_is_live(mr->key))
+                continue;
+            mr->gc_marked = TRUE;
+            JS_MarkValue(rt, mr->value, gc_scan_incref_child);
+            changed = TRUE;
+        }
+    }
+    return changed;
+}
+
+/* The value of an unreachable key lost this record's reference in gc_decref and is never given it
+   back: the record lets go of it now (gc_free_cycles may free it), and the record itself goes at
+   the next GC, when gc_remove_weak_objects finds its key dead. */
+static void gc_drop_weak_values(JSRuntime *rt)
+{
+    struct list_head *el, *el1;
+
+    list_for_each(el, &rt->weakref_list) {
+        JSWeakRefHeader *wh = list_entry(el, JSWeakRefHeader, link);
+        JSMapState *s;
+        if (wh->weakref_type != JS_WEAKREF_TYPE_MAP)
+            continue;
+        s = container_of(wh, JSMapState, weakref_header);
+        if (!s->gc_scanned)
+            continue;
+        s->gc_scanned = FALSE;
+        list_for_each(el1, &s->records) {
+            JSMapRecord *mr = list_entry(el1, JSMapRecord, link);
+            if (!mr->empty && !mr->gc_marked) {
+                switch(JS_VALUE_GET_TAG(mr->value)) {
+                case JS_TAG_OBJECT:
+                case JS_TAG_FUNCTION_BYTECODE:
+                case JS_TAG_MODULE:
+                    mr->value = JS_UNDEFINED;
+                    break;
+                default:
+                    break;
+                }
+            }
+            mr->gc_marked = FALSE;
+        }
+    }
+}
+/* END patch */
+
 static void gc_scan(JSRuntime *rt)
 {
-    struct list_head *el;
+    struct list_head *el, *last;
     JSGCObjectHeader *p;
 
     /* keep the objects with a refcount > 0 and their children. */
-    list_for_each(el, &rt->gc_obj_list) {
-        p = list_entry(el, JSGCObjectHeader, link);
-        assert(js_rc(p)->ref_count > 0);
-        js_rc(p)->mark = 0; /* reset the mark for the next GC call */
-        mark_children(rt, p, gc_scan_incref_child);
+    el = rt->gc_obj_list.next;
+    for(;;) {
+        for(; el != &rt->gc_obj_list; el = el->next) {
+            p = list_entry(el, JSGCObjectHeader, link);
+            assert(js_rc(p)->ref_count > 0);
+            js_rc(p)->mark = 0; /* reset the mark for the next GC call */
+            mark_children(rt, p, gc_scan_incref_child);
+        }
+        /* patch: ephemerons; the values kept now may reach more keys */
+        last = rt->gc_obj_list.prev;
+        if (!gc_scan_weak_values(rt))
+            break;
+        el = last->next;
     }
+    gc_drop_weak_values(rt);
 
     /* restore the refcount of the objects to be deleted. */
     list_for_each(el, &rt->tmp_obj_list) {
@@ -52240,6 +52316,7 @@ static JSMapRecord *map_add_record(JSContext *ctx, JSMapState *s,
         return NULL;
     mr->ref_count = 1;
     mr->empty = FALSE;
+    mr->gc_marked = FALSE;
     if (s->is_weak) {
         mr->key = js_weakref_new(ctx, key);
     } else {
@@ -52701,6 +52778,11 @@ static void js_map_mark(JSRuntime *rt, JSValueConst val, JS_MarkFunc *mark_func)
 
     s = p->u.map_state;
     if (s) {
+        /* patch: ephemerons, see gc_scan_weak_values */
+        if (s->is_weak && mark_func == gc_scan_incref_child) {
+            s->gc_scanned = TRUE;
+            return;
+        }
         list_for_each(el, &s->records) {
             mr = list_entry(el, JSMapRecord, link);
             if (!s->is_weak)

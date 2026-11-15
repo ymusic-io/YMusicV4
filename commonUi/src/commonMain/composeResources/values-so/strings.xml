@@ -658,4 +658,6 @@
     <string name="native_blocked">Windows wuxuu xannibay qayb ka mid ah YMusic.</string>
     <string name="media_engine_unavailable">Muusikada iyo fiidiyowyada halkan lagama shidi karo, laakiin weli waad baadhi kartaa oo raadin kartaa.</string>
     <string name="native_blocked_help">Kombiyuutarka shaqada ama dugsiga, ka codso maamulahaaga inuu oggolaado YMusic. Kombiyuutarkaaga, hubi Smart App Control oo ku jira Windows Security.</string>
+    <!-- A feed reloading in place (desktop) -->
+    <string name="a11y_refreshing">Cusboonaysiinaya</string>
 </resources>

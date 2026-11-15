@@ -154,6 +154,18 @@ function unwrapTru(v: unknown): string {
   return "";
 }
 
+/** The `'T'` value after ytAtN's `'R'` response: the eacrToken that binds an att/get challenge to
+ *  this page's EVENT_ID. */
+function ytAtNToken(html: string, from: number): string {
+  const single = html.indexOf("'T':", from);
+  const at = single >= 0 && single - from <= 16 ? single : html.indexOf('"T":', from);
+  if (at < 0 || at - from > 16) return "";
+  let p = at + 4;
+  while (p < html.length && html.charAt(p) === " ") p++;
+  const quoted = extractJsQuoted(html, p);
+  return quoted ? decodeJsString(quoted.value) : "";
+}
+
 function parseYtAtN(html: string): Record<string, unknown> | null {
   const markers = ["ytAtN({'R':", 'ytAtN({"R":'];
   for (let k = 0; k < markers.length; k++) {
@@ -170,8 +182,11 @@ function parseYtAtN(html: string): Record<string, unknown> | null {
         bg &&
         typeof bg === "object" &&
         typeof (bg as Record<string, unknown>)["program"] === "string"
-      )
+      ) {
+        const eacr = ytAtNToken(html, quoted.end);
+        if (eacr) (bg as Record<string, unknown>)["eacrToken"] = eacr;
         return bg as Record<string, unknown>;
+      }
     } catch (_) {}
   }
   return null;
@@ -263,6 +278,9 @@ export function parsePlayerConfig(html: string): Record<string, unknown> | null 
   };
   const interpJs = unwrapTru(bg["interpreterJavascript"]);
   const interpUrl = unwrapTru(bg["interpreterUrl"]) || unwrapTru(bg["interpreterSafeUrl"]);
+  if (typeof bg["interpreterHash"] === "string")
+    challenge["interpreterHash"] = bg["interpreterHash"];
+  if (typeof bg["eacrToken"] === "string") challenge["eacrToken"] = bg["eacrToken"];
   if (interpJs) challenge["interpreterJavascript"] = interpJs;
   if (interpUrl) challenge["interpreterUrl"] = interpUrl;
   return {

@@ -1,0 +1,183 @@
+# Error-code ledger for the Rust desktop app. One row per code:  R##### <flag> <explanation>
+# The R prefix keeps this set disjoint from YMusicV4's E codes: a user report maps to one throw
+# site across both apps. E codes minted by engine-js still reach this app unchanged (a JS-minted
+# code is wrapped, never re-minted) — those rows live in YMusicV4's error-codes.txt.
+#   flag  D  = DEPLOYED (shipped in a release) — burned forever: never reuse, renumber, or remove.
+#   flag  -  = not deployed — free to remove, renumber, or reallocate elsewhere.
+# On release, flip every `-` row of the shipped crates to D.
+# Mint = grep this file for a free number, add a `-` row in the same commit as the throw site.
+# Ranges: R1xxxx ym-quickjs | R2xxxx ym-engine | R3xxxx ym-common / ym-remote-config (HTTP, config service)
+#         R4xxxx ym-ffmpeg | R5xxxx ym-store / ym-scanner | R6xxxx ym-player | R7xxxx ym-download / ym-ytmedia
+#         R8xxxx ym-mse | R9xxxx ym-app / ym-ui / ym-shell / ym-update / ym-settings / ym-logstore / ym-telemetry
+
+R12345 - (example) doc placeholder in AGENTS.md minting rule
+R20001 D http protocol: request the host cannot build (malformed head, bad method/URL/header) — caller bug
+R20002 D http protocol: unexpected data on the control pipe after the head — protocol violation
+R20003 D engine bundle failed to load (runtime create or eval)
+R20004 D engine "init" health check failed (refused, not synchronous, malformed head)
+R20005 D unstructured pipe RESET without an embedded site code (decoder fallback)
+R20006 D cookie protocol: missing/invalid url, missing setCookie, or malformed head — caller bug
+R20007 D cookie protocol: the cookie jar failed
+R20008 D cache protocol: missing scope/key or malformed head — caller bug
+R20009 D cache protocol: the cache store failed (disk I/O, index)
+R20010 D cache protocol: a cache/put body sent nothing for idleTimeoutMs; staged value dropped
+R20011 D cache protocol: put overtaken by a newer put/delete of the same scope+key; staged value dropped
+R20012 D settings protocol: missing/invalid key, type, default or value — caller bug
+R20013 D settings protocol: the settings store failed
+R20014 D remote-config/get failed (missing key or malformed head)
+R20015 D log/capture: the bundle reported a failure without a code of its own
+R20016 D log/capture: malformed head
+R20017 D an engine command returned a result that does not decode into its wire shape
+R20018 D an engine command could not be reached (no handler for it in the bundle, runtime closed, pipe broke)
+R20019 D player main-proxy: host/main/ opened without a command
+R20020 D player main-proxy: no main engine, or the main engine refused the command
+R20021 D player/mintPo answered without a content PO token
+R20022 D engine manager: no engine bundle candidate to boot
+R20023 D log/capture: the cache entry the bundle named (the bg-session dump) could not be read; the report goes without it (logged)
+R20024 D player/remintPo answered "reminted" without a content PO token
+R30001 D remote config: the cached config was unreadable and was dropped (logged; defaults used)
+R30002 D remote config: the fetched config could not be written to the cache (logged)
+R30003 D remote config: fetching /v1/config failed (logged; the held config stays)
+R30004 D js bundle: the cached remote bundle failed its signature and was deleted (logged; embedded used)
+R90001 D app boot: the engine cache store could not be opened (data dir I/O, index)
+R90002 D playback: the native MSE host could not be created
+R90003 D playback: the player reported an error state without a code of its own
+R90004 D media session: the OS media controls could not be created (SMTC thread, MPRIS bus names, MPRemoteCommandCenter; logged; the app runs without them)
+R90005 D app boot: app.db could not be opened
+R90006 D a setting could not be saved to app.db (logged; the UI state stands)
+R90007 D playback: a local file could not be played (local player unavailable, or the file failed to open)
+R90008 D library: reading folders or items from the media store failed
+R90009 D library: the folder scan failed (store error)
+R90010 D app boot: the media store could not be opened
+R90011 D app boot: the remote config could not be opened
+R90012 D a published bundle was not taken (download, signature or boot failed; logged, the running one stays)
+R90013 D cookies: the OS cookie key is unavailable; the launch runs as a guest (cookies in memory only)
+R90014 D cookies: the sealed cookie jar does not open with this key; the launch starts signed out
+R90450 D cookies (Linux): no Secret Service answered; the cookie key is kept in app.db (cookie-key.bin), as the JVM app does
+R90600 D download location: the picked folder could not be added to the Library (media store), or the core runtime stopped
+R90650 D player cache: the player-cache folder or its cache-index.db could not be opened (playback streams uncached), or the open task died
+R90651 D player cache: applying the size cap failed (eviction: cache-index.db or span files)
+R90700 D http cache: a cache entry could not be read (journal or value file I/O); the request goes to the network
+R90701 D http cache: a response's metadata could not be written into the cache; the response is still delivered
+R90702 D http cache: the journal is corrupt; the cache folder is emptied and starts over (as OkHttp does)
+R90703 D http cache: a journal line could not be written; edits stop until the journal is rebuilt
+R90704 D http cache: trimming to the size cap failed
+R90705 D http cache: invalidating a URL after an unsafe request (POST/PUT/...) failed
+R90706 D http cache: refreshing an entry's metadata after a 304 failed (the cached body is still served)
+R90707 D http cache: a cached entry's metadata does not parse; treated as a miss
+R90708 D http cache: writing a response body into its entry failed; the entry is dropped, the response goes on
+R90709 D http cache: flushing a response body into its entry failed; the entry is dropped
+R90710 D http cache: committing a finished entry failed
+R90711 D http cache: the commit task stopped before finishing (panic or runtime shutdown)
+R90712 D http cache: a blocking cache task stopped before finishing (panic or runtime shutdown); treated as a miss
+R90713 D http cache: rebuilding the journal failed; edits stop until a rebuild succeeds
+R90714 D http cache: an abandoned edit could not be rolled back
+R90715 D http protocol: the cache commit task of a delivered response failed to run
+R90716 D http protocol: reading a cached response body failed mid-delivery (the exchange resets as a network failure)
+R90800 D playlist backup: reading the playlists (media store) or writing the backup file failed
+R90801 D playlist restore: the picked backup file could not be read (I/O), or the core runtime stopped
+R90802 D playlist restore: writing the backed-up playlists to the media store failed
+R70001 D download: writing a SABR segment to the scratch file failed (not disk full)
+R70002 D download: googlevideo rejected the PO token (StreamProtectionStatus=3), after the one re-attest
+R70003 D download: googlevideo withheld media while attestation stayed pending (StreamProtectionStatus=2)
+R70004 D download: googlevideo sent a SABR_ERROR part
+R70005 D download: the segment index (SQLite) failed
+R70006 D download: SABR protocol failure (HTTP status, malformed parts, or the session stalled)
+R70007 D download: the player response has no streamingData
+R70008 D download: no serverAbrStreamingUrl (progressive-only stream, not supported)
+R70009 D download: no videoPlaybackUstreamerConfig in the player response
+R70010 D download: the content PO token is not base64
+R70011 D download options: the player response has no streamingData
+R70012 D download options: no audio format this platform can save
+R70013 D download: the ffmpeg binary could not be started
+R70014 D download: waiting for ffmpeg failed
+R70015 D download: ffmpeg exited non-zero (stderr logged)
+R70016 D download: the scratch folder could not be created (not disk full)
+R70017 D download: syncing the finished file before publish failed
+R70018 D download: publishing into the download folder failed (rename and copy)
+R70019 D download: the copied scratch could not be removed after publish
+R70021 D download: a scratch of a stream YouTube no longer offers could not be dropped
+R70022 D download: the audio scratch file could not be opened
+R70023 D download: a caption track answered a non-success HTTP status (caption skipped)
+R70024 D download: a caption track has no cues (caption skipped)
+R70025 D download: a caption could not be written to scratch (caption skipped)
+R70026 D download: no audio format for the requested output
+R70027 D download: no video format for the requested output
+R70028 D download: ffmpeg unavailable for an output that needs a mux
+R70029 D download: a video output without a downloaded video stream
+R70030 D download: cover art could not be written to scratch
+R70031 D download: the ready marker could not be written
+R70032 D download: the ready marker could not be read
+R70033 D download: the finished scratch could not be stat'ed for publish
+R70034 D download: a scratch file could not be removed
+R70035 D download: the download run panicked
+R70036 D download: the download store (SQLite) failed (not disk full)
+R70037 D download: the video scratch file could not be opened
+R70038 D download: googlevideo withheld media from or rejected the download (StreamProtectionStatus 2/3) while it accepts the player's PO token, so the download's own SABR requests are at fault
+R90015 D app boot: the download stores (downloads.db / download-segments.db) could not be opened
+R90016 D app boot: play-history.db could not be opened
+R90017 D play again: the saved queues could not be read or decoded
+R90018 D app boot: sponsor-block.db could not be opened
+R90019 D sign-in: the cookies could not be stored or the link failed for a reason other than rejection
+R90020 D top tracks: play history could not be read
+R90021 D sponsorblock: the per-video whitelist could not be saved
+R90022 D downloads: a finished file could not be deleted from disk
+R90023 D sign-in: the device-link QR could not be drawn
+R90024 D media session: an update could not be published to Windows SMTC (status, display properties, thumbnail, timeline, rate; logged)
+R90025 D Sentry: the log shipper did not start (the DSN does not parse); reporting runs without its sink (logged)
+R90026 D Sentry Logs: the log lines for an error event could not be claimed in logs.db (logged; the event goes without them)
+R90027 D Sentry Logs: the pending log lines could not be read from logs.db (logged; retried on the next event or start)
+R90028 D Sentry Logs: Sentry refused a batch of log lines (HTTP status, rate limit) or it did not serialize; the batch is dropped (logged)
+R90029 D Sentry Logs: delivered log lines could not be marked sent in logs.db (logged; they may go again)
+R90030 D media session: an update could not be published to MPRIS (property change or Seeked signal on the session bus; logged)
+R90031 D media session: an update could not be posted to the Windows SMTC thread (logged)
+R90040 D Linux file dialog: the Tokio task driving the portal dialog failed (logged; treated as canceled)
+R90200 D data dir: a database this app's earlier builds named differently could not take the JVM app's name (logged; retried next launch)
+R90201 D data dir: the window bounds kept in app.db could not move to window.properties (logged)
+R90202 D data dir: the old window.bounds setting could not be removed from app.db (logged)
+R90203 D data dir: a setting kept under an earlier build's key could not move to the JVM app's key (logged)
+R90400 D data dir: the 4.0.6-and-earlier settings.properties could not be read (logged; imported as no settings, then removed, as the JVM app does)
+R90401 D data dir: a 4.0.6-and-earlier loose cookie file could not be read (logged; the import is retried next launch)
+R90402 D data dir: the 4.0.6-and-earlier loose files could not be imported into app.db (logged; retried next launch)
+R90403 D data dir: an imported 4.0.6-and-earlier loose file could not be removed (logged)
+R90404 D data dir: a cache folder of this app's earlier builds could not be removed (logged; retried next launch)
+R90300 D self-update: the config's update entry does not verify against the pinned update key (UpdateService.accept)
+R90301 D self-update: the downloaded installer's size or sha256 differs from the signed entry
+R90302 D self-update: the installer download failed (disk I/O other than full storage)
+R90303 D self-update: the installer failed to run (DMG copy, signature check, bundle swap, setup or apt)
+R90304 D self-update: the installer download was refused (non-2xx HTTP status)
+R90305 D self-update: another package manager held the dpkg lock past the wait (Linux)
+R90306 D self-update: update.lastRunVersionCode could not be saved to app.db (logged; the "updated" notice may show again next launch)
+R90750 D usage stats: an event could not be appended to stat-queue.json (logged; still queued in memory)
+R90751 D usage stats: POST /v1/pulse failed (logged; the queue waits for the next flush)
+R90752 D usage stats: stat-queue.json was not rewritten after a send (logged; a restart may resend)
+R90753 D usage stats: stat-queue.json could not be read (logged; removed, queue starts over)
+R90754 D usage stats: the unreadable stat-queue.json could not be removed (logged)
+R92000 D playlist download: the downloads could not be added to the chosen Library playlist
+R92001 D Library playlist: a new playlist could not be created
+R92002 D local playlist from downloads: the playlist could not be created or filled
+R93000 D settings: a setting could not be saved
+R93001 D settings: the UI language could not be saved
+R94000 D library: the local playlists could not be read for the add-to-playlist picker
+R94001 D library: a local playlist change failed (create, rename, delete, add to, remove from)
+R94002 D library: saving a local playlist's arrangement failed
+R94003 D library: deleting a file from disk failed (file removal or its media-store row)
+R94004 D library: removing, excluding or including a folder failed (media store)
+R94005 D library: a Top tracks play-history row could not be removed
+R95000 D now playing: a local queue item could not be looked up in the library to open its artist or album
+R96000 D single instance: another process holds the data dir's instance lock but took no request
+R96001 D single instance: the lock, loopback listener or port file could not be set up
+R96002 D open with: none of the files the OS asked the app to open could be read
+R98000 D cookies: the cookie store (app.db secret) could not be read at launch
+R98001 D cookies: sealing the saved sign-in under a password failed
+R98002 D cookies: the unlock screen's unlock, guest or sign-out failed for a reason other than a wrong password
+R98003 D launch: the boot after the unlock screen did not finish (task panicked or the runtime shut down)
+R99001 D feedback: this build has no Sentry DSN, so the report cannot be sent
+R99002 D feedback: the report was not delivered before the flush timeout
+R99003 D feedback: the feedback-inbox envelope item could not be serialized
+R99004 D feedback: the Sentry client dropped the report (or the send worker stopped)
+R99010 D rename file: another file in the folder already has the new name
+R99011 D rename file: the file could not be renamed on disk
+R99012 D rename file: the Library row could not be moved to the new path (media store)
+R99013 D rename file: the finished download could not be moved to the new path (downloads.db)
+R99014 D rename file: the core runtime stopped before the rename finished

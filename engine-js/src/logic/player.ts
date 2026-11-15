@@ -11,6 +11,7 @@ import {
   requireFreshPlayerConfig,
   loadPlayer,
   mintPlayerPo,
+  remintPlayerPo,
   preloadPlayer,
   pausePlayer,
   playPlayer,
@@ -96,6 +97,18 @@ onAccept(
     const id = String(a["videoId"] ?? "");
     if (!id) throw JsEngineErrorImpl.parse("player/mintPo missing videoId");
     const result = await mintPlayerPo(id);
+    const p = out.writeObjectAsJson(result);
+    if (p) await p;
+  }),
+);
+
+onAccept(
+  "player/remintPo",
+  commandHandler(async (src, out) => {
+    const a = await src.readJsonObject();
+    const id = String(a["videoId"] ?? "");
+    if (!id) throw JsEngineErrorImpl.parse("player/remintPo missing videoId");
+    const result = await remintPlayerPo(id);
     const p = out.writeObjectAsJson(result);
     if (p) await p;
   }),

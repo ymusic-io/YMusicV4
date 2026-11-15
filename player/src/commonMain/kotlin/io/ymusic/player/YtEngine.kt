@@ -1,5 +1,6 @@
 package io.ymusic.player
 
+import io.ymusic.dynamicengine.player.ContentPoRemint
 import kotlinx.coroutines.flow.SharedFlow
 
 /**
@@ -17,4 +18,7 @@ interface YtEngine :
     val watchNextSeen: SharedFlow<WatchNextSeen>
     suspend fun requestPlayerResponse(videoId: String): String
     suspend fun requestPoToken(videoId: String): String
+
+    /** A download's one re-mint of the session's PO token, after googlevideo withheld or rejected it. */
+    suspend fun remintPoToken(videoId: String): ContentPoRemint = ContentPoRemint.Unavailable
 }

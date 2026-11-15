@@ -18,6 +18,8 @@ stage="$checkout/dynamic-engine/build/compat"
 mkdir -p "$stage"
 cp "$bundles/engine.js" "$bundles/player.js" "$stage/"
 {
+    sed -nE 's/^ymusic\.versionCode=([0-9]+).*/\1/p' "$checkout/gradle.properties"
+    # Tags before ymusic.versionCode kept one per platform.
     sed -nE 's/^[[:space:]]*versionCode = ([0-9]+).*/\1/p' "$checkout/androidApp/build.gradle.kts"
     sed -nE 's/^val desktopVersionCode = ([0-9]+).*/\1/p' "$checkout/desktopApp/build.gradle.kts"
     sed -nE 's/.*<key>CFBundleVersion<\/key><string>([0-9]+)<\/string>.*/\1/p' "$checkout/iosApp/iosApp/Info.plist"
