@@ -281,8 +281,8 @@ let poRejectedHook: (() => void) | null = null;
 /** Same limit as the download's SabrSession.maxConsecutiveEmptyRounds. */
 const MAX_WITHHELD_ROUNDS = 3;
 
-/** Called on StreamProtectionStatus 3 (googlevideo rejected this session's PO token), or when
- *  googlevideo keeps withholding media while attestation stays pending (2). */
+/** Called when googlevideo keeps rejecting this session's PO token (StreamProtectionStatus 3) or
+ *  withholding media while attestation stays pending (2), once the session's re-mints are spent. */
 export function setPoRejectedHook(hook: (() => void) | null): void {
   poRejectedHook = hook;
 }
@@ -296,8 +296,8 @@ const MAX_REMINTS = 3;
 /** Withheld rounds a re-minted token gets before the next re-roll: its verdict can lag a round. */
 const ROUNDS_BEFORE_NEXT_REMINT = 2;
 
-/** Re-mints the session's content token when googlevideo withholds media (sps=2, no media);
- *  installed per minter, so the counts start over with each player session. */
+/** Re-mints the session's content token when googlevideo withholds media (sps=2, no media) or
+ *  rejects the token (sps=3); installed per minter, so the counts start over with each player session. */
 export function setRemintHook(hook: (() => Promise<void>) | null): void {
   remintHook = hook;
   remints = 0;
@@ -361,13 +361,19 @@ export function noteSps(sps: number, media: number): void {
     roundsSinceRemint++;
     startRemint();
   }
+  if (sps === 3) {
+    roundsSinceRemint++;
+    startRemint();
+  }
   if (!(sps > 0)) return;
   if (loggedSps !== sps) {
     loggedSps = sps;
     console.info("bg sps=" + sps);
   }
   const remintLeft = remintRun !== null || (remintHook !== null && remints < MAX_REMINTS);
-  if (sps === 3 || (withheldRounds > MAX_WITHHELD_ROUNDS && !remintLeft)) {
+  // A verdict can lag a round: the last re-minted token is judged before the session ends.
+  const lastTokenJudged = remints === 0 || roundsSinceRemint >= ROUNDS_BEFORE_NEXT_REMINT;
+  if ((sps === 3 || withheldRounds > MAX_WITHHELD_ROUNDS) && !remintLeft && lastTokenJudged) {
     if (sps === 2) console.warn("bg sps=2 withheld media for " + withheldRounds + " rounds");
     withheldRounds = 0;
     if (poRejectedHook) poRejectedHook();
