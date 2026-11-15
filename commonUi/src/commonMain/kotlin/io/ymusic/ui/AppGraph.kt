@@ -324,6 +324,7 @@ class AppGraph(
                 appliedUiLanguage.value = tag
             }
         }
+        bindings.launch { AppSettings.retiredKeys.forEach { settings.remove(it) } }
         bindPlayerConfig(bindings)
         bindings.launch { pip.pictureHidden.collect { player.setVideoHidden(it) } }
         bindPlayerCacheLimit(bindings)

@@ -16,6 +16,10 @@ class PrefsSettingsStore private constructor(private val prefs: SharedPreference
         withContext(Dispatchers.IO) { prefs.edit().putString(key, value).commit() }
     }
 
+    override suspend fun erase(key: String) {
+        withContext(Dispatchers.IO) { prefs.edit().remove(key).commit() }
+    }
+
     companion object {
         @Volatile private var instance: PrefsSettingsStore? = null
 

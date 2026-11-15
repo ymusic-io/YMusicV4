@@ -105,11 +105,14 @@ object AppSettings {
     /** UI language override (BCP-47); empty = follow the system locale. */
     val uiLanguage = StringSetting("app.uiLanguage", "")
 
-    /** The main section (Discover / Library / YtMusic) the app reopens on: an AppSection id, 0 = none yet. */
-    val lastSection = IntSetting("app.lastSection", 0)
+    /** The main section (Discover / Library / YtMusic) the app reopens on: an AppSection key, blank = none yet. */
+    val lastSection = StringSetting("nav.lastSection", "")
 
-    /** The Discover tab the app reopens on: a DiscoverTab id, 0 = none yet. */
-    val lastDiscoverTab = IntSetting("app.lastDiscoverTab", 0)
+    /** The Discover tab the app reopens on: a DiscoverTab key, blank = none yet. */
+    val lastDiscoverTab = StringSetting("discover.lastTab", "")
+
+    /** Keys no build reads any more; the app deletes them at start. */
+    val retiredKeys = listOf("app.lastSection", "app.lastDiscoverTab", "app.lastLibraryTab", "app.lastYtMusicTab")
 
     /** Auto-translate caption languages last picked, most recent first: language codes. */
     val recentTranslateLanguages = StringSetSetting("captions.recentTranslateLanguages")

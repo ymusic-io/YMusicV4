@@ -20,6 +20,10 @@ internal class IosSettingsStore private constructor(
         defaults.setObject(value, forKey = key)
     }
 
+    override suspend fun erase(key: String) {
+        defaults.removeObjectForKey(key)
+    }
+
     companion object {
         val settingsStore: IosSettingsStore by lazy { IosSettingsStore(NSUserDefaults.standardUserDefaults) }
     }

@@ -101,9 +101,9 @@ const SHADOW_REACH: f32 = 12.;
 const BAR_PAD_TOP: f32 = 2.;
 const BAR_PAD_BOTTOM: f32 = 3.;
 
-/// Shared with the JVM app: the section and Discover tab a restart resumes, by their stable ids.
-const LAST_SECTION_KEY: &str = "app.lastSection";
-const LAST_DISCOVER_TAB_KEY: &str = "app.lastDiscoverTab";
+/// Shared with the JVM app: the section and Discover tab a restart resumes, by their keys.
+const LAST_SECTION_KEY: &str = "nav.lastSection";
+const LAST_DISCOVER_TAB_KEY: &str = "discover.lastTab";
 /// Shared with the JVM app: the YT Music tab a restart resumes, by [MusicTab::key].
 const LAST_YTMUSIC_TAB_KEY: &str = "ytmusic.lastTab";
 const SEEK_STEP_MS: i64 = 10_000;
@@ -150,13 +150,27 @@ impl Section {
             .collect()
     }
 
-    /// The persisted id (the Compose `AppSection.id`): stable, never reused.
     fn id(self) -> i32 {
         Self::ALL.iter().position(|section| *section == self).unwrap_or(0) as i32 + 1
     }
 
-    fn from_id(id: i32) -> Option<Self> {
-        Self::ALL.get(usize::try_from(id - 1).ok()?).copied()
+    /// Fixed and shared with the JVM app's AppSection.key: never renamed.
+    fn key(self) -> &'static str {
+        match self {
+            Section::Discover => "discover",
+            Section::YtMusic => "ytmusic",
+            Section::Library => "library",
+            Section::PlayAgain => "play_again",
+            Section::Downloads => "downloads",
+            Section::Settings => "settings",
+            Section::Donate => "donate",
+            Section::Telegram => "telegram",
+            Section::Feedback => "feedback",
+        }
+    }
+
+    fn from_key(key: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|section| section.key() == key)
     }
 
     fn label(self) -> &'static str {
@@ -290,8 +304,19 @@ impl DiscoverTab {
         }
     }
 
-    fn from_id(id: i32) -> Option<Self> {
-        Self::ALL.into_iter().find(|tab| tab.id() == id)
+    /// Fixed and shared with the JVM app's DiscoverTab.key: never renamed.
+    fn key(self) -> &'static str {
+        match self {
+            DiscoverTab::Home => "home",
+            DiscoverTab::Trending => "music",
+            DiscoverTab::Recommended => "recommended",
+            DiscoverTab::TopTracks => "top_tracks",
+            DiscoverTab::Account => "account",
+        }
+    }
+
+    fn from_key(key: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|tab| tab.key() == key)
     }
 
     fn label(self) -> &'static str {
@@ -543,15 +568,19 @@ impl Shell {
         });
         let (settings, guest) = (cx.global::<AppGraph>().settings.clone(), cx.global::<AppGraph>().guest);
         let section = settings
-            .int(LAST_SECTION_KEY, 1)
+            .get_raw(LAST_SECTION_KEY)
             .ok()
-            .and_then(Section::from_id)
+            .flatten()
+            .as_deref()
+            .and_then(Section::from_key)
             .filter(|section| !guest || *section != Section::PlayAgain)
             .unwrap_or(Section::Discover);
         let discover_tab = settings
-            .int(LAST_DISCOVER_TAB_KEY, 1)
+            .get_raw(LAST_DISCOVER_TAB_KEY)
             .ok()
-            .and_then(DiscoverTab::from_id)
+            .flatten()
+            .as_deref()
+            .and_then(DiscoverTab::from_key)
             .filter(|tab| DiscoverTab::listed(guest).contains(tab))
             .unwrap_or(DiscoverTab::Home);
         let music_tab = settings
@@ -1553,7 +1582,7 @@ impl Shell {
         {
             view.update(cx, |view, cx| view.refresh(cx));
         }
-        persist_setting(cx, LAST_SECTION_KEY, section.id().to_string());
+        persist_setting(cx, LAST_SECTION_KEY, section.key().to_owned());
         cx.notify();
     }
 
@@ -2048,7 +2077,7 @@ impl Shell {
 
     fn set_discover_tab(&mut self, tab: DiscoverTab, cx: &mut Context<Self>) {
         self.discover_tab = tab;
-        persist_setting(cx, LAST_DISCOVER_TAB_KEY, tab.id().to_string());
+        persist_setting(cx, LAST_DISCOVER_TAB_KEY, tab.key().to_owned());
         if tab == DiscoverTab::Account
             && let Some(view) = &self.account
         {

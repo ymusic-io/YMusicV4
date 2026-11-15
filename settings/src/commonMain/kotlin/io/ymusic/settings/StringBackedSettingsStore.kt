@@ -44,8 +44,16 @@ abstract class StringBackedSettingsStore : SettingsStore {
         writeMutex.withLock { persist(key, data.value.getValue(key)) }
     }
 
+    override suspend fun remove(key: String) {
+        data.update { it - key }
+        writeMutex.withLock { if (key !in data.value) erase(key) }
+    }
+
     /** Stores the one [key] a write changed, on the writer's coroutine. In-memory stores keep the no-op. */
     protected open suspend fun persist(key: String, value: String) {}
+
+    /** Deletes the one [key] [remove] dropped, on the caller's coroutine. In-memory stores keep the no-op. */
+    protected open suspend fun erase(key: String) {}
 }
 
 class InMemorySettingsStore : StringBackedSettingsStore()
