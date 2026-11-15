@@ -1,6 +1,6 @@
 use crate::{
-    AbsoluteLength, App, Bounds, DefiniteLength, Edges, GridTemplate, Length, Pixels, Point, Size,
-    Style, Window, size,
+    AbsoluteLength, App, Bounds, DefiniteLength, Edges, GridTemplate, LayoutDirection, Length,
+    Pixels, Point, Size, Style, Window, size,
     util::{
         ceil_to_device_pixel, round_half_toward_zero, round_stroke_to_device_pixel,
         round_to_device_pixel,
@@ -64,9 +64,13 @@ impl TaffyLayoutEngine {
         style: Style,
         rem_size: Pixels,
         scale_factor: f32,
+        direction: LayoutDirection,
         children: &[LayoutId],
     ) -> LayoutId {
-        let taffy_style = style.to_taffy(rem_size, scale_factor);
+        let mut taffy_style = style.to_taffy(rem_size, scale_factor);
+        if direction.is_rtl() {
+            taffy_style.direction = taffy::style::Direction::Rtl;
+        }
 
         if children.is_empty() {
             self.taffy

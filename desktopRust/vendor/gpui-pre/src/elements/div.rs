@@ -3593,6 +3593,15 @@ impl Interactivity {
             }
         }
 
+        if style
+            .text
+            .direction
+            .unwrap_or_else(|| window.layout_direction())
+            .is_rtl()
+        {
+            style.mirror_horizontally();
+        }
+
         style
     }
 

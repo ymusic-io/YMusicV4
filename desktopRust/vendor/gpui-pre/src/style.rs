@@ -432,6 +432,37 @@ pub enum TextAlign {
     Right,
 }
 
+impl TextAlign {
+    /// `Left` and `Right` read as the start and end of `direction`.
+    pub fn resolve(self, direction: LayoutDirection) -> TextAlign {
+        match (self, direction) {
+            (TextAlign::Left, LayoutDirection::Rtl) => TextAlign::Right,
+            (TextAlign::Right, LayoutDirection::Rtl) => TextAlign::Left,
+            (align, _) => align,
+        }
+    }
+}
+
+/// The direction rows run in and the side `Left`/`Right` styles and text alignment start from.
+/// Under `Rtl` an element's horizontal edges (inset, margin, padding, border, corners) are
+/// mirrored, flex rows and grids run right to left, and `TextAlign::Left`/`Right` swap.
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub enum LayoutDirection {
+    /// Left to right
+    #[default]
+    Ltr,
+
+    /// Right to left
+    Rtl,
+}
+
+impl LayoutDirection {
+    /// Whether this is [`LayoutDirection::Rtl`].
+    pub fn is_rtl(self) -> bool {
+        self == LayoutDirection::Rtl
+    }
+}
+
 /// The properties that can be used to style text in GPUI
 #[derive(Refineable, Clone, Debug, PartialEq)]
 #[refineable(Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
@@ -480,6 +511,9 @@ pub struct TextStyle {
 
     /// The number of lines to display before truncating the text
     pub line_clamp: Option<usize>,
+
+    /// The layout direction, inherited like the rest of the text style
+    pub direction: LayoutDirection,
 }
 
 impl Default for TextStyle {
@@ -501,6 +535,7 @@ impl Default for TextStyle {
             text_overflow: None,
             text_align: TextAlign::default(),
             line_clamp: None,
+            direction: LayoutDirection::default(),
         }
     }
 }
@@ -617,6 +652,23 @@ impl Hash for HighlightStyle {
 }
 
 impl Style {
+    /// Swaps the left and right edges of the inset, margin, padding, border and corners, so a
+    /// style written for left to right lays out and paints mirrored.
+    pub fn mirror_horizontally(&mut self) {
+        mem::swap(&mut self.inset.left, &mut self.inset.right);
+        mem::swap(&mut self.margin.left, &mut self.margin.right);
+        mem::swap(&mut self.padding.left, &mut self.padding.right);
+        mem::swap(&mut self.border_widths.left, &mut self.border_widths.right);
+        mem::swap(
+            &mut self.corner_radii.top_left,
+            &mut self.corner_radii.top_right,
+        );
+        mem::swap(
+            &mut self.corner_radii.bottom_left,
+            &mut self.corner_radii.bottom_right,
+        );
+    }
+
     /// Returns true if the style is visible and the background is opaque.
     pub fn has_opaque_background(&self) -> bool {
         self.background

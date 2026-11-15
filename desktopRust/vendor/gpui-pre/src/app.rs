@@ -49,14 +49,14 @@ use crate::{
     AnyWindowHandle, AppContext, AppLifecyclePhase, Arena, ArenaBox, Asset, AssetSource,
     BackgroundExecutor, Bounds, ClipboardItem, ClipboardReadError, CursorStyle, DispatchPhase,
     DisplayChanges, DisplayEvent, DisplayId, EventEmitter, ExternalDragPayload, FocusHandle,
-    FocusMap, ForegroundExecutor, Global, KeyBinding, KeyContext, Keymap, Keystroke, LayoutId,
-    Menu, MenuItem, MissingGlyph, OwnedMenu, PathPromptOptions, Pixels, Platform, PlatformDisplay,
-    PlatformKeyboardLayout, PlatformKeyboardMapper, Point, PowerMode, Priority, PromptBuilder,
-    PromptButton, PromptHandle, PromptLevel, Render, RenderImage, RenderablePromptHandle,
-    Reservation, ScreenCaptureSource, SharedString, SubscriberSet, Subscription, SvgRenderer,
-    SystemNotification, SystemNotificationResponse, Task, TextRenderingMode, TextSystem,
-    ThermalState, Window, WindowAppearance, WindowButtonLayout, WindowHandle, WindowId,
-    WindowInvalidator, WindowingRequest,
+    FocusMap, ForegroundExecutor, Global, KeyBinding, KeyContext, Keymap, Keystroke,
+    LayoutDirection, LayoutId, Menu, MenuItem, MissingGlyph, OwnedMenu, PathPromptOptions, Pixels,
+    Platform, PlatformDisplay, PlatformKeyboardLayout, PlatformKeyboardMapper, Point, PowerMode,
+    Priority, PromptBuilder, PromptButton, PromptHandle, PromptLevel, Render, RenderImage,
+    RenderablePromptHandle, Reservation, ScreenCaptureSource, SharedString, SubscriberSet,
+    Subscription, SvgRenderer, SystemNotification, SystemNotificationResponse, Task,
+    TextRenderingMode, TextSystem, ThermalState, Window, WindowAppearance, WindowButtonLayout,
+    WindowHandle, WindowId, WindowInvalidator, WindowingRequest,
     colors::{Colors, GlobalColors},
     hash, init_app_menus,
 };
@@ -970,6 +970,7 @@ pub struct App {
     #[cfg(any(test, feature = "test-support", debug_assertions))]
     pub(crate) name: Option<&'static str>,
     pub(crate) text_rendering_mode: Rc<Cell<TextRenderingMode>>,
+    pub(crate) layout_direction: Rc<Cell<LayoutDirection>>,
 
     pub(crate) window_update_stack: Vec<WindowId>,
     pub(crate) mode: GpuiMode,
@@ -1024,6 +1025,7 @@ impl App {
                 platform: platform.clone(),
                 text_system,
                 text_rendering_mode: Rc::new(Cell::new(TextRenderingMode::default())),
+                layout_direction: Rc::new(Cell::new(LayoutDirection::default())),
                 mode: GpuiMode::Production,
                 actions: Rc::new(ActionRegistry::default()),
                 pending_updates: 0,
@@ -1851,6 +1853,19 @@ impl App {
     /// Sets the text rendering mode for the application.
     pub fn set_text_rendering_mode(&mut self, mode: TextRenderingMode) {
         self.text_rendering_mode.set(mode);
+    }
+
+    /// Sets the layout direction of every window's root; an element's text style can override it
+    /// for its subtree.
+    pub fn set_layout_direction(&mut self, direction: LayoutDirection) {
+        if self.layout_direction.replace(direction) != direction {
+            self.refresh_windows();
+        }
+    }
+
+    /// Returns the layout direction of every window's root.
+    pub fn layout_direction(&self) -> LayoutDirection {
+        self.layout_direction.get()
     }
 
     /// Returns the current text rendering mode for the application.
