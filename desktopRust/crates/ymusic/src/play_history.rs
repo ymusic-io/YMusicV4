@@ -346,7 +346,7 @@ fn snapshot(playback: &Playback, item: &QueueItem, playing: bool) -> Snapshot {
                 .iter()
                 .map(|item| item.thumb(120).map(|url| crate::local_art::to_jvm_art(&url)))
                 .collect(),
-            source_token: None,
+            source_token: playback.more.as_ref().and_then(|more| more.resume_token.clone()),
         },
         playing,
     }

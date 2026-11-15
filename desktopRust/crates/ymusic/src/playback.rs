@@ -564,19 +564,22 @@ impl Playback {
         self.nav.reset(self.index);
     }
 
-    /// Resumes a saved queue as the same queue, `start_ms` into its current item.
+    /// Resumes a saved queue as the same queue, `start_ms` into its current item, its playlist or
+    /// radio continuing where `source_token` says.
     pub fn resume_queue(
         &mut self,
         queue_id: String,
         items: Vec<QueueItem>,
         index: usize,
         start_ms: i64,
+        source_token: Option<String>,
         cx: &mut Context<Self>,
     ) {
         if items.is_empty() {
             return;
         }
-        self.attach_source(None);
+        let source = source_token.and_then(|token| NextQueueSource::resume(&token, &items, queue_source_log(cx)));
+        self.attach_source(source);
         self.index = index.min(items.len() - 1);
         self.queue = items;
         self.queue_id = queue_id;

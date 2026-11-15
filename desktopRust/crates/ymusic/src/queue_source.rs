@@ -81,6 +81,32 @@ impl NextQueueSource {
         Some(Self::new(step, total_count, loaded.iter().map(|item| item.id.clone()), log))
     }
 
+    /// The source a saved [`Self::resume_token`] describes, continuing past `queued`; None for a
+    /// token this build can't read.
+    pub fn resume(token: &str, queued: &[QueueItem], log: Logger) -> Option<Self> {
+        let json: Value = match serde_json::from_str(token) {
+            Ok(json) => json,
+            Err(error) => {
+                log.warn("unreadable queue resume token", Some(&error));
+                return None;
+            }
+        };
+        let text = |key: &str| json.get(key).and_then(Value::as_str).map(str::to_owned);
+        let step = match text("step").as_deref() {
+            Some(STEP_RADIO) => Step::Radio { video_id: text("videoId")? },
+            Some(STEP_PLAYLIST) => Step::Playlist {
+                url: text("url")?,
+                video_id: text("videoId")?,
+                index: json.get("index").and_then(Value::as_i64)?,
+            },
+            Some(STEP_CONTINUE) => Step::Continue { token: text("continuation")? },
+            _ => return None,
+        };
+        let total_count = json.get("total").and_then(Value::as_i64).and_then(|total| i32::try_from(total).ok());
+        let queued_ids = queued.iter().filter_map(|item| item.video_id().map(str::to_owned));
+        Some(Self::new(step, total_count, queued_ids, log))
+    }
+
     /// The whole list's length, loaded or not, when the source knows it.
     pub fn total_count(&self) -> Option<i32> {
         self.total_count

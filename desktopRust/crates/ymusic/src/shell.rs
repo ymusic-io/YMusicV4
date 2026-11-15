@@ -1067,7 +1067,10 @@ impl Shell {
         let resume = cx.subscribe(&view, |shell, _, event: &ResumeQueue, cx| {
             let (queue_id, items, index, start_ms) =
                 (event.queue_id.clone(), event.items.clone(), event.index, event.start_ms);
-            shell.playback.update(cx, |playback, cx| playback.resume_queue(queue_id, items, index, start_ms, cx));
+            let source_token = event.source_token.clone();
+            shell
+                .playback
+                .update(cx, |playback, cx| playback.resume_queue(queue_id, items, index, start_ms, source_token, cx));
         });
         self._subscriptions.push(resume);
         self.play_again = Some(view.clone());
