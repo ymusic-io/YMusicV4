@@ -182,6 +182,7 @@ pub fn resolve(video_id: &str, data: &Value, po_token: Option<&str>) -> Result<R
             },
             formats: adaptive_formats(data),
             caption_tracks: captions,
+            user_agent: str_field(data, "userAgent").filter(|agent| !agent.trim().is_empty()).map(str::to_owned),
         },
         artist: detail("author"),
         title: detail("title"),

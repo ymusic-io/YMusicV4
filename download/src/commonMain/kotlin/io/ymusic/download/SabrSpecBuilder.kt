@@ -45,6 +45,7 @@ object SabrSpecBuilder {
             clientInfo = ClientInfo(clientName = clientName, clientVersion = clientVersion, osName = "Windows", osVersion = "10.0"),
             formats = formats,
             captionTracks = captions,
+            userAgent = data.stringOrNull("userAgent")?.takeIf { it.isNotBlank() },
         )
     }
 
