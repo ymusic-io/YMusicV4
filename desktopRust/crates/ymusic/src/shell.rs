@@ -15,7 +15,7 @@ use ym_i18n::{Str, t, tf};
 
 use crate::a11y::{DragRow, FocusList, focusable};
 use crate::account_view::AccountView;
-use crate::action_icon::action_icon;
+use crate::action_icon::{HIT, action_icon};
 use crate::download_dialog::{DownloadPicker, DownloadTarget};
 use crate::downloads_view::{DownloadsView, RevealInLibrary};
 use crate::feed::{FeedAction, FeedSource, FeedView, ItemAction, Navigate, Play, RequestSearch};
@@ -634,7 +634,7 @@ impl Shell {
         // Back to a regular app before activating: AppKit can drop an activation made as an accessory app.
         self.window_shown(cx);
         crate::desktop::show_main_window();
-        cx.activate(true);
+        crate::desktop::activate_app(cx);
     }
 
     fn window_shown(&mut self, cx: &mut Context<Self>) {
@@ -1658,6 +1658,8 @@ impl Shell {
             .px_2()
             .pt(px(BAR_PAD_TOP))
             .pb(px(BAR_PAD_BOTTOM))
+            // A bar without icon buttons (Settings in rail mode) keeps their height.
+            .min_h(px(BAR_PAD_TOP + HIT + BAR_PAD_BOTTOM))
             .items_center()
             .bg(chrome_tone(cx))
             .when(!rail_mode, |bar| {

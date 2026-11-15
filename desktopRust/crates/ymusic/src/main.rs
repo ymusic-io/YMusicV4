@@ -298,7 +298,7 @@ fn main() {
         .expect("open main window");
         #[cfg(target_os = "linux")]
         crate::video_surface::follow_render_device(log.fork("video"));
-        cx.activate(true);
+        crate::desktop::activate_app(cx);
     });
     drop(tokio);
 }
