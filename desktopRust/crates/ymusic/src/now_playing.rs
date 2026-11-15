@@ -1380,13 +1380,11 @@ impl NowPlaying {
                     }));
                 }
                 if !active {
-                    let (next, item) = (playback.clone(), item.clone());
-                    menu = menu.item(PopupMenuItem::new(t(Str::QueueNext)).on_click(move |_, _, cx| {
-                        next.update(cx, |playback, cx| {
-                            playback.remove_at(position, cx);
-                            playback.queue_next(item.clone(), cx);
-                        })
-                    }));
+                    let next = playback.clone();
+                    menu = menu
+                        .item(PopupMenuItem::new(t(Str::QueueNext)).on_click(move |_, _, cx| {
+                            next.update(cx, |playback, cx| playback.move_next(position, cx))
+                        }));
                 }
                 match (&video_id, &item.source) {
                     (Some(video_id), _) => {

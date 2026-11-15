@@ -48,32 +48,61 @@ pub struct QueueNav {
     pub shuffle: bool,
     /// Indices in the order they played; the last is the current item.
     played: Vec<usize>,
+    /// Indices queued by Play next, played in order before any shuffle pick; a jump, previous, move
+    /// or remove clears it (the JVM QueueController.upNext).
+    up_next: Vec<usize>,
 }
 
 impl QueueNav {
     pub fn new(loop_mode: LoopMode, shuffle: bool) -> Self {
-        Self { loop_mode, shuffle, played: Vec::new() }
+        Self { loop_mode, shuffle, played: Vec::new(), up_next: Vec::new() }
     }
 
     /// A new queue starts its history at `index`.
     pub fn reset(&mut self, index: usize) {
         self.played.clear();
         self.played.push(index);
+        self.up_next.clear();
     }
 
     /// An item was inserted at `index`: history entries at or after it move up one.
     pub fn inserted_at(&mut self, index: usize) {
-        for played in &mut self.played {
-            if *played >= index {
-                *played += 1;
+        for entry in self.played.iter_mut().chain(self.up_next.iter_mut()) {
+            if *entry >= index {
+                *entry += 1;
             }
         }
     }
 
-    /// The item at `from` moved to `to`: history entries follow the items they name.
+    /// Where Play next inserts, behind the songs already queued with it, recorded as queued there
+    /// (the JVM QueueController.addNext).
+    pub fn add_next(&mut self, current: usize) -> usize {
+        let at = self.up_next.last().copied().unwrap_or(current) + 1;
+        self.inserted_at(at);
+        self.up_next.push(at);
+        at
+    }
+
+    /// Play next for an item already in the queue: where it moves to, behind the queued songs, and
+    /// queued with them (the JVM QueueController.moveNext). The caller moves the item.
+    pub fn move_next(&mut self, from: usize, current: usize) -> Option<usize> {
+        if from == current {
+            return None;
+        }
+        let queued: Vec<usize> = self.up_next.iter().copied().filter(|index| *index != from).collect();
+        let tail = queued.last().copied().unwrap_or(current);
+        let to = if from > tail { tail + 1 } else { tail };
+        for played in &mut self.played {
+            *played = moved_index(*played, from, to);
+        }
+        self.up_next = queued.into_iter().map(|index| moved_index(index, from, to)).chain([to]).collect();
+        Some(to)
+    }
+
     /// The JVM QueueController.removeAt's history update: `index` leaves the history, later indices
     /// shift down, and a removed current item's successor `current` is recorded as played.
     pub fn removed_at(&mut self, index: usize, was_current: bool, current: Option<usize>) {
+        self.up_next.clear();
         self.played.retain(|played| *played != index);
         for played in &mut self.played {
             if *played > index {
@@ -88,7 +117,9 @@ impl QueueNav {
         }
     }
 
+    /// The item at `from` moved to `to`: history entries follow the items they name.
     pub fn moved(&mut self, from: usize, to: usize) {
+        self.up_next.clear();
         for played in &mut self.played {
             *played = moved_index(*played, from, to);
         }
@@ -108,6 +139,9 @@ impl QueueNav {
         }
         if !user && self.loop_mode == LoopMode::One {
             return Some(current);
+        }
+        if let Some(&queued) = self.up_next.first() {
+            return Some(queued);
         }
         if !self.shuffle {
             return match current + 1 {
@@ -134,9 +168,16 @@ impl QueueNav {
         if self.shuffle && (0..len).all(|candidate| self.played.contains(&candidate)) {
             self.played.clear();
         }
+        self.up_next.retain(|queued| *queued != index);
         if self.played.last() != Some(&index) {
             self.played.push(index);
         }
+    }
+
+    /// A jump to `index` drops what Play next queued (the JVM QueueController.moveTo).
+    pub fn jump(&mut self, index: usize, len: usize) {
+        self.up_next.clear();
+        self.commit(index, len);
     }
 
     /// The item to go back to: the previously played one under shuffle, the previous index
@@ -149,6 +190,7 @@ impl QueueNav {
             if self.played.len() < 2 {
                 return None;
             }
+            self.up_next.clear();
             self.played.pop();
             return self.played.last().copied();
         }
@@ -157,6 +199,7 @@ impl QueueNav {
             0 => return None,
             current => current - 1,
         };
+        self.up_next.clear();
         self.commit(previous, len);
         Some(previous)
     }

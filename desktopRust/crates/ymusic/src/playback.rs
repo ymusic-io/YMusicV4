@@ -553,8 +553,23 @@ impl Playback {
             self.play_queue(vec![item], 0, cx);
             return;
         }
-        self.queue.insert(self.index + 1, item);
-        self.nav.inserted_at(self.index + 1);
+        let at = self.nav.add_next(self.index);
+        self.queue.insert(at, item);
+        self.queue_revision += 1;
+        cx.notify();
+    }
+
+    /// Play next for a queued item: behind the songs already queued with Play next (the JVM moveNext).
+    pub fn move_next(&mut self, from: usize, cx: &mut Context<Self>) {
+        if from >= self.queue.len() {
+            return;
+        }
+        let Some(to) = self.nav.move_next(from, self.index) else { return };
+        if from != to {
+            let item = self.queue.remove(from);
+            self.queue.insert(to, item);
+            self.index = moved_index(self.index, from, to);
+        }
         self.queue_revision += 1;
         cx.notify();
     }
@@ -1012,7 +1027,7 @@ impl Playback {
 
     pub fn jump_to(&mut self, index: usize, cx: &mut Context<Self>) {
         if index < self.queue.len() {
-            self.nav.commit(index, self.queue.len());
+            self.nav.jump(index, self.queue.len());
             self.index = index;
             self.play_when_ready = true;
             self.load_current(cx);
