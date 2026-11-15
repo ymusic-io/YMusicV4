@@ -471,6 +471,7 @@ impl Playback {
             }
         }
         self.new_queue();
+        self.play_when_ready = true;
         self.load_current(cx);
     }
 
@@ -605,7 +606,6 @@ impl Playback {
         self.queue.clear();
         self.queue_revision += 1;
         self.index = 0;
-        self.play_when_ready = false;
         self.send_local(LocalCommand::Stop);
         self.command(cx, |engine, log| async move { engine.player_stop(&log).await });
         self.state = PlayState::Idle;
