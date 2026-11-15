@@ -2207,7 +2207,20 @@ impl Shell {
         }
     }
 
+    /// Ctrl/Cmd+digit, for the tab row on screen only: a channel page's own tabs, else the section
+    /// root's; nothing under Now Playing or any other pushed page.
     fn select_tab(&mut self, index: usize, cx: &mut Context<Self>) {
+        if self.now_playing_open && self.playback.read(cx).current().is_some() {
+            return;
+        }
+        match self.stacks.get(&self.section).and_then(|stack| stack.pushed.last()) {
+            Some(Layer::Feed { view, .. }) => {
+                view.clone().update(cx, |view, cx| view.select_page_tab(index, cx));
+                return;
+            }
+            Some(_) => return,
+            None => {}
+        }
         match self.section {
             Section::Discover => {
                 if let Some(tab) = DiscoverTab::listed(self.guest).get(index).copied() {
@@ -2303,6 +2316,9 @@ impl Shell {
             .on_action(cx.listener(|shell, _: &SelectTab4, _, cx| shell.select_tab(3, cx)))
             .on_action(cx.listener(|shell, _: &SelectTab5, _, cx| shell.select_tab(4, cx)))
             .on_action(cx.listener(|shell, _: &SelectTab6, _, cx| shell.select_tab(5, cx)))
+            .on_action(cx.listener(|shell, _: &SelectTab7, _, cx| shell.select_tab(6, cx)))
+            .on_action(cx.listener(|shell, _: &SelectTab8, _, cx| shell.select_tab(7, cx)))
+            .on_action(cx.listener(|shell, _: &SelectTab9, _, cx| shell.select_tab(8, cx)))
     }
 }
 

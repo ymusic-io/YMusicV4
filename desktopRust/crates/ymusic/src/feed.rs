@@ -786,6 +786,13 @@ impl FeedView {
             self.fetch(None, false, cx);
         }
     }
+
+    /// The Ctrl/Cmd+digit handler of a page with its own tab row (a channel's).
+    pub fn select_page_tab(&mut self, index: usize, cx: &mut Context<Self>) {
+        if let Some(url) = self.page.page_tabs.get(index).and_then(|tab| tab.url.clone()) {
+            self.open_tab(url, cx);
+        }
+    }
 }
 
 /// What the user sees for a failure: a localized category, the server's own message, or the
