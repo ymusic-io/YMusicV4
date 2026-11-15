@@ -51,6 +51,7 @@ import io.ymusic.ui.playhistory.playHistoryNativeDriver
 import io.ymusic.ui.sponsorblock.SqliteSponsorBlockStore
 import io.ymusic.ui.sponsorblock.sponsorBlockNativeDriver
 import io.ymusic.ui.startupFailedMessage
+import io.ymusic.ytmedia.YOUTUBE_USER_AGENT
 import io.ymusic.ytmedia.cache.DiskMediaBlobCache
 import io.ymusic.ytmedia.cache.MediaCache
 import io.ymusic.ytmedia.cache.SqlDelightBlobIndex
@@ -273,7 +274,7 @@ private suspend fun buildIosGraph(container: UIView): AppGraph {
             cookieJar = cookies
             defaultRedirectOptions = RedirectOptions(followRedirects = true, followSslRedirects = true)
         },
-        userAgent = MSE_CHROME_UA,
+        userAgent = YOUTUBE_USER_AGENT,
         cacheEnabled = { remoteConfig.config.value.features.playerCacheEnabled },
     )
 
@@ -336,7 +337,3 @@ private suspend fun buildIosGraph(container: UIView): AppGraph {
     IosPipHost.mse = msePlayer
     return graph
 }
-
-private const val MSE_CHROME_UA =
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 " +
-        "(KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
