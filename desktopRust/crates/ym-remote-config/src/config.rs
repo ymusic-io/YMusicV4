@@ -187,8 +187,15 @@ impl RemoteConfig {
         self.sender.subscribe()
     }
 
-    pub fn set_running_bundles(&self, engine: Option<i64>, player: Option<i64>) {
-        *self.running_bundles.lock().unwrap() = (engine, player);
+    /// The engine bundle running now, reported to the service (the JVM RunningBundles.engine).
+    pub fn set_running_engine(&self, engine: i64) {
+        self.running_bundles.lock().unwrap().0 = Some(engine);
+    }
+
+    /// The player bundle running now, or before one boots the newest it could boot (the JVM
+    /// RunningBundles.player or its floor).
+    pub fn set_running_player(&self, player: i64) {
+        self.running_bundles.lock().unwrap().1 = Some(player);
     }
 
     /// Fetches when the held config is older than `max_age` (throttled); otherwise returns.

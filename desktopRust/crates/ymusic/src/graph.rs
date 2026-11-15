@@ -174,7 +174,7 @@ impl AppGraph {
         }
         candidates.push((ENGINE_JS.to_owned(), format!("embedded v{ENGINE_JS_VERSION}")));
         let engines = Arc::new(EngineManager::start(candidates, template).await?);
-        remote.set_running_bundles(Some(i64::from(engines.backend_version())), None);
+        remote.set_running_engine(i64::from(engines.backend_version()));
         ym_telemetry::set_engine_version(engines.backend_version());
 
         let pending_player: Arc<Mutex<Option<VerifiedBundle>>> = Arc::new(Mutex::new(None));
@@ -202,8 +202,21 @@ impl AppGraph {
             let (pending, source) = (pending_player.clone(), player_source.clone());
             Arc::new(move || player_candidates(&pending, &source))
         };
-        let youtube =
-            Arc::new(YoutubeSessions::new(player_config, candidates, player_source.clone(), log.fork("youtube")));
+        let floor_source = player_source.clone();
+        let cached_player =
+            tokio::task::spawn_blocking(move || floor_source.cached().map(|(_, version)| version)).await.ok().flatten();
+        remote.set_running_player(player_source.embedded().1.max(cached_player.unwrap_or(0)));
+        let player_running: crate::youtube_session::VersionSink = {
+            let remote = remote.clone();
+            Arc::new(move |version| remote.set_running_player(version))
+        };
+        let youtube = Arc::new(YoutubeSessions::new(
+            player_config,
+            candidates,
+            player_source.clone(),
+            player_running,
+            log.fork("youtube"),
+        ));
         let download_inputs = DownloadInputs {
             tokio: tokio.clone(),
             data_dir: data_dir.clone(),
@@ -307,7 +320,7 @@ impl AppGraph {
                             Ok(version) => {
                                 let source = engine_source.clone();
                                 let _ = tokio::task::spawn_blocking(move || source.store(&bundle)).await;
-                                remote.set_running_bundles(Some(i64::from(version)), None);
+                                remote.set_running_engine(i64::from(version));
                                 ym_telemetry::set_engine_version(version);
                             }
                             Err(error) => log

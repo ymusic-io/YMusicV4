@@ -17,6 +17,8 @@ pub struct YoutubeSession {
 }
 
 pub type CandidateSource = Arc<dyn Fn() -> Vec<(String, Option<VerifiedBundle>)> + Send + Sync>;
+/// Told the version of each player bundle that boots.
+pub type VersionSink = Arc<dyn Fn(i64) + Send + Sync>;
 
 /// How long quit waits for the player engine to free its JS heap.
 const QUIT_CLOSE_WAIT: Duration = Duration::from_secs(2);
@@ -28,6 +30,7 @@ pub struct YoutubeSessions {
     config: EngineConfig,
     candidates: CandidateSource,
     player_source: Arc<BundleSource>,
+    player_running: VersionSink,
     log: Logger,
 }
 
@@ -36,6 +39,7 @@ impl YoutubeSessions {
         config: EngineConfig,
         candidates: CandidateSource,
         player_source: Arc<BundleSource>,
+        player_running: VersionSink,
         log: Logger,
     ) -> Self {
         Self {
@@ -44,6 +48,7 @@ impl YoutubeSessions {
             config,
             candidates,
             player_source,
+            player_running,
             log,
         }
     }
@@ -108,7 +113,10 @@ impl YoutubeSessions {
                 }
             };
             match engine.health_check().await {
-                Ok(version) => ym_telemetry::set_player_version(version),
+                Ok(version) => {
+                    ym_telemetry::set_player_version(version);
+                    (self.player_running)(i64::from(version));
+                }
                 Err(error) => {
                     self.log.warn("a player bundle failed its health check", Some(&error));
                     engine.close().await;
