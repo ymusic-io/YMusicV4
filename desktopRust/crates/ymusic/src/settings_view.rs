@@ -257,6 +257,11 @@ pub fn apply_language(settings: &dyn SettingsStore) {
     }
 }
 
+/// Mirrors the layout for a right-to-left UI language.
+pub fn apply_layout_direction(cx: &mut App) {
+    cx.set_layout_direction(if ym_i18n::is_rtl() { LayoutDirection::Rtl } else { LayoutDirection::Ltr });
+}
+
 fn saved(settings: &dyn SettingsStore, key: &str) -> String {
     settings.get_raw(key).ok().flatten().unwrap_or_default()
 }
@@ -441,6 +446,7 @@ impl SettingsView {
         } else {
             ym_i18n::set_locale(&tag);
         }
+        apply_layout_direction(cx);
         // Saved before the notify: the engine re-reads the language from settings.
         let graph = cx.global::<AppGraph>();
         let (settings, log) = (graph.settings.clone(), graph.log.fork("settings"));

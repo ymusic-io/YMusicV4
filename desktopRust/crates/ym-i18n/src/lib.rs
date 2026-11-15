@@ -46,6 +46,13 @@ pub fn current_locale() -> &'static str {
     LOCALES[CURRENT.load(Ordering::Relaxed)].code
 }
 
+/// Whether the current locale's script runs right to left.
+pub fn is_rtl() -> bool {
+    const RTL_LANGUAGES: &[&str] = &["ar", "fa", "he", "iw", "ur", "ug", "ps", "sd", "yi", "dv", "ckb"];
+    let language = current_locale().split('-').next().unwrap_or_default();
+    RTL_LANGUAGES.iter().any(|rtl| rtl.eq_ignore_ascii_case(language))
+}
+
 pub fn t(key: Str) -> &'static str {
     let index = key as usize;
     LOCALES[CURRENT.load(Ordering::Relaxed)].strings[index].or(LOCALES[0].strings[index]).unwrap_or_default()

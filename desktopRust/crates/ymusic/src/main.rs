@@ -193,6 +193,7 @@ fn main() {
         let _ = inbox_sender.unbounded_send(crate::instance::Request::from_urls(urls));
     });
     app.run(move |cx| {
+        crate::settings_view::apply_layout_direction(cx);
         init(cx);
         cx.set_global(crate::instance::Inbox(inbox));
         cx.on_app_quit(|_| {
