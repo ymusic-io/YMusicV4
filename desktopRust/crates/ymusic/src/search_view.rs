@@ -21,7 +21,6 @@ const HISTORY_KEY: &str = "search.history";
 const HISTORY_LIMIT: usize = 500;
 /// History rows shown above the live suggestions while typing, so a long history never buries them.
 const TYPED_HISTORY_MATCHES: usize = 5;
-const SHOWN_SUGGESTIONS: usize = 12;
 
 /// Which service the field searches; the history is shared.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -197,12 +196,19 @@ impl SearchView {
             });
             let result = fetch.await;
             this.update(cx, |view, cx| {
-                if view.generation == generation
-                    && let Some(Ok(suggestions)) = result
-                {
-                    view.suggestions = suggestions;
-                    cx.notify();
+                if view.generation != generation {
+                    return;
                 }
+                // Best-effort: a failed suggest leaves no list, as the JVM SearchScreen does.
+                view.suggestions = match result {
+                    Some(Ok(suggestions)) => suggestions,
+                    Some(Err(error)) => {
+                        cx.global::<AppGraph>().log.fork("search").warn("suggest failed", Some(&error));
+                        Vec::new()
+                    }
+                    None => Vec::new(),
+                };
+                cx.notify();
             })
             .ok();
         })
@@ -258,7 +264,6 @@ impl Render for SearchView {
                 .suggestions
                 .iter()
                 .filter(|suggestion| !matches.iter().any(|entry| entry.to_lowercase() == suggestion.to_lowercase()))
-                .take(SHOWN_SUGGESTIONS)
                 .cloned()
                 .collect();
             (matches, fresh)
