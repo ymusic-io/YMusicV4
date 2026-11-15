@@ -1154,7 +1154,7 @@ impl NowPlaying {
         let sleep_after_current = playback.sleep_after_current;
         let sleep_armed = sleep_remaining.is_some() || sleep_after_current;
         let sponsor_whitelisted = self.sponsor_block.read(cx).current.as_ref().map(|(_, whitelisted)| *whitelisted);
-        let target = current.video_id().map(|video_id| DownloadTarget {
+        let target = current.downloadable().map(|video_id| DownloadTarget {
             video_id: video_id.to_owned(),
             title: current.title.clone(),
             thumbnail_url: current.thumb(640).map(|url| url.to_string()),
@@ -1183,7 +1183,7 @@ impl NowPlaying {
             .map(|chip| self.bar_focus.wrap(STOP_QUALITY, chip, cx));
 
         let view = cx.entity().downgrade();
-        let more_target = target.clone();
+        let more_video_id = current.video_id().map(str::to_owned);
         // Share for any item with a YouTube id (a downloaded file's too) and lyrics for any item, the
         // local artist in the query (the JVM ⋮ menu; a YouTube item's artist is its uploader).
         let share_id = current.video_id().map(str::to_owned).or_else(|| current.youtube_vid.clone());
@@ -1200,15 +1200,15 @@ impl NowPlaying {
             .track_focus(&self.bar_focus.handle(STOP_MORE, cx))
             .dropdown_menu_with_anchor(Anchor::TopRight, move |mut menu, window, cx| {
                 let icon = |name: Lucide| Icon::new(name);
-                if let Some(target) = &more_target {
-                    let (details, video_id) = (view.clone(), target.video_id.clone());
+                if let Some(more_video_id) = &more_video_id {
+                    let (details, video_id) = (view.clone(), more_video_id.clone());
                     menu =
                         menu.item(PopupMenuItem::new(t(Str::MenuDetailsComments)).icon(icon(Lucide::Info)).on_click(
                             move |_, _, cx| {
                                 details.update(cx, |_, cx| cx.emit(NowPlayingEvent::Details(video_id.clone()))).ok();
                             },
                         ));
-                    let video_id = target.video_id.clone();
+                    let video_id = more_video_id.clone();
                     menu =
                         menu.item(PopupMenuItem::new(t(Str::CdAddToPlaylist)).icon(icon(Lucide::ListPlus)).on_click(
                             move |_, window, cx| crate::yt_playlist::AddToPlaylist::open(video_id.clone(), window, cx),
@@ -1427,7 +1427,8 @@ impl NowPlaying {
             .text_color(cx.theme().muted_foreground)
             .dropdown_menu_with_anchor(Anchor::TopRight, move |mut menu, _, _| {
                 let video_id = item.video_id().map(str::to_owned);
-                if video_id.is_some() {
+                let downloadable = item.downloadable().is_some();
+                if downloadable {
                     let (radio, item) = (playback.clone(), item.clone());
                     menu = menu.item(PopupMenuItem::new(t(Str::MenuStartRadio)).on_click(move |_, _, cx| {
                         radio.update(cx, |playback, cx| playback.start_radio(item.clone(), cx))
@@ -1447,15 +1448,17 @@ impl NowPlaying {
                             menu.item(PopupMenuItem::new(t(Str::MenuAddToPlaylist)).on_click(move |_, window, cx| {
                                 crate::yt_playlist::AddToPlaylist::open(id.clone(), window, cx)
                             }));
-                        let target = DownloadTarget {
-                            video_id: video_id.clone(),
-                            title: item.title.clone(),
-                            thumbnail_url: item.thumb(640).map(|url| url.to_string()),
-                        };
-                        let download = view.clone();
-                        menu = menu.item(PopupMenuItem::new(t(Str::CdDownload)).on_click(move |_, _, cx| {
-                            download.update(cx, |_, cx| cx.emit(NowPlayingEvent::Download(target.clone()))).ok();
-                        }));
+                        if downloadable {
+                            let target = DownloadTarget {
+                                video_id: video_id.clone(),
+                                title: item.title.clone(),
+                                thumbnail_url: item.thumb(640).map(|url| url.to_string()),
+                            };
+                            let download = view.clone();
+                            menu = menu.item(PopupMenuItem::new(t(Str::CdDownload)).on_click(move |_, _, cx| {
+                                download.update(cx, |_, cx| cx.emit(NowPlayingEvent::Download(target.clone()))).ok();
+                            }));
+                        }
                         let link = crate::feed::youtube_share_link("video", video_id).unwrap_or_default();
                         menu = menu.item(PopupMenuItem::new(t(Str::CdShare)).on_click(move |_, window, cx| {
                             cx.write_to_clipboard(ClipboardItem::new_string(link.clone()));

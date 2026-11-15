@@ -332,6 +332,7 @@ impl DownloadsView {
             history_code: None,
             youtube_vid: Some(task.video_id.clone()),
             loudness_gain_db: task.loudness_gain_db,
+            live: false,
         };
         cx.spawn(async move |this, cx| {
             let item = match lookup.await {

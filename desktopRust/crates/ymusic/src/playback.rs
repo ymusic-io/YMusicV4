@@ -126,6 +126,8 @@ pub struct QueueItem {
     pub youtube_vid: Option<String>,
     /// A local file's dB to its loudness target.
     pub loudness_gain_db: Option<f64>,
+    /// A YouTube live stream, as its feed item said.
+    pub live: bool,
 }
 
 impl QueueItem {
@@ -140,6 +142,7 @@ impl QueueItem {
             history_code: None,
             youtube_vid: None,
             loudness_gain_db: None,
+            live: item.live,
         }
     }
 
@@ -158,6 +161,7 @@ impl QueueItem {
             ),
             youtube_vid: item.youtube_vid.clone(),
             loudness_gain_db: item.loudness_gain_db,
+            live: false,
         }
     }
 
@@ -180,6 +184,11 @@ impl QueueItem {
             Source::YouTube(video_id) => Some(video_id),
             Source::Local(_) => None,
         }
+    }
+
+    /// The JVM `PlaybackCoordinator.downloadable`: the video id of a non-live YouTube item.
+    pub fn downloadable(&self) -> Option<&str> {
+        self.video_id().filter(|_| !self.live)
     }
 }
 
