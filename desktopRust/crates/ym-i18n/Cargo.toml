@@ -1,0 +1,17 @@
+[package]
+name = "ym-i18n"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+intl_pluralrules = "7"
+unic-langid = "0.9"
+sys-locale = "0.3"
+
+[build-dependencies]
+roxmltree = "0.21"
+
+[lints]
+workspace = true

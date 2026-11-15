@@ -1,0 +1,25 @@
+[package]
+name = "ym-download"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+base64 = "0.22"
+futures.workspace = true
+rand = "0.9"
+regex = "1"
+reqwest.workspace = true
+rusqlite.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio = { workspace = true, features = ["process"] }
+url.workspace = true
+ym-common = { path = "../ym-common" }
+ym-engine = { path = "../ym-engine" }
+ym-ytmedia = { path = "../ym-ytmedia" }
+
+[lints]
+workspace = true

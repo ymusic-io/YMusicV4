@@ -1,0 +1,22 @@
+[package]
+name = "ym-remote-config"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+url.workspace = true
+ym-common = { path = "../ym-common" }
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+sha2 = "0.11"
+hex = "0.4"
+base64 = "0.22"
+p256 = { version = "0.13", features = ["ecdsa", "pkcs8"] }
+
+[lints]
+workspace = true
