@@ -1,6 +1,6 @@
 # Changelog
 
-## 4.0.21
+## 4.0.22
 
 ### NEW
 - **The desktop app is rebuilt in Rust.** macOS, Windows and Linux now run a native app with no Java runtime inside, and a much smaller download. Updating from 4.0.x keeps everything: the Library and its playlists, play history, downloads, settings and your YouTube sign-in stay in the same data folder, and that folder still opens in the previous version if you go back. The source is in [desktopRust/](https://github.com/ymusic-io/YMusicV4/tree/dev/desktopRust) ([43ef6f01c](https://github.com/ymusic-io/YMusicV4/commit/43ef6f01cdc755f71bf4c2eb542e957fd09d7d7d), [525cb24b1](https://github.com/ymusic-io/YMusicV4/commit/525cb24b1a532366ee728facccd7749f88fcde4a))
