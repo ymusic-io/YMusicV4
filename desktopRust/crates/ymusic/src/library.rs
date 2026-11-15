@@ -162,8 +162,8 @@ const TOOL_SORT_DIRECTION: usize = 3;
 const TOOL_NEW_PLAYLIST: usize = 4;
 const TOOL_PLAYLIST_MENU: usize = 5;
 const TOOL_EMPTY_RESTORE: usize = 6;
-/// Shared with the JVM app: the Library tab a restart resumes, by [Tab::id].
-const LAST_LIBRARY_TAB_KEY: &str = "app.lastLibraryTab";
+/// Shared with the JVM app: the Library tab a restart resumes, by [Tab::key].
+const LAST_LIBRARY_TAB_KEY: &str = "library.lastTab";
 const TOOL_RESCAN: usize = 7;
 const TOOL_SCAN_EMPTY: usize = 8;
 
@@ -180,19 +180,20 @@ enum Tab {
 impl Tab {
     const ALL: [Tab; 6] = [Tab::Folders, Tab::Playlists, Tab::Songs, Tab::Artists, Tab::Albums, Tab::Genres];
 
-    fn id(self) -> i32 {
+    /// Fixed and shared with the JVM app's LibraryTab.key: never renamed.
+    fn key(self) -> &'static str {
         match self {
-            Tab::Folders => 1,
-            Tab::Playlists => 2,
-            Tab::Songs => 3,
-            Tab::Artists => 4,
-            Tab::Albums => 5,
-            Tab::Genres => 6,
+            Tab::Folders => "folders",
+            Tab::Playlists => "playlists",
+            Tab::Songs => "songs",
+            Tab::Artists => "artists",
+            Tab::Albums => "albums",
+            Tab::Genres => "genres",
         }
     }
 
-    fn from_id(id: i32) -> Option<Self> {
-        Self::ALL.into_iter().find(|tab| tab.id() == id)
+    fn from_key(key: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|tab| tab.key() == key)
     }
 
     fn label(self) -> &'static str {
@@ -337,7 +338,13 @@ impl LibraryView {
                 (id, SortState::decode(raw.as_deref(), default))
             })
             .collect();
-        let tab = settings.int(LAST_LIBRARY_TAB_KEY, 0).ok().and_then(Tab::from_id).unwrap_or(Tab::Folders);
+        let tab = settings
+            .get_raw(LAST_LIBRARY_TAB_KEY)
+            .ok()
+            .flatten()
+            .as_deref()
+            .and_then(Tab::from_key)
+            .unwrap_or(Tab::Folders);
         let scroll = ScrollHandle::new();
         let mut view = Self {
             store,
@@ -516,7 +523,7 @@ impl LibraryView {
         let graph = cx.global::<AppGraph>();
         let (settings, log) = (graph.settings.clone(), graph.log.fork("settings"));
         graph.tokio.spawn_blocking(move || {
-            if let Err(error) = settings.put_raw(LAST_LIBRARY_TAB_KEY, tab.id().to_string()) {
+            if let Err(error) = settings.put_raw(LAST_LIBRARY_TAB_KEY, tab.key().to_owned()) {
                 log.warn(&format!("{LAST_LIBRARY_TAB_KEY} could not be saved: {error}"), None);
             }
         });

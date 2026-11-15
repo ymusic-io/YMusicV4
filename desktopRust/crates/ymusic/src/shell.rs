@@ -101,10 +101,11 @@ const SHADOW_REACH: f32 = 12.;
 const BAR_PAD_TOP: f32 = 2.;
 const BAR_PAD_BOTTOM: f32 = 3.;
 
-/// Shared with the JVM app: the section and the Discover and YT Music tabs a restart resumes, by their stable ids.
+/// Shared with the JVM app: the section and Discover tab a restart resumes, by their stable ids.
 const LAST_SECTION_KEY: &str = "app.lastSection";
 const LAST_DISCOVER_TAB_KEY: &str = "app.lastDiscoverTab";
-const LAST_YTMUSIC_TAB_KEY: &str = "app.lastYtMusicTab";
+/// Shared with the JVM app: the YT Music tab a restart resumes, by [MusicTab::key].
+const LAST_YTMUSIC_TAB_KEY: &str = "ytmusic.lastTab";
 const SEEK_STEP_MS: i64 = 10_000;
 const VOLUME_STEP: f32 = 0.05;
 const DOUBLE_ESCAPE: Duration = Duration::from_millis(500);
@@ -201,18 +202,19 @@ impl MusicTab {
     const ALL: [MusicTab; 5] =
         [MusicTab::Home, MusicTab::Explore, MusicTab::NewReleases, MusicTab::Charts, MusicTab::Library];
 
-    fn id(self) -> i32 {
+    /// Fixed and shared with the JVM app's YtMusicTab.key: never renamed.
+    fn key(self) -> &'static str {
         match self {
-            MusicTab::Home => 1,
-            MusicTab::Explore => 2,
-            MusicTab::NewReleases => 3,
-            MusicTab::Charts => 4,
-            MusicTab::Library => 5,
+            MusicTab::Home => "home",
+            MusicTab::Explore => "explore",
+            MusicTab::NewReleases => "new_releases",
+            MusicTab::Charts => "charts",
+            MusicTab::Library => "library",
         }
     }
 
-    fn from_id(id: i32) -> Option<Self> {
-        Self::ALL.into_iter().find(|tab| tab.id() == id)
+    fn from_key(key: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|tab| tab.key() == key)
     }
 
     /// A guest has no account library.
@@ -553,9 +555,11 @@ impl Shell {
             .filter(|tab| DiscoverTab::listed(guest).contains(tab))
             .unwrap_or(DiscoverTab::Home);
         let music_tab = settings
-            .int(LAST_YTMUSIC_TAB_KEY, 1)
+            .get_raw(LAST_YTMUSIC_TAB_KEY)
             .ok()
-            .and_then(MusicTab::from_id)
+            .flatten()
+            .as_deref()
+            .and_then(MusicTab::from_key)
             .filter(|tab| MusicTab::listed(guest).contains(tab))
             .unwrap_or(MusicTab::Home);
         let focus = cx.focus_handle();
@@ -2039,7 +2043,7 @@ impl Shell {
     /// Account tab re-checks who is signed in.
     fn set_music_tab(&mut self, tab: MusicTab, cx: &mut Context<Self>) {
         self.music_tab = tab;
-        persist_setting(cx, LAST_YTMUSIC_TAB_KEY, tab.id().to_string());
+        persist_setting(cx, LAST_YTMUSIC_TAB_KEY, tab.key().to_owned());
     }
 
     fn set_discover_tab(&mut self, tab: DiscoverTab, cx: &mut Context<Self>) {

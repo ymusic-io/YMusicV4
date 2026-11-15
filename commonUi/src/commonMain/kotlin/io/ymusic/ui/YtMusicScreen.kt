@@ -70,12 +70,13 @@ import kotlin.math.max
 const val MusicBrowsePrefix = "/ytmusic/browse"
 
 /** The YT Music top tabs. All but Library are anonymous WEB_REMIX feeds; Library needs sign-in. */
-enum class YtMusicTab(val id: Int, val label: StringResource) {
-    Home(1, Res.string.ytmusic_tab_home),
-    Explore(2, Res.string.ytmusic_tab_explore),
-    NewReleases(3, Res.string.ytmusic_tab_new_releases),
-    Charts(4, Res.string.ytmusic_tab_charts),
-    Library(5, Res.string.ytmusic_tab_library),
+/** [key] is what a restart resumes by: fixed, shared with the Rust app, never renamed. */
+enum class YtMusicTab(val key: String, val label: StringResource) {
+    Home("home", Res.string.ytmusic_tab_home),
+    Explore("explore", Res.string.ytmusic_tab_explore),
+    NewReleases("new_releases", Res.string.ytmusic_tab_new_releases),
+    Charts("charts", Res.string.ytmusic_tab_charts),
+    Library("library", Res.string.ytmusic_tab_library),
 }
 
 /**
@@ -105,9 +106,9 @@ fun YtMusicScreen(
     val tabs = remember(graph) { YtMusicTab.entries.filter { !graph.guest || it != YtMusicTab.Library } }
     var tab by rememberSaveable {
         val saved = graph.settings.flow(AppSettings.lastYtMusicTab).value
-        mutableStateOf(tabs.firstOrNull { it.id == saved } ?: YtMusicTab.Home)
+        mutableStateOf(tabs.firstOrNull { it.key == saved } ?: YtMusicTab.Home)
     }
-    LaunchedEffect(tab) { graph.settings.put(AppSettings.lastYtMusicTab, tab.id) }
+    LaunchedEffect(tab) { graph.settings.put(AppSettings.lastYtMusicTab, tab.key) }
     DisposableEffect(tabs) {
         val remove = GlobalShortcutActions.pushTabHandler { i ->
             tabs.getOrNull(i - 1)?.let { tab = it; true } ?: false
