@@ -1425,10 +1425,17 @@ impl Shell {
         }
         if self.stacks.entry(self.section).or_default().pushed.pop().is_some() {
             cx.notify();
-        } else if self.section == Section::Library
+            return;
+        }
+        if self.section == Section::Library
             && let Some(library) = self.library.clone()
+            && library.update(cx, |library, cx| library.back(cx))
         {
-            library.update(cx, |library, cx| library.back(cx));
+            return;
+        }
+        // The JVM onBack's last step: any other section goes back to Discover.
+        if self.section != Section::Discover {
+            self.select_section(Section::Discover, cx);
         }
     }
 

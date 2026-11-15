@@ -829,14 +829,18 @@ impl LibraryView {
 
     /// Steps up one level of the open tab: the open folder's parent, out of an opened playlist or
     /// group; nothing at the tab's top level.
-    pub fn back(&mut self, cx: &mut Context<Self>) {
+    /// Steps up one level; false when already at the tab's top.
+    pub fn back(&mut self, cx: &mut Context<Self>) -> bool {
         if self.tab == Tab::Folders && !self.path.is_empty() {
             self.open_crumb(self.path.len() - 1, cx);
-        } else {
+        } else if self.open_playlist.is_some() || self.group.is_some() {
             self.open_playlist = None;
             self.group = None;
+        } else {
+            return false;
         }
         cx.notify();
+        true
     }
 
     /// Remove (a root), Exclude / Include (a subfolder): the store cascades, then the list reloads.
