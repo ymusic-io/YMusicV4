@@ -6,9 +6,9 @@
 use std::rc::Rc;
 
 use gpui_kit::base::actions::Confirm as EnterKey;
-use gpui_kit::component::button::{Button, ButtonVariants};
+use gpui_kit::component::button::{Button, ButtonRounded, ButtonVariants};
 use gpui_kit::component::dialog::Dialog;
-use gpui_kit::component::{ActiveTheme, Disableable, StyledExt, WindowExt, h_flex, v_flex};
+use gpui_kit::component::{ActiveTheme, Disableable, FocusableExt, StyledExt, WindowExt, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use ym_i18n::{Str, t};
@@ -118,8 +118,21 @@ pub fn destructive_button(id: impl Into<ElementId>, label: impl Into<SharedStrin
     bar_text(id, label, if enabled { theme.danger } else { theme.muted_foreground.opacity(0.6) })
 }
 
+/// Material 3's focus state layer: the button's ink at this alpha, inside its pill.
+const FOCUS_ALPHA: f32 = 0.1;
+
 fn bar_text(id: impl Into<ElementId>, label: impl Into<SharedString>, color: Hsla) -> Button {
-    Button::new(id).ghost().h(px(40.)).px(px(12.)).text_color(color).font_medium().label(label)
+    Button::new(id)
+        .ghost()
+        .focus_ring(false)
+        .focus_visible(move |style| style.bg(color.opacity(FOCUS_ALPHA)))
+        .rounded(ButtonRounded::Size(px(20.)))
+        .h(px(40.))
+        .min_w(px(58.))
+        .px(px(12.))
+        .text_color(color)
+        .font_medium()
+        .label(label)
 }
 
 /// `button` as the `index`th stop of `focus`, running `on_press` on a click and on Enter: the
