@@ -27,9 +27,6 @@ use crate::youtube_session::YoutubeSessions;
 /// Where finished downloads go: a `file://` folder URI, shared with the JVM app's key.
 pub const DOWNLOAD_LOCATION_KEY: &str = "download.location";
 const MAX_CONCURRENT: usize = 3;
-/// Every googlevideo request must carry the User-Agent player.js presents.
-const DESKTOP_CHROME_UA: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 \
-    (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36";
 
 struct EngineResolver {
     sessions: Arc<YoutubeSessions>,
@@ -107,7 +104,7 @@ pub fn open(inputs: DownloadInputs) -> Result<DownloadService, String> {
         resolver: Arc::new(EngineResolver { sessions: inputs.sessions, log: log.fork("download-resolver") }),
         sabr: SabrHttp {
             client: inputs.http.not_following.clone(),
-            user_agent: DESKTOP_CHROME_UA.to_owned(),
+            user_agent: ym_ytmedia::YOUTUBE_USER_AGENT.to_owned(),
             cookies: Some(Arc::new(move |url| {
                 let pairs = cookies.load_for_request(url).ok()?;
                 (!pairs.is_empty())
