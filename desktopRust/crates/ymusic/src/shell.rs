@@ -1025,8 +1025,7 @@ impl Shell {
                 root.update(cx, |root, cx| root.reload(cx));
             }
         });
-        let account = cx.subscribe(&view, |shell, _, _: &AccountChanged, cx| shell.account_changed(cx));
-        self._subscriptions.extend([locale, account]);
+        self._subscriptions.push(locale);
         self.settings = Some(view.clone());
         view
     }
@@ -1483,9 +1482,6 @@ impl Shell {
         }
         for view in [self.account.clone(), self.music_library.clone()].into_iter().flatten() {
             view.update(cx, |view, cx| view.refresh(cx));
-        }
-        if let Some(settings) = &self.settings {
-            settings.update(cx, |settings, cx| settings.refresh_account(cx));
         }
         if let Some(downloads) = &self.downloads {
             downloads.update(cx, |downloads, _| downloads.signed_in());
