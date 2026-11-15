@@ -2540,7 +2540,16 @@ impl Interactivity {
             // were removed or the bounds became larger).
             let mut scroll_offset = scroll_offset.borrow_mut();
 
-            scroll_offset.x = scroll_offset.x.clamp(-scroll_max.x, px(0.));
+            let rtl = style
+                .text
+                .direction
+                .unwrap_or_else(|| window.layout_direction())
+                .is_rtl();
+            scroll_offset.x = if rtl {
+                scroll_offset.x.clamp(px(0.), scroll_max.x)
+            } else {
+                scroll_offset.x.clamp(-scroll_max.x, px(0.))
+            };
             if scroll_to_bottom {
                 scroll_offset.y = -scroll_max.y;
             } else {
@@ -2549,6 +2558,7 @@ impl Interactivity {
 
             if let Some(mut scroll_handle_state) = tracked_scroll_handle {
                 scroll_handle_state.max_offset = scroll_max;
+                scroll_handle_state.rtl = rtl;
                 scroll_handle_state.bounds = bounds;
             }
 
@@ -4304,6 +4314,7 @@ struct ScrollHandleState {
     ongoing_scroll: Rc<RefCell<OngoingScroll>>,
     bounds: Bounds<Pixels>,
     max_offset: Point<Pixels>,
+    rtl: bool,
     child_bounds: Vec<Bounds<Pixels>>,
     scroll_to_bottom: bool,
     overflow: Point<Overflow>,
@@ -4349,6 +4360,17 @@ impl ScrollHandle {
     /// Get the maximum scroll offset.
     pub fn max_offset(&self) -> Point<Pixels> {
         self.0.borrow().max_offset
+    }
+
+    /// The horizontal offsets the content scrolls between: `-max_offset().x..=0`, or
+    /// `0..=max_offset().x` when it lays out right to left and so overflows to the left.
+    pub fn offset_range_x(&self) -> (Pixels, Pixels) {
+        let state = self.0.borrow();
+        if state.rtl {
+            (px(0.), state.max_offset.x)
+        } else {
+            (-state.max_offset.x, px(0.))
+        }
     }
 
     /// Get the top child that's scrolled into view.
