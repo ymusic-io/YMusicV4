@@ -10,8 +10,11 @@ use ym_common::log::Logger;
 use crate::engine::{DynamicEngine, EngineConfig};
 use crate::error::EngineError;
 
-/// How long a retired engine gets to finish its in-flight work before it is closed regardless.
-const DRAIN_DEADLINE: Duration = Duration::from_secs(10);
+/// How long a retired engine gets to finish its in-flight work before it is closed regardless (the
+/// JVM DynamicEngineManager's drainTimeoutMs).
+const DRAIN_DEADLINE: Duration = Duration::from_secs(30);
+/// How often a retiring engine looks whether its last job let go of it.
+const PIN_POLL: Duration = Duration::from_millis(50);
 /// How long an untrusted (remote) bundle gets to boot and answer its health check (the JVM
 /// DynamicEngineManager's remoteBootTimeoutMs).
 const REMOTE_BOOT_DEADLINE: Duration = Duration::from_secs(10);
@@ -86,8 +89,8 @@ impl EngineManager {
         }
     }
 
-    /// The engine new work goes to. Hold the clone only for one job: a retired engine closes once
-    /// its drain deadline passes.
+    /// The engine new work goes to. The clone pins it for one job: a swap retires it only once every
+    /// clone is dropped (or its drain deadline passes), so a multi-command job stays on one engine.
     pub fn current(&self) -> Arc<DynamicEngine> {
         self.active.read().unwrap().0.clone()
     }
@@ -107,6 +110,9 @@ impl EngineManager {
         tokio::spawn(async move {
             let drained = tokio::time::timeout(DRAIN_DEADLINE, async {
                 retired.signal_shutdown().await;
+                while Arc::strong_count(&retired) > 1 {
+                    tokio::time::sleep(PIN_POLL).await;
+                }
                 retired.runtime().await_idle().await;
             })
             .await

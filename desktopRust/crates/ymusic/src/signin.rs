@@ -6,7 +6,7 @@ use std::sync::Arc;
 use ym_common::log::Logger;
 use ym_engine::{CookieJar, EngineError, EngineManager};
 use ym_remote_config::RemoteConfig;
-use ym_signin::{DeviceLinkOffer, LinkError, SessionCookie, to_set_cookie};
+use ym_signin::{DeviceLinkOffer, LinkError, SessionCookie, import_domain, to_set_cookie};
 
 /// Someone signed in or out; every feed reloads under the new identity.
 pub struct AccountChanged;
@@ -24,7 +24,7 @@ pub enum SignInError {
     Store(String),
 }
 
-/// Stores `cookies` as if their sites had set them, then reads the engine's cookie-only gate. No
+/// Stores `cookies`, each under its own domain, then reads the engine's cookie-only gate. No
 /// network call before the gate passes: YouTube answers one by revoking a half-set jar.
 pub async fn sign_in_with_cookies(
     cookies: Vec<SessionCookie>,
@@ -56,8 +56,8 @@ async fn import_and_check(
     }
     tokio::task::spawn_blocking(move || {
         for cookie in &cookies {
-            let host = if cookie.domain.ends_with("google.com") { "accounts.google.com" } else { "www.youtube.com" };
-            let url = url::Url::parse(&format!("https://{host}/")).expect("static url");
+            let url =
+                url::Url::parse(&format!("https://{}/", import_domain(cookie))).map_err(|error| error.to_string())?;
             jar.save_from_response(&url, &[to_set_cookie(cookie)]).map_err(|error| error.to_string())?;
         }
         Ok::<_, String>(())
