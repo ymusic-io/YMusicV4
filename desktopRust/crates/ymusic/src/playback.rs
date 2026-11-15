@@ -305,6 +305,9 @@ pub struct Playback {
     prepare_next_index: Option<usize>,
     /// The preload for `prepare_next_index` ran or was ruled out.
     prepare_next_armed: bool,
+    /// `prepare_next_index` is a shuffle pick from a page just loaded, which a skip plays too (the
+    /// JVM nextFromPage).
+    next_from_page: bool,
     /// Where the queue grows from (the JVM PlayerImpl.source).
     source: Option<NextQueueSource>,
     /// The source's side of the queue (the JVM QueueMore); None without a source.
@@ -406,6 +409,7 @@ impl Playback {
             skip_timer: None,
             prepare_next_index: None,
             prepare_next_armed: false,
+            next_from_page: false,
             source: None,
             more: None,
             _source_page: None,
@@ -929,7 +933,8 @@ impl Playback {
 
     /// A user skip.
     pub fn next(&mut self, cx: &mut Context<Self>) {
-        if let Some(next) = self.nav.peek_next(true, self.index, self.queue.len()) {
+        let page_pick = self.prepare_next_index.filter(|_| self.next_from_page);
+        if let Some(next) = page_pick.or_else(|| self.nav.peek_next(true, self.index, self.queue.len())) {
             self.nav.commit(next, self.queue.len());
             self.index = next;
             self.publish_queue(false, cx);
@@ -1418,17 +1423,39 @@ impl Playback {
     }
 
     /// The JVM refreshPrepareNext: peeks the item an auto-advance plays and re-arms its preload; on a
-    /// new track a failed page is cleared (retried once per track, not in a loop).
+    /// new track a failed page is cleared (retried once per track, not in a loop) and a shuffle pick
+    /// may land on the queue's unloaded part.
     fn refresh_prepare_next(&mut self, cx: &mut Context<Self>) {
         self.prepare_next_index = self.nav.peek_next(false, self.index, self.queue.len());
         self.prepare_next_armed = false;
+        self.next_from_page = false;
         if self.rolled_generation != Some(self.load_generation) {
             self.rolled_generation = Some(self.load_generation);
             if let Some(more) = &mut self.more {
                 more.error = None;
             }
+            if self.shuffle_pick_lands_unloaded() {
+                self.start_load(true, cx);
+            }
         }
         self.maybe_preload_next(cx);
+    }
+
+    /// Known-length shuffle: the pick lands on the unloaded part with probability unloaded /
+    /// (unplayed + unloaded), and then plays from the one next page (the JVM
+    /// shufflePickLandsUnloaded; later pages are under-weighted there too).
+    fn shuffle_pick_lands_unloaded(&self) -> bool {
+        let Some(more) = &self.more else { return false };
+        let Some(total) = more.total_count else { return false };
+        if !self.nav.shuffle || self.nav.has_up_next() || !more.has_more || more.loading || more.error.is_some() {
+            return false;
+        }
+        let unloaded = total.max(0) as usize;
+        let Some(unloaded) = unloaded.checked_sub(self.queue.len()).filter(|unloaded| *unloaded > 0) else {
+            return false;
+        };
+        let unplayed = self.nav.unplayed_count(self.queue.len());
+        rand::Rng::random_range(&mut rand::rng(), 0..unplayed + unloaded) < unloaded
     }
 
     /// The JVM maybePreloadNext: in the last 10 s of the content, playing, cue the next item on its
@@ -2004,7 +2031,7 @@ impl Playback {
         if let Some(more) = &mut self.more {
             more.error = None;
         }
-        self.start_load(cx);
+        self.start_load(false, cx);
     }
 
     /// Any mode: the current item sits within the queue's last [`LOAD_AHEAD`] items.
@@ -2014,11 +2041,12 @@ impl Playback {
             return;
         }
         if self.queue.len() - 1 - self.index.min(self.queue.len() - 1) < LOAD_AHEAD {
-            self.start_load(cx);
+            self.start_load(false, cx);
         }
     }
 
-    fn start_load(&mut self, cx: &mut Context<Self>) {
+    /// `pick_next`: a shuffle pick that landed on the unloaded part plays from this page.
+    fn start_load(&mut self, pick_next: bool, cx: &mut Context<Self>) {
         let (Some(source), Some(more)) = (&self.source, &mut self.more) else { return };
         if !more.has_more || more.loading {
             return;
@@ -2027,7 +2055,7 @@ impl Playback {
         more.error = None;
         cx.notify();
         let Some(fetch) = source.fetch(cx.global::<AppGraph>().engine()) else {
-            self.add_page(QueueSourcePage { items: Vec::new(), has_more: false }, cx);
+            self.add_page(QueueSourcePage { items: Vec::new(), has_more: false }, pick_next, cx);
             return;
         };
         let fetch = on_core(cx, fetch);
@@ -2038,7 +2066,7 @@ impl Playback {
                     Some(Ok(page)) => {
                         if let Some(source) = &mut playback.source {
                             let page = source.accept(page);
-                            playback.add_page(page, cx);
+                            playback.add_page(page, pick_next, cx);
                         }
                         return;
                     }
@@ -2059,10 +2087,11 @@ impl Playback {
         }));
     }
 
-    fn add_page(&mut self, page: QueueSourcePage, cx: &mut Context<Self>) {
+    fn add_page(&mut self, page: QueueSourcePage, pick_next: bool, cx: &mut Context<Self>) {
         let total_count = self.source.as_ref().and_then(NextQueueSource::total_count);
         let resume_token = self.source.as_ref().and_then(NextQueueSource::resume_token);
-        if !page.items.is_empty() {
+        let (first_new, page_len) = (self.queue.len(), page.items.len());
+        if page_len > 0 {
             self.queue.extend(page.items);
             self.queue_revision += 1;
         }
@@ -2073,7 +2102,15 @@ impl Playback {
             more.total_count = if page.has_more { total_count.or(more.total_count) } else { Some(loaded) };
             more.resume_token = resume_token.filter(|_| page.has_more);
         }
-        self.publish_queue(true, cx);
+        if pick_next && page_len > 0 && self.nav.shuffle {
+            self.prepare_next_index = Some(first_new + rand::Rng::random_range(&mut rand::rng(), 0..page_len));
+            self.prepare_next_armed = false;
+            self.next_from_page = true;
+            self.publish_queue(false, cx);
+            self.maybe_preload_next(cx);
+        } else {
+            self.publish_queue(true, cx);
+        }
         cx.notify();
     }
 }

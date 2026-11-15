@@ -163,6 +163,16 @@ impl QueueNav {
         Some(candidates[random.random_range(0..candidates.len())])
     }
 
+    /// Songs queued with Play next are waiting (the JVM QueueController.hasUpNext).
+    pub fn has_up_next(&self) -> bool {
+        !self.up_next.is_empty()
+    }
+
+    /// The items of a `len` queue not yet played in this shuffle cycle (the JVM unplayedCount).
+    pub fn unplayed_count(&self, len: usize) -> usize {
+        (0..len).filter(|index| !self.played.contains(index)).count()
+    }
+
     /// Makes `index` (from [`Self::peek_next`] or a jump) current.
     pub fn commit(&mut self, index: usize, len: usize) {
         if self.shuffle && (0..len).all(|candidate| self.played.contains(&candidate)) {
