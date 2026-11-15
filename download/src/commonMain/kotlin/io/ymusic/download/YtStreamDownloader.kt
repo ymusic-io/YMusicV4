@@ -129,6 +129,7 @@ class YtStreamDownloader(
         downloadTracks(
             spec, audioFmt, videoFmt, audioScratch, videoScratch, onProgress,
             reAttest = { spec = resolveSpec(task.videoId).spec; spec },
+            remint = { resolver.remint(task.videoId).also { if (it is SpecRemint.Minted) spec = it.video.spec } },
         )
 
         // Captions are KB-scale; fetched after the media, whole (no range-resume), not folded into progress.
@@ -223,10 +224,10 @@ class YtStreamDownloader(
     }
 
     /**
-     * Run the SABR download, re-priming a fresh spec once if the PO token is rejected mid-stream. Each
-     * session records its segments in [segmentIndex] and seeds its resume cursor from the on-disk file
-     * length via that index — so pause/resume and re-attest continue from the last segment (see
-     * [SabrSession.download]), rather than re-fetching from zero.
+     * Run the SABR download, retrying once on a new PO token when googlevideo withholds media or
+     * rejects the token. Each session records its segments in [segmentIndex] and seeds its resume
+     * cursor from the on-disk file length via that index — so pause/resume and the retry continue
+     * from the last segment (see [SabrSession.download]), rather than re-fetching from zero.
      */
     private suspend fun downloadTracks(
         spec: SabrStreamSpec,
@@ -236,10 +237,11 @@ class YtStreamDownloader(
         videoFile: DownloadFile?,
         onProgress: (Long, Long) -> Unit,
         reAttest: suspend () -> SabrStreamSpec,
+        remint: suspend () -> SpecRemint,
     ) {
         val progress = SabrProgress { aDone, aLen, vDone, vLen -> onProgress(aDone + vDone, aLen + vLen) }
         var current = spec
-        var invalid: SabrPoTokenInvalid? = null
+        var refused: IOException? = null
         while (true) {
             try {
                 SabrSession(logger = log).download(
@@ -254,24 +256,47 @@ class YtStreamDownloader(
                     segmentIndex = segmentIndex,
                 )
                 return
-            } catch (e: SabrPoTokenInvalid) {
-                invalid?.let {
-                    e.addSuppressed(it)
-                    throw sabrFailure(e)
-                }
-                invalid = e
-                log?.log(Logger.Level.WARN, "PO token invalid, re-attesting: ${e.message}")
-                current = try {
-                    reAttest()
-                } catch (error: Throwable) {
-                    error.addSuppressed(e)
-                    throw error
-                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Throwable) {
-                throw sabrFailure(e)
+                if (e !is SabrPoTokenInvalid && e !is SabrAttestationPending) throw sabrFailure(e)
+                refused?.let {
+                    e.addSuppressed(it)
+                    throw sabrFailure(e)
+                }
+                refused = e as IOException
+                current = try {
+                    specOnNewToken(e, reAttest, remint)
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (error: Throwable) {
+                    if (error !== e && error.cause !== e) error.addSuppressed(e)
+                    throw error
+                }
             }
+        }
+    }
+
+    /** The spec for the one retry: the player re-mints its token, unless googlevideo accepts the
+     *  token it has, in which case the download itself is at fault. */
+    private suspend fun specOnNewToken(
+        refused: IOException,
+        reAttest: suspend () -> SabrStreamSpec,
+        remint: suspend () -> SpecRemint,
+    ): SabrStreamSpec = when (val result = remint()) {
+        is SpecRemint.Minted -> {
+            log?.log(Logger.Level.WARN, "PO token refused, retrying on a re-minted one: ${refused.message}")
+            result.video.spec
+        }
+        SpecRemint.PlayerAccepted -> throw TechnicalException(
+            "E70054",
+            "googlevideo refused the download while it accepts the player's PO token: ${refused.message}",
+            cause = refused,
+        )
+        SpecRemint.Unavailable -> {
+            if (refused !is SabrPoTokenInvalid) throw sabrFailure(refused)
+            log?.log(Logger.Level.WARN, "PO token invalid, re-attesting: ${refused.message}")
+            reAttest()
         }
     }
 }

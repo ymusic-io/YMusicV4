@@ -19,6 +19,20 @@ import projectcommon.error.TechnicalException
  */
 fun interface SabrSpecResolver {
     suspend fun resolve(videoId: String): ResolvedVideo
+
+    /** The spec on a re-minted PO token, after googlevideo withheld or rejected the download's. */
+    suspend fun remint(videoId: String): SpecRemint = SpecRemint.Unavailable
+}
+
+/** What [SabrSpecResolver.remint] got. */
+sealed interface SpecRemint {
+    class Minted(val video: ResolvedVideo) : SpecRemint
+
+    /** googlevideo accepts the player's current token: the download's own requests are at fault. */
+    data object PlayerAccepted : SpecRemint
+
+    /** No re-mint: the player session's are spent, or the engine bundle predates them. */
+    data object Unavailable : SpecRemint
 }
 
 /** A resolved video: the SABR [spec], plus what its file takes from the same player response. */

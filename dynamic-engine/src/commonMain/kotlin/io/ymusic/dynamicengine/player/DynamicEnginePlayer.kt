@@ -13,6 +13,7 @@ import io.ymusic.mse.MseLogBridge
 import io.ymusic.mse.MseVideoSurface
 import io.ymusic.mse.NativeMseFrame
 import io.ymusic.quickjs.PipeResetException
+import io.ymusic.quickjs.QuickJsException
 import io.ymusic.quickjs.asBufferedSource
 import io.ymusic.settings.SettingsStore
 import kmpcommon.log.Logger
@@ -289,6 +290,29 @@ class DynamicEnginePlayer private constructor(
             token
         }
 
+    /**
+     * A download's one re-mint of the session's content PO token. [ContentPoRemint.PlayerAccepted] when
+     * googlevideo already accepts the player's current token (the VM is left alone);
+     * [ContentPoRemint.Unavailable] when the session's re-mints are spent or the bundle predates them.
+     */
+    suspend fun remintContentPoToken(videoId: String, logger: Logger? = null): ContentPoRemint =
+        try {
+            engine.jsonCommand("player/remintPo", { w -> w.name("videoId").value(videoId) }, logger) { r ->
+                val o = r.readObject()
+                when (o.stringOrNull("status")) {
+                    "reminted" -> o.stringOrNull("contentPoToken")
+                        ?.takeIf { it.length >= 20 }
+                        ?.let { ContentPoRemint.Minted(it) }
+                        ?: error("missing contentPoToken")
+                    "accepted" -> ContentPoRemint.PlayerAccepted
+                    else -> ContentPoRemint.Unavailable
+                }
+            }
+        } catch (e: QuickJsException) {
+            if (e.message?.contains("no JS handler") != true) throw e
+            ContentPoRemint.Unavailable
+        }
+
     /** Android TextureView surface, iOS layer. The JVM binds the surface's presenter when its host is set. */
     fun setVideoSurface(surface: MseVideoSurface?) {
         nativeMse?.setVideoSurface(surface)
@@ -408,4 +432,14 @@ private fun JsonObject.captionLines(): List<CaptionLine> {
         val id = o.intOrNull("id") ?: return@mapNotNull null
         CaptionLine(id = id, text = o.stringOrNull("text").orEmpty())
     }
+}
+
+/** What [DynamicEnginePlayer.remintContentPoToken] got. */
+sealed interface ContentPoRemint {
+    class Minted(val token: String) : ContentPoRemint
+
+    /** googlevideo accepts the player's current token, so a withheld download is not about the token. */
+    data object PlayerAccepted : ContentPoRemint
+
+    data object Unavailable : ContentPoRemint
 }

@@ -3,6 +3,8 @@ package io.ymusic.ui
 import io.ymusic.download.ResolvedVideo
 import io.ymusic.download.SabrSpecBuilder
 import io.ymusic.download.SabrSpecResolver
+import io.ymusic.download.SpecRemint
+import io.ymusic.dynamicengine.player.ContentPoRemint
 import io.ymusic.player.YtEngine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
@@ -29,6 +31,17 @@ class YtEngineSabrSpecResolver(
         val playerResponse = player.requestPlayerResponse(videoId)
         val poToken = player.requestPoToken(videoId)
         SabrSpecBuilder.resolve(videoId, playerResponse, poToken)
+    }
+
+    override suspend fun remint(videoId: String): SpecRemint = mutex.withLock {
+        val player = engine()
+        withContext(Dispatchers.Main) { player.init() }
+        when (val result = player.remintPoToken(videoId)) {
+            is ContentPoRemint.Minted ->
+                SpecRemint.Minted(SabrSpecBuilder.resolve(videoId, player.requestPlayerResponse(videoId), result.token))
+            ContentPoRemint.PlayerAccepted -> SpecRemint.PlayerAccepted
+            ContentPoRemint.Unavailable -> SpecRemint.Unavailable
+        }
     }
 
     /** The player response alone — what the download options dialog reads; no PO token minted. */
