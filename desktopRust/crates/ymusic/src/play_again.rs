@@ -216,10 +216,14 @@ impl PlayAgainView {
 
     fn card(&self, position: usize, session: &PlayAgainSession, card_width: f32, cx: &mut Context<Self>) -> AnyElement {
         let theme = cx.theme().clone();
-        let resume_label =
-            session.resumes_mid_item().then(|| tf(Str::PlayAgainResumeAt, &[&clock(session.position_ms)]));
-        let track = tf(Str::PlayAgainTrackOf, &[&(session.queue_index + 1), &session.queue_size]);
-        let detail = [session.subtitle.clone(), Some(track), resume_label].into_iter().flatten().collect::<Vec<_>>();
+        // The JVM sessionLine: "Resume at" for long content left mid-item (under a second reads 0:00,
+        // the track's start), else "N of M".
+        let place = if session.resumes_mid_item() && session.position_ms >= 1_000 {
+            tf(Str::PlayAgainResumeAt, &[&clock(session.position_ms)])
+        } else {
+            tf(Str::PlayAgainTrackOf, &[&(session.queue_index + 1), &session.queue_size])
+        };
+        let detail = [session.subtitle.clone(), Some(place)].into_iter().flatten().collect::<Vec<_>>();
         let detail = detail.join(" · ");
         let view = cx.entity().downgrade();
         let (from_start, removed) = (session.clone(), session.queue_id.clone());

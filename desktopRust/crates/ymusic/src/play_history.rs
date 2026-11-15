@@ -256,6 +256,7 @@ impl HistoryRecorder {
         let playing = playback.state == PlayState::Playing;
         let current = playback.current().cloned();
         self.track_watch(current.as_ref(), playing);
+        let item_duration = current.as_ref().and_then(|item| item.duration_ms).unwrap_or(0);
         let next = current.map(|item| snapshot(playback, &item, playing));
         let previous = self.current.take();
         match (&previous, &next) {
@@ -263,11 +264,11 @@ impl HistoryRecorder {
                 if let Some(previous) = &previous {
                     self.write(previous, playback);
                 }
-                self.write(&at_item_start(next), playback);
+                self.write(&at_item_start(next, item_duration), playback);
             }
             (Some(previous), Some(next)) => {
                 if next.index != previous.index {
-                    self.write(&at_item_start(next), playback);
+                    self.write(&at_item_start(next, item_duration), playback);
                 } else if next.revision != previous.revision
                     || (previous.playing && !next.playing)
                     || (next.playing && self.last_write_at.elapsed() >= PROGRESS_EVERY)
@@ -351,10 +352,12 @@ fn snapshot(playback: &Playback, item: &QueueItem, playing: bool) -> Snapshot {
     }
 }
 
-/// A track change: the play-head may still be the previous item's.
-fn at_item_start(snapshot: &Snapshot) -> Snapshot {
+/// A track change: the play-head and length may still be the previous item's, so the new item's own
+/// length goes in (the JVM recorder's `durationMs = currentItem.durationMs`).
+fn at_item_start(snapshot: &Snapshot, item_duration_ms: i64) -> Snapshot {
     let mut session = snapshot.session.clone();
     session.position_ms = 0;
+    session.duration_ms = item_duration_ms;
     Snapshot {
         queue_id: snapshot.queue_id.clone(),
         revision: snapshot.revision,
