@@ -66,6 +66,7 @@ const OVERLAY_SEEK: usize = 10;
 const OVERLAY_SIGN_IN: usize = 11;
 const OVERLAY_RETRY: usize = 12;
 const OVERLAY_LIVE: usize = 13;
+const OVERLAY_FILL: usize = 14;
 const MENU_CAPTIONS: u8 = 1;
 const MENU_QUALITY: u8 = 2;
 const MENU_MORE: u8 = 4;
@@ -138,6 +139,9 @@ pub struct NowPlaying {
     /// A video control held keyboard focus at the last render: the controls stay up meanwhile.
     keyboard_in_controls: Cell<bool>,
     fullscreen: bool,
+    /// The JVM `videoFillScreen`: full screen takes the whole screen as the picture; never saved, off
+    /// whenever full screen ends.
+    video_fill: bool,
     _subscriptions: Vec<Subscription>,
     _controls_timer: Task<()>,
 }
@@ -293,6 +297,13 @@ fn menu_value_item(label: &'static str, value: String) -> PopupMenuItem {
     })
 }
 
+/// The quality chip's text, its menu's choices (token, label) and the preferred token.
+struct QualityChoices {
+    label: String,
+    options: Vec<(String, String)>,
+    selected: String,
+}
+
 /// How much the video overlay's chrome grows with the video box: 1× up to a 400 px short side, then
 /// up to 1.3×.
 fn overlay_scale((width, height): (i32, i32)) -> f32 {
@@ -383,6 +394,7 @@ impl NowPlaying {
             overlay_focus: FocusList::new(None),
             keyboard_in_controls: Cell::new(false),
             fullscreen: false,
+            video_fill: false,
             _subscriptions: subscriptions,
             _controls_timer: controls_timer,
         }
@@ -542,6 +554,9 @@ impl NowPlaying {
 
     fn toggle_fullscreen(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.fullscreen = !self.fullscreen;
+        if !self.fullscreen {
+            self.video_fill = false;
+        }
         window.toggle_fullscreen();
         self.show_controls(cx);
     }
@@ -738,6 +753,24 @@ impl NowPlaying {
             .children(actions)
             .when_some(self.caption_button(glyph, hit, cx), |row, button| {
                 row.child(self.overlay_focus.wrap_for(OVERLAY_CAPTIONS, &self.caption_focus, button, cx))
+            })
+            .when(fullscreen, |row| {
+                let fill = self.video_fill;
+                let toggle = sized_action_icon(
+                    "np-fill",
+                    if fill { Lucide::Shrink } else { Lucide::Scan },
+                    t(if fill { Str::CdFitVideo } else { Str::CdFillVideo }),
+                    glyph,
+                    hit,
+                );
+                row.child(self.overlay_focus.button(
+                    OVERLAY_FILL,
+                    on_video(toggle, cx).on_click(cx.listener(|view, _, _, cx| {
+                        view.video_fill = !view.video_fill;
+                        cx.notify();
+                    })),
+                    cx,
+                ))
             })
             .child(
                 self.overlay_focus.button(
@@ -981,9 +1014,9 @@ impl NowPlaying {
         } else {
             0.1 + 0.1 * ((width - 600.) / (1920. - 600.)).clamp(0., 1.)
         };
-        // The picture is contain-fit: captions go in the bar under it when two rows fit there clear
-        // of the controls, else over its bottom.
-        let (picture_width, picture_height) = if audio_only {
+        // The picture is contain-fit (the whole box when it fills): captions go in the bar under it when
+        // two rows fit there clear of the controls, else over its bottom.
+        let (picture_width, picture_height) = if audio_only || self.video_fill {
             (width, height)
         } else if width / height.max(1.) <= VIDEO_RATIO {
             (width, width / VIDEO_RATIO)
@@ -1052,42 +1085,34 @@ impl NowPlaying {
         )
     }
 
-    /// The quality menu's choices (token, label), the preferred token and the playing quality's label.
-    fn quality_choices(&self, cx: &App) -> (Vec<(String, String)>, String, String) {
-        let playback = self.playback.read(cx);
-        let label = |quality: &str, fallback: &str| match quality {
+    /// The JVM `qualityChoices`: None while the item offers no choice.
+    fn quality_choices(&self, cx: &App) -> Option<QualityChoices> {
+        let quality = self.playback.read(cx).video_quality();
+        if quality.options.is_empty() {
+            return None;
+        }
+        let label = |token: &str, fallback: &str| match token {
             QUALITY_AUTO => t(Str::VideoQualityAuto).to_owned(),
             QUALITY_AUDIO_ONLY => t(Str::AudioOnly).to_owned(),
             _ => fallback.to_owned(),
         };
-        let mut choices = vec![(QUALITY_AUDIO_ONLY.to_owned(), t(Str::AudioOnly).to_owned())];
-        if playback.quality_options.is_empty() {
-            choices.push((QUALITY_AUTO.to_owned(), t(Str::VideoQualityAuto).to_owned()));
-        } else {
-            choices
-                .extend(playback.quality_options.iter().map(|(quality, text)| (quality.clone(), label(quality, text))));
-        }
-        let selected = if playback.video { playback.quality_preferred.clone() } else { QUALITY_AUDIO_ONLY.to_owned() };
-        let current = if !playback.video {
-            t(Str::AudioOnly).to_owned()
-        } else {
-            let actual = playback.quality_actual.clone().unwrap_or_else(|| QUALITY_AUTO.to_owned());
-            choices
-                .iter()
-                .find(|(quality, _)| *quality == actual)
-                .map(|(_, text)| text.clone())
-                .unwrap_or_else(|| label(&actual, &actual))
-        };
-        (choices, selected, current)
+        let choices: Vec<(String, String)> =
+            quality.options.iter().map(|(token, text)| (token.clone(), label(token, text))).collect();
+        let current = choices
+            .iter()
+            .find(|(token, _)| *token == quality.actual)
+            .map(|(_, text)| text.clone())
+            .unwrap_or_else(|| label(&quality.actual, &quality.actual));
+        Some(QualityChoices { label: current, options: choices, selected: quality.preferred })
     }
 
-    /// The quality chip and its menu; over the video (`Some(scale)`) it is drawn in the overlay's ink at
-    /// the overlay's scale.
-    fn quality_chip(&self, focus: Option<FocusHandle>, over_video: Option<f32>, cx: &App) -> AnyElement {
-        let (choices, selected, current) = self.quality_choices(cx);
+    /// The quality chip and its menu, None while there is no choice; over the video (`Some(scale)`) it is
+    /// drawn in the overlay's ink at the overlay's scale.
+    fn quality_chip(&self, focus: Option<FocusHandle>, over_video: Option<f32>, cx: &App) -> Option<AnyElement> {
+        let QualityChoices { label: current, options: choices, selected } = self.quality_choices(cx)?;
         let playback = self.playback.clone();
         let ink: Hsla = rgb(OVERLAY_INK).into();
-        Button::new(if over_video.is_some() { "np-quality-overlay" } else { "np-quality" })
+        let chip = Button::new(if over_video.is_some() { "np-quality-overlay" } else { "np-quality" })
             .when_some(focus, |chip, focus| chip.track_focus(&focus))
             .outline()
             .xsmall()
@@ -1110,15 +1135,18 @@ impl NowPlaying {
                     menu
                 },
             )
-            .on_open_change(self.hold_while_open(MENU_QUALITY))
-            .into_any_element()
+            .on_open_change(self.hold_while_open(MENU_QUALITY));
+        Some(chip.into_any_element())
     }
 
     /// Full screen has no top bar, so its quality chip, details and speed come onto the controls.
     fn overlay_player_actions(&self, current: &QueueItem, scale: f32, cx: &mut Context<Self>) -> Vec<AnyElement> {
         let (glyph, hit) = (ICON * scale, HIT * scale);
         let quality = self.quality_chip(Some(self.overlay_focus.handle(OVERLAY_QUALITY, cx)), Some(scale), cx);
-        let mut actions = vec![self.overlay_focus.wrap(OVERLAY_QUALITY, quality, cx).into_any_element()];
+        let mut actions: Vec<AnyElement> = quality
+            .map(|chip| self.overlay_focus.wrap(OVERLAY_QUALITY, chip, cx).into_any_element())
+            .into_iter()
+            .collect();
         if let Some(video_id) = current.video_id().map(str::to_owned) {
             let details =
                 on_video(sized_action_icon("np-details", Lucide::Info, t(Str::MenuDetailsComments), glyph, hit), cx)
@@ -1154,7 +1182,7 @@ impl NowPlaying {
         let sleep_after_current = playback.sleep_after_current;
         let sleep_armed = sleep_remaining.is_some() || sleep_after_current;
         let sponsor_whitelisted = self.sponsor_block.read(cx).current.as_ref().map(|(_, whitelisted)| *whitelisted);
-        let target = current.video_id().map(|video_id| DownloadTarget {
+        let target = current.downloadable().map(|video_id| DownloadTarget {
             video_id: video_id.to_owned(),
             title: current.title.clone(),
             thumbnail_url: current.thumb(640).map(|url| url.to_string()),
@@ -1178,10 +1206,12 @@ impl NowPlaying {
             cx,
         );
 
-        let quality = self.quality_chip(Some(self.bar_focus.handle(STOP_QUALITY, cx)), None, cx);
+        let quality = self
+            .quality_chip(Some(self.bar_focus.handle(STOP_QUALITY, cx)), None, cx)
+            .map(|chip| self.bar_focus.wrap(STOP_QUALITY, chip, cx));
 
         let view = cx.entity().downgrade();
-        let more_target = target.clone();
+        let more_video_id = current.video_id().map(str::to_owned);
         // Share for any item with a YouTube id (a downloaded file's too) and lyrics for any item, the
         // local artist in the query (the JVM ⋮ menu; a YouTube item's artist is its uploader).
         let share_id = current.video_id().map(str::to_owned).or_else(|| current.youtube_vid.clone());
@@ -1196,17 +1226,17 @@ impl NowPlaying {
         let queue_playback = self.playback.clone();
         let more = sized_action_icon("np-more", IconName::EllipsisVertical, t(Str::CdMore), ICON, HIT)
             .track_focus(&self.bar_focus.handle(STOP_MORE, cx))
-            .dropdown_menu_with_anchor(Anchor::TopRight, move |mut menu, _, cx| {
+            .dropdown_menu_with_anchor(Anchor::TopRight, move |mut menu, window, cx| {
                 let icon = |name: Lucide| Icon::new(name);
-                if let Some(target) = &more_target {
-                    let (details, video_id) = (view.clone(), target.video_id.clone());
+                if let Some(more_video_id) = &more_video_id {
+                    let (details, video_id) = (view.clone(), more_video_id.clone());
                     menu =
                         menu.item(PopupMenuItem::new(t(Str::MenuDetailsComments)).icon(icon(Lucide::Info)).on_click(
                             move |_, _, cx| {
                                 details.update(cx, |_, cx| cx.emit(NowPlayingEvent::Details(video_id.clone()))).ok();
                             },
                         ));
-                    let video_id = target.video_id.clone();
+                    let video_id = more_video_id.clone();
                     menu =
                         menu.item(PopupMenuItem::new(t(Str::CdAddToPlaylist)).icon(icon(Lucide::ListPlus)).on_click(
                             move |_, window, cx| crate::yt_playlist::AddToPlaylist::open(video_id.clone(), window, cx),
@@ -1262,6 +1292,39 @@ impl NowPlaying {
                             equalizer.update(cx, |_, cx| cx.emit(NowPlayingEvent::OpenEqualizer)).ok();
                         },
                     ));
+                let audio = queue_playback.read(cx).audio_tracks();
+                if audio.tracks.len() > 1 {
+                    let current = audio
+                        .tracks
+                        .iter()
+                        .find(|track| audio.selected.as_ref() == Some(&track.id))
+                        .map(|track| track.display_name.clone());
+                    let title = match current {
+                        Some(name) => format!("{} · {name}", t(Str::DownloadAudioTrack)),
+                        None => t(Str::DownloadAudioTrack).to_owned(),
+                    };
+                    let (tracks, selected, target) = (audio.tracks, audio.selected, queue_playback.clone());
+                    menu = menu.submenu_with_icon(
+                        Some(icon(Lucide::AudioLines)),
+                        title,
+                        window,
+                        cx,
+                        move |mut submenu, _, _| {
+                            for track in &tracks {
+                                let (playback, id) = (target.clone(), track.id.clone());
+                                submenu = submenu.item(
+                                    PopupMenuItem::new(track.display_name.clone())
+                                        .checked(selected.as_ref() == Some(&track.id))
+                                        .on_click(move |_, _, cx| {
+                                            playback
+                                                .update(cx, |playback, cx| playback.select_audio_track(id.clone(), cx))
+                                        }),
+                                );
+                            }
+                            submenu
+                        },
+                    );
+                }
                 let reload = queue_playback.clone();
                 menu.item(crate::settings_view::menu_divider()).item(
                     PopupMenuItem::new(t(Str::MenuReloadPlayer))
@@ -1317,7 +1380,7 @@ impl NowPlaying {
                 )
             })
             .child(sleep)
-            .child(self.bar_focus.wrap(STOP_QUALITY, quality, cx))
+            .children(quality)
             .child(self.bar_focus.wrap(STOP_MORE, more, cx))
             .into_any_element()
     }
@@ -1398,7 +1461,8 @@ impl NowPlaying {
             .text_color(cx.theme().muted_foreground)
             .dropdown_menu_with_anchor(Anchor::TopRight, move |mut menu, _, _| {
                 let video_id = item.video_id().map(str::to_owned);
-                if video_id.is_some() {
+                let downloadable = item.downloadable().is_some();
+                if downloadable {
                     let (radio, item) = (playback.clone(), item.clone());
                     menu = menu.item(PopupMenuItem::new(t(Str::MenuStartRadio)).on_click(move |_, _, cx| {
                         radio.update(cx, |playback, cx| playback.start_radio(item.clone(), cx))
@@ -1418,15 +1482,17 @@ impl NowPlaying {
                             menu.item(PopupMenuItem::new(t(Str::MenuAddToPlaylist)).on_click(move |_, window, cx| {
                                 crate::yt_playlist::AddToPlaylist::open(id.clone(), window, cx)
                             }));
-                        let target = DownloadTarget {
-                            video_id: video_id.clone(),
-                            title: item.title.clone(),
-                            thumbnail_url: item.thumb(640).map(|url| url.to_string()),
-                        };
-                        let download = view.clone();
-                        menu = menu.item(PopupMenuItem::new(t(Str::CdDownload)).on_click(move |_, _, cx| {
-                            download.update(cx, |_, cx| cx.emit(NowPlayingEvent::Download(target.clone()))).ok();
-                        }));
+                        if downloadable {
+                            let target = DownloadTarget {
+                                video_id: video_id.clone(),
+                                title: item.title.clone(),
+                                thumbnail_url: item.thumb(640).map(|url| url.to_string()),
+                            };
+                            let download = view.clone();
+                            menu = menu.item(PopupMenuItem::new(t(Str::CdDownload)).on_click(move |_, _, cx| {
+                                download.update(cx, |_, cx| cx.emit(NowPlayingEvent::Download(target.clone()))).ok();
+                            }));
+                        }
                         let link = crate::feed::youtube_share_link("video", video_id).unwrap_or_default();
                         menu = menu.item(PopupMenuItem::new(t(Str::CdShare)).on_click(move |_, window, cx| {
                             cx.write_to_clipboard(ClipboardItem::new_string(link.clone()));
@@ -1725,6 +1791,7 @@ impl Render for NowPlaying {
         let Some(current) = self.playback.read(cx).current().cloned() else { return div().into_any_element() };
         if self.fullscreen && !window.is_fullscreen() {
             self.fullscreen = false;
+            self.video_fill = false;
         }
         if self.fullscreen {
             return div()

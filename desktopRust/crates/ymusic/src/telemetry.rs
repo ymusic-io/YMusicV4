@@ -158,8 +158,16 @@ impl Reporting {
     /// Once the graph booted: the app log's size cap, the error policy and the events' tags come
     /// from its remote config.
     pub fn follow(&self, graph: &AppGraph) {
-        if let Some(logs) = &self.logs {
-            logs.set_max_lines(graph.remote.current().log_lines());
+        if let Some(logs) = self.logs.clone() {
+            let mut config = graph.remote.subscribe();
+            graph.tokio.spawn(async move {
+                loop {
+                    logs.set_max_lines(config.borrow_and_update().log_lines());
+                    if config.changed().await.is_err() {
+                        return;
+                    }
+                }
+            });
         }
         if let Some(policy) = &self.policy {
             // One graph boots per launch; a second follow would keep the first's config.

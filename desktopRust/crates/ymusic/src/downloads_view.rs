@@ -355,6 +355,7 @@ fn download_item(task: &DownloadTask, path: PathBuf) -> QueueItem {
         history_code: None,
         youtube_vid: Some(task.video_id.clone()),
         loudness_gain_db: task.loudness_gain_db,
+        live: false,
     }
 }
 

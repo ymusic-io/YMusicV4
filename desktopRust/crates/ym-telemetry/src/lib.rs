@@ -1,8 +1,8 @@
-//! Crash and error reporting to Sentry, as the JVM app reports: warnings and errors ride as
-//! breadcrumbs, `capture_error` is the one event of a failed job (tagged with its trail and error
-//! code, grouped by that code, its run's newest unsent app-log lines sent as Sentry Logs on its
-//! trace), panics are reported by the SDK with those lines too, and the user's switch gates every
-//! event live.
+//! Crash and error reporting to Sentry, as the JVM app reports: log lines stay in the app log,
+//! `capture_error` is the one event of a failed job (tagged with its trail and error code, its trail
+//! hops as breadcrumbs, grouped by that code, its run's newest unsent app-log lines sent as Sentry
+//! Logs on its trace), panics are reported by the SDK with those lines too, and the user's switch
+//! gates every event live.
 
 mod feedback;
 mod log_shipper;
@@ -31,6 +31,10 @@ const ENGINE_VERSION_TAG: &str = "engine.version";
 const PLAYER_VERSION_TAG: &str = "player.version";
 /// Failures that are never defects: the UI already shows their localized category.
 const IGNORED_CATEGORIES: &[&str] = &["network"];
+/// The well-known categories an error's text starts with (`EngineError` shows `<code>: <message>`).
+const CATEGORIES: &[&str] = &["network", "parse", "oom", "captcha", "disk_full", "playback_unavailable"];
+/// How far down an error's sources the code is looked for (the JVM codedError's cycle guard).
+const CODE_CAUSE_DEPTH: usize = 100;
 /// As the JVM app keeps.
 const MAX_BREADCRUMBS: usize = 200;
 /// This workspace's crates: a panic's culprit is the topmost of their frames, never the SDK's or gpui's.
@@ -280,38 +284,50 @@ fn trail_path(trail: &[Crumb]) -> String {
     trail.iter().map(|crumb| crumb.tag.as_str()).collect::<Vec<_>>().join("/")
 }
 
-/// The code an error carries: a category word at the start, else the first site code in its text.
-fn error_code(text: &str) -> Option<String> {
-    if let Some(category) = IGNORED_CATEGORIES.iter().find(|category| text.starts_with(*category)) {
+/// The code an error carries, as the JVM codedError: the deepest of its sources that has one wins,
+/// the code closest to the root cause being the most specific.
+fn error_code(error: &(dyn Error + 'static)) -> Option<String> {
+    let mut deepest = None;
+    let mut cause: Option<&(dyn Error + 'static)> = Some(error);
+    let mut depth = 0;
+    while let Some(current) = cause {
+        if depth == CODE_CAUSE_DEPTH {
+            break;
+        }
+        depth += 1;
+        if let Some(code) = text_code(&current.to_string()) {
+            deepest = Some(code);
+        }
+        cause = current.source();
+    }
+    deepest
+}
+
+/// A category word the text starts with, else the first site code in it.
+fn text_code(text: &str) -> Option<String> {
+    let leading = text.split(':').next().unwrap_or_default();
+    if let Some(category) = CATEGORIES.iter().find(|category| **category == leading) {
         return Some((*category).to_owned());
     }
     let bytes = text.as_bytes();
     (0..bytes.len().saturating_sub(5)).find_map(|start| {
         let candidate = text.get(start..start + 6)?;
-        let code = candidate.as_bytes();
         let bounded = (start == 0 || !bytes[start - 1].is_ascii_alphanumeric())
             && bytes.get(start + 6).is_none_or(|next| !next.is_ascii_alphanumeric());
-        (bounded && matches!(code[0], b'E' | b'R') && code[1..].iter().all(u8::is_ascii_digit))
-            .then(|| candidate.to_owned())
+        (bounded && is_site_code(candidate)).then(|| candidate.to_owned())
     })
 }
 
+/// `E#####` (YMusicV4, engine-js, the server) or `R#####` (this app): one throw site.
+fn is_site_code(code: &str) -> bool {
+    let bytes = code.as_bytes();
+    bytes.len() == 6 && matches!(bytes[0], b'E' | b'R') && bytes[1..].iter().all(u8::is_ascii_digit)
+}
+
 impl LogSink for SentrySink {
-    fn log(&self, level: Level, trail: &[Crumb], message: &str, error: Option<&(dyn Error + 'static)>) {
-        if level < Level::Warn {
-            return;
-        }
-        let text = match error {
-            Some(error) => format!("{message}: {error}"),
-            None => message.to_owned(),
-        };
-        sentry::add_breadcrumb(Breadcrumb {
-            category: Some(trail_path(trail)),
-            message: Some(text),
-            level: if level == Level::Error { SentryLevel::Error } else { SentryLevel::Warning },
-            ..Default::default()
-        });
-    }
+    /// Lines are not sent from here (the JVM SentryLogger.log): the app log keeps them, and an error
+    /// event takes the newest along.
+    fn log(&self, _level: Level, _trail: &[Crumb], _message: &str, _error: Option<&(dyn Error + 'static)>) {}
 
     fn capture_error(&self, trail: &[Crumb], message: &str, error: &(dyn Error + 'static)) {
         self.capture_error_with(trail, message, error, &CaptureExtras::default());
@@ -327,8 +343,7 @@ impl LogSink for SentrySink {
         if !reports_allowed() {
             return;
         }
-        let description = error.to_string();
-        let code = error_code(&description).or_else(|| error_code(message));
+        let code = error_code(error).or_else(|| text_code(message));
         if code.as_deref().is_some_and(|code| IGNORED_CATEGORIES.contains(&code)) {
             return;
         }
@@ -386,11 +401,15 @@ impl LogSink for SentrySink {
     }
 }
 
-/// The JVM app's grouping: a site code is one throw site, one issue; an uncoded error groups by its
-/// type within its trail, so one failure shape in two subsystems stays two issues.
+/// The JVM app's grouping: a site code is one throw site, one issue; a category code ("parse",
+/// "oom") is shared by every subsystem, so it groups per trail, as an uncoded error groups by its type
+/// within its trail: one failure shape in two subsystems stays two issues.
 fn fingerprint(code: Option<&str>, trail: &str, event: &Event<'_>) -> Option<Vec<String>> {
     if let Some(code) = code {
-        return Some(vec![code.to_owned()]);
+        if is_site_code(code) || trail.is_empty() {
+            return Some(vec![code.to_owned()]);
+        }
+        return Some(vec![code.to_owned(), trail.to_owned()]);
     }
     if trail.is_empty() {
         return None;
