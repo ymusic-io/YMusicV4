@@ -25,6 +25,8 @@ pub struct ResumeQueue {
     pub items: Vec<QueueItem>,
     pub index: usize,
     pub start_ms: i64,
+    /// Where the queue's playlist or radio continues.
+    pub source_token: Option<String>,
 }
 
 pub struct PlayAgainView {
@@ -137,7 +139,8 @@ impl PlayAgainView {
                     Ok(items) if !items.is_empty() => {
                         let start_ms = if !from_beginning && saved.resumes_mid_item() { saved.position_ms } else { 0 };
                         let index = saved.queue_index.min(items.len() - 1);
-                        cx.emit(ResumeQueue { queue_id: saved.queue_id, items, index, start_ms });
+                        let (queue_id, source_token) = (saved.queue_id, saved.source_token);
+                        cx.emit(ResumeQueue { queue_id, items, index, start_ms, source_token });
                     }
                     Ok(_) => view.refresh(cx),
                     Err(message) => view.failed(&message, cx),

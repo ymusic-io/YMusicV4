@@ -49,6 +49,7 @@ mod player_cache;
 mod playlist_download;
 mod playlist_transfer;
 mod queue_nav;
+mod queue_source;
 mod quick_download;
 mod reorder;
 mod search_filter;

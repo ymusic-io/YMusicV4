@@ -1086,7 +1086,10 @@ impl Shell {
         let resume = cx.subscribe(&view, |shell, _, event: &ResumeQueue, cx| {
             let (queue_id, items, index, start_ms) =
                 (event.queue_id.clone(), event.items.clone(), event.index, event.start_ms);
-            shell.playback.update(cx, |playback, cx| playback.resume_queue(queue_id, items, index, start_ms, cx));
+            let source_token = event.source_token.clone();
+            shell
+                .playback
+                .update(cx, |playback, cx| playback.resume_queue(queue_id, items, index, start_ms, source_token, cx));
         });
         self._subscriptions.push(resume);
         self.play_again = Some(view.clone());
@@ -1361,14 +1364,14 @@ impl Shell {
         });
         let play = cx.subscribe(&view, |shell, _, event: &Play, cx| {
             let (item, queue, shuffle) = (event.item.clone(), event.queue.clone(), event.shuffle);
-            let playlist = event.playlist.clone();
+            let (playlist, playlist_total) = (event.playlist.clone(), event.playlist_total);
             shell.playback.update(cx, |playback, cx| {
                 // The JVM playAll sets the shuffle mode before the queue starts.
                 if shuffle {
                     playback.set_shuffle(true, cx);
                 }
                 match (playlist, queue) {
-                    (Some(url), Some(items)) => playback.play_playlist(item, items, url, cx),
+                    (Some(url), Some(items)) => playback.play_playlist(item, items, url, playlist_total, cx),
                     (_, queue) => playback.play_feed(item, queue, cx),
                 }
             });
