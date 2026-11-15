@@ -28,7 +28,7 @@ use crate::mini_player::{MiniPlayer, ToggleNowPlaying};
 use crate::now_playing::{NowPlaying, NowPlayingEvent};
 use crate::play_again::{PlayAgainView, ResumeQueue};
 use crate::play_history::HistoryRecorder;
-use crate::playback::{Playback, QueueItem};
+use crate::playback::{PlayState, Playback, QueueItem};
 use crate::search_view::{SearchEvent, SearchMode, SearchView};
 use crate::settings_view::HOVER_ALPHA;
 use crate::settings_view::{LocaleChanged, SettingsView};
@@ -905,11 +905,8 @@ impl Shell {
             }
             Some(("quickdownload", video_id)) => {
                 self.section = Section::Downloads;
-                let target = DownloadTarget {
-                    video_id: video_id.to_owned(),
-                    title: video_id.to_owned(),
-                    thumbnail_url: None,
-                };
+                let target =
+                    DownloadTarget { video_id: video_id.to_owned(), title: video_id.to_owned(), thumbnail_url: None };
                 window.defer(cx, move |window, cx| crate::quick_download::launch(target, window, cx));
             }
             _ if route == "quickpreset" => {
@@ -1460,6 +1457,15 @@ impl Shell {
     /// Everything that shows who is signed in re-checks, and every feed reloads under the new
     /// identity (the Account and YT Music Library feeds reload through their views' re-check).
     fn account_changed(&mut self, cx: &mut Context<Self>) {
+        // The JVM AccountController: the next YouTube load re-inits under the new identity, and an item
+        // that failed for want of a sign-in (or a captcha) plays again.
+        self.playback.update(cx, |playback, cx| {
+            playback.refresh_on_next();
+            let blocked = matches!(&playback.state, PlayState::Failed(failure) if failure.needs_sign_in() || failure.code == "captcha");
+            if blocked {
+                playback.play(cx);
+            }
+        });
         for (source, root) in &self.roots {
             if !matches!(source, FeedSource::Account | FeedSource::MusicLibrary) {
                 root.update(cx, |root, cx| root.reload(cx));

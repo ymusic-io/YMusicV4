@@ -131,6 +131,7 @@ R90028 D Sentry Logs: Sentry refused a batch of log lines (HTTP status, rate lim
 R90029 D Sentry Logs: delivered log lines could not be marked sent in logs.db (logged; they may go again)
 R90030 D media session: an update could not be published to MPRIS (property change or Seeked signal on the session bus; logged)
 R90031 D media session: an update could not be posted to the Windows SMTC thread (logged)
+R90032 - playback: a YouTube load the player took showed neither progress nor details within 5 s (the JVM E60051); the item fails and the next load starts a new session (logged)
 R90040 D Linux file dialog: the Tokio task driving the portal dialog failed (logged; treated as canceled)
 R90200 D data dir: a database this app's earlier builds named differently could not take the JVM app's name (logged; retried next launch)
 R90201 D data dir: the window bounds kept in app.db could not move to window.properties (logged)

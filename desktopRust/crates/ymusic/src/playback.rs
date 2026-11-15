@@ -61,6 +61,10 @@ const FILE_MISSING: &str = "file_missing";
 const PO_TOKEN_REJECTED: &str = "E60065";
 /// Previous restarts the item when it has played longer than this (the JVM `SMART_PREV_THRESHOLD_MS`).
 const SMART_PREVIOUS_MS: i64 = 3_000;
+/// A YouTube load whose player answered but shows neither progress nor details by then has stalled
+/// (the JVM MsePlayer's LOAD_TIMEOUT_MS).
+const LOAD_TIMEOUT: Duration = Duration::from_secs(5);
+const LOAD_STALLED: &str = "R90032";
 
 type PlayerJob = Box<dyn FnOnce(Arc<DynamicEngine>) -> futures::future::BoxFuture<'static, ()> + Send>;
 
@@ -292,6 +296,12 @@ pub struct Playback {
     /// The YouTube video whose progress the player last confirmed; None after a stop (the JVM
     /// MsePlayer's loadedVideoId).
     loaded_video: Option<String>,
+    /// The next YouTube load starts a new session (the JVM `needReset` errors, reload and
+    /// `refreshOnNext` after a sign-in change).
+    reset_session: bool,
+    /// The video whose acknowledged load still waits for progress or details.
+    load_timeout_video: Option<String>,
+    _load_timeout: Option<Task<()>>,
     gain: f32,
     /// The local item's attenuate-only loudness gain.
     local_gain: f32,
@@ -303,8 +313,6 @@ pub struct Playback {
     /// Whether a loaded item should play: what the user last asked for (the JVM PlayerImpl's
     /// playWhenReadyIntent). Every load reads it.
     play_when_ready: bool,
-    /// The next YouTube load stops the player first, in the same command.
-    stop_before_load: bool,
     sleep_deadline: Option<Instant>,
     pub sleep_after_current: bool,
     pub captions: bool,
@@ -371,6 +379,9 @@ impl Playback {
             seekable: true,
             loading_video: None,
             loaded_video: None,
+            reset_session: false,
+            load_timeout_video: None,
+            _load_timeout: None,
             quality_options: Vec::new(),
             viewport: None,
             quality_actual: None,
@@ -392,7 +403,6 @@ impl Playback {
             },
             details: None,
             play_when_ready: true,
-            stop_before_load: false,
             sleep_deadline: None,
             sleep_after_current: false,
             captions: false,
@@ -588,7 +598,7 @@ impl Playback {
         self.start_position_ms = self.position_ms.max(0);
         match self.active {
             Some(Active::Local) => self.send_local(LocalCommand::Stop),
-            Some(Active::YouTube) => self.stop_before_load = true,
+            Some(Active::YouTube) => self.reset_session = true,
             None => {}
         }
         self.load_current(cx);
@@ -1249,17 +1259,15 @@ impl Playback {
                     self.apply_volume();
                 }
                 self.loading_video = Some(video_id.clone());
-                if self.session.is_none() {
+                let reset = std::mem::take(&mut self.reset_session);
+                if reset || self.session.is_none() {
+                    self.drop_session();
                     self.pending = Some(video_id);
-                    self.boot(cx);
+                    self.boot(reset, cx);
                     return;
                 }
                 let request = self.load_request(&video_id);
-                let stop_first = std::mem::take(&mut self.stop_before_load);
-                self.load_command(cx, move |engine, log| async move {
-                    if stop_first {
-                        engine.player_stop(&log).await?;
-                    }
+                self.load_command(cx, video_id.clone(), move |engine, log| async move {
                     engine.player_load(&request, &log).await.map(|_| ())
                 });
             }
@@ -1361,19 +1369,21 @@ impl Playback {
         F: FnOnce(Arc<DynamicEngine>, ym_common::log::Logger) -> Fut + Send + 'static,
         Fut: Future<Output = Result<(), EngineError>> + Send + 'static,
     {
-        self.queue_command(cx, false, run);
+        self.queue_command(cx, None, run);
     }
 
-    /// A load: its failure fails the item, as the JVM MsePlayer.load's does.
-    fn load_command<F, Fut>(&mut self, cx: &mut Context<Self>, run: F)
+    /// A load: its failure fails the item, and once the player takes it the load must show progress
+    /// or details within [`LOAD_TIMEOUT`], as the JVM MsePlayer.load's does.
+    fn load_command<F, Fut>(&mut self, cx: &mut Context<Self>, video_id: String, run: F)
     where
         F: FnOnce(Arc<DynamicEngine>, ym_common::log::Logger) -> Fut + Send + 'static,
         Fut: Future<Output = Result<(), EngineError>> + Send + 'static,
     {
-        self.queue_command(cx, true, run);
+        self.queue_command(cx, Some(video_id), run);
     }
 
-    fn queue_command<F, Fut>(&mut self, cx: &mut Context<Self>, fails_item: bool, run: F)
+    /// `load` names the video of a load command; None for any other command.
+    fn queue_command<F, Fut>(&mut self, cx: &mut Context<Self>, load: Option<String>, run: F)
     where
         F: FnOnce(Arc<DynamicEngine>, ym_common::log::Logger) -> Fut + Send + 'static,
         Fut: Future<Output = Result<(), EngineError>> + Send + 'static,
@@ -1391,8 +1401,14 @@ impl Playback {
             return;
         }
         cx.spawn(async move |this, cx| {
-            if let Ok(Err(error)) = done.await {
-                if !fails_item {
+            let result = done.await;
+            if let (Ok(Ok(())), Some(video_id)) = (&result, &load) {
+                let video_id = video_id.clone();
+                this.update(cx, |playback, cx| playback.arm_load_timeout(video_id, cx)).ok();
+                return;
+            }
+            if let Ok(Err(error)) = result {
+                if load.is_none() {
                     log.warn("player command failed", Some(&error));
                     return;
                 }
@@ -1407,14 +1423,77 @@ impl Playback {
         .detach();
     }
 
-    fn boot(&mut self, cx: &mut Context<Self>) {
+    /// The next YouTube load starts a new session, under the current sign-in (the JVM
+    /// PlayerImpl.refreshOnNext, called after a sign-in or sign-out).
+    pub fn refresh_on_next(&mut self) {
+        self.reset_session = true;
+    }
+
+    /// Lets go of the session; `boot` brings up the next.
+    fn drop_session(&mut self) {
+        self.session = None;
+        self.commands = None;
+        self.loaded_video = None;
+        self.load_timeout_video = None;
+        self._load_timeout = None;
+        self._status = None;
+        self._catalog = None;
+        if let Some((handle, _)) = self.caption_stream.take() {
+            handle.abort();
+        }
+    }
+
+    /// A session that can no longer play: the item fails, and the next load starts a new session.
+    fn fail_session(&mut self, failure: PlaybackFailure, cx: &mut Context<Self>) {
+        self.command(cx, |engine, log| async move { engine.player_stop(&log).await });
+        self.loading_video = None;
+        self.load_timeout_video = None;
+        self.reset_session = true;
+        self.position_ms = 0;
+        self.duration_ms = 0;
+        self.buffered_ms = 0;
+        self.state = PlayState::Failed(failure);
+        cx.notify();
+    }
+
+    fn arm_load_timeout(&mut self, video_id: String, cx: &mut Context<Self>) {
+        if self.loading_video.as_deref() != Some(video_id.as_str()) {
+            return;
+        }
+        self.load_timeout_video = Some(video_id.clone());
+        let executor = cx.background_executor().clone();
+        self._load_timeout = Some(cx.spawn(async move |this, cx| {
+            executor.timer(LOAD_TIMEOUT).await;
+            this.update(cx, |playback, cx| {
+                if playback.active != Some(Active::YouTube)
+                    || playback.load_timeout_video.as_deref() != Some(video_id.as_str())
+                {
+                    return;
+                }
+                cx.global::<AppGraph>()
+                    .log
+                    .fork("playback")
+                    .warn(&format!("{LOAD_STALLED} load stalled: no progress or details for {video_id}"), None);
+                playback.fail_session(PlaybackFailure::code(LOAD_STALLED), cx);
+            })
+            .ok();
+        }));
+    }
+
+    /// Boots the session; `reset` first closes the one the app holds, so the boot is a fresh one.
+    fn boot(&mut self, reset: bool, cx: &mut Context<Self>) {
         if self.booting {
             return;
         }
         self.booting = true;
         let sessions = cx.global::<AppGraph>().youtube.clone();
         let log = cx.global::<AppGraph>().log.fork("playback");
-        let boot = on_core(cx, async move { sessions.get().await });
+        let boot = on_core(cx, async move {
+            if reset {
+                sessions.reset().await;
+            }
+            sessions.get().await
+        });
         cx.spawn(async move |this, cx| {
             let result = boot.await;
             this.update(cx, |playback, cx| {
@@ -1433,7 +1512,7 @@ impl Playback {
                         {
                             playback.loading_video = Some(video_id.clone());
                             let request = playback.load_request(&video_id);
-                            playback.load_command(cx, move |engine, log| async move {
+                            playback.load_command(cx, video_id.clone(), move |engine, log| async move {
                                 engine.player_load(&request, &log).await.map(|_| ())
                             });
                         }
@@ -1505,11 +1584,23 @@ impl Playback {
         if self.active != Some(Active::YouTube) {
             return;
         }
+        if status.get("poRejected").and_then(Value::as_bool) == Some(true) {
+            // googlevideo rejected this session's PO token: only a fresh session re-attests.
+            cx.global::<AppGraph>()
+                .log
+                .fork("playback")
+                .warn("googlevideo rejected the PO token (StreamProtectionStatus=3)", None);
+            self.fail_session(PlaybackFailure::code(PO_TOKEN_REJECTED), cx);
+            return;
+        }
         let current = self.current().and_then(QueueItem::video_id).map(str::to_owned);
         if let Some(progress) = status.get("progress") {
             let video_id = progress.get("videoId").and_then(Value::as_str).map(str::to_owned);
             let failed = matches!(self.state, PlayState::Failed(_));
             if video_id.is_some() && video_id == current && !failed {
+                if self.load_timeout_video == video_id {
+                    self.load_timeout_video = None;
+                }
                 self.loading_video = None;
                 self.loaded_video = video_id;
                 self.position_ms = field_i64(progress, &["progress", "positionMs"]);
@@ -1545,6 +1636,12 @@ impl Playback {
                 }),
                 _ => self.state.clone(),
             };
+            if matches!(self.state, PlayState::Failed(_)) {
+                self.load_timeout_video = None;
+                if state.get("needReset").and_then(Value::as_bool) == Some(true) {
+                    self.reset_session = true;
+                }
+            }
             if self.state == PlayState::Ended {
                 self.track_ended(cx);
             }
@@ -1560,6 +1657,9 @@ impl Playback {
         if let Some(details) = status.get("details") {
             let text = |name: &str| details.get(name).and_then(Value::as_str).map(str::to_owned);
             if let Some(video_id) = text("videoId") {
+                if self.load_timeout_video.as_deref() == Some(video_id.as_str()) {
+                    self.load_timeout_video = None;
+                }
                 self.details = Some(MediaDetails {
                     video_id,
                     channel_title: text("channelTitle"),

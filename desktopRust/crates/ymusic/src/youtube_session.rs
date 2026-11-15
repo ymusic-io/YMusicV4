@@ -1,5 +1,5 @@
 //! The one YouTube player session (player.js over the native MSE host), booted on first use by
-//! playback or a download and kept for the app's lifetime.
+//! playback or a download, kept until playback resets it (the JVM MsePlayer.reset).
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -23,6 +23,8 @@ const QUIT_CLOSE_WAIT: Duration = Duration::from_secs(2);
 
 pub struct YoutubeSessions {
     session: tokio::sync::Mutex<Option<Arc<YoutubeSession>>>,
+    /// The next boot fetches the player config anew (set by `reset`).
+    fresh_next: std::sync::atomic::AtomicBool,
     config: EngineConfig,
     candidates: CandidateSource,
     player_source: Arc<BundleSource>,
@@ -36,7 +38,24 @@ impl YoutubeSessions {
         player_source: Arc<BundleSource>,
         log: Logger,
     ) -> Self {
-        Self { session: tokio::sync::Mutex::new(None), config, candidates, player_source, log }
+        Self {
+            session: tokio::sync::Mutex::new(None),
+            fresh_next: std::sync::atomic::AtomicBool::new(false),
+            config,
+            candidates,
+            player_source,
+            log,
+        }
+    }
+
+    /// Closes the session; the next `get` boots a new one with a freshly fetched config and the
+    /// newest player bundle (the JVM MsePlayer.reset: tearDownSession, then startSession(fresh)).
+    pub async fn reset(&self) {
+        let old = self.session.lock().await.take();
+        self.fresh_next.store(true, std::sync::atomic::Ordering::Relaxed);
+        if let Some(session) = old {
+            session.engine.close().await;
+        }
     }
 
     /// The session, booting it on the first call; concurrent callers share one boot, and a failed
@@ -109,7 +128,9 @@ impl YoutubeSessions {
                     runtime.fire_event(name);
                 }
             });
-            engine.player_init(None, false, &self.log).await?;
+            let fresh = self.fresh_next.load(std::sync::atomic::Ordering::Relaxed);
+            engine.player_init(None, fresh, &self.log).await?;
+            self.fresh_next.store(false, std::sync::atomic::Ordering::Relaxed);
             return Ok(YoutubeSession { engine, host });
         }
         Err(last_error.unwrap_or_else(|| EngineError::site("R90002", "no player bundle booted")))
