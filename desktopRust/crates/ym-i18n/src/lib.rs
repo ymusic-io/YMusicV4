@@ -46,6 +46,11 @@ pub fn system_locale_tag() -> String {
     sys_locale::get_locale().unwrap_or_else(|| "en".into())
 }
 
+/// The OS's UI language subtag (`vi`), unaffected by [`set_locale`].
+pub fn system_language_tag() -> String {
+    system_locale_tag().replace('_', "-").split('-').next().unwrap_or_default().to_lowercase()
+}
+
 /// [`set_locale`] from the OS language.
 pub fn use_system_locale() -> &'static str {
     set_locale(&system_locale_tag())
