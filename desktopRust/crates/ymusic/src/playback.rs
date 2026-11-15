@@ -59,6 +59,8 @@ pub struct PlaybackFailure {
 const SIGN_IN_STATUSES: [&str; 3] = ["LOGIN_REQUIRED", "AGE_CHECK_REQUIRED", "AGE_VERIFICATION_REQUIRED"];
 const FILE_MISSING: &str = "file_missing";
 const PO_TOKEN_REJECTED: &str = "E60065";
+/// Previous restarts the item when it has played longer than this (the JVM `SMART_PREV_THRESHOLD_MS`).
+const SMART_PREVIOUS_MS: i64 = 3_000;
 
 type PlayerJob = Box<dyn FnOnce(Arc<DynamicEngine>) -> futures::future::BoxFuture<'static, ()> + Send>;
 
@@ -834,10 +836,11 @@ impl Playback {
         self.extend_queue_if_near_end(cx);
     }
 
-    /// Restarts the current item when it has played more than ~3 s.
+    /// Restarts the current item past its intro span when it has played more than ~3 s beyond it.
     pub fn previous(&mut self, cx: &mut Context<Self>) {
-        if self.position_ms > 3_000 {
-            self.seek(0, cx);
+        let intro_end = self.skip_restart_ms();
+        if self.position_ms > SMART_PREVIOUS_MS + intro_end {
+            self.seek(intro_end, cx);
             return;
         }
         match self.nav.previous(self.index, self.queue.len()) {
@@ -1166,6 +1169,11 @@ impl Playback {
             Some((owner, segments)) if key.as_ref() == Some(owner) => segments,
             _ => &[],
         }
+    }
+
+    /// The JVM `skipRestartMs`: where a restart lands, past a skip span starting in the first second.
+    fn skip_restart_ms(&self) -> i64 {
+        self.skip_segments().iter().find(|(start, _)| start / 1000 == 0).map_or(0, |(_, end)| *end)
     }
 
     /// Spans to skip in the item with `key`; spans under a second are ignored.
