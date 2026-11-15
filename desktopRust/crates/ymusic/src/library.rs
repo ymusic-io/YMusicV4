@@ -1390,7 +1390,7 @@ pub fn song_cell<V: SongMenuHost>(
                 );
             }
             menu_list
-                .separator()
+                .item(crate::settings_view::menu_divider())
                 .item(PopupMenuItem::new(reveal_label()).on_click(move |_, _, cx| cx.reveal_path(&path)))
                 .item(PopupMenuItem::new(t(Str::MenuRename)).on_click(move |_, window, cx| {
                     RenameFileDialog::open(renamed.clone(), Some(rename_changed.clone()), window, cx);

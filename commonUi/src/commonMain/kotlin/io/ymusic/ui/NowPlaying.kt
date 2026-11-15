@@ -1263,7 +1263,7 @@ private fun CaptionToggle(
                                 trailingIcon = selectedCheck(isOn(track)),
                             )
                         }
-                        item(key = "recent-divider") { HorizontalDivider(Modifier.padding(vertical = DesignSpacing.Space4), color = DesignColors.StackNear) }
+                        item(key = "recent-divider") { MoreMenuDivider() }
                     }
                     items(translations, key = { it.id }) { track ->
                         DropdownMenuItem(
@@ -1661,7 +1661,7 @@ private fun MoreMenuItem(
 
 @Composable
 private fun MoreMenuDivider() {
-    HorizontalDivider(Modifier.padding(vertical = DesignSpacing.Space4), color = DesignColors.Divider)
+    HorizontalDivider(Modifier.padding(vertical = DesignSpacing.Space4), color = DesignColors.StackNear)
 }
 
 /** The ⋮ menu, grouped: this video + queue · sound · player. Captions live on the video CC control;

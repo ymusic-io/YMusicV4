@@ -876,13 +876,7 @@ impl NowPlaying {
                             .collect();
                         if !recent.is_empty() {
                             items.extend(recent.into_iter().map(&pick));
-                            // The stock separator draws theme.border, which barely shows on the dark menu.
-                            items.push(
-                                PopupMenuItem::element(|_, cx| {
-                                    div().w_full().h(px(1.)).bg(cx.global::<crate::settings_view::StackTones>().near)
-                                })
-                                .disabled(true),
-                            );
+                            items.push(crate::settings_view::menu_divider());
                         }
                         items.extend(translations.iter().map(&pick));
                         let items = std::rc::Rc::new(std::cell::RefCell::new(Some(items)));
@@ -1231,7 +1225,7 @@ impl NowPlaying {
                             },
                         ));
                 }
-                menu = menu.separator();
+                menu = menu.item(crate::settings_view::menu_divider());
                 let effects = queue_playback.read(cx).effects;
                 let speed = format!("{}×", crate::speed_pitch::trimmed(effects.speed));
                 let speed_pitch = view.clone();
@@ -1249,7 +1243,7 @@ impl NowPlaying {
                         },
                     ));
                 let reload = queue_playback.clone();
-                menu.separator().item(
+                menu.item(crate::settings_view::menu_divider()).item(
                     PopupMenuItem::new(t(Str::MenuReloadPlayer))
                         .icon(icon(Lucide::RefreshCw))
                         .on_click(move |_, _, cx| reload.update(cx, |playback, cx| playback.reload(cx))),
