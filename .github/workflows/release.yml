@@ -430,7 +430,7 @@ jobs:
           restore-keys: cargo-${{ matrix.slug }}-
 
       # secrets.enc → secrets.properties + signing/; the Rust build reads its keys from
-      # secret.properties and fails without them (YMUSIC_REQUIRE_SECRETS).
+      # secrets.properties and fails without them (YMUSIC_REQUIRE_SECRETS).
       - name: Restore secrets
         if: env.HAS_SECRETS == 'true'
         working-directory: YMusicV4
@@ -438,7 +438,6 @@ jobs:
           SECRETS_PASSPHRASE: ${{ secrets.SECRETS_PASSPHRASE }}
         run: |
           ./decrypt.sh
-          cp secrets.properties desktopRust/secret.properties
 
       # Repository secrets (not secrets.enc), as ffmpeg-build's release signing had them:
       #   MACOS_CERT_P12       Developer ID .p12, base64:  base64 -i cert.p12 | pbcopy
@@ -509,7 +508,7 @@ jobs:
       - name: Discard secrets
         if: always()
         run: |
-          rm -rf YMusicV4/secrets.properties YMusicV4/signing YMusicV4/desktopRust/secret.properties
+          rm -rf YMusicV4/secrets.properties YMusicV4/signing
           security delete-keychain "$RUNNER_TEMP/signing.keychain-db" 2>/dev/null || true
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -640,7 +639,6 @@ jobs:
           SECRETS_PASSPHRASE: ${{ secrets.SECRETS_PASSPHRASE }}
         run: |
           ./decrypt.sh
-          cp secrets.properties desktopRust/secret.properties
 
       # The MinGW bin dir goes on PATH for this step alone: gcc/clang load their own DLLs from it (cc1.exe
       # dies silently without them), but it would shadow Git Bash's tools in other steps.
@@ -660,7 +658,7 @@ jobs:
       - name: Discard secrets
         if: always()
         shell: bash
-        run: rm -rf YMusicV4/secrets.properties YMusicV4/signing YMusicV4/desktopRust/secret.properties
+        run: rm -rf YMusicV4/secrets.properties YMusicV4/signing
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -739,7 +737,6 @@ jobs:
           SECRETS_PASSPHRASE: ${{ secrets.SECRETS_PASSPHRASE }}
         run: |
           ./decrypt.sh
-          cp secrets.properties desktopRust/secret.properties
 
       - name: Package the .deb and the AppImage
         working-directory: YMusicV4/desktopRust
@@ -751,7 +748,7 @@ jobs:
 
       - name: Discard secrets
         if: always()
-        run: rm -rf YMusicV4/secrets.properties YMusicV4/signing YMusicV4/desktopRust/secret.properties
+        run: rm -rf YMusicV4/secrets.properties YMusicV4/signing
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
