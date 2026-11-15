@@ -74,11 +74,18 @@ pub async fn await_device_link(
     sign_in_with_cookies(received?, jar, engines, log).await
 }
 
-/// Signs out on YouTube's side, then forgets every cookie.
-pub async fn sign_out(jar: Arc<dyn CookieJar>, engines: Arc<EngineManager>, log: &Logger) -> Result<(), SignInError> {
-    engines.current().logout(log).await?;
-    tokio::task::spawn_blocking(move || jar.clear().map_err(|error| error.to_string()))
-        .await
-        .map_err(|error| SignInError::Store(error.to_string()))?
-        .map_err(SignInError::Store)
+/// The JVM AccountController.signOut: the bundle's logout (it drops the auth cookies and keeps the
+/// visitor ones), then an anonymous session refresh. The caller shows signed-out either way.
+pub async fn sign_out(engines: Arc<EngineManager>, log: &Logger) {
+    let engine = engines.current();
+    if let Err(error) = engine.logout(log).await {
+        if error.kind == ym_engine::ErrorKind::Network {
+            log.warn("logout failed, the jar may stay authenticated", Some(&error));
+        } else {
+            log.capture_error("logout failed, the jar may stay authenticated", &error);
+        }
+    }
+    if let Err(error) = engine.refresh_session(log).await {
+        log.warn("post-logout session refresh failed", Some(&error));
+    }
 }

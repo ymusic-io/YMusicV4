@@ -497,15 +497,12 @@ impl SettingsView {
     fn sign_out(&mut self, cx: &mut Context<Self>) {
         self.signing_out = true;
         let graph = cx.global::<AppGraph>();
-        let (jar, engines, log) = (graph.cookies.clone(), graph.engines.clone(), graph.log.fork("signout"));
-        let done = on_core(cx, async move { crate::signin::sign_out(jar, engines, &log).await });
+        let (engines, log) = (graph.engines.clone(), graph.log.fork("signout"));
+        let done = on_core(cx, async move { crate::signin::sign_out(engines, &log).await });
         cx.spawn(async move |this, cx| {
-            let result = done.await;
+            done.await;
             this.update(cx, |view, cx| {
                 view.signing_out = false;
-                if let Some(Err(error)) = result {
-                    cx.global::<AppGraph>().log.warn("sign-out failed", Some(&error));
-                }
                 view.refresh_account(cx);
                 cx.emit(AccountChanged);
             })

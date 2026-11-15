@@ -1299,14 +1299,10 @@ impl Shell {
 
     fn dev_sign_out(&mut self, cx: &mut Context<Self>) {
         let graph = cx.global::<AppGraph>();
-        let (jar, engines, log) = (graph.cookies.clone(), graph.engines.clone(), graph.log.fork("signout"));
+        let (engines, log) = (graph.engines.clone(), graph.log.fork("signout"));
         let done = on_core(cx, async move {
-            let result = crate::signin::sign_out(jar, engines, &log).await;
-            match &result {
-                Ok(()) => log.info("signed out"),
-                Err(error) => log.warn("sign-out failed", Some(error)),
-            }
-            result
+            crate::signin::sign_out(engines, &log).await;
+            log.info("signed out");
         });
         cx.spawn(async move |this, cx| {
             done.await;
