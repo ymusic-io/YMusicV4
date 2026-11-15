@@ -71,6 +71,23 @@ impl QueueNav {
     }
 
     /// The item at `from` moved to `to`: history entries follow the items they name.
+    /// The JVM QueueController.removeAt's history update: `index` leaves the history, later indices
+    /// shift down, and a removed current item's successor `current` is recorded as played.
+    pub fn removed_at(&mut self, index: usize, was_current: bool, current: Option<usize>) {
+        self.played.retain(|played| *played != index);
+        for played in &mut self.played {
+            if *played > index {
+                *played -= 1;
+            }
+        }
+        if was_current
+            && let Some(current) = current
+            && self.played.last() != Some(&current)
+        {
+            self.played.push(current);
+        }
+    }
+
     pub fn moved(&mut self, from: usize, to: usize) {
         for played in &mut self.played {
             *played = moved_index(*played, from, to);

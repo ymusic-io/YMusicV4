@@ -620,20 +620,24 @@ impl Playback {
         }
         self.queue.remove(index);
         self.queue_revision += 1;
+        let was_current = index == self.index;
         if index < self.index {
             self.index -= 1;
-        } else if index == self.index {
+        } else if was_current && !self.queue.is_empty() {
+            self.index = self.index.min(self.queue.len() - 1);
+        }
+        let current = (!self.queue.is_empty()).then_some(self.index);
+        self.nav.removed_at(index, was_current, current);
+        if was_current {
             if self.queue.is_empty() {
                 self.index = 0;
                 self.send_local(LocalCommand::Stop);
                 self.command(cx, |engine, log| async move { engine.player_stop(&log).await });
                 self.state = PlayState::Idle;
             } else {
-                self.index = self.index.min(self.queue.len() - 1);
                 self.load_current(cx);
             }
         }
-        self.nav.reset(self.index);
         cx.notify();
     }
 
