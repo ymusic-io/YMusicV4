@@ -513,6 +513,7 @@ impl FocusList {
         let element = div()
             .id(spec.id)
             .role(Role::Slider)
+            .layout_direction(LayoutDirection::Ltr)
             .aria_label(spec.label)
             .aria_numeric_value(value as f64)
             .aria_min_numeric_value(min as f64)
@@ -729,7 +730,8 @@ fn reveal(scroll: &ScrollHandle, item: Bounds<Pixels>, window: &mut Window) {
         x += viewport.left() - (item.left() - margin);
     }
     let y = y.clamp(-max.y, px(0.));
-    let x = x.clamp(-max.x, px(0.));
+    let (low, high) = scroll.offset_range_x();
+    let x = x.clamp(low, high);
     if (x, y) != (offset.x, offset.y) {
         scroll.set_offset(point(x, y));
         // Runs during paint, where a refresh is ignored.
@@ -925,9 +927,9 @@ impl DragRow {
                             moved.dragging.set(true);
                         }
                         if moved.dragging.get() {
-                            let max = moved.scroll.max_offset().x;
+                            let (low, high) = moved.scroll.offset_range_x();
                             let offset = moved.scroll.offset();
-                            moved.scroll.set_offset(point((start_offset + travel).clamp(-max, px(0.)), offset.y));
+                            moved.scroll.set_offset(point((start_offset + travel).clamp(low, high), offset.y));
                             window.refresh();
                             cx.stop_propagation();
                         }

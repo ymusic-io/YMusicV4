@@ -999,11 +999,35 @@ fn aligned_origin_x(
 
     let line_width = end_of_line - last_glyph_x;
 
+    // A row wider than the box (a clamped paragraph's last) shows its start, clipping its end.
+    if line_width > align_width
+        && let Some(rtl) = row_is_rtl(layout, last_glyph_x..end_of_line)
+    {
+        return if rtl {
+            origin.x + align_width - line_width
+        } else {
+            origin.x
+        };
+    }
+
     match align {
         TextAlign::Left => origin.x,
         TextAlign::Center => (origin.x * 2.0 + align_width - line_width) / 2.0,
         TextAlign::Right => origin.x + align_width - line_width,
     }
+}
+
+/// Whether the glyphs placed within `span` read right to left: the shaped glyphs are in visual
+/// order, so their text offsets fall from left to right.
+fn row_is_rtl(layout: &LineLayout, span: std::ops::Range<Pixels>) -> Option<bool> {
+    let mut glyphs = layout
+        .runs
+        .iter()
+        .flat_map(|run| run.glyphs.iter())
+        .filter(|glyph| span.contains(&glyph.position.x));
+    let first = glyphs.next()?;
+    let last = glyphs.last()?;
+    Some(first.index > last.index)
 }
 
 #[cfg(test)]

@@ -429,7 +429,7 @@ impl Render for SignInView {
             .child(
                 self.focus.button(
                     STOP_BACK,
-                    action_icon("signin-back", IconName::ArrowLeft, t(Str::CdBack))
+                    action_icon("signin-back", crate::action_icon::auto_mirrored(IconName::ArrowLeft), t(Str::CdBack))
                         .on_click(cx.listener(|view, _, _, cx| view.back(cx))),
                     cx,
                 ),

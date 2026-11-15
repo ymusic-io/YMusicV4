@@ -379,6 +379,7 @@ impl MiniPlayer {
                 h_flex()
                     .gap_2()
                     .items_center()
+                    .layout_direction(LayoutDirection::Ltr)
                     .child(
                         self.focus.button(
                             STOP_SHUFFLE,
@@ -439,6 +440,7 @@ impl MiniPlayer {
                 h_flex()
                     .w_full()
                     .max_w(px(BAR_SEEK_MAX))
+                    .layout_direction(LayoutDirection::Ltr)
                     .gap_2()
                     .items_center()
                     .child(
