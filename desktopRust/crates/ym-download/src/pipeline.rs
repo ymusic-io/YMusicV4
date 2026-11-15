@@ -176,10 +176,11 @@ impl Pipeline {
         candidates.dedup();
         for url in candidates {
             match self.fetch_jpeg(&url).await {
-                Ok(Some(bytes)) => {
-                    fs::write(&path, bytes).map_err(|error| DownloadError::file("R70030", "write cover art", error))?;
-                    return Ok(Some(path));
-                }
+                // A cover that will not write is skipped like one that will not fetch (the JVM CoverArt).
+                Ok(Some(bytes)) => match fs::write(&path, bytes) {
+                    Ok(()) => return Ok(Some(path)),
+                    Err(error) => self.log.warn(&format!("cover art write failed: {url}"), Some(&error)),
+                },
                 Ok(None) => {}
                 Err(error) => self.log.warn(&format!("cover art fetch failed: {url}"), Some(&error)),
             }
