@@ -225,7 +225,9 @@ impl DownloadsView {
                 .detach();
             }
             Some(Playability::Unavailable) => self.unavailable_dialog(id, window, cx),
-            None if code == "folder" => {
+            None if code == ym_download::error::FOLDER_ACCESS_CODE
+                || code == ym_download::error::LEGACY_FOLDER_ACCESS_CODE =>
+            {
                 let pick = pick_download_folder(window, cx);
                 cx.spawn(async move |this, cx| {
                     if pick.await.is_some() {
@@ -420,7 +422,9 @@ pub fn task_error_text(error: &TaskError) -> String {
     match error.code.as_str() {
         "network" => t(Str::ErrorNetwork).to_owned(),
         "disk_full" => t(Str::ErrorDiskFull).to_owned(),
-        "folder" => t(Str::DownloadsErrorFolderAccess).to_owned(),
+        ym_download::error::FOLDER_ACCESS_CODE | ym_download::error::LEGACY_FOLDER_ACCESS_CODE => {
+            t(Str::DownloadsErrorFolderAccess).to_owned()
+        }
         "live" => t(Str::DownloadLiveUnsupported).to_owned(),
         "processing" => t(Str::ErrorLiveStillProcessing).to_owned(),
         code => tf(Str::ErrorGeneric, &[&code]),
