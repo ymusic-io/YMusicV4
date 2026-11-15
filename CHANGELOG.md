@@ -13,7 +13,7 @@
 - A stream replay showed "Top chat replay" and "Live chat replay" as feed chips that did nothing ([169444841](https://github.com/ymusic-io/YMusicV4/commit/1694448411b8ec7db7607187dbeb2514c7c074d8))
 - Desktop: with speed or pitch changed, the first video could show an error (E20082) before it played ([7f45c9350](https://github.com/ymusic-io/YMusicV4/commit/7f45c9350568b5e0e610a720eb34c3f840387968))
 - macOS 14 and later: Open in the tray, the Dock and an update left the window behind the app in front ([9bda684d5](https://github.com/ymusic-io/YMusicV4/commit/9bda684d5b6de3b7f4631e419d7c721ea4a5ca9d))
-- Desktop: Pause or a seek pressed while the first video was still starting was ignored, and the video played from the start ([19accaa7a](https://github.com/ymusic-io/YMusicV4/commit/19accaa7a98fa3175adae3ca5e2c4a77837c66b9))
+- Desktop: Pause pressed while the first video was still starting was ignored, and the video played anyway ([19accaa7a](https://github.com/ymusic-io/YMusicV4/commit/19accaa7a98fa3175adae3ca5e2c4a77837c66b9))
 
 ### IMPROVED
 - The app reopens on the tab you left in the Library and YT Music, as it already did for the page and the Discover tab. After this update it opens once on Discover ([#290](https://github.com/ymusic-io/YMusicV4/issues/290), [2c76395db](https://github.com/ymusic-io/YMusicV4/commit/2c76395db2af872bc41cff00bb5fbb00917f46d2), [aa1d42903](https://github.com/ymusic-io/YMusicV4/commit/aa1d42903e08bc0d26bee97e9957ab2ebcdeaa27), [a3b26455d](https://github.com/ymusic-io/YMusicV4/commit/a3b26455d3a5438750c758f964f11d954770980d), [5906be4d7](https://github.com/ymusic-io/YMusicV4/commit/5906be4d7d7f1763c2076baf53bea7311d9d2466))

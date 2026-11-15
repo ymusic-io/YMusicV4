@@ -65,6 +65,9 @@ When the user asks **why** / **what** / **how** / **wtf is** (explain a path, a 
 - Never rename or remove a wire field, command, or native in one step; add the new one and keep the old one until every app version using it is below the support floor.
 - **Bump the bundle revision with every fix or feature in it**, in the same commit, without being asked: `Versions.engineJsVersion` for engine.js, `Versions.playerJsVersion` for player.js (`buildSrc/.../Dependencies.kt`); shared code (`transport.ts`, `protocol/`) bumps both.
 
+### Rust app mirrors Kotlin
+`desktopRust/` follows the Kotlin implementation's design, not only its visible result: the same state, the same names for it, the same semantics (Kotlin's `playWhenReadyIntent` is a `play_when_ready` intent in Rust, not a one-shot flag that happens to work). Read the Kotlin code before porting and say what it does; never infer the JVM app's behavior. **Any deliberate difference needs the user's confirmation first.**
+
 ### Coroutines
 - **Suspend functions must be safe to call from the main thread.** Use `withContext(Dispatchers.IO)` for I/O or `withContext(Dispatchers.Default)` for CPU-bound work.
 - **Don't fake async.** A purely-blocking function (SQLite, files) whose body is `withContext(Dispatchers.X) { … }` with no real suspend point inside should NOT be `suspend` — that just advertises "safe from main" while hopping a dispatcher the caller could hop itself. Declare it a plain `fun` annotated `@WorkerThread` (in `kmpcommon`) and let the caller — already off the main thread — own threading. Reserve `suspend` for genuine suspend points (network, channels, async `Source` reads). A `suspend` fn may freely call these blocking ones. Reference: `MediaBlobCache` / `BlobIndex` / `SegmentIndex` in `:yt-media` are non-suspend `@WorkerThread`; their SABR-session / proxy callers are what suspend.
