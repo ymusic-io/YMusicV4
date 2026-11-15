@@ -10,7 +10,8 @@ pub mod sabr;
 pub mod segment_index;
 pub mod ump;
 
-/// The User-Agent every host-made YouTube / googlevideo request sends. Must equal `DESKTOP_UA` in
-/// YMusicV4 `engine-js/src/logic/yt/session.ts`: the PO token is minted under that UA.
+/// The User-Agent a host-made YouTube / googlevideo request falls back to when the engine names none:
+/// a bundle older than `SabrStreamSpec::user_agent`, or a proxied request sent without one. The
+/// engine's own `DESKTOP_UA` wins wherever it is given, since the PO token is minted under it.
 pub const YOUTUBE_USER_AGENT: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 \
     (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36";

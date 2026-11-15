@@ -360,7 +360,7 @@ impl SabrSession {
             let mut request = http
                 .client
                 .post(parsed_url.clone())
-                .header(reqwest::header::USER_AGENT, &http.user_agent)
+                .header(reqwest::header::USER_AGENT, spec.user_agent.as_deref().unwrap_or(&http.user_agent))
                 .header(reqwest::header::CONTENT_TYPE, "application/x-protobuf")
                 .body(body);
             if let Some(cookie) = http.cookies.as_ref().and_then(|cookies| cookies(&parsed_url)) {

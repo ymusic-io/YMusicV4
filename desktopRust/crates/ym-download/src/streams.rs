@@ -211,7 +211,8 @@ impl StreamDownloader {
         // KB-scale, fetched whole after the media; a caption that fails is skipped, not fatal.
         let mut caption_files = Vec::new();
         for track in &captions {
-            match self.download_caption(&task.id, track).await {
+            let agent = resolved.spec.user_agent.as_deref().unwrap_or(&self.sabr.user_agent);
+            match self.download_caption(&task.id, track, agent).await {
                 Ok(caption) => caption_files.push(caption),
                 Err(error) => self.log.warn(&format!("caption {} failed: {error}", track.language_code), Some(&error)),
             }
@@ -337,14 +338,19 @@ impl StreamDownloader {
     }
 
     /// The caption's WebVTT into a scratch file. A body without cues is a failure, never an empty track.
-    async fn download_caption(&self, task_id: &str, track: &CaptionTrack) -> Result<DownloadedCaption, DownloadError> {
+    async fn download_caption(
+        &self,
+        task_id: &str,
+        track: &CaptionTrack,
+        user_agent: &str,
+    ) -> Result<DownloadedCaption, DownloadError> {
         let path =
             self.storage.scratch(task_id, &format!("cc.{}.vtt", caption_key(&track.language_code, track.is_asr)))?;
         let separator = if track.base_url.contains('?') { '&' } else { '?' };
         let response = self
             .client
             .get(format!("{}{separator}fmt=vtt", track.base_url))
-            .header(reqwest::header::USER_AGENT, &self.sabr.user_agent)
+            .header(reqwest::header::USER_AGENT, user_agent)
             .send()
             .await
             .map_err(|error| DownloadError::Network(error.to_string()))?;
