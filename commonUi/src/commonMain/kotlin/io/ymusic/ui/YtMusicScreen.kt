@@ -20,6 +20,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -43,6 +44,9 @@ import io.ymusic.dynamicengine.yt.extractMusicExplore
 import io.ymusic.dynamicengine.yt.extractMusicHome
 import io.ymusic.dynamicengine.yt.extractMusicLibrary
 import io.ymusic.dynamicengine.yt.extractMusicNewReleases
+import io.ymusic.settings.AppSettings
+import io.ymusic.settings.flow
+import io.ymusic.settings.put
 import io.ymusic.ui.resources.Res
 import io.ymusic.ui.resources.detail_playlist
 import io.ymusic.ui.resources.play_all
@@ -66,12 +70,12 @@ import kotlin.math.max
 const val MusicBrowsePrefix = "/ytmusic/browse"
 
 /** The YT Music top tabs. All but Library are anonymous WEB_REMIX feeds; Library needs sign-in. */
-enum class YtMusicTab(val label: StringResource) {
-    Home(Res.string.ytmusic_tab_home),
-    Explore(Res.string.ytmusic_tab_explore),
-    NewReleases(Res.string.ytmusic_tab_new_releases),
-    Charts(Res.string.ytmusic_tab_charts),
-    Library(Res.string.ytmusic_tab_library),
+enum class YtMusicTab(val id: Int, val label: StringResource) {
+    Home(1, Res.string.ytmusic_tab_home),
+    Explore(2, Res.string.ytmusic_tab_explore),
+    NewReleases(3, Res.string.ytmusic_tab_new_releases),
+    Charts(4, Res.string.ytmusic_tab_charts),
+    Library(5, Res.string.ytmusic_tab_library),
 }
 
 /**
@@ -98,8 +102,12 @@ fun YtMusicScreen(
     onOpen: ((YtFeedItem) -> Unit)? = null,
     onDeeplink: ((link: String, title: String?) -> Unit)? = null,
 ) {
-    var tab by rememberSaveable { mutableStateOf(YtMusicTab.Home) }
     val tabs = remember(graph) { YtMusicTab.entries.filter { !graph.guest || it != YtMusicTab.Library } }
+    var tab by rememberSaveable {
+        val saved = graph.settings.flow(AppSettings.lastYtMusicTab).value
+        mutableStateOf(tabs.firstOrNull { it.id == saved } ?: YtMusicTab.Home)
+    }
+    LaunchedEffect(tab) { graph.settings.put(AppSettings.lastYtMusicTab, tab.id) }
     DisposableEffect(tabs) {
         val remove = GlobalShortcutActions.pushTabHandler { i ->
             tabs.getOrNull(i - 1)?.let { tab = it; true } ?: false

@@ -101,9 +101,10 @@ const SHADOW_REACH: f32 = 12.;
 const BAR_PAD_TOP: f32 = 2.;
 const BAR_PAD_BOTTOM: f32 = 3.;
 
-/// Shared with the JVM app: the section and Discover tab a restart resumes, by their stable ids.
+/// Shared with the JVM app: the section and the Discover and YT Music tabs a restart resumes, by their stable ids.
 const LAST_SECTION_KEY: &str = "app.lastSection";
 const LAST_DISCOVER_TAB_KEY: &str = "app.lastDiscoverTab";
+const LAST_YTMUSIC_TAB_KEY: &str = "app.lastYtMusicTab";
 const SEEK_STEP_MS: i64 = 10_000;
 const VOLUME_STEP: f32 = 0.05;
 const DOUBLE_ESCAPE: Duration = Duration::from_millis(500);
@@ -199,6 +200,20 @@ enum MusicTab {
 impl MusicTab {
     const ALL: [MusicTab; 5] =
         [MusicTab::Home, MusicTab::Explore, MusicTab::NewReleases, MusicTab::Charts, MusicTab::Library];
+
+    fn id(self) -> i32 {
+        match self {
+            MusicTab::Home => 1,
+            MusicTab::Explore => 2,
+            MusicTab::NewReleases => 3,
+            MusicTab::Charts => 4,
+            MusicTab::Library => 5,
+        }
+    }
+
+    fn from_id(id: i32) -> Option<Self> {
+        Self::ALL.into_iter().find(|tab| tab.id() == id)
+    }
 
     /// A guest has no account library.
     fn listed(guest: bool) -> Vec<MusicTab> {
@@ -537,6 +552,12 @@ impl Shell {
             .and_then(DiscoverTab::from_id)
             .filter(|tab| DiscoverTab::listed(guest).contains(tab))
             .unwrap_or(DiscoverTab::Home);
+        let music_tab = settings
+            .int(LAST_YTMUSIC_TAB_KEY, 1)
+            .ok()
+            .and_then(MusicTab::from_id)
+            .filter(|tab| MusicTab::listed(guest).contains(tab))
+            .unwrap_or(MusicTab::Home);
         let focus = cx.focus_handle();
         crate::a11y::track_root(&focus, cx);
         cx.set_global(ScrollHost::default());
@@ -568,7 +589,7 @@ impl Shell {
             _sponsor_block: sponsor_block,
             section,
             discover_tab,
-            music_tab: MusicTab::Home,
+            music_tab,
             roots: HashMap::new(),
             stacks: HashMap::new(),
             rail_manual: None,
@@ -1762,7 +1783,7 @@ impl Shell {
                     if let Some(tab) = tabs.get(index).copied() {
                         shell
                             .update(cx, |shell, cx| {
-                                shell.music_tab = tab;
+                                shell.set_music_tab(tab, cx);
                                 cx.notify();
                             })
                             .ok();
@@ -2016,6 +2037,11 @@ impl Shell {
 
     /// Recommended and Top tracks are built from local play, so they rebuild on every visit; the
     /// Account tab re-checks who is signed in.
+    fn set_music_tab(&mut self, tab: MusicTab, cx: &mut Context<Self>) {
+        self.music_tab = tab;
+        persist_setting(cx, LAST_YTMUSIC_TAB_KEY, tab.id().to_string());
+    }
+
     fn set_discover_tab(&mut self, tab: DiscoverTab, cx: &mut Context<Self>) {
         self.discover_tab = tab;
         persist_setting(cx, LAST_DISCOVER_TAB_KEY, tab.id().to_string());
@@ -2041,7 +2067,7 @@ impl Shell {
             }
             Section::YtMusic => {
                 if let Some(tab) = MusicTab::listed(self.guest).get(index).copied() {
-                    self.music_tab = tab;
+                    self.set_music_tab(tab, cx);
                 }
             }
             Section::Library => {

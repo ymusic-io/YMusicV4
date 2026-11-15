@@ -114,6 +114,9 @@ object AppSettings {
     /** Auto-translate caption languages last picked, most recent first: language codes. */
     val recentTranslateLanguages = StringSetSetting("captions.recentTranslateLanguages")
 
+    /** The YT Music tab the app reopens on: a YtMusicTab id, 0 = none yet. */
+    val lastYtMusicTab = IntSetting("app.lastYtMusicTab", 0)
+
     /** The Library tab the app reopens on: a LibraryTab id, 0 = none yet. */
     val lastLibraryTab = IntSetting("app.lastLibraryTab", 0)
 
