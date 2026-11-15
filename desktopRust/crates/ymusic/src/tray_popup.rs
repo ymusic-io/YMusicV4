@@ -148,7 +148,6 @@ impl Render for TrayPopup {
         let (position, duration) = (playback.position_ms, playback.duration_ms);
         let (live, seekable) = (playback.live, playback.seekable);
         let segments = segment_fractions(playback.skip_segments(), duration);
-        let has_next = playback.has_next();
         let title =
             item.as_ref().map_or_else(|| t(Str::MiniPlayerNothingPlaying).to_owned(), |item| item.title.clone());
         let artist = item.as_ref().and_then(|item| item.artist.clone());
@@ -303,8 +302,7 @@ impl Render for TrayPopup {
                     )
                     .child(
                         sized_action_icon("tray-next", Lucide::SkipForward, t(Str::CdNext), SKIP_ICON, SKIP_HIT)
-                            .disabled(!has_next)
-                            .on_click(cx.listener(|popup, _, _, cx| {
+                                                        .on_click(cx.listener(|popup, _, _, cx| {
                                 popup.playback.update(cx, |playback, cx| playback.next(cx))
                             })),
                     ),

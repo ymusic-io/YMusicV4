@@ -36,6 +36,8 @@ use crate::win_video_layer::VideoLayer;
 
 const CONTROLS_HIDE_AFTER: Duration = Duration::from_secs(3);
 const SKIP_MS: i64 = 10_000;
+/// One arrow press on the seek bar (the JVM `SEEK_KEY_STEP_MS`).
+const SEEK_KEY_STEP_MS: i64 = 5_000;
 
 const STOP_CLOSE: usize = 0;
 const STOP_DOWNLOAD: usize = 1;
@@ -748,7 +750,7 @@ impl NowPlaying {
         let seek_stop = SliderStop {
             value_text: Some(play_clock.spoken.clone().into()),
             on_step: Some(Rc::new(move |delta, _, cx| {
-                playback.update(cx, |playback, cx| playback.seek_by(delta as i64 * SKIP_MS, cx))
+                playback.update(cx, |playback, cx| playback.seek_by(delta as i64 * SEEK_KEY_STEP_MS, cx))
             })),
             ..SliderStop::new("np-seek", t(Str::A11yPlaybackPosition))
         };

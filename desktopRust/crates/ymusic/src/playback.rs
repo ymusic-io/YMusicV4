@@ -979,7 +979,7 @@ impl Playback {
     }
 
     pub fn jump_to(&mut self, index: usize, cx: &mut Context<Self>) {
-        if index < self.queue.len() && index != self.index {
+        if index < self.queue.len() {
             self.nav.commit(index, self.queue.len());
             self.index = index;
             self.play_when_ready = true;

@@ -6,7 +6,7 @@ use gpui_kit::assets::IconName as Lucide;
 use gpui_kit::base::slider::{SliderEvent, SliderState};
 use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::slider::Slider;
-use gpui_kit::component::{ActiveTheme, Disableable, Icon, StyledExt, h_flex, v_flex};
+use gpui_kit::component::{ActiveTheme, Icon, StyledExt, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use ym_i18n::{Str, t, tf};
@@ -150,8 +150,8 @@ const STOP_SLEEP: usize = 8;
 const STOP_SEEK: usize = 9;
 const STOP_VOLUME: usize = 10;
 const STOP_LIVE: usize = 11;
-/// One arrow press on the bar's seek slider and volume.
-const SEEK_STEP_MS: i64 = 10_000;
+/// One arrow press on the bar's seek slider and volume (the JVM `SEEK_KEY_STEP_MS`).
+const SEEK_STEP_MS: i64 = 5_000;
 const VOLUME_STEP: f32 = 0.05;
 
 impl MiniPlayer {
@@ -332,7 +332,6 @@ impl MiniPlayer {
         let play_clock = PlayClock::of(playback);
         let seekable = playback.seekable;
         let buffered = playback.buffered_fraction();
-        let has_next = playback.has_next();
         let (loop_mode, shuffle) = (playback.nav.loop_mode, playback.nav.shuffle);
         let sleep_remaining = playback.sleep_remaining();
         let sleep_after_current = playback.sleep_after_current;
@@ -408,7 +407,7 @@ impl MiniPlayer {
                     .child(self.play_circle(&state, cx))
                     .child(self.focus.button(
                         STOP_NEXT,
-                        action_icon("next", Lucide::SkipForward, t(Str::CdNext)).disabled(!has_next).on_click(
+                        action_icon("next", Lucide::SkipForward, t(Str::CdNext)).on_click(
                             cx.listener(|player, _, _, cx| {
                                 player.playback.update(cx, |playback, cx| playback.next(cx))
                             }),
@@ -569,7 +568,6 @@ impl MiniPlayer {
         } else {
             0.
         };
-        let has_next = playback.has_next();
         let playing = matches!(state, PlayState::Playing | PlayState::Buffering);
         let subtitle = Self::subtitle(&item, &state, cx);
         let toggle = h_flex().id("now-playing-toggle").role(Role::Button).aria_label(Self::now_playing_label(&item));
@@ -638,7 +636,7 @@ impl MiniPlayer {
                             })
                             .child(self.focus.button(
                                 STOP_NEXT,
-                                action_icon("next", Lucide::SkipForward, t(Str::CdNext)).disabled(!has_next).on_click(
+                                action_icon("next", Lucide::SkipForward, t(Str::CdNext)).on_click(
                                     cx.listener(|player, _, _, cx| {
                                         player.playback.update(cx, |playback, cx| playback.next(cx))
                                     }),
