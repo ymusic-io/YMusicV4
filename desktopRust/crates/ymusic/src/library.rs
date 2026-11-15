@@ -1206,7 +1206,10 @@ fn wheel_scrolls_row(row: ScrollHandle) -> impl Fn(&ScrollEvent, &mut Window, &m
             return;
         }
         let offset = row.offset();
-        let x = (offset.x + delta.y).clamp(-row.max_offset().x, px(0.));
+        let (low, high) = row.offset_range_x();
+        // A right-to-left row scrolls forward towards its left end.
+        let along = if low.is_zero() { -delta.y } else { delta.y };
+        let x = (offset.x + along).clamp(low, high);
         if x != offset.x {
             row.set_offset(point(x, offset.y));
             window.refresh();
