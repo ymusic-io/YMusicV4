@@ -116,34 +116,45 @@ impl YoutubeSessions {
             mse_log.log(if level >= 2 { Level::Warn } else { Level::Info }, message, None);
         });
         // A published bundle that will not boot must not take playback down: the next one boots.
+        let candidates = (self.candidates)();
+        let embedded_at = candidates.len().saturating_sub(1);
         let mut last_error = None;
-        for (script, staged) in (self.candidates)() {
-            let engine = match DynamicEngine::create(script, config.clone()).await {
-                Ok(engine) => Arc::new(engine),
+        for (position, (script, staged)) in candidates.into_iter().enumerate() {
+            let booted = match DynamicEngine::create(script, config.clone()).await {
+                Ok(engine) => {
+                    let engine = Arc::new(engine);
+                    match engine.health_check().await {
+                        Ok(version) => Ok((engine, version)),
+                        Err(error) => {
+                            engine.close().await;
+                            Err(error)
+                        }
+                    }
+                }
+                Err(error) => Err(error),
+            };
+            let engine = match booted {
+                Ok((engine, version)) => {
+                    ym_telemetry::set_player_version(version);
+                    (self.player_running)(i64::from(version));
+                    engine
+                }
                 Err(error) => {
-                    self.log.warn("a player bundle did not load", Some(&error));
-                    if let Some(bundle) = staged {
+                    if position == embedded_at {
+                        self.log.warn("the embedded player bundle did not boot", Some(&error));
+                    } else if let Some(bundle) = staged {
+                        self.log.capture_error(
+                            &format!("player.js v{} failed to boot, discarded", bundle.remote.version),
+                            &error,
+                        );
                         (self.reject_staged)(bundle.remote);
+                    } else {
+                        self.log.capture_error("the cached player.js failed to boot, using the next one", &error);
                     }
                     last_error = Some(error);
                     continue;
                 }
             };
-            match engine.health_check().await {
-                Ok(version) => {
-                    ym_telemetry::set_player_version(version);
-                    (self.player_running)(i64::from(version));
-                }
-                Err(error) => {
-                    self.log.warn("a player bundle failed its health check", Some(&error));
-                    engine.close().await;
-                    if let Some(bundle) = staged {
-                        (self.reject_staged)(bundle.remote);
-                    }
-                    last_error = Some(error);
-                    continue;
-                }
-            }
             if let Some(bundle) = staged {
                 let source = self.player_source.clone();
                 if let Ok(Err(error)) = tokio::task::spawn_blocking(move || source.store(&bundle)).await {

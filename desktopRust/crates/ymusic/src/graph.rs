@@ -354,7 +354,14 @@ impl AppGraph {
                             Ok(bundle) => match engines.swap(bundle.source.clone()).await {
                                 Ok(version) => {
                                     let source = engine_source.clone();
-                                    let _ = tokio::task::spawn_blocking(move || source.store(&bundle)).await;
+                                    if let Ok(Err(error)) =
+                                        tokio::task::spawn_blocking(move || source.store(&bundle)).await
+                                    {
+                                        log.warn(
+                                            &format!("engine v{version} is live but could not be cached"),
+                                            Some(&error),
+                                        );
+                                    }
                                     engine_running(&remote, &settings, version, &log);
                                 }
                                 Err(error) => {
@@ -365,10 +372,11 @@ impl AppGraph {
                                     )
                                 }
                             },
+                            Err(error @ BundleError::Signature { .. }) => {
+                                rejected_engine.push(remote_engine.clone());
+                                log.capture_error("R91801 engine.js update rejected", &error);
+                            }
                             Err(error) => {
-                                if matches!(error, BundleError::Signature { .. }) {
-                                    rejected_engine.push(remote_engine.clone());
-                                }
                                 log.warn(&format!("R90012 engine v{} not taken", remote_engine.version), Some(&error))
                             }
                         }
@@ -392,10 +400,11 @@ impl AppGraph {
                     }) {
                         match player_source.download(&remote_player).await {
                             Ok(bundle) => *pending.lock().unwrap() = Some(bundle),
+                            Err(error @ BundleError::Signature { .. }) => {
+                                rejected_player.lock().unwrap().push(remote_player.clone());
+                                log.capture_error("R91802 player.js update rejected", &error);
+                            }
                             Err(error) => {
-                                if matches!(error, BundleError::Signature { .. }) {
-                                    rejected_player.lock().unwrap().push(remote_player.clone());
-                                }
                                 log.warn(&format!("R90012 player v{} not taken", remote_player.version), Some(&error))
                             }
                         }

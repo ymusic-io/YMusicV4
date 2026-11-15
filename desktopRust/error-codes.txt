@@ -36,10 +36,12 @@ R20022 D engine manager: no engine bundle candidate to boot
 R20023 D log/capture: the cache entry the bundle named (the bg-session dump) could not be read; the report goes without it (logged)
 R20024 D player/remintPo answered "reminted" without a content PO token
 R20025 - engine manager: a remote (untrusted) bundle did not boot and pass its health check within 10 s; the next candidate boots, or the swap is dropped (the JVM E20022)
-R30001 D remote config: the cached config was unreadable and was dropped (logged; defaults used)
+R30001 D remote config: the cached config was unreadable and was dropped (captured; defaults used)
 R30002 D remote config: the fetched config could not be written to the cache (logged)
 R30003 D remote config: fetching /v1/config failed (logged; the held config stays)
 R30004 D js bundle: the cached remote bundle failed its signature and was deleted (logged; embedded used)
+R31801 - remote config: /v1/config refused this build (a 4xx other than 403 or 429; captured, the held config stays)
+R31802 - remote config: /v1/config answered a config this build cannot read (captured, the held config stays)
 R90001 D app boot: the engine cache store could not be opened (data dir I/O, index)
 R90002 D playback: the native MSE host could not be created
 R90003 D playback: the player reported an error state without a code of its own
@@ -58,6 +60,8 @@ R90450 D cookies (Linux): no Secret Service answered; the cookie key is kept in 
 R90600 D download location: the picked folder could not be added to the Library (media store), or the core runtime stopped
 R90650 D player cache: the player-cache folder or its cache-index.db could not be opened (playback streams uncached), or the open task died
 R90651 D player cache: applying the size cap failed (eviction: cache-index.db or span files)
+R91801 - bundles: a published engine.js failed its signature (captured, never tried again; the running one stays)
+R91802 - bundles: a published player.js failed its signature (captured, never tried again; the running one stays)
 R90700 D http cache: a cache entry could not be read (journal or value file I/O); the request goes to the network
 R90701 D http cache: a response's metadata could not be written into the cache; the response is still delivered
 R90702 D http cache: the journal is corrupt; the cache folder is emptied and starts over (as OkHttp does)
