@@ -14,6 +14,7 @@ use gpui_kit::*;
 use ym_i18n::{Str, t, tf};
 
 use crate::a11y::{DragRow, FocusList, focusable};
+use crate::account::{AccountController, Accounts};
 use crate::account_view::AccountView;
 use crate::action_icon::{HIT, action_icon};
 use crate::download_dialog::{DownloadPicker, DownloadTarget};
@@ -467,6 +468,9 @@ pub struct Shell {
 
 impl Shell {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
+        let accounts = cx.new(AccountController::new);
+        cx.set_global(Accounts(accounts.clone()));
+        let account_changed = cx.subscribe(&accounts, |shell, _, _: &AccountChanged, cx| shell.account_changed(cx));
         let playback = cx.new(|cx| {
             let playback = Playback::new(cx);
             Playback::warm_up_later(cx);
@@ -651,7 +655,16 @@ impl Shell {
             tray_popup_closed_at: None,
             hidden_to_tray: false,
             _save_bounds: None,
-            _subscriptions: vec![toggle, now_playing_events, visibility, activation, bounds, tray_state, focus_lost],
+            _subscriptions: vec![
+                toggle,
+                now_playing_events,
+                visibility,
+                activation,
+                bounds,
+                tray_state,
+                focus_lost,
+                account_changed,
+            ],
         }
     }
 
@@ -1025,8 +1038,7 @@ impl Shell {
                 root.update(cx, |root, cx| root.reload(cx));
             }
         });
-        let account = cx.subscribe(&view, |shell, _, _: &AccountChanged, cx| shell.account_changed(cx));
-        self._subscriptions.extend([locale, account]);
+        self._subscriptions.push(locale);
         self.settings = Some(view.clone());
         view
     }
@@ -1303,17 +1315,7 @@ impl Shell {
     }
 
     fn dev_sign_out(&mut self, cx: &mut Context<Self>) {
-        let graph = cx.global::<AppGraph>();
-        let (engines, log) = (graph.engines.clone(), graph.log.fork("signout"));
-        let done = on_core(cx, async move {
-            crate::signin::sign_out(engines, &log).await;
-            log.info("signed out");
-        });
-        cx.spawn(async move |this, cx| {
-            done.await;
-            this.update(cx, |shell, cx| shell.account_changed(cx)).ok();
-        })
-        .detach();
+        AccountController::global(cx).update(cx, |controller, cx| controller.sign_out(cx));
     }
 
     /// Resolves a shared YouTube link and plays it when it names a video.
@@ -1456,7 +1458,7 @@ impl Shell {
                 stack.pushed.retain(|layer| !matches!(layer, Layer::SignIn(open) if *open == view));
             }
             if matches!(event, SignInEvent::Done) {
-                shell.account_changed(cx);
+                AccountController::global(cx).update(cx, |controller, cx| controller.on_login_complete(cx));
             }
             cx.notify();
         });
@@ -1464,15 +1466,16 @@ impl Shell {
         self.push_layer(Layer::SignIn(view), cx);
     }
 
-    /// Everything that shows who is signed in re-checks, and every feed reloads under the new
-    /// identity (the Account and YT Music Library feeds reload through their views' re-check).
+    /// Every feed reloads under the new identity (the Account and YT Music Library feeds through
+    /// their views, which follow the account controller).
     fn account_changed(&mut self, cx: &mut Context<Self>) {
-        // The JVM AccountController: the next YouTube load re-inits under the new identity, and an item
-        // that failed for want of a sign-in (or a captcha) plays again.
+        let signed_in = AccountController::global(cx).read(cx).signed_in;
+        // The JVM AccountController: the next YouTube load re-inits under the new identity, and after a
+        // sign-in an item that failed for want of one (or a captcha) plays again.
         self.playback.update(cx, |playback, cx| {
             playback.refresh_on_next();
             let blocked = matches!(&playback.state, PlayState::Failed(failure) if failure.needs_sign_in() || failure.code == "captcha");
-            if blocked {
+            if signed_in && blocked {
                 playback.play(cx);
             }
         });
@@ -1481,13 +1484,7 @@ impl Shell {
                 root.update(cx, |root, cx| root.reload(cx));
             }
         }
-        for view in [self.account.clone(), self.music_library.clone()].into_iter().flatten() {
-            view.update(cx, |view, cx| view.refresh(cx));
-        }
-        if let Some(settings) = &self.settings {
-            settings.update(cx, |settings, cx| settings.refresh_account(cx));
-        }
-        if let Some(downloads) = &self.downloads {
+        if signed_in && let Some(downloads) = &self.downloads {
             downloads.update(cx, |downloads, _| downloads.signed_in());
         }
     }
@@ -2088,7 +2085,6 @@ impl Shell {
         }
         let feed = self.root(FeedSource::Account, cx);
         let view = cx.new(|cx| AccountView::new(feed, true, cx));
-        self._subscriptions.push(cx.subscribe(&view, |shell, _, _: &AccountChanged, cx| shell.account_changed(cx)));
         self.account = Some(view.clone());
         view
     }
@@ -2099,7 +2095,6 @@ impl Shell {
         }
         let feed = self.root(FeedSource::MusicLibrary, cx);
         let view = cx.new(|cx| AccountView::new(feed, false, cx));
-        self._subscriptions.push(cx.subscribe(&view, |shell, _, _: &AccountChanged, cx| shell.account_changed(cx)));
         self.music_library = Some(view.clone());
         view
     }
@@ -2109,16 +2104,10 @@ impl Shell {
         persist_setting(cx, LAST_YTMUSIC_TAB_KEY, tab.key().to_owned());
     }
 
-    /// Recommended and Top tracks are built from local play, so they rebuild on every visit; the
-    /// Account tab re-checks who is signed in.
+    /// Recommended and Top tracks are built from local play, so they rebuild on every visit.
     fn set_discover_tab(&mut self, tab: DiscoverTab, cx: &mut Context<Self>) {
         self.discover_tab = tab;
         persist_setting(cx, LAST_DISCOVER_TAB_KEY, tab.key().to_owned());
-        if tab == DiscoverTab::Account
-            && let Some(view) = &self.account
-        {
-            view.update(cx, |view, cx| view.refresh(cx));
-        }
         self.rebuild_local_discover(cx);
         cx.notify();
     }

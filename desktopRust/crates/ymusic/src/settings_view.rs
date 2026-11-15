@@ -11,18 +11,18 @@ use gpui_kit::component::{
 };
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
-use ym_engine::yt::{YtAccountInfo, YtLocales};
+use ym_engine::yt::YtLocales;
 use ym_i18n::{Str, t, tf};
 use ym_settings::SettingsStore;
 
 use crate::a11y::{FocusList, heading};
 use crate::accent::{ACCENT_KEY, AccentPicker, accent_color, oklab_lerp};
+use crate::account::AccountController;
 use crate::caption_style::{CaptionLook, CaptionStyleDialog};
 use crate::downloads::download_folder;
 use crate::feedback_view::link;
 use crate::graph::{AppGraph, on_core};
 use crate::settings_lists::{Licenses, RegionPicker};
-use crate::signin::AccountChanged;
 use crate::spinner::BusyButton;
 use crate::sponsor_block::SPONSOR_BLOCK_KEY;
 use crate::telemetry::STATS_KEY;
@@ -291,8 +291,8 @@ pub struct LocaleChanged;
 
 pub struct SettingsView {
     playback: Entity<crate::playback::Playback>,
-    account: Option<YtAccountInfo>,
     signing_out: bool,
+    _accounts: Subscription,
     /// The working region and the region menu, from the engine; None until the first answer.
     pub locales: Option<YtLocales>,
     pub locales_loading: bool,
@@ -303,22 +303,26 @@ pub struct SettingsView {
 }
 
 impl EventEmitter<LocaleChanged> for SettingsView {}
-impl EventEmitter<AccountChanged> for SettingsView {}
 
 impl SettingsView {
     pub fn new(playback: Entity<crate::playback::Playback>, cx: &mut Context<Self>) -> Self {
         let scroll = ScrollHandle::new();
+        let accounts = cx.observe(&AccountController::global(cx), |view, controller, cx| {
+            if !controller.read(cx).signed_in {
+                view.signing_out = false;
+            }
+            cx.notify();
+        });
         let mut view = Self {
             playback,
-            account: None,
             signing_out: false,
+            _accounts: accounts,
             locales: None,
             locales_loading: false,
             cache_used: 0,
             scroll: scroll.clone(),
             focus: FocusList::new(Some(scroll)),
         };
-        view.refresh_account(cx);
         view.load_locales(cx);
         view.refresh_cache_used(None, cx);
         view
@@ -427,22 +431,6 @@ impl SettingsView {
         self.apply_locale(Some(gl), Some(window.window_handle()), cx);
     }
 
-    pub fn refresh_account(&mut self, cx: &mut Context<Self>) {
-        let graph = cx.global::<AppGraph>();
-        let (engine, log) = (graph.engine(), graph.log.fork("settings"));
-        let load = on_core(cx, async move { engine.account_info(false, &log).await });
-        cx.spawn(async move |this, cx| {
-            if let Some(Ok(account)) = load.await {
-                this.update(cx, |view, cx| {
-                    view.account = Some(account);
-                    cx.notify();
-                })
-                .ok();
-            }
-        })
-        .detach();
-    }
-
     fn put(&self, key: &'static str, value: String, cx: &mut Context<Self>) {
         save_setting(key, value, cx);
         cx.notify();
@@ -496,19 +484,7 @@ impl SettingsView {
 
     fn sign_out(&mut self, cx: &mut Context<Self>) {
         self.signing_out = true;
-        let graph = cx.global::<AppGraph>();
-        let (engines, log) = (graph.engines.clone(), graph.log.fork("signout"));
-        let done = on_core(cx, async move { crate::signin::sign_out(engines, &log).await });
-        cx.spawn(async move |this, cx| {
-            done.await;
-            this.update(cx, |view, cx| {
-                view.signing_out = false;
-                view.refresh_account(cx);
-                cx.emit(AccountChanged);
-            })
-            .ok();
-        })
-        .detach();
+        AccountController::global(cx).update(cx, |controller, cx| controller.sign_out(cx));
     }
 }
 
@@ -869,13 +845,18 @@ impl Render for SettingsView {
             self.wide(self.focus.row_button(next(), quick_row, cx)),
         ];
 
-        let (signed_in, account_title, account_hint) = match &self.account {
-            Some(account) if account.signed_in => (
+        let accounts = AccountController::global(cx);
+        let controller = accounts.read(cx);
+        let (signed_in, account_title, account_hint) = match &controller.account {
+            _ if !controller.signed_in => {
+                (false, t(Str::SigninPrefaceTitle).to_owned(), Some(t(Str::SigninPrefaceSubtitle).to_owned()))
+            }
+            Some(account) => (
                 true,
                 account.name.clone().or_else(|| account.email.clone()).unwrap_or_default(),
                 account.email.clone().or_else(|| account.handle.clone()),
             ),
-            _ => (false, t(Str::SigninPrefaceTitle).to_owned(), Some(t(Str::SigninPrefaceSubtitle).to_owned())),
+            None => (true, String::new(), None),
         };
         let action = t(if signed_in { Str::AccountSignOut } else { Str::SigninButton });
         let theme = cx.theme();
