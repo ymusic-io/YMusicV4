@@ -17,7 +17,7 @@ use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use ym_i18n::{Str, t, tf};
 
-use crate::a11y::{FocusList, SliderStop, alert, heading, list_item};
+use crate::a11y::{FocusList, SliderStop, alert, announced, heading, list_item};
 use crate::action_icon::{HIT, glyph_action_icon, lucide_size, sized_action_icon};
 use crate::audio_only::AudioOnlyArt;
 use crate::download_dialog::DownloadTarget;
@@ -28,6 +28,7 @@ use crate::playback::{
 };
 use crate::queue_nav::LoopMode;
 use crate::reorder::{Reorder, ReorderEvent};
+use crate::spinner::Spinner;
 use crate::sponsor_block::SponsorBlock;
 #[cfg(not(target_os = "windows"))]
 use crate::video_layer::VideoLayer;
@@ -49,6 +50,7 @@ const STOP_REPEAT: usize = 6;
 const STOP_SHUFFLE: usize = 7;
 const STOP_CHANNEL: usize = 8;
 const STOP_CHANNEL_OVERLAY: usize = 9;
+const STOP_QUEUE_MORE: usize = 10;
 /// The video controls, as arrow stops of their own list.
 const OVERLAY_REWIND: usize = 0;
 const OVERLAY_PREVIOUS: usize = 1;
@@ -1324,7 +1326,13 @@ impl NowPlaying {
     fn render_queue_header(&self, cx: &mut Context<Self>) -> AnyElement {
         let playback = self.playback.read(cx);
         let (loop_mode, shuffle) = (playback.nav.loop_mode, playback.nav.shuffle);
-        let position = tf(Str::A11yXOfY, &[&(playback.index + 1), &playback.queue.len()]);
+        // The JVM displayTotal: the playlist's length while its queue is still loading.
+        let total = playback
+            .more
+            .as_ref()
+            .and_then(|more| more.total_count)
+            .map_or(playback.queue.len(), |total| (total.max(0) as usize).max(playback.queue.len()));
+        let position = tf(Str::A11yXOfY, &[&(playback.index + 1), &total]);
         let theme = cx.theme();
         let (accent, repeating) = (theme.primary, loop_mode != LoopMode::None);
         h_flex()
@@ -1650,8 +1658,51 @@ impl NowPlaying {
             .overflow_y_scroll()
             .track_scroll(&self.queue_scroll)
             .child(list)
+            .children(self.render_queue_more(cx))
             .child(tracker)
             .into_any_element()
+    }
+
+    /// The end of a growing queue: Load more, its progress, a failure with Retry, or the list's end
+    /// (the JVM QueueMoreRow).
+    fn render_queue_more(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
+        let more = self.playback.read(cx).more.clone()?;
+        let muted = cx.theme().muted_foreground;
+        let load_more = |id: &'static str, label: &'static str, view: &Self, cx: &mut Context<Self>| {
+            view.bar_focus.button(
+                STOP_QUEUE_MORE,
+                Button::new(id).outline().rounded_full().small().label(label).on_click(
+                    cx.listener(|view, _, _, cx| view.playback.update(cx, |playback, cx| playback.load_more(cx))),
+                ),
+                cx,
+            )
+        };
+        let content = if more.loading {
+            h_flex()
+                .gap_2()
+                .items_center()
+                .child(Spinner::new())
+                .child(announced("np-queue-loading", t(Str::QueueLoadingMore)).text_size(px(13.)).text_color(muted))
+                .into_any_element()
+        } else if let Some(code) = &more.error {
+            v_flex()
+                .items_center()
+                .gap_1()
+                .child(alert("np-queue-failed", t(Str::QueueLoadFailed)).text_size(px(13.)).text_color(muted))
+                .child(
+                    crate::a11y::label("np-queue-error", crate::queue_source::error_text(code))
+                        .text_xs()
+                        .text_center()
+                        .text_color(muted.opacity(0.7)),
+                )
+                .child(div().pt_1().child(load_more("np-queue-retry", t(Str::Retry), self, cx)))
+                .into_any_element()
+        } else if more.has_more {
+            load_more("np-queue-load-more", t(Str::QueueLoadMore), self, cx).into_any_element()
+        } else {
+            crate::a11y::label("np-queue-end", t(Str::QueueEnd)).text_size(px(13.)).text_color(muted).into_any_element()
+        };
+        Some(h_flex().w_full().justify_center().p_4().child(content).into_any_element())
     }
 }
 

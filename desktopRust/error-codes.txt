@@ -186,3 +186,4 @@ R99011 D rename file: the file could not be renamed on disk
 R99012 D rename file: the Library row could not be moved to the new path (media store)
 R99013 D rename file: the finished download could not be moved to the new path (downloads.db)
 R99014 D rename file: the core runtime stopped before the rename finished
+R91200 - playback: a queue page (radio / playlist continuation) ended without a result or engine error (the tokio task died); Up next shows the code with Retry (the JVM E60063, logged)

@@ -20,6 +20,7 @@ use crate::audio_effects::AudioEffects;
 use crate::graph::{AppGraph, on_core};
 use crate::local_engine::{CaptionPrefs, LocalCommand, LocalEngine, LocalLevelTap};
 use crate::queue_nav::{LoopMode, QueueNav, moved_index};
+use crate::queue_source::{NextQueueSource, QUEUE_PAGE_UNCODED, QueueMore, QueueSourcePage, error_code};
 use crate::youtube_session::YoutubeSession;
 
 /// The JVM app's keys.
@@ -66,6 +67,9 @@ const SMART_PREVIOUS_MS: i64 = 3_000;
 const LOAD_TIMEOUT: Duration = Duration::from_secs(5);
 const LOAD_STALLED: &str = "R90032";
 const WARM_UP_AFTER: Duration = Duration::from_secs(3);
+/// A growing queue loads its next page once the current item is within this many of its end (the
+/// JVM PlayerImpl.LOAD_AHEAD).
+const LOAD_AHEAD: usize = 10;
 
 type PlayerJob = Box<dyn FnOnce(Arc<DynamicEngine>) -> futures::future::BoxFuture<'static, ()> + Send>;
 
@@ -281,8 +285,13 @@ pub struct Playback {
     skip_segments: Option<(String, Vec<(i64, i64)>)>,
     /// The span last skipped, so a late position report doesn't skip it twice.
     skipped: Option<(String, i64)>,
-    queue_continuation: Option<String>,
-    loading_queue: bool,
+    /// Where the queue grows from (the JVM PlayerImpl.source).
+    source: Option<NextQueueSource>,
+    /// The source's side of the queue (the JVM QueueMore); None without a source.
+    pub more: Option<QueueMore>,
+    _source_page: Option<Task<()>>,
+    /// The load whose track change last cleared a failed page (the JVM rolledGeneration).
+    rolled_generation: Option<u64>,
     pub state: PlayState,
     pub position_ms: i64,
     pub duration_ms: i64,
@@ -374,8 +383,10 @@ impl Playback {
             start_position_ms: 0,
             skip_segments: None,
             skipped: None,
-            queue_continuation: None,
-            loading_queue: false,
+            source: None,
+            more: None,
+            _source_page: None,
+            rolled_generation: None,
             state: PlayState::Idle,
             position_ms: 0,
             duration_ms: 0,
@@ -480,38 +491,42 @@ impl Playback {
         }
     }
 
-    /// Plays a feed video. A `section` queue plays in order; without one the engine's radio for
-    /// the video becomes the queue.
-    /// A playlist page's videos from `item`, the rest of the list loading as the queue goes (the JVM
-    /// playAll with NextQueueSource.playlist: /next from the last loaded video).
-    pub fn play_playlist(&mut self, item: YtFeedItem, videos: Vec<YtFeedItem>, url: String, cx: &mut Context<Self>) {
+    /// A playlist page's videos from `item`, the rest of the list (`total_count` long when the page
+    /// says) loading as the queue goes (the JVM playAll with NextQueueSource.playlist).
+    pub fn play_playlist(
+        &mut self,
+        item: YtFeedItem,
+        videos: Vec<YtFeedItem>,
+        url: String,
+        total_count: Option<i32>,
+        cx: &mut Context<Self>,
+    ) {
         let videos: Vec<YtFeedItem> = videos.into_iter().filter(|video| video.kind == "video").collect();
-        let Some(last) = videos.last().map(|video| (video.id.clone(), videos.len() as i64 - 1)) else { return };
-        self.queue_continuation = None;
+        if videos.is_empty() {
+            return;
+        }
+        let source = NextQueueSource::playlist(url, &videos, total_count, queue_source_log(cx));
         self.index = videos.iter().position(|candidate| candidate.id == item.id).unwrap_or(0);
         self.queue = videos.iter().map(QueueItem::from_feed).collect();
-        self.new_queue();
-        self.play_when_ready = true;
-        self.load_current(cx);
-        self.fetch_queue_page(last.0, Some((url, last.1)), cx);
+        self.start_queue(source, cx);
     }
 
+    /// Plays a feed video. A `section` queue plays in order; without one the engine's radio for
+    /// the video becomes the queue.
     pub fn play_feed(&mut self, item: YtFeedItem, section: Option<Vec<YtFeedItem>>, cx: &mut Context<Self>) {
-        self.queue_continuation = None;
-        match section {
+        let source = match section {
             Some(items) => {
                 self.index = items.iter().position(|candidate| candidate.id == item.id).unwrap_or(0);
                 self.queue = items.iter().map(QueueItem::from_feed).collect();
+                None
             }
             None => {
                 self.queue = vec![QueueItem::from_feed(&item)];
                 self.index = 0;
-                self.fetch_queue_page(item.id.clone(), None, cx);
+                Some(NextQueueSource::radio(&item.id, queue_source_log(cx)))
             }
-        }
-        self.new_queue();
-        self.play_when_ready = true;
-        self.load_current(cx);
+        };
+        self.start_queue(source, cx);
     }
 
     /// Plays a linked video from `start_ms`: the link's playlist continues after it, else its radio.
@@ -522,13 +537,24 @@ impl Playback {
         start_ms: Option<i64>,
         cx: &mut Context<Self>,
     ) {
-        self.queue_continuation = None;
+        let log = queue_source_log(cx);
+        let source = match playlist_url {
+            Some(url) => NextQueueSource::playlist(url, std::slice::from_ref(&item), None, log),
+            None => Some(NextQueueSource::radio(&item.id, log)),
+        };
         self.queue = vec![QueueItem::from_feed(&item)];
         self.index = 0;
-        self.fetch_queue_page(item.id.clone(), playlist_url.map(|url| (url, 0)), cx);
-        self.new_queue();
         self.start_position_ms = start_ms.unwrap_or(0).max(0);
+        self.start_queue(source, cx);
+    }
+
+    /// The JVM setQueue for the queue just set: a new queue id, `source` attached, then the current
+    /// item loads, playing.
+    fn start_queue(&mut self, source: Option<NextQueueSource>, cx: &mut Context<Self>) {
+        self.attach_source(source.filter(|_| !self.queue.is_empty()));
+        self.new_queue();
         self.play_when_ready = true;
+        self.publish_queue(false, cx);
         self.load_current(cx);
     }
 
@@ -550,7 +576,7 @@ impl Playback {
         if items.is_empty() {
             return;
         }
-        self.queue_continuation = None;
+        self.attach_source(None);
         self.index = index.min(items.len() - 1);
         self.queue = items;
         self.queue_id = queue_id;
@@ -558,6 +584,7 @@ impl Playback {
         self.nav.reset(self.index);
         self.start_position_ms = start_ms.max(0);
         self.play_when_ready = true;
+        self.publish_queue(false, cx);
         self.load_current(cx);
     }
 
@@ -570,6 +597,7 @@ impl Playback {
         let at = self.nav.add_next(self.index);
         self.queue.insert(at, item);
         self.queue_revision += 1;
+        self.publish_queue(true, cx);
         cx.notify();
     }
 
@@ -585,6 +613,7 @@ impl Playback {
             self.index = moved_index(self.index, from, to);
         }
         self.queue_revision += 1;
+        self.publish_queue(true, cx);
         cx.notify();
     }
 
@@ -596,6 +625,7 @@ impl Playback {
         }
         self.queue.push(item);
         self.queue_revision += 1;
+        self.publish_queue(true, cx);
         cx.notify();
     }
 
@@ -609,19 +639,16 @@ impl Playback {
         self.index = moved_index(self.index, from, to);
         self.nav.moved(from, to);
         self.queue_revision += 1;
+        self.publish_queue(true, cx);
         cx.notify();
     }
 
     /// Replaces the queue with `item` and its radio.
     pub fn start_radio(&mut self, item: QueueItem, cx: &mut Context<Self>) {
         let Some(video_id) = item.video_id().map(str::to_owned) else { return };
-        self.queue_continuation = None;
         self.queue = vec![item];
         self.index = 0;
-        self.fetch_queue_page(video_id, None, cx);
-        self.new_queue();
-        self.play_when_ready = true;
-        self.load_current(cx);
+        self.start_queue(Some(NextQueueSource::radio(&video_id, queue_source_log(cx))), cx);
     }
 
     /// Stops the current item's engine and loads the item again where it was, playing: recovers a
@@ -657,6 +684,7 @@ impl Playback {
         if self.queue.is_empty() {
             return;
         }
+        self.attach_source(None);
         self.queue.clear();
         self.queue_revision += 1;
         self.index = 0;
@@ -683,6 +711,7 @@ impl Playback {
         }
         let current = (!self.queue.is_empty()).then_some(self.index);
         self.nav.removed_at(index, was_current, current);
+        self.publish_queue(!was_current, cx);
         if was_current {
             if self.queue.is_empty() {
                 self.index = 0;
@@ -832,12 +861,9 @@ impl Playback {
 
     /// Plays `items` in order from `index`.
     pub fn play_queue(&mut self, items: Vec<QueueItem>, index: usize, cx: &mut Context<Self>) {
-        self.queue_continuation = None;
         self.index = index.min(items.len().saturating_sub(1));
         self.queue = items;
-        self.new_queue();
-        self.play_when_ready = true;
-        self.load_current(cx);
+        self.start_queue(None, cx);
     }
 
     /// Nothing queued: a no-op, as the YouTube engine keeps a stopped video that play would revive unseen.
@@ -869,7 +895,8 @@ impl Playback {
     }
 
     pub fn has_next(&self) -> bool {
-        self.nav.peek_next(true, self.index, self.queue.len()).is_some() || self.queue_continuation.is_some()
+        self.nav.peek_next(true, self.index, self.queue.len()).is_some()
+            || self.more.as_ref().is_some_and(|more| more.has_more)
     }
 
     /// A user skip.
@@ -877,9 +904,9 @@ impl Playback {
         if let Some(next) = self.nav.peek_next(true, self.index, self.queue.len()) {
             self.nav.commit(next, self.queue.len());
             self.index = next;
+            self.publish_queue(false, cx);
             self.load_current(cx);
         }
-        self.extend_queue_if_near_end(cx);
     }
 
     /// Restarts the current item past its intro span when it has played more than ~3 s beyond it.
@@ -892,6 +919,7 @@ impl Playback {
         match self.nav.previous(self.index, self.queue.len()) {
             Some(previous) => {
                 self.index = previous;
+                self.publish_queue(false, cx);
                 self.load_current(cx);
             }
             None => self.seek(0, cx),
@@ -923,6 +951,7 @@ impl Playback {
                 self.ended_generation = Some(self.load_generation);
                 self.nav.commit(next, self.queue.len());
                 self.index = next;
+                self.publish_queue(false, cx);
                 self.load_current(cx);
             }
             None => {
@@ -930,7 +959,6 @@ impl Playback {
                 self.state = PlayState::Ended;
             }
         }
-        self.extend_queue_if_near_end(cx);
     }
 
     /// The JVM PlayerImpl.play: the intent goes to playing; a retryable failure or an unloaded item
@@ -1043,9 +1071,9 @@ impl Playback {
         if index < self.queue.len() {
             self.nav.jump(index, self.queue.len());
             self.index = index;
+            self.publish_queue(false, cx);
             self.play_when_ready = true;
             self.load_current(cx);
-            self.extend_queue_if_near_end(cx);
         }
     }
 
@@ -1284,6 +1312,7 @@ impl Playback {
     fn load_current(&mut self, cx: &mut Context<Self>) {
         let Some(item) = self.current().cloned() else { return };
         self.load_generation += 1;
+        self.retry_failed_page_once_per_track();
         self.state = PlayState::Buffering;
         self.position_ms = 0;
         self.buffered_ms = 0;
@@ -1764,73 +1793,118 @@ impl Playback {
         });
     }
 
-    /// The queue after `video_id`: `playlist`'s items when it came from one, else its radio.
-    /// The queue's first /next page: `video_id`'s radio, or the playlist at `(url, index)` from it.
-    /// Videos already queued are left out (the JVM NextQueueSource's seen set).
-    fn fetch_queue_page(&mut self, video_id: String, playlist: Option<(String, i64)>, cx: &mut Context<Self>) {
-        let graph = cx.global::<AppGraph>();
-        let (engine, log) = (graph.engine(), graph.log.fork("queue"));
-        self.loading_queue = true;
-        let fetch = on_core(cx, async move {
-            match playlist {
-                Some((url, index)) => engine.playlist_queue(&url, &video_id, index, &log).await,
-                None => engine.start_radio_queue(&video_id, &log).await,
-            }
+    /// The JVM PlayerImpl.attachSource: a replaced source's page in flight is dropped.
+    fn attach_source(&mut self, source: Option<NextQueueSource>) {
+        self._source_page = None;
+        self.more = source.as_ref().map(|source| QueueMore {
+            total_count: source.total_count(),
+            has_more: true,
+            loading: false,
+            error: None,
+            resume_token: source.resume_token(),
         });
-        cx.spawn(async move |this, cx| {
-            let result = fetch.await;
-            this.update(cx, |playback, cx| {
-                playback.loading_queue = false;
-                if let Some(Ok(page)) = result {
-                    let queued: std::collections::HashSet<String> = playback.queue.iter().map(QueueItem::key).collect();
-                    let items: Vec<QueueItem> = page
-                        .sections
-                        .iter()
-                        .flat_map(|section| section.items.iter())
-                        .filter(|item| item.kind == "video" && !queued.contains(&item.id))
-                        .map(QueueItem::from_feed)
-                        .collect();
-                    playback.queue.extend(items);
-                    playback.queue_revision += 1;
-                    playback.queue_continuation = page.continuation;
-                    cx.notify();
-                }
-            })
-            .ok();
-        })
-        .detach();
+        self.source = source;
     }
 
-    fn extend_queue_if_near_end(&mut self, cx: &mut Context<Self>) {
-        if self.loading_queue || self.index + 3 < self.queue.len() {
+    /// The JVM publishQueue's source side: `refresh_next` for a change that keeps the current item.
+    fn publish_queue(&mut self, refresh_next: bool, cx: &mut Context<Self>) {
+        if refresh_next {
+            self.retry_failed_page_once_per_track();
+        }
+        self.maybe_load_ahead(cx);
+    }
+
+    /// The JVM refreshPrepareNext's rolledGeneration step.
+    fn retry_failed_page_once_per_track(&mut self) {
+        if self.rolled_generation != Some(self.load_generation) {
+            self.rolled_generation = Some(self.load_generation);
+            if let Some(more) = &mut self.more {
+                more.error = None;
+            }
+        }
+    }
+
+    /// Loads the queue's next page now: Load more, or Retry after a failed page.
+    pub fn load_more(&mut self, cx: &mut Context<Self>) {
+        if let Some(more) = &mut self.more {
+            more.error = None;
+        }
+        self.start_load(cx);
+    }
+
+    /// Any mode: the current item sits within the queue's last [`LOAD_AHEAD`] items.
+    fn maybe_load_ahead(&mut self, cx: &mut Context<Self>) {
+        let Some(more) = &self.more else { return };
+        if !more.has_more || more.loading || more.error.is_some() || self.queue.is_empty() {
             return;
         }
-        let Some(continuation) = self.queue_continuation.take() else { return };
-        let graph = cx.global::<AppGraph>();
-        let (engine, log) = (graph.engine(), graph.log.fork("queue"));
-        self.loading_queue = true;
-        let fetch = on_core(cx, async move { engine.queue_continuation(&continuation, &log).await });
-        cx.spawn(async move |this, cx| {
+        if self.queue.len() - 1 - self.index.min(self.queue.len() - 1) < LOAD_AHEAD {
+            self.start_load(cx);
+        }
+    }
+
+    fn start_load(&mut self, cx: &mut Context<Self>) {
+        let (Some(source), Some(more)) = (&self.source, &mut self.more) else { return };
+        if !more.has_more || more.loading {
+            return;
+        }
+        more.loading = true;
+        more.error = None;
+        cx.notify();
+        let Some(fetch) = source.fetch(cx.global::<AppGraph>().engine()) else {
+            self.add_page(QueueSourcePage { items: Vec::new(), has_more: false }, cx);
+            return;
+        };
+        let fetch = on_core(cx, fetch);
+        self._source_page = Some(cx.spawn(async move |this, cx| {
             let result = fetch.await;
             this.update(cx, |playback, cx| {
-                playback.loading_queue = false;
-                if let Some(Ok(page)) = result {
-                    let items = page
-                        .sections
-                        .iter()
-                        .flat_map(|section| section.items.iter())
-                        .filter(|item| item.kind == "video")
-                        .map(QueueItem::from_feed);
-                    playback.queue.extend(items);
-                    playback.queue_revision += 1;
-                    playback.queue_continuation = page.continuation;
-                    cx.notify();
+                let code = match result {
+                    Some(Ok(page)) => {
+                        if let Some(source) = &mut playback.source {
+                            let page = source.accept(page);
+                            playback.add_page(page, cx);
+                        }
+                        return;
+                    }
+                    Some(Err(error)) => error_code(&error),
+                    None => {
+                        let log = &cx.global::<AppGraph>().log;
+                        log.warn(&format!("{QUEUE_PAGE_UNCODED} queue page ended without a result"), None);
+                        QUEUE_PAGE_UNCODED.to_owned()
+                    }
+                };
+                if let Some(more) = &mut playback.more {
+                    more.loading = false;
+                    more.error = Some(code);
                 }
+                cx.notify();
             })
             .ok();
-        })
-        .detach();
+        }));
     }
+
+    fn add_page(&mut self, page: QueueSourcePage, cx: &mut Context<Self>) {
+        let total_count = self.source.as_ref().and_then(NextQueueSource::total_count);
+        let resume_token = self.source.as_ref().and_then(NextQueueSource::resume_token);
+        if !page.items.is_empty() {
+            self.queue.extend(page.items);
+            self.queue_revision += 1;
+        }
+        let loaded = self.queue.len() as i32;
+        if let Some(more) = &mut self.more {
+            more.loading = false;
+            more.has_more = page.has_more;
+            more.total_count = if page.has_more { total_count.or(more.total_count) } else { Some(loaded) };
+            more.resume_token = resume_token.filter(|_| page.has_more);
+        }
+        self.publish_queue(true, cx);
+        cx.notify();
+    }
+}
+
+fn queue_source_log(cx: &App) -> ym_common::log::Logger {
+    cx.global::<AppGraph>().log.fork("queue-source")
 }
 
 fn field_i64(object: &Value, names: &[&str]) -> i64 {
