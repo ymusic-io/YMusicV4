@@ -1788,14 +1788,22 @@ enum MenuAction {
 }
 
 fn share_link(item: &YtFeedItem) -> Option<String> {
-    match item.kind.as_str() {
-        "video" => Some(format!("https://youtu.be/{}", item.id)),
-        "playlist" if !item.id.is_empty() => Some(format!("https://www.youtube.com/playlist?list={}", item.id)),
-        "channel" => {
-            item.channel_id.as_ref().or(Some(&item.id)).map(|id| format!("https://www.youtube.com/channel/{id}"))
-        }
-        _ => None,
+    youtube_share_link(&item.kind, &item.id)
+}
+
+/// The JVM `youtubeShareLink`: the YouTube web link of a video, playlist or channel on the app's own
+/// domain; a YouTube Music browse id (an album's MPREb…) has no www page and keeps its music url.
+pub fn youtube_share_link(kind: &str, id: &str) -> Option<String> {
+    if kind == "playlist" && (id.starts_with("MPRE") || id.starts_with("FE")) {
+        return Some(format!("https://music.youtube.com/browse/{id}"));
     }
+    let path = match kind {
+        "video" => format!("watch?v={id}"),
+        "playlist" => format!("playlist?list={}", id.strip_prefix("VL").unwrap_or(id)),
+        "channel" if id.starts_with("UC") => format!("channel/{id}"),
+        _ => return None,
+    };
+    Some(format!("https://www.ymusicapp.com/{path}"))
 }
 
 impl Render for FeedView {

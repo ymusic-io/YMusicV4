@@ -1190,7 +1190,7 @@ impl NowPlaying {
                         menu.item(PopupMenuItem::new(t(Str::CdAddToPlaylist)).icon(icon(Lucide::ListPlus)).on_click(
                             move |_, window, cx| crate::yt_playlist::AddToPlaylist::open(video_id.clone(), window, cx),
                         ));
-                    let link = format!("https://youtu.be/{}", target.video_id);
+                    let link = crate::feed::youtube_share_link("video", &target.video_id).unwrap_or_default();
                     menu = menu.item(PopupMenuItem::new(t(Str::CdShare)).icon(icon(Lucide::Share2)).on_click(
                         move |_, window, cx| {
                             cx.write_to_clipboard(ClipboardItem::new_string(link.clone()));
@@ -1404,7 +1404,7 @@ impl NowPlaying {
                         menu = menu.item(PopupMenuItem::new(t(Str::CdDownload)).on_click(move |_, _, cx| {
                             download.update(cx, |_, cx| cx.emit(NowPlayingEvent::Download(target.clone()))).ok();
                         }));
-                        let link = format!("https://youtu.be/{video_id}");
+                        let link = crate::feed::youtube_share_link("video", video_id).unwrap_or_default();
                         menu = menu.item(PopupMenuItem::new(t(Str::CdShare)).on_click(move |_, window, cx| {
                             cx.write_to_clipboard(ClipboardItem::new_string(link.clone()));
                             window.push_notification(t(Str::LinkCopied), cx);
