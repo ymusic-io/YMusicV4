@@ -1893,11 +1893,17 @@ impl Playback {
         if commands.unbounded_send(job).is_err() {
             return;
         }
+        let issued_on = self.session.as_ref().map(Arc::downgrade).unwrap_or_default();
         cx.spawn(async move |this, cx| {
             let result = done.await;
             if let (Ok(Ok(())), Some(video_id)) = (&result, &load) {
                 let video_id = video_id.clone();
-                this.update(cx, |playback, cx| playback.arm_load_timeout(video_id, cx)).ok();
+                this.update(cx, |playback, cx| {
+                    if playback.holds_session(&issued_on) {
+                        playback.arm_load_timeout(video_id, cx);
+                    }
+                })
+                .ok();
                 return;
             }
             if let Ok(Err(error)) = result {
@@ -1905,8 +1911,12 @@ impl Playback {
                     log.warn("player command failed", Some(&error));
                     return;
                 }
-                log.capture_error("player load failed", &error);
                 this.update(cx, |playback, cx| {
+                    // A closed session's load ends with it, as the JVM MsePlayer's cancelled commands do.
+                    if !playback.holds_session(&issued_on) {
+                        return;
+                    }
+                    log.capture_error("player load failed", &error);
                     if playback.active == Some(Active::YouTube) {
                         playback.state = PlaybackState::Error(PlaybackFailure::engine(&error));
                         cx.notify();
@@ -1916,6 +1926,10 @@ impl Playback {
             }
         })
         .detach();
+    }
+
+    fn holds_session(&self, session: &std::sync::Weak<YoutubeSession>) -> bool {
+        self.session.as_ref().is_some_and(|held| std::ptr::eq(Arc::as_ptr(held), session.as_ptr()))
     }
 
     /// Boots the YouTube session shortly after launch, so the first play does not wait for the whole
