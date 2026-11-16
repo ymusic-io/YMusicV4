@@ -1,0 +1,26 @@
+[package]
+name = "ym-image-loader"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+ym-common = { path = "../ym-common" }
+tokio.workspace = true
+reqwest.workspace = true
+futures.workspace = true
+bytes.workspace = true
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp", "gif", "bmp"] }
+webp = { version = "0.3", default-features = false }
+sha2 = "0.10"
+indexmap = "2"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.62", features = ["Win32_System_SystemInformation"] }
+
+[lints]
+workspace = true
