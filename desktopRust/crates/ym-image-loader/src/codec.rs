@@ -94,6 +94,11 @@ pub fn decode_scaled_file(
     decode_scaled_reader(BufReader::new(file), size, scale, url)
 }
 
+/// Blocking: an already decoded picture (a video frame) scaled as a decode is, the original dropped.
+pub fn scale_decoded(image: RgbaImage, size: (u32, u32), scale: ImageScale) -> DecodedImage {
+    scale_down(DynamicImage::ImageRgba8(image), size, scale)
+}
+
 /// The skiko `decodeScaled` clamp: cover scales by the larger ratio, fit by the smaller; at or above
 /// 1 the decode is kept as is.
 fn scale_down(full: DynamicImage, size: (u32, u32), scale: ImageScale) -> DecodedImage {
