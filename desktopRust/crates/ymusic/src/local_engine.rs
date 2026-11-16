@@ -51,7 +51,6 @@ pub struct LocalStatus {
     pub generation: u64,
     pub position_ms: i64,
     pub duration_ms: i64,
-    pub playing: bool,
     pub ended: bool,
     pub error: Option<String>,
     /// The open file and whether it has a picture stream.
@@ -348,14 +347,12 @@ fn run(mut player: LocalAv, commands: mpsc::Receiver<LocalCommand>, status: Arc<
                             }
                             playing = play_when_ready;
                             status.duration_ms = (player.duration() * 1000.0) as i64;
-                            status.playing = play_when_ready;
                             status.error = None;
                         }
                         Err(message) => {
                             loaded = false;
                             loaded_path = None;
                             playing = false;
-                            status.playing = false;
                             status.error = Some(message);
                         }
                     }
@@ -380,7 +377,6 @@ fn run(mut player: LocalAv, commands: mpsc::Receiver<LocalCommand>, status: Arc<
                             loaded = false;
                             loaded_path = None;
                             playing = false;
-                            status.playing = false;
                             status.error = Some(message);
                         }
                     }
@@ -400,12 +396,10 @@ fn run(mut player: LocalAv, commands: mpsc::Receiver<LocalCommand>, status: Arc<
                 LocalCommand::Play if loaded => {
                     player.play();
                     playing = true;
-                    status.lock().unwrap().playing = true;
                 }
                 LocalCommand::Pause if loaded => {
                     player.pause();
                     playing = false;
-                    status.lock().unwrap().playing = false;
                 }
                 LocalCommand::Seek(position_ms) if loaded => {
                     captions.live.clear();
@@ -437,7 +431,6 @@ fn run(mut player: LocalAv, commands: mpsc::Receiver<LocalCommand>, status: Arc<
                     loaded_path = None;
                     playing = false;
                     let mut status = status.lock().unwrap();
-                    status.playing = false;
                     status.caption_tracks.clear();
                     status.caption_selected = None;
                     status.caption_lines.clear();
@@ -464,7 +457,6 @@ fn run(mut player: LocalAv, commands: mpsc::Receiver<LocalCommand>, status: Arc<
             }
             if player.ended() {
                 status.ended = true;
-                status.playing = false;
                 playing = false;
             }
             drop(status);
