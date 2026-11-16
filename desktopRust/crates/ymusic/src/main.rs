@@ -16,6 +16,8 @@ mod cookie_lock;
 mod cookie_session;
 mod data_files;
 mod desktop;
+#[cfg(target_os = "linux")]
+mod dock_quicklist;
 mod download_dialog;
 mod downloads;
 mod downloads_view;

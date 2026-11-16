@@ -254,7 +254,7 @@ impl Render for TrayPopup {
                             HEADER_ICON,
                             HEADER_HIT,
                         )
-                        .on_click(cx.listener(|popup, _, _, _| popup.command(TrayCommand::Open))),
+                        .on_click(cx.listener(|popup, _, _, _| popup.command(TrayCommand::Open(None)))),
                     )
                     .child(
                         sized_action_icon("tray-dismiss", Lucide::X, t(Str::CdClose), HEADER_ICON, HEADER_HIT)

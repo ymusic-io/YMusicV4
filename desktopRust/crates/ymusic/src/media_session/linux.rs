@@ -27,8 +27,6 @@ const MINIMUM_RATE: f64 = 0.25;
 const MAXIMUM_RATE: f64 = 4.0;
 /// A position this far off the extrapolated one is a seek, announced as `Seeked`.
 const SEEK_TOLERANCE_MS: i64 = 1_500;
-/// The JVM app's `.deb` names its desktop entry after the package; this one keeps that name.
-const DEB_DESKTOP_ENTRY: &str = "ymusic-YMusic";
 
 pub(super) struct Backend {
     outbox: mpsc::Sender<Snapshot>,
@@ -38,11 +36,7 @@ pub(super) struct Backend {
 impl Backend {
     pub(super) fn start(commands: UnboundedSender<Command>, log: Logger) -> Result<Self, String> {
         let connection = Connection::session().map_err(|error| format!("session bus: {error}"))?;
-        let desktop_entry = if std::env::current_exe().is_ok_and(|exe| exe.starts_with("/opt")) {
-            DEB_DESKTOP_ENTRY
-        } else {
-            crate::desktop::APP_ID
-        };
+        let desktop_entry = crate::desktop::desktop_entry();
         let player = {
             let server = connection.object_server();
             server.at(OBJECT_PATH, Root { desktop_entry }).map_err(|error| error.to_string())?;

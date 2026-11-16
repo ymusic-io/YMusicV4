@@ -702,13 +702,24 @@ impl Shell {
     }
 
     pub fn show_window(&mut self, cx: &mut Context<Self>) {
+        self.show_window_with_token(None, cx);
+    }
+
+    /// `activation_token`: the XDG activation token of the user action, minted by the client it
+    /// happened in (the tray host).
+    fn show_window_with_token(&mut self, activation_token: Option<String>, cx: &mut Context<Self>) {
         if cfg!(target_os = "linux") {
-            // The compositor may refuse to raise the minimized window (GNOME on Wayland without a
-            // fresh input serial), so it counts as back only once it is active.
+            // The compositor may refuse to raise the minimized window (GNOME on Wayland without an
+            // activation token), so it counts as back only once it is active.
             let window = self.window;
             // The caller may be inside this window's update; activating it has to wait for that.
             cx.defer(move |cx| {
-                window.update(cx, |_, window, _| window.activate_window()).ok();
+                window
+                    .update(cx, |_, window, _| match activation_token {
+                        Some(token) => window.activate_window_with_token(token),
+                        None => window.activate_window(),
+                    })
+                    .ok();
             });
             return;
         }
@@ -746,9 +757,9 @@ impl Shell {
         use crate::desktop::TrayCommand;
         match command {
             TrayCommand::Popup(anchor) => self.toggle_tray_popup(anchor, cx),
-            TrayCommand::Open => {
+            TrayCommand::Open(activation_token) => {
                 self.close_tray_popup(cx);
-                self.show_window(cx);
+                self.show_window_with_token(activation_token, cx);
             }
             TrayCommand::TogglePlay => self.playback.update(cx, |playback, cx| playback.toggle(cx)),
             TrayCommand::Stop => {
@@ -760,6 +771,7 @@ impl Shell {
                 }
             }
             TrayCommand::Quit => Self::quit(window, cx),
+            TrayCommand::CompleteActivation(token) => window.complete_activation_token(token),
             TrayCommand::Lost => {
                 if self.hidden_to_tray {
                     self.show_window(cx);

@@ -250,6 +250,16 @@ fn write_dev_start_menu_entry(exe: &Path, arguments: &str) -> anyhow::Result<()>
 /// of the same name.
 pub const APP_ID: &str = "io.ymusic.YMusic";
 
+/// The JVM app's `.deb` names its desktop entry after the package; this one keeps that name.
+#[cfg(target_os = "linux")]
+const DEB_DESKTOP_ENTRY: &str = "ymusic-YMusic";
+
+/// The installed desktop entry's name, without `.desktop`: the `.deb`'s under `/opt`, else [`APP_ID`].
+#[cfg(target_os = "linux")]
+pub fn desktop_entry() -> &'static str {
+    if std::env::current_exe().is_ok_and(|exe| exe.starts_with("/opt")) { DEB_DESKTOP_ENTRY } else { APP_ID }
+}
+
 /// The logo as the X11 `_NET_WM_ICON` (Wayland has no window icon: the desktop entry gives it).
 #[cfg(target_os = "linux")]
 pub fn window_icon(log: &Logger) -> Option<std::sync::Arc<image::RgbaImage>> {
@@ -299,7 +309,7 @@ pub fn sync_desktop_entry() -> anyhow::Result<()> {
     }
     write_if_changed(&icon_file, LOGO_PNG)?;
     let entry = format!(
-        "[Desktop Entry]\nType=Application\nName={}\nExec={}\nIcon={}\nStartupWMClass={APP_ID}\nNoDisplay=true\n",
+        "[Desktop Entry]\nType=Application\nName={}\nExec={}\nIcon={}\nStartupWMClass={APP_ID}\nSingleMainWindow=true\nNoDisplay=true\n",
         t(Str::AppName),
         desktop_exec_quoted(&exe.to_string_lossy()),
         icon_file.display(),
@@ -734,14 +744,24 @@ unsafe extern "system" fn pin_subclass(
 gpui_kit::actions!(ymusic_dock, [DockTogglePlay, DockStop]);
 
 /// The Dock icon's menu (JVM `DockMenu`): Pause/Resume and Stop while there is a queue; the Dock
-/// adds its own Quit. Its entries arrive as tray commands.
-#[derive(Default)]
+/// adds its own Quit. Its entries arrive as tray commands. On Linux, the dock's quicklist.
 pub struct DockMenu {
     shown: Option<(bool, bool)>,
+    #[cfg(target_os = "linux")]
+    quicklist: crate::dock_quicklist::DockQuicklist,
 }
 
 impl DockMenu {
     pub fn new(commands: futures::channel::mpsc::UnboundedSender<TrayCommand>, cx: &mut App) -> Self {
+        #[cfg(target_os = "linux")]
+        let quicklist = {
+            let graph = cx.global::<crate::graph::AppGraph>();
+            crate::dock_quicklist::DockQuicklist::start(
+                commands.clone(),
+                graph.tokio.clone(),
+                graph.log.fork("DockMenu"),
+            )
+        };
         let toggle = commands.clone();
         cx.on_action(move |_: &DockTogglePlay, _| {
             let _ = toggle.unbounded_send(TrayCommand::TogglePlay);
@@ -749,7 +769,11 @@ impl DockMenu {
         cx.on_action(move |_: &DockStop, _| {
             let _ = commands.unbounded_send(TrayCommand::Stop);
         });
-        Self::default()
+        Self {
+            shown: None,
+            #[cfg(target_os = "linux")]
+            quicklist,
+        }
     }
 
     #[cfg(target_os = "macos")]
@@ -781,7 +805,16 @@ impl DockMenu {
         }
     }
 
-    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    #[cfg(target_os = "linux")]
+    pub fn update(&mut self, has_queue: bool, playing: bool, _cx: &App) {
+        if self.shown == Some((has_queue, playing)) {
+            return;
+        }
+        self.shown = Some((has_queue, playing));
+        self.quicklist.update(has_queue, playing);
+    }
+
+    #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
     pub fn update(&mut self, has_queue: bool, playing: bool, _cx: &App) {
         self.shown = Some((has_queue, playing));
     }
@@ -913,10 +946,15 @@ pub enum TrayCommand {
     /// Toggle the mini player popup at the icon's logical screen bounds.
     #[cfg_attr(target_os = "linux", allow(dead_code))]
     Popup(Bounds<Pixels>),
-    Open,
+    /// Show the main window, with the XDG activation token of the tray host's click when it gave one.
+    Open(Option<String>),
     TogglePlay,
     Stop,
     Quit,
+    /// A tray host click that raised no window came with this XDG activation token: end the
+    /// launch feedback (GNOME's busy cursor) it started.
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+    CompleteActivation(String),
     /// The tray host went away: a window hidden to it has no way back but this.
     #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
     Lost,
@@ -991,7 +1029,7 @@ impl Tray {
         let menu_sender = sender.clone();
         MenuEvent::set_event_handler(Some(move |event: MenuEvent| {
             let command = match ids.iter().find(|(id, _)| *id == event.id).map(|(_, which)| *which) {
-                Some(0) => TrayCommand::Open,
+                Some(0) => TrayCommand::Open(None),
                 Some(1) => TrayCommand::TogglePlay,
                 Some(2) => TrayCommand::Stop,
                 Some(3) => TrayCommand::Quit,
@@ -1016,7 +1054,7 @@ impl Tray {
                 let _ = sender.unbounded_send(TrayCommand::Popup(anchor));
             }
             TrayIconEvent::DoubleClick { .. } => {
-                let _ = sender.unbounded_send(TrayCommand::Open);
+                let _ = sender.unbounded_send(TrayCommand::Open(None));
             }
             _ => {}
         }));
@@ -1221,6 +1259,8 @@ impl SniTray {
 
 #[cfg(target_os = "linux")]
 impl ksni::Tray for SniTray {
+    const MENU_ON_ACTIVATE: bool = true;
+
     fn id(&self) -> String {
         "ymusic".into()
     }
@@ -1242,10 +1282,6 @@ impl ksni::Tray for SniTray {
         ksni::ToolTip { title: t(Str::AppName).into(), ..Default::default() }
     }
 
-    fn activate(&mut self, _x: i32, _y: i32) {
-        self.send(TrayCommand::Open);
-    }
-
     fn menu(&self) -> Vec<ksni::MenuItem<Self>> {
         use ksni::menu::{MenuItem, StandardItem};
         let state = self.state();
@@ -1253,13 +1289,21 @@ impl ksni::Tray for SniTray {
             StandardItem {
                 label: t(label).into(),
                 enabled,
-                activate: Box::new(move |tray: &mut Self| tray.send(command())),
+                activate: Box::new(move |tray: &mut Self| {
+                    let command = command();
+                    if !matches!(command, TrayCommand::Open(_))
+                        && let Some(token) = click_activation_token()
+                    {
+                        tray.send(TrayCommand::CompleteActivation(token));
+                    }
+                    tray.send(command);
+                }),
                 ..Default::default()
             }
             .into()
         };
         vec![
-            item(Str::CdOpenApp, true, || TrayCommand::Open),
+            item(Str::CdOpenApp, true, || TrayCommand::Open(click_activation_token())),
             MenuItem::Separator,
             item(if state.playing { Str::TrayPause } else { Str::TrayResume }, state.has_queue, || {
                 TrayCommand::TogglePlay
@@ -1279,6 +1323,19 @@ impl ksni::Tray for SniTray {
         self.send(TrayCommand::Lost);
         true
     }
+}
+
+/// The tray host's XDG activation token for the click being handled: Wayland raises a window only
+/// with one. It may trail the click by a few milliseconds, or never come.
+#[cfg(target_os = "linux")]
+fn click_activation_token() -> Option<String> {
+    for _ in 0..20 {
+        if let Some(token) = ksni::current_xdg_activation_token() {
+            return Some(token);
+        }
+        std::thread::sleep(Duration::from_millis(1));
+    }
+    None
 }
 
 /// A StatusNotifierItem over D-Bus (GNOME needs the AppIndicator extension, KDE has it built in).
