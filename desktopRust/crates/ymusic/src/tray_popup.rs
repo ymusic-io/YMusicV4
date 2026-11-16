@@ -14,7 +14,7 @@ use ym_i18n::{Str, t};
 use crate::action_icon::{hit_target, lucide_size, sized_action_icon};
 use crate::desktop::TrayCommand;
 use crate::mini_player::PlayClock;
-use crate::playback::{PlayState, Playback};
+use crate::playback::Playback;
 use crate::spinner::Spinner;
 
 pub const WIDTH: f32 = 340.;
@@ -143,8 +143,7 @@ impl Render for TrayPopup {
         let theme = cx.theme().clone();
         let playback = self.playback.read(cx);
         let item = playback.current().cloned();
-        let state = playback.state.clone();
-        let playing = matches!(state, PlayState::Playing | PlayState::Buffering);
+        let (playing, loading) = (playback.is_playing(), item.is_some() && playback.is_buffering_or_loading());
         let (position, duration) = (playback.position_ms, playback.duration_ms);
         let (live, seekable) = (playback.live, playback.seekable);
         let segments = segment_fractions(playback.skip_segments(), duration);
@@ -286,8 +285,8 @@ impl Render for TrayPopup {
                     )
                     .child(
                         hit_target("tray-play-pause", PLAY_HIT)
-                            .when(state == PlayState::Buffering, |button| button.child(Spinner::new().small()))
-                            .when(state != PlayState::Buffering, |button| {
+                            .when(loading, |button| button.child(Spinner::new().small()))
+                            .when(!loading, |button| {
                                 button.child(
                                     Icon::new(if playing { Lucide::Pause } else { Lucide::Play })
                                         .size(px(lucide_size(PLAY_ICON))),

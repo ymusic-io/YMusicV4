@@ -13,7 +13,7 @@ use ym_i18n::{Str, t, tf};
 
 use crate::a11y::{FocusList, SliderStop};
 use crate::action_icon::{HIT, action_icon, lucide_size, sized_action_icon};
-use crate::playback::{PlayState, Playback, QueueItem};
+use crate::playback::{Playback, PlaybackState, QueueItem};
 use crate::queue_nav::LoopMode;
 use crate::spinner::Spinner;
 
@@ -40,7 +40,8 @@ pub struct MiniPlayer {
 #[derive(PartialEq)]
 struct Shown {
     item: Option<QueueItem>,
-    state: PlayState,
+    state: PlaybackState,
+    play_when_ready: bool,
     second: i64,
     duration_ms: i64,
     buffered_second: i64,
@@ -61,6 +62,7 @@ impl Shown {
         Self {
             item: playback.current().cloned(),
             state: playback.state.clone(),
+            play_when_ready: playback.play_when_ready(),
             second: playback.position_ms / 1000,
             duration_ms: playback.duration_ms,
             buffered_second: playback.buffered_ms / 1000,
@@ -274,10 +276,10 @@ impl MiniPlayer {
     }
 
     /// The artist, or the failure in its place.
-    fn subtitle(item: &QueueItem, state: &PlayState, cx: &App) -> Option<(String, Hsla)> {
+    fn subtitle(item: &QueueItem, state: &PlaybackState, cx: &App) -> Option<(String, Hsla)> {
         let theme = cx.theme();
         match state {
-            PlayState::Failed(failure) => Some((failure.text(), theme.danger)),
+            PlaybackState::Error(failure) => Some((failure.text(), theme.danger)),
             _ => item.artist.clone().map(|artist| (artist, theme.muted_foreground)),
         }
     }
@@ -293,15 +295,14 @@ impl MiniPlayer {
             })
     }
 
-    fn play_label(state: &PlayState) -> &'static str {
-        t(if matches!(state, PlayState::Playing | PlayState::Buffering) { Str::CdPause } else { Str::CdPlay })
+    fn play_label(playing: bool) -> &'static str {
+        t(if playing { Str::CdPause } else { Str::CdPlay })
     }
 
     /// The bar's filled play circle.
-    fn play_circle(&self, state: &PlayState, cx: &mut Context<Self>) -> impl IntoElement {
+    fn play_circle(&self, playing: bool, loading: bool, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = cx.theme();
-        let playing = matches!(state, PlayState::Playing | PlayState::Buffering);
-        let circle = div().id("play-pause").role(Role::Button).aria_label(Self::play_label(state));
+        let circle = div().id("play-pause").role(Role::Button).aria_label(Self::play_label(playing));
         self.focus
             .item(STOP_PLAY, circle, cx)
             .size(px(BAR_PLAY))
@@ -313,7 +314,7 @@ impl MiniPlayer {
             .cursor_pointer()
             .bg(theme.foreground)
             .text_color(theme.background)
-            .child(if *state == PlayState::Buffering {
+            .child(if loading {
                 Spinner::new().small().into_any_element()
             } else {
                 Icon::new(if playing { Lucide::Pause } else { Lucide::Play })
@@ -345,6 +346,7 @@ impl MiniPlayer {
         let sleep_after_current = playback.sleep_after_current;
         let volume = playback.volume;
         let tuned = (playback.effects.speed, playback.effects.pitch) != (1.0, 1.0);
+        let (playing, loading) = (playback.is_playing(), playback.is_buffering_or_loading());
         let subtitle = Self::subtitle(&item, &state, cx);
         let side = width >= BAR_SIDE_MIN;
         let sleep = width >= BAR_SLEEP_MIN;
@@ -412,7 +414,7 @@ impl MiniPlayer {
                         )),
                         cx,
                     ))
-                    .child(self.play_circle(&state, cx))
+                    .child(self.play_circle(playing, loading, cx))
                     .child(self.focus.button(
                         STOP_NEXT,
                         action_icon("next", Lucide::SkipForward, t(Str::CdNext)).on_click(
@@ -576,7 +578,7 @@ impl MiniPlayer {
         } else {
             0.
         };
-        let playing = matches!(state, PlayState::Playing | PlayState::Buffering);
+        let (playing, loading) = (playback.is_playing(), playback.is_buffering_or_loading());
         let subtitle = Self::subtitle(&item, &state, cx);
         let toggle = h_flex().id("now-playing-toggle").role(Role::Button).aria_label(Self::now_playing_label(&item));
         self.focus
@@ -616,7 +618,7 @@ impl MiniPlayer {
                                         column.child(div().text_xs().text_color(color).truncate().child(line))
                                     }),
                             )
-                            .child(if state == PlayState::Buffering {
+                            .child(if loading {
                                 div()
                                     .size(px(HIT))
                                     .flex()
@@ -631,7 +633,7 @@ impl MiniPlayer {
                                         action_icon(
                                             "play-pause",
                                             if playing { Lucide::Pause } else { Lucide::Play },
-                                            Self::play_label(&state),
+                                            Self::play_label(playing),
                                         )
                                         .on_click(cx.listener(
                                             |player, _, _, cx| {

@@ -16,7 +16,7 @@ use ym_history::{PlayAgainSession, PlayHistory, VideoMetadata};
 use ym_store::MediaStore;
 
 use crate::graph::AppGraph;
-use crate::playback::{PlayState, Playback, QueueItem, Source};
+use crate::playback::{Playback, PlaybackState, QueueItem, Source};
 
 const PROGRESS_EVERY: Duration = Duration::from_secs(30);
 const MIN_POSITION_DELTA_MS: i64 = 3_000;
@@ -277,7 +277,8 @@ impl HistoryRecorder {
 
     fn observe(&mut self, playback: &Entity<Playback>, cx: &mut Context<Self>) {
         let playback = playback.read(cx);
-        let playing = playback.state == PlayState::Playing;
+        let playing =
+            playback.state == PlaybackState::Prepared { play_when_ready: true, buffering: false, ended: false };
         let current = playback.current().cloned();
         self.track_watch(current.as_ref(), playing);
         let next = snapshot(playback, playing, &self.temporary.lock().unwrap());
