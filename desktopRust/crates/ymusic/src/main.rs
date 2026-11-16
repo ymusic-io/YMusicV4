@@ -26,7 +26,6 @@ mod feedback_view;
 mod file_rename;
 mod fps_badge;
 mod graph;
-mod http_client;
 mod images;
 mod instance;
 #[cfg(target_os = "windows")]
@@ -88,7 +87,6 @@ use ym_i18n::{Str, t};
 
 use crate::cookie_session::{CookieOpen, LockedJar};
 use crate::graph::AppGraph;
-use crate::http_client::ReqwestHttpClient;
 use crate::launch::{BootInputs, Launch};
 
 enum Start {
@@ -182,13 +180,12 @@ fn main() {
             Start::Locked(locked, inputs)
         }
     };
-    let images = ReqwestHttpClient::new(http.following.clone(), tokio.handle().clone());
     #[cfg(target_os = "linux")]
     let tokio_handle = tokio.handle().clone();
 
     crate::a11y::install_debug_log();
     let assets = crate::assets::AppAssets;
-    let app = application().with_assets(assets).with_http_client(images);
+    let app = application().with_assets(assets);
     // Opening the app again (Finder, Spotlight, the Dock) brings a window closed to the tray back.
     app.on_reopen(|cx| {
         if let Some(shell) = cx.try_global::<crate::shell::ShellHandle>().and_then(|handle| handle.0.upgrade()) {
