@@ -180,7 +180,7 @@ impl MediaSession {
         self.local_artwork_for = key.clone();
         self.local_artwork = None;
         self.local_artwork_task = None;
-        let (Some(key), Some(url)) = (key, item.and_then(|item| item.thumb(i32::MAX))) else { return };
+        let (Some(key), Some(url)) = (key, item.and_then(|item| item.display_thumbnail_url())) else { return };
         if url.starts_with("https://") || url.starts_with("http://") || url.starts_with("file:") {
             self.local_artwork = Some((key, Some(url.to_string())));
             return;

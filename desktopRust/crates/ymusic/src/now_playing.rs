@@ -1713,7 +1713,7 @@ impl NowPlaying {
                             .rounded(px(6.))
                             .overflow_hidden()
                             .bg(theme.secondary)
-                            .when_some(item.thumb(120), |frame, url| {
+                            .when_some(item.display_thumbnail_url(), |frame, url| {
                                 frame.child(
                                     async_image_of(Some(art_request_sources(&url)))
                                         .size_full()

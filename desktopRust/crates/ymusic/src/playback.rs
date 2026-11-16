@@ -225,6 +225,14 @@ impl QueueItem {
         }
     }
 
+    /// The JVM `PlayableItem.displayThumbnailUrl`: a video's first listed thumbnail
+    /// (`YtFeedItem.toYtMedia`), a local item's one art url.
+    pub fn display_thumbnail_url(&self) -> Option<SharedString> {
+        self.thumbs.first().map(|thumb| {
+            if thumb.url.starts_with("//") { format!("https:{}", thumb.url) } else { thumb.url.clone() }.into()
+        })
+    }
+
     /// The thumbnail at least `width` px wide, else the largest.
     pub fn thumb(&self, width: i32) -> Option<SharedString> {
         self.thumbs.iter().find(|thumb| thumb.w.is_some_and(|w| w >= width)).or(self.thumbs.last()).map(|thumb| {
