@@ -326,8 +326,8 @@ impl Render for AudioOnlyArt {
         self.last_render = Instant::now();
         let (url, next_url, playing) = {
             let playback = self.playback.read(cx);
-            let next_url = playback.queue.get(playback.index + 1).and_then(|item| item.thumb(640));
-            (playback.current().and_then(|item| item.thumb(640)), next_url, playback.is_playing())
+            let next_url = playback.queue.get(playback.index + 1).and_then(|item| item.display_thumbnail_url());
+            (playback.current().and_then(|item| item.display_thumbnail_url()), next_url, playback.is_playing())
         };
         let (box_width, box_height) = self.video_box.get();
         let box_size = (box_width as f32, box_height as f32);

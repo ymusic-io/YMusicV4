@@ -27,7 +27,9 @@ pub struct BootInputs {
 
 impl BootInputs {
     pub async fn boot(self, session: CookieSession) -> Result<AppGraph, ym_engine::EngineError> {
-        AppGraph::boot(self.tokio, self.log, self.http, self.data_dir, self.app_db, session).await
+        let graph = AppGraph::boot(self.tokio, self.log, self.http, self.data_dir, self.app_db, session).await?;
+        crate::local_art::attach_media(graph.media.clone());
+        Ok(graph)
     }
 }
 

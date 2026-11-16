@@ -171,6 +171,11 @@ pub struct QueueItem {
     pub live: bool,
 }
 
+/// A local item's one art url (the JVM `LocalMedia.thumbnailUrl`) as its thumbnail list.
+fn art_thumb(url: Option<String>) -> Vec<YtThumb> {
+    url.map(|url| vec![YtThumb { url, w: None, h: None }]).unwrap_or_default()
+}
+
 impl QueueItem {
     pub fn from_feed(item: &YtFeedItem) -> Self {
         Self {
@@ -190,7 +195,8 @@ impl QueueItem {
 
     /// A Library item.
     pub fn from_local(item: &ym_store::MediaItem) -> Self {
-        Self { media_id: Some(item.id), ..Self::from_file(item) }
+        let thumbs = art_thumb(crate::local_art::local_art_url(item));
+        Self { media_id: Some(item.id), thumbs, ..Self::from_file(item) }
     }
 
     /// A file outside the Library, described by its own tags (the JVM `looseFile`).
@@ -201,7 +207,12 @@ impl QueueItem {
             artist: item.artist.clone(),
             duration_ms: item.duration_ms,
             duration_label: item.duration_ms.map(crate::mini_player::clock),
-            thumbs: crate::local_art::queue_thumbs(item),
+            thumbs: art_thumb(crate::local_art::file_art_url(
+                &ym_store::file_uri(&item.uri),
+                item.thumbnail_stream_index.is_some(),
+                item.youtube_vid.as_deref(),
+                item.video_codec.is_some(),
+            )),
             media_id: None,
             history_code: Some(
                 item.youtube_vid
@@ -212,6 +223,14 @@ impl QueueItem {
             loudness_gain_db: item.loudness_gain_db,
             live: false,
         }
+    }
+
+    /// The JVM `PlayableItem.displayThumbnailUrl`: a video's first listed thumbnail
+    /// (`YtFeedItem.toYtMedia`), a local item's one art url.
+    pub fn display_thumbnail_url(&self) -> Option<SharedString> {
+        self.thumbs.first().map(|thumb| {
+            if thumb.url.starts_with("//") { format!("https:{}", thumb.url) } else { thumb.url.clone() }.into()
+        })
     }
 
     /// The thumbnail at least `width` px wide, else the largest.

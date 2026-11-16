@@ -26,7 +26,6 @@ mod feedback_view;
 mod file_rename;
 mod fps_badge;
 mod graph;
-mod http_client;
 mod images;
 mod instance;
 #[cfg(target_os = "windows")]
@@ -88,7 +87,6 @@ use ym_i18n::{Str, t};
 
 use crate::cookie_session::{CookieOpen, LockedJar};
 use crate::graph::AppGraph;
-use crate::http_client::ReqwestHttpClient;
 use crate::launch::{BootInputs, Launch};
 
 enum Start {
@@ -145,7 +143,6 @@ fn main() {
     let tokio =
         tokio::runtime::Builder::new_multi_thread().enable_all().thread_name("ym-core").build().expect("tokio runtime");
     let http = HttpClients::new().expect("HTTP client");
-    let local_art = std::sync::Arc::new(crate::local_art::LocalArt::new(data_dir.join("art-cache"), log.fork("art")));
     let image_loader = crate::images::image_loader(&data_dir, http.following.clone(), tokio.handle().clone(), &log);
     let app_db = graph::open_app_db(&data_dir).unwrap_or_else(|error| boot_failed(&log, &error));
     crate::data_files::import_legacy_files(&app_db, &data_dir, &log);
@@ -183,13 +180,12 @@ fn main() {
             Start::Locked(locked, inputs)
         }
     };
-    let images = ReqwestHttpClient::new(http.following.clone(), tokio.handle().clone());
     #[cfg(target_os = "linux")]
     let tokio_handle = tokio.handle().clone();
 
     crate::a11y::install_debug_log();
-    let assets = crate::assets::AppAssets { local_art };
-    let app = application().with_assets(assets).with_http_client(images);
+    let assets = crate::assets::AppAssets;
+    let app = application().with_assets(assets);
     // Opening the app again (Finder, Spotlight, the Dock) brings a window closed to the tray back.
     app.on_reopen(|cx| {
         if let Some(shell) = cx.try_global::<crate::shell::ShellHandle>().and_then(|handle| handle.0.upgrade()) {

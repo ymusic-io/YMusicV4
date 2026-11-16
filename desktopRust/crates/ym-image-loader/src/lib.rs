@@ -24,6 +24,7 @@ pub mod async_image;
 pub use bitmap::Bitmap;
 pub use codec::{
     DecodedImage, SCALED_WEBP_QUALITY, decode_scaled, decode_scaled_file, decode_scaled_reader, encode_webp,
+    scale_decoded,
 };
 pub use fetchers::{DEFAULT_MAX_IMAGE_BYTES, FileFetcher, ImageFetcher, NetworkFetcher, decode_file};
 pub use loader::{ImageLoader, ImageLoaderConfig};

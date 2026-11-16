@@ -10,16 +10,18 @@ use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use ym_engine::yt::{YtFeedItem, YtFeedPage};
 use ym_i18n::{Plural, Str, plural, t, tf};
+use ym_image_loader::async_image::async_image_of;
 
 use crate::a11y::FocusList;
 use crate::downloads::offline_ids;
 use crate::elevated_dialog::{
     DEFAULT_WIDTH, ROW_HORIZONTAL, bar_spinner, button_bar, chrome, press, scroll_body, text_button, title_bar,
 };
-use crate::feed::{FeedSource, error_text, thumb_for};
+use crate::feed::{FeedSource, error_text};
 use crate::graph::{AppGraph, on_core};
 use crate::lazy_rows::LazyRows;
 use crate::spinner::Spinner;
+use crate::youtube_thumbnails::thumb_request_sources;
 
 const STOP_LOAD_MORE: usize = 0;
 const STOP_CREATE: usize = 1;
@@ -268,8 +270,10 @@ impl Render for LocalPlaylistFromDownloads {
                         .rounded(px(4.))
                         .overflow_hidden()
                         .bg(theme.secondary)
-                        .when_some(thumb_for(&video.thumbs, 128), |frame, url| {
-                            frame.child(img(url).size_full().rounded(px(4.)).object_fit(ObjectFit::Cover))
+                        .when_some(thumb_request_sources(&video.thumbs), |frame, request| {
+                            frame.child(
+                                async_image_of(Some(request)).size_full().rounded(px(4.)).object_fit(ObjectFit::Cover),
+                            )
                         }),
                 )
                 .child(

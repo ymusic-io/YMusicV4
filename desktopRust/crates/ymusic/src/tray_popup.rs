@@ -162,7 +162,7 @@ impl Render for TrayPopup {
             .items_center()
             .justify_center()
             .child(Icon::new(Lucide::Music).text_color(theme.muted_foreground))
-            .when_some(item.as_ref().and_then(|item| item.thumb(160)), |frame, url| {
+            .when_some(item.as_ref().and_then(|item| item.display_thumbnail_url()), |frame, url| {
                 let identity = ym_image_loader::image_cache_key(&url);
                 frame.child(
                     async_image(Some(identity), vec![ImageSource::new(url.to_string())])

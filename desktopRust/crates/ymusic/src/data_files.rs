@@ -21,8 +21,9 @@ const RENAMED: [(&str, &str); 4] = [
     ("engine-cache/index.db", "engine-cache/engine-cache.db"),
 ];
 const SIDECARS: [&str; 3] = ["-wal", "-shm", "-journal"];
-/// Caches earlier builds kept where the JVM app keeps nothing; refilled under the JVM app's names.
-const OBSOLETE_DIRS: [&str; 1] = ["bundles"];
+/// Caches earlier builds (this app's or the JVM app's) kept that nothing reads now; refilled under the JVM
+/// app's current names.
+const OBSOLETE_DIRS: [&str; 3] = ["bundles", "art-cache", "image-http-cache"];
 
 /// Blocking. Runs only in the instance that holds the data dir, so nothing has the files open.
 pub fn adopt_jvm_names(data_dir: &Path, log: &Logger) {

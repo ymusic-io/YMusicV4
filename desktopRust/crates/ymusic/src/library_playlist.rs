@@ -788,7 +788,7 @@ impl ArrangePlaylist {
                     .justify_center()
                     .child(crate::library::art_or_icon(
                         Lucide::Music,
-                        crate::local_art::art_url(song, crate::local_art::ROW_PX),
+                        crate::local_art::local_art_url(song).map(SharedString::from),
                         px(18.),
                         6.,
                         cx,

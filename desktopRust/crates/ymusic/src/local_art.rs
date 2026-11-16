@@ -1,96 +1,60 @@
-//! Library artwork. A local item's art is a `local-art/…` image path that [`AppAssets`] resolves on
-//! gpui's background executor into a small JPEG thumbnail, cached on disk per file version.
-//!
-//! [`AppAssets`]: crate::assets::AppAssets
+//! Library artwork as the JVM `LocalArt.kt` names and resolves it: `art://pic/<media id>` for a
+//! Library item, `art://file?kind=…&uri=…` and `art://yt/<video id>` for a file outside it, resolved by
+//! [`MediaStoreArtFetcher`] through the image loader.
 
-use std::borrow::Cow;
-use std::hash::{DefaultHasher, Hash, Hasher};
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
-use anyhow::{Context as _, anyhow, bail};
-use gpui_kit::SharedString;
+use anyhow::{Context as _, anyhow};
+use futures::future::BoxFuture;
 use image::codecs::jpeg::JpegEncoder;
 use image::{DynamicImage, RgbaImage};
-use ym_common::log::Logger;
-use ym_engine::yt::YtThumb;
+use ym_image_loader::async_image::LoadedImage;
 use ym_image_loader::{
-    DEFAULT_MAX_IMAGE_BYTES, DecodedImage, ImageFetcher, ImageLoadError, ImageScale, ImageSourceCache, Reason,
-    decode_scaled_file, source_cache_key,
+    Bitmap, DEFAULT_MAX_IMAGE_BYTES, DecodedImage, ImageFetcher, ImageLoadError, ImageLoader, ImageRequest, ImageScale,
+    ImageSourceCache, Reason, decode_scaled, decode_scaled_file, scale_decoded, source_cache_key,
 };
-use ym_store::MediaItem;
+use ym_store::{MediaItem, MediaStore};
 
-const PREFIX: &str = "local-art/";
+use crate::youtube_thumbnails::{youtube_image_key, youtube_thumbnail_sources};
+
 const JPEG_QUALITY: u8 = 85;
+const ART_KIND_COVER: &str = "cover";
+const ART_KIND_FRAME: &str = "frame";
 
-/// Longest side, in device pixels, of a list row's thumbnail.
-pub const ROW_PX: u32 = 128;
-/// Longest side of a grid card's art.
-pub const CARD_PX: u32 = 400;
-/// Longest side of the Now Playing artwork.
-pub const PLAYER_PX: u32 = 800;
-
-/// The item's artwork at `px`: its embedded cover, else its YouTube video's thumbnail, else a
-/// decoded frame of its video; `None` for a file with none of those.
-pub fn art_url(item: &MediaItem, px: u32) -> Option<SharedString> {
-    if let Some(stream) = item.thumbnail_stream_index {
-        Some(local_path("cover", stream, px, item))
-    } else if let Some(video_id) = &item.youtube_vid {
-        Some(format!("https://i.ytimg.com/vi/{video_id}/mqdefault.jpg").into())
-    } else if item.video_codec.is_some() {
-        Some(local_path("frame", 0, px, item))
-    } else {
-        None
-    }
+/// The JVM `localArtUrl`: `art://pic/<media id>`, the one url every consumer carries for a Library
+/// item, minted only when the store knows an artwork source (embedded cover, YouTube id, video).
+pub fn local_art_url(item: &MediaItem) -> Option<String> {
+    (item.thumbnail_stream_index.is_some() || item.video_codec.is_some() || item.youtube_vid.is_some())
+        .then(|| format!("art://pic/{}", item.id))
 }
 
-/// The item's artwork as queue thumbnails: a row size and a player size.
-pub fn queue_thumbs(item: &MediaItem) -> Vec<YtThumb> {
-    [ROW_PX, PLAYER_PX]
-        .into_iter()
-        .filter_map(|px| art_url(item, px).map(|url| YtThumb { url: url.to_string(), w: Some(px as i32), h: None }))
-        .collect()
+/// The JVM `youtubeArtUrl`: a video's best thumbnail at the view size, for a file not in the store.
+pub fn youtube_art_url(video_id: &str) -> String {
+    format!("art://yt/{video_id}")
 }
 
-fn local_path(kind: &str, stream: i32, px: u32, item: &MediaItem) -> SharedString {
-    format!("{PREFIX}{kind}/{stream}/{px}/{}/{}/{}", item.file_size, item.last_modified, item.uri).into()
+/// The JVM `fileArtUrl`: art for a file not in the store (`file_uri` is its `file://` URI): its
+/// embedded cover, else its video's thumbnail, else a decoded frame; `None` without any of those.
+pub fn file_art_url(file_uri: &str, has_cover: bool, youtube_vid: Option<&str>, has_video: bool) -> Option<String> {
+    let kind = match (has_cover, youtube_vid, has_video) {
+        (true, _, _) => ART_KIND_COVER,
+        (false, Some(video_id), _) => return Some(youtube_art_url(video_id)),
+        (false, None, true) => ART_KIND_FRAME,
+        (false, None, false) => return None,
+    };
+    Some(format!("art://file?kind={}&uri={}", query_value(kind), query_value(file_uri)))
 }
 
-/// The JVM app's form of an artwork URL, for rows it may read back: a local file's art becomes
-/// `art://file?kind=<cover|frame>&uri=<file URI>`; anything else is kept.
-pub fn to_jvm_art(url: &str) -> String {
-    let Some(rest) = url.strip_prefix(PREFIX) else { return url.to_owned() };
+/// An art url as this app's earlier releases saved it in queue rows (`local-art/<kind>/<stream>/<px>/
+/// <size>/<mtime>/<path>`) in its `art://file` form; any other url as it is.
+pub fn adopt_legacy_art_url(url: String) -> String {
+    let Some(rest) = url.strip_prefix(LEGACY_PREFIX) else { return url };
     let mut parts = rest.splitn(6, '/');
-    let (Some(kind), Some(file)) = (parts.next(), parts.nth(4)) else { return url.to_owned() };
+    let (Some(kind), Some(file)) = (parts.next(), parts.nth(4)) else { return url };
     let file_uri = ym_common::file_uri::to_file_uri(file);
     format!("art://file?kind={}&uri={}", query_value(kind), query_value(&file_uri))
-}
-
-/// This app's form of the JVM app's `art://` URLs (`pic/<media id>`, `yt/<video id>`,
-/// `file?kind=&uri=`); `None` when the file is gone or has no art. Other URLs are kept. Blocking: a
-/// Library lookup, and a probe for a file outside it.
-pub fn from_jvm_art(url: &str, media: &ym_store::MediaStore, px: u32) -> Option<String> {
-    let Some(rest) = url.strip_prefix("art://") else { return Some(url.to_owned()) };
-    let (place, query) = rest.split_once('?').unwrap_or((rest, ""));
-    let item = match place.split_once('/').unwrap_or((place, "")) {
-        ("pic", id) => media.item(id.parse().ok()?).ok()??,
-        ("yt", video_id) => return Some(format!("https://i.ytimg.com/vi/{video_id}/mqdefault.jpg")),
-        ("file", _) => {
-            let file_uri = query
-                .split('&')
-                .filter_map(|pair| pair.split_once('='))
-                .find(|(name, _)| *name == "uri")
-                .map(|(_, value)| ym_common::file_uri::percent_decode(value))?;
-            let path = ym_common::file_uri::file_uri_path(&file_uri)?;
-            match media.find_item_by_uri(&path).ok()? {
-                Some((item, false)) => item,
-                _ => ym_store::describe_file(Path::new(&path)).ok()?.item,
-            }
-        }
-        _ => return None,
-    };
-    art_url(&item, px).map(String::from)
 }
 
 /// A query value as the JVM app's `UriBuilder.appendQueryParam` encodes it.
@@ -106,181 +70,210 @@ fn query_value(value: &str) -> String {
     encoded
 }
 
-enum Kind {
-    Cover(i32),
-    Frame,
+static MEDIA: OnceLock<Arc<MediaStore>> = OnceLock::new();
+
+/// Gives the art fetcher the Library once the app's graph has opened it.
+pub fn attach_media(media: Arc<MediaStore>) {
+    // A second graph (after an unlock) opens the same database; the first store keeps serving.
+    let _ = MEDIA.set(media);
 }
 
-struct ArtKey<'a> {
-    kind: Kind,
-    px: u32,
-    file_size: &'a str,
-    modified: &'a str,
-    file: &'a Path,
-}
-
-fn parse(path: &str) -> anyhow::Result<ArtKey<'_>> {
-    let rest = path.strip_prefix(PREFIX).ok_or_else(|| anyhow!("not a local art path"))?;
-    let mut parts = rest.splitn(6, '/');
-    let mut next = || parts.next().ok_or_else(|| anyhow!("malformed local art path"));
-    let (kind, stream, px) = (next()?, next()?, next()?);
-    let (file_size, modified, file) = (next()?, next()?, next()?);
-    let stream: i32 = stream.parse().context("local art stream index")?;
-    let kind = match kind {
-        "cover" => Kind::Cover(stream),
-        "frame" => Kind::Frame,
-        other => bail!("unknown local art kind {other:?}"),
-    };
-    Ok(ArtKey { kind, px: px.parse().context("local art size")?, file_size, modified, file: Path::new(file) })
-}
-
-/// The JVM `mediaStoreArtFetcher` for this app's `local-art/` paths: the embedded cover or a decoded
-/// frame, kept in the JVM app's `image-cover-cache` keyed as there (kind, file URI, size, mtime: a
-/// changed file extracts again), so every view size decodes from that file instead of extracting again.
-pub struct LocalArtFetcher {
+/// The JVM `mediaStoreArtFetcher`: `art:` urls to artwork decoded at the view size. A Library item's
+/// embedded cover or decoded frame is kept in the JVM app's `image-cover-cache`, keyed as there (kind,
+/// file URI, size, mtime: a changed file extracts again), so every size decodes from that file; a file
+/// tagged with a YouTube id (and `art://yt/…`) loads its video's thumbnail through `loader`, sharing
+/// that identity's caches. The outer `art:` load holds a local slot and the inner one a network slot,
+/// so the nesting cannot starve.
+pub struct MediaStoreArtFetcher {
     pub cover_cache: Arc<ImageSourceCache>,
+    pub loader: Arc<OnceLock<ImageLoader<LoadedImage>>>,
 }
 
-impl ImageFetcher for LocalArtFetcher {
+enum ArtUrl {
+    Picture(i64),
+    YouTube(String),
+    File { kind: String, path: PathBuf },
+}
+
+fn parse_art(url: &str) -> Option<Result<ArtUrl, ImageLoadError>> {
+    let rest = url.strip_prefix("art:")?;
+    let malformed = || ImageLoadError::new(Reason::Unsupported, format!("malformed art uri: {url}"));
+    let rest = rest.strip_prefix("//").unwrap_or(rest);
+    let end = rest.find(['/', '?']).unwrap_or(rest.len());
+    let (authority, tail) = rest.split_at(end);
+    let (path, query) = tail.split_once('?').unwrap_or((tail, ""));
+    let last_segment = path.rsplit('/').next().filter(|segment| !segment.is_empty());
+    Some(match authority {
+        "yt" => last_segment.map(|video_id| ArtUrl::YouTube(video_id.to_owned())).ok_or_else(malformed),
+        "file" => {
+            let param = |name: &str| {
+                query
+                    .split('&')
+                    .filter_map(|pair| pair.split_once('='))
+                    .find(|(key, _)| *key == name)
+                    .map(|(_, value)| ym_common::file_uri::percent_decode(value))
+            };
+            let path = param("uri").and_then(|uri| ym_common::file_uri::file_uri_path(&uri)).map(PathBuf::from);
+            match path {
+                Some(path) => Ok(ArtUrl::File { kind: param("kind").unwrap_or_default(), path }),
+                None => Err(malformed()),
+            }
+        }
+        "pic" => last_segment.and_then(|id| id.parse().ok()).map(ArtUrl::Picture).ok_or_else(malformed),
+        _ => return None,
+    })
+}
+
+impl ImageFetcher for MediaStoreArtFetcher {
     fn fetch(
         &self,
         url: &str,
         size: (u32, u32),
         scale: ImageScale,
-    ) -> Option<futures::future::BoxFuture<'static, Result<DecodedImage, ImageLoadError>>> {
-        if !LocalArt::handles(url) {
-            return None;
-        }
-        let (cache, url) = (self.cover_cache.clone(), url.to_owned());
+    ) -> Option<BoxFuture<'static, Result<DecodedImage, ImageLoadError>>> {
+        let parsed = parse_art(url)?;
+        let (cache, loader, url) = (self.cover_cache.clone(), self.loader.clone(), url.to_owned());
         Some(Box::pin(async move {
+            let art = parsed?;
+            if let ArtUrl::YouTube(video_id) = &art {
+                return youtube_art(&loader, video_id, size, scale).await;
+            }
             let label = url.clone();
-            tokio::task::spawn_blocking(move || extract_cached(&cache, &url, size, scale)).await.map_err(|error| {
-                ImageLoadError::with_cause(Reason::Undecodable, format!("local art task failed: {label}"), error)
-            })?
+            let resolved =
+                tokio::task::spawn_blocking(move || resolve(&cache, art, &url, size, scale)).await.map_err(
+                    |error| ImageLoadError::with_cause(Reason::Undecodable, format!("art task failed: {label}"), error),
+                )??;
+            match resolved {
+                Resolved::Decoded(decoded) => Ok(decoded),
+                Resolved::YouTube(video_id) => youtube_art(&loader, &video_id, size, scale).await,
+            }
         }))
     }
 }
 
-/// Blocking: the cover cache's file for `url`, extracted on a miss, decoded to `size`.
-fn extract_cached(
-    cache: &ImageSourceCache,
-    url: &str,
+enum Resolved {
+    Decoded(DecodedImage),
+    YouTube(String),
+}
+
+/// The JVM `loaderYoutubeArt`: the video's identity request through the loader.
+async fn youtube_art(
+    loader: &OnceLock<ImageLoader<LoadedImage>>,
+    video_id: &str,
     size: (u32, u32),
     scale: ImageScale,
 ) -> Result<DecodedImage, ImageLoadError> {
-    let key = parse(url)
-        .map_err(|error| ImageLoadError::new(Reason::Unsupported, format!("malformed art url: {url}: {error:#}")))?;
-    let kind = match key.kind {
-        Kind::Cover(_) => "cover",
-        Kind::Frame => "frame",
-    };
-    let file_uri = ym_store::file_uri(&key.file.to_string_lossy());
-    let cache_key = source_cache_key(&format!("{kind}:{file_uri}:{}:{}", key.file_size, key.modified));
-    let cached = cache.file_path(&cache_key).map_err(|error| {
-        ImageLoadError::with_cause(Reason::Undecodable, format!("cover cache unreadable: {url}"), error)
+    let loader =
+        loader.get().ok_or_else(|| ImageLoadError::new(Reason::Unsupported, "art fetcher without its loader"))?;
+    let request =
+        ImageRequest { key: youtube_image_key(video_id), sources: youtube_thumbnail_sources(video_id), size, scale };
+    let bitmap = loader.load(&request, true).await?;
+    let (width, height) = (bitmap.width(), bitmap.height());
+    let image = tokio::task::spawn_blocking(move || bitmap.to_rgba()).await.map_err(|error| {
+        ImageLoadError::with_cause(Reason::Undecodable, format!("art copy failed: {video_id}"), error)
     })?;
-    let file = match cached {
-        Some(file) => file,
-        None => {
-            if !key.file.exists() {
+    Ok(DecodedImage { image, source_width: width, source_height: height })
+}
+
+/// Blocking: the art a store row or a loose file has, decoded to `size`, or the video id to load.
+fn resolve(
+    cache: &ImageSourceCache,
+    art: ArtUrl,
+    url: &str,
+    size: (u32, u32),
+    scale: ImageScale,
+) -> Result<Resolved, ImageLoadError> {
+    match art {
+        ArtUrl::YouTube(video_id) => Ok(Resolved::YouTube(video_id)),
+        ArtUrl::File { kind, path } => {
+            if !path.exists() {
                 return Err(ImageLoadError::new(Reason::NotFound, format!("no such file: {url}")));
             }
-            let encoded = extract_encoded(&key).map_err(|error| {
-                ImageLoadError::new(Reason::Undecodable, format!("local art extraction failed: {url}: {error:#}"))
+            let extract_failed = |error: anyhow::Error| {
+                ImageLoadError::new(Reason::Undecodable, format!("art extraction failed: {url}: {error:#}"))
+            };
+            if kind == ART_KIND_COVER {
+                let stream = ym_store::describe_file(&path)
+                    .map_err(|error| extract_failed(error.into()))?
+                    .item
+                    .thumbnail_stream_index
+                    .ok_or_else(|| ImageLoadError::new(Reason::NotFound, format!("no embedded picture: {url}")))?;
+                let bytes = attached_picture(&path, stream).map_err(extract_failed)?;
+                decode_scaled(&bytes, size, scale, url).map(Resolved::Decoded)
+            } else {
+                Ok(Resolved::Decoded(scale_decoded(video_frame(&path).map_err(extract_failed)?, size, scale)))
+            }
+        }
+        ArtUrl::Picture(id) => {
+            let media = MEDIA
+                .get()
+                .ok_or_else(|| ImageLoadError::new(Reason::Unsupported, format!("Library not open yet: {url}")))?;
+            let item = media
+                .item(id)
+                .map_err(|error| {
+                    ImageLoadError::new(Reason::Undecodable, format!("Library lookup failed: {url}: {error}"))
+                })?
+                .ok_or_else(|| ImageLoadError::new(Reason::NotFound, format!("no media item for art uri: {url}")))?;
+            let kind = match (item.thumbnail_stream_index, &item.youtube_vid) {
+                (Some(_), _) => ART_KIND_COVER,
+                (None, Some(video_id)) => return Ok(Resolved::YouTube(video_id.clone())),
+                (None, None) if item.video_codec.is_some() => ART_KIND_FRAME,
+                (None, None) => {
+                    return Err(ImageLoadError::new(
+                        Reason::NotFound,
+                        format!("media item {id} has no artwork source: {url}"),
+                    ));
+                }
+            };
+            let path = PathBuf::from(&item.uri);
+            let file_uri = ym_store::file_uri(&item.uri);
+            let key = source_cache_key(&format!("{kind}:{file_uri}:{}:{}", item.file_size, item.last_modified));
+            let cached = cache.file_path(&key).map_err(|error| {
+                ImageLoadError::with_cause(Reason::Undecodable, format!("cover cache unreadable: {url}"), error)
             })?;
-            cache.write_blocking(&cache_key, std::io::Cursor::new(encoded), DEFAULT_MAX_IMAGE_BYTES, url)?
-        }
-    };
-    decode_scaled_file(&file, size, scale, url)
-}
-
-/// The JVM extractors' output: the embedded picture as stored (`-c copy`), a frame as a full-size JPEG.
-/// Whole in memory: `ym_attached_pic` and `ym_video_frame` hand back one buffer.
-fn extract_encoded(key: &ArtKey) -> anyhow::Result<Vec<u8>> {
-    match key.kind {
-        Kind::Cover(stream) => {
-            ym_mse::attached_picture(key.file, stream).map_err(|code| anyhow!("attached picture: libav error {code}"))
-        }
-        Kind::Frame => {
-            let frame = ym_mse::video_frame(key.file, 0).map_err(|code| anyhow!("video frame: libav error {code}"))?;
-            let rgba = RgbaImage::from_raw(frame.width, frame.height, frame.rgba)
-                .ok_or_else(|| anyhow!("video frame buffer does not match its size"))?;
-            let mut jpeg = Cursor::new(Vec::new());
-            DynamicImage::ImageRgba8(rgba)
-                .to_rgb8()
-                .write_with_encoder(JpegEncoder::new_with_quality(&mut jpeg, JPEG_QUALITY))
-                .context("encoding the video frame")?;
-            Ok(jpeg.into_inner())
+            let file = match cached {
+                Some(file) => file,
+                None => {
+                    if !path.exists() {
+                        return Err(ImageLoadError::new(Reason::NotFound, format!("no such file: {url}")));
+                    }
+                    let encoded = match item.thumbnail_stream_index {
+                        Some(stream) => attached_picture(&path, stream),
+                        None => video_frame(&path).and_then(encode_jpeg),
+                    }
+                    .map_err(|error| {
+                        ImageLoadError::new(Reason::Undecodable, format!("art extraction failed: {url}: {error:#}"))
+                    })?;
+                    cache.write_blocking(&key, Cursor::new(encoded), DEFAULT_MAX_IMAGE_BYTES, url)?
+                }
+            };
+            decode_scaled_file(&file, size, scale, url).map(Resolved::Decoded)
         }
     }
 }
 
-pub struct LocalArt {
-    cache_dir: PathBuf,
-    log: Logger,
+/// The embedded picture as stored (the JVM `getAttachedPic`, `-c copy`). Whole in memory:
+/// `ym_attached_pic` hands back one buffer.
+fn attached_picture(path: &Path, stream: i32) -> anyhow::Result<Vec<u8>> {
+    ym_mse::attached_picture(path, stream).map_err(|code| anyhow!("attached picture: libav error {code}"))
 }
 
-impl LocalArt {
-    pub fn new(cache_dir: PathBuf, log: Logger) -> Self {
-        Self { cache_dir, log }
-    }
-
-    pub fn handles(path: &str) -> bool {
-        path.starts_with(PREFIX)
-    }
-
-    /// Blocking: the thumbnail's JPEG bytes, extracted on a cache miss.
-    pub fn load(&self, path: &str) -> anyhow::Result<Cow<'static, [u8]>> {
-        let result = self.load_or_extract(path);
-        if let Err(error) = &result {
-            self.log.warn("local artwork failed", Some(error.as_ref()));
-        }
-        result
-    }
-
-    fn cache_file(&self, path: &str) -> PathBuf {
-        let mut hasher = DefaultHasher::new();
-        path.hash(&mut hasher);
-        self.cache_dir.join(format!("{:016x}.jpg", hasher.finish()))
-    }
-
-    fn load_or_extract(&self, path: &str) -> anyhow::Result<Cow<'static, [u8]>> {
-        let key = parse(path)?;
-        let file = self.cache_file(path);
-        match std::fs::read(&file) {
-            Ok(bytes) => return Ok(bytes.into()),
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-            Err(error) => return Err(error).context("reading cached artwork"),
-        }
-        let jpeg = extract(&key)?;
-        std::fs::create_dir_all(&self.cache_dir).context("creating the artwork cache")?;
-        let partial = file.with_extension("part");
-        std::fs::write(&partial, &jpeg).context("writing cached artwork")?;
-        std::fs::rename(&partial, &file).context("committing cached artwork")?;
-        Ok(jpeg.into())
-    }
+/// One full-size frame of the video (the JVM `extractThumbnail`).
+fn video_frame(path: &Path) -> anyhow::Result<RgbaImage> {
+    let frame = ym_mse::video_frame(path, 0).map_err(|code| anyhow!("video frame: libav error {code}"))?;
+    RgbaImage::from_raw(frame.width, frame.height, frame.rgba)
+        .ok_or_else(|| anyhow!("video frame buffer does not match its size"))
 }
 
-fn extract(key: &ArtKey) -> anyhow::Result<Vec<u8>> {
-    let image = match key.kind {
-        Kind::Cover(stream) => {
-            let bytes = ym_mse::attached_picture(key.file, stream)
-                .map_err(|code| anyhow!("attached picture: libav error {code}"))?;
-            let image = image::load_from_memory(&bytes).context("decoding the attached picture")?;
-            if image.width() > key.px || image.height() > key.px { image.thumbnail(key.px, key.px) } else { image }
-        }
-        Kind::Frame => {
-            let frame =
-                ym_mse::video_frame(key.file, key.px).map_err(|code| anyhow!("video frame: libav error {code}"))?;
-            let rgba = RgbaImage::from_raw(frame.width, frame.height, frame.rgba)
-                .ok_or_else(|| anyhow!("video frame buffer does not match its size"))?;
-            DynamicImage::ImageRgba8(rgba)
-        }
-    };
+/// A frame as the JVM extractor writes it into the cover cache: a JPEG.
+fn encode_jpeg(frame: RgbaImage) -> anyhow::Result<Vec<u8>> {
     let mut jpeg = Cursor::new(Vec::new());
-    image
+    DynamicImage::ImageRgba8(frame)
         .to_rgb8()
         .write_with_encoder(JpegEncoder::new_with_quality(&mut jpeg, JPEG_QUALITY))
-        .context("encoding the artwork thumbnail")?;
+        .context("encoding the video frame")?;
     Ok(jpeg.into_inner())
 }
+
+/// How earlier releases named local art in saved queue rows.
+const LEGACY_PREFIX: &str = "local-art/";

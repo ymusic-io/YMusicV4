@@ -287,7 +287,7 @@ impl MiniPlayer {
     }
 
     fn cover(item: &QueueItem, corner_radius: f32, cx: &App) -> Div {
-        let art = item.thumb(320).map(|url| {
+        let art = item.display_thumbnail_url().map(|url| {
             async_image_of(Some(art_request_sources(&url)))
                 .size_full()
                 .rounded(px(corner_radius))

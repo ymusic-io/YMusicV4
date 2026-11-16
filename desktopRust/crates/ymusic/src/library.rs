@@ -17,6 +17,7 @@ use gpui_kit::component::{ActiveTheme, Disableable, Icon, IconName, Sizable, Sty
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use ym_i18n::{Str, t, tf};
+use ym_image_loader::async_image::async_image_of;
 use ym_store::{Bucket, MediaItem, MediaStore, Playlist, PlaylistItemDetail};
 
 use crate::a11y::{DragRow, FocusList, announced, heading, label, list_item};
@@ -29,6 +30,7 @@ use crate::playback::QueueItem;
 use crate::playlist_transfer::PlaylistTransfer;
 use crate::spinner::LoadingLine;
 use crate::tab_row::tab_row;
+use crate::youtube_thumbnails::art_request_sources;
 
 /// Writes that land within this window of each other cost one reload (a scan writes row by row).
 const STORE_CHANGE_COALESCE: std::time::Duration = std::time::Duration::from_millis(300);
@@ -689,7 +691,7 @@ impl LibraryView {
             .map(|(name, members)| {
                 let art = members
                     .iter()
-                    .find(|item| crate::local_art::art_url(item, 0).is_some())
+                    .find(|item| crate::local_art::local_art_url(item).is_some())
                     .map(|item| (*item).clone());
                 (name, members.len(), art)
             })
@@ -729,7 +731,7 @@ impl LibraryView {
                 newest.sort_by_key(|detail| std::cmp::Reverse(detail.added_at));
                 let art = newest
                     .into_iter()
-                    .find(|detail| crate::local_art::art_url(&detail.item, 0).is_some())
+                    .find(|detail| crate::local_art::local_art_url(&detail.item).is_some())
                     .map(|detail| detail.item.clone());
                 (playlist.clone(), details.len(), art)
             })
@@ -1311,17 +1313,18 @@ pub fn art_or_icon(
     corner_radius: f32,
     cx: &App,
 ) -> AnyElement {
-    let color = cx.theme().muted_foreground;
-    let placeholder = move || Icon::new(icon).size(icon_size).text_color(color).into_any_element();
+    let placeholder = Icon::new(icon).size(icon_size).text_color(cx.theme().muted_foreground);
     match art {
-        Some(url) => img(url)
+        Some(url) => async_image_of(Some(art_request_sources(&url)))
             .size_full()
             .rounded(px(corner_radius))
             .object_fit(ObjectFit::Cover)
-            .with_loading(placeholder)
-            .with_fallback(placeholder)
+            .flex()
+            .items_center()
+            .justify_center()
+            .placeholder(placeholder)
             .into_any_element(),
-        None => placeholder(),
+        None => placeholder.into_any_element(),
     }
 }
 
@@ -1461,7 +1464,7 @@ pub fn song_cell<V: SongMenuHost>(
         .hover(|style| style.bg(theme.primary.opacity(crate::settings_view::HOVER_ALPHA)))
         .child(LibraryView::thumb(
             if item.video_codec.is_some() { Lucide::Film } else { Lucide::Music },
-            crate::local_art::art_url(item, crate::local_art::ROW_PX),
+            crate::local_art::local_art_url(item).map(SharedString::from),
             item.duration_ms,
             cx,
         ))
@@ -1933,7 +1936,6 @@ impl LibraryView {
         grid: bool,
         cx: &mut Context<Self>,
     ) -> AnyElement {
-        let art_px = if grid { crate::local_art::CARD_PX } else { crate::local_art::ROW_PX };
         if let Some((open, icon, description)) = SYSTEM_PLAYLISTS.get(index).cloned() {
             let card = Self::card(
                 ("system-playlist", index).into(),
@@ -1956,7 +1958,7 @@ impl LibraryView {
         }
         let position = index - SYSTEM_PLAYLISTS.len();
         let (playlist, count, art_item) = playlists[position].clone();
-        let art = art_item.and_then(|item| crate::local_art::art_url(&item, art_px));
+        let art = art_item.and_then(|item| crate::local_art::local_art_url(&item).map(SharedString::from));
         let subtitle = ym_i18n::plural(ym_i18n::Plural::NSongs, count as i64, &[&count]);
         let view = cx.entity().downgrade();
         let menu_playlist = playlist.clone();
@@ -2005,9 +2007,8 @@ impl LibraryView {
             Tab::Albums => Lucide::Disc,
             _ => Lucide::Tag,
         };
-        let art_px = if grid { crate::local_art::CARD_PX } else { crate::local_art::ROW_PX };
         let (name, count, art_item) = group.clone();
-        let art = art_item.and_then(|item| crate::local_art::art_url(&item, art_px));
+        let art = art_item.and_then(|item| crate::local_art::local_art_url(&item).map(SharedString::from));
         let subtitle = ym_i18n::plural(ym_i18n::Plural::NSongs, count as i64, &[&count]);
         let open = name.clone();
         let card =

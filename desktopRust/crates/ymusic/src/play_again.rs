@@ -10,15 +10,16 @@ use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use ym_history::{PlayAgainSession, PlayHistory};
 use ym_i18n::{Str, t, tf};
+use ym_image_loader::async_image::async_image_of;
 
 use crate::a11y::{FocusList, alert, announced, list_item};
 use crate::action_icon::action_icon;
 use crate::graph::{AppGraph, on_core};
 use crate::lazy_rows::LazyRows;
-use crate::local_art::{self, from_jvm_art};
 use crate::mini_player::clock;
 use crate::play_history::decode_items;
 use crate::playback::{QueueItem, Source};
+use crate::youtube_thumbnails::art_request_sources;
 
 /// Resume this saved queue.
 pub struct ResumeQueue {
@@ -98,28 +99,14 @@ impl PlayAgainView {
         .detach();
     }
 
-    /// The sessions with the JVM app's `art://` thumbnails resolved.
     fn load_sessions(
         &self,
         cx: &mut Context<Self>,
     ) -> impl std::future::Future<
         Output = Option<Result<rusqlite::Result<Vec<PlayAgainSession>>, tokio::task::JoinError>>,
     > + use<> {
-        let (history, media) = (self.history.clone(), cx.global::<AppGraph>().media.clone());
-        on_core(cx, async move {
-            tokio::task::spawn_blocking(move || {
-                let mut sessions = history.sessions()?;
-                for session in &mut sessions {
-                    session.thumbnail_url =
-                        session.thumbnail_url.take().and_then(|url| from_jvm_art(&url, &media, local_art::PLAYER_PX));
-                    for thumb in &mut session.strip_thumbs {
-                        *thumb = thumb.take().and_then(|url| from_jvm_art(&url, &media, local_art::ROW_PX));
-                    }
-                }
-                Ok(sessions)
-            })
-            .await
-        })
+        let history = self.history.clone();
+        on_core(cx, async move { tokio::task::spawn_blocking(move || history.sessions()).await })
     }
 
     /// The JVM PlaybackCoordinator.playAgain: the saved item, mid-item only for long content unless
@@ -211,7 +198,10 @@ impl PlayAgainView {
                     .when(current == Some(offset), |tile| tile.border_1().border_color(theme.primary))
                     .when_some(thumb.clone(), |tile, url| {
                         tile.child(
-                            img(SharedString::from(url)).size_full().rounded(px(6.)).object_fit(ObjectFit::Cover),
+                            async_image_of(Some(art_request_sources(&url)))
+                                .size_full()
+                                .rounded(px(6.))
+                                .object_fit(ObjectFit::Cover),
                         )
                     }),
             );
@@ -277,7 +267,7 @@ impl PlayAgainView {
                             .bg(theme.muted)
                             .when_some(session.thumbnail_url.clone(), |frame, url| {
                                 frame.child(
-                                    img(SharedString::from(url))
+                                    async_image_of(Some(art_request_sources(&url)))
                                         .size_full()
                                         .rounded(px(10.))
                                         .object_fit(ObjectFit::Cover),
@@ -378,22 +368,15 @@ impl Render for PlayAgainView {
     }
 }
 
-/// Blocking. A local item the Library knows plays as its Library item (its history code and art);
-/// a JVM app `art://` thumbnail of any other item is resolved.
+/// Blocking. A local item the Library knows plays as its Library item (its history code and art).
 fn adopt_items(items: Vec<QueueItem>, media: &ym_store::MediaStore) -> Vec<QueueItem> {
     items
         .into_iter()
-        .map(|mut item| {
+        .map(|item| {
             if let Source::Local(path) = &item.source
                 && let Ok(Some((known, false))) = media.find_item_by_uri(&path.to_string_lossy())
             {
                 return QueueItem::from_local(&known);
-            }
-            for thumb in &mut item.thumbs {
-                let px = thumb.w.map_or(local_art::PLAYER_PX, |width| width.max(0) as u32);
-                if let Some(url) = from_jvm_art(&thumb.url, media, px) {
-                    thumb.url = url;
-                }
             }
             item
         })

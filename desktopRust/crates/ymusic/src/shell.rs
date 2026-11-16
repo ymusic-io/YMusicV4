@@ -1949,9 +1949,12 @@ impl Shell {
         h_flex()
             .gap_2()
             .items_center()
-            .child(div().size(px(logo)).flex_shrink_0().child(
-                img(crate::assets::logo_path((logo * self.scale_factor).round() as u32)).size_full().rounded_full(),
-            ))
+            .child(
+                div().size(px(logo)).flex_shrink_0().children(
+                    crate::assets::logo((logo * self.scale_factor).round() as u32, cx)
+                        .map(|logo| logo.size_full().rounded_full()),
+                ),
+            )
             .child(
                 v_flex().min_w_0().child(div().font_semibold().child(t(Str::AppName))).child(
                     div()
