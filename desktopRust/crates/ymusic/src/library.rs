@@ -22,6 +22,7 @@ use ym_store::{Bucket, MediaItem, MediaStore, Playlist, PlaylistItemDetail};
 use crate::a11y::{DragRow, FocusList, ListStops, announced, heading, label, list_item};
 use crate::action_icon::action_icon;
 use crate::graph::{AppGraph, on_core};
+use crate::lazy_rows::LazyRows;
 use crate::library_playlist::{self, AddToLocalPlaylist, ArrangePlaylist, Changed, NameMode, PlaylistNameDialog};
 use crate::mini_player::clock;
 use crate::playback::QueueItem;
@@ -156,6 +157,7 @@ const CARD_MAX: f32 = 176.;
 const SONG_MIN: f32 = 360.;
 const GRID_PADDING: f32 = 10.;
 const THUMB: f32 = 56.;
+const SONG_ROW_ESTIMATE: f32 = 72.;
 const TOOL_ADD_FOLDER: usize = 0;
 const TOOL_SHUFFLE: usize = 1;
 const TOOL_SORT: usize = 2;
@@ -317,6 +319,7 @@ pub struct LibraryView {
     /// The open folder the crumbs were last scrolled to the end for.
     crumbs_shown_for: Option<i64>,
     song_focus: FocusList,
+    song_rows: LazyRows,
     /// Debug-route actions, one run after each finished reload.
     dev_actions: Vec<String>,
     dev_ready: bool,
@@ -374,7 +377,8 @@ impl LibraryView {
             tab_drag: DragRow::default(),
             crumb_drag: DragRow::default(),
             crumbs_shown_for: None,
-            song_focus: FocusList::new(Some(scroll)),
+            song_focus: FocusList::new(Some(scroll.clone())),
+            song_rows: LazyRows::new(scroll, SONG_ROW_ESTIMATE),
             dev_actions: Vec::new(),
             dev_ready: false,
             location_offer: None,
@@ -2085,21 +2089,27 @@ impl Render for LibraryView {
             (None, None, None) => self.tab.label().into(),
         };
         let menu = self.song_menu();
-        let songs: Vec<AnyElement> = shown
-            .iter()
-            .enumerate()
-            .map(|(index, item)| song_cell(&self.song_focus, index, item, Self::play, menu, cx))
-            .collect();
+        let song_count = shown.len();
+        let song_grid_columns = if grid { song_columns } else { 1 };
+        let kept: Vec<usize> = song_stops.kept().into_iter().map(|position| position / song_grid_columns).collect();
+        let song_focus = &self.song_focus;
+        let song_block = self.song_rows.render(song_count.div_ceil(song_grid_columns), 0., kept, window, |line| {
+            let cells: Vec<AnyElement> = (line * song_grid_columns..((line + 1) * song_grid_columns).min(song_count))
+                .map(|index| song_cell(song_focus, index, &shown[index], Self::play, menu, cx))
+                .collect();
+            if song_grid_columns == 1 {
+                cells.into_iter().next().unwrap_or_else(|| div().into_any_element())
+            } else {
+                grid_rows(cells, song_grid_columns).into_iter().next().unwrap_or_else(|| div().into_any_element())
+            }
+        });
 
         let mut body = v_flex().w_full().pt_1().pb_4().px(px(if grid { GRID_PADDING } else { 0. }));
         body = body.child(div().mx(px(if grid { -GRID_PADDING } else { 0. })).child(self.toolbar(cx)));
-        let empty = cards.is_empty() && songs.is_empty();
-        let (card_count, song_count) = (cards.len(), songs.len());
-        let (card_block, song_block) = if grid {
-            (v_flex().children(grid_rows(cards, card_columns)), v_flex().children(grid_rows(songs, song_columns)))
-        } else {
-            (v_flex().children(cards), v_flex().children(songs))
-        };
+        let empty = cards.is_empty() && song_count == 0;
+        let card_count = cards.len();
+        let card_block =
+            if grid { v_flex().children(grid_rows(cards, card_columns)) } else { v_flex().children(cards) };
         if card_count > 0 {
             body = body.child(card_stops.wrap(card_block.id("library-cards"), Some(self.tab.label().into()), cx));
         }
