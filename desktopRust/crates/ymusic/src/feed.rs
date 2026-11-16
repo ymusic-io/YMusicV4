@@ -15,6 +15,7 @@ use ym_common::log::Logger;
 use ym_engine::yt::{YtFeedItem, YtFeedPage, YtFilterGroup, YtPageHeader, YtSectionHeader, YtThumb};
 use ym_engine::{DynamicEngine, EngineError, ErrorKind};
 use ym_i18n::{Str, t, tf};
+use ym_image_loader::async_image::async_image_of;
 
 use crate::a11y::{DragRow, FocusList, alert, announced, announced_as, heading, list_item};
 use crate::action_icon::{HIT, action_icon, sized_action_icon};
@@ -27,6 +28,7 @@ use crate::quick_download::saved_preset;
 use crate::settings_view::{HOVER_ALPHA, StackTones};
 use crate::spinner::{BusyButton, LoadingLine, Spinner};
 use crate::tab_row::tab_row;
+use crate::youtube_thumbnails::thumb_request_sources;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum FeedSource {
@@ -921,8 +923,8 @@ impl FeedView {
     /// The banner (when there is one), then avatar, name, meta and Subscribe.
     fn render_channel_header(&self, header: &YtPageHeader, cx: &mut Context<Self>) -> AnyElement {
         let theme = cx.theme().clone();
-        let avatar = thumb_for(&header.thumbs, 128);
-        let banner = thumb_for(&header.banner, 1280);
+        let avatar = thumb_request_sources(&header.thumbs);
+        let banner = thumb_request_sources(&header.banner);
         let meta = [header.subtitle_line1.clone(), header.subtitle_line2.clone()]
             .into_iter()
             .flatten()
@@ -936,7 +938,7 @@ impl FeedView {
             self.actions.button(ACTION_SUBSCRIBE, pill, cx)
         });
         v_flex()
-            .when_some(banner, |column, url| {
+            .when_some(banner, |column, request| {
                 column.child(
                     div()
                         .mx_4()
@@ -945,7 +947,7 @@ impl FeedView {
                         .rounded(px(12.))
                         .overflow_hidden()
                         .bg(theme.secondary)
-                        .child(img(url).size_full().rounded(px(12.)).object_fit(ObjectFit::Cover)),
+                        .child(async_image_of(Some(request)).size_full().rounded(px(12.)).object_fit(ObjectFit::Cover)),
                 )
             })
             .child(
@@ -954,8 +956,14 @@ impl FeedView {
                     .py_2()
                     .gap_4()
                     .items_center()
-                    .when_some(avatar, |row, url| {
-                        row.child(img(url).size(px(64.)).rounded_full().object_fit(ObjectFit::Cover).flex_shrink_0())
+                    .when_some(avatar, |row, request| {
+                        row.child(
+                            async_image_of(Some(request))
+                                .size(px(64.))
+                                .rounded_full()
+                                .object_fit(ObjectFit::Cover)
+                                .flex_shrink_0(),
+                        )
                     })
                     .child(
                         v_flex()
@@ -1015,14 +1023,20 @@ impl FeedView {
 
     fn render_generic_header(&self, header: &YtPageHeader, cx: &App) -> AnyElement {
         let theme = cx.theme();
-        let avatar = thumb_for(&header.thumbs, 160);
+        let avatar = thumb_request_sources(&header.thumbs);
         h_flex()
             .px_4()
             .pt_2()
             .gap_4()
             .pb_2()
-            .when_some(avatar, |row, url| {
-                row.child(img(url).size(px(88.)).rounded_full().object_fit(ObjectFit::Cover).flex_shrink_0())
+            .when_some(avatar, |row, request| {
+                row.child(
+                    async_image_of(Some(request))
+                        .size(px(88.))
+                        .rounded_full()
+                        .object_fit(ObjectFit::Cover)
+                        .flex_shrink_0(),
+                )
             })
             .child(
                 v_flex()
