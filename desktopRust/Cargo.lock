@@ -1036,6 +1036,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "138efcf0940a02ebf0cc8d1eff41a1682a46b431630f4c52450d6265876021fa"
 dependencies = [
  "calloop",
+ "log",
  "rustix",
  "wayland-backend",
  "wayland-client",
@@ -10055,6 +10056,7 @@ dependencies = [
  "ashpd 0.13.13",
  "block2 0.6.2",
  "bytes",
+ "calloop-wayland-source",
  "chrono",
  "dirs 6.0.0",
  "embed-resource",
