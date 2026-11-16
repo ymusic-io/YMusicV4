@@ -19,7 +19,7 @@ pub struct YoutubeSession {
 pub type CandidateSource = Arc<dyn Fn() -> Vec<(String, Option<VerifiedBundle>)> + Send + Sync>;
 /// Told the version of each player bundle that boots.
 pub type VersionSink = Arc<dyn Fn(i64) + Send + Sync>;
-/// Refreshes a stale config on each use of the session (the JVM MsePlayer's playerJs.checkUpdate).
+/// Refreshes the config in the background when it is older than the player accepts.
 pub type ConfigCheck = Arc<dyn Fn() + Send + Sync>;
 /// Told each staged (newly downloaded) player bundle that would not boot: it is not downloaded again.
 pub type RejectSink = Arc<dyn Fn(BundleVersion) + Send + Sync>;
@@ -76,10 +76,14 @@ impl YoutubeSessions {
         }
     }
 
+    /// Called before each player command is sent (the JVM MsePlayer.send's playerJs.checkUpdate).
+    pub fn check_update(&self) {
+        (self.check_config)();
+    }
+
     /// The session, booting it on the first call; concurrent callers share one boot, and a failed
     /// boot is retried by the next call.
     pub async fn get(&self) -> Result<Arc<YoutubeSession>, EngineError> {
-        (self.check_config)();
         let mut slot = self.session.lock().await;
         if let Some(session) = slot.as_ref() {
             return Ok(session.clone());
