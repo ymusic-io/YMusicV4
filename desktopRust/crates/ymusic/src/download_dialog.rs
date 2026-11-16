@@ -20,6 +20,7 @@ use gpui_kit::*;
 use ym_download::options::{CaptionOption, DownloadOptions, VideoOption};
 use ym_download::{AudioQuality, DownloadError, DownloadFormat, DownloadRequest, DownloadService, names};
 use ym_i18n::{Str, t, tf};
+use ym_image_loader::async_image::async_image_of;
 
 use crate::a11y::FocusList;
 use crate::account::AccountController;
@@ -29,6 +30,7 @@ use crate::downloads_view::{Playability, playability};
 use crate::elevated_dialog::{self, body_max_height, button_bar, chrome, scroll_shadows, text_button, title_bar};
 use crate::graph::{AppGraph, on_core};
 use crate::quick_download::{QuickPreset, confirm_redownload, save_preset, saved_preset};
+use crate::youtube_thumbnails::art_request_sources;
 
 /// The video to download, as the card showed it.
 #[derive(Clone)]
@@ -896,7 +898,14 @@ impl DownloadPicker {
             .justify_center()
             .child(Icon::new(Lucide::Image).size(px(26.)).text_color(theme.muted_foreground))
             .when_some(self.target.thumbnail_url.clone(), |frame, url| {
-                frame.child(img(url).absolute().inset_0().size_full().rounded(px(10.)).object_fit(ObjectFit::Cover))
+                frame.child(
+                    async_image_of(Some(art_request_sources(&url)))
+                        .absolute()
+                        .inset_0()
+                        .size_full()
+                        .rounded(px(10.))
+                        .object_fit(ObjectFit::Cover),
+                )
             })
             .when_some(duration, |frame, ms| {
                 frame.child(
@@ -1249,7 +1258,14 @@ impl DownloadPicker {
             .relative()
             .child(Icon::new(Lucide::Music).size(px(24.)).text_color(theme.muted_foreground))
             .when_some(self.target.thumbnail_url.clone(), |frame, url| {
-                frame.child(img(url).absolute().inset_0().size_full().rounded(px(8.)).object_fit(ObjectFit::Cover))
+                frame.child(
+                    async_image_of(Some(art_request_sources(&url)))
+                        .absolute()
+                        .inset_0()
+                        .size_full()
+                        .rounded(px(8.))
+                        .object_fit(ObjectFit::Cover),
+                )
             });
         let rename = action_icon(
             "download-rename",

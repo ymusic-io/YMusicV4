@@ -12,9 +12,10 @@ use gpui_kit::component::{
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use ym_common::log::Logger;
-use ym_engine::yt::{YtFeedItem, YtFeedPage, YtFilterGroup, YtPageHeader, YtSectionHeader, YtThumb};
+use ym_engine::yt::{YtFeedItem, YtFeedPage, YtFilterGroup, YtPageHeader, YtSectionHeader};
 use ym_engine::{DynamicEngine, EngineError, ErrorKind};
 use ym_i18n::{Str, t, tf};
+use ym_image_loader::async_image::async_image_of;
 
 use crate::a11y::{DragRow, FocusList, alert, announced, announced_as, heading, list_item};
 use crate::action_icon::{HIT, action_icon, sized_action_icon};
@@ -28,6 +29,7 @@ use crate::quick_download::saved_preset;
 use crate::settings_view::{HOVER_ALPHA, StackTones};
 use crate::spinner::{BusyButton, LoadingLine, Spinner};
 use crate::tab_row::tab_row;
+use crate::youtube_thumbnails::thumb_request_sources;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum FeedSource {
@@ -812,19 +814,6 @@ fn section_title(header: &YtSectionHeader) -> Option<String> {
     localized.map(|key| t(key).to_owned()).or_else(|| header.title.clone())
 }
 
-/// The smallest variant at least `width` px wide, else the largest.
-pub fn thumb_for(thumbs: &[YtThumb], width: i32) -> Option<SharedString> {
-    thumbs
-        .iter()
-        .find(|thumb| thumb.w.is_some_and(|w| w >= width))
-        .or_else(|| thumbs.last())
-        .map(|thumb| absolute_url(&thumb.url).into())
-}
-
-fn absolute_url(url: &str) -> String {
-    if url.starts_with("//") { format!("https:{url}") } else { url.to_owned() }
-}
-
 fn centered(content: impl IntoElement) -> Div {
     div().size_full().flex().items_center().justify_center().child(content)
 }
@@ -927,8 +916,8 @@ impl FeedView {
     /// The banner (when there is one), then avatar, name, meta and Subscribe.
     fn render_channel_header(&self, header: &YtPageHeader, cx: &mut Context<Self>) -> AnyElement {
         let theme = cx.theme().clone();
-        let avatar = thumb_for(&header.thumbs, 128);
-        let banner = thumb_for(&header.banner, 1280);
+        let avatar = thumb_request_sources(&header.thumbs);
+        let banner = thumb_request_sources(&header.banner);
         let meta = [header.subtitle_line1.clone(), header.subtitle_line2.clone()]
             .into_iter()
             .flatten()
@@ -942,7 +931,7 @@ impl FeedView {
             self.actions.button(ACTION_SUBSCRIBE, pill, cx)
         });
         v_flex()
-            .when_some(banner, |column, url| {
+            .when_some(banner, |column, request| {
                 column.child(
                     div()
                         .mx_4()
@@ -951,7 +940,7 @@ impl FeedView {
                         .rounded(px(12.))
                         .overflow_hidden()
                         .bg(theme.secondary)
-                        .child(img(url).size_full().rounded(px(12.)).object_fit(ObjectFit::Cover)),
+                        .child(async_image_of(Some(request)).size_full().rounded(px(12.)).object_fit(ObjectFit::Cover)),
                 )
             })
             .child(
@@ -960,8 +949,14 @@ impl FeedView {
                     .py_2()
                     .gap_4()
                     .items_center()
-                    .when_some(avatar, |row, url| {
-                        row.child(img(url).size(px(64.)).rounded_full().object_fit(ObjectFit::Cover).flex_shrink_0())
+                    .when_some(avatar, |row, request| {
+                        row.child(
+                            async_image_of(Some(request))
+                                .size(px(64.))
+                                .rounded_full()
+                                .object_fit(ObjectFit::Cover)
+                                .flex_shrink_0(),
+                        )
                     })
                     .child(
                         v_flex()
@@ -1021,14 +1016,20 @@ impl FeedView {
 
     fn render_generic_header(&self, header: &YtPageHeader, cx: &App) -> AnyElement {
         let theme = cx.theme();
-        let avatar = thumb_for(&header.thumbs, 160);
+        let avatar = thumb_request_sources(&header.thumbs);
         h_flex()
             .px_4()
             .pt_2()
             .gap_4()
             .pb_2()
-            .when_some(avatar, |row, url| {
-                row.child(img(url).size(px(88.)).rounded_full().object_fit(ObjectFit::Cover).flex_shrink_0())
+            .when_some(avatar, |row, request| {
+                row.child(
+                    async_image_of(Some(request))
+                        .size(px(88.))
+                        .rounded_full()
+                        .object_fit(ObjectFit::Cover)
+                        .flex_shrink_0(),
+                )
             })
             .child(
                 v_flex()
@@ -1356,14 +1357,17 @@ impl FeedView {
                     v_flex()
                         .items_center()
                         .gap_1()
-                        .child(
-                            div().size(px(76.)).rounded_full().overflow_hidden().bg(theme.secondary).when_some(
-                                thumb_for(&item.thumbs, 152),
-                                |frame, url| {
-                                    frame.child(img(url).size_full().rounded_full().object_fit(ObjectFit::Cover))
-                                },
-                            ),
-                        )
+                        .child(div().size(px(76.)).rounded_full().overflow_hidden().bg(theme.secondary).when_some(
+                            thumb_request_sources(&item.thumbs),
+                            |frame, request| {
+                                frame.child(
+                                    async_image_of(Some(request))
+                                        .size_full()
+                                        .rounded_full()
+                                        .object_fit(ObjectFit::Cover),
+                                )
+                            },
+                        ))
                         .child(div().pt_1().text_sm().font_medium().truncate().child(item.title.clone()))
                         .when_some(subtitle(item), |column, line| {
                             column.child(div().text_xs().text_color(theme.muted_foreground).truncate().child(line))
@@ -1380,8 +1384,8 @@ impl FeedView {
             .rounded(px(5.))
             .overflow_hidden()
             .bg(theme.secondary)
-            .when_some(thumb_for(&item.thumbs, 640), |frame, url| {
-                frame.child(img(url).size_full().rounded(px(5.)).object_fit(ObjectFit::Cover))
+            .when_some(thumb_request_sources(&item.thumbs), |frame, request| {
+                frame.child(async_image_of(Some(request)).size_full().rounded(px(5.)).object_fit(ObjectFit::Cover))
             })
             .when(self.downloaded(item, cx), |frame| frame.child(offline_mark(theme.primary, 5.)))
             .when_some(badge(item), |frame, text| {
@@ -1451,8 +1455,8 @@ impl FeedView {
             .bg(theme.secondary)
             .when(round, |frame| frame.rounded_full())
             .when(!round, |frame| frame.rounded(px(6.)))
-            .when_some(thumb_for(&item.thumbs, (width * 2.) as i32), |frame, url| {
-                let picture = img(url).size_full().object_fit(ObjectFit::Cover);
+            .when_some(thumb_request_sources(&item.thumbs), |frame, request| {
+                let picture = async_image_of(Some(request)).size_full().object_fit(ObjectFit::Cover);
                 frame.child(if round { picture.rounded_full() } else { picture.rounded(px(6.)) })
             })
             .when(self.downloaded(item, cx), |frame| frame.child(offline_mark(theme.primary, 6.)))
@@ -1521,7 +1525,7 @@ impl FeedView {
     ) -> AnyElement {
         let theme = cx.theme().clone();
         let title = header.and_then(section_title);
-        let avatar = header.and_then(|header| thumb_for(&header.icon_thumbs, 52));
+        let avatar = header.and_then(|header| thumb_request_sources(&header.icon_thumbs));
         let count = header.and_then(|header| header.count.clone());
         let cta = header.and_then(|header| header.cta_deeplink.clone().zip(header.cta_text.clone()));
         h_flex()
@@ -1531,7 +1535,9 @@ impl FeedView {
             .gap_2()
             .items_center()
             .child(div().w(px(4.)).h(px(16.)).rounded_sm().bg(theme.primary))
-            .when_some(avatar, |row, url| row.child(img(url).size(px(26.)).rounded_full().object_fit(ObjectFit::Cover)))
+            .when_some(avatar, |row, request| {
+                row.child(async_image_of(Some(request)).size(px(26.)).rounded_full().object_fit(ObjectFit::Cover))
+            })
             .child(
                 match title.clone() {
                     Some(title) => heading(("section-title", section_index), 2, title),
@@ -1661,10 +1667,14 @@ impl FeedView {
                                 .gap_1()
                                 .child(
                                     div().size(px(64.)).rounded_full().overflow_hidden().bg(theme.secondary).when_some(
-                                        thumb_for(&item.thumbs, 128),
-                                        |frame, url| {
-                                            frame
-                                                .child(img(url).size_full().rounded_full().object_fit(ObjectFit::Cover))
+                                        thumb_request_sources(&item.thumbs),
+                                        |frame, request| {
+                                            frame.child(
+                                                async_image_of(Some(request))
+                                                    .size_full()
+                                                    .rounded_full()
+                                                    .object_fit(ObjectFit::Cover),
+                                            )
                                         },
                                     ),
                                 )

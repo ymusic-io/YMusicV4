@@ -162,7 +162,7 @@ impl LibrarySearchView {
     ) -> Stateful<Div> {
         let theme = cx.theme().clone();
         let count = ym_i18n::plural(ym_i18n::Plural::NSongs, members.len() as i64, &[&members.len()]);
-        let art = members.iter().find_map(|item| crate::local_art::art_url(item, crate::local_art::ROW_PX));
+        let art = members.iter().find_map(|item| crate::local_art::local_art_url(item).map(SharedString::from));
         let drill = (name.to_owned(), members.to_vec());
         self.focus
             .item(

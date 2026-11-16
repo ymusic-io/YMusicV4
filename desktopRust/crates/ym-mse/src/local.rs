@@ -54,7 +54,7 @@ unsafe extern "C" {
         codec_len: c_int,
     ) -> c_int;
     fn ym_probe(path: *const c_char, out: *mut RawProbe) -> c_int;
-    fn ym_attached_pic(path: *const c_char, stream_index: c_int, out: *mut *mut u8, out_len: *mut c_int) -> c_int;
+    fn ym_attached_pic(path: *const c_char, out: *mut *mut u8, out_len: *mut c_int) -> c_int;
     fn ym_video_frame(
         path: *const c_char,
         max_side: c_int,
@@ -425,13 +425,13 @@ unsafe fn take_buffer(pointer: *mut u8, len: usize) -> Vec<u8> {
     bytes
 }
 
-/// Blocking: the encoded bytes (usually JPEG or PNG) of the attached picture at `stream_index`.
+/// Blocking: the encoded bytes (usually JPEG or PNG) of the file's first attached picture.
 /// `Err` carries libav's error code.
-pub fn attached_picture(path: &Path, stream_index: i32) -> Result<Vec<u8>, i32> {
+pub fn attached_picture(path: &Path) -> Result<Vec<u8>, i32> {
     let path = CString::new(path.to_string_lossy().as_bytes()).map_err(|_| -22)?;
     let (mut out, mut len) = (std::ptr::null_mut(), 0);
     // SAFETY: `path` is NUL-terminated; both out-pointers are valid for the call.
-    let rc = unsafe { ym_attached_pic(path.as_ptr(), stream_index, &mut out, &mut len) };
+    let rc = unsafe { ym_attached_pic(path.as_ptr(), &mut out, &mut len) };
     if rc < 0 {
         return Err(rc);
     }

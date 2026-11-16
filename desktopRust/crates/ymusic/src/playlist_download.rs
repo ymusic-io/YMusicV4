@@ -18,6 +18,7 @@ use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use ym_engine::yt::{YtFeedItem, YtFeedPage, YtLocaleOption};
 use ym_i18n::{Plural, Str, plural, t, tf};
+use ym_image_loader::async_image::async_image_of;
 use ym_store::Playlist;
 
 use crate::a11y::FocusList;
@@ -28,7 +29,7 @@ use crate::elevated_dialog::{
     ConfirmDialog, DEFAULT_WIDTH, ROW_HORIZONTAL, bar_spinner, button_bar, chrome, press, scroll_body, text_button,
     title_bar,
 };
-use crate::feed::{FeedSource, error_text, thumb_for};
+use crate::feed::{FeedSource, error_text};
 use crate::graph::{AppGraph, on_core};
 use crate::lazy_rows::LazyRows;
 use crate::quick_download::{
@@ -36,6 +37,7 @@ use crate::quick_download::{
 };
 use crate::settings_view::HOVER_ALPHA;
 use crate::spinner::Spinner;
+use crate::youtube_thumbnails::thumb_request_sources;
 
 type CheckAction = fn(&mut PlaylistDownload);
 type OnCreated = Rc<dyn Fn(Playlist, &mut App)>;
@@ -527,8 +529,10 @@ impl PlaylistDownload {
                     .rounded(px(6.))
                     .overflow_hidden()
                     .bg(theme.secondary)
-                    .when_some(thumb_for(&video.thumbs, 192), |frame, url| {
-                        frame.child(img(url).size_full().rounded(px(6.)).object_fit(ObjectFit::Cover))
+                    .when_some(thumb_request_sources(&video.thumbs), |frame, request| {
+                        frame.child(
+                            async_image_of(Some(request)).size_full().rounded(px(6.)).object_fit(ObjectFit::Cover),
+                        )
                     })
                     .when_some(video.duration.clone(), |frame, duration| {
                         frame.child(

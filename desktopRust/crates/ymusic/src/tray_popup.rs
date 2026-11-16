@@ -10,6 +10,8 @@ use gpui_kit::component::{ActiveTheme, Disableable, Icon, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use ym_i18n::{Str, t};
+use ym_image_loader::ImageSource;
+use ym_image_loader::async_image::async_image;
 
 use crate::action_icon::{hit_target, lucide_size, sized_action_icon};
 use crate::desktop::TrayCommand;
@@ -160,8 +162,16 @@ impl Render for TrayPopup {
             .items_center()
             .justify_center()
             .child(Icon::new(Lucide::Music).text_color(theme.muted_foreground))
-            .when_some(item.as_ref().and_then(|item| item.thumb(160)), |frame, url| {
-                frame.child(img(url).absolute().inset_0().size_full().rounded(px(5.)).object_fit(ObjectFit::Cover))
+            .when_some(item.as_ref().and_then(|item| item.display_thumbnail_url()), |frame, url| {
+                let identity = ym_image_loader::image_cache_key(&url);
+                frame.child(
+                    async_image(Some(identity), vec![ImageSource::new(url.to_string())])
+                        .absolute()
+                        .inset_0()
+                        .size_full()
+                        .rounded(px(5.))
+                        .object_fit(ObjectFit::Cover),
+                )
             });
         let play_label = t(if playing { Str::CdPause } else { Str::CdPlay });
         let play_clock = PlayClock::new(position, duration, live);
