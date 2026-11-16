@@ -15,12 +15,17 @@ image = { version = "0.25", default-features = false, features = ["jpeg", "png",
 webp = { version = "0.3", default-features = false }
 sha2 = "0.10"
 indexmap = "2"
+gpui-kit = { workspace = true, optional = true }
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows = { version = "0.62", features = ["Win32_System_SystemInformation"] }
+
+[features]
+# The gpui glue: `AsyncImage`, the texture-backed bitmap and its atlas release.
+gpui = ["dep:gpui-kit"]
 
 [lints]
 workspace = true

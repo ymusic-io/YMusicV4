@@ -1,7 +1,8 @@
 //! YMusicV4's `:image-loader`, tuned for YouTube thumbnails: requests keyed by image identity with
 //! several sized sources, scaled decode (never a full-size image resident), a memory LRU of the UI's
 //! own bitmaps, the JVM app's disk caches (originals, scaled WebP copies, the variant index) in their
-//! on-disk formats, two newest-first gates, in-flight sharing and cancellation.
+//! on-disk formats, two newest-first gates, in-flight sharing and cancellation. With the `gpui`
+//! feature, `AsyncImage` draws a request at its own measured size.
 
 mod bitmap;
 mod codec;
@@ -16,6 +17,9 @@ mod request;
 mod scaled_cache;
 mod source_cache;
 mod variant_index;
+
+#[cfg(feature = "gpui")]
+pub mod async_image;
 
 pub use bitmap::Bitmap;
 pub use codec::{
