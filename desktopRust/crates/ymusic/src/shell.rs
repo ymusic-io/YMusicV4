@@ -771,6 +771,7 @@ impl Shell {
                 }
             }
             TrayCommand::Quit => Self::quit(window, cx),
+            TrayCommand::CompleteActivation(token) => window.complete_activation_token(token),
             TrayCommand::Lost => {
                 if self.hidden_to_tray {
                     self.show_window(cx);

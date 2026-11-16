@@ -918,6 +918,10 @@ pub enum TrayCommand {
     TogglePlay,
     Stop,
     Quit,
+    /// A tray host click that raised no window came with this XDG activation token: end the
+    /// launch feedback (GNOME's busy cursor) it started.
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+    CompleteActivation(String),
     /// The tray host went away: a window hidden to it has no way back but this.
     #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
     Lost,
@@ -1252,7 +1256,15 @@ impl ksni::Tray for SniTray {
             StandardItem {
                 label: t(label).into(),
                 enabled,
-                activate: Box::new(move |tray: &mut Self| tray.send(command())),
+                activate: Box::new(move |tray: &mut Self| {
+                    let command = command();
+                    if !matches!(command, TrayCommand::Open(_))
+                        && let Some(token) = click_activation_token()
+                    {
+                        tray.send(TrayCommand::CompleteActivation(token));
+                    }
+                    tray.send(command);
+                }),
                 ..Default::default()
             }
             .into()
