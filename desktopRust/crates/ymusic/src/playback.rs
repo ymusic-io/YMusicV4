@@ -55,6 +55,11 @@ pub enum PlaybackState {
 }
 
 impl PlaybackState {
+    /// The JVM `PlaybackState.isPlaying`: the engine holds media and means to play it, buffering or not.
+    pub fn is_playing(&self) -> bool {
+        matches!(self, Self::Prepared { play_when_ready: true, .. })
+    }
+
     pub fn is_ended(&self) -> bool {
         matches!(self, Self::Prepared { ended: true, .. })
     }
@@ -1557,7 +1562,7 @@ impl Playback {
 
     fn skip_span(&mut self, span: (i64, i64), cx: &mut Context<Self>) {
         let Some(key) = self.current().map(QueueItem::key) else { return };
-        if !self.engine_playing() || !matches!(&self.skip_segments, Some((owner, _)) if *owner == key) {
+        if !self.state.is_playing() || !matches!(&self.skip_segments, Some((owner, _)) if *owner == key) {
             return;
         }
         let duration = self.duration_ms;
@@ -1569,21 +1574,6 @@ impl Playback {
             self.seek(span.1, cx);
         }
         self.skipped = Some((key, span));
-    }
-
-    /// The JVM `PlaybackState.isPlaying`: the engine holds the item and means to play it, buffering
-    /// or not.
-    fn engine_playing(&self) -> bool {
-        match self.state {
-            PlaybackState::Prepared { play_when_ready: true, buffering: false, ended: false } => true,
-            PlaybackState::Prepared { buffering: true, .. } => {
-                self.play_when_ready
-                    && self.active == Some(Active::YouTube)
-                    && self.loaded_video.is_some()
-                    && self.loaded_video.as_deref() == self.current().and_then(QueueItem::video_id)
-            }
-            _ => false,
-        }
     }
 
     /// The JVM `contentEndMs`: the duration pulled in to the start of a chain of spans running out
