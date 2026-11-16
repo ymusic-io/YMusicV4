@@ -179,11 +179,27 @@ const FILTER_CAUSE_DEPTH: usize = 5;
 /// The longest text a filter runs on, bounding a careless pattern's backtracking (MAX_SUBJECT_CHARS).
 const FILTER_SUBJECT_CHARS: usize = 512;
 
+/// The filters as compiled regexes, compiled again only when the list changes (the JVM app builds
+/// one ErrorPolicy per rule set).
+fn compiled_filters(filters: &[String]) -> Arc<Vec<regex::Regex>> {
+    type Compiled = (Vec<String>, Arc<Vec<regex::Regex>>);
+    static COMPILED: Mutex<Option<Compiled>> = Mutex::new(None);
+    let mut compiled = COMPILED.lock().unwrap_or_else(PoisonError::into_inner);
+    if let Some((source, patterns)) = compiled.as_ref()
+        && source.as_slice() == filters
+    {
+        return patterns.clone();
+    }
+    let patterns = Arc::new(filters.iter().filter_map(|pattern| regex::Regex::new(pattern).ok()).collect::<Vec<_>>());
+    *compiled = Some((filters.to_vec(), patterns.clone()));
+    patterns
+}
+
 /// The JVM ErrorPolicy.matchesFilter: any pattern found in the text of the error or one of its
 /// sources. Rust errors have no class name, so the text alone is the subject; an invalid pattern is
 /// skipped.
 fn matches_filter(filters: &[String], error: &(dyn std::error::Error + 'static)) -> bool {
-    let patterns: Vec<regex::Regex> = filters.iter().filter_map(|pattern| regex::Regex::new(pattern).ok()).collect();
+    let patterns = compiled_filters(filters);
     if patterns.is_empty() {
         return false;
     }
