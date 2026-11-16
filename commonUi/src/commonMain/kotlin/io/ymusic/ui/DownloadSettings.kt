@@ -34,6 +34,7 @@ import io.ymusic.ui.resources.download_location_prompt_set_default
 import io.ymusic.ui.resources.download_location_read_only
 import io.ymusic.ui.resources.menu_download_location
 import kmpcommon.uri.Uri
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.getString
@@ -96,14 +97,16 @@ internal fun rememberDownloadLocationName(graph: AppGraph): String? {
  * The picker hands back the folder's uri, so this works whether the folder is new, already present,
  * empty, or nested — no guessing which bucket appeared.
  */
-internal suspend fun pickDownloadFolder(graph: AppGraph, snackbar: (String) -> Unit, scans: ScanController?): Boolean {
-    val pick = graph.libraryFolderPicker ?: return false
-    val uri = pick() ?: return false // canceled
-    if (!assignDownloadFolder(graph, uri, snackbar)) return false
-    val rescan = graph.rescanLibrary
-    if (rescan != null && scans != null) scans.start { onProgress -> rescan(uri, onProgress) }
-    return true
-}
+internal suspend fun pickDownloadFolder(graph: AppGraph, snackbar: (String) -> Unit, scans: ScanController?): Boolean =
+    // Android may destroy the calling screen while the picker covers it; the pick must still land.
+    graph.processScope.async {
+        val pick = graph.libraryFolderPicker ?: return@async false
+        val uri = pick() ?: return@async false // canceled
+        if (!assignDownloadFolder(graph, uri, snackbar)) return@async false
+        val rescan = graph.rescanLibrary
+        if (rescan != null && scans != null) scans.start { onProgress -> rescan(uri, onProgress) }
+        true
+    }.await()
 
 /** Why a folder can't hold downloads, from [AppGraph.probeDownloadFolder]'s test write. */
 enum class FolderWriteProblem { NoPermission, Missing, CannotCreateFiles }
