@@ -181,6 +181,7 @@ import io.ymusic.ui.resources.playlist_menu_backup
 import io.ymusic.ui.resources.playlist_menu_restore
 import io.ymusic.ui.resources.sound_volume
 import io.ymusic.ui.resources.ymusic_logo
+import io.ymusic.ui.showsPause
 import io.ymusic.ui.sponsorblock.SqliteSponsorBlockStore
 import io.ymusic.ui.sponsorblock.sponsorBlockJdbcDriver
 import io.ymusic.ui.startupFailedMessage
@@ -755,7 +756,7 @@ fun main(args: Array<String>) {
                 if (!queueNotEmpty) miniOpen = false
             }
         }
-        val playing = graph?.player?.status?.collectAsState()?.value?.playWhenReady == true
+        val playing = graph?.player?.status?.collectAsState()?.value?.showsPause() == true
         val playerMenu = rememberPlayerMenu(
             playing = playing,
             hasQueue = queueNotEmpty,

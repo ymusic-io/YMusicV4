@@ -2302,4 +2302,4 @@ private fun queueItemActions(coordinator: PlaybackCoordinator, index: Int, item:
 }
 
 /** The play button shows Pause while playback is wanted, but not once the track has ended. */
-internal fun PlaybackStatus.showsPause(): Boolean = playWhenReady && !state.isEnded()
+fun PlaybackStatus.showsPause(): Boolean = playWhenReady && !state.isEnded()
