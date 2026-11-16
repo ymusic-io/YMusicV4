@@ -173,8 +173,10 @@ impl YoutubeSessions {
             });
             let fresh = self.fresh_next.load(std::sync::atomic::Ordering::Relaxed);
             match tokio::time::timeout(PLAYER_INIT_DEADLINE, engine.player_init(None, fresh, &self.log)).await {
-                Ok(result) => {
-                    result?;
+                Ok(Ok(_)) => {}
+                Ok(Err(error)) => {
+                    engine.close().await;
+                    return Err(error);
                 }
                 Err(_) => {
                     engine.close().await;

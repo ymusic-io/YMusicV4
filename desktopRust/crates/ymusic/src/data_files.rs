@@ -113,6 +113,9 @@ const RETIRED_SETTINGS: [&str; 4] =
 /// Blocking.
 pub fn adopt_jvm_settings(app_db: &AppDb, log: &Logger) {
     for key in RETIRED_SETTINGS {
+        if !matches!(app_db.get_raw(key), Ok(Some(_))) {
+            continue;
+        }
         if let Err(error) = app_db.delete_setting(key) {
             log.warn(&format!("R90204 the retired setting {key} could not be removed"), Some(&error));
         }
