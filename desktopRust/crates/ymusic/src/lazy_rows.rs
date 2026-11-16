@@ -23,6 +23,12 @@ struct State {
     /// A row's height until one has been measured.
     estimate: Pixels,
     axis: Axis,
+    /// Measured lengths and `starts` are kept by row position, not by item (Compose's lazy lists can
+    /// key them by `key =`). For: callers pass only a count and a row builder, no item ids, and the
+    /// bookkeeping is a plain Vec. Against: when the items change under the same positions (a search
+    /// narrowing, a moved row) the old geometry belongs to other items, so the anchor below can shift
+    /// the view and unbuilt rows keep stale space until they are measured again. A caller whose items
+    /// change wholesale can make a new `LazyRows`; keying by item id would fix it for all.
     heights: RefCell<Vec<Option<Pixels>>>,
     /// Each row's start in the list as last rendered, then the list's length plus one gap.
     starts: RefCell<Vec<Pixels>>,
