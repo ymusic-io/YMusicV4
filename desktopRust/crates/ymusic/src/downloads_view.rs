@@ -22,6 +22,7 @@ use crate::download_dialog::{DownloadPicker, DownloadTarget};
 use crate::downloads::pick_download_folder;
 use crate::file_rename::RenameFileDialog;
 use crate::graph::{AppGraph, on_core};
+use crate::lazy_rows::LazyRows;
 use crate::library::PlayLocal;
 use crate::library_playlist::AddToLocalPlaylist;
 use crate::playback::{QueueItem, Source};
@@ -81,6 +82,7 @@ pub struct DownloadsView {
     tasks: Vec<DownloadTask>,
     filter: Filter,
     scroll: ScrollHandle,
+    rows: LazyRows,
     focus: FocusList,
     /// The filter chips, then the empty filter's message.
     chip_focus: FocusList,
@@ -134,7 +136,8 @@ impl DownloadsView {
             filter: Filter::All,
             scroll: scroll.clone(),
             focus: FocusList::new(Some(scroll.clone())),
-            chip_focus: FocusList::new(Some(scroll)),
+            chip_focus: FocusList::new(Some(scroll.clone())),
+            rows: LazyRows::new(scroll, CARD_ROW_ESTIMATE),
             fab_focus: FocusList::new(None),
             chip_drag: DragRow::default(),
             retry_after_sign_in: Vec::new(),
@@ -488,6 +491,7 @@ fn state_label(state: DownloadState) -> &'static str {
 
 const LOAD_FAILED: &str = "R90034";
 const CARD_MIN: f32 = 340.;
+const CARD_ROW_ESTIMATE: f32 = 120.;
 const THUMB: f32 = 56.;
 
 impl DownloadsView {
@@ -883,7 +887,6 @@ impl Render for DownloadsView {
         let columns = ((width - 32. + 16.) / (CARD_MIN + 16.)).floor().max(1.) as usize;
         let mut grid = v_flex().w_full().px_4().pt_2().pb(px(88.)).gap(px(12.)).child(self.chip_drag.wrap(chips));
         let stops = self.focus.list_stops(0..visible.len(), window, cx);
-        let mut cards = v_flex().id("download-cards").w_full().gap(px(12.));
         if visible.is_empty() {
             grid = grid.child(
                 div()
@@ -893,16 +896,22 @@ impl Render for DownloadsView {
                     .child(announced("downloads-empty", filter.empty()).text_color(theme.muted_foreground)),
             );
         }
-        for (row_index, row) in visible.chunks(columns).enumerate() {
-            let mut cells = h_flex().w_full().gap_4().items_start();
-            for (offset, task) in row.iter().enumerate() {
-                cells = cells.child(div().flex_1().min_w_0().child(self.card(row_index * columns + offset, task, cx)));
-            }
-            for _ in row.len()..columns {
-                cells = cells.child(div().flex_1());
-            }
-            cards = cards.child(cells);
-        }
+        let kept: Vec<usize> = stops.kept().into_iter().map(|position| position / columns).collect();
+        let cards = self
+            .rows
+            .render(visible.len().div_ceil(columns), 12., kept, window, |row_index| {
+                let row = &visible[row_index * columns..((row_index + 1) * columns).min(visible.len())];
+                let mut cells = h_flex().w_full().gap_4().items_start();
+                for (offset, task) in row.iter().enumerate() {
+                    cells =
+                        cells.child(div().flex_1().min_w_0().child(self.card(row_index * columns + offset, task, cx)));
+                }
+                for _ in row.len()..columns {
+                    cells = cells.child(div().flex_1());
+                }
+                cells.into_any_element()
+            })
+            .id("download-cards");
         let grid = grid.child(stops.wrap(cards, Some(t(Str::SectionDownloads).into()), cx));
         let fab = if any_active {
             Some((t(Str::DownloadsPauseAll), Lucide::Pause, true))

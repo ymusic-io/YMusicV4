@@ -22,6 +22,7 @@ use crate::action_icon::{HIT, glyph_action_icon, lucide_size, sized_action_icon}
 use crate::audio_only::AudioOnlyArt;
 use crate::download_dialog::DownloadTarget;
 use crate::graph::{AppGraph, on_core};
+use crate::lazy_rows::LazyRows;
 use crate::mini_player::{PlayClock, clock};
 use crate::playback::{
     AUTO_TRANSLATE_KIND, CaptionTrack, Playback, PlaybackState, QUALITY_AUDIO_ONLY, QUALITY_AUTO, QueueItem, Source,
@@ -37,6 +38,7 @@ use crate::win_video_layer::VideoLayer;
 
 const CONTROLS_HIDE_AFTER: Duration = Duration::from_secs(3);
 const SKIP_MS: i64 = 10_000;
+const QUEUE_ROW_ESTIMATE: f32 = 64.;
 /// One arrow press on the seek bar (the JVM `SEEK_KEY_STEP_MS`).
 const SEEK_KEY_STEP_MS: i64 = 5_000;
 
@@ -112,6 +114,7 @@ pub struct NowPlaying {
     /// The top bar's and queue header's buttons, for the arrow keys.
     bar_focus: FocusList,
     reorder: Reorder,
+    queue_rows: LazyRows,
     video_layer: Option<Rc<VideoLayer>>,
     /// The video box as last painted, to report viewport changes to the player.
     video_box: Rc<Cell<(i32, i32)>>,
@@ -376,7 +379,8 @@ impl NowPlaying {
             queue_scroll: queue_scroll.clone(),
             queue_focus: FocusList::new(Some(queue_scroll.clone())),
             bar_focus: FocusList::new(None),
-            reorder: Reorder::new(queue_scroll),
+            reorder: Reorder::new(queue_scroll.clone()),
+            queue_rows: LazyRows::new(queue_scroll, QUEUE_ROW_ESTIMATE),
             video_layer: None,
             video_box,
             audio_only_art,
@@ -1651,8 +1655,9 @@ impl NowPlaying {
         let lifted = self.reorder.lifted();
         self.queue_focus.set_entry((index < queue.len()).then_some(index), cx);
         let stops = self.queue_focus.list_stops(0..queue.len(), window, cx);
-        let mut list = v_flex().id("np-queue-list");
-        for (position, item) in queue.iter().enumerate() {
+        let kept = stops.kept().into_iter().chain(lifted);
+        let list = self.queue_rows.render(queue.len(), 0., kept, window, |position| {
+            let item = &queue[position];
             let active = position == index;
             let label = [Some(item.title.clone()), item.artist.clone(), item.duration_label.clone()]
                 .into_iter()
@@ -1748,9 +1753,9 @@ impl NowPlaying {
                         view.playback.update(cx, |playback, cx| playback.jump_to(position, cx))
                     })),
             );
-            list = list.child(row);
-        }
-        let list = stops.wrap(list, Some(t(Str::UpNext).into()), cx);
+            row.into_any_element()
+        });
+        let list = stops.wrap(list.id("np-queue-list"), Some(t(Str::UpNext).into()), cx);
         let tracker = self.reorder.tracker(
             queue.len(),
             cx.listener(|view, event: &ReorderEvent, _, cx| {

@@ -30,6 +30,7 @@ use crate::elevated_dialog::{
 };
 use crate::feed::{FeedSource, error_text, thumb_for};
 use crate::graph::{AppGraph, on_core};
+use crate::lazy_rows::LazyRows;
 use crate::quick_download::{
     PRESET_FIELD_STOPS, QuickPreset, dropdown, load_languages, option_line, preset_fields, saved_preset,
 };
@@ -48,6 +49,7 @@ const STOP_TARGET: usize = STOP_PREFIX + 1;
 const STOP_DOWNLOAD: usize = STOP_TARGET + 1;
 const STOP_CANCEL: usize = STOP_DOWNLOAD + 1;
 const STOP_ROWS: usize = STOP_CANCEL + 1;
+const VIDEO_ROW_ESTIMATE: f32 = 56.;
 /// The form's width: room for the options beside the thumbnails.
 const DIALOG_WIDTH: f32 = 760.;
 
@@ -68,6 +70,7 @@ pub struct PlaylistDownload {
     target: Option<Playlist>,
     folder: Option<PathBuf>,
     scroll: ScrollHandle,
+    rows: LazyRows,
     focus: FocusList,
 }
 
@@ -100,6 +103,7 @@ impl PlaylistDownload {
             target: None,
             folder,
             scroll: scroll.clone(),
+            rows: LazyRows::new(scroll.clone(), VIDEO_ROW_ESTIMATE),
             focus: FocusList::modal(Some(scroll), cx),
         };
         view.add_videos(page);
@@ -575,11 +579,13 @@ impl PlaylistDownload {
 impl Render for PlaylistDownload {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let count = self.picked().len();
-        let mut rows = v_flex().gap_1();
-        for (index, video) in self.videos.clone().iter().enumerate() {
-            rows = rows.child(self.row(index, video, cx));
-        }
-        let rows = self.focus.container(rows, STOP_ROWS..STOP_ROWS + self.videos.len(), cx);
+        let videos = self.videos.clone();
+        let row_stops = STOP_ROWS..STOP_ROWS + videos.len();
+        let kept = self.focus.kept_stops(row_stops.clone(), window);
+        let rows = self
+            .rows
+            .render(videos.len(), 4., kept, window, |index| self.row(index, &videos[index], cx).into_any_element());
+        let rows = self.focus.container(div().child(rows), row_stops, cx);
         let body = v_flex()
             .w_full()
             .px(px(ROW_HORIZONTAL))

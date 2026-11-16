@@ -19,9 +19,10 @@ use gpui_kit::*;
 use ym_i18n::{Str, t, tf};
 use ym_store::{Bucket, MediaItem, MediaStore, Playlist, PlaylistItemDetail};
 
-use crate::a11y::{DragRow, FocusList, ListStops, announced, heading, label, list_item};
+use crate::a11y::{DragRow, FocusList, announced, heading, label, list_item};
 use crate::action_icon::action_icon;
 use crate::graph::{AppGraph, on_core};
+use crate::lazy_rows::LazyRows;
 use crate::library_playlist::{self, AddToLocalPlaylist, ArrangePlaylist, Changed, NameMode, PlaylistNameDialog};
 use crate::mini_player::clock;
 use crate::playback::QueueItem;
@@ -156,6 +157,32 @@ const CARD_MAX: f32 = 176.;
 const SONG_MIN: f32 = 360.;
 const GRID_PADDING: f32 = 10.;
 const THUMB: f32 = 56.;
+pub const SONG_ROW_ESTIMATE: f32 = 72.;
+const CARD_ROW_ESTIMATE: f32 = 72.;
+/// The Playlists tab's first cards, ahead of the user's playlists.
+const SYSTEM_PLAYLISTS: [(OpenPlaylist, Lucide, Str); 2] = [
+    (OpenPlaylist::Recent, Lucide::RotateCcwClock, Str::PlaylistRecentPlayDesc),
+    (OpenPlaylist::Top, Lucide::Flame, Str::PlaylistTopTracksDesc),
+];
+
+/// The cards a Library tab lists: its folders, playlists or artist / album / genre groups.
+enum Cards {
+    None,
+    Folders(Vec<Bucket>),
+    Playlists(Vec<(Playlist, usize, Option<MediaItem>)>),
+    Groups(Vec<(String, usize, Option<MediaItem>)>),
+}
+
+impl Cards {
+    fn len(&self) -> usize {
+        match self {
+            Cards::None => 0,
+            Cards::Folders(folders) => folders.len(),
+            Cards::Playlists(playlists) => SYSTEM_PLAYLISTS.len() + playlists.len(),
+            Cards::Groups(groups) => groups.len(),
+        }
+    }
+}
 const TOOL_ADD_FOLDER: usize = 0;
 const TOOL_SHUFFLE: usize = 1;
 const TOOL_SORT: usize = 2;
@@ -317,6 +344,8 @@ pub struct LibraryView {
     /// The open folder the crumbs were last scrolled to the end for.
     crumbs_shown_for: Option<i64>,
     song_focus: FocusList,
+    song_rows: LazyRows,
+    card_rows: LazyRows,
     /// Debug-route actions, one run after each finished reload.
     dev_actions: Vec<String>,
     dev_ready: bool,
@@ -374,7 +403,9 @@ impl LibraryView {
             tab_drag: DragRow::default(),
             crumb_drag: DragRow::default(),
             crumbs_shown_for: None,
-            song_focus: FocusList::new(Some(scroll)),
+            song_focus: FocusList::new(Some(scroll.clone())),
+            song_rows: LazyRows::new(scroll.clone(), SONG_ROW_ESTIMATE),
+            card_rows: LazyRows::new(scroll, CARD_ROW_ESTIMATE),
             dev_actions: Vec::new(),
             dev_ready: false,
             location_offer: None,
@@ -1824,79 +1855,86 @@ impl LibraryView {
         self.tool_focus.button(TOOL_SHUFFLE, chip, cx)
     }
 
-    fn folder_cards(&self, grid: bool, window: &Window, cx: &mut Context<Self>) -> (Vec<AnyElement>, ListStops<'_>) {
-        let folders = self.sorted_folders();
-        let stops = self.card_focus.list_stops(0..folders.len(), window, cx);
-        let mut cards = Vec::new();
-        for (index, bucket) in folders.into_iter().enumerate() {
-            let path = PathBuf::from(&bucket.uri);
-            let marked = !bucket.excluded && self.download_folder.as_deref() == Some(path.as_path());
-            let view = cx.entity().downgrade();
-            let menu_bucket = bucket.clone();
-            let more = self.card_focus.trailing_button(index, 0, more_button(("folder-more", index)), cx);
-            let more = more.dropdown_menu_with_anchor(Anchor::TopRight, move |menu, _, _| {
-                let bucket = menu_bucket.clone();
-                let path = path.clone();
-                let change = |label: Str, change: FolderChange| {
-                    let (view, bucket) = (view.clone(), bucket.clone());
-                    PopupMenuItem::new(t(label)).on_click(move |_, window, cx| {
-                        view.update(cx, |view, cx| view.folder_change(bucket.clone(), change, window, cx)).ok();
-                    })
-                };
-                let mut menu = menu.item(if bucket.parent_id.is_none() {
-                    change(Str::MenuRemoveFolder, FolderChange::Remove)
-                } else if bucket.excluded {
-                    change(Str::MenuIncludeFolder, FolderChange::Include)
-                } else {
-                    change(Str::MenuExcludeFolder, FolderChange::Exclude)
-                });
-                if !bucket.excluded {
-                    let (view, bucket) = (view.clone(), bucket.clone());
-                    menu = menu.item(PopupMenuItem::new(t(Str::MenuDownloadLocation)).checked(marked).on_click(
-                        move |_, window, cx| {
-                            view.update(cx, |view, cx| view.toggle_download_folder(bucket.clone(), window, cx)).ok();
-                        },
-                    ));
-                }
-                menu.item(PopupMenuItem::new(reveal_label()).on_click(move |_, _, cx| cx.reveal_path(&path)))
-            });
-            let card = Self::card(
-                ("folder", index).into(),
-                index,
-                Lucide::Folder,
-                None,
-                bucket.display_name().to_owned(),
-                (!grid).then(|| t(Str::LibraryFolder).to_owned()),
-                grid.then(|| t(Str::LibraryFolder)),
-                grid,
-                bucket.excluded,
-                marked,
-                cx,
-            )
-            .relative()
-            .child(div().absolute().top(px(8.)).right(px(if grid { 8. } else { 4. })).child(more))
-            .on_click(cx.listener(move |view, _, _, cx| view.open_folder(bucket.clone(), cx)));
-            cards.push(self.card_focus.item(index, card, cx).into_any_element());
+    /// The cards the open tab lists above its songs, built one by one by [`Self::card_at`].
+    fn cards(&self) -> Cards {
+        match self.tab {
+            Tab::Folders => Cards::Folders(self.sorted_folders()),
+            Tab::Playlists if self.open_playlist.is_none() => Cards::Playlists(self.playlist_cards()),
+            Tab::Artists | Tab::Albums | Tab::Genres if self.group.is_none() => Cards::Groups(self.groups()),
+            _ => Cards::None,
         }
-        (cards, stops)
     }
 
-    fn playlist_entry_cards(
+    fn card_at(&self, cards: &Cards, index: usize, grid: bool, cx: &mut Context<Self>) -> AnyElement {
+        match cards {
+            Cards::None => div().into_any_element(),
+            Cards::Folders(folders) => self.folder_card(folders[index].clone(), index, grid, cx),
+            Cards::Playlists(playlists) => self.playlist_entry_card(playlists, index, grid, cx),
+            Cards::Groups(groups) => self.group_card(&groups[index], index, grid, cx),
+        }
+    }
+
+    fn folder_card(&self, bucket: Bucket, index: usize, grid: bool, cx: &mut Context<Self>) -> AnyElement {
+        let path = PathBuf::from(&bucket.uri);
+        let marked = !bucket.excluded && self.download_folder.as_deref() == Some(path.as_path());
+        let view = cx.entity().downgrade();
+        let menu_bucket = bucket.clone();
+        let more = self.card_focus.trailing_button(index, 0, more_button(("folder-more", index)), cx);
+        let more = more.dropdown_menu_with_anchor(Anchor::TopRight, move |menu, _, _| {
+            let bucket = menu_bucket.clone();
+            let path = path.clone();
+            let change = |label: Str, change: FolderChange| {
+                let (view, bucket) = (view.clone(), bucket.clone());
+                PopupMenuItem::new(t(label)).on_click(move |_, window, cx| {
+                    view.update(cx, |view, cx| view.folder_change(bucket.clone(), change, window, cx)).ok();
+                })
+            };
+            let mut menu = menu.item(if bucket.parent_id.is_none() {
+                change(Str::MenuRemoveFolder, FolderChange::Remove)
+            } else if bucket.excluded {
+                change(Str::MenuIncludeFolder, FolderChange::Include)
+            } else {
+                change(Str::MenuExcludeFolder, FolderChange::Exclude)
+            });
+            if !bucket.excluded {
+                let (view, bucket) = (view.clone(), bucket.clone());
+                menu = menu.item(PopupMenuItem::new(t(Str::MenuDownloadLocation)).checked(marked).on_click(
+                    move |_, window, cx| {
+                        view.update(cx, |view, cx| view.toggle_download_folder(bucket.clone(), window, cx)).ok();
+                    },
+                ));
+            }
+            menu.item(PopupMenuItem::new(reveal_label()).on_click(move |_, _, cx| cx.reveal_path(&path)))
+        });
+        let card = Self::card(
+            ("folder", index).into(),
+            index,
+            Lucide::Folder,
+            None,
+            bucket.display_name().to_owned(),
+            (!grid).then(|| t(Str::LibraryFolder).to_owned()),
+            grid.then(|| t(Str::LibraryFolder)),
+            grid,
+            bucket.excluded,
+            marked,
+            cx,
+        )
+        .relative()
+        .child(div().absolute().top(px(8.)).right(px(if grid { 8. } else { 4. })).child(more))
+        .on_click(cx.listener(move |view, _, _, cx| view.open_folder(bucket.clone(), cx)));
+        self.card_focus.item(index, card, cx).into_any_element()
+    }
+
+    /// The Playlists tab's `index`th card: Recently played and Top tracks, then `playlists`.
+    fn playlist_entry_card(
         &self,
+        playlists: &[(Playlist, usize, Option<MediaItem>)],
+        index: usize,
         grid: bool,
-        window: &Window,
         cx: &mut Context<Self>,
-    ) -> (Vec<AnyElement>, ListStops<'_>) {
+    ) -> AnyElement {
         let art_px = if grid { crate::local_art::CARD_PX } else { crate::local_art::ROW_PX };
-        let mut cards = Vec::new();
-        let system = [
-            (OpenPlaylist::Recent, Lucide::RotateCcwClock, Str::PlaylistRecentPlayDesc),
-            (OpenPlaylist::Top, Lucide::Flame, Str::PlaylistTopTracksDesc),
-        ];
-        let system_count = system.len();
-        let playlists = self.playlist_cards();
-        let stops = self.card_focus.list_stops(0..system_count + playlists.len(), window, cx);
-        for (index, (open, icon, description)) in system.into_iter().enumerate() {
+        if let Some((open, icon, description)) = SYSTEM_PLAYLISTS.get(index).cloned() {
             let card = Self::card(
                 ("system-playlist", index).into(),
                 index,
@@ -1914,85 +1952,71 @@ impl LibraryView {
                 view.open_playlist = Some(open.clone());
                 cx.notify();
             }));
-            cards.push(self.card_focus.item(index, card, cx).into_any_element());
+            return self.card_focus.item(index, card, cx).into_any_element();
         }
-        for (position, (playlist, count, art_item)) in playlists.into_iter().enumerate() {
-            let index = position + system_count;
-            let art = art_item.and_then(|item| crate::local_art::art_url(&item, art_px));
-            let subtitle = ym_i18n::plural(ym_i18n::Plural::NSongs, count as i64, &[&count]);
-            let view = cx.entity().downgrade();
-            let menu_playlist = playlist.clone();
-            let more = self.card_focus.trailing_button(index, 0, more_button(("playlist-more", position)), cx);
-            let more = more.dropdown_menu_with_anchor(Anchor::TopRight, move |menu, _, _| {
-                let (rename_view, delete_view) = (view.clone(), view.clone());
-                let (renamed, deleted) = (menu_playlist.clone(), menu_playlist.clone());
-                menu.item(PopupMenuItem::new(t(Str::MenuRename)).on_click(move |_, window, cx| {
-                    rename_view.update(cx, |view, cx| view.rename_playlist(renamed.clone(), window, cx)).ok();
-                }))
-                .item(PopupMenuItem::new(t(Str::MenuDeletePlaylist)).on_click(
-                    move |_, window, cx| {
-                        delete_view.update(cx, |view, cx| view.delete_playlist(deleted.clone(), window, cx)).ok();
-                    },
-                ))
-            });
-            let card = Self::card(
-                ("user-playlist", position).into(),
-                index,
-                Lucide::ListMusic,
-                art,
-                playlist.name.clone(),
-                Some(subtitle),
-                None,
-                grid,
-                false,
-                false,
-                cx,
-            )
-            .relative()
-            .child(div().absolute().top(px(8.)).right(px(if grid { 8. } else { 4. })).child(more))
-            .on_click(cx.listener(move |view, _, _, cx| {
-                view.open_playlist = Some(OpenPlaylist::User(playlist.clone()));
-                cx.notify();
-            }));
-            cards.push(self.card_focus.item(index, card, cx).into_any_element());
-        }
-        (cards, stops)
+        let position = index - SYSTEM_PLAYLISTS.len();
+        let (playlist, count, art_item) = playlists[position].clone();
+        let art = art_item.and_then(|item| crate::local_art::art_url(&item, art_px));
+        let subtitle = ym_i18n::plural(ym_i18n::Plural::NSongs, count as i64, &[&count]);
+        let view = cx.entity().downgrade();
+        let menu_playlist = playlist.clone();
+        let more = self.card_focus.trailing_button(index, 0, more_button(("playlist-more", position)), cx);
+        let more = more.dropdown_menu_with_anchor(Anchor::TopRight, move |menu, _, _| {
+            let (rename_view, delete_view) = (view.clone(), view.clone());
+            let (renamed, deleted) = (menu_playlist.clone(), menu_playlist.clone());
+            menu.item(PopupMenuItem::new(t(Str::MenuRename)).on_click(move |_, window, cx| {
+                rename_view.update(cx, |view, cx| view.rename_playlist(renamed.clone(), window, cx)).ok();
+            }))
+            .item(PopupMenuItem::new(t(Str::MenuDeletePlaylist)).on_click(move |_, window, cx| {
+                delete_view.update(cx, |view, cx| view.delete_playlist(deleted.clone(), window, cx)).ok();
+            }))
+        });
+        let card = Self::card(
+            ("user-playlist", position).into(),
+            index,
+            Lucide::ListMusic,
+            art,
+            playlist.name.clone(),
+            Some(subtitle),
+            None,
+            grid,
+            false,
+            false,
+            cx,
+        )
+        .relative()
+        .child(div().absolute().top(px(8.)).right(px(if grid { 8. } else { 4. })).child(more))
+        .on_click(cx.listener(move |view, _, _, cx| {
+            view.open_playlist = Some(OpenPlaylist::User(playlist.clone()));
+            cx.notify();
+        }));
+        self.card_focus.item(index, card, cx).into_any_element()
     }
 
-    fn group_cards(&self, grid: bool, window: &Window, cx: &mut Context<Self>) -> (Vec<AnyElement>, ListStops<'_>) {
+    fn group_card(
+        &self,
+        group: &(String, usize, Option<MediaItem>),
+        index: usize,
+        grid: bool,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
         let icon = match self.tab {
             Tab::Artists => Lucide::User,
             Tab::Albums => Lucide::Disc,
             _ => Lucide::Tag,
         };
         let art_px = if grid { crate::local_art::CARD_PX } else { crate::local_art::ROW_PX };
-        let groups = self.groups();
-        let stops = self.card_focus.list_stops(0..groups.len(), window, cx);
-        let mut cards = Vec::new();
-        for (index, (name, count, art_item)) in groups.into_iter().enumerate() {
-            let art = art_item.and_then(|item| crate::local_art::art_url(&item, art_px));
-            let subtitle = ym_i18n::plural(ym_i18n::Plural::NSongs, count as i64, &[&count]);
-            let open = name.clone();
-            let card = Self::card(
-                ("group", index).into(),
-                index,
-                icon,
-                art,
-                name,
-                Some(subtitle),
-                None,
-                grid,
-                false,
-                false,
-                cx,
-            )
-            .on_click(cx.listener(move |view, _, _, cx| {
-                view.group = Some(open.clone());
-                cx.notify();
-            }));
-            cards.push(self.card_focus.item(index, card, cx).into_any_element());
-        }
-        (cards, stops)
+        let (name, count, art_item) = group.clone();
+        let art = art_item.and_then(|item| crate::local_art::art_url(&item, art_px));
+        let subtitle = ym_i18n::plural(ym_i18n::Plural::NSongs, count as i64, &[&count]);
+        let open = name.clone();
+        let card =
+            Self::card(("group", index).into(), index, icon, art, name, Some(subtitle), None, grid, false, false, cx)
+                .on_click(cx.listener(move |view, _, _, cx| {
+                    view.group = Some(open.clone());
+                    cx.notify();
+                }));
+        self.card_focus.item(index, card, cx).into_any_element()
     }
 }
 
@@ -2069,12 +2093,19 @@ impl Render for LibraryView {
                 .into_any_element();
         }
 
-        let (cards, card_stops) = match self.tab {
-            Tab::Folders => self.folder_cards(grid, window, cx),
-            Tab::Playlists if self.open_playlist.is_none() => self.playlist_entry_cards(grid, window, cx),
-            Tab::Artists | Tab::Albums | Tab::Genres if self.group.is_none() => self.group_cards(grid, window, cx),
-            _ => (Vec::new(), self.card_focus.list_stops(0..0, window, cx)),
-        };
+        let cards = self.cards();
+        let card_count = cards.len();
+        let card_stops = self.card_focus.list_stops(0..card_count, window, cx);
+        let card_grid_columns = if grid { card_columns } else { 1 };
+        let kept: Vec<usize> = card_stops.kept().into_iter().map(|position| position / card_grid_columns).collect();
+        let card_block = self.card_rows.render(card_count.div_ceil(card_grid_columns), 0., kept, window, |line| {
+            let cells: Vec<AnyElement> = (line * card_grid_columns..((line + 1) * card_grid_columns).min(card_count))
+                .map(|index| self.card_at(&cards, index, grid, cx))
+                .collect();
+            let row =
+                if grid { grid_rows(cells, card_grid_columns).into_iter().next() } else { cells.into_iter().next() };
+            row.unwrap_or_else(|| div().into_any_element())
+        });
         let shown = self.shown_items();
         let song_stops = self.song_focus.list_stops(0..shown.len(), window, cx);
         let open_playlist = self.open_playlist.as_ref().filter(|_| self.tab == Tab::Playlists);
@@ -2085,21 +2116,24 @@ impl Render for LibraryView {
             (None, None, None) => self.tab.label().into(),
         };
         let menu = self.song_menu();
-        let songs: Vec<AnyElement> = shown
-            .iter()
-            .enumerate()
-            .map(|(index, item)| song_cell(&self.song_focus, index, item, Self::play, menu, cx))
-            .collect();
+        let song_count = shown.len();
+        let song_grid_columns = if grid { song_columns } else { 1 };
+        let kept: Vec<usize> = song_stops.kept().into_iter().map(|position| position / song_grid_columns).collect();
+        let song_focus = &self.song_focus;
+        let song_block = self.song_rows.render(song_count.div_ceil(song_grid_columns), 0., kept, window, |line| {
+            let cells: Vec<AnyElement> = (line * song_grid_columns..((line + 1) * song_grid_columns).min(song_count))
+                .map(|index| song_cell(song_focus, index, &shown[index], Self::play, menu, cx))
+                .collect();
+            if song_grid_columns == 1 {
+                cells.into_iter().next().unwrap_or_else(|| div().into_any_element())
+            } else {
+                grid_rows(cells, song_grid_columns).into_iter().next().unwrap_or_else(|| div().into_any_element())
+            }
+        });
 
         let mut body = v_flex().w_full().pt_1().pb_4().px(px(if grid { GRID_PADDING } else { 0. }));
         body = body.child(div().mx(px(if grid { -GRID_PADDING } else { 0. })).child(self.toolbar(cx)));
-        let empty = cards.is_empty() && songs.is_empty();
-        let (card_count, song_count) = (cards.len(), songs.len());
-        let (card_block, song_block) = if grid {
-            (v_flex().children(grid_rows(cards, card_columns)), v_flex().children(grid_rows(songs, song_columns)))
-        } else {
-            (v_flex().children(cards), v_flex().children(songs))
-        };
+        let empty = card_count == 0 && song_count == 0;
         if card_count > 0 {
             body = body.child(card_stops.wrap(card_block.id("library-cards"), Some(self.tab.label().into()), cx));
         }

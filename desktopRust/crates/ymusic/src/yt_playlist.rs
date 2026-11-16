@@ -19,6 +19,7 @@ use crate::elevated_dialog::{
 };
 use crate::feed::error_text;
 use crate::graph::{AppGraph, on_core};
+use crate::lazy_rows::LazyRows;
 use crate::settings_view::HOVER_ALPHA;
 use crate::spinner::Spinner;
 
@@ -42,8 +43,11 @@ pub struct AddToPlaylist {
     adding: Option<String>,
     focus: FocusList,
     scroll: ScrollHandle,
+    rows: LazyRows,
     focused_first: bool,
 }
+
+const TARGET_ROW_ESTIMATE: f32 = 48.;
 
 impl AddToPlaylist {
     pub fn open(video_id: String, window: &mut Window, cx: &mut App) {
@@ -57,6 +61,7 @@ impl AddToPlaylist {
                 targets: Targets::Loading,
                 adding: None,
                 focus: FocusList::modal(Some(scroll.clone()), cx),
+                rows: LazyRows::new(scroll.clone(), TARGET_ROW_ESTIMATE),
                 scroll,
                 focused_first: false,
             };
@@ -162,8 +167,9 @@ impl Render for AddToPlaylist {
                     Self::row("new-playlist", new_icon, t(Str::AddToPlaylistNew).to_owned(), false, false, cx)
                         .on_click(cx.listener(|view, _, window, cx| view.create_new(window, cx)))
                         .on_action(cx.listener(|view, _: &Confirm, window, cx| view.create_new(window, cx)));
-                let mut list = v_flex().w_full().child(self.focus.item(0, new_row, cx));
-                for (index, target) in targets.clone().into_iter().enumerate() {
+                let kept = self.focus.kept_stops(1..targets.len() + 1, window);
+                let rows = self.rows.render(targets.len(), 0., kept, window, |index| {
+                    let target = targets[index].clone();
                     let icon =
                         if target.contains_video { Icon::new(IconName::Check) } else { Icon::new(Lucide::ListPlus) };
                     let busy = self.adding.as_ref() == Some(&target.playlist_id);
@@ -174,8 +180,9 @@ impl Render for AddToPlaylist {
                             .on_action(cx.listener(move |view, _: &Confirm, window, cx| {
                                 view.add(enter_target.clone(), window, cx)
                             }));
-                    list = list.child(self.focus.item(index + 1, row, cx));
-                }
+                    self.focus.item(index + 1, row, cx).into_any_element()
+                });
+                let list = v_flex().w_full().child(self.focus.item(0, new_row, cx)).child(rows);
                 count = targets.len() + 1;
                 scroll_body("playlist-targets", &self.scroll, list, window, cx).into_any_element()
             }

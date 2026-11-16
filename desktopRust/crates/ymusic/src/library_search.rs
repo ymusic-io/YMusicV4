@@ -14,12 +14,15 @@ use ym_store::{MediaItem, MediaStore};
 use crate::a11y::{FocusList, heading, list_item};
 use crate::action_icon::action_icon;
 use crate::graph::{AppGraph, on_core};
+use crate::lazy_rows::LazyRows;
 use crate::library::{
     GroupKind, LibraryView, PlayLocal, QueueLocal, SongAction, SongMenu, SongMenuHost, grid_rows, song_cell,
     song_columns,
 };
 use crate::playback::QueueItem;
 use crate::settings_view::HOVER_ALPHA;
+
+const GROUP_ROW_ESTIMATE: f32 = 72.;
 
 pub enum LibrarySearchEvent {
     Back,
@@ -41,6 +44,9 @@ pub struct LibrarySearchView {
     scroll: ScrollHandle,
     focus: FocusList,
     song_focus: FocusList,
+    song_rows: LazyRows,
+    /// The Artists and Albums lists.
+    group_rows: [LazyRows; 2],
     bar_focus: FocusList,
     _subscription: Subscription,
 }
@@ -68,7 +74,9 @@ impl LibrarySearchView {
             songs: Vec::new(),
             scroll: scroll.clone(),
             focus: FocusList::new(Some(scroll.clone())),
-            song_focus: FocusList::new(Some(scroll)),
+            song_focus: FocusList::new(Some(scroll.clone())),
+            song_rows: LazyRows::new(scroll.clone(), crate::library::SONG_ROW_ESTIMATE),
+            group_rows: [GROUP_ROW_ESTIMATE; 2].map(|estimate| LazyRows::new(scroll.clone(), estimate)),
             bar_focus: FocusList::new(None),
             _subscription: subscription,
         };
@@ -186,15 +194,16 @@ impl LibrarySearchView {
     fn song_block(&self, title: &str, columns: usize, window: &Window, cx: &mut Context<Self>) -> AnyElement {
         let menu = SongMenu { show_in_folder: true, ..SongMenu::default() };
         let stops = self.song_focus.list_stops(0..self.songs.len(), window, cx);
-        let cells: Vec<AnyElement> = self
-            .songs
-            .iter()
-            .enumerate()
-            .map(|(index, item)| song_cell(&self.song_focus, index, item, Self::play, menu, cx))
-            .collect();
-        let rows = if columns > 1 { grid_rows(cells, columns) } else { cells };
-        let list = v_flex().id("library-search-songs").children(rows);
-        stops.wrap(list, Some(title.to_owned().into()), cx).into_any_element()
+        let count = self.songs.len();
+        let kept: Vec<usize> = stops.kept().into_iter().map(|position| position / columns).collect();
+        let list = self.song_rows.render(count.div_ceil(columns), 0., kept, window, |line| {
+            let cells: Vec<AnyElement> = (line * columns..((line + 1) * columns).min(count))
+                .map(|index| song_cell(&self.song_focus, index, &self.songs[index], Self::play, menu, cx))
+                .collect();
+            let row = if columns > 1 { grid_rows(cells, columns).into_iter().next() } else { cells.into_iter().next() };
+            row.unwrap_or_else(|| div().into_any_element())
+        });
+        stops.wrap(list.id("library-search-songs"), Some(title.to_owned().into()), cx).into_any_element()
     }
 }
 
@@ -295,13 +304,14 @@ impl Render for LibrarySearchView {
                     continue;
                 }
                 let stops = self.focus.list_stops(focus_count..focus_count + groups.len(), window, cx);
-                let mut list = v_flex().id(("library-search-groups", section));
-                for (position, (name, members)) in groups.iter().enumerate() {
-                    list = list.child(self.group_row(focus_count, position, icon, name, members, cx));
-                    focus_count += 1;
-                }
+                let first = focus_count;
+                let list = self.group_rows[section].render(groups.len(), 0., stops.kept(), window, |position| {
+                    let (name, members) = &groups[position];
+                    self.group_row(first + position, position, icon, name, members, cx).into_any_element()
+                });
+                focus_count += groups.len();
                 column = column.child(Self::section_header(title, groups.len(), cx)).child(stops.wrap(
-                    list,
+                    list.id(("library-search-groups", section)),
                     Some(title.into()),
                     cx,
                 ));
