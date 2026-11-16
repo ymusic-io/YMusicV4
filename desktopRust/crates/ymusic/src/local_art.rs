@@ -215,11 +215,6 @@ fn extract_encoded(key: &ArtKey) -> anyhow::Result<Vec<u8>> {
     }
 }
 
-/// The app's [`LocalArt`], for code that needs a thumbnail's file rather than an image element.
-pub struct SharedLocalArt(pub std::sync::Arc<LocalArt>);
-
-impl gpui_kit::Global for SharedLocalArt {}
-
 pub struct LocalArt {
     cache_dir: PathBuf,
     log: Logger,
@@ -241,11 +236,6 @@ impl LocalArt {
             self.log.warn("local artwork failed", Some(error.as_ref()));
         }
         result
-    }
-
-    /// The thumbnail's cache file when it is already extracted.
-    pub fn cached_file(&self, path: &str) -> Option<PathBuf> {
-        Self::handles(path).then(|| self.cache_file(path)).filter(|file| file.is_file())
     }
 
     fn cache_file(&self, path: &str) -> PathBuf {

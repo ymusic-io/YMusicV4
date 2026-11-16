@@ -187,7 +187,7 @@ fn main() {
     let tokio_handle = tokio.handle().clone();
 
     crate::a11y::install_debug_log();
-    let assets = crate::assets::AppAssets { local_art: local_art.clone() };
+    let assets = crate::assets::AppAssets { local_art };
     let app = application().with_assets(assets).with_http_client(images);
     // Opening the app again (Finder, Spotlight, the Dock) brings a window closed to the tray back.
     app.on_reopen(|cx| {
@@ -209,7 +209,6 @@ fn main() {
             async {}
         })
         .detach();
-        cx.set_global(crate::local_art::SharedLocalArt(local_art));
         ym_image_loader::async_image::init(image_loader, cx);
         crate::shortcuts::bind(cx);
         crate::a11y::init(cx);
