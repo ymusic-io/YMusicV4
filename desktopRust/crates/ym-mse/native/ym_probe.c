@@ -109,23 +109,28 @@ int ym_probe(const char *path, YmProbe *out)
     return 0;
 }
 
-/* The attached picture's encoded bytes into a malloc'd *out (free with ym_free); 0, or a negative AVERROR. */
-int ym_attached_pic(const char *path, int stream_index, uint8_t **out, int *out_len)
+/* The first attached picture's encoded bytes into a malloc'd *out (free with ym_free); 0, or a negative
+ * AVERROR. Chosen by disposition, as the JVM app's `-map 0:disp:attached_pic`. */
+int ym_attached_pic(const char *path, uint8_t **out, int *out_len)
 {
     AVFormatContext *ctx = NULL;
-    AVPacket *pic;
+    AVPacket *pic = NULL;
     int rc;
     *out = NULL;
     *out_len = 0;
     rc = avformat_open_input(&ctx, path, NULL, NULL);
     if (rc < 0)
         return rc;
-    if (stream_index < 0 || (unsigned)stream_index >= ctx->nb_streams
-        || !(ctx->streams[stream_index]->disposition & AV_DISPOSITION_ATTACHED_PIC)) {
+    for (unsigned i = 0; i < ctx->nb_streams; i++) {
+        if (ctx->streams[i]->disposition & AV_DISPOSITION_ATTACHED_PIC) {
+            pic = &ctx->streams[i]->attached_pic;
+            break;
+        }
+    }
+    if (!pic) {
         avformat_close_input(&ctx);
         return AVERROR_STREAM_NOT_FOUND;
     }
-    pic = &ctx->streams[stream_index]->attached_pic;
     if (pic->size <= 0) {
         avformat_close_input(&ctx);
         return AVERROR_INVALIDDATA;

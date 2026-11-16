@@ -193,12 +193,7 @@ fn resolve(
                 ImageLoadError::new(Reason::Undecodable, format!("art extraction failed: {url}: {error:#}"))
             };
             if kind == ART_KIND_COVER {
-                let stream = ym_store::describe_file(&path)
-                    .map_err(|error| extract_failed(error.into()))?
-                    .item
-                    .thumbnail_stream_index
-                    .ok_or_else(|| ImageLoadError::new(Reason::NotFound, format!("no embedded picture: {url}")))?;
-                let bytes = attached_picture(&path, stream).map_err(extract_failed)?;
+                let bytes = attached_picture(&path).map_err(extract_failed)?;
                 decode_scaled(&bytes, size, scale, url).map(Resolved::Decoded)
             } else {
                 Ok(Resolved::Decoded(scale_decoded(video_frame(&path).map_err(extract_failed)?, size, scale)))
@@ -237,9 +232,10 @@ fn resolve(
                     if !path.exists() {
                         return Err(ImageLoadError::new(Reason::NotFound, format!("no such file: {url}")));
                     }
-                    let encoded = match item.thumbnail_stream_index {
-                        Some(stream) => attached_picture(&path, stream),
-                        None => video_frame(&path).and_then(encode_jpeg),
+                    let encoded = if kind == ART_KIND_COVER {
+                        attached_picture(&path)
+                    } else {
+                        video_frame(&path).and_then(encode_jpeg)
                     }
                     .map_err(|error| {
                         ImageLoadError::new(Reason::Undecodable, format!("art extraction failed: {url}: {error:#}"))
@@ -254,8 +250,8 @@ fn resolve(
 
 /// The embedded picture as stored (the JVM `getAttachedPic`, `-c copy`). Whole in memory:
 /// `ym_attached_pic` hands back one buffer.
-fn attached_picture(path: &Path, stream: i32) -> anyhow::Result<Vec<u8>> {
-    ym_mse::attached_picture(path, stream).map_err(|code| anyhow!("attached picture: libav error {code}"))
+fn attached_picture(path: &Path) -> anyhow::Result<Vec<u8>> {
+    ym_mse::attached_picture(path).map_err(|code| anyhow!("attached picture: libav error {code}"))
 }
 
 /// One full-size frame of the video (the JVM `extractThumbnail`).
