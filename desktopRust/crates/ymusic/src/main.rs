@@ -77,6 +77,7 @@ mod win_title_bar;
 #[cfg(target_os = "windows")]
 mod win_video_layer;
 mod youtube_session;
+mod youtube_thumbnails;
 mod yt_playlist;
 
 use gpui_kit::*;

@@ -2,6 +2,7 @@
 //! backdrop, the sharp square art on the left and the live spectrum bars on the right.
 
 use std::cell::Cell;
+use std::collections::HashSet;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -57,6 +58,8 @@ pub struct AudioOnlyArt {
     art: Option<ArtPictures>,
     /// The picture being prepared and the box it is blurred for.
     preparing: Option<(ImageId, (f32, f32), Task<()>)>,
+    /// Art variants that did not load (sddefault is missing for some uploads), skipped for the next.
+    failed_sources: HashSet<SharedString>,
     levels: Vec<f32>,
     wave_mode: Option<WaveMode>,
     last_render: Instant,
@@ -70,6 +73,7 @@ impl AudioOnlyArt {
             video_box,
             art: None,
             preparing: None,
+            failed_sources: HashSet::new(),
             levels: vec![0.; WAVE_BARS],
             wave_mode: None,
             last_render: Instant::now(),
@@ -89,8 +93,33 @@ impl AudioOnlyArt {
         if box_size.0 < 1. || box_size.1 < 1. {
             return;
         }
-        let ImageSource::Resource(resource) = ImageSource::from(url.clone()) else { return };
-        let Some(Ok(source)) = window.use_asset::<ImgResourceLoader>(&resource, cx) else { return };
+        let side_px = (box_size.1 * 0.86).min(box_size.0 * 0.32) * window.scale_factor();
+        let decode_px = (side_px.ceil() as u32).max(crate::youtube_thumbnails::NOW_PLAYING_ART_PX);
+        let sources = crate::youtube_thumbnails::order_sources(
+            crate::youtube_thumbnails::art_request_sources(&url),
+            decode_px,
+            decode_px,
+        );
+        let mut loaded = None;
+        for candidate in sources {
+            if self.failed_sources.contains(&candidate) {
+                continue;
+            }
+            let ImageSource::Resource(resource) = ImageSource::from(candidate.clone()) else { continue };
+            match window.use_asset::<ImgResourceLoader>(&resource, cx) {
+                None => return,
+                Some(Ok(source)) => {
+                    loaded = Some((candidate, source));
+                    break;
+                }
+                Some(Err(error)) => {
+                    let log = &cx.global::<crate::graph::AppGraph>().log;
+                    log.warn(&format!("art variant did not load: {candidate}"), Some(&error));
+                    self.failed_sources.insert(candidate);
+                }
+            }
+        }
+        let Some((source_url, source)) = loaded else { return };
         let current = self.art.as_ref().filter(|art| art.source == source.id);
         if current.is_some_and(|art| !needs_reblur(art.blurred_for, box_size)) {
             return;
@@ -98,7 +127,7 @@ impl AudioOnlyArt {
         if self.preparing.as_ref().is_some_and(|(id, size, _)| *id == source.id && !needs_reblur(*size, box_size)) {
             return;
         }
-        let letterboxed = url.contains("i.ytimg.com/vi");
+        let letterboxed = source_url.contains("i.ytimg.com/vi");
         let id = source.id;
         let work = cx.background_executor().spawn(async move { prepare(&source, letterboxed, box_size) });
         let task = cx.spawn_in(window, async move |this, cx| {
