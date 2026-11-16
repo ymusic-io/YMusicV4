@@ -14,7 +14,11 @@ import android.provider.Settings
 internal object StorageCompanion {
     private const val ACTION_PICK_FOLDER = "io.ymusic.android.saf.action.PICK_FOLDER"
 
-    fun pickFolderIntent(packageName: String): Intent = Intent(ACTION_PICK_FOLDER).setPackage(packageName)
+    /** Only a folder the helper can write into may be chosen; older helpers ignore it. */
+    private const val EXTRA_WRITABLE = "io.ymusic.android.saf.extra.WRITABLE"
+
+    fun pickFolderIntent(packageName: String, writable: Boolean): Intent =
+        Intent(ACTION_PICK_FOLDER).setPackage(packageName).putExtra(EXTRA_WRITABLE, writable)
 
     /** The installed helper's versionCode; null when it isn't installed. */
     fun installedVersion(context: Context, packageName: String): Long? = try {
