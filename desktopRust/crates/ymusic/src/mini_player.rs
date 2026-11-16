@@ -10,12 +10,14 @@ use gpui_kit::component::{ActiveTheme, Icon, StyledExt, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use ym_i18n::{Str, t, tf};
+use ym_image_loader::async_image::async_image_of;
 
 use crate::a11y::{FocusList, SliderStop};
 use crate::action_icon::{HIT, action_icon, lucide_size, sized_action_icon};
 use crate::playback::{Playback, PlaybackState, QueueItem};
 use crate::queue_nav::LoopMode;
 use crate::spinner::Spinner;
+use crate::youtube_thumbnails::art_request_sources;
 
 /// The user asked to open (or close) Now Playing.
 pub struct ToggleNowPlaying;
@@ -285,14 +287,13 @@ impl MiniPlayer {
     }
 
     fn cover(item: &QueueItem, corner_radius: f32, cx: &App) -> Div {
-        div()
-            .overflow_hidden()
-            .rounded(px(corner_radius))
-            .bg(cx.theme().secondary)
-            .flex_shrink_0()
-            .when_some(item.thumb(320), |frame, url| {
-                frame.child(img(url).size_full().rounded(px(corner_radius)).object_fit(ObjectFit::Cover))
-            })
+        let art = item.thumb(320).map(|url| {
+            async_image_of(Some(art_request_sources(&url)))
+                .size_full()
+                .rounded(px(corner_radius))
+                .object_fit(ObjectFit::Cover)
+        });
+        div().overflow_hidden().rounded(px(corner_radius)).bg(cx.theme().secondary).flex_shrink_0().children(art)
     }
 
     fn play_label(playing: bool) -> &'static str {

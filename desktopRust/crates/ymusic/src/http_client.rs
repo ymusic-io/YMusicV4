@@ -32,7 +32,9 @@ impl HttpClient for ReqwestHttpClient {
         let (parts, _) = request.into_parts();
         let task = self.tokio.spawn(async move {
             let response = client.request(parts.method, parts.uri.to_string()).headers(parts.headers).send().await?;
-            let status = if response.status() == reqwest::StatusCode::NOT_FOUND && is_no_thumbnail(response.url()) {
+            let status = if response.status() == reqwest::StatusCode::NOT_FOUND
+                && is_no_thumbnail_url(response.url().as_str())
+            {
                 reqwest::StatusCode::OK
             } else {
                 response.status()
@@ -49,7 +51,7 @@ impl HttpClient for ReqwestHttpClient {
 }
 
 /// `i.ytimg.com/img/no_thumbnail.jpg`, YouTube's thumbnail for a playlist with nothing to show, is a
-/// real placeholder JPEG served as 404; gpui drops non-2xx images, so it is answered as 200.
-fn is_no_thumbnail(url: &reqwest::Url) -> bool {
-    url.as_str().contains("/img/no_thumbnail")
+/// real placeholder JPEG served as 404; image caches drop non-2xx images, so it is answered as 200.
+pub fn is_no_thumbnail_url(url: &str) -> bool {
+    url.contains("/img/no_thumbnail")
 }

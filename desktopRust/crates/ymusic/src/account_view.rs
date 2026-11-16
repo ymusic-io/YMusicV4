@@ -9,13 +9,15 @@ use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use ym_engine::yt::YtAccountInfo;
 use ym_i18n::{Str, t};
+use ym_image_loader::async_image::async_image_of;
 
 use crate::a11y::{DragRow, FocusList, announced_as, heading};
 use crate::account::AccountController;
 use crate::action_icon::action_icon;
-use crate::feed::{FeedView, feed_width, thumb_for};
+use crate::feed::{FeedView, feed_width};
 use crate::settings_view::HOVER_ALPHA;
 use crate::spinner::Spinner;
+use crate::youtube_thumbnails::thumb_request_sources;
 
 const FEATURES: [Str; 7] = [
     Str::SigninFeatureHome,
@@ -265,12 +267,25 @@ impl Render for AccountHeader {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = cx.theme().clone();
         let account = self.account.clone();
-        let avatar = thumb_for(&account.thumbs, 92);
+        let avatar = thumb_request_sources(&account.thumbs);
         let initial = account
             .name
             .as_deref()
             .and_then(|name| name.chars().next())
             .map(|letter| letter.to_uppercase().to_string());
+        let fallback = div()
+            .size_full()
+            .rounded_full()
+            .bg(theme.foreground)
+            .text_color(theme.background)
+            .flex()
+            .items_center()
+            .justify_center()
+            .font_bold()
+            .map(|disc| match initial {
+                Some(letter) => disc.child(letter),
+                None => disc.child(Icon::new(Lucide::User)),
+            });
         let owner = self.owner.clone();
         let more = action_icon("account-more", IconName::EllipsisVertical, t(Str::CdMore)).dropdown_menu_with_anchor(
             Anchor::TopRight,
@@ -291,22 +306,16 @@ impl Render for AccountHeader {
             .gap(px(13.))
             .items_center()
             .child(
-                div()
-                    .size(px(46.))
-                    .flex_shrink_0()
-                    .rounded_full()
-                    .overflow_hidden()
-                    .bg(theme.foreground)
-                    .text_color(theme.background)
-                    .flex()
-                    .items_center()
-                    .justify_center()
-                    .font_bold()
-                    .map(|frame| match (avatar, initial) {
-                        (Some(url), _) => frame.child(img(url).size_full().rounded_full().object_fit(ObjectFit::Cover)),
-                        (None, Some(letter)) => frame.child(letter),
-                        (None, None) => frame.child(Icon::new(Lucide::User)),
-                    }),
+                div().size(px(46.)).flex_shrink_0().rounded_full().overflow_hidden().child(match avatar {
+                    // The disc only backs the fallback: under the photo its edge would show as a dark ring.
+                    Some(request) => async_image_of(Some(request))
+                        .size_full()
+                        .rounded_full()
+                        .object_fit(ObjectFit::Cover)
+                        .placeholder(fallback)
+                        .into_any_element(),
+                    None => fallback.into_any_element(),
+                }),
             )
             .child(
                 v_flex()
