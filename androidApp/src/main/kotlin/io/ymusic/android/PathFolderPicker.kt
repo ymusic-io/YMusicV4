@@ -49,10 +49,16 @@ import java.io.File
 
 /**
  * Browses [roots] by path and returns the chosen directory: the folder pick on devices without the system
- * tree picker (most TVs). Opens inside the only volume, or on the volume list when there are several.
+ * tree picker (most TVs). Opens inside the only volume, or on the volume list when there are several. With
+ * [writable], only a directory the app can write into can be chosen.
  */
 @Composable
-internal fun PathFolderPickerDialog(roots: List<StorageRoot>, onPick: (File) -> Unit, onDismiss: () -> Unit) {
+internal fun PathFolderPickerDialog(
+    roots: List<StorageRoot>,
+    writable: Boolean,
+    onPick: (File) -> Unit,
+    onDismiss: () -> Unit,
+) {
     var current by remember { mutableStateOf(roots.singleOrNull()?.directory) }
     var navigated by remember { mutableStateOf(false) }
     val root = current?.let { dir -> roots.firstOrNull { dir.startsWith(it.directory) } }
@@ -82,7 +88,8 @@ internal fun PathFolderPickerDialog(roots: List<StorageRoot>, onPick: (File) -> 
         canScrollForward = listState.canScrollForward,
         buttons = {
             DialogSecondaryButton(stringResource(Res.string.dialog_cancel), onClick = onDismiss)
-            TextButton(onClick = { current?.let(onPick) }, enabled = current != null) {
+            val choosable = current?.let { dir -> !writable || dir.canWrite() } == true
+            TextButton(onClick = { current?.let(onPick) }, enabled = choosable) {
                 Text(stringResource(Res.string.folder_picker_use_folder))
             }
         },

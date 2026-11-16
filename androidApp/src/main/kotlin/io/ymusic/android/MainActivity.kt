@@ -158,14 +158,15 @@ class MainActivity : FragmentActivity() {
     }
 
     /** Launches the SAF folder picker and suspends until the user picks a tree (or cancels → null). Without
-     *  one: browsing storage paths up to Android 10 (a `file://` uri), the YMusic Files helper from 11. */
-    private val pickFolder: suspend () -> Uri? = {
+     *  one: browsing storage paths up to Android 10 (a `file://` uri), the YMusic Files helper from 11. The system
+     *  picker can't be told [writable]; the download location's test write catches a read-only pick there. */
+    private val pickFolder: suspend (Boolean) -> Uri? = { writable ->
         pendingPick?.complete(null) // a prior pick still open → abandon it
         val deferred = CompletableDeferred<Uri?>()
         pendingPick = deferred
         val trusted = (application as YMusicApplication).services.await().remoteConfig.awaitLoaded().features.safPickerPackages
+        val log = (application as YMusicApplication).rootLogger.fork("folder-pick")
         withContext(Dispatchers.Main) {
-            val log = (application as YMusicApplication).rootLogger.fork("folder-pick")
             val picker = trustedFolderPicker(trusted, log)
             if (picker != null) {
                 try {
@@ -173,13 +174,13 @@ class MainActivity : FragmentActivity() {
                     openFolder.launch(null)
                 } catch (e: ActivityNotFoundException) {
                     log.log(kmpcommon.log.Logger.Level.WARN, "$picker handles OPEN_DOCUMENT_TREE but failed to launch", e)
-                    deferred.complete(pickFolderWithoutSystemPicker())
+                    deferred.complete(pickFolderWithoutSystemPicker(writable))
                 }
             } else {
                 when (val problem = folderPickerProblem(trusted)) {
                     FolderPickerIssue.Missing -> {
                         log.log(kmpcommon.log.Logger.Level.INFO, "no trusted system folder picker")
-                        deferred.complete(pickFolderWithoutSystemPicker())
+                        deferred.complete(pickFolderWithoutSystemPicker(writable))
                     }
                     else -> {
                         log.log(kmpcommon.log.Logger.Level.WARN, "no folder picker: $problem")
@@ -189,7 +190,13 @@ class MainActivity : FragmentActivity() {
                 }
             }
         }
-        deferred.await()
+        val picked = deferred.await()
+        if (picked != null) {
+            log.log(kmpcommon.log.Logger.Level.INFO, "picked ${android.net.Uri.decode(picked.toString())} (writable=$writable)")
+        } else {
+            log.log(kmpcommon.log.Logger.Level.INFO, "no folder picked (writable=$writable)")
+        }
+        picked
     }
 
     private val folderPickerIssue = mutableStateOf<FolderPickerIssue?>(null)
@@ -203,8 +210,8 @@ class MainActivity : FragmentActivity() {
 
     // From Android 11 storage permissions no longer reach other apps' files: only all-files access does,
     // and that lives in the helper app rather than in YMusic.
-    private suspend fun pickFolderWithoutSystemPicker(): Uri? =
-        if (Build.VERSION.SDK_INT >= 30) pickFolderWithCompanion() else pickFolderByPath()
+    private suspend fun pickFolderWithoutSystemPicker(writable: Boolean): Uri? =
+        if (Build.VERSION.SDK_INT >= 30) pickFolderWithCompanion(writable) else pickFolderByPath(writable)
 
     /** While set, [CompanionInstallDialog] asks the user to install (or update) the helper from its link. */
     private val companionDownload = mutableStateOf<CompanionDownload?>(null)
@@ -217,7 +224,7 @@ class MainActivity : FragmentActivity() {
         }
 
     /** The YMusic Files folder pick: a SAF tree, or null when canceled or the user has yet to install the helper. */
-    private suspend fun pickFolderWithCompanion(): Uri? {
+    private suspend fun pickFolderWithCompanion(writable: Boolean): Uri? {
         val log = (application as YMusicApplication).rootLogger.fork("storage-companion")
         val features = (application as YMusicApplication).services.await().remoteConfig.awaitLoaded().features
         val helper = features.safHelperPackage
@@ -235,6 +242,7 @@ class MainActivity : FragmentActivity() {
                     folderPickerIssue.value = FolderPickerIssue.Unsupported
                     return null
                 }
+                log.log(Logger.Level.INFO, "$helper is not installed: asking the user to install it")
                 companionDownload.value = CompanionDownload(downloadUrl, update = false)
                 return null
             }
@@ -252,8 +260,9 @@ class MainActivity : FragmentActivity() {
         val picked = CompletableDeferred<android.net.Uri?>()
         pendingCompanionPick?.complete(null)
         pendingCompanionPick = picked
+        log.log(Logger.Level.INFO, "opening $helper $version")
         try {
-            companionPickLauncher.launch(StorageCompanion.pickFolderIntent(helper))
+            companionPickLauncher.launch(StorageCompanion.pickFolderIntent(helper, writable))
         } catch (e: ActivityNotFoundException) {
             pendingCompanionPick = null
             val error = TechnicalException("E50011", "the installed YMusic Files has no folder picker", cause = e)
@@ -270,7 +279,7 @@ class MainActivity : FragmentActivity() {
     private val pathPick = mutableStateOf<PathPick?>(null)
 
     /** The storage-permission + path-browsing folder pick: a `file://` folder uri, or null when canceled. */
-    private suspend fun pickFolderByPath(): Uri? {
+    private suspend fun pickFolderByPath(writable: Boolean): Uri? {
         if (!hasStorageAccess()) {
             pendingStorageAccess?.complete(false)
             val access = CompletableDeferred<Boolean>()
@@ -287,7 +296,7 @@ class MainActivity : FragmentActivity() {
         val roots = withContext(Dispatchers.IO) { io.ymusic.mediascanner.storageRoots(this@MainActivity) }
         val result = CompletableDeferred<java.io.File?>()
         pathPick.value?.result?.complete(null)
-        pathPick.value = PathPick(roots, result)
+        pathPick.value = PathPick(roots, writable, result)
         val dir = result.await() ?: return null
         return Uri.parse(android.net.Uri.fromFile(dir).toString())
     }
@@ -621,6 +630,7 @@ class MainActivity : FragmentActivity() {
                 AppThemed {
                     PathFolderPickerDialog(
                         roots = pick.roots,
+                        writable = pick.writable,
                         onPick = { dir ->
                             pathPick.value = null
                             pick.result.complete(dir)
@@ -867,7 +877,11 @@ private fun NotificationRequiredDialog(onAllow: () -> Unit) {
 /** What browsing storage by path needs; only used up to Android 10, where these still cover all shared storage. */
 private val STORAGE_PERMISSIONS = arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE)
 
-private class PathPick(val roots: List<io.ymusic.mediascanner.StorageRoot>, val result: CompletableDeferred<java.io.File?>)
+private class PathPick(
+    val roots: List<io.ymusic.mediascanner.StorageRoot>,
+    val writable: Boolean,
+    val result: CompletableDeferred<java.io.File?>,
+)
 
 private sealed interface FolderPickerIssue {
     data class Disabled(val packageName: String) : FolderPickerIssue
