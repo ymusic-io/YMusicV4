@@ -10,6 +10,7 @@ use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use ym_history::{PlayAgainSession, PlayHistory};
 use ym_i18n::{Str, t, tf};
+use ym_image_loader::async_image::async_image_of;
 
 use crate::a11y::{FocusList, alert, announced, list_item};
 use crate::action_icon::action_icon;
@@ -19,6 +20,7 @@ use crate::local_art::{self, from_jvm_art};
 use crate::mini_player::clock;
 use crate::play_history::decode_items;
 use crate::playback::{QueueItem, Source};
+use crate::youtube_thumbnails::art_request_sources;
 
 /// Resume this saved queue.
 pub struct ResumeQueue {
@@ -211,7 +213,10 @@ impl PlayAgainView {
                     .when(current == Some(offset), |tile| tile.border_1().border_color(theme.primary))
                     .when_some(thumb.clone(), |tile, url| {
                         tile.child(
-                            img(SharedString::from(url)).size_full().rounded(px(6.)).object_fit(ObjectFit::Cover),
+                            async_image_of(Some(art_request_sources(&url)))
+                                .size_full()
+                                .rounded(px(6.))
+                                .object_fit(ObjectFit::Cover),
                         )
                     }),
             );
@@ -277,7 +282,7 @@ impl PlayAgainView {
                             .bg(theme.muted)
                             .when_some(session.thumbnail_url.clone(), |frame, url| {
                                 frame.child(
-                                    img(SharedString::from(url))
+                                    async_image_of(Some(art_request_sources(&url)))
                                         .size_full()
                                         .rounded(px(10.))
                                         .object_fit(ObjectFit::Cover),
