@@ -20,6 +20,7 @@ use crate::elevated_dialog::{
     scroll_body, text_button, title_bar, title_bar_with,
 };
 use crate::graph::{AppGraph, on_core};
+use crate::lazy_rows::LazyRows;
 use crate::reorder::{Reorder, ReorderEvent};
 use crate::settings_view::HOVER_ALPHA;
 use crate::spinner::Spinner;
@@ -84,6 +85,7 @@ pub struct AddToLocalPlaylist {
     changed: Option<Changed>,
     focus: FocusList,
     scroll: ScrollHandle,
+    rows: LazyRows,
     focused_first: bool,
     busy: bool,
 }
@@ -98,6 +100,7 @@ impl AddToLocalPlaylist {
                 failed: false,
                 changed,
                 focus: FocusList::modal(Some(scroll.clone()), cx),
+                rows: LazyRows::new(scroll.clone(), PICK_ROW_ESTIMATE),
                 scroll,
                 focused_first: false,
                 busy: false,
@@ -213,8 +216,9 @@ impl Render for AddToLocalPlaylist {
                     cx,
                 )
                 .on_click(cx.listener(|view, _, window, cx| view.activate(0, window, cx)));
-                let mut list = v_flex().w_full().child(self.focus.item(0, new_row, cx));
-                for (index, playlist) in playlists.into_iter().enumerate() {
+                let kept = self.focus.kept_stops(1..playlists.len() + 1, window);
+                let rows = self.rows.render(playlists.len(), 0., kept, window, |index| {
+                    let playlist = &playlists[index];
                     let row = pick_row(
                         ("local-playlist", index),
                         Icon::new(Lucide::ListMusic),
@@ -223,8 +227,9 @@ impl Render for AddToLocalPlaylist {
                         cx,
                     )
                     .on_click(cx.listener(move |view, _, window, cx| view.activate(index + 1, window, cx)));
-                    list = list.child(self.focus.item(index + 1, row, cx));
-                }
+                    self.focus.item(index + 1, row, cx).into_any_element()
+                });
+                let list = v_flex().w_full().child(self.focus.item(0, new_row, cx)).child(rows);
                 scroll_body("local-playlists", &self.scroll, list, window, cx).into_any_element()
             }
         };
@@ -589,10 +594,13 @@ pub struct ArrangePlaylist {
     focus: FocusList,
     scroll: ScrollHandle,
     reorder: Reorder,
+    rows: LazyRows,
     focused_first: bool,
 }
 
 const ARRANGE_ICON: f32 = 22.;
+const PICK_ROW_ESTIMATE: f32 = 48.;
+const ARRANGE_ROW_ESTIMATE: f32 = 52.;
 const CONTROL_UNDO: usize = 0;
 const CONTROL_CANCEL: usize = 1;
 const CONTROL_SAVE: usize = 2;
@@ -626,6 +634,7 @@ impl ArrangePlaylist {
                 busy: false,
                 focus: FocusList::modal(Some(scroll.clone()), cx),
                 reorder: Reorder::new(scroll.clone()),
+                rows: LazyRows::new(scroll.clone(), ARRANGE_ROW_ESTIMATE),
                 scroll,
                 focused_first: false,
             }
@@ -864,7 +873,11 @@ impl Render for ArrangePlaylist {
             window.defer(cx, move |window, cx| window.focus(&first, cx));
         }
         let items = self.state.items.clone();
-        let rows: Vec<AnyElement> = items.iter().enumerate().map(|(index, item)| self.row(index, item, cx)).collect();
+        let focused_row =
+            self.focus.focused(window).filter(|stop| *stop >= CONTROL_ROWS).map(|stop| (stop - CONTROL_ROWS) / 3);
+        // Each row is its own Tab stop: the first and last stay built for Tab and Shift+Tab entering the list.
+        let kept = [Some(0), items.len().checked_sub(1), focused_row, self.reorder.lifted()].into_iter().flatten();
+        let rows = self.rows.render(items.len(), 4., kept, window, |index| self.row(index, &items[index], cx));
         let stacking = (self.state.stack > 0).then(|| {
             let label = tf(Str::ArrangeStacking, &[&self.state.stack]);
             let chip = Button::new("arrange-reset-stacking")
@@ -895,8 +908,7 @@ impl Render for ArrangePlaylist {
             .aria_size_of_set(items.len())
             .w_full()
             .py_1()
-            .gap_1()
-            .children(rows)
+            .child(rows)
             .child(tracker);
         let can_undo = !self.busy && !self.state.history.is_empty();
         let footer = h_flex()

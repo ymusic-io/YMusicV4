@@ -14,6 +14,7 @@ use ym_i18n::{Str, t, tf};
 use crate::a11y::{FocusList, alert, announced, list_item};
 use crate::action_icon::action_icon;
 use crate::graph::{AppGraph, on_core};
+use crate::lazy_rows::LazyRows;
 use crate::local_art::{self, from_jvm_art};
 use crate::mini_player::clock;
 use crate::play_history::decode_items;
@@ -35,6 +36,7 @@ pub struct PlayAgainView {
     error: Option<String>,
     scroll: ScrollHandle,
     focus: FocusList,
+    rows: LazyRows,
     /// The error's or the empty state's message, then Retry.
     message_focus: FocusList,
 }
@@ -49,7 +51,8 @@ impl PlayAgainView {
             sessions: Vec::new(),
             error: None,
             scroll: scroll.clone(),
-            focus: FocusList::new(Some(scroll)),
+            focus: FocusList::new(Some(scroll.clone())),
+            rows: LazyRows::new(scroll, SESSION_ROW_ESTIMATE),
             message_focus: FocusList::new(None),
         };
         view.refresh(cx);
@@ -158,6 +161,7 @@ impl PlayAgainView {
 
 const CARD_MIN: f32 = 340.;
 const GAP: f32 = 16.;
+const SESSION_ROW_ESTIMATE: f32 = 160.;
 const TILE: f32 = 30.;
 const TILE_GAP: f32 = 4.;
 /// Room the Resume pill takes beside the strip.
@@ -345,8 +349,9 @@ impl Render for PlayAgainView {
         let card_width = (width - 2. * GAP - GAP * (columns - 1) as f32) / columns as f32;
         let sessions = self.sessions.clone();
         let stops = self.focus.list_stops(0..sessions.len(), window, cx);
-        let mut grid = v_flex().id("play-again-sessions").w_full().p_4().gap_4();
-        for (row_index, row) in sessions.chunks(columns).enumerate() {
+        let kept: Vec<usize> = stops.kept().into_iter().map(|position| position / columns).collect();
+        let rows = self.rows.render(sessions.len().div_ceil(columns), GAP, kept, window, |row_index| {
+            let row = &sessions[row_index * columns..((row_index + 1) * columns).min(sessions.len())];
             let mut cells = h_flex().w_full().gap_4().items_start();
             for (offset, session) in row.iter().enumerate() {
                 cells = cells.child(div().flex_1().min_w_0().child(self.card(
@@ -359,8 +364,9 @@ impl Render for PlayAgainView {
             for _ in row.len()..columns {
                 cells = cells.child(div().flex_1());
             }
-            grid = grid.child(cells);
-        }
+            cells.into_any_element()
+        });
+        let grid = div().id("play-again-sessions").w_full().p_4().child(rows);
         let grid = stops.wrap(grid, Some(t(Str::SectionPlayAgain).into()), cx);
         div()
             .id("play-again-scroll")

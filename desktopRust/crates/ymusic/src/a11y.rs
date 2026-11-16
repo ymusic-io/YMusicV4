@@ -456,6 +456,19 @@ impl FocusList {
         self.slots.borrow().iter().any(|slot| slot.handle.is_focused(window))
     }
 
+    /// The stop holding focus.
+    pub fn focused(&self, window: &Window) -> Option<usize> {
+        self.slots.borrow().iter().position(|slot| slot.handle.is_focused(window))
+    }
+
+    /// The positions a lazy list of `items`, each its own Tab stop, keeps built wherever it is
+    /// scrolled: the first and last (Tab, Shift+Tab, Home and End reach them) and the focused one.
+    pub fn kept_stops(&self, items: Range<usize>, window: &Window) -> Vec<usize> {
+        let mut kept: Vec<usize> = [Some(0), items.len().checked_sub(1)].into_iter().flatten().collect();
+        kept.extend(self.focused(window).filter(|stop| items.contains(stop)).map(|stop| stop - items.start));
+        kept
+    }
+
     /// Makes `element`, a full-width row already tracking [`Self::handle`]`(index)`, the list's `index`th
     /// stop, ringed inside: a control's own ring is drawn outside it, where the row's card clips it.
     pub fn row(&self, index: usize, element: impl IntoElement, cx: &App) -> Div {
@@ -599,7 +612,7 @@ impl FocusList {
                 handle.clone().tab_stop(position == active);
             }
         }
-        ListStops { list: self, items }
+        ListStops { list: self, items, active, focused: focused.is_some() }
     }
 
     /// Home and End over the stops in `items` that are on screen.
@@ -629,9 +642,21 @@ impl FocusList {
 pub struct ListStops<'a> {
     list: &'a FocusList,
     items: Range<usize>,
+    active: usize,
+    focused: bool,
 }
 
 impl ListStops<'_> {
+    /// The positions a lazy list keeps built wherever it is scrolled: the item holding the Tab
+    /// stop, and while the list holds focus its first and last, for Home and End.
+    pub fn kept(&self) -> Vec<usize> {
+        let mut kept = vec![self.active];
+        if self.focused && !self.items.is_empty() {
+            kept.extend([0, self.items.len() - 1]);
+        }
+        kept
+    }
+
     /// Makes `element`, holding the items, the list: named `label`, its size the items' count, Home
     /// and End over them. Each item is a [`list_item`].
     pub fn wrap(self, element: Stateful<Div>, label: Option<SharedString>, cx: &App) -> Stateful<Div> {
