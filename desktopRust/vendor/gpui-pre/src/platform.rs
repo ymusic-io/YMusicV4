@@ -1290,6 +1290,11 @@ pub trait PlatformWindow: HasWindowHandle + HasDisplayHandle {
         answers: &[PromptButton],
     ) -> Option<oneshot::Receiver<usize>>;
     fn activate(&self);
+    /// Activates with an XDG activation token another client minted for a user action (a tray
+    /// host's click); platforms without one activate as [`Self::activate`] does.
+    fn activate_with_token(&self, _token: String) {
+        self.activate();
+    }
     /// Requests that the operating system draw attention to this window.
     fn request_attention(&self) {}
     fn is_active(&self) -> bool;

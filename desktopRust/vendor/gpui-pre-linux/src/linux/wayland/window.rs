@@ -1886,6 +1886,15 @@ impl PlatformWindow for WaylandWindow {
         }
     }
 
+    fn activate_with_token(&self, token: String) {
+        let state = self.borrow();
+        let Some(activation) = &state.globals.activation else {
+            drop(state);
+            return self.activate();
+        };
+        activation.activate(token, &state.surface);
+    }
+
     fn request_attention(&self) {}
 
     fn is_active(&self) -> bool {

@@ -6968,6 +6968,12 @@ impl Window {
         self.platform_window.activate();
     }
 
+    /// As [`Self::activate_window`], with an XDG activation token another client minted for the
+    /// user action that asks for it: on Wayland the compositor grants focus only with one.
+    pub fn activate_window_with_token(&self, token: String) {
+        self.platform_window.activate_with_token(token);
+    }
+
     /// Requests that the operating system draw attention to this window.
     pub fn request_attention(&self) {
         self.platform_window.request_attention();
