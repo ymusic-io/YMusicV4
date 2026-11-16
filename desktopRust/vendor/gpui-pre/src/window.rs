@@ -2134,7 +2134,7 @@ impl Window {
             let mut cx = cx.to_async();
             move || {
                 handle
-                    .update(&mut cx, |_, window, cx| window.bounds_changed(cx))
+                    .update(&mut cx, |_, window, cx| window.moved(cx))
                     .with_context(|| format!("handling move for window {:?}", handle.window_id()))
                     .log_err();
             }
@@ -3018,6 +3018,21 @@ impl Window {
 
         self.refresh();
 
+        self.bounds_observers
+            .clone()
+            .retain(|callback| callback(self, cx));
+    }
+
+    /// A move that keeps the content size and scale needs no redraw: on Windows the move loop runs
+    /// on the UI thread, so a full redraw per WM_MOVE makes dragging a heavy window stutter.
+    fn moved(&mut self, cx: &mut App) {
+        if self.platform_window.scale_factor() != self.scale_factor
+            || self.platform_window.content_size() != self.viewport_size
+        {
+            self.bounds_changed(cx);
+            return;
+        }
+        self.mouse_position = self.platform_window.mouse_position();
         self.bounds_observers
             .clone()
             .retain(|callback| callback(self, cx));
