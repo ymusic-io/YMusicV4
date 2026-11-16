@@ -217,9 +217,10 @@ private val DownloadActions = setOf(LinkAction.DOWNLOAD, LinkAction.DOWNLOAD_M4A
 /** The sections a restart resumes; anything else (Settings, Downloads, …) resumes the last of these. */
 private val ResumableSections = setOf(AppSection.Discover, AppSection.Library, AppSection.YtMusic)
 
-/** The section state a shell hands to [App]: starts on the last resumable section the user had open. */
+/** The section state a shell hands to [App]: starts on the last resumable section the user had open.
+ *  Not saveable: an Android state restore must not bring back Settings or Feedback either. */
 @Composable
-fun rememberStartSection(graph: AppGraph): androidx.compose.runtime.MutableState<AppSection> = rememberSaveable {
+fun rememberStartSection(graph: AppGraph): androidx.compose.runtime.MutableState<AppSection> = remember(graph) {
     val saved = graph.settings.flow(AppSettings.lastSection).value
     mutableStateOf(ResumableSections.firstOrNull { it.key == saved } ?: AppSection.Discover)
 }
