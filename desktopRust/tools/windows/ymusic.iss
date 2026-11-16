@@ -1,7 +1,8 @@
 ; The Windows installer, compiled by tools/package-windows.sh (ISCC /D defines: AppVersion,
-; AppSourceDir, IconFile, OutputDir, OutputBaseName, Arch). It installs over the JVM app's Inno
-; Setup install (YMusicV4 desktopApp/installer/windows/ymusic.iss), so the identity below is that
-; script's: the same AppId, folder, executable path and AppUserModelID.
+; AppSourceDir, IconFile, OutputDir, OutputBaseName, Arch; when signing, SignTool: the name of an
+; ISCC /S sign tool). It installs over the JVM app's Inno Setup install (YMusicV4
+; desktopApp/installer/windows/ymusic.iss), so the identity below is that script's: the same AppId,
+; folder, executable path and AppUserModelID.
 ;
 ; Build input: AppSourceDir holds YMusic.exe, ffmpeg.exe and the libav / MinGW runtime DLLs.
 
@@ -45,6 +46,12 @@ MinVersion=10.0
 CloseApplications=force
 ChangesAssociations=yes
 RestartApplications=no
+#ifdef SignTool
+SignTool={#SignTool}
+SignedUninstaller=yes
+; A failed sign may have waited out the phone prompt; a retry would wait again.
+SignToolRetryCount=0
+#endif
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
