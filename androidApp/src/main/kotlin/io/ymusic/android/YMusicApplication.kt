@@ -235,6 +235,9 @@ class YMusicApplication : Application() {
      *  chosen (the download location). */
     @Volatile var folderPicker: (suspend (writable: Boolean) -> Uri?)? = null
 
+    /** The picks [folderPicker] is waiting on; outlives the Activity that launched the picker. */
+    internal val folderPicks = FolderPicks()
+
     /** The current Activity's QR scan — same lifecycle as [folderPicker]. */
     @Volatile var qrScanner: (suspend () -> String?)? = null
 
@@ -984,6 +987,26 @@ class YMusicApplication : Application() {
      *  returning its uri. Used to choose a download location. */
     private suspend fun pickAndRegisterFolder(store: BetterMediaStore): String? {
         val treeUri = folderPicker?.invoke(true) ?: return null
+        return registerFolder(store, treeUri)
+    }
+
+    /** Applies a picked folder whose caller died with the old process: see [AppGraph.adoptPickedFolder]. */
+    fun adoptFolderPick(treeUri: android.net.Uri, writable: Boolean) {
+        appScope.launch {
+            val graph = graphAsync().await()
+            val uri = Uri.parse(treeUri.toString())
+            if (writable) {
+                val store = graph.mediaStore ?: return@launch
+                val registered = registerFolder(store, uri) ?: return@launch
+                graph.adoptPickedFolder(registered, asDownloadLocation = true)
+            } else {
+                graph.adoptPickedFolder(uri.toString(), asDownloadLocation = false)
+            }
+        }
+    }
+
+    /** Registers [treeUri] as a Library bucket (no scan), returning its uri; null when it doesn't read as a folder. */
+    private suspend fun registerFolder(store: BetterMediaStore, treeUri: Uri): String? {
         val folder = SafDocumentsProvider(applicationContext).queryDocument(treeUri) as? DocumentInfo.Folder ?: return null
         store.upsertBucket(BucketDraft(uri = folder.uri, name = folder.name))
         return folder.uri.toString()
