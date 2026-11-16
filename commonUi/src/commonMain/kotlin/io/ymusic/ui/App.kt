@@ -702,6 +702,8 @@ private fun AppRoot(
         // The hotkey lands in the input even over submitted results (the results bar takes no typing).
         val hotkeySearch: () -> Unit = {
             if (sectionSearch != null) {
+                graph.pip.nowPlayingOpen.value = false
+                nowPlayingPeeking = false
                 sectionSearch()
                 (layers.lastOrNull() as? AppLayer.Search)?.session?.editing = true
             }
