@@ -309,7 +309,7 @@ pub fn sync_desktop_entry() -> anyhow::Result<()> {
     }
     write_if_changed(&icon_file, LOGO_PNG)?;
     let entry = format!(
-        "[Desktop Entry]\nType=Application\nName={}\nExec={}\nIcon={}\nStartupWMClass={APP_ID}\nNoDisplay=true\n",
+        "[Desktop Entry]\nType=Application\nName={}\nExec={}\nIcon={}\nStartupWMClass={APP_ID}\nSingleMainWindow=true\nNoDisplay=true\n",
         t(Str::AppName),
         desktop_exec_quoted(&exe.to_string_lossy()),
         icon_file.display(),

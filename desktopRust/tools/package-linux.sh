@@ -105,7 +105,7 @@ stage_app() {
 desktop_entry() {
     printf '%s\n' "[Desktop Entry]" "Type=Application" "Name=$APP_NAME" "Comment=Music player" \
         "Exec=$1 %U" "Icon=$APP_ID" "Terminal=false" "Categories=AudioVideo;Audio;Player;" \
-        "MimeType=$MIME_TYPES" "StartupWMClass=$APP_ID"
+        "MimeType=$MIME_TYPES" "StartupWMClass=$APP_ID" "SingleMainWindow=true"
 }
 
 rm -rf "$out/linux"
