@@ -277,10 +277,12 @@ impl HistoryRecorder {
 
     fn observe(&mut self, playback: &Entity<Playback>, cx: &mut Context<Self>) {
         let playback = playback.read(cx);
-        let playing =
-            playback.state == PlaybackState::Prepared { play_when_ready: true, buffering: false, ended: false };
         let current = playback.current().cloned();
-        self.track_watch(current.as_ref(), playing);
+        // Watch time needs the engine playing (JVM PlaybackCoordinator), Play again the user's intent.
+        let watching =
+            playback.state == PlaybackState::Prepared { play_when_ready: true, buffering: false, ended: false };
+        self.track_watch(current.as_ref(), watching);
+        let playing = current.is_some() && playback.play_when_ready();
         let next = snapshot(playback, playing, &self.temporary.lock().unwrap());
         let previous = self.current.take();
         match (&previous, &next) {
