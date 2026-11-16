@@ -36,6 +36,12 @@ impl LazyRows {
         Self::along(scroll, estimate, Axis::Vertical)
     }
 
+    /// A horizontal row of items scrolled by `scroll`, each about `estimate` wide. The items lie in
+    /// the row's flow, which takes the tallest one's height.
+    pub fn horizontal(scroll: ScrollHandle, estimate: f32) -> Self {
+        Self::along(scroll, estimate, Axis::Horizontal)
+    }
+
     fn along(scroll: ScrollHandle, estimate: f32, axis: Axis) -> Self {
         Self(Rc::new(State {
             scroll,
@@ -48,7 +54,7 @@ impl LazyRows {
     }
 
     /// Rows `0..count`, `gap` apart, building `row(index)` for the rows near the viewport and the
-    /// `pinned` ones. The rows are positioned in the returned element, which fills the cross axis.
+    /// `pinned` ones. The rows are positioned in the returned element.
     pub fn render(
         &self,
         count: usize,
@@ -107,13 +113,19 @@ impl LazyRows {
 
         let vertical = geometry.axis == Axis::Vertical;
         let mut list = div().relative().flex_shrink_0();
-        list = if vertical { list.w_full().h(length) } else { list.h_full().w(length) };
+        list = if vertical { list.w_full().h(length) } else { list.flex().flex_row().items_start().w(length) };
         // The first child spans the list, for its bounds.
         list = list.child(div().absolute().top_0().left_0().size_full());
+        let mut flow_end = px(0.);
         for index in &built {
             let start = starts[*index];
-            let slot = div().absolute();
-            let slot = if vertical { slot.left_0().right_0().top(start) } else { slot.top_0().bottom_0().left(start) };
+            let slot = if vertical {
+                div().absolute().left_0().right_0().top(start)
+            } else {
+                let slot = div().flex_shrink_0().ml(start - flow_end);
+                flow_end = starts[*index + 1] - gap;
+                slot
+            };
             list = list.child(slot.child(row(*index)));
         }
         let shared = self.0.clone();

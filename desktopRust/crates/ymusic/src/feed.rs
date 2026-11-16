@@ -278,6 +278,7 @@ pub struct FeedView {
     carousel_drags: std::cell::RefCell<std::collections::HashMap<usize, DragRow>>,
     /// Each list or grid section's lazily built rows, by section.
     section_rows: std::cell::RefCell<std::collections::HashMap<usize, LazyRows>>,
+    carousel_rows: std::cell::RefCell<std::collections::HashMap<usize, LazyRows>>,
     offline: Entity<OfflineMarks>,
     /// False for a signed-in-only feed until its owner confirms a sign-in: it fetches nothing before
     /// (the JVM Account and YT Music Library tabs build their session only once signed in).
@@ -335,6 +336,7 @@ impl FeedView {
             tabs_drag: DragRow::default(),
             carousel_drags: Default::default(),
             section_rows: Default::default(),
+            carousel_rows: Default::default(),
             offline,
             gate_open: !source_needs_sign_in,
             _offline: observe_offline,
@@ -1076,6 +1078,7 @@ const ACTION_RETRY_MORE: usize = 10;
 const CHIPS_SHOW_MORE: usize = 64;
 const ROW_GAP: f32 = 16.;
 const FEED_ROW_ESTIMATE: f32 = 112.;
+const CAROUSEL_CELL: f32 = 80.;
 
 impl Bands {
     fn for_width(width: f32) -> Self {
@@ -1640,24 +1643,16 @@ impl FeedView {
                 let drag = self.carousel_drags.borrow_mut().entry(section_index).or_default().clone();
                 let row_scroll = drag.scroll().clone();
                 let stops = self.focus.list_stops(first_item..first_item + section.items.len(), window, cx);
-                let mut row = h_flex()
-                    .id(("carousel-scroll", section_index))
-                    .track_scroll(&row_scroll)
-                    .overflow_x_scroll()
-                    .restrict_scroll_to_axis()
-                    .gap_1()
-                    .px_3();
-                for (offset, item) in section.items.iter().enumerate() {
-                    row = row.child(
-                        self.clickable(
-                            ("carousel", first_item + offset),
-                            offset,
-                            item,
-                            None,
-                            Some(row_scroll.clone()),
-                            cx,
-                        )
-                        .w(px(80.))
+                let cells = self
+                    .carousel_rows
+                    .borrow_mut()
+                    .entry(section_index)
+                    .or_insert_with(|| LazyRows::horizontal(row_scroll.clone(), CAROUSEL_CELL))
+                    .clone();
+                let cells = cells.render(section.items.len(), 4., stops.kept(), window, |offset| {
+                    let item = &section.items[offset];
+                    self.clickable(("carousel", first_item + offset), offset, item, None, Some(row_scroll.clone()), cx)
+                        .w(px(CAROUSEL_CELL))
                         .flex_shrink_0()
                         .p_1()
                         .child(
@@ -1674,9 +1669,16 @@ impl FeedView {
                                     ),
                                 )
                                 .child(div().w_full().text_xs().text_center().truncate().child(item.title.clone())),
-                        ),
-                    );
-                }
+                        )
+                        .into_any_element()
+                });
+                let row = h_flex()
+                    .id(("carousel-scroll", section_index))
+                    .track_scroll(&row_scroll)
+                    .overflow_x_scroll()
+                    .restrict_scroll_to_axis()
+                    .px_3()
+                    .child(cells);
                 return block.child(drag.wrap(stops.wrap(row, title, cx))).into_any_element();
             }
             _ => {}
