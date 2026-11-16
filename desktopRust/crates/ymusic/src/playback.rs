@@ -372,6 +372,8 @@ pub struct Playback {
     /// The session's player commands, run one at a time in call order.
     commands: Option<mpsc::UnboundedSender<PlayerJob>>,
     booting: bool,
+    /// Bumped by every boot; a boot that a later reset superseded is discarded when it lands.
+    boot_generation: u64,
     /// The YouTube video a load waits to send until the engine is ready to load (the JVM
     /// PlayerImpl.prepareJob); a newer load or a stop cancels it.
     prepare_job: Option<String>,
@@ -492,6 +494,7 @@ impl Playback {
             session: None,
             commands: None,
             booting: false,
+            boot_generation: 0,
             prepare_job: None,
             youtube_error: None,
             local: None,
@@ -2129,12 +2132,15 @@ impl Playback {
         }));
     }
 
-    /// Boots the session; `reset` first closes the one the app holds, so the boot is a fresh one.
+    /// Boots the session; `reset` first closes the one the app holds, so the boot is a fresh one, and
+    /// supersedes a boot in flight (the JVM MsePlayer.reset tears down a session still starting).
     fn boot(&mut self, reset: bool, cx: &mut Context<Self>) {
-        if self.booting {
+        if self.booting && !reset {
             return;
         }
         self.booting = true;
+        self.boot_generation += 1;
+        let generation = self.boot_generation;
         let sessions = cx.global::<AppGraph>().youtube.clone();
         let log = cx.global::<AppGraph>().log.fork("playback");
         let boot = on_core(cx, async move {
@@ -2146,6 +2152,9 @@ impl Playback {
         cx.spawn(async move |this, cx| {
             let result = boot.await;
             this.update(cx, |playback, cx| {
+                if playback.boot_generation != generation {
+                    return;
+                }
                 playback.booting = false;
                 match result {
                     Some(Ok(session)) => {
