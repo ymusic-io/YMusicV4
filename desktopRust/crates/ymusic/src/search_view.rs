@@ -16,6 +16,7 @@ use crate::a11y::{FocusList, label, list_item};
 use crate::action_icon::action_icon;
 use crate::feed::FeedView;
 use crate::graph::{AppGraph, on_core};
+use crate::lazy_rows::LazyRows;
 use crate::settings_view::HOVER_ALPHA;
 
 const SUGGEST_DEBOUNCE: Duration = Duration::from_millis(250);
@@ -23,6 +24,7 @@ const HISTORY_KEY: &str = "search.history";
 const HISTORY_LIMIT: usize = 500;
 /// History rows shown above the live suggestions while typing, so a long history never buries them.
 const TYPED_HISTORY_MATCHES: usize = 5;
+const QUERY_ROW_ESTIMATE: f32 = 48.;
 
 /// Which service the field searches; the history is shared.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -48,6 +50,8 @@ pub struct SearchView {
     /// Newest first.
     history: Vec<String>,
     generation: u64,
+    scroll: ScrollHandle,
+    rows: LazyRows,
     focus: FocusList,
     /// Back and the field, then the hint under them while there is nothing to list.
     bar_focus: FocusList,
@@ -75,6 +79,7 @@ impl SearchView {
                 Vec::new()
             }
         };
+        let scroll = ScrollHandle::new();
         Self {
             input,
             mode,
@@ -85,7 +90,9 @@ impl SearchView {
             suggestions: Vec::new(),
             history,
             generation: 0,
-            focus: FocusList::new(None),
+            rows: LazyRows::new(scroll.clone(), QUERY_ROW_ESTIMATE),
+            focus: FocusList::new(Some(scroll.clone())),
+            scroll,
             bar_focus: FocusList::new(None),
             _subscription: subscription,
         }
@@ -331,18 +338,13 @@ impl Render for SearchView {
                 .collect();
             (matches, fresh)
         };
-        let stops = self.focus.list_stops(0..history.len() + suggestions.len(), window, cx);
-        let mut rows = v_flex().id("search-queries");
-        let mut count = 0;
-        for entry in &history {
-            rows = rows.child(self.query_row(count, entry, true, cx));
-            count += 1;
-        }
-        for suggestion in &suggestions {
-            rows = rows.child(self.query_row(count, suggestion, false, cx));
-            count += 1;
-        }
-        let mut rows = v_flex().child(stops.wrap(rows, None, cx));
+        let mut count = history.len() + suggestions.len();
+        let stops = self.focus.list_stops(0..count, window, cx);
+        let rows = self.rows.render(count, 0., stops.kept(), window, |index| match history.get(index) {
+            Some(entry) => self.query_row(index, entry, true, cx).into_any_element(),
+            None => self.query_row(index, &suggestions[index - history.len()], false, cx).into_any_element(),
+        });
+        let mut rows = v_flex().child(stops.wrap(rows.id("search-queries"), None, cx));
         if typed.is_empty() {
             let clear = Button::new("clear-history")
                 .ghost()
@@ -354,6 +356,9 @@ impl Render for SearchView {
             count += 1;
         }
         let rows = self.focus.container(rows, 0..count, cx);
-        v_flex().size_full().child(bar).child(div().id("suggestions").flex_1().overflow_y_scroll().child(rows))
+        v_flex()
+            .size_full()
+            .child(bar)
+            .child(div().id("suggestions").flex_1().overflow_y_scroll().track_scroll(&self.scroll).child(rows))
     }
 }
