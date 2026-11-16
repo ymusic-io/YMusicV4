@@ -355,7 +355,11 @@ fn download_item(task: &DownloadTask, path: PathBuf) -> QueueItem {
         artist: task.artist.clone(),
         duration_ms: None,
         duration_label: None,
-        thumbs: Vec::new(),
+        thumbs: vec![ym_engine::yt::YtThumb {
+            url: crate::local_art::youtube_art_url(&task.video_id),
+            w: None,
+            h: None,
+        }],
         media_id: None,
         history_code: None,
         youtube_vid: Some(task.video_id.clone()),
