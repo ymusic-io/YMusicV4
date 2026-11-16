@@ -1036,6 +1036,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "138efcf0940a02ebf0cc8d1eff41a1682a46b431630f4c52450d6265876021fa"
 dependencies = [
  "calloop",
+ "log",
  "rustix",
  "wayland-backend",
  "wayland-client",
@@ -9746,8 +9747,6 @@ checksum = "163b33ed8786455e2fa5d72f554057ce3f3182425434f756cd39c99839d88e23"
 [[package]]
 name = "xim-ctext"
 version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2ac61a7062c40f3c37b6e82eeeef835d5cc7824b632a72784a89b3963c33284c"
 dependencies = [
  "encoding_rs",
 ]
@@ -10057,6 +10056,7 @@ dependencies = [
  "ashpd 0.13.13",
  "block2 0.6.2",
  "bytes",
+ "calloop-wayland-source",
  "chrono",
  "dirs 6.0.0",
  "embed-resource",
