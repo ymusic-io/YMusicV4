@@ -8,7 +8,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.getAndUpdate
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -45,8 +44,8 @@ abstract class StringBackedSettingsStore : SettingsStore {
     }
 
     override suspend fun remove(key: String) {
-        data.update { it - key }
-        commit(key)
+        val before = data.getAndUpdate { it - key }
+        if (key in before) commit(key)
     }
 
     /** Writes [key]'s current state under the lock, so whichever put or remove commits last leaves the latest one on disk. */
