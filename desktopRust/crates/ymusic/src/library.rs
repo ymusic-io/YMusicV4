@@ -21,7 +21,6 @@ use ym_store::{Bucket, MediaItem, MediaStore, Playlist, PlaylistItemDetail};
 
 use crate::a11y::{DragRow, FocusList, ListStops, announced, heading, label, list_item};
 use crate::action_icon::action_icon;
-use crate::file_rename::RenameFileDialog;
 use crate::graph::{AppGraph, on_core};
 use crate::library_playlist::{self, AddToLocalPlaylist, ArrangePlaylist, Changed, NameMode, PlaylistNameDialog};
 use crate::mini_player::clock;
@@ -62,6 +61,8 @@ pub fn on_library_change<V: 'static>(cx: &mut Context<V>, reload: impl Fn(&mut V
 pub struct PlayLocal {
     pub items: Vec<QueueItem>,
     pub index: usize,
+    /// Sets the player's shuffle mode first (the JVM PlaybackCoordinator.playLocal's `shuffle`).
+    pub shuffle: Option<bool>,
 }
 
 /// Put a local file next in the queue, or at its end.
@@ -87,7 +88,7 @@ pub enum SongAction {
 }
 
 /// A view whose song cells carry the song menu.
-pub trait SongMenuHost: EventEmitter<QueueLocal> + Sized + 'static {
+pub trait SongMenuHost: EventEmitter<QueueLocal> + EventEmitter<PlayLocal> + Sized + 'static {
     fn song_action(&mut self, action: SongAction, window: &mut Window, cx: &mut Context<Self>);
 }
 
@@ -289,6 +290,8 @@ pub struct LibraryView {
     loaded: Loaded,
     /// The artist, album or genre opened from its tab.
     group: Option<String>,
+    /// The open group of each grouped tab that is not showing.
+    tab_groups: HashMap<&'static str, String>,
     open_playlist: Option<OpenPlaylist>,
     /// The open folder chain; empty is the root.
     path: Vec<Bucket>,
@@ -352,6 +355,7 @@ impl LibraryView {
             tab,
             loaded: Loaded::default(),
             group: None,
+            tab_groups: HashMap::new(),
             open_playlist: None,
             path: Vec::new(),
             folders: Vec::new(),
@@ -445,13 +449,19 @@ impl LibraryView {
     }
 
     pub fn select_tab_index(&mut self, index: usize, cx: &mut Context<Self>) {
-        self.select_tab(Tab::ALL[index.min(Tab::ALL.len() - 1)], cx);
+        if let Some(tab) = Tab::ALL.get(index).copied() {
+            self.select_tab(tab, cx);
+        }
     }
 
+    /// Each tab keeps its open group, and the Playlists tab its open playlist, across switches (the
+    /// JVM tabs' saveable state).
     fn select_tab(&mut self, tab: Tab, cx: &mut Context<Self>) {
+        if let Some(group) = self.group.take() {
+            self.tab_groups.insert(self.tab.key(), group);
+        }
         self.set_tab(tab, cx);
-        self.group = None;
-        self.open_playlist = None;
+        self.group = self.tab_groups.remove(tab.key());
         if tab == Tab::Folders {
             self.refresh(cx);
         } else {
@@ -735,18 +745,24 @@ impl LibraryView {
         details.into_iter().map(|detail| detail.item).collect()
     }
 
+    /// The JVM `playLocal(songs, songs.indices.random(), shuffle = true)`: shuffle mode on, the list
+    /// in its order, from a random song.
     fn shuffle_all(&mut self, cx: &mut Context<Self>) {
-        let mut items: Vec<QueueItem> = self.shown_items().iter().map(QueueItem::from_local).collect();
+        let items: Vec<QueueItem> = self.shown_items().iter().map(QueueItem::from_local).collect();
         if items.is_empty() {
             return;
         }
-        rand::seq::SliceRandom::shuffle(items.as_mut_slice(), &mut rand::rng());
-        cx.emit(PlayLocal { items, index: 0 });
+        let index = rand::Rng::random_range(&mut rand::rng(), 0..items.len());
+        cx.emit(PlayLocal { items, index, shuffle: Some(true) });
     }
 
     /// Re-scans every root folder.
+    /// The JVM scopedRescan: the open folder, or every root at the top level.
     fn rescan(&mut self, cx: &mut Context<Self>) {
-        self.rescan_where(cx, |_| true);
+        match self.path.last() {
+            Some(open) => self.scan_paths(vec![PathBuf::from(&open.uri)], false, cx),
+            None => self.rescan_where(cx, |_| true),
+        }
     }
 
     fn rescan_where(&mut self, cx: &mut Context<Self>, keep: impl Fn(&Bucket) -> bool + Send + 'static) {
@@ -825,18 +841,23 @@ impl LibraryView {
 
     /// Steps up one level of the open tab: the open folder's parent, out of an opened playlist or
     /// group; nothing at the tab's top level.
-    pub fn back(&mut self, cx: &mut Context<Self>) {
+    /// Steps up one level; false when already at the tab's top.
+    pub fn back(&mut self, cx: &mut Context<Self>) -> bool {
         if self.tab == Tab::Folders && !self.path.is_empty() {
             self.open_crumb(self.path.len() - 1, cx);
-        } else {
+        } else if self.tab == Tab::Playlists && self.open_playlist.is_some() {
             self.open_playlist = None;
+        } else if self.group.is_some() {
             self.group = None;
+        } else {
+            return false;
         }
         cx.notify();
+        true
     }
 
     /// Remove (a root), Exclude / Include (a subfolder): the store cascades, then the list reloads.
-    /// Including clears the flag first, then rescans the root, since scans skip excluded folders.
+    /// Including clears the flag first, then rescans that folder, since scans skip excluded folders.
     fn folder_change(&mut self, bucket: Bucket, change: FolderChange, window: &mut Window, cx: &mut Context<Self>) {
         let id = bucket.id;
         let request = library_playlist::store_call(cx, move |store| match change {
@@ -844,15 +865,13 @@ impl LibraryView {
             FolderChange::Exclude => store.set_bucket_excluded(id, true),
             FolderChange::Include => store.set_bucket_excluded(id, false),
         });
-        let root = self.path.first().map(|root| root.id);
+        let included = PathBuf::from(&bucket.uri);
         cx.spawn_in(window, async move |this, cx| {
             let result = request.await;
             this.update_in(cx, |view, window, cx| match result {
                 Ok(()) => {
-                    if change == FolderChange::Include
-                        && let Some(root) = root
-                    {
-                        view.rescan_where(cx, move |bucket| bucket.id == root);
+                    if change == FolderChange::Include {
+                        view.scan_paths(vec![included], false, cx);
                     }
                     view.reload(cx);
                 }
@@ -1032,7 +1051,7 @@ impl LibraryView {
 
     fn play(&mut self, index: usize, cx: &mut Context<Self>) {
         let items = self.shown_items().iter().map(QueueItem::from_local).collect();
-        cx.emit(PlayLocal { items, index });
+        cx.emit(PlayLocal { items, index, shuffle: None });
     }
 
     /// Opens the artist's or album's songs in its tab ("Go to artist / album").
@@ -1136,11 +1155,6 @@ impl LibraryView {
                     "album" => SongAction::GoTo(GroupKind::Album, item.album.clone().unwrap_or_default()),
                     "folder" => SongAction::ShowInFolder(item.bucket_id.unwrap_or_default()),
                     "unlist" => SongAction::RemoveFromPlaylist(item),
-                    "rename" => {
-                        let changed = self.changed(cx);
-                        RenameFileDialog::open(PathBuf::from(&item.uri), Some(changed), window, cx);
-                        return;
-                    }
                     "deletefile" => {
                         let changed = self.changed(cx);
                         library_playlist::confirm_delete_from_disk(item, Some(changed), window, cx);
@@ -1339,19 +1353,21 @@ pub fn song_cell<V: SongMenuHost>(
                 }
             };
             let (play_view, next, last) = (view.clone(), view.clone(), view.clone());
-            let (next_item, last_item) = (local.clone(), local);
+            let (next_item, last_item, single) = (local.clone(), local.clone(), local);
             let changed: Changed = {
                 let view = view.clone();
                 Rc::new(move |window, cx| {
                     view.update(cx, |view, cx| view.song_action(SongAction::Changed, window, cx)).ok();
                 })
             };
-            let (playlist_changed, delete_changed, rename_changed) = (changed.clone(), changed.clone(), changed);
-            let renamed = path.clone();
+            let (playlist_changed, delete_changed) = (changed.clone(), changed);
             let (code, doomed) = (song.playlist_code(), song.clone());
             let mut menu_list = menu_list
                 .item(PopupMenuItem::new(t(Str::MenuPlay)).on_click(move |_, _, cx| {
-                    play_view.update(cx, |view, cx| play(view, index, cx)).ok();
+                    let item = single.clone();
+                    play_view
+                        .update(cx, |_, cx| cx.emit(PlayLocal { items: vec![item], index: 0, shuffle: None }))
+                        .ok();
                 }))
                 .item(PopupMenuItem::new(t(Str::QueueNext)).on_click(move |_, _, cx| {
                     next.update(cx, |_, cx| cx.emit(QueueLocal { item: next_item.clone(), next: true })).ok();
@@ -1392,9 +1408,6 @@ pub fn song_cell<V: SongMenuHost>(
             menu_list
                 .item(crate::settings_view::menu_divider())
                 .item(PopupMenuItem::new(reveal_label()).on_click(move |_, _, cx| cx.reveal_path(&path)))
-                .item(PopupMenuItem::new(t(Str::MenuRename)).on_click(move |_, window, cx| {
-                    RenameFileDialog::open(renamed.clone(), Some(rename_changed.clone()), window, cx);
-                }))
                 .item(PopupMenuItem::new(t(Str::MenuRemoveFromDisk)).on_click(move |_, window, cx| {
                     library_playlist::confirm_delete_from_disk(
                         doomed.clone(),
@@ -2064,7 +2077,8 @@ impl Render for LibraryView {
         };
         let shown = self.shown_items();
         let song_stops = self.song_focus.list_stops(0..shown.len(), window, cx);
-        let song_list_label: SharedString = match (&self.open_playlist, &self.group, self.path.last()) {
+        let open_playlist = self.open_playlist.as_ref().filter(|_| self.tab == Tab::Playlists);
+        let song_list_label: SharedString = match (open_playlist, &self.group, self.path.last()) {
             (Some(open), _, _) => open.title().into(),
             (None, Some(group), _) => group.clone().into(),
             (None, None, Some(folder)) => folder.display_name().to_owned().into(),

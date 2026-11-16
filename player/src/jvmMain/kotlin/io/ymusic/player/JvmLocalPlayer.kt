@@ -75,6 +75,9 @@ internal class JvmLocalPlayer(
 
     @Volatile private var loadedPath: String? = null
 
+    /** The stream index handed to `setAudioIndex`; the native plays it, or the first audio stream when absent. */
+    @Volatile private var audioIndex = -1
+
     @Volatile private var audioOnly = true
 
     @Volatile private var videoHidden = false
@@ -192,7 +195,8 @@ internal class JvmLocalPlayer(
             // Before the open: the video decoder picks D3D11VA from the bound presenter.
             videoSurface?.claim(VideoEngine.LOCAL)
             FileAvNative.setVolume(handle, volume.toDouble())
-            FileAvNative.setAudioIndex(handle, -1)
+            audioIndex = -1
+            FileAvNative.setAudioIndex(handle, audioIndex)
             FileAvNative.setVideoEnabled(handle, !audioOnly && !videoHidden)
             FileAvNative.setSpeed(handle, config.speed.coerceAtLeast(0.05f).toDouble())
             FileAvNative.setPitch(handle, config.pitchFactor.toDouble())
@@ -380,7 +384,8 @@ internal class JvmLocalPlayer(
         val playing = (_status.value.state as? PlaybackState.Prepared)?.playWhenReady == true
         dispatch {
             if (handle == 0L) return@dispatch
-            FileAvNative.setAudioIndex(handle, index)
+            audioIndex = index
+            FileAvNative.setAudioIndex(handle, audioIndex)
             reopenAtPlayhead(playing, path)
         }
     }
@@ -539,7 +544,7 @@ internal class JvmLocalPlayer(
         val auds = streams.filter { it.kind == KIND_AUDIO }
         _audioTracks.value = AudioTrackState(
             auds.map { AudioTrack(it.index.toString(), it.lang.ifBlank { "Audio ${it.index}" }) },
-            auds.firstOrNull()?.index?.toString(),
+            (auds.firstOrNull { it.index == audioIndex } ?: auds.firstOrNull())?.index?.toString(),
         )
         publishVideoQuality()
         publishCaptions(config)

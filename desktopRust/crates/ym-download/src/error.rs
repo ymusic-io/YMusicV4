@@ -3,6 +3,11 @@ use std::io;
 use ym_engine::EngineError;
 use ym_ytmedia::sabr::SabrError;
 
+/// The JVM `DownloadFolderAccessException.CODE`.
+pub const FOLDER_ACCESS_CODE: &str = "download_folder_access";
+/// What 4.0.22's Rust app stored for the same failure.
+pub const LEGACY_FOLDER_ACCESS_CODE: &str = "folder";
+
 /// Why a download failed, shaped for the user: a category they can act on, or a site code.
 #[derive(Debug, thiserror::Error)]
 pub enum DownloadError {
@@ -34,14 +39,15 @@ impl DownloadError {
         if is_disk_full(&error) { Self::DiskFull(error) } else { Self::technical(code, format!("{context}: {error}")) }
     }
 
-    /// The code shown with "Something went wrong", or the category name.
+    /// The code shown with "Something went wrong", or the category name. Stored in `downloads.db`,
+    /// which the JVM app shares, so each matches its JVM code.
     pub fn code(&self) -> String {
         match self {
             Self::Network(_) => "network".to_owned(),
             Self::DiskFull(_) => "disk_full".to_owned(),
             Self::Live(_) => "live".to_owned(),
             Self::StillProcessing(_) => "processing".to_owned(),
-            Self::FolderUnavailable(_) => "folder".to_owned(),
+            Self::FolderUnavailable(_) => FOLDER_ACCESS_CODE.to_owned(),
             Self::Engine(error) => error.code.clone(),
             Self::Technical { code, .. } => (*code).to_owned(),
         }

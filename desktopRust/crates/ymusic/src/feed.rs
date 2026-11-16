@@ -116,7 +116,14 @@ impl FeedSource {
         match &self {
             Self::TopTracks => top_tracks(history).await,
             Self::Account => engine.account_library(continuation, &log).await,
-            Self::Home => engine.home_feed(continuation, refresh, &log).await,
+            // Home is a music app's front door: music first, per section (across sections would tear
+            // headers off their items).
+            Self::Home => engine.home_feed(continuation, refresh, &log).await.map(|mut page| {
+                for section in &mut page.sections {
+                    section.items = rank_music_first(std::mem::take(&mut section.items));
+                }
+                page
+            }),
             Self::Trending => engine.trending_music_feed(&log).await,
             Self::Recommended => engine.recommended_feed(&log).await,
             Self::MusicHome => engine.music_home(continuation, refresh, &log).await,
@@ -192,6 +199,11 @@ pub struct Play {
     pub item: YtFeedItem,
     pub queue: Option<Vec<YtFeedItem>>,
     pub shuffle: bool,
+    /// The playlist page whose list the queue continues past the loaded videos (the JVM
+    /// `queueSource` of a playlist page).
+    pub playlist: Option<String>,
+    /// That playlist's length, loaded or not, when its page says.
+    pub playlist_total: Option<i32>,
 }
 
 /// Something to do with a video besides opening it.
@@ -264,9 +276,11 @@ pub struct FeedView {
     tabs_drag: DragRow,
     carousel_drags: std::cell::RefCell<std::collections::HashMap<usize, DragRow>>,
     offline: Entity<OfflineMarks>,
-    /// Channel items offer Subscribe / Unsubscribe only when signed in.
-    signed_in: bool,
+    /// False for a signed-in-only feed until its owner confirms a sign-in: it fetches nothing before
+    /// (the JVM Account and YT Music Library tabs build their session only once signed in).
+    gate_open: bool,
     _offline: Subscription,
+    _accounts: Subscription,
 }
 
 /// Which page header a detail page shows.
@@ -288,10 +302,12 @@ impl EventEmitter<ItemAction> for FeedView {}
 
 impl FeedView {
     pub fn new(source: FeedSource, title: Option<SharedString>, cx: &mut Context<Self>) -> Self {
+        let source_needs_sign_in = matches!(source, FeedSource::Account | FeedSource::MusicLibrary);
         let scroll = ScrollHandle::new();
         OfflineMarks::refresh(cx);
         let offline = OfflineMarks::shared(cx);
         let observe_offline = cx.observe(&offline, |_, _, cx| cx.notify());
+        let observe_accounts = cx.observe(&crate::account::AccountController::global(cx), |_, _, cx| cx.notify());
         let mut view = Self {
             source,
             title,
@@ -316,15 +332,28 @@ impl FeedView {
             tabs_drag: DragRow::default(),
             carousel_drags: Default::default(),
             offline,
-            signed_in: false,
+            gate_open: !source_needs_sign_in,
             _offline: observe_offline,
+            _accounts: observe_accounts,
         };
-        view.reload(cx);
+        if view.gate_open {
+            view.reload(cx);
+        }
         view
+    }
+
+    /// Lets a signed-in-only feed fetch (true) or holds it (false).
+    pub fn open_gate(&mut self, open: bool) {
+        self.gate_open = open;
     }
 
     pub fn title(&self) -> Option<SharedString> {
         self.title.clone().or_else(|| self.page.page_header.as_ref()?.title.clone().map(Into::into))
+    }
+
+    /// A YouTube Music page (album, artist, playlist), whose search is music search.
+    pub fn is_music_page(&self) -> bool {
+        matches!(self.source, FeedSource::MusicBrowse(_))
     }
 
     /// Playlists title their bar "Playlist", not with the playlist's name.
@@ -365,7 +394,23 @@ impl FeedView {
             return;
         }
         let start = if shuffle { rand::Rng::random_range(&mut rand::rng(), 0..videos.len()) } else { 0 };
-        cx.emit(Play { item: videos[start].clone(), queue: Some(videos), shuffle });
+        let (playlist, playlist_total) = (self.playlist_url(), self.playlist_total());
+        cx.emit(Play { item: videos[start].clone(), queue: Some(videos), shuffle, playlist, playlist_total });
+    }
+
+    /// A playlist page's link, which its queue continues from.
+    fn playlist_total(&self) -> Option<i32> {
+        self.page.page_header.as_ref().and_then(|header| header.item_count)
+    }
+
+    fn playlist_url(&self) -> Option<String> {
+        if self.header_kind() != HeaderKind::Playlist {
+            return None;
+        }
+        match &self.source {
+            FeedSource::Playlist(url) | FeedSource::MusicBrowse(url) => Some(url.clone()),
+            _ => None,
+        }
     }
 
     fn share_page(&self) -> Option<String> {
@@ -482,6 +527,9 @@ impl FeedView {
 
     pub fn reload(&mut self, cx: &mut Context<Self>) {
         self.phase = Phase::Loading;
+        if !self.gate_open {
+            return;
+        }
         self.fetch(None, false, cx);
     }
 
@@ -489,6 +537,9 @@ impl FeedView {
     /// filter, the current list staying up under the loading line until the new one lands; a
     /// failure keeps it and says why.
     pub fn refresh(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if !self.gate_open {
+            return;
+        }
         if !matches!(self.phase, Phase::Ready) {
             return self.reload(cx);
         }
@@ -613,7 +664,6 @@ impl FeedView {
                     Some(Ok(page)) if append => view.append(page),
                     Some(Ok(page)) => {
                         view.replace(page, false);
-                        view.check_signed_in(cx);
                     }
                     Some(Err(error)) if append => view.more_failed = Some(error),
                     Some(Err(error)) => view.phase = Phase::Failed(error),
@@ -649,34 +699,6 @@ impl FeedView {
         self.more_failed = None;
     }
 
-    /// Reads the cookie-only sign-in gate when the page has channel items to offer Subscribe on.
-    fn check_signed_in(&mut self, cx: &mut Context<Self>) {
-        let has_channels =
-            self.page.sections.iter().any(|section| section.items.iter().any(|item| item.kind == "channel"));
-        if !has_channels {
-            return;
-        }
-        let graph = cx.global::<AppGraph>();
-        let (engine, log) = (graph.engine(), graph.log.fork("feed-signed-in"));
-        let status = on_core(cx, async move {
-            let status = engine.login_status(&log).await;
-            if let Err(error) = &status {
-                log.warn("sign-in status could not be read", Some(error));
-            }
-            status
-        });
-        cx.spawn(async move |this, cx| {
-            if let Some(Ok(signed_in)) = status.await {
-                this.update(cx, |view, cx| {
-                    view.signed_in = signed_in;
-                    cx.notify();
-                })
-                .ok();
-            }
-        })
-        .detach();
-    }
-
     /// Subscribe / Unsubscribe from a channel item's menu, reported by notification.
     fn subscribe_channel(&mut self, channel_id: String, subscribe: bool, window: &mut Window, cx: &mut Context<Self>) {
         let graph = cx.global::<AppGraph>();
@@ -708,7 +730,12 @@ impl FeedView {
         let title = Some(SharedString::from(item.title.clone()));
         let source = match item.kind.as_str() {
             "video" => {
-                cx.emit(Play { item: item.clone(), queue, shuffle: false });
+                // On a playlist page a tap plays the page's list from that video (the JVM playAll with
+                // the page's queue source); elsewhere a section's own queue, or a radio.
+                let playlist = self.playlist_url();
+                let queue = if playlist.is_some() { Some(self.videos()) } else { queue };
+                let playlist_total = self.playlist_total();
+                cx.emit(Play { item: item.clone(), queue, shuffle: false, playlist, playlist_total });
                 return;
             }
             "playlist" => item
@@ -736,6 +763,13 @@ impl FeedView {
             self.source = source;
             self.phase = Phase::Loading;
             self.fetch(None, false, cx);
+        }
+    }
+
+    /// The Ctrl/Cmd+digit handler of a page with its own tab row (a channel's).
+    pub fn select_page_tab(&mut self, index: usize, cx: &mut Context<Self>) {
+        if let Some(url) = self.page.page_tabs.get(index).and_then(|tab| tab.url.clone()) {
+            self.open_tab(url, cx);
         }
     }
 }
@@ -1134,7 +1168,8 @@ impl FeedView {
         let target = item.clone();
         let top_tracks = matches!(self.source, FeedSource::TopTracks);
         let downloaded = self.downloaded(item, cx);
-        let channel_id = (item.kind == "channel" && self.signed_in)
+        let signed_in = crate::account::AccountController::global(cx).read(cx).signed_in;
+        let channel_id = (item.kind == "channel" && signed_in)
             .then(|| item.channel_id.clone().unwrap_or_else(|| item.id.clone()))
             .filter(|id| !id.is_empty());
         let more = action_icon(
@@ -1225,7 +1260,13 @@ impl FeedView {
 
     fn menu_action(&mut self, item: YtFeedItem, action: MenuAction, window: &mut Window, cx: &mut Context<Self>) {
         match action {
-            MenuAction::PlaySingle => cx.emit(Play { item: item.clone(), queue: Some(vec![item]), shuffle: false }),
+            MenuAction::PlaySingle => cx.emit(Play {
+                item: item.clone(),
+                queue: Some(vec![item]),
+                shuffle: false,
+                playlist: None,
+                playlist_total: None,
+            }),
             MenuAction::Feed(action) => cx.emit(ItemAction { item, action }),
             MenuAction::Share => {
                 if let Some(link) = share_link(&item) {
@@ -1788,14 +1829,46 @@ enum MenuAction {
 }
 
 fn share_link(item: &YtFeedItem) -> Option<String> {
-    match item.kind.as_str() {
-        "video" => Some(format!("https://youtu.be/{}", item.id)),
-        "playlist" if !item.id.is_empty() => Some(format!("https://www.youtube.com/playlist?list={}", item.id)),
-        "channel" => {
-            item.channel_id.as_ref().or(Some(&item.id)).map(|id| format!("https://www.youtube.com/channel/{id}"))
+    youtube_share_link(&item.kind, &item.id)
+}
+
+/// The JVM `rankMusicFirst`: YouTube Mixes (RD radios), then music videos, then videos from an
+/// official artist channel, then verified channels, then the rest; every other item keeps its slot
+/// while the ranked ones reorder through the remaining slots, stable within each band.
+fn rank_music_first(items: Vec<YtFeedItem>) -> Vec<YtFeedItem> {
+    fn band(item: &YtFeedItem) -> Option<u8> {
+        if item.kind == "playlist" && item.id.starts_with("RD") {
+            return Some(0);
         }
-        _ => None,
+        if item.kind != "video" {
+            return None;
+        }
+        Some(match item.owner_badge.as_deref() {
+            _ if item.music_video => 1,
+            Some("artist") => 2,
+            Some("verified") => 3,
+            _ => 4,
+        })
     }
+    let mut movable: Vec<YtFeedItem> = items.iter().filter(|item| band(item).is_some()).cloned().collect();
+    movable.sort_by_key(band);
+    let mut ranked = movable.into_iter();
+    items.into_iter().map(|item| if band(&item).is_some() { ranked.next().unwrap_or(item) } else { item }).collect()
+}
+
+/// The JVM `youtubeShareLink`: the YouTube web link of a video, playlist or channel on the app's own
+/// domain; a YouTube Music browse id (an album's MPREb…) has no www page and keeps its music url.
+pub fn youtube_share_link(kind: &str, id: &str) -> Option<String> {
+    if kind == "playlist" && (id.starts_with("MPRE") || id.starts_with("FE")) {
+        return Some(format!("https://music.youtube.com/browse/{id}"));
+    }
+    let path = match kind {
+        "video" => format!("watch?v={id}"),
+        "playlist" => format!("playlist?list={}", id.strip_prefix("VL").unwrap_or(id)),
+        "channel" if id.starts_with("UC") => format!("channel/{id}"),
+        _ => return None,
+    };
+    Some(format!("https://www.ymusicapp.com/{path}"))
 }
 
 impl Render for FeedView {

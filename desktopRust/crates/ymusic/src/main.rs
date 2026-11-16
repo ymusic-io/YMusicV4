@@ -3,6 +3,7 @@
 
 mod a11y;
 mod accent;
+mod account;
 mod account_view;
 mod action_icon;
 mod app_update;
@@ -48,6 +49,7 @@ mod player_cache;
 mod playlist_download;
 mod playlist_transfer;
 mod queue_nav;
+mod queue_source;
 mod quick_download;
 mod reorder;
 mod search_filter;
@@ -155,7 +157,9 @@ fn main() {
     crate::data_files::adopt_jvm_settings(&app_db, &log);
     crate::desktop::adopt_saved_bounds(&app_db, &window_prefs, &log.fork("window"));
     let saved_window = crate::desktop::load_window_prefs(&window_prefs);
-    crate::settings_view::apply_language(app_db.as_ref());
+    crate::settings_view::apply_language(app_db.as_ref()).unwrap_or_else(|error| {
+        boot_failed(&log, &ym_engine::EngineError::site("R91100", format!("UI language not seeded: {error}")))
+    });
     let inputs = crate::launch::BootInputs {
         tokio: tokio.handle().clone(),
         log: log.clone(),

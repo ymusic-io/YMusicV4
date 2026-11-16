@@ -17,6 +17,7 @@ unsafe extern "C" {
     fn file_av_set_volume(player: *mut c_void, volume: f64);
     fn file_av_set_video_enabled(player: *mut c_void, on: c_int);
     fn file_av_set_subtitle_index(player: *mut c_void, stream_index: c_int);
+    fn file_av_set_audio_index(player: *mut c_void, stream_index: c_int);
     fn file_av_set_sinks(
         player: *mut c_void,
         on_pcm: *const c_void,
@@ -140,6 +141,12 @@ impl LocalAv {
         // SAFETY: `raw` is live; null sinks are skipped by the C side; `user` outlives `raw` (Drop order).
         unsafe { file_av_set_sinks(raw, null, null, null, Some(push_cue), user) };
         Some(Self { raw, live_cues })
+    }
+
+    /// The audio stream the next `open` plays; None (or a stream it lacks) plays the first.
+    pub fn set_audio_index(&mut self, stream_index: Option<i32>) {
+        // SAFETY: `raw` is live until Drop.
+        unsafe { file_av_set_audio_index(self.raw, stream_index.unwrap_or(-1)) }
     }
 
     /// Decodes this text stream's cues as playback reaches them (`take_live_cues`); None turns it off.

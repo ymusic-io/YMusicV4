@@ -629,7 +629,7 @@ impl VideoDetailsView {
                     cx,
                 ),
             );
-        let link = format!("https://youtu.be/{}", self.video_id);
+        let link = crate::feed::youtube_share_link("video", &self.video_id).unwrap_or_default();
         let share = Self::pill_button("details-share", Lucide::Share2)
             .accessibility_label(t(Str::CdShare))
             .tooltip(t(Str::CdShare))

@@ -81,7 +81,9 @@ gpui_kit::assets::icon_assets!(
         Headphones,
         Video,
         AudioLines,
-        Image
+        Image,
+        Scan,
+        Shrink
     ]
 );
 

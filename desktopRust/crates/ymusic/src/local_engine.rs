@@ -10,7 +10,7 @@ use ym_mse::{AvStream, Cue, LocalAv, Presenter, StreamKind};
 
 use crate::audio_effects::AudioEffects;
 use crate::local_captions::{SidecarTrack, active_lines, find_sidecars, lang_key, track_label};
-use crate::playback::CaptionTrack;
+use crate::playback::{AudioTrack, CaptionTrack};
 
 /// The JVM `PlaybackConfig.captionVisible` and `preferCaptionLanguage`.
 #[derive(Clone, Debug, PartialEq)]
@@ -20,12 +20,17 @@ pub struct CaptionPrefs {
 }
 
 pub enum LocalCommand {
+    /// Opens `path` at `start_ms`, then plays or stays paused (the JVM JvmLocalPlayer.load).
     Load {
         path: PathBuf,
         video: bool,
         captions: CaptionPrefs,
+        start_ms: i64,
+        play_when_ready: bool,
     },
     Captions(CaptionPrefs),
+    /// Plays this audio stream from the play position (the JVM `JvmLocalPlayer.selectAudioTrack`).
+    AudioTrack(i32),
     Play,
     Pause,
     Seek(i64),
@@ -46,16 +51,19 @@ pub struct LocalStatus {
     pub generation: u64,
     pub position_ms: i64,
     pub duration_ms: i64,
-    pub playing: bool,
     pub ended: bool,
     pub error: Option<String>,
     /// The open file and whether it has a picture stream.
     pub video_track: Option<(PathBuf, bool)>,
+    /// The smaller side of the open file's first picture stream, 0 without one (its quality tier).
+    pub video_side: i32,
     pub caption_tracks: Vec<CaptionTrack>,
     /// The shown track's id while captions are on.
     pub caption_selected: Option<String>,
     /// The cues on screen now.
     pub caption_lines: Vec<(i64, String)>,
+    pub audio_tracks: Vec<AudioTrack>,
+    pub audio_track_selected: Option<String>,
 }
 
 pub struct LocalEngine {
@@ -265,8 +273,29 @@ impl Captions {
     }
 }
 
+/// The JVM `publishTracks`' audio half: every audio stream, `audio_index` selected (the first when absent).
+fn publish_audio_tracks(player: &LocalAv, audio_index: Option<i32>, status: &mut LocalStatus) {
+    let tracks: Vec<AudioTrack> = player
+        .streams()
+        .into_iter()
+        .filter(|stream| stream.kind == StreamKind::Audio)
+        .map(|stream| AudioTrack {
+            id: stream.index.to_string(),
+            display_name: if stream.lang.trim().is_empty() { format!("Audio {}", stream.index) } else { stream.lang },
+        })
+        .collect();
+    let selected = audio_index.map(|index| index.to_string());
+    status.audio_track_selected = tracks
+        .iter()
+        .find(|track| Some(&track.id) == selected.as_ref())
+        .or(tracks.first())
+        .map(|track| track.id.clone());
+    status.audio_tracks = tracks;
+}
+
 fn run(mut player: LocalAv, commands: mpsc::Receiver<LocalCommand>, status: Arc<Mutex<LocalStatus>>) {
     let mut loaded = false;
+    let mut loaded_path: Option<PathBuf> = None;
     let mut playing = false;
     let mut effects = AudioEffects::default();
     let mut captions = Captions::new(CaptionPrefs {
@@ -281,9 +310,10 @@ fn run(mut player: LocalAv, commands: mpsc::Receiver<LocalCommand>, status: Arc<
         };
         match next {
             Ok(command) => match command {
-                LocalCommand::Load { path, video, captions: prefs } => {
+                LocalCommand::Load { path, video, captions: prefs, start_ms, play_when_ready } => {
                     player.close();
                     player.set_video_enabled(video);
+                    player.set_audio_index(None);
                     captions.clear(&mut player);
                     captions.prefs = prefs;
                     let mut status = status.lock().unwrap();
@@ -291,27 +321,67 @@ fn run(mut player: LocalAv, commands: mpsc::Receiver<LocalCommand>, status: Arc<
                     status.ended = false;
                     status.position_ms = 0;
                     status.video_track = None;
+                    status.video_side = 0;
                     status.caption_tracks.clear();
                     status.caption_selected = None;
                     status.caption_lines.clear();
+                    status.audio_tracks.clear();
+                    status.audio_track_selected = None;
                     match player.open(&path) {
                         Ok(()) => {
                             captions.open(&mut player, &path);
-                            captions.publish(&mut status, 0.0);
+                            publish_audio_tracks(&player, None, &mut status);
+                            loaded_path = Some(path.clone());
                             status.video_track = Some((path, player.has_video()));
+                            status.video_side = player
+                                .streams()
+                                .iter()
+                                .find(|stream| stream.kind == StreamKind::Video)
+                                .map_or(0, |stream| stream.width.min(stream.height));
                             player.set_speed_pitch(f64::from(effects.speed), f64::from(effects.pitch));
                             player.set_tone(&effects.tone);
                             loaded = true;
-                            playing = true;
-                            player.play();
+                            let start_ms = start_ms.max(0);
+                            player.seek(start_ms as f64 / 1000.0);
+                            status.position_ms = start_ms;
+                            captions.publish(&mut status, start_ms as f64 / 1000.0);
+                            if play_when_ready {
+                                player.play();
+                            } else {
+                                player.pause();
+                            }
+                            playing = play_when_ready;
                             status.duration_ms = (player.duration() * 1000.0) as i64;
-                            status.playing = true;
                             status.error = None;
                         }
                         Err(message) => {
                             loaded = false;
+                            loaded_path = None;
                             playing = false;
-                            status.playing = false;
+                            status.error = Some(message);
+                        }
+                    }
+                }
+                LocalCommand::AudioTrack(index) if loaded_path.is_some() => {
+                    let path = loaded_path.clone().unwrap_or_default();
+                    player.set_audio_index(Some(index));
+                    let position = player.position().max(0.0);
+                    let mut status = status.lock().unwrap();
+                    match player.open(&path) {
+                        Ok(()) => {
+                            captions.live.clear();
+                            captions.apply(&mut player);
+                            player.seek(position);
+                            if playing {
+                                player.play();
+                            }
+                            publish_audio_tracks(&player, Some(index), &mut status);
+                            captions.publish(&mut status, position);
+                        }
+                        Err(message) => {
+                            loaded = false;
+                            loaded_path = None;
+                            playing = false;
                             status.error = Some(message);
                         }
                     }
@@ -331,12 +401,10 @@ fn run(mut player: LocalAv, commands: mpsc::Receiver<LocalCommand>, status: Arc<
                 LocalCommand::Play if loaded => {
                     player.play();
                     playing = true;
-                    status.lock().unwrap().playing = true;
                 }
                 LocalCommand::Pause if loaded => {
                     player.pause();
                     playing = false;
-                    status.lock().unwrap().playing = false;
                 }
                 LocalCommand::Seek(position_ms) if loaded => {
                     captions.live.clear();
@@ -365,12 +433,14 @@ fn run(mut player: LocalAv, commands: mpsc::Receiver<LocalCommand>, status: Arc<
                     player.close();
                     captions.clear(&mut player);
                     loaded = false;
+                    loaded_path = None;
                     playing = false;
                     let mut status = status.lock().unwrap();
-                    status.playing = false;
                     status.caption_tracks.clear();
                     status.caption_selected = None;
                     status.caption_lines.clear();
+                    status.audio_tracks.clear();
+                    status.audio_track_selected = None;
                 }
                 _ => {}
             },
@@ -392,7 +462,6 @@ fn run(mut player: LocalAv, commands: mpsc::Receiver<LocalCommand>, status: Arc<
             }
             if player.ended() {
                 status.ended = true;
-                status.playing = false;
                 playing = false;
             }
             drop(status);

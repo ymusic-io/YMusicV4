@@ -30,7 +30,6 @@ const PRIVACY: [(&str, Str); 3] = [
 
 enum Targets {
     Loading,
-    SignedOut,
     Failed(EngineError),
     Ready(Vec<YtPlaylistTarget>),
 }
@@ -48,6 +47,9 @@ pub struct AddToPlaylist {
 
 impl AddToPlaylist {
     pub fn open(video_id: String, window: &mut Window, cx: &mut App) {
+        if !signed_in_or_notify(window, cx) {
+            return;
+        }
         let view = cx.new(|cx| {
             let scroll = ScrollHandle::new();
             let mut view = Self {
@@ -76,18 +78,12 @@ impl AddToPlaylist {
     fn load(&mut self, cx: &mut Context<Self>) {
         let graph = cx.global::<AppGraph>();
         let (engine, log, video_id) = (graph.engine(), graph.log.fork("yt-playlist"), self.video_id.clone());
-        let request = on_core(cx, async move {
-            if !engine.account_info(false, &log).await?.signed_in {
-                return Ok(None);
-            }
-            engine.playlist_targets(&video_id, &log).await.map(Some)
-        });
+        let request = on_core(cx, async move { engine.playlist_targets(&video_id, &log).await });
         cx.spawn(async move |this, cx| {
             let result = request.await;
             this.update(cx, |view, cx| {
                 view.targets = match result {
-                    Some(Ok(Some(targets))) => Targets::Ready(targets),
-                    Some(Ok(None)) => Targets::SignedOut,
+                    Some(Ok(targets)) => Targets::Ready(targets),
                     Some(Err(error)) => Targets::Failed(error),
                     None => return,
                 };
@@ -154,7 +150,6 @@ impl Render for AddToPlaylist {
         let mut count = 0;
         let body = match &self.targets {
             Targets::Loading => h_flex().w_full().justify_center().py_6().child(Spinner::new()).into_any_element(),
-            Targets::SignedOut => notice(t(Str::YtPlaylistSignIn).to_owned(), cx),
             Targets::Failed(error) => notice(error_text(error), cx),
             Targets::Ready(targets) => {
                 if !self.focused_first {
@@ -209,7 +204,6 @@ pub struct CreatePlaylist {
     from_queue: bool,
     name: Entity<InputState>,
     privacy: &'static str,
-    signed_in: Option<bool>,
     busy: bool,
     focus: FocusList,
     _subscription: Subscription,
@@ -222,6 +216,9 @@ const STOP_CREATE: usize = STOP_CANCEL + 1;
 
 impl CreatePlaylist {
     pub fn open(video_ids: Vec<String>, from_queue: bool, window: &mut Window, cx: &mut App) {
+        if !signed_in_or_notify(window, cx) {
+            return;
+        }
         let view = cx.new(|cx| {
             let name = cx.new(|cx| InputState::new(window, cx).placeholder(t(Str::PlaylistNameHint)));
             name.update(cx, |input, cx| input.focus(window, cx));
@@ -231,18 +228,15 @@ impl CreatePlaylist {
                 }
                 cx.notify();
             });
-            let mut view = Self {
+            Self {
                 video_ids,
                 from_queue,
                 name,
                 privacy: PRIVACY[0].0,
-                signed_in: None,
                 busy: false,
                 focus: FocusList::modal(None, cx),
                 _subscription: subscription,
-            };
-            view.check_account(cx);
-            view
+            }
         });
         window.open_dialog(cx, move |dialog, window, _| {
             let submit = view.downgrade();
@@ -255,31 +249,9 @@ impl CreatePlaylist {
         });
     }
 
-    fn check_account(&mut self, cx: &mut Context<Self>) {
-        let graph = cx.global::<AppGraph>();
-        let (engine, log) = (graph.engine(), graph.log.fork("yt-playlist"));
-        let request = on_core(cx, async move { engine.account_info(false, &log).await });
-        cx.spawn(async move |this, cx| {
-            let result = request.await;
-            this.update(cx, |view, cx| {
-                view.signed_in = Some(match result {
-                    Some(Ok(account)) => account.signed_in,
-                    Some(Err(error)) => {
-                        cx.global::<AppGraph>().log.warn("account check failed", Some(&error));
-                        false
-                    }
-                    None => return,
-                });
-                cx.notify();
-            })
-            .ok();
-        })
-        .detach();
-    }
-
     fn submit(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let title = self.name.read(cx).value().trim().to_owned();
-        if self.busy || title.is_empty() || self.signed_in != Some(true) {
+        if self.busy || title.is_empty() {
             return;
         }
         self.busy = true;
@@ -312,7 +284,7 @@ impl CreatePlaylist {
 impl Render for CreatePlaylist {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = cx.theme().clone();
-        let can_submit = !self.busy && self.signed_in == Some(true) && !self.name.read(cx).value().trim().is_empty();
+        let can_submit = !self.busy && !self.name.read(cx).value().trim().is_empty();
         let cancel = press(
             &self.focus,
             STOP_CANCEL,
@@ -322,10 +294,6 @@ impl Render for CreatePlaylist {
             cx,
         );
         let title = title_bar(t(Str::PlaylistCreateTitle), cx);
-        if self.signed_in == Some(false) {
-            let notice = message(t(Str::YtPlaylistSignIn), cx).text_color(theme.muted_foreground);
-            return v_flex().w_full().child(title).child(notice).child(button_bar(cancel, cx));
-        }
         let mut chips = h_flex().flex_wrap().gap_2();
         for (offset, (value, label)) in PRIVACY.into_iter().enumerate() {
             let selected = self.privacy == value;
@@ -381,4 +349,13 @@ impl Render for CreatePlaylist {
             )
             .child(button_bar(h_flex().child(cancel).child(create), cx))
     }
+}
+
+/// The JVM `YtPlaylistActions` gate: signed out, a notice instead of the dialog.
+fn signed_in_or_notify(window: &mut Window, cx: &mut App) -> bool {
+    let signed_in = crate::account::AccountController::global(cx).read(cx).signed_in;
+    if !signed_in {
+        window.push_notification(t(Str::YtPlaylistSignIn), cx);
+    }
+    signed_in
 }

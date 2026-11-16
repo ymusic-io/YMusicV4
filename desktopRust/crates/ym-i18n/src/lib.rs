@@ -23,11 +23,15 @@ pub fn available_locales() -> impl Iterator<Item = &'static str> {
     LOCALES.iter().map(|locale| locale.code)
 }
 
-/// Picks the closest translation for a BCP 47 tag (`pt-BR` → `pt`); unknown falls back to English.
-/// Returns the code chosen.
+/// Picks the closest translation for a BCP 47 tag (`pt-BR` → `pt`, legacy `iw` / `in` → `he` / `id`);
+/// unknown falls back to English. Returns the code chosen.
 pub fn set_locale(tag: &str) -> &'static str {
     let tag = tag.replace('_', "-");
-    let language = tag.split('-').next().unwrap_or_default().to_ascii_lowercase();
+    let language = match tag.split('-').next().unwrap_or_default().to_ascii_lowercase().as_str() {
+        "iw" => "he".to_owned(),
+        "in" => "id".to_owned(),
+        other => other.to_owned(),
+    };
     let index = LOCALES
         .iter()
         .position(|locale| locale.code.eq_ignore_ascii_case(&tag))
@@ -37,9 +41,19 @@ pub fn set_locale(tag: &str) -> &'static str {
     LOCALES[index].code
 }
 
+/// The OS's UI locale as a BCP 47 tag (`zh-Hant-TW`), unaffected by [`set_locale`].
+pub fn system_locale_tag() -> String {
+    sys_locale::get_locale().unwrap_or_else(|| "en".into())
+}
+
+/// The OS's UI language subtag (`vi`), unaffected by [`set_locale`].
+pub fn system_language_tag() -> String {
+    system_locale_tag().replace('_', "-").split('-').next().unwrap_or_default().to_lowercase()
+}
+
 /// [`set_locale`] from the OS language.
 pub fn use_system_locale() -> &'static str {
-    set_locale(&sys_locale::get_locale().unwrap_or_else(|| "en".into()))
+    set_locale(&system_locale_tag())
 }
 
 pub fn current_locale() -> &'static str {

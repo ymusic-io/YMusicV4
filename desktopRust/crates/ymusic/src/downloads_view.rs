@@ -16,6 +16,7 @@ use ym_download::{DownloadChange, DownloadFormat, DownloadService, DownloadState
 use ym_i18n::{Str, t, tf};
 
 use crate::a11y::{DragRow, FocusList, announced, announced_as, heading, list_item};
+use crate::account::AccountController;
 use crate::action_icon::action_icon;
 use crate::download_dialog::{DownloadPicker, DownloadTarget};
 use crate::downloads::pick_download_folder;
@@ -88,6 +89,8 @@ pub struct DownloadsView {
     chip_drag: DragRow,
     /// Sign-in-required failures to re-run once the account signs in.
     retry_after_sign_in: Vec<String>,
+    /// The list could not be read; the screen says so with Retry (the JVM ErrorState).
+    load_error: Option<&'static str>,
     _changes: Task<()>,
 }
 
@@ -135,6 +138,7 @@ impl DownloadsView {
             fab_focus: FocusList::new(None),
             chip_drag: DragRow::default(),
             retry_after_sign_in: Vec::new(),
+            load_error: None,
             _changes: changes,
         };
         view.refresh(cx);
@@ -151,9 +155,13 @@ impl DownloadsView {
                     Some(Ok(mut tasks)) => {
                         tasks.reverse();
                         view.tasks = tasks;
+                        view.load_error = None;
                     }
                     Some(Err(error)) => {
-                        cx.global::<AppGraph>().log.warn("the download list could not be read", Some(&error));
+                        cx.global::<AppGraph>()
+                            .log
+                            .warn(&format!("{LOAD_FAILED} the download list could not be read"), Some(&error));
+                        view.load_error = Some(LOAD_FAILED);
                     }
                     None => {}
                 }
@@ -207,25 +215,15 @@ impl DownloadsView {
         let code = task.error.as_ref().map(|error| error.code.clone()).unwrap_or_default();
         let id = task.id.clone();
         match playability(&code) {
-            Some(Playability::SignInRequired) => {
-                let graph = cx.global::<AppGraph>();
-                let (engine, log) = (graph.engine(), graph.log.fork("downloads"));
-                let account = on_core(cx, async move { engine.account_info(false, &log).await });
-                cx.spawn_in(window, async move |this, cx| {
-                    let signed_in = matches!(account.await, Some(Ok(account)) if account.signed_in);
-                    this.update_in(cx, |view, window, cx| {
-                        if signed_in {
-                            view.service.retry(&id);
-                        } else {
-                            view.sign_in_dialog(id, window, cx);
-                        }
-                    })
-                    .ok();
-                })
-                .detach();
+            Some(Playability::SignInRequired)
+                if !cx.global::<AppGraph>().guest && !AccountController::global(cx).read(cx).signed_in =>
+            {
+                self.sign_in_dialog(id, window, cx)
             }
             Some(Playability::Unavailable) => self.unavailable_dialog(id, window, cx),
-            None if code == "folder" => {
+            None if code == ym_download::error::FOLDER_ACCESS_CODE
+                || code == ym_download::error::LEGACY_FOLDER_ACCESS_CODE =>
+            {
                 let pick = pick_download_folder(window, cx);
                 cx.spawn(async move |this, cx| {
                     if pick.await.is_some() {
@@ -280,7 +278,7 @@ impl DownloadsView {
             "removedisk" => self.remove_from_disk(task, window, cx),
             "rename" => {
                 if let Some(file) = file_path(&task) {
-                    RenameFileDialog::open(file, None, window, cx);
+                    RenameFileDialog::open(file, window, cx);
                 }
             }
             _ => {}
@@ -300,7 +298,6 @@ impl DownloadsView {
             DownloadTarget {
                 video_id: task.video_id.clone(),
                 title: task.title.clone(),
-                artist: task.artist.clone(),
                 thumbnail_url: task.thumbnail_url.clone(),
             },
             window,
@@ -308,31 +305,57 @@ impl DownloadsView {
         );
     }
 
+    /// The JVM PlaybackCoordinator.playDownloads: the finished downloads the filter shows, in order,
+    /// from `task`; each is its Library item when the store has indexed it, else the file.
     fn play(&mut self, task: &DownloadTask, cx: &mut Context<Self>) {
-        let Some(path) = file_path(task) else { return };
-        let media = cx.global::<AppGraph>().media.clone();
-        let lookup_path = path.to_string_lossy().into_owned();
-        let lookup =
-            on_core(cx, async move { tokio::task::spawn_blocking(move || media.find_item_by_uri(&lookup_path)).await });
-        let fallback = QueueItem {
-            source: Source::Local(path),
-            title: task.title.clone(),
-            artist: task.artist.clone(),
-            duration_ms: None,
-            duration_label: None,
-            thumbs: Vec::new(),
-            history_code: None,
-            youtube_vid: Some(task.video_id.clone()),
-            loudness_gain_db: task.loudness_gain_db,
-        };
+        let filter = self.filter;
+        let finished: Vec<(DownloadTask, PathBuf)> = self
+            .tasks
+            .iter()
+            .filter(|shown| filter.matches(shown.state) && shown.state == DownloadState::Completed)
+            .filter_map(|shown| file_path(shown).map(|path| (shown.clone(), path)))
+            .collect();
+        let Some(index) = finished.iter().position(|(shown, _)| shown.id == task.id) else { return };
+        let graph = cx.global::<AppGraph>();
+        let (media, log) = (graph.media.clone(), graph.log.fork("play-downloads"));
+        let lookup = on_core(cx, async move {
+            tokio::task::spawn_blocking(move || {
+                finished
+                    .into_iter()
+                    .map(|(task, path)| match media.find_item_by_uri(&path.to_string_lossy()) {
+                        Ok(Some((item, _))) => QueueItem::from_local(&item),
+                        Ok(None) => download_item(&task, path),
+                        Err(error) => {
+                            log.warn("library lookup failed", Some(&error));
+                            download_item(&task, path)
+                        }
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .await
+        });
         cx.spawn(async move |this, cx| {
-            let item = match lookup.await {
-                Some(Ok(Ok(Some((item, _))))) => QueueItem::from_local(&item),
-                _ => fallback,
-            };
-            this.update(cx, |_, cx| cx.emit(PlayLocal { items: vec![item], index: 0 })).ok();
+            let Some(Ok(items)) = lookup.await else { return };
+            this.update(cx, |_, cx| cx.emit(PlayLocal { items, index, shuffle: None })).ok();
         })
         .detach();
+    }
+}
+
+/// A finished download the Library has not indexed: the file, named as the task.
+fn download_item(task: &DownloadTask, path: PathBuf) -> QueueItem {
+    QueueItem {
+        source: Source::Local(path),
+        title: task.title.clone(),
+        artist: task.artist.clone(),
+        duration_ms: None,
+        duration_label: None,
+        thumbs: Vec::new(),
+        media_id: None,
+        history_code: None,
+        youtube_vid: Some(task.video_id.clone()),
+        loudness_gain_db: task.loudness_gain_db,
+        live: false,
     }
 }
 
@@ -406,8 +429,20 @@ pub fn size_label(bytes: i64) -> String {
     }
 }
 
-/// A failure as the user reads it: a category they can act on, else the code.
-pub fn task_error_text(error: &TaskError) -> String {
+/// A failure as the user reads it (the JVM `downloadErrorUiText`): no code reads its message or
+/// "Download failed"; then the folder category, a playability verdict, the message with its code,
+/// else the code.
+pub fn task_error_text(error: Option<&TaskError>) -> String {
+    let Some(error) = error.filter(|error| !error.code.is_empty()) else {
+        return error
+            .and_then(|error| error.user_message.clone())
+            .unwrap_or_else(|| t(Str::DownloadsFailed).to_owned());
+    };
+    if error.code == ym_download::error::FOLDER_ACCESS_CODE
+        || error.code == ym_download::error::LEGACY_FOLDER_ACCESS_CODE
+    {
+        return t(Str::DownloadsErrorFolderAccess).to_owned();
+    }
     match playability(&error.code) {
         Some(Playability::SignInRequired) => return t(Str::PlaybackSignInRequired).to_owned(),
         Some(Playability::Unavailable) => return t(Str::PlaybackUnavailable).to_owned(),
@@ -420,7 +455,6 @@ pub fn task_error_text(error: &TaskError) -> String {
     match error.code.as_str() {
         "network" => t(Str::ErrorNetwork).to_owned(),
         "disk_full" => t(Str::ErrorDiskFull).to_owned(),
-        "folder" => t(Str::DownloadsErrorFolderAccess).to_owned(),
         "live" => t(Str::DownloadLiveUnsupported).to_owned(),
         "processing" => t(Str::ErrorLiveStillProcessing).to_owned(),
         code => tf(Str::ErrorGeneric, &[&code]),
@@ -452,6 +486,7 @@ fn state_label(state: DownloadState) -> &'static str {
     })
 }
 
+const LOAD_FAILED: &str = "R90034";
 const CARD_MIN: f32 = 340.;
 const THUMB: f32 = 56.;
 
@@ -514,6 +549,15 @@ impl DownloadsView {
                         view.update(cx, |view, _| action(&view.service, &id)).ok();
                     })
                 };
+                let share = || {
+                    let video_id = task.video_id.clone();
+                    PopupMenuItem::new(t(Str::CdShare)).on_click(move |_, window, cx| {
+                        if let Some(link) = crate::feed::youtube_share_link("video", &video_id) {
+                            cx.write_to_clipboard(ClipboardItem::new_string(link));
+                            window.push_notification(t(Str::LinkCopied), cx);
+                        }
+                    })
+                };
                 let other_format = || {
                     let task = task.clone();
                     PopupMenuItem::new(t(Str::DownloadOtherFormat))
@@ -540,6 +584,7 @@ impl DownloadsView {
                                 retry_view.update(cx, |view, cx| view.retry(&retry_task, window, cx)).ok();
                             }))
                             .item(other_format())
+                            .item(share())
                             .item(act(t(Str::MenuRemove), DownloadService::remove));
                     }
                     DownloadState::Completed => {
@@ -567,21 +612,32 @@ impl DownloadsView {
                                         .on_click(move |_, _, cx| cx.reveal_path(&path)),
                                 )
                                 .item(PopupMenuItem::new(t(Str::MenuRename)).on_click(move |_, window, cx| {
-                                    RenameFileDialog::open(renamed.clone(), None, window, cx)
+                                    RenameFileDialog::open(renamed.clone(), window, cx)
                                 }));
                         }
+                        menu = menu.item(share());
                         let (disk_view, disk_task) = (view.clone(), task.clone());
                         menu = menu
                             .item(crate::settings_view::menu_divider())
                             .item(act(t(Str::MenuRemove), DownloadService::remove))
                             .item(PopupMenuItem::new(t(Str::MenuRemoveFromDisk)).on_click(move |_, window, cx| {
-                                disk_view
-                                    .update(cx, |view, cx| view.remove_from_disk(disk_task.clone(), window, cx))
-                                    .ok();
+                                let (view, task) = (disk_view.clone(), disk_task.clone());
+                                crate::elevated_dialog::ConfirmDialog::new(
+                                    t(Str::DeleteFromDiskTitle),
+                                    tf(Str::DeleteFromDiskMessage, &[&task.title]),
+                                    t(Str::DeleteFromDiskConfirm),
+                                )
+                                .destructive()
+                                .open(window, cx, move |window, cx| {
+                                    view.update(cx, |view, cx| view.remove_from_disk(task.clone(), window, cx)).ok();
+                                });
                             }));
                     }
                     DownloadState::Canceled => {
-                        menu = menu.item(other_format()).item(act(t(Str::MenuRemove), DownloadService::remove));
+                        menu = menu
+                            .item(other_format())
+                            .item(share())
+                            .item(act(t(Str::MenuRemove), DownloadService::remove));
                     }
                 }
                 menu
@@ -647,7 +703,7 @@ impl DownloadsView {
                             .text_xs()
                             .text_color(theme.danger)
                             .line_clamp(2)
-                            .child(task.error.as_ref().map(task_error_text).unwrap_or_default()),
+                            .child(task_error_text(task.error.as_ref())),
                     )
                     .child(
                         self.focus
@@ -760,6 +816,21 @@ impl Render for DownloadsView {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         crate::shell::track_scroll(&self.scroll, cx);
         let theme = cx.theme().clone();
+        if let Some(code) = self.load_error {
+            return v_flex()
+                .size_full()
+                .items_center()
+                .justify_center()
+                .gap_3()
+                .p_6()
+                .child(crate::a11y::alert("downloads-error", tf(Str::ErrorGeneric, &[&code])).text_center())
+                .child(
+                    Button::new("downloads-retry")
+                        .label(t(Str::Retry))
+                        .on_click(cx.listener(|view, _, _, cx| view.refresh(cx))),
+                )
+                .into_any_element();
+        }
         if self.tasks.iter().all(|task| task.state == DownloadState::Canceled) {
             return v_flex()
                 .size_full()

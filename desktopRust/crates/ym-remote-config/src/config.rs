@@ -10,8 +10,9 @@ use ym_common::log::{Logger, now_millis};
 
 use crate::stats::{PULSE_MAX_EVENTS, PulseEvent};
 
-/// Hammering `check_update` from every screen costs at most one request per interval.
-const MIN_INTERVAL: Duration = Duration::from_secs(5 * 60);
+/// What app open accepts (the JVM REMOTE_CONFIG_MIN_INTERVAL_MS): hammering `check_update` from every
+/// screen costs one request, and a scraping fix still reaches a running app.
+pub const REMOTE_CONFIG_MIN_INTERVAL: Duration = Duration::from_secs(5 * 60);
 
 fn null_default<'de, D: Deserializer<'de>, T: Default + Deserialize<'de>>(deserializer: D) -> Result<T, D::Error> {
     Ok(Option::<T>::deserialize(deserializer)?.unwrap_or_default())
@@ -93,6 +94,14 @@ impl RemoteConfigData {
     pub fn error_sample_rate(&self) -> f64 {
         self.feature("errorSampleRate").and_then(Value::as_f64).unwrap_or(1.0)
     }
+
+    /// Regex patterns whose match keeps a non-fatal error out of Sentry (the JVM `errorFilters`).
+    pub fn error_filters(&self) -> Vec<String> {
+        self.feature("errorFilters")
+            .and_then(Value::as_array)
+            .map(|patterns| patterns.iter().filter_map(Value::as_str).map(str::to_owned).collect())
+            .unwrap_or_default()
+    }
 }
 
 /// What every request to the service carries.
@@ -104,8 +113,6 @@ pub struct ApiIdentity {
     pub os: String,
     pub os_version: String,
     pub arch: String,
-    /// `appimage` for a build that is not its platform's default package: the release is keyed by it.
-    pub package: Option<String>,
     pub app_version_code: i32,
     pub app_version_name: String,
     pub device_id: String,
@@ -139,6 +146,22 @@ impl RelayError {
     }
 }
 
+#[derive(Debug, thiserror::Error)]
+enum FetchError {
+    #[error("config service unreachable: {0}")]
+    Transport(String),
+    #[error("config service answered HTTP {0}")]
+    Status(u16),
+    #[error("malformed config: {0}")]
+    Malformed(String),
+}
+
+impl FetchError {
+    fn transport(error: reqwest::Error) -> Self {
+        Self::Transport(error.without_url().to_string())
+    }
+}
+
 /// The policy around the service: the cache of the previous run, the throttle, what counts as
 /// fresh. A failed fetch publishes nothing, so an outage never changes how the app behaves.
 pub struct RemoteConfig {
@@ -147,7 +170,6 @@ pub struct RemoteConfig {
     cache_file: PathBuf,
     sender: watch::Sender<RemoteConfigData>,
     in_flight: tokio::sync::Mutex<()>,
-    last_attempt: Mutex<i64>,
     /// Bundle revisions running now, reported as headers.
     running_bundles: Mutex<(Option<i64>, Option<i64>)>,
     log: Logger,
@@ -157,13 +179,16 @@ impl RemoteConfig {
     /// Loads the cache of the previous run (blocking). `identity: None` = no service in this build.
     pub fn open(identity: Option<ApiIdentity>, client: reqwest::Client, cache_file: PathBuf, log: Logger) -> Self {
         let log = log.fork("remote-config");
+        // A cache that cannot be read is worse than none; a failed delete must not add a failure.
+        let drop_cache = |error: &(dyn std::error::Error + 'static)| {
+            let _ = std::fs::remove_file(&cache_file);
+            log.capture_error("R30001 config cache unreadable, dropped", error);
+            RemoteConfigData::default()
+        };
         let cached = match std::fs::read(&cache_file) {
-            Ok(bytes) => serde_json::from_slice::<RemoteConfigData>(&bytes).unwrap_or_else(|error| {
-                log.warn("R30001 config cache unreadable, dropped", Some(&error));
-                let _ = std::fs::remove_file(&cache_file);
-                RemoteConfigData::default()
-            }),
-            Err(_) => RemoteConfigData::default(),
+            Ok(bytes) => serde_json::from_slice(&bytes).unwrap_or_else(|error| drop_cache(&error)),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => RemoteConfigData::default(),
+            Err(error) => drop_cache(&error),
         };
         let identity = identity.filter(|identity| !identity.base_url.trim().is_empty());
         let (sender, _) = watch::channel(cached);
@@ -173,7 +198,6 @@ impl RemoteConfig {
             cache_file,
             sender,
             in_flight: tokio::sync::Mutex::new(()),
-            last_attempt: Mutex::new(0),
             running_bundles: Mutex::new((None, None)),
             log,
         }
@@ -187,34 +211,41 @@ impl RemoteConfig {
         self.sender.subscribe()
     }
 
-    pub fn set_running_bundles(&self, engine: Option<i64>, player: Option<i64>) {
-        *self.running_bundles.lock().unwrap() = (engine, player);
+    /// The engine bundle running now, reported to the service (the JVM RunningBundles.engine).
+    pub fn set_running_engine(&self, engine: i64) {
+        self.running_bundles.lock().unwrap().0 = Some(engine);
     }
 
-    /// Fetches when the held config is older than `max_age` (throttled); otherwise returns.
+    /// The player bundle running now, or before one boots the newest it could boot (the JVM
+    /// RunningBundles.player or its floor).
+    pub fn set_running_player(&self, player: i64) {
+        self.running_bundles.lock().unwrap().1 = Some(player);
+    }
+
+    /// Fetches when the held config is older than `max_age` and no fetch is in flight; otherwise
+    /// returns. Only a successful fetch moves `updated_at`, so a failed one is retried by the next call.
     pub async fn check_update(&self, max_age: Duration) {
         let Some(identity) = &self.identity else { return };
-        let now = now_millis();
-        if now - self.sender.borrow().updated_at < max_age.as_millis() as i64 {
+        if self.is_fresh(max_age) {
             return;
         }
         let Ok(_guard) = self.in_flight.try_lock() else { return };
-        {
-            let mut last = self.last_attempt.lock().unwrap();
-            if now - *last < MIN_INTERVAL.as_millis() as i64 {
-                return;
-            }
-            *last = now;
+        // Re-checked under the lock: a fetch may have just landed.
+        if self.is_fresh(max_age) {
+            return;
         }
         self.fetch_and_publish(identity).await;
     }
 
-    /// For a person waiting on an answer ("Check for update"): fetches now, past the age check and
-    /// the throttle. `None` when the fetch failed or this build has no service.
+    fn is_fresh(&self, max_age: Duration) -> bool {
+        now_millis() - self.sender.borrow().updated_at < max_age.as_millis() as i64
+    }
+
+    /// For a person waiting on an answer ("Check for update"): fetches now, past the age check, after
+    /// any fetch in flight. `None` when the fetch failed or this build has no service.
     pub async fn fetch_now(&self) -> Option<RemoteConfigData> {
         let identity = self.identity.as_ref()?;
         let _guard = self.in_flight.lock().await;
-        *self.last_attempt.lock().unwrap() = now_millis();
         self.fetch_and_publish(identity).await
     }
 
@@ -242,8 +273,18 @@ impl RemoteConfig {
                 self.sender.send_replace(config.clone());
                 Some(config)
             }
+            // Offline or a refusal the server may recover from is a state; a refusal it will not, or a
+            // config this build cannot read, is a bug. 403 is the edge refusing this client (WAF rules).
             Err(error) => {
-                self.log.warn(&format!("R30003 config fetch failed: {error}"), None);
+                match &error {
+                    FetchError::Transport(_) => self.log.info(&format!("R30003 config fetch failed: {error}")),
+                    FetchError::Status(code) if *code >= 500 || *code == 429 => {
+                        self.log.info(&format!("R30003 config fetch failed: {error}"))
+                    }
+                    FetchError::Status(403) => self.log.warn("R30003 config fetch refused", Some(&error)),
+                    FetchError::Status(_) => self.log.capture_error("R31801 config fetch refused", &error),
+                    FetchError::Malformed(_) => self.log.capture_error("R31802 config unreadable", &error),
+                }
                 None
             }
         }
@@ -263,9 +304,6 @@ impl RemoteConfig {
             .header("x-app-ver-name", &identity.app_version_name)
             .header("x-device-id", &identity.device_id)
             .header("x-arch", &identity.arch);
-        if let Some(package) = &identity.package {
-            request = request.header("x-package", package);
-        }
         if let Some(key) = &identity.api_key {
             request = request.header("x-api-key", key);
         }
@@ -373,7 +411,7 @@ impl RemoteConfig {
         if response.status().is_success() { Ok(()) } else { Err(RelayError::Status(response.status().as_u16())) }
     }
 
-    async fn fetch(&self, identity: &ApiIdentity) -> Result<RemoteConfigData, String> {
+    async fn fetch(&self, identity: &ApiIdentity) -> Result<RemoteConfigData, FetchError> {
         let url = format!("{}/v1/config", identity.base_url.trim_end_matches('/'));
         let (engine, player) = *self.running_bundles.lock().unwrap();
         let mut request = self
@@ -386,9 +424,6 @@ impl RemoteConfig {
             .header("x-app-ver-name", &identity.app_version_name)
             .header("x-device-id", &identity.device_id)
             .header("x-arch", &identity.arch);
-        if let Some(package) = &identity.package {
-            request = request.header("x-package", package);
-        }
         if let Some(key) = &identity.api_key {
             request = request.header("x-api-key", key);
         }
@@ -398,11 +433,11 @@ impl RemoteConfig {
         if let Some(version) = player {
             request = request.header("x-player-js-ver", version.to_string());
         }
-        let response = request.send().await.map_err(|error| error.without_url().to_string())?;
+        let response = request.send().await.map_err(FetchError::transport)?;
         if !response.status().is_success() {
-            return Err(format!("HTTP {}", response.status().as_u16()));
+            return Err(FetchError::Status(response.status().as_u16()));
         }
-        let body = response.bytes().await.map_err(|error| error.without_url().to_string())?;
-        serde_json::from_slice(&body).map_err(|error| format!("malformed config: {error}"))
+        let body = response.bytes().await.map_err(FetchError::transport)?;
+        serde_json::from_slice(&body).map_err(|error| FetchError::Malformed(error.to_string()))
     }
 }

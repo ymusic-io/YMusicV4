@@ -22,6 +22,7 @@ use ym_download::{AudioQuality, DownloadError, DownloadFormat, DownloadRequest, 
 use ym_i18n::{Str, t, tf};
 
 use crate::a11y::FocusList;
+use crate::account::AccountController;
 use crate::action_icon::action_icon;
 use crate::downloads::{download_folder, offline_ids, pick_download_folder, usable_download_folder};
 use crate::downloads_view::{Playability, playability};
@@ -34,7 +35,6 @@ use crate::quick_download::{QuickPreset, confirm_redownload, save_preset, saved_
 pub struct DownloadTarget {
     pub video_id: String,
     pub title: String,
-    pub artist: Option<String>,
     pub thumbnail_url: Option<String>,
 }
 
@@ -43,7 +43,6 @@ impl DownloadTarget {
         Self {
             video_id: item.id.clone(),
             title: item.title.clone(),
-            artist: item.channel_title.clone().or_else(|| item.subtitle_line1.clone()),
             thumbnail_url: item.thumbs.last().map(|thumb| {
                 if thumb.url.starts_with("//") { format!("https:{}", thumb.url) } else { thumb.url.clone() }
             }),
@@ -270,7 +269,11 @@ impl DownloadPicker {
         match playability(&code) {
             Some(Playability::SignInRequired) => (
                 t(Str::PlaybackSignInRequired).to_owned(),
-                if graph.guest { FailAction::Retry } else { FailAction::SignIn },
+                if graph.guest || AccountController::global(cx).read(cx).signed_in {
+                    FailAction::Retry
+                } else {
+                    FailAction::SignIn
+                },
             ),
             // YouTube's verdict, not a fault: a re-probe gets the same answer.
             Some(Playability::Unavailable) => (t(Str::PlaybackUnavailable).to_owned(), FailAction::None),
@@ -479,7 +482,7 @@ impl DownloadPicker {
         self.service.enqueue(DownloadRequest {
             video_id: target.video_id,
             title: target.title,
-            artist: target.artist,
+            artist: None,
             thumbnail_url: target.thumbnail_url,
             format,
             requested_height: if format.is_video() { self.height } else { None },

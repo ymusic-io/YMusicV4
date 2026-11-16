@@ -111,7 +111,7 @@ impl LibrarySearchView {
 
     fn play(&mut self, index: usize, cx: &mut Context<Self>) {
         let items = self.songs.iter().map(QueueItem::from_local).collect();
-        cx.emit(PlayLocal { items, index });
+        cx.emit(PlayLocal { items, index, shuffle: None });
     }
 
     /// Groups whose name contains the query, by name; an untagged file falls under `unknown`.

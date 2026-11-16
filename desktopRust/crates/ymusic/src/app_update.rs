@@ -401,7 +401,7 @@ impl Render for UpdateDialog {
             );
         }
         let failure = match &state {
-            UpdateState::Failed { failure, trusted: true, .. } if requested => Some(failure),
+            UpdateState::Failed { failure, .. } if requested => Some(failure),
             UpdateState::InstallFailed { failure, .. } => Some(failure),
             _ => None,
         };

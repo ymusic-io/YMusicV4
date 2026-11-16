@@ -33,13 +33,13 @@ pub struct QuickPreset {
 }
 
 impl QuickPreset {
-    /// Opus when ffmpeg can write it, else M4A; the default audio track; captions in the app language.
+    /// Opus when ffmpeg can write it, else M4A; the default audio track; captions in the OS language.
     pub fn default(ffmpeg_available: bool) -> Self {
         Self {
             format: if ffmpeg_available { DownloadFormat::AudioWebm } else { DownloadFormat::M4a },
             height: None,
             audio_language: None,
-            caption_language: ym_i18n::current_locale().split('-').next().map(str::to_owned),
+            caption_language: Some(ym_i18n::system_language_tag()),
             audio_quality: AudioQuality::Best,
         }
     }

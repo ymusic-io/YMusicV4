@@ -25,6 +25,8 @@ pub struct ResumeQueue {
     pub items: Vec<QueueItem>,
     pub index: usize,
     pub start_ms: i64,
+    /// Where the queue's playlist or radio continues.
+    pub source_token: Option<String>,
 }
 
 pub struct PlayAgainView {
@@ -87,7 +89,7 @@ impl PlayAgainView {
             if let Some(Ok(Ok(sessions))) = load.await
                 && let Some(newest) = sessions.into_iter().next()
             {
-                this.update(cx, |view, cx| view.resume(newest, cx)).ok();
+                this.update(cx, |view, cx| view.resume(newest, false, cx)).ok();
             }
         })
         .detach();
@@ -117,7 +119,9 @@ impl PlayAgainView {
         })
     }
 
-    fn resume(&mut self, session: PlayAgainSession, cx: &mut Context<Self>) {
+    /// The JVM PlaybackCoordinator.playAgain: the saved item, mid-item only for long content unless
+    /// `from_beginning`.
+    fn resume(&mut self, session: PlayAgainSession, from_beginning: bool, cx: &mut Context<Self>) {
         let (history, media) = (self.history.clone(), cx.global::<AppGraph>().media.clone());
         let queue_id = session.queue_id.clone();
         let load = on_core(cx, async move {
@@ -133,9 +137,10 @@ impl PlayAgainView {
             this.update(cx, |view, cx| match loaded {
                 Some(Ok(Ok(Some((saved, decoded))))) => match decoded {
                     Ok(items) if !items.is_empty() => {
-                        let start_ms = if saved.resumes_mid_item() { saved.position_ms } else { 0 };
+                        let start_ms = if !from_beginning && saved.resumes_mid_item() { saved.position_ms } else { 0 };
                         let index = saved.queue_index.min(items.len() - 1);
-                        cx.emit(ResumeQueue { queue_id: saved.queue_id, items, index, start_ms });
+                        let (queue_id, source_token) = (saved.queue_id, saved.source_token);
+                        cx.emit(ResumeQueue { queue_id, items, index, start_ms, source_token });
                     }
                     Ok(_) => view.refresh(cx),
                     Err(message) => view.failed(&message, cx),
@@ -161,7 +166,7 @@ const MORE_LABEL: f32 = 32.;
 
 impl PlayAgainView {
     fn play_from_beginning(&mut self, session: PlayAgainSession, cx: &mut Context<Self>) {
-        self.resume(PlayAgainSession { queue_index: 0, position_ms: 0, ..session }, cx);
+        self.resume(session, true, cx);
     }
 
     fn remove(&mut self, queue_id: String, cx: &mut Context<Self>) {
@@ -214,10 +219,14 @@ impl PlayAgainView {
 
     fn card(&self, position: usize, session: &PlayAgainSession, card_width: f32, cx: &mut Context<Self>) -> AnyElement {
         let theme = cx.theme().clone();
-        let resume_label =
-            session.resumes_mid_item().then(|| tf(Str::PlayAgainResumeAt, &[&clock(session.position_ms)]));
-        let track = tf(Str::PlayAgainTrackOf, &[&(session.queue_index + 1), &session.queue_size]);
-        let detail = [session.subtitle.clone(), Some(track), resume_label].into_iter().flatten().collect::<Vec<_>>();
+        // The JVM sessionLine: "Resume at" for long content left mid-item (under a second reads 0:00,
+        // the track's start), else "N of M".
+        let place = if session.resumes_mid_item() && session.position_ms >= 1_000 {
+            tf(Str::PlayAgainResumeAt, &[&clock(session.position_ms)])
+        } else {
+            tf(Str::PlayAgainTrackOf, &[&(session.queue_index + 1), &session.queue_size])
+        };
+        let detail = [session.subtitle.clone(), Some(place)].into_iter().flatten().collect::<Vec<_>>();
         let detail = detail.join(" · ");
         let view = cx.entity().downgrade();
         let (from_start, removed) = (session.clone(), session.queue_id.clone());
@@ -289,7 +298,7 @@ impl PlayAgainView {
                         .rounded_full()
                         .icon(Lucide::Play)
                         .label(t(Str::PlayAgainResume))
-                        .on_click(cx.listener(move |view, _, _, cx| view.resume(target.clone(), cx))),
+                        .on_click(cx.listener(move |view, _, _, cx| view.resume(target.clone(), false, cx))),
                 ),
             )
             .into_any_element()

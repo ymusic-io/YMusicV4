@@ -9959,6 +9959,7 @@ dependencies = [
 name = "ym-telemetry"
 version = "0.1.0"
 dependencies = [
+ "regex",
  "reqwest",
  "sentry",
  "serde_json",
