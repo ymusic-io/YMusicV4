@@ -458,7 +458,17 @@ private fun completedFileActions(graph: AppGraph, task: DownloadTask, service: D
             return@produceState
         }
         value = withTimeoutOrNull(LIBRARY_REGISTER_WAIT) {
-            store.itemsChanges().onStart { emit(Unit) }.conflate().mapNotNull { libraryItemOf(store, task) }.first()
+            store.itemsChanges().onStart { emit(Unit) }.conflate().mapNotNull {
+                try {
+                    libraryItemOf(store, task)
+                } catch (cancel: CancellationException) {
+                    throw cancel
+                } catch (failure: Throwable) {
+                    graph.logger?.fork("downloads", mapOf("taskId" to task.id))
+                        ?.log(Logger.Level.WARN, "library lookup failed", failure)
+                    null
+                }
+            }.first()
         }
     }
     val item = libraryItem
