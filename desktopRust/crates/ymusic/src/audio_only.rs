@@ -2,7 +2,6 @@
 //! backdrop, the sharp square art on the left and the live spectrum bars on the right.
 
 use std::cell::Cell;
-use std::collections::HashSet;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -11,8 +10,10 @@ use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use image::imageops::{self, FilterType};
 use image::{Frame, RgbaImage};
+use ym_image_loader::async_image::{GlobalImageLoader, LoadedImage};
 
 use crate::playback::Playback;
+use crate::youtube_thumbnails::{NOW_PLAYING_ART_PX, art_image_request};
 
 const WAVE_BARS: usize = 40;
 const SAMPLE_EVERY: Duration = Duration::from_millis(33);
@@ -51,6 +52,16 @@ enum WaveMode {
     Falling,
 }
 
+/// The loaded art for one image request (its memory key) and the url it was asked for.
+struct ArtSource {
+    request: String,
+    url: SharedString,
+    image: LoadedImage,
+}
+
+/// The JVM `ART_RESIZE_SETTLE_MS`: a sharper decode of the art showing waits for the resize to settle.
+const ART_RESIZE_SETTLE: Duration = Duration::from_millis(400);
+
 pub struct AudioOnlyArt {
     playback: Entity<Playback>,
     /// The video box as last painted, in logical pixels.
@@ -58,8 +69,13 @@ pub struct AudioOnlyArt {
     art: Option<ArtPictures>,
     /// The picture being prepared and the box it is blurred for.
     preparing: Option<(ImageId, (f32, f32), Task<()>)>,
-    /// Art variants that did not load (sddefault is missing for some uploads), skipped for the next.
-    failed_sources: HashSet<SharedString>,
+    source: Option<ArtSource>,
+    /// The load running for a request (its memory key).
+    loading: Option<(String, Task<()>)>,
+    /// A request whose load failed: not asked again until the request changes.
+    failed: Option<String>,
+    /// The next item's request last warmed, so a song change finds its art in memory.
+    prefetched: Option<String>,
     levels: Vec<f32>,
     wave_mode: Option<WaveMode>,
     last_render: Instant,
@@ -73,7 +89,10 @@ impl AudioOnlyArt {
             video_box,
             art: None,
             preparing: None,
-            failed_sources: HashSet::new(),
+            source: None,
+            loading: None,
+            failed: None,
+            prefetched: None,
             levels: vec![0.; WAVE_BARS],
             wave_mode: None,
             last_render: Instant::now(),
@@ -81,7 +100,14 @@ impl AudioOnlyArt {
         }
     }
 
-    /// Starts preparing the current art once its picture is decoded and the box is known.
+    /// The art's decode size for this box: its square side in device pixels, at least the JVM floor.
+    fn decode_px(box_size: (f32, f32), window: &Window) -> u32 {
+        let side_px = (box_size.1 * 0.86).min(box_size.0 * 0.32) * window.scale_factor();
+        (side_px.ceil() as u32).max(NOW_PLAYING_ART_PX)
+    }
+
+    /// The JVM `rememberArtTransition` load: the art from the loader's memory or a load (a resize of
+    /// the art showing waits for the size to settle), then the square and backdrop made from it.
     fn update_art(
         &mut self,
         url: Option<SharedString>,
@@ -93,43 +119,49 @@ impl AudioOnlyArt {
         if box_size.0 < 1. || box_size.1 < 1. {
             return;
         }
-        let side_px = (box_size.1 * 0.86).min(box_size.0 * 0.32) * window.scale_factor();
-        let decode_px = (side_px.ceil() as u32).max(crate::youtube_thumbnails::NOW_PLAYING_ART_PX);
-        let sources = crate::youtube_thumbnails::order_sources(
-            crate::youtube_thumbnails::art_request_sources(&url),
-            decode_px,
-            decode_px,
-        );
-        let mut loaded = None;
-        for candidate in sources {
-            if self.failed_sources.contains(&candidate) {
-                continue;
-            }
-            let ImageSource::Resource(resource) = ImageSource::from(candidate.clone()) else { continue };
-            match window.use_asset::<ImgResourceLoader>(&resource, cx) {
-                None => return,
-                Some(Ok(source)) => {
-                    loaded = Some((candidate, source));
-                    break;
-                }
-                Some(Err(error)) => {
-                    let log = &cx.global::<crate::graph::AppGraph>().log;
-                    log.warn(&format!("art variant did not load: {candidate}"), Some(&error));
-                    self.failed_sources.insert(candidate);
-                }
+        let Some(loader) = cx.try_global::<GlobalImageLoader>().map(|global| global.0.clone()) else { return };
+        let decode_px = Self::decode_px(box_size, window);
+        let request = art_image_request(&url, decode_px, decode_px);
+        let request_key = ym_image_loader::memory_key(&request);
+        if self.source.as_ref().is_none_or(|source| source.request != request_key) {
+            if let Some(image) = loader.peek(&request) {
+                self.source = Some(ArtSource { request: request_key.clone(), url: url.clone(), image });
+            } else if self.loading.as_ref().is_none_or(|(loading, _)| *loading != request_key)
+                && self.failed.as_ref() != Some(&request_key)
+            {
+                let settle = self.source.as_ref().is_some_and(|source| source.url == url);
+                let executor = cx.background_executor().clone();
+                let key = request_key.clone();
+                let asked = url.clone();
+                let task = cx.spawn(async move |this, cx| {
+                    if settle {
+                        executor.timer(ART_RESIZE_SETTLE).await;
+                    }
+                    let loaded = loader.load_or_null(&request).await;
+                    this.update(cx, |view, cx| {
+                        view.loading = None;
+                        match loaded {
+                            Some(image) => view.source = Some(ArtSource { request: key, url: asked, image }),
+                            None => view.failed = Some(key),
+                        }
+                        cx.notify();
+                    })
+                    .ok();
+                });
+                self.loading = Some((request_key, task));
             }
         }
-        let Some((source_url, source)) = loaded else { return };
-        let current = self.art.as_ref().filter(|art| art.source == source.id);
+        let Some(source) = self.source.as_ref().filter(|source| source.url == url) else { return };
+        let picture = source.image.render_image();
+        let current = self.art.as_ref().filter(|art| art.source == picture.id);
         if current.is_some_and(|art| !needs_reblur(art.blurred_for, box_size)) {
             return;
         }
-        if self.preparing.as_ref().is_some_and(|(id, size, _)| *id == source.id && !needs_reblur(*size, box_size)) {
+        if self.preparing.as_ref().is_some_and(|(id, size, _)| *id == picture.id && !needs_reblur(*size, box_size)) {
             return;
         }
-        let letterboxed = source_url.contains("i.ytimg.com/vi");
-        let id = source.id;
-        let work = cx.background_executor().spawn(async move { prepare(&source, letterboxed, box_size) });
+        let id = picture.id;
+        let work = cx.background_executor().spawn(async move { prepare(&picture, box_size) });
         let task = cx.spawn_in(window, async move |this, cx| {
             let Some((square, backdrop)) = work.await else { return };
             this.update_in(cx, |view, window, cx| {
@@ -151,6 +183,22 @@ impl AudioOnlyArt {
             .ok();
         });
         self.preparing = Some((id, box_size, task));
+    }
+
+    /// The JVM `PrefetchNextArt`: warms the next queue item's art at this view's size.
+    fn prefetch_next(&mut self, next_url: Option<SharedString>, box_size: (f32, f32), window: &Window, cx: &App) {
+        let Some(next_url) = next_url else { return };
+        if box_size.0 < 1. || box_size.1 < 1. {
+            return;
+        }
+        let Some(loader) = cx.try_global::<GlobalImageLoader>() else { return };
+        let decode_px = Self::decode_px(box_size, window);
+        let request = art_image_request(&next_url, decode_px, decode_px);
+        let request_key = ym_image_loader::memory_key(&request);
+        if self.prefetched.as_ref() != Some(&request_key) {
+            self.prefetched = Some(request_key);
+            loader.0.prefetch(request);
+        }
     }
 
     /// Samples while playing, lets the bars fall after a pause, then rests.
@@ -244,21 +292,15 @@ fn needs_reblur(blurred_for: (f32, f32), box_size: (f32, f32)) -> bool {
     ratio(blurred_for.0, box_size.0) > REBLUR_RATIO || ratio(blurred_for.1, box_size.1) > REBLUR_RATIO
 }
 
-/// The square crop and the blurred backdrop of `source` (BGRA). YouTube's 4:3 frames letterbox a
-/// 16:9 picture, so `letterboxed` art is trimmed to it first.
-fn prepare(source: &RenderImage, letterboxed: bool, box_size: (f32, f32)) -> Option<(RenderImage, RenderImage)> {
+/// The square crop and the blurred backdrop of `source` (BGRA; YouTube's letterboxed frames arrive
+/// trimmed to 16:9 by the loader).
+fn prepare(source: &RenderImage, box_size: (f32, f32)) -> Option<(RenderImage, RenderImage)> {
     let size = source.size(0);
-    let (width, height) = (u32::try_from(size.width.0).ok()?, u32::try_from(size.height.0).ok()?);
-    let picture = RgbaImage::from_raw(width, height, source.as_bytes(0)?.to_vec())?;
-    let (mut top, mut content_height) = (0, height);
-    if letterboxed && width * 3 == height * 4 {
-        content_height = width * 9 / 16;
-        top = (height - content_height) / 2;
-    }
+    let (width, content_height) = (u32::try_from(size.width.0).ok()?, u32::try_from(size.height.0).ok()?);
     if width == 0 || content_height == 0 {
         return None;
     }
-    let content = imageops::crop_imm(&picture, 0, top, width, content_height).to_image();
+    let content = RgbaImage::from_raw(width, content_height, source.as_bytes(0)?.to_vec())?;
 
     let side = width.min(content_height);
     let mut square =
@@ -282,13 +324,15 @@ fn prepare(source: &RenderImage, letterboxed: bool, box_size: (f32, f32)) -> Opt
 impl Render for AudioOnlyArt {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.last_render = Instant::now();
-        let (url, playing) = {
+        let (url, next_url, playing) = {
             let playback = self.playback.read(cx);
-            (playback.current().and_then(|item| item.thumb(640)), playback.is_playing())
+            let next_url = playback.queue.get(playback.index + 1).and_then(|item| item.thumb(640));
+            (playback.current().and_then(|item| item.thumb(640)), next_url, playback.is_playing())
         };
         let (box_width, box_height) = self.video_box.get();
         let box_size = (box_width as f32, box_height as f32);
         self.update_art(url.clone(), box_size, window, cx);
+        self.prefetch_next(next_url, box_size, window, cx);
         self.update_wave(playing, cx);
 
         let side = (box_size.1 * 0.86).min(box_size.0 * 0.32).max(0.);
