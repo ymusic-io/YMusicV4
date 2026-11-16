@@ -10079,6 +10079,7 @@ dependencies = [
  "resvg 0.46.0",
  "rfd",
  "rusqlite",
+ "serde",
  "serde_json",
  "thiserror 2.0.21",
  "tokio",

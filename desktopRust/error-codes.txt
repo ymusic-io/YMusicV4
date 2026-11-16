@@ -139,6 +139,8 @@ R90031 D media session: an update could not be posted to the Windows SMTC thread
 R90032 - playback: a YouTube load the player took showed neither progress nor details within 5 s (the JVM E60051); the item fails and the next load starts a new session (logged)
 R90033 - player session: player/init was not done within 30 s; the boot fails and the engine closes (the JVM E60066)
 R90034 - downloads: the download list could not be read from downloads.db; the screen shows the code with Retry (the JVM E70081, logged)
+R90035 - Linux dock menu: the quicklist could not be served on the session bus (logged; the dock shows only its own entries)
+R90036 - Linux dock menu: a quicklist update could not be published (LayoutUpdated or the LauncherEntry Update signal; logged)
 R90040 D Linux file dialog: the Tokio task driving the portal dialog failed (logged; treated as canceled)
 R90200 D data dir: a database this app's earlier builds named differently could not take the JVM app's name (logged; retried next launch)
 R90201 D data dir: the window bounds kept in app.db could not move to window.properties (logged)

@@ -12,6 +12,7 @@ ym-engine = { path = "../ym-engine" }
 ym-i18n = { path = "../ym-i18n" }
 ym-settings = { path = "../ym-settings" }
 ym-mse = { path = "../ym-mse" }
+serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true
 rusqlite.workspace = true

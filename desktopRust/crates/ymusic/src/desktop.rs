@@ -250,6 +250,16 @@ fn write_dev_start_menu_entry(exe: &Path, arguments: &str) -> anyhow::Result<()>
 /// of the same name.
 pub const APP_ID: &str = "io.ymusic.YMusic";
 
+/// The JVM app's `.deb` names its desktop entry after the package; this one keeps that name.
+#[cfg(target_os = "linux")]
+const DEB_DESKTOP_ENTRY: &str = "ymusic-YMusic";
+
+/// The installed desktop entry's name, without `.desktop`: the `.deb`'s under `/opt`, else [`APP_ID`].
+#[cfg(target_os = "linux")]
+pub fn desktop_entry() -> &'static str {
+    if std::env::current_exe().is_ok_and(|exe| exe.starts_with("/opt")) { DEB_DESKTOP_ENTRY } else { APP_ID }
+}
+
 /// The logo as the X11 `_NET_WM_ICON` (Wayland has no window icon: the desktop entry gives it).
 #[cfg(target_os = "linux")]
 pub fn window_icon(log: &Logger) -> Option<std::sync::Arc<image::RgbaImage>> {
@@ -734,14 +744,24 @@ unsafe extern "system" fn pin_subclass(
 gpui_kit::actions!(ymusic_dock, [DockTogglePlay, DockStop]);
 
 /// The Dock icon's menu (JVM `DockMenu`): Pause/Resume and Stop while there is a queue; the Dock
-/// adds its own Quit. Its entries arrive as tray commands.
-#[derive(Default)]
+/// adds its own Quit. Its entries arrive as tray commands. On Linux, the dock's quicklist.
 pub struct DockMenu {
     shown: Option<(bool, bool)>,
+    #[cfg(target_os = "linux")]
+    quicklist: crate::dock_quicklist::DockQuicklist,
 }
 
 impl DockMenu {
     pub fn new(commands: futures::channel::mpsc::UnboundedSender<TrayCommand>, cx: &mut App) -> Self {
+        #[cfg(target_os = "linux")]
+        let quicklist = {
+            let graph = cx.global::<crate::graph::AppGraph>();
+            crate::dock_quicklist::DockQuicklist::start(
+                commands.clone(),
+                graph.tokio.clone(),
+                graph.log.fork("DockMenu"),
+            )
+        };
         let toggle = commands.clone();
         cx.on_action(move |_: &DockTogglePlay, _| {
             let _ = toggle.unbounded_send(TrayCommand::TogglePlay);
@@ -749,7 +769,11 @@ impl DockMenu {
         cx.on_action(move |_: &DockStop, _| {
             let _ = commands.unbounded_send(TrayCommand::Stop);
         });
-        Self::default()
+        Self {
+            shown: None,
+            #[cfg(target_os = "linux")]
+            quicklist,
+        }
     }
 
     #[cfg(target_os = "macos")]
@@ -781,7 +805,16 @@ impl DockMenu {
         }
     }
 
-    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    #[cfg(target_os = "linux")]
+    pub fn update(&mut self, has_queue: bool, playing: bool, _cx: &App) {
+        if self.shown == Some((has_queue, playing)) {
+            return;
+        }
+        self.shown = Some((has_queue, playing));
+        self.quicklist.update(has_queue, playing);
+    }
+
+    #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
     pub fn update(&mut self, has_queue: bool, playing: bool, _cx: &App) {
         self.shown = Some((has_queue, playing));
     }
