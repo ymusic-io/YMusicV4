@@ -145,8 +145,9 @@ pub fn compound_text_to_utf8(bytes: &[u8]) -> Result<String, DecodeError> {
                 _ => Err(DecodeError::InvalidEncoding),
             }
         }
-        // unescaped string
-        Some(_) => Ok(String::from_utf8(bytes.to_vec())?),
+        // Unescaped compound text is ISO 8859-1; some input methods send UTF-8 instead.
+        Some(_) => Ok(String::from_utf8(bytes.to_vec())
+            .unwrap_or_else(|_| bytes.iter().map(|&byte| char::from(byte)).collect())),
     }
 }
 
