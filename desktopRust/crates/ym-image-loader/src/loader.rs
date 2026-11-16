@@ -241,45 +241,54 @@ impl<B: Bitmap> ImageLoader<B> {
     /// LRU is untouched, and the entry is persisted even when the source already fit the request. The
     /// path is a live LRU entry that can be evicted later: call again on a missing file.
     pub async fn load_file(&self, request: &ImageRequest) -> Result<Option<PathBuf>, ImageLoadError> {
-        let Some(cache) = self.inner.scaled_cache.clone() else { return Ok(None) };
-        let key = memory_key(request);
-        let disk = disk_key(&key);
-        if let Some(path) = scaled_file(&cache, &disk).await? {
-            return Ok(Some(path));
-        }
-        let _permit = self.inner.gate_for(request).acquire().await;
-        if let Some(path) = scaled_file(&cache, &disk).await? {
-            return Ok(Some(path));
-        }
-        let image = match self.inner.memory.peek(&key) {
-            Some(bitmap) => blocking_image(move || Ok(bitmap.to_rgba())).await?,
-            None => self.inner.fetch_from_sources(request).await?.image,
-        };
-        let written = {
-            let (cache, disk) = (cache.clone(), disk.clone());
-            tokio::task::spawn_blocking(move || cache.put(&disk, &image)).await
-        };
-        match written {
-            Ok(Ok(())) => {}
-            Ok(Err(error)) => {
-                return Err(ImageLoadError::with_cause(
-                    Reason::Undecodable,
-                    format!("scaled entry write failed: {}", request.key),
-                    error,
-                ));
-            }
-            Err(error) => {
-                return Err(ImageLoadError::with_cause(
-                    Reason::Undecodable,
-                    format!("scaled entry write failed: {}", request.key),
-                    error,
-                ));
-            }
-        }
-        scaled_file(&cache, &disk).await?.map(Some).ok_or_else(|| {
-            ImageLoadError::new(Reason::Undecodable, format!("scaled entry vanished after write: {}", request.key))
+        self.inner.tokio.spawn(load_file_uncached(self.inner.clone(), request.clone())).await.unwrap_or_else(|error| {
+            Err(ImageLoadError::with_cause(Reason::Undecodable, "image file load task failed", error))
         })
     }
+}
+
+async fn load_file_uncached<B: Bitmap>(
+    inner: Arc<Inner<B>>,
+    request: ImageRequest,
+) -> Result<Option<PathBuf>, ImageLoadError> {
+    let Some(cache) = inner.scaled_cache.clone() else { return Ok(None) };
+    let key = memory_key(&request);
+    let disk = disk_key(&key);
+    if let Some(path) = scaled_file(&cache, &disk).await? {
+        return Ok(Some(path));
+    }
+    let _permit = inner.gate_for(&request).acquire().await;
+    if let Some(path) = scaled_file(&cache, &disk).await? {
+        return Ok(Some(path));
+    }
+    let image = match inner.memory.peek(&key) {
+        Some(bitmap) => blocking_image(move || Ok(bitmap.to_rgba())).await?,
+        None => inner.fetch_from_sources(&request).await?.image,
+    };
+    let written = {
+        let (cache, disk) = (cache.clone(), disk.clone());
+        tokio::task::spawn_blocking(move || cache.put(&disk, &image)).await
+    };
+    match written {
+        Ok(Ok(())) => {}
+        Ok(Err(error)) => {
+            return Err(ImageLoadError::with_cause(
+                Reason::Undecodable,
+                format!("scaled entry write failed: {}", request.key),
+                error,
+            ));
+        }
+        Err(error) => {
+            return Err(ImageLoadError::with_cause(
+                Reason::Undecodable,
+                format!("scaled entry write failed: {}", request.key),
+                error,
+            ));
+        }
+    }
+    scaled_file(&cache, &disk).await?.map(Some).ok_or_else(|| {
+        ImageLoadError::new(Reason::Undecodable, format!("scaled entry vanished after write: {}", request.key))
+    })
 }
 
 async fn load_uncached<B: Bitmap>(

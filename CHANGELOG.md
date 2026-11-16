@@ -1,5 +1,22 @@
 # Changelog
 
+## 4.0.24
+
+### NEW
+- Linux: the dock icon's right-click menu has Pause/Resume and Stop while there is a queue, as the macOS Dock menu does ([b4532cf1c](https://github.com/ymusic-io/YMusicV4/commit/b4532cf1cd47144da3c83efe49dc8e934eb2f67d))
+
+### FIXED
+- Windows: playing a downloaded or Library song could close the app ([#304](https://github.com/ymusic-io/YMusicV4/issues/304), [e2f33ddbe](https://github.com/ymusic-io/YMusicV4/commit/e2f33ddbe81fd7cc42b4f35777bf321a7cc02f77))
+- Windows 10 versions 1703 and 1709: the app closed at start ([e35316d2e](https://github.com/ymusic-io/YMusicV4/commit/e35316d2e3e6e056174d1490b14b7b3b3a7793bb))
+- Linux: typing an accent through an X11 input method, such as a Spanish keyboard's ´ or ç, closed the app ([d0d0941b1](https://github.com/ymusic-io/YMusicV4/commit/d0d0941b140e91d80dd2d4942624619d5994a202), [ef85e7700](https://github.com/ymusic-io/YMusicV4/commit/ef85e77004f9ea7a4ccade9b2699043e864bddc4))
+- Linux: the app crashed when the desktop session ended, instead of closing ([6026a293b](https://github.com/ymusic-io/YMusicV4/commit/6026a293be0ec8ec8197296abb45b9f0770e2e60))
+- Linux: a left click on the tray icon did nothing on GNOME, and Open YMusic left a window hidden to the tray down and showed "YMusic is ready" on Wayland. A click now opens the tray menu (Open YMusic, Pause, Stop, Quit) and Open YMusic brings the window back ([08acabb1d](https://github.com/ymusic-io/YMusicV4/commit/08acabb1d591338fe0e351648a9cacfcc6b7524d), [18cc57b00](https://github.com/ymusic-io/YMusicV4/commit/18cc57b007c0a1988a100f843cd51eb53242ed88), [50acf6eb3](https://github.com/ymusic-io/YMusicV4/commit/50acf6eb39abfa56466d318ac4bb17f0941ca466))
+- Linux on GNOME: after Pause, Stop or Quit in the tray menu, the pointer kept spinning ([5fa19bd21](https://github.com/ymusic-io/YMusicV4/commit/5fa19bd214357543d28d2259c9348e8a9731f05f), [e6e9cdb32](https://github.com/ymusic-io/YMusicV4/commit/e6e9cdb321dbad88871bea529eb0a8ae846f26e8))
+- Linux: the dock icon's menu offered New Window, which did nothing; it is gone after the next login ([2f73c4a7b](https://github.com/ymusic-io/YMusicV4/commit/2f73c4a7bff8cad989f27dc4b86d9c6aa416b076))
+
+### IMPROVED
+- Windows: the installer, the app and its uninstaller are signed, so Windows shows YMusic's verified publisher instead of Unknown publisher ([087d8cd33](https://github.com/ymusic-io/YMusicV4/commit/087d8cd33ff5510b90ad518b421305b4269c68cb), [6ea0fbc37](https://github.com/ymusic-io/YMusicV4/commit/6ea0fbc37a5591e9dd0e92e29258705267d73b99))
+
 ## 4.0.23
 
 ### NEW

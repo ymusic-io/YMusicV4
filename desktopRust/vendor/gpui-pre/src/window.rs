@@ -6968,6 +6968,18 @@ impl Window {
         self.platform_window.activate();
     }
 
+    /// As [`Self::activate_window`], with an XDG activation token another client minted for the
+    /// user action that asks for it: on Wayland the compositor grants focus only with one.
+    pub fn activate_window_with_token(&self, token: String) {
+        self.platform_window.activate_with_token(token);
+    }
+
+    /// For a user action that asks for no window but came with an XDG activation token: ends the
+    /// launch feedback (GNOME's busy cursor) the token started, which otherwise runs to a timeout.
+    pub fn complete_activation_token(&self, token: String) {
+        self.platform_window.complete_activation_token(token);
+    }
+
     /// Requests that the operating system draw attention to this window.
     pub fn request_attention(&self) {
         self.platform_window.request_attention();

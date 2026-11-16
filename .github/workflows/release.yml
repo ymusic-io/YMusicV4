@@ -522,7 +522,7 @@ jobs:
           path: dist/debug
           if-no-files-found: error
 
-  # The Inno Setup installer (YMusic-<version>-windows-<x64|arm64>-setup.exe), unsigned. x86_64 on
+  # The staged app folder (YMusic.exe, ffmpeg.exe, DLLs) that windows-setup signs and packs. x86_64 on
   # the windows-gnu Rust host with MSYS2's MinGW gcc; arm64 on the aarch64-pc-windows-gnullvm host
   # with CLANGARM64's clang (MSYS2 has no arm64 gcc).
   windows:
@@ -589,24 +589,6 @@ jobs:
         shell: bash
         run: echo "MINGW_HOME=$(cygpath -m '${{ steps.msys2.outputs.msys2-location }}')/${{ matrix.prefix }}" >> "$GITHUB_ENV"
 
-      # Preinstalled on some runner images only; otherwise the pinned Chocolatey package. Wherever it
-      # lands (Inno 7 installs per user), its ISCC.exe is handed to the packaging script as ISCC.
-      - name: Install Inno Setup
-        shell: bash
-        env:
-          INNO_SETUP_VERSION: 6.7.1
-        run: |
-          set -euo pipefail
-          find_iscc() {
-            ls "/c/Program Files (x86)/Inno Setup "*/ISCC.exe "/c/Program Files/Inno Setup "*/ISCC.exe \
-              "$(cygpath -u "$LOCALAPPDATA")/Programs/Inno Setup "*/ISCC.exe 2>/dev/null | head -n 1 || true
-          }
-          iscc="$(find_iscc)"
-          [ -n "$iscc" ] || { choco install innosetup --version "$INNO_SETUP_VERSION" -y --no-progress; iscc="$(find_iscc)"; }
-          [ -n "$iscc" ] || { echo "ISCC.exe not found after installing Inno Setup" >&2; exit 1; }
-          echo "using $iscc"
-          echo "ISCC=$iscc" >> "$GITHUB_ENV"
-
       # The toolchain's own host is the target: build scripts and the app share one linker.
       - name: Install Rust
         shell: bash
@@ -642,7 +624,7 @@ jobs:
 
       # The MinGW bin dir goes on PATH for this step alone: gcc/clang load their own DLLs from it (cc1.exe
       # dies silently without them), but it would shadow Git Bash's tools in other steps.
-      - name: Package the installer
+      - name: Stage the app folder
         shell: bash
         working-directory: YMusicV4/desktopRust
         env:
@@ -653,7 +635,7 @@ jobs:
           set -euo pipefail
           export YMUSIC_V4_DIR="$GITHUB_WORKSPACE/YMusicV4"
           export FFMPEG_BUILD_DIR="$GITHUB_WORKSPACE/ffmpeg-build"
-          PATH="$(cygpath -u "$MINGW_HOME")/bin:$PATH" tools/package-windows.sh --setup --out "$GITHUB_WORKSPACE/dist"
+          PATH="$(cygpath -u "$MINGW_HOME")/bin:$PATH" tools/package-windows.sh --out "$GITHUB_WORKSPACE/dist"
 
       - name: Discard secrets
         if: always()
@@ -662,8 +644,108 @@ jobs:
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: ${{ matrix.slug }}-setup
-          path: dist/*-setup.exe
+          name: ${{ matrix.slug }}-app
+          path: dist/YMusic
+          if-no-files-found: error
+
+  # Both Inno Setup installers (YMusic-<version>-windows-<x64|arm64>-setup.exe) from the staged app
+  # folders, in one job so one SimplySign login signs them all. On a tag, with CERTUM_EMAIL,
+  # TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID set, every executable and DLL, the uninstaller and the
+  # setup carry the Certum code-signing certificate: the job messages the maintainer's phone over
+  # Telegram and waits for a SimplySign code (.github/certum-sign.sh). Otherwise unsigned.
+  windows-setup:
+    needs: [windows]
+    runs-on: windows-2022
+    env:
+      SIGN: ${{ startsWith(github.ref, 'refs/tags/') && secrets.CERTUM_EMAIL != '' && secrets.TELEGRAM_BOT_TOKEN != '' && secrets.TELEGRAM_CHAT_ID != '' }}
+      # github.com/Le-Syl21/ssign (MIT): Certum's cloud API without SimplySign Desktop. Reviewed at this
+      # commit (v0.1.11); read the diff before moving it, it handles the login.
+      SSIGN_REV: 367bf7d3da14d5041d5e47f855ae2397b8028e33
+    steps:
+      - run: git config --global core.autocrlf false
+
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          path: YMusicV4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: windows-*-app
+          path: apps
+
+      # Preinstalled on some runner images only; otherwise the pinned Chocolatey package. Wherever it
+      # lands (Inno 7 installs per user), its ISCC.exe is handed to the packaging script as ISCC.
+      - name: Install Inno Setup
+        shell: bash
+        env:
+          INNO_SETUP_VERSION: 6.7.1
+        run: |
+          set -euo pipefail
+          find_iscc() {
+            ls "/c/Program Files (x86)/Inno Setup "*/ISCC.exe "/c/Program Files/Inno Setup "*/ISCC.exe \
+              "$(cygpath -u "$LOCALAPPDATA")/Programs/Inno Setup "*/ISCC.exe 2>/dev/null | head -n 1 || true
+          }
+          iscc="$(find_iscc)"
+          [ -n "$iscc" ] || { choco install innosetup --version "$INNO_SETUP_VERSION" -y --no-progress; iscc="$(find_iscc)"; }
+          [ -n "$iscc" ] || { echo "ISCC.exe not found after installing Inno Setup" >&2; exit 1; }
+          echo "using $iscc"
+          echo "ISCC=$iscc" >> "$GITHUB_ENV"
+
+      - if: env.SIGN == 'true'
+        id: ssign-cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ssign
+          key: ssign-${{ env.SSIGN_REV }}
+      # The image's stable MSVC toolchain, as ssign's own CI builds it; --locked takes its Cargo.lock.
+      - name: Build ssign
+        if: env.SIGN == 'true' && steps.ssign-cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: cargo install --locked --git https://github.com/Le-Syl21/ssign --rev "$SSIGN_REV" --root ssign ssign
+
+      - name: Package the installers
+        shell: bash
+        working-directory: YMusicV4/desktopRust
+        env:
+          CERTUM_EMAIL: ${{ secrets.CERTUM_EMAIL }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          SIGN_LABEL: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          export YMUSIC_V4_DIR="$GITHUB_WORKSPACE/YMusicV4"
+          if [ "$SIGN" = true ]; then
+            export SIGN_SCRIPT="$GITHUB_WORKSPACE/YMusicV4/.github/certum-sign.sh"
+            export SSIGN="$(cygpath -m "$GITHUB_WORKSPACE/ssign/bin/ssign.exe")"
+            export XDG_RUNTIME_DIR="$(cygpath -m "$RUNNER_TEMP")/ssign-runtime"
+          elif [[ $GITHUB_REF == refs/tags/* ]]; then
+            echo "::warning::no CERTUM_EMAIL / TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID: the Windows installers are unsigned"
+          fi
+          for arch in x86_64 arm64; do
+            out="$GITHUB_WORKSPACE/dist/$arch"
+            mkdir -p "$out"
+            mv "$GITHUB_WORKSPACE/apps/windows-$arch-app" "$out/YMusic"
+            tools/package-windows.sh --setup-only --arch "$arch" --out "$out"
+          done
+
+      - name: Verify the signatures
+        if: env.SIGN == 'true'
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem dist -Recurse -Include *.exe, *.dll
+          $bad = $files | Get-AuthenticodeSignature | Where-Object Status -ne 'Valid'
+          $bad | Format-Table Status, StatusMessage, Path -AutoSize -Wrap
+          if ($bad) { throw "$($bad.Count) of $($files.Count) files are not validly signed" }
+          "$($files.Count) files validly signed"
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: windows-x86_64-setup
+          path: dist/x86_64/*-setup.exe
+          if-no-files-found: error
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: windows-arm64-setup
+          path: dist/arm64/*-setup.exe
           if-no-files-found: error
 
   # The Debian package the JVM app's updater installs over its own, and an AppImage, unsigned. In an
@@ -882,7 +964,7 @@ jobs:
   # A DRAFT GitHub Release for the tag with every artifact attached: nothing is public until it is
   # reviewed and published by hand.
   release:
-    needs: [android, macos, windows, linux, test, compat]
+    needs: [android, macos, windows-setup, linux, test, compat]
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-24.04
     env:

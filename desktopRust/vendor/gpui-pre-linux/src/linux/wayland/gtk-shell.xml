@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- GNOME's gtk_shell1 (mutter), only up to set_startup_id: request opcodes follow declaration order. -->
+<protocol name="gtk">
+  <interface name="gtk_shell1" version="1">
+    <event name="capabilities">
+      <arg name="capabilities" type="uint"/>
+    </event>
+
+    <request name="get_gtk_surface">
+      <arg name="gtk_surface" type="new_id" interface="gtk_surface1"/>
+      <arg name="surface" type="object" interface="wl_surface"/>
+    </request>
+
+    <request name="set_startup_id">
+      <arg name="startup_id" type="string" allow-null="true"/>
+    </request>
+  </interface>
+
+  <interface name="gtk_surface1" version="1">
+  </interface>
+</protocol>
