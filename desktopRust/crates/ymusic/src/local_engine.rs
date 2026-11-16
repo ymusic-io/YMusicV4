@@ -274,8 +274,8 @@ impl Captions {
     }
 }
 
-/// The JVM `publishTracks`' audio half: every audio stream, the first one selected.
-fn publish_audio_tracks(player: &LocalAv, status: &mut LocalStatus) {
+/// The JVM `publishTracks`' audio half: every audio stream, `audio_index` selected (the first when absent).
+fn publish_audio_tracks(player: &LocalAv, audio_index: Option<i32>, status: &mut LocalStatus) {
     let tracks: Vec<AudioTrack> = player
         .streams()
         .into_iter()
@@ -285,7 +285,12 @@ fn publish_audio_tracks(player: &LocalAv, status: &mut LocalStatus) {
             display_name: if stream.lang.trim().is_empty() { format!("Audio {}", stream.index) } else { stream.lang },
         })
         .collect();
-    status.audio_track_selected = tracks.first().map(|track| track.id.clone());
+    let selected = audio_index.map(|index| index.to_string());
+    status.audio_track_selected = tracks
+        .iter()
+        .find(|track| Some(&track.id) == selected.as_ref())
+        .or(tracks.first())
+        .map(|track| track.id.clone());
     status.audio_tracks = tracks;
 }
 
@@ -326,7 +331,7 @@ fn run(mut player: LocalAv, commands: mpsc::Receiver<LocalCommand>, status: Arc<
                     match player.open(&path) {
                         Ok(()) => {
                             captions.open(&mut player, &path);
-                            publish_audio_tracks(&player, &mut status);
+                            publish_audio_tracks(&player, None, &mut status);
                             loaded_path = Some(path.clone());
                             status.video_track = Some((path, player.has_video()));
                             status.video_side = player
@@ -373,7 +378,7 @@ fn run(mut player: LocalAv, commands: mpsc::Receiver<LocalCommand>, status: Arc<
                             if playing {
                                 player.play();
                             }
-                            publish_audio_tracks(&player, &mut status);
+                            publish_audio_tracks(&player, Some(index), &mut status);
                             captions.publish(&mut status, position);
                         }
                         Err(message) => {
