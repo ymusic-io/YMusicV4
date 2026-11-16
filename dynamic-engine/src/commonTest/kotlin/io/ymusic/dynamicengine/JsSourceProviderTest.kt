@@ -141,6 +141,9 @@ class ManagerJsSourceTest {
     /** The revision ENGINE_TEST_JS declares — every bundle in these tests is it. */
     private val TEST_BACKEND = ENGINE_TEST_JS_VERSION.toInt()
 
+    /** A published revision newer than every bundle these tests boot. */
+    private val NEWER = TEST_BACKEND + 1L
+
     private fun manager(source: JsSourceProvider) = DynamicEngineManager(
         client = FakeHttpClient(CannedResponse.ofText("")),
         appVersion = 1,
@@ -174,9 +177,9 @@ class ManagerJsSourceTest {
         val m = manager(source)
         try {
             m.start()
-            assertFailsWith<EngineError> { m.updateTo(SIGNED_V21.copy(version = 99L)) }
+            assertFailsWith<EngineError> { m.updateTo(SIGNED_V21.copy(version = NEWER)) }
             assertNull(source.saved)
-            assertNull(m.updateTo(SIGNED_V21.copy(version = 99L)), "the same bundle is not tried again")
+            assertNull(m.updateTo(SIGNED_V21.copy(version = NEWER)), "the same bundle is not tried again")
         } finally {
             m.close()
         }
@@ -188,8 +191,8 @@ class ManagerJsSourceTest {
         val m = manager(source)
         try {
             m.start() // embed (nothing cached or published)
-            assertEquals(TEST_BACKEND, m.updateTo(SIGNED_V21.copy(version = 99L)))
-            assertEquals(ENGINE_TEST_JS to 99L, source.saved, "validated bundle is handed back for caching")
+            assertEquals(TEST_BACKEND, m.updateTo(SIGNED_V21.copy(version = NEWER)))
+            assertEquals(ENGINE_TEST_JS to NEWER, source.saved, "validated bundle is handed back for caching")
         } finally {
             m.close()
         }
