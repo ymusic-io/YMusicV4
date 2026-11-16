@@ -29,7 +29,7 @@ use crate::mini_player::{MiniPlayer, ToggleNowPlaying};
 use crate::now_playing::{NowPlaying, NowPlayingEvent};
 use crate::play_again::{PlayAgainView, ResumeQueue};
 use crate::play_history::HistoryRecorder;
-use crate::playback::{PlayState, Playback, QueueItem};
+use crate::playback::{Playback, PlaybackState, QueueItem};
 use crate::search_view::{SearchEvent, SearchMode, SearchView};
 use crate::settings_view::HOVER_ALPHA;
 use crate::settings_view::{LocaleChanged, SettingsView};
@@ -1500,7 +1500,7 @@ impl Shell {
         // sign-in an item that failed for want of one (or a captcha) plays again.
         self.playback.update(cx, |playback, cx| {
             playback.refresh_on_next();
-            let blocked = matches!(&playback.state, PlayState::Failed(failure) if failure.needs_sign_in() || failure.code == "captcha");
+            let blocked = matches!(&playback.state, PlaybackState::Error(failure) if failure.needs_sign_in() || failure.code == "captcha");
             if signed_in && blocked {
                 playback.play(cx);
             }

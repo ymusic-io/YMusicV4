@@ -39,14 +39,30 @@ const OUTRO_TOLERANCE_MS: i64 = 1_000;
 /// Cue the next item this close to the end (the JVM `PRELOAD_LEAD_MS`).
 const PRELOAD_LEAD_MS: i64 = 10_000;
 
+/// The JVM `PlaybackState`: the bound engine's session and media lifecycle. Buffering and ended are
+/// orthogonal to the engine's own play intent, which can differ from the user's
+/// ([`Playback::play_when_ready`]) across a load.
 #[derive(Debug, Clone, PartialEq)]
-pub enum PlayState {
+pub enum PlaybackState {
+    /// The engine has no usable session yet.
+    Uninitialized { is_initializing: bool },
+    /// A failed load or session.
+    Error(PlaybackFailure),
+    /// The engine is up with no media loaded.
     Idle,
-    Buffering,
-    Playing,
-    Paused,
-    Ended,
-    Failed(PlaybackFailure),
+    /// Media is loaded.
+    Prepared { play_when_ready: bool, buffering: bool, ended: bool },
+}
+
+impl PlaybackState {
+    /// The JVM `PlaybackState.isPlaying`: the engine holds media and means to play it, buffering or not.
+    pub fn is_playing(&self) -> bool {
+        matches!(self, Self::Prepared { play_when_ready: true, .. })
+    }
+
+    pub fn is_ended(&self) -> bool {
+        matches!(self, Self::Prepared { ended: true, .. })
+    }
 }
 
 /// Why playback stopped, as the user sees it: a known category, the text the source gave (YouTube's
@@ -374,7 +390,7 @@ pub struct Playback {
     _source_page: Option<Task<()>>,
     /// The load whose track change last cleared a failed page (the JVM rolledGeneration).
     rolled_generation: Option<u64>,
-    pub state: PlayState,
+    pub state: PlaybackState,
     pub position_ms: i64,
     pub duration_ms: i64,
     /// How far a streamed item is loaded; 0 for a local file, which needs no loading line.
@@ -474,7 +490,7 @@ impl Playback {
             more: None,
             _source_page: None,
             rolled_generation: None,
-            state: PlayState::Idle,
+            state: PlaybackState::Uninitialized { is_initializing: false },
             position_ms: 0,
             duration_ms: 0,
             buffered_ms: 0,
@@ -552,7 +568,36 @@ impl Playback {
     /// What the play/pause controls and the OS session show: the user's intent, not the engine's
     /// buffering (the JVM `showsPause`, `playWhenReady && !ended`).
     pub fn is_playing(&self) -> bool {
-        self.play_when_ready && !matches!(self.state, PlayState::Ended)
+        self.play_when_ready && !self.state.is_ended()
+    }
+
+    /// The user's play intent (the JVM `PlaybackStatus.playWhenReady`), true across load gaps.
+    pub fn play_when_ready(&self) -> bool {
+        self.play_when_ready
+    }
+
+    /// The JVM Now Playing `isBufferingOrLoading`: the engine buffers, boots, or holds no media yet
+    /// while the user wants playback.
+    pub fn is_buffering_or_loading(&self) -> bool {
+        match &self.state {
+            PlaybackState::Prepared { buffering, .. } => *buffering,
+            PlaybackState::Uninitialized { is_initializing } => *is_initializing,
+            PlaybackState::Idle => self.play_when_ready,
+            PlaybackState::Error(_) => false,
+        }
+    }
+
+    /// The JVM `MsePlayer.stop` / `JvmLocalPlayer.stop` state: the bound engine stops into Idle, the
+    /// YouTube engine staying as it is while it has no session or has failed; with no engine bound,
+    /// the JVM PlayerImpl.stopActive's fresh status.
+    fn stopped_state(&self) -> PlaybackState {
+        match (self.active, &self.state) {
+            (None, _) => PlaybackState::Uninitialized { is_initializing: false },
+            (Some(Active::YouTube), PlaybackState::Uninitialized { .. } | PlaybackState::Error(_)) => {
+                self.state.clone()
+            }
+            _ => PlaybackState::Idle,
+        }
     }
 
     pub fn level_tap(&self) -> Option<LevelTap> {
@@ -850,7 +895,7 @@ impl Playback {
         self.send_local(LocalCommand::Stop);
         self.loaded_video = None;
         self.command(cx, |engine, log| async move { engine.player_stop(&log).await });
-        self.state = PlayState::Idle;
+        self.state = self.stopped_state();
         self.nav.reset(self.index);
         self.publish_queue(true, cx);
         cx.notify();
@@ -878,7 +923,7 @@ impl Playback {
                 self.send_local(LocalCommand::Stop);
                 self.loaded_video = None;
                 self.command(cx, |engine, log| async move { engine.player_stop(&log).await });
-                self.state = PlayState::Idle;
+                self.state = self.stopped_state();
                 self.refresh_prepare_next(cx);
             } else {
                 self.load_current(cx);
@@ -1062,7 +1107,7 @@ impl Playback {
         if self.current().is_none() {
             return;
         }
-        if matches!(self.state, PlayState::Ended) {
+        if self.state.is_ended() {
             self.seek(0, cx);
             self.play(cx);
         } else if self.play_when_ready {
@@ -1145,38 +1190,40 @@ impl Playback {
                 self.publish_queue(false, cx);
                 self.load_current(cx);
             }
-            None => {
-                self.ended_generation = Some(self.load_generation);
-                self.state = PlayState::Ended;
-            }
+            None => self.ended_generation = Some(self.load_generation),
         }
     }
 
-    /// The JVM PlayerImpl.play: the intent goes to playing; a retryable failure or an unloaded item
-    /// loads again, anything else resumes in place.
+    /// The JVM PlayerImpl.play: the intent goes to playing; Prepared resumes in place, a retryable
+    /// failure or an engine without the item loads it again where it was. A load waiting for the
+    /// session takes the intent when it is sent.
     pub fn play(&mut self, cx: &mut Context<Self>) {
         self.play_when_ready = true;
         match &self.state {
-            PlayState::Failed(failure) => {
+            PlaybackState::Prepared { .. } => match self.active {
+                Some(Active::Local) => {
+                    self.send_local(LocalCommand::Play);
+                    if let PlaybackState::Prepared { play_when_ready, ended, .. } = &mut self.state {
+                        *play_when_ready = true;
+                        *ended = false;
+                    }
+                }
+                _ => self.command(cx, |engine, log| async move { engine.player_play(&log).await }),
+            },
+            PlaybackState::Error(failure) => {
                 if failure.retry && self.current().is_some() {
                     self.start_position_ms = self.position_ms.max(0);
                     self.load_current(cx);
                 }
                 return;
             }
-            PlayState::Idle if self.current().is_some() && self.active.is_none() => {
-                self.load_current(cx);
-                return;
+            PlaybackState::Idle | PlaybackState::Uninitialized { .. } => {
+                if self.current().is_some() && !self.awaiting_session() {
+                    self.start_position_ms = self.position_ms.max(0);
+                    self.load_current(cx);
+                    return;
+                }
             }
-            _ => {}
-        }
-        match self.active {
-            Some(Active::Local) => {
-                self.send_local(LocalCommand::Play);
-                self.state = PlayState::Playing;
-            }
-            _ if self.awaiting_session() => {}
-            _ => self.command(cx, |engine, log| async move { engine.player_play(&log).await }),
         }
         cx.notify();
     }
@@ -1187,7 +1234,9 @@ impl Playback {
         match self.active {
             Some(Active::Local) => {
                 self.send_local(LocalCommand::Pause);
-                self.state = PlayState::Paused;
+                if let PlaybackState::Prepared { play_when_ready, .. } = &mut self.state {
+                    *play_when_ready = false;
+                }
             }
             _ if self.awaiting_session() => {}
             _ => self.command(cx, |engine, log| async move { engine.player_pause(&log).await }),
@@ -1513,7 +1562,7 @@ impl Playback {
 
     fn skip_span(&mut self, span: (i64, i64), cx: &mut Context<Self>) {
         let Some(key) = self.current().map(QueueItem::key) else { return };
-        if !self.engine_playing() || !matches!(&self.skip_segments, Some((owner, _)) if *owner == key) {
+        if !self.state.is_playing() || !matches!(&self.skip_segments, Some((owner, _)) if *owner == key) {
             return;
         }
         let duration = self.duration_ms;
@@ -1525,21 +1574,6 @@ impl Playback {
             self.seek(span.1, cx);
         }
         self.skipped = Some((key, span));
-    }
-
-    /// The JVM `PlaybackState.isPlaying`: the engine holds the item and means to play it, buffering
-    /// or not.
-    fn engine_playing(&self) -> bool {
-        match self.state {
-            PlayState::Playing => true,
-            PlayState::Buffering => {
-                self.play_when_ready
-                    && self.active == Some(Active::YouTube)
-                    && self.loaded_video.is_some()
-                    && self.loaded_video.as_deref() == self.current().and_then(QueueItem::video_id)
-            }
-            _ => false,
-        }
     }
 
     /// The JVM `contentEndMs`: the duration pulled in to the start of a chain of spans running out
@@ -1629,7 +1663,8 @@ impl Playback {
             self.prepare_next_armed = true;
             return;
         }
-        if self.active.is_none() || self.state != PlayState::Playing {
+        let playing = PlaybackState::Prepared { play_when_ready: true, buffering: false, ended: false };
+        if self.active.is_none() || self.state != playing {
             return;
         }
         let duration = self.duration_ms;
@@ -1673,8 +1708,7 @@ impl Playback {
     fn load_current(&mut self, cx: &mut Context<Self>) {
         let Some(item) = self.current().cloned() else { return };
         self.load_generation += 1;
-        self.state = PlayState::Buffering;
-        self.position_ms = 0;
+        self.position_ms = self.start_position_ms.max(0);
         self.buffered_ms = 0;
         self.duration_ms = item.duration_ms.unwrap_or(0);
         self.live = false;
@@ -1683,6 +1717,7 @@ impl Playback {
         cx.notify();
         match item.source {
             Source::YouTube(video_id) => {
+                let bound = self.active == Some(Active::YouTube);
                 if self.active == Some(Active::Local) {
                     self.send_local(LocalCommand::Stop);
                 }
@@ -1701,7 +1736,12 @@ impl Playback {
                     self.drop_session();
                     self.pending = Some(video_id);
                     self.boot(reset, cx);
+                    self.state = PlaybackState::Uninitialized { is_initializing: self.booting };
                     return;
+                }
+                // The engine was stopped when it was unbound; a bound one keeps its state until it reports.
+                if !bound {
+                    self.state = PlaybackState::Idle;
                 }
                 let request = self.load_request(&video_id);
                 self.load_command(cx, video_id.clone(), move |engine, log| async move {
@@ -1715,7 +1755,7 @@ impl Playback {
                 }
                 self.start_local();
                 if self.local.is_none() {
-                    self.state = PlayState::Failed(PlaybackFailure::code("R90007"));
+                    self.state = PlaybackState::Error(PlaybackFailure::code("R90007"));
                     return;
                 }
                 self.active = Some(Active::Local);
@@ -1737,9 +1777,7 @@ impl Playback {
                     start_ms,
                     play_when_ready,
                 });
-                if !play_when_ready {
-                    self.state = PlayState::Paused;
-                }
+                self.state = PlaybackState::Prepared { play_when_ready, buffering: true, ended: false };
                 self.poll_local(cx);
             }
         }
@@ -1775,6 +1813,10 @@ impl Playback {
         }
         let Some(local) = &self.local else { return false };
         let status = local.status.lock().unwrap().clone();
+        // The player thread has not opened this load yet: what it reports is the previous file's.
+        if status.generation != self.local_generation {
+            return true;
+        }
         self.position_ms = status.position_ms;
         self.caption_tracks = status.caption_tracks;
         self.caption_selected = status.caption_selected;
@@ -1787,7 +1829,7 @@ impl Playback {
             log.warn(&format!("R90007 local file failed: {message}"), None);
             let missing =
                 matches!(self.current().map(|item| &item.source), Some(Source::Local(path)) if !path.exists());
-            self.state = PlayState::Failed(if missing {
+            self.state = PlaybackState::Error(if missing {
                 PlaybackFailure { code: FILE_MISSING.to_owned(), user_message: None, retry: false }
             } else {
                 PlaybackFailure::code("R90007")
@@ -1796,12 +1838,17 @@ impl Playback {
             return false;
         }
         if status.ended {
-            self.state = PlayState::Ended;
-            self.track_ended(cx);
+            // An engine stays ended until the next load; only entering Ended ends a track.
+            if !self.state.is_ended() {
+                self.state = PlaybackState::Prepared { play_when_ready: false, buffering: false, ended: true };
+                self.track_ended(cx);
+            }
             cx.notify();
             return self.active == Some(Active::Local) && generation == self.local_generation;
         }
-        self.state = if status.playing { PlayState::Playing } else { PlayState::Paused };
+        if let PlaybackState::Prepared { buffering, .. } = &mut self.state {
+            *buffering = false;
+        }
         self.check_skip(cx);
         self.maybe_preload_next(cx);
         cx.notify();
@@ -1860,8 +1907,10 @@ impl Playback {
                 }
                 log.capture_error("player load failed", &error);
                 this.update(cx, |playback, cx| {
-                    playback.state = PlayState::Failed(PlaybackFailure::engine(&error));
-                    cx.notify();
+                    if playback.active == Some(Active::YouTube) {
+                        playback.state = PlaybackState::Error(PlaybackFailure::engine(&error));
+                        cx.notify();
+                    }
                 })
                 .ok();
             }
@@ -1914,7 +1963,7 @@ impl Playback {
         self.position_ms = 0;
         self.duration_ms = 0;
         self.buffered_ms = 0;
-        self.state = PlayState::Failed(failure);
+        self.state = PlaybackState::Error(failure);
         cx.notify();
     }
 
@@ -1969,6 +2018,11 @@ impl Playback {
                         playback.apply_youtube_video_hidden(cx);
                         playback.bind_presenter();
                         playback.listen(cx);
+                        if playback.active == Some(Active::YouTube)
+                            && matches!(playback.state, PlaybackState::Uninitialized { .. })
+                        {
+                            playback.state = PlaybackState::Idle;
+                        }
                         if let Some(video_id) = playback.pending.take()
                             && playback.active == Some(Active::YouTube)
                         {
@@ -1981,9 +2035,17 @@ impl Playback {
                     }
                     Some(Err(error)) => {
                         log.capture_error("the player session did not boot", &error);
-                        playback.state = PlayState::Failed(PlaybackFailure::engine(&error));
+                        if playback.active == Some(Active::YouTube) {
+                            playback.state = PlaybackState::Error(PlaybackFailure::engine(&error));
+                        }
                     }
-                    None => {}
+                    None => {
+                        if playback.active == Some(Active::YouTube)
+                            && matches!(playback.state, PlaybackState::Uninitialized { .. })
+                        {
+                            playback.state = PlaybackState::Uninitialized { is_initializing: false };
+                        }
+                    }
                 }
                 cx.notify();
             })
@@ -2058,13 +2120,16 @@ impl Playback {
         let current = self.current().and_then(QueueItem::video_id).map(str::to_owned);
         if let Some(progress) = status.get("progress") {
             let video_id = progress.get("videoId").and_then(Value::as_str).map(str::to_owned);
-            let failed = matches!(self.state, PlayState::Failed(_));
-            if video_id.is_some() && video_id == current && !failed {
+            // A failed video has no play-head until it reports a new state, but its load is no longer stalled.
+            let for_current = video_id.is_some() && video_id == current;
+            if for_current {
                 if self.load_timeout_video == video_id {
                     self.load_timeout_video = None;
                 }
                 self.loading_video = None;
                 self.loaded_video = video_id;
+            }
+            if for_current && !matches!(self.state, PlaybackState::Error(_)) {
                 self.position_ms = field_i64(progress, &["progress", "positionMs"]);
                 self.buffered_ms = field_i64(progress, &["bufferedMs"]);
                 let duration = field_i64(progress, &["duration", "durationMs"]);
@@ -2080,14 +2145,13 @@ impl Playback {
                 self.live = live;
             }
             let play_when_ready = state.get("playWhenReady").and_then(Value::as_bool).unwrap_or(false);
+            let was_ended = self.state.is_ended();
             self.state = match state.get("newState").and_then(Value::as_str) {
-                Some("buffering") => PlayState::Buffering,
-                Some("ready") if play_when_ready => PlayState::Playing,
-                Some("ready") => PlayState::Paused,
-                Some("ended") => PlayState::Ended,
-                Some("idle") if self.loading_video.is_some() => PlayState::Buffering,
-                Some("idle") => PlayState::Idle,
-                Some("error") => PlayState::Failed(PlaybackFailure {
+                Some("idle") => PlaybackState::Idle,
+                Some("buffering") => PlaybackState::Prepared { play_when_ready, buffering: true, ended: false },
+                Some("ready") => PlaybackState::Prepared { play_when_ready, buffering: false, ended: false },
+                Some("ended") => PlaybackState::Prepared { play_when_ready: false, buffering: false, ended: true },
+                Some("error") => PlaybackState::Error(PlaybackFailure {
                     code: state.get("code").and_then(Value::as_str).unwrap_or("R90003").to_owned(),
                     user_message: state
                         .get("userMessage")
@@ -2098,18 +2162,19 @@ impl Playback {
                 }),
                 _ => self.state.clone(),
             };
-            if matches!(self.state, PlayState::Failed(_)) {
+            if matches!(self.state, PlaybackState::Error(_)) {
                 self.load_timeout_video = None;
                 if state.get("needReset").and_then(Value::as_bool) == Some(true) {
                     self.reset_session = true;
                 }
             }
-            if self.state == PlayState::Ended {
+            // An engine stays ended until the next load reaches it; only entering Ended ends a track.
+            if self.state.is_ended() && !was_ended {
                 self.track_ended(cx);
             }
             // A failed video has no play-head; its last report (an unplayable recording's length)
             // must not stay up, and later ones are ignored until the next load.
-            if matches!(self.state, PlayState::Failed(_)) {
+            if matches!(self.state, PlaybackState::Error(_)) {
                 self.position_ms = 0;
                 self.duration_ms = 0;
                 self.buffered_ms = 0;
@@ -2130,7 +2195,7 @@ impl Playback {
             }
         }
         self.check_skip(cx);
-        if self.state != PlayState::Ended {
+        if !self.state.is_ended() {
             self.maybe_preload_next(cx);
         }
         if let Some(watch_next) = status.get("watchNext") {

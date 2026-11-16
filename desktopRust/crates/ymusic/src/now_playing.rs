@@ -24,7 +24,7 @@ use crate::download_dialog::DownloadTarget;
 use crate::graph::{AppGraph, on_core};
 use crate::mini_player::{PlayClock, clock};
 use crate::playback::{
-    AUTO_TRANSLATE_KIND, CaptionTrack, PlayState, Playback, QUALITY_AUDIO_ONLY, QUALITY_AUTO, QueueItem, Source,
+    AUTO_TRANSLATE_KIND, CaptionTrack, Playback, PlaybackState, QUALITY_AUDIO_ONLY, QUALITY_AUTO, QueueItem, Source,
 };
 use crate::queue_nav::LoopMode;
 use crate::reorder::{Reorder, ReorderEvent};
@@ -607,7 +607,7 @@ impl NowPlaying {
         let audio_only = self.shows_audio_only(cx);
         let playback = self.playback.read(cx);
         let playing = playback.is_playing();
-        let buffering = playback.state == PlayState::Buffering;
+        let buffering = playback.is_buffering_or_loading();
         let play_clock = match self.scrub_ms {
             Some(scrub) => PlayClock::new(scrub, playback.duration_ms, playback.live),
             None => PlayClock::of(playback),
@@ -946,7 +946,7 @@ impl NowPlaying {
     /// The failure on a dark panel at the picture's bottom, above the controls strip while it shows:
     /// the message, then Sign in and Retry when they apply.
     fn failure_panel(&self, controls: bool, cx: &mut Context<Self>) -> Option<Div> {
-        let PlayState::Failed(failure) = &self.playback.read(cx).state else { return None };
+        let PlaybackState::Error(failure) = &self.playback.read(cx).state else { return None };
         let failure = failure.clone();
         let accent = cx.theme().primary;
         let action = |id: &'static str, label: &'static str| {
