@@ -913,7 +913,8 @@ pub enum TrayCommand {
     /// Toggle the mini player popup at the icon's logical screen bounds.
     #[cfg_attr(target_os = "linux", allow(dead_code))]
     Popup(Bounds<Pixels>),
-    Open,
+    /// Show the main window, with the XDG activation token of the tray host's click when it gave one.
+    Open(Option<String>),
     TogglePlay,
     Stop,
     Quit,
@@ -991,7 +992,7 @@ impl Tray {
         let menu_sender = sender.clone();
         MenuEvent::set_event_handler(Some(move |event: MenuEvent| {
             let command = match ids.iter().find(|(id, _)| *id == event.id).map(|(_, which)| *which) {
-                Some(0) => TrayCommand::Open,
+                Some(0) => TrayCommand::Open(None),
                 Some(1) => TrayCommand::TogglePlay,
                 Some(2) => TrayCommand::Stop,
                 Some(3) => TrayCommand::Quit,
@@ -1016,7 +1017,7 @@ impl Tray {
                 let _ = sender.unbounded_send(TrayCommand::Popup(anchor));
             }
             TrayIconEvent::DoubleClick { .. } => {
-                let _ = sender.unbounded_send(TrayCommand::Open);
+                let _ = sender.unbounded_send(TrayCommand::Open(None));
             }
             _ => {}
         }));
@@ -1221,6 +1222,8 @@ impl SniTray {
 
 #[cfg(target_os = "linux")]
 impl ksni::Tray for SniTray {
+    const MENU_ON_ACTIVATE: bool = true;
+
     fn id(&self) -> String {
         "ymusic".into()
     }
@@ -1242,10 +1245,6 @@ impl ksni::Tray for SniTray {
         ksni::ToolTip { title: t(Str::AppName).into(), ..Default::default() }
     }
 
-    fn activate(&mut self, _x: i32, _y: i32) {
-        self.send(TrayCommand::Open);
-    }
-
     fn menu(&self) -> Vec<ksni::MenuItem<Self>> {
         use ksni::menu::{MenuItem, StandardItem};
         let state = self.state();
@@ -1259,7 +1258,7 @@ impl ksni::Tray for SniTray {
             .into()
         };
         vec![
-            item(Str::CdOpenApp, true, || TrayCommand::Open),
+            item(Str::CdOpenApp, true, || TrayCommand::Open(click_activation_token())),
             MenuItem::Separator,
             item(if state.playing { Str::TrayPause } else { Str::TrayResume }, state.has_queue, || {
                 TrayCommand::TogglePlay
@@ -1279,6 +1278,19 @@ impl ksni::Tray for SniTray {
         self.send(TrayCommand::Lost);
         true
     }
+}
+
+/// The tray host's XDG activation token for the click being handled: Wayland raises a window only
+/// with one. It may trail the click by a few milliseconds, or never come.
+#[cfg(target_os = "linux")]
+fn click_activation_token() -> Option<String> {
+    for _ in 0..20 {
+        if let Some(token) = ksni::current_xdg_activation_token() {
+            return Some(token);
+        }
+        std::thread::sleep(Duration::from_millis(1));
+    }
+    None
 }
 
 /// A StatusNotifierItem over D-Bus (GNOME needs the AppIndicator extension, KDE has it built in).
