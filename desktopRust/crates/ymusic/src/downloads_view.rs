@@ -14,6 +14,7 @@ use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use ym_download::{DownloadChange, DownloadFormat, DownloadService, DownloadState, DownloadTask, TaskError};
 use ym_i18n::{Str, t, tf};
+use ym_image_loader::async_image::async_image_of;
 
 use crate::a11y::{DragRow, FocusList, announced, announced_as, heading, list_item};
 use crate::account::AccountController;
@@ -26,6 +27,7 @@ use crate::lazy_rows::LazyRows;
 use crate::library::PlayLocal;
 use crate::library_playlist::AddToLocalPlaylist;
 use crate::playback::{QueueItem, Source};
+use crate::youtube_thumbnails::art_request_sources;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Filter {
@@ -749,7 +751,10 @@ impl DownloadsView {
                             .overflow_hidden()
                             .bg(theme.secondary)
                             .child(
-                                img(SharedString::from(thumb)).size_full().rounded(px(6.)).object_fit(ObjectFit::Cover),
+                                async_image_of(Some(art_request_sources(&thumb)))
+                                    .size_full()
+                                    .rounded(px(6.))
+                                    .object_fit(ObjectFit::Cover),
                             ),
                     )
                     .child(
