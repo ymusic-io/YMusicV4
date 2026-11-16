@@ -115,20 +115,21 @@ internal class NextQueueSource private constructor(
         /** The source a saved [QueueSource.resumeToken] describes, continuing past [queued]; null for a
          *  token this build can't read. */
         fun resume(token: String, engines: DynamicEngineManager, queued: List<PlayableItem>, log: Logger?): QueueSource? {
-            val json = try {
-                Json.parseToJsonElement(token) as JsonObject
+            val (step, totalCount) = try {
+                val json = Json.parseToJsonElement(token) as JsonObject
+                val step = when (json.string("step")) {
+                    STEP_RADIO -> Step.Radio(json.string("videoId"))
+                    STEP_PLAYLIST -> Step.Playlist(json.string("url"), json.string("videoId"), json.int("index"))
+                    STEP_CONTINUE -> Step.Continue(json.string("continuation"))
+                    else -> return null
+                }
+                step to json.intOrNull("total")
             } catch (e: Exception) {
                 log?.log(Logger.Level.WARN, "unreadable queue resume token", e)
                 return null
             }
-            val step = when (json.string("step")) {
-                STEP_RADIO -> Step.Radio(json.string("videoId"))
-                STEP_PLAYLIST -> Step.Playlist(json.string("url"), json.string("videoId"), json.int("index"))
-                STEP_CONTINUE -> Step.Continue(json.string("continuation"))
-                else -> return null
-            }
             val queuedIds = queued.mapNotNull { (it as? PlayableItem.YtMedia)?.videoId }
-            return NextQueueSource(engines, step, json.intOrNull("total"), queuedIds, log)
+            return NextQueueSource(engines, step, totalCount, queuedIds, log)
         }
     }
 }
