@@ -442,7 +442,7 @@ fun NowPlayingScreen(
         }
     }
     val status by coordinator.player.status.collectAsState()
-    val playWhenReady = status.playWhenReady
+    val showsPause = status.showsPause()
     val audioOnly = showsAudioOnly(coordinator.player)
     KeepScreenOn(status.state.isPlaying() && !status.state.isEnded() && !audioOnly)
     val armed = VideoOverlayNative.armed
@@ -450,8 +450,8 @@ fun NowPlayingScreen(
     val showGen = VideoOverlayNative.showGen
     val scrubbing = VideoOverlayNative.scrubbing
     val menusOpen = VideoOverlayNative.menusOpen
-    LaunchedEffect(playWhenReady, armed, overlayVisible, showGen, scrubbing, menusOpen) {
-        if (armed && overlayVisible && playWhenReady && !scrubbing && menusOpen == 0) {
+    LaunchedEffect(showsPause, armed, overlayVisible, showGen, scrubbing, menusOpen) {
+        if (armed && overlayVisible && showsPause && !scrubbing && menusOpen == 0) {
             delay(OVERLAY_HIDE_DELAY_MS)
             VideoOverlayNative.visible = false
         }
