@@ -143,7 +143,7 @@ impl Render for TrayPopup {
         let theme = cx.theme().clone();
         let playback = self.playback.read(cx);
         let item = playback.current().cloned();
-        let (playing, loading) = (playback.is_playing(), item.is_some() && playback.is_buffering_or_loading());
+        let (playing, loading) = (playback.state.is_playing(), item.is_some() && playback.is_buffering_or_loading());
         let (position, duration) = (playback.position_ms, playback.duration_ms);
         let (live, seekable) = (playback.live, playback.seekable);
         let segments = segment_fractions(playback.skip_segments(), duration);

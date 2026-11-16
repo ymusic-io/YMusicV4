@@ -164,7 +164,7 @@ fn snapshot(playback: &Playback, cx: &App) -> Snapshot {
         title: item.map(|item| item.title.clone()),
         artist,
         artwork_url,
-        playing: playback.is_playing(),
+        playing: playback.state.is_playing(),
         position_ms: playback.position_ms.max(0),
         duration_ms: (playback.duration_ms > 0).then_some(playback.duration_ms),
         speed: playback.effects.speed,
