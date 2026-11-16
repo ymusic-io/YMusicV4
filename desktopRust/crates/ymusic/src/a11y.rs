@@ -456,6 +456,11 @@ impl FocusList {
         self.slots.borrow().iter().any(|slot| slot.handle.is_focused(window))
     }
 
+    /// The stop holding focus.
+    pub fn focused(&self, window: &Window) -> Option<usize> {
+        self.slots.borrow().iter().position(|slot| slot.handle.is_focused(window))
+    }
+
     /// Makes `element`, a full-width row already tracking [`Self::handle`]`(index)`, the list's `index`th
     /// stop, ringed inside: a control's own ring is drawn outside it, where the row's card clips it.
     pub fn row(&self, index: usize, element: impl IntoElement, cx: &App) -> Div {
