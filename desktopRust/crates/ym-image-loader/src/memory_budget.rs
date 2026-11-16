@@ -1,10 +1,10 @@
 //! The JVM `MemoryBudget.jvm.kt`: the desktop memory LRU budget.
 
-const MIN_BUDGET: u64 = 32 * 1024 * 1024;
-const MAX_BUDGET: u64 = 128 * 1024 * 1024;
-const FALLBACK_BUDGET: u64 = 64 * 1024 * 1024;
+const MIN_BUDGET: u64 = 16 * 1024 * 1024;
+const MAX_BUDGET: u64 = 30 * 1024 * 1024;
+const FALLBACK_BUDGET: u64 = MAX_BUDGET;
 
-/// ~1/128 of physical RAM, 32–128 MB; 64 MB when the OS does not say. One Now Playing square alone is
+/// ~1/128 of physical RAM, 16–30 MB; 30 MB when the OS does not say. One Now Playing square alone is
 /// ~2 MB.
 pub fn default_memory_cache_budget() -> u64 {
     physical_memory_bytes().map_or(FALLBACK_BUDGET, |physical| (physical / 128).clamp(MIN_BUDGET, MAX_BUDGET))

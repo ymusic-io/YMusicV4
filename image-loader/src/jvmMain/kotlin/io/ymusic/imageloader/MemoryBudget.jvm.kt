@@ -5,7 +5,7 @@ import javax.management.JMException
 import javax.management.ObjectName
 
 /**
- * Desktop memory LRU budget: ~1/128 of physical RAM, 32–128MB. Decoded bitmaps are Skia pixels in
+ * Desktop memory LRU budget: ~1/128 of physical RAM, 16–30MB. Decoded bitmaps are Skia pixels in
  * native memory, not the JVM heap, so `-Xmx` is not the bound; one Now Playing square alone is ~2MB.
  */
 fun defaultMemoryCacheBudget(): Long {
@@ -24,6 +24,6 @@ private fun physicalMemoryBytes(): Long? = try {
     null
 }
 
-private const val MIN_BUDGET = 32L * 1024 * 1024
-private const val MAX_BUDGET = 128L * 1024 * 1024
-private const val FALLBACK_BUDGET = 64L * 1024 * 1024
+private const val MIN_BUDGET = 16L * 1024 * 1024
+private const val MAX_BUDGET = 30L * 1024 * 1024
+private const val FALLBACK_BUDGET = MAX_BUDGET
