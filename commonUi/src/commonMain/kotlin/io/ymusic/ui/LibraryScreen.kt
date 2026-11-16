@@ -178,13 +178,14 @@ import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import projectcommon.error.errorCode
 
-private enum class LibraryTab(val label: StringResource) {
-    Folders(Res.string.library_tab_folders),
-    Playlists(Res.string.library_tab_playlists),
-    Songs(Res.string.library_tab_songs),
-    Artists(Res.string.library_tab_artists),
-    Albums(Res.string.library_tab_albums),
-    Genres(Res.string.library_tab_genres),
+/** [key] is what a restart resumes by: fixed, shared with the Rust app, never renamed. */
+private enum class LibraryTab(val key: String, val label: StringResource) {
+    Folders("folders", Res.string.library_tab_folders),
+    Playlists("playlists", Res.string.library_tab_playlists),
+    Songs("songs", Res.string.library_tab_songs),
+    Artists("artists", Res.string.library_tab_artists),
+    Albums("albums", Res.string.library_tab_albums),
+    Genres("genres", Res.string.library_tab_genres),
 }
 
 /** Everything the tabs render from, reloaded on any items/buckets change. Identity doubles as the
@@ -278,7 +279,11 @@ fun LibraryScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
                     }
                 }
             }
-            var tab by rememberSaveable { mutableStateOf(LibraryTab.Folders) }
+            var tab by rememberSaveable {
+                val saved = graph.settings.flow(AppSettings.lastLibraryTab).value
+                mutableStateOf(LibraryTab.entries.firstOrNull { it.key == saved } ?: LibraryTab.Folders)
+            }
+            LaunchedEffect(tab) { graph.settings.put(AppSettings.lastLibraryTab, tab.key) }
             DisposableEffect(Unit) {
                 val entries = LibraryTab.entries
                 val remove = GlobalShortcutActions.pushTabHandler { i ->

@@ -40,12 +40,17 @@ pub fn looks_signed_in(cookies: &[SessionCookie]) -> bool {
     cookies.iter().any(|cookie| ESSENTIAL_COOKIE_NAMES.contains(&cookie.name.as_str()) && !cookie.value.is_empty())
 }
 
-/// A `Set-Cookie` line to store the cookie as if `https://www.youtube.com/` had sent it.
+/// The domain an imported cookie is stored under (the JVM `importSessionCookies`).
+pub fn import_domain(cookie: &SessionCookie) -> &str {
+    let domain = cookie.domain.strip_prefix('.').unwrap_or(&cookie.domain);
+    if domain.trim().is_empty() { "youtube.com" } else { domain }
+}
+
+/// A `Set-Cookie` line for the cookie, `Domain=` [`import_domain`]; store it as if that host sent it.
 pub fn to_set_cookie(cookie: &SessionCookie) -> String {
     let now = SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |elapsed| elapsed.as_millis() as i64);
     let expires = cookie.expires_at.filter(|at| *at > now).unwrap_or(now + PERSIST_MS);
-    let domain = cookie.domain.trim_start_matches('.');
-    let domain = if domain.is_empty() { "youtube.com" } else { domain };
+    let domain = import_domain(cookie);
     let path = if cookie.path.trim().is_empty() { "/" } else { cookie.path.as_str() };
     let mut line = format!(
         "{}={}; Domain={domain}; Path={path}; Max-Age={}",

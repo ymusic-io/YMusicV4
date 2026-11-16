@@ -473,6 +473,7 @@ internal class PlayerImpl(
         if (released) return
         if (controller.state.currentItem == null) return
         val resumeMs = _progress.value.positionMs
+        setPlayWhenReadyIntent(true)
         _currentEngine.value?.reset("reload")
         loadCurrent(resumeMs)
     }

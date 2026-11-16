@@ -10,11 +10,13 @@ use gpui_kit::component::{ActiveTheme, Disableable, Icon, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use ym_i18n::{Str, t};
+use ym_image_loader::ImageSource;
+use ym_image_loader::async_image::async_image;
 
 use crate::action_icon::{hit_target, lucide_size, sized_action_icon};
 use crate::desktop::TrayCommand;
 use crate::mini_player::PlayClock;
-use crate::playback::{PlayState, Playback};
+use crate::playback::Playback;
 use crate::spinner::Spinner;
 
 pub const WIDTH: f32 = 340.;
@@ -143,12 +145,10 @@ impl Render for TrayPopup {
         let theme = cx.theme().clone();
         let playback = self.playback.read(cx);
         let item = playback.current().cloned();
-        let state = playback.state.clone();
-        let playing = matches!(state, PlayState::Playing | PlayState::Buffering);
+        let (playing, loading) = (playback.state.is_playing(), item.is_some() && playback.is_buffering_or_loading());
         let (position, duration) = (playback.position_ms, playback.duration_ms);
         let (live, seekable) = (playback.live, playback.seekable);
         let segments = segment_fractions(playback.skip_segments(), duration);
-        let has_next = playback.has_next();
         let title =
             item.as_ref().map_or_else(|| t(Str::MiniPlayerNothingPlaying).to_owned(), |item| item.title.clone());
         let artist = item.as_ref().and_then(|item| item.artist.clone());
@@ -162,8 +162,16 @@ impl Render for TrayPopup {
             .items_center()
             .justify_center()
             .child(Icon::new(Lucide::Music).text_color(theme.muted_foreground))
-            .when_some(item.as_ref().and_then(|item| item.thumb(160)), |frame, url| {
-                frame.child(img(url).absolute().inset_0().size_full().rounded(px(5.)).object_fit(ObjectFit::Cover))
+            .when_some(item.as_ref().and_then(|item| item.display_thumbnail_url()), |frame, url| {
+                let identity = ym_image_loader::image_cache_key(&url);
+                frame.child(
+                    async_image(Some(identity), vec![ImageSource::new(url.to_string())])
+                        .absolute()
+                        .inset_0()
+                        .size_full()
+                        .rounded(px(5.))
+                        .object_fit(ObjectFit::Cover),
+                )
             });
         let play_label = t(if playing { Str::CdPause } else { Str::CdPlay });
         let play_clock = PlayClock::new(position, duration, live);
@@ -257,6 +265,7 @@ impl Render for TrayPopup {
                 h_flex()
                     .gap_2()
                     .items_center()
+                    .layout_direction(LayoutDirection::Ltr)
                     .child(div().text_xs().text_color(theme.muted_foreground).child(elapsed))
                     .child(
                         div()
@@ -276,6 +285,7 @@ impl Render for TrayPopup {
                     .justify_center()
                     .items_center()
                     .gap(px(14.))
+                    .layout_direction(LayoutDirection::Ltr)
                     .child(
                         sized_action_icon("tray-previous", Lucide::SkipBack, t(Str::CdPrevious), SKIP_ICON, SKIP_HIT)
                             .disabled(item.is_none())
@@ -285,8 +295,8 @@ impl Render for TrayPopup {
                     )
                     .child(
                         hit_target("tray-play-pause", PLAY_HIT)
-                            .when(state == PlayState::Buffering, |button| button.child(Spinner::new().small()))
-                            .when(state != PlayState::Buffering, |button| {
+                            .when(loading, |button| button.child(Spinner::new().small()))
+                            .when(!loading, |button| {
                                 button.child(
                                     Icon::new(if playing { Lucide::Pause } else { Lucide::Play })
                                         .size(px(lucide_size(PLAY_ICON))),
@@ -301,7 +311,6 @@ impl Render for TrayPopup {
                     )
                     .child(
                         sized_action_icon("tray-next", Lucide::SkipForward, t(Str::CdNext), SKIP_ICON, SKIP_HIT)
-                            .disabled(!has_next)
                             .on_click(cx.listener(|popup, _, _, cx| {
                                 popup.playback.update(cx, |playback, cx| playback.next(cx))
                             })),

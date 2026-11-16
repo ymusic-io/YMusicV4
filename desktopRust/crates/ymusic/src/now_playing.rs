@@ -3,7 +3,7 @@
 //! Narrow: top bar, video full width, title, then the queue.
 //! The video box is painted by `video_layer`: a native view behind the window on macOS, CPU pictures elsewhere.
 
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 use std::time::{Duration, Instant};
 
@@ -16,26 +16,33 @@ use gpui_kit::component::{ActiveTheme, Icon, IconName, Sizable, StyledExt, Windo
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use ym_i18n::{Str, t, tf};
+use ym_image_loader::async_image::async_image_of;
 
-use crate::a11y::{FocusList, SliderStop, alert, heading, list_item};
+use crate::a11y::{FocusList, SliderStop, alert, announced, heading, list_item};
 use crate::action_icon::{HIT, glyph_action_icon, lucide_size, sized_action_icon};
 use crate::audio_only::AudioOnlyArt;
 use crate::download_dialog::DownloadTarget;
 use crate::graph::{AppGraph, on_core};
+use crate::lazy_rows::LazyRows;
 use crate::mini_player::{PlayClock, clock};
 use crate::playback::{
-    AUTO_TRANSLATE_KIND, CaptionTrack, PlayState, Playback, QUALITY_AUDIO_ONLY, QUALITY_AUTO, QueueItem, Source,
+    AUTO_TRANSLATE_KIND, CaptionTrack, Playback, PlaybackState, QUALITY_AUDIO_ONLY, QUALITY_AUTO, QueueItem, Source,
 };
 use crate::queue_nav::LoopMode;
 use crate::reorder::{Reorder, ReorderEvent};
+use crate::spinner::Spinner;
 use crate::sponsor_block::SponsorBlock;
 #[cfg(not(target_os = "windows"))]
 use crate::video_layer::VideoLayer;
 #[cfg(target_os = "windows")]
 use crate::win_video_layer::VideoLayer;
+use crate::youtube_thumbnails::art_request_sources;
 
 const CONTROLS_HIDE_AFTER: Duration = Duration::from_secs(3);
 const SKIP_MS: i64 = 10_000;
+const QUEUE_ROW_ESTIMATE: f32 = 64.;
+/// One arrow press on the seek bar (the JVM `SEEK_KEY_STEP_MS`).
+const SEEK_KEY_STEP_MS: i64 = 5_000;
 
 const STOP_CLOSE: usize = 0;
 const STOP_DOWNLOAD: usize = 1;
@@ -47,6 +54,7 @@ const STOP_REPEAT: usize = 6;
 const STOP_SHUFFLE: usize = 7;
 const STOP_CHANNEL: usize = 8;
 const STOP_CHANNEL_OVERLAY: usize = 9;
+const STOP_QUEUE_MORE: usize = 10;
 /// The video controls, as arrow stops of their own list.
 const OVERLAY_REWIND: usize = 0;
 const OVERLAY_PREVIOUS: usize = 1;
@@ -62,6 +70,7 @@ const OVERLAY_SEEK: usize = 10;
 const OVERLAY_SIGN_IN: usize = 11;
 const OVERLAY_RETRY: usize = 12;
 const OVERLAY_LIVE: usize = 13;
+const OVERLAY_FILL: usize = 14;
 const MENU_CAPTIONS: u8 = 1;
 const MENU_QUALITY: u8 = 2;
 const MENU_MORE: u8 = 4;
@@ -98,12 +107,16 @@ pub enum NowPlayingEvent {
 
 pub struct NowPlaying {
     playback: Entity<Playback>,
+    /// Queue items' Library rows by media id, as the JVM Up next menu looks them up: `None` while
+    /// the lookup runs, `Some(false)` when the row is gone.
+    live_rows: std::cell::RefCell<std::collections::HashMap<i64, Option<bool>>>,
     sponsor_block: Entity<SponsorBlock>,
     queue_scroll: ScrollHandle,
     queue_focus: FocusList,
     /// The top bar's and queue header's buttons, for the arrow keys.
     bar_focus: FocusList,
     reorder: Reorder,
+    queue_rows: LazyRows,
     video_layer: Option<Rc<VideoLayer>>,
     /// The video box as last painted, to report viewport changes to the player.
     video_box: Rc<Cell<(i32, i32)>>,
@@ -116,6 +129,8 @@ pub struct NowPlaying {
     reported_box: (i32, i32),
     seek: Entity<SliderState>,
     dragging_seek: bool,
+    /// Where a seek-bar drag points; the clock shows it while dragging (the JVM scrubMs).
+    scrub_ms: Option<i64>,
     /// The video controls are up: a click on the picture toggles them, a key or the seek bar shows
     /// them, and they hide `CONTROLS_HIDE_AFTER` past `shown_at` while playing.
     controls_shown: bool,
@@ -125,11 +140,16 @@ pub struct NowPlaying {
     /// A press on the bare picture, toggling the controls on its release.
     picture_pressed: bool,
     caption_focus: FocusHandle,
+    /// Auto-translate languages last picked, most recent first: language codes.
+    recent_translations: Rc<RefCell<Vec<String>>>,
     play_focus: FocusHandle,
     overlay_focus: FocusList,
     /// A video control held keyboard focus at the last render: the controls stay up meanwhile.
     keyboard_in_controls: Cell<bool>,
     fullscreen: bool,
+    /// The JVM `videoFillScreen`: full screen takes the whole screen as the picture; never saved, off
+    /// whenever full screen ends.
+    video_fill: bool,
     _subscriptions: Vec<Subscription>,
     _controls_timer: Task<()>,
 }
@@ -285,6 +305,13 @@ fn menu_value_item(label: &'static str, value: String) -> PopupMenuItem {
     })
 }
 
+/// The quality chip's text, its menu's choices (token, label) and the preferred token.
+struct QualityChoices {
+    label: String,
+    options: Vec<(String, String)>,
+    selected: String,
+}
+
 /// How much the video overlay's chrome grows with the video box: 1× up to a 400 px short side, then
 /// up to 1.3×.
 fn overlay_scale((width, height): (i32, i32)) -> f32 {
@@ -319,12 +346,14 @@ impl NowPlaying {
                 cx.notify();
             }),
             cx.subscribe(&seek, |view, _, event: &SliderEvent, cx| match event {
-                SliderEvent::Change(_) => {
+                SliderEvent::Change(value) => {
                     view.dragging_seek = true;
+                    view.scrub_ms = Some((view.playback.read(cx).duration_ms as f32 * value.end()) as i64);
                     view.show_controls(cx);
                 }
                 SliderEvent::Release(value) => {
                     view.dragging_seek = false;
+                    view.scrub_ms = None;
                     let fraction = value.end();
                     view.playback.update(cx, |playback, cx| {
                         let target = (playback.duration_ms as f32 * fraction) as i64;
@@ -352,7 +381,8 @@ impl NowPlaying {
             queue_scroll: queue_scroll.clone(),
             queue_focus: FocusList::new(Some(queue_scroll.clone())),
             bar_focus: FocusList::new(None),
-            reorder: Reorder::new(queue_scroll),
+            reorder: Reorder::new(queue_scroll.clone()),
+            queue_rows: LazyRows::new(queue_scroll, QUEUE_ROW_ESTIMATE),
             video_layer: None,
             video_box,
             audio_only_art,
@@ -362,15 +392,19 @@ impl NowPlaying {
             reported_box: (0, 0),
             seek,
             dragging_seek: false,
+            scrub_ms: None,
             controls_shown: true,
             shown_at: Rc::new(Cell::new(Instant::now())),
             held_menus: Rc::default(),
             picture_pressed: false,
             caption_focus: cx.focus_handle(),
+            recent_translations: Rc::new(RefCell::new(load_recent_translations(cx))),
             play_focus: cx.focus_handle(),
             overlay_focus: FocusList::new(None),
             keyboard_in_controls: Cell::new(false),
             fullscreen: false,
+            video_fill: false,
+            live_rows: Default::default(),
             _subscriptions: subscriptions,
             _controls_timer: controls_timer,
         }
@@ -530,6 +564,9 @@ impl NowPlaying {
 
     fn toggle_fullscreen(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.fullscreen = !self.fullscreen;
+        if !self.fullscreen {
+            self.video_fill = false;
+        }
         window.toggle_fullscreen();
         self.show_controls(cx);
     }
@@ -576,8 +613,11 @@ impl NowPlaying {
         let audio_only = self.shows_audio_only(cx);
         let playback = self.playback.read(cx);
         let playing = playback.is_playing();
-        let buffering = playback.state == PlayState::Buffering;
-        let play_clock = PlayClock::of(playback);
+        let buffering = playback.is_buffering_or_loading();
+        let play_clock = match self.scrub_ms {
+            Some(scrub) => PlayClock::new(scrub, playback.duration_ms, playback.live),
+            None => PlayClock::of(playback),
+        };
         let (duration, seekable) = (playback.duration_ms, playback.seekable);
         let layer = self.video_layer.clone();
         let video_box = self.video_box.clone();
@@ -651,6 +691,7 @@ impl NowPlaying {
         let transport =
             h_flex()
                 .w_full()
+                .layout_direction(LayoutDirection::Ltr)
                 .max_w(px(480. * scale))
                 .px(px(20.))
                 .py(px(14.))
@@ -708,6 +749,7 @@ impl NowPlaying {
         };
         let time = h_flex()
             .items_center()
+            .layout_direction(LayoutDirection::Ltr)
             .text_size(time_size)
             .font_bold()
             .text_color(rgb(OVERLAY_INK))
@@ -721,6 +763,24 @@ impl NowPlaying {
             .children(actions)
             .when_some(self.caption_button(glyph, hit, cx), |row, button| {
                 row.child(self.overlay_focus.wrap_for(OVERLAY_CAPTIONS, &self.caption_focus, button, cx))
+            })
+            .when(fullscreen, |row| {
+                let fill = self.video_fill;
+                let toggle = sized_action_icon(
+                    "np-fill",
+                    if fill { Lucide::Shrink } else { Lucide::Scan },
+                    t(if fill { Str::CdFitVideo } else { Str::CdFillVideo }),
+                    glyph,
+                    hit,
+                );
+                row.child(self.overlay_focus.button(
+                    OVERLAY_FILL,
+                    on_video(toggle, cx).on_click(cx.listener(|view, _, _, cx| {
+                        view.video_fill = !view.video_fill;
+                        cx.notify();
+                    })),
+                    cx,
+                ))
             })
             .child(
                 self.overlay_focus.button(
@@ -743,7 +803,7 @@ impl NowPlaying {
         let seek_stop = SliderStop {
             value_text: Some(play_clock.spoken.clone().into()),
             on_step: Some(Rc::new(move |delta, _, cx| {
-                playback.update(cx, |playback, cx| playback.seek_by(delta as i64 * SKIP_MS, cx))
+                playback.update(cx, |playback, cx| playback.seek_by(delta as i64 * SEEK_KEY_STEP_MS, cx))
             })),
             ..SliderStop::new("np-seek", t(Str::A11yPlaybackPosition))
         };
@@ -828,6 +888,7 @@ impl NowPlaying {
         let state = on_track.unwrap_or_else(|| t(Str::CaptionsOff).to_owned());
         let label = format!("{}, {state}", t(Str::CdCaptions));
         let target = self.playback.clone();
+        let recent_codes = self.recent_translations.clone();
         Some(
             on_video_menu(sized_action_icon("np-captions", Lucide::Captions, label, glyph, hit), cx)
                 .track_focus(&self.caption_focus)
@@ -841,8 +902,15 @@ impl NowPlaying {
                     );
                     let pick = |track: &CaptionTrack| {
                         let (playback, id) = (target.clone(), track.vss_id.clone());
+                        let translation = (track.kind == AUTO_TRANSLATE_KIND)
+                            .then(|| (recent_codes.clone(), track.language_code.clone()));
                         PopupMenuItem::new(track.display_name.clone()).checked(is_on(track)).on_click(
-                            move |_, _, cx| playback.update(cx, |playback, cx| playback.select_caption(id.clone(), cx)),
+                            move |_, _, cx| {
+                                playback.update(cx, |playback, cx| playback.select_caption(id.clone(), cx));
+                                if let Some((recent, code)) = &translation {
+                                    remember_translation(recent, code.clone(), cx);
+                                }
+                            },
                         )
                     };
                     for track in &tracks {
@@ -855,7 +923,17 @@ impl NowPlaying {
                             Some(name) => format!("{} · {name}", t(Str::CaptionsAutoTranslate)),
                             None => t(Str::CaptionsAutoTranslate).to_owned(),
                         };
-                        let items: Vec<PopupMenuItem> = translations.iter().map(&pick).collect();
+                        let mut items = Vec::new();
+                        let recent: Vec<&CaptionTrack> = recent_codes
+                            .borrow()
+                            .iter()
+                            .filter_map(|code| translations.iter().find(|track| &track.language_code == code))
+                            .collect();
+                        if !recent.is_empty() {
+                            items.extend(recent.into_iter().map(&pick));
+                            items.push(crate::settings_view::menu_divider());
+                        }
+                        items.extend(translations.iter().map(&pick));
                         let items = std::rc::Rc::new(std::cell::RefCell::new(Some(items)));
                         menu = menu.submenu(title, window, cx, move |mut submenu, _, _| {
                             for item in items.borrow_mut().take().into_iter().flatten() {
@@ -874,7 +952,7 @@ impl NowPlaying {
     /// The failure on a dark panel at the picture's bottom, above the controls strip while it shows:
     /// the message, then Sign in and Retry when they apply.
     fn failure_panel(&self, controls: bool, cx: &mut Context<Self>) -> Option<Div> {
-        let PlayState::Failed(failure) = &self.playback.read(cx).state else { return None };
+        let PlaybackState::Error(failure) = &self.playback.read(cx).state else { return None };
         let failure = failure.clone();
         let accent = cx.theme().primary;
         let action = |id: &'static str, label: &'static str| {
@@ -946,9 +1024,9 @@ impl NowPlaying {
         } else {
             0.1 + 0.1 * ((width - 600.) / (1920. - 600.)).clamp(0., 1.)
         };
-        // The picture is contain-fit: captions go in the bar under it when two rows fit there clear
-        // of the controls, else over its bottom.
-        let (picture_width, picture_height) = if audio_only {
+        // The picture is contain-fit (the whole box when it fills): captions go in the bar under it when
+        // two rows fit there clear of the controls, else over its bottom.
+        let (picture_width, picture_height) = if audio_only || self.video_fill {
             (width, height)
         } else if width / height.max(1.) <= VIDEO_RATIO {
             (width, width / VIDEO_RATIO)
@@ -1017,42 +1095,34 @@ impl NowPlaying {
         )
     }
 
-    /// The quality menu's choices (token, label), the preferred token and the playing quality's label.
-    fn quality_choices(&self, cx: &App) -> (Vec<(String, String)>, String, String) {
-        let playback = self.playback.read(cx);
-        let label = |quality: &str, fallback: &str| match quality {
+    /// The JVM `qualityChoices`: None while the item offers no choice.
+    fn quality_choices(&self, cx: &App) -> Option<QualityChoices> {
+        let quality = self.playback.read(cx).video_quality();
+        if quality.options.is_empty() {
+            return None;
+        }
+        let label = |token: &str, fallback: &str| match token {
             QUALITY_AUTO => t(Str::VideoQualityAuto).to_owned(),
             QUALITY_AUDIO_ONLY => t(Str::AudioOnly).to_owned(),
             _ => fallback.to_owned(),
         };
-        let mut choices = vec![(QUALITY_AUDIO_ONLY.to_owned(), t(Str::AudioOnly).to_owned())];
-        if playback.quality_options.is_empty() {
-            choices.push((QUALITY_AUTO.to_owned(), t(Str::VideoQualityAuto).to_owned()));
-        } else {
-            choices
-                .extend(playback.quality_options.iter().map(|(quality, text)| (quality.clone(), label(quality, text))));
-        }
-        let selected = if playback.video { playback.quality_preferred.clone() } else { QUALITY_AUDIO_ONLY.to_owned() };
-        let current = if !playback.video {
-            t(Str::AudioOnly).to_owned()
-        } else {
-            let actual = playback.quality_actual.clone().unwrap_or_else(|| QUALITY_AUTO.to_owned());
-            choices
-                .iter()
-                .find(|(quality, _)| *quality == actual)
-                .map(|(_, text)| text.clone())
-                .unwrap_or_else(|| label(&actual, &actual))
-        };
-        (choices, selected, current)
+        let choices: Vec<(String, String)> =
+            quality.options.iter().map(|(token, text)| (token.clone(), label(token, text))).collect();
+        let current = choices
+            .iter()
+            .find(|(token, _)| *token == quality.actual)
+            .map(|(_, text)| text.clone())
+            .unwrap_or_else(|| label(&quality.actual, &quality.actual));
+        Some(QualityChoices { label: current, options: choices, selected: quality.preferred })
     }
 
-    /// The quality chip and its menu; over the video (`Some(scale)`) it is drawn in the overlay's ink at
-    /// the overlay's scale.
-    fn quality_chip(&self, focus: Option<FocusHandle>, over_video: Option<f32>, cx: &App) -> AnyElement {
-        let (choices, selected, current) = self.quality_choices(cx);
+    /// The quality chip and its menu, None while there is no choice; over the video (`Some(scale)`) it is
+    /// drawn in the overlay's ink at the overlay's scale.
+    fn quality_chip(&self, focus: Option<FocusHandle>, over_video: Option<f32>, cx: &App) -> Option<AnyElement> {
+        let QualityChoices { label: current, options: choices, selected } = self.quality_choices(cx)?;
         let playback = self.playback.clone();
         let ink: Hsla = rgb(OVERLAY_INK).into();
-        Button::new(if over_video.is_some() { "np-quality-overlay" } else { "np-quality" })
+        let chip = Button::new(if over_video.is_some() { "np-quality-overlay" } else { "np-quality" })
             .when_some(focus, |chip, focus| chip.track_focus(&focus))
             .outline()
             .xsmall()
@@ -1075,15 +1145,18 @@ impl NowPlaying {
                     menu
                 },
             )
-            .on_open_change(self.hold_while_open(MENU_QUALITY))
-            .into_any_element()
+            .on_open_change(self.hold_while_open(MENU_QUALITY));
+        Some(chip.into_any_element())
     }
 
     /// Full screen has no top bar, so its quality chip, details and speed come onto the controls.
     fn overlay_player_actions(&self, current: &QueueItem, scale: f32, cx: &mut Context<Self>) -> Vec<AnyElement> {
         let (glyph, hit) = (ICON * scale, HIT * scale);
         let quality = self.quality_chip(Some(self.overlay_focus.handle(OVERLAY_QUALITY, cx)), Some(scale), cx);
-        let mut actions = vec![self.overlay_focus.wrap(OVERLAY_QUALITY, quality, cx).into_any_element()];
+        let mut actions: Vec<AnyElement> = quality
+            .map(|chip| self.overlay_focus.wrap(OVERLAY_QUALITY, chip, cx).into_any_element())
+            .into_iter()
+            .collect();
         if let Some(video_id) = current.video_id().map(str::to_owned) {
             let details =
                 on_video(sized_action_icon("np-details", Lucide::Info, t(Str::MenuDetailsComments), glyph, hit), cx)
@@ -1119,10 +1192,9 @@ impl NowPlaying {
         let sleep_after_current = playback.sleep_after_current;
         let sleep_armed = sleep_remaining.is_some() || sleep_after_current;
         let sponsor_whitelisted = self.sponsor_block.read(cx).current.as_ref().map(|(_, whitelisted)| *whitelisted);
-        let target = current.video_id().map(|video_id| DownloadTarget {
+        let target = current.downloadable().map(|video_id| DownloadTarget {
             video_id: video_id.to_owned(),
             title: current.title.clone(),
-            artist: current.artist.clone(),
             thumbnail_url: current.thumb(640).map(|url| url.to_string()),
         });
 
@@ -1144,29 +1216,43 @@ impl NowPlaying {
             cx,
         );
 
-        let quality = self.quality_chip(Some(self.bar_focus.handle(STOP_QUALITY, cx)), None, cx);
+        let quality = self
+            .quality_chip(Some(self.bar_focus.handle(STOP_QUALITY, cx)), None, cx)
+            .map(|chip| self.bar_focus.wrap(STOP_QUALITY, chip, cx));
 
         let view = cx.entity().downgrade();
-        let more_target = target.clone();
+        let more_video_id = current.video_id().map(str::to_owned);
+        // Share for any item with a YouTube id (a downloaded file's too) and lyrics for any item, the
+        // local artist in the query (the JVM ⋮ menu; a YouTube item's artist is its uploader).
+        let share_id = current.video_id().map(str::to_owned).or_else(|| current.youtube_vid.clone());
+        let lyrics_query = match &current.source {
+            crate::playback::Source::Local(_) => {
+                [current.artist.clone(), Some(current.title.clone())].into_iter().flatten().collect::<Vec<_>>()
+            }
+            crate::playback::Source::YouTube(_) => vec![current.title.clone()],
+        }
+        .join(" ")
+            + " lyrics";
         let queue_playback = self.playback.clone();
         let more = sized_action_icon("np-more", IconName::EllipsisVertical, t(Str::CdMore), ICON, HIT)
             .track_focus(&self.bar_focus.handle(STOP_MORE, cx))
-            .dropdown_menu_with_anchor(Anchor::TopRight, move |mut menu, _, cx| {
+            .dropdown_menu_with_anchor(Anchor::TopRight, move |mut menu, window, cx| {
                 let icon = |name: Lucide| Icon::new(name);
-                if let Some(target) = &more_target {
-                    let (details, video_id) = (view.clone(), target.video_id.clone());
+                if let Some(more_video_id) = &more_video_id {
+                    let (details, video_id) = (view.clone(), more_video_id.clone());
                     menu =
                         menu.item(PopupMenuItem::new(t(Str::MenuDetailsComments)).icon(icon(Lucide::Info)).on_click(
                             move |_, _, cx| {
                                 details.update(cx, |_, cx| cx.emit(NowPlayingEvent::Details(video_id.clone()))).ok();
                             },
                         ));
-                    let video_id = target.video_id.clone();
+                    let video_id = more_video_id.clone();
                     menu =
                         menu.item(PopupMenuItem::new(t(Str::CdAddToPlaylist)).icon(icon(Lucide::ListPlus)).on_click(
                             move |_, window, cx| crate::yt_playlist::AddToPlaylist::open(video_id.clone(), window, cx),
                         ));
-                    let link = format!("https://youtu.be/{}", target.video_id);
+                }
+                if let Some(link) = share_id.as_deref().and_then(|id| crate::feed::youtube_share_link("video", id)) {
                     menu = menu.item(PopupMenuItem::new(t(Str::CdShare)).icon(icon(Lucide::Share2)).on_click(
                         move |_, window, cx| {
                             cx.write_to_clipboard(ClipboardItem::new_string(link.clone()));
@@ -1192,17 +1278,14 @@ impl NowPlaying {
                         },
                     ),
                 );
-                if let Some(target) = &more_target {
-                    let query = format!("{} lyrics", target.title);
-                    menu =
-                        menu.item(PopupMenuItem::new(t(Str::MenuSearchLyrics)).icon(icon(Lucide::MicVocal)).on_click(
-                            move |_, _, cx| {
-                                let encoded: String = url::form_urlencoded::byte_serialize(query.as_bytes()).collect();
-                                cx.open_url(&format!("https://www.google.com/search?q={encoded}"));
-                            },
-                        ));
-                }
-                menu = menu.separator();
+                let query = lyrics_query.clone();
+                menu = menu.item(PopupMenuItem::new(t(Str::MenuSearchLyrics)).icon(icon(Lucide::MicVocal)).on_click(
+                    move |_, _, cx| {
+                        let encoded: String = url::form_urlencoded::byte_serialize(query.as_bytes()).collect();
+                        cx.open_url(&format!("https://www.google.com/search?q={encoded}"));
+                    },
+                ));
+                menu = menu.item(crate::settings_view::menu_divider());
                 let effects = queue_playback.read(cx).effects;
                 let speed = format!("{}×", crate::speed_pitch::trimmed(effects.speed));
                 let speed_pitch = view.clone();
@@ -1219,8 +1302,41 @@ impl NowPlaying {
                             equalizer.update(cx, |_, cx| cx.emit(NowPlayingEvent::OpenEqualizer)).ok();
                         },
                     ));
+                let audio = queue_playback.read(cx).audio_tracks();
+                if audio.tracks.len() > 1 {
+                    let current = audio
+                        .tracks
+                        .iter()
+                        .find(|track| audio.selected.as_ref() == Some(&track.id))
+                        .map(|track| track.display_name.clone());
+                    let title = match current {
+                        Some(name) => format!("{} · {name}", t(Str::DownloadAudioTrack)),
+                        None => t(Str::DownloadAudioTrack).to_owned(),
+                    };
+                    let (tracks, selected, target) = (audio.tracks, audio.selected, queue_playback.clone());
+                    menu = menu.submenu_with_icon(
+                        Some(icon(Lucide::AudioLines)),
+                        title,
+                        window,
+                        cx,
+                        move |mut submenu, _, _| {
+                            for track in &tracks {
+                                let (playback, id) = (target.clone(), track.id.clone());
+                                submenu = submenu.item(
+                                    PopupMenuItem::new(track.display_name.clone())
+                                        .checked(selected.as_ref() == Some(&track.id))
+                                        .on_click(move |_, _, cx| {
+                                            playback
+                                                .update(cx, |playback, cx| playback.select_audio_track(id.clone(), cx))
+                                        }),
+                                );
+                            }
+                            submenu
+                        },
+                    );
+                }
                 let reload = queue_playback.clone();
-                menu.separator().item(
+                menu.item(crate::settings_view::menu_divider()).item(
                     PopupMenuItem::new(t(Str::MenuReloadPlayer))
                         .icon(icon(Lucide::RefreshCw))
                         .on_click(move |_, _, cx| reload.update(cx, |playback, cx| playback.reload(cx))),
@@ -1274,7 +1390,7 @@ impl NowPlaying {
                 )
             })
             .child(sleep)
-            .child(self.bar_focus.wrap(STOP_QUALITY, quality, cx))
+            .children(quality)
             .child(self.bar_focus.wrap(STOP_MORE, more, cx))
             .into_any_element()
     }
@@ -1283,7 +1399,13 @@ impl NowPlaying {
     fn render_queue_header(&self, cx: &mut Context<Self>) -> AnyElement {
         let playback = self.playback.read(cx);
         let (loop_mode, shuffle) = (playback.nav.loop_mode, playback.nav.shuffle);
-        let position = tf(Str::A11yXOfY, &[&(playback.index + 1), &playback.queue.len()]);
+        // The JVM displayTotal: the playlist's length while its queue is still loading.
+        let total = playback
+            .more
+            .as_ref()
+            .and_then(|more| more.total_count)
+            .map_or(playback.queue.len(), |total| (total.max(0) as usize).max(playback.queue.len()));
+        let position = tf(Str::A11yXOfY, &[&(playback.index + 1), &total]);
         let theme = cx.theme();
         let (accent, repeating) = (theme.primary, loop_mode != LoopMode::None);
         h_flex()
@@ -1342,6 +1464,7 @@ impl NowPlaying {
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
         let (playback, view, item) = (self.playback.clone(), cx.entity().downgrade(), item.clone());
+        let live_row = item.media_id.is_some_and(|media_id| self.live_row(media_id, cx));
         let more =
             sized_action_icon(("np-queue-more", position), IconName::EllipsisVertical, t(Str::CdMore), ICON, HIT);
         self.queue_focus
@@ -1349,20 +1472,19 @@ impl NowPlaying {
             .text_color(cx.theme().muted_foreground)
             .dropdown_menu_with_anchor(Anchor::TopRight, move |mut menu, _, _| {
                 let video_id = item.video_id().map(str::to_owned);
-                if video_id.is_some() {
+                let downloadable = item.downloadable().is_some();
+                if downloadable {
                     let (radio, item) = (playback.clone(), item.clone());
                     menu = menu.item(PopupMenuItem::new(t(Str::MenuStartRadio)).on_click(move |_, _, cx| {
                         radio.update(cx, |playback, cx| playback.start_radio(item.clone(), cx))
                     }));
                 }
                 if !active {
-                    let (next, item) = (playback.clone(), item.clone());
-                    menu = menu.item(PopupMenuItem::new(t(Str::QueueNext)).on_click(move |_, _, cx| {
-                        next.update(cx, |playback, cx| {
-                            playback.remove_at(position, cx);
-                            playback.queue_next(item.clone(), cx);
-                        })
-                    }));
+                    let next = playback.clone();
+                    menu = menu
+                        .item(PopupMenuItem::new(t(Str::QueueNext)).on_click(move |_, _, cx| {
+                            next.update(cx, |playback, cx| playback.move_next(position, cx))
+                        }));
                 }
                 match (&video_id, &item.source) {
                     (Some(video_id), _) => {
@@ -1371,23 +1493,24 @@ impl NowPlaying {
                             menu.item(PopupMenuItem::new(t(Str::MenuAddToPlaylist)).on_click(move |_, window, cx| {
                                 crate::yt_playlist::AddToPlaylist::open(id.clone(), window, cx)
                             }));
-                        let target = DownloadTarget {
-                            video_id: video_id.clone(),
-                            title: item.title.clone(),
-                            artist: item.artist.clone(),
-                            thumbnail_url: item.thumb(640).map(|url| url.to_string()),
-                        };
-                        let download = view.clone();
-                        menu = menu.item(PopupMenuItem::new(t(Str::CdDownload)).on_click(move |_, _, cx| {
-                            download.update(cx, |_, cx| cx.emit(NowPlayingEvent::Download(target.clone()))).ok();
-                        }));
-                        let link = format!("https://youtu.be/{video_id}");
+                        if downloadable {
+                            let target = DownloadTarget {
+                                video_id: video_id.clone(),
+                                title: item.title.clone(),
+                                thumbnail_url: item.thumb(640).map(|url| url.to_string()),
+                            };
+                            let download = view.clone();
+                            menu = menu.item(PopupMenuItem::new(t(Str::CdDownload)).on_click(move |_, _, cx| {
+                                download.update(cx, |_, cx| cx.emit(NowPlayingEvent::Download(target.clone()))).ok();
+                            }));
+                        }
+                        let link = crate::feed::youtube_share_link("video", video_id).unwrap_or_default();
                         menu = menu.item(PopupMenuItem::new(t(Str::CdShare)).on_click(move |_, window, cx| {
                             cx.write_to_clipboard(ClipboardItem::new_string(link.clone()));
                             window.push_notification(t(Str::LinkCopied), cx);
                         }));
                     }
-                    (None, Source::Local(path)) => {
+                    (None, Source::Local(path)) if live_row => {
                         if let Some(code) = item.history_code.clone().or_else(|| item.youtube_vid.clone()) {
                             menu = menu.item(PopupMenuItem::new(t(Str::MenuAddToPlaylist)).on_click(
                                 move |_, window, cx| {
@@ -1408,7 +1531,7 @@ impl NowPlaying {
                             }));
                         }
                     }
-                    (None, Source::YouTube(_)) => {}
+                    (None, _) => {}
                 }
                 let remove = playback.clone();
                 menu.item(
@@ -1416,6 +1539,43 @@ impl NowPlaying {
                         .on_click(move |_, _, cx| remove.update(cx, |playback, cx| playback.remove_at(position, cx))),
                 )
             })
+    }
+
+    fn live_row(&self, media_id: i64, cx: &mut Context<Self>) -> bool {
+        if let Some(known) = self.live_rows.borrow().get(&media_id) {
+            return known.unwrap_or(false);
+        }
+        self.live_rows.borrow_mut().insert(media_id, None);
+        let media = cx.global::<AppGraph>().media.clone();
+        let lookup = on_core(cx, async move { tokio::task::spawn_blocking(move || media.item(media_id)).await });
+        cx.spawn(async move |this, cx| {
+            let result = lookup.await;
+            this.update(cx, |view, cx| {
+                let live = match result {
+                    Some(Ok(Ok(row))) => row.is_some(),
+                    Some(Ok(Err(error))) => {
+                        cx.global::<AppGraph>()
+                            .log
+                            .fork("now-playing")
+                            .warn("queue item row lookup failed", Some(&error));
+                        false
+                    }
+                    Some(Err(error)) => {
+                        cx.global::<AppGraph>()
+                            .log
+                            .fork("now-playing")
+                            .warn("queue item row lookup failed", Some(&error));
+                        false
+                    }
+                    None => return,
+                };
+                view.live_rows.borrow_mut().insert(media_id, Some(live));
+                cx.notify();
+            })
+            .ok();
+        })
+        .detach();
+        false
     }
 
     /// Looks up the local file at `uri` and opens its artist (or album) in the Library.
@@ -1497,8 +1657,9 @@ impl NowPlaying {
         let lifted = self.reorder.lifted();
         self.queue_focus.set_entry((index < queue.len()).then_some(index), cx);
         let stops = self.queue_focus.list_stops(0..queue.len(), window, cx);
-        let mut list = v_flex().id("np-queue-list");
-        for (position, item) in queue.iter().enumerate() {
+        let kept = stops.kept().into_iter().chain(lifted);
+        let list = self.queue_rows.render(queue.len(), 0., kept, window, |position| {
+            let item = &queue[position];
             let active = position == index;
             let label = [Some(item.title.clone()), item.artist.clone(), item.duration_label.clone()]
                 .into_iter()
@@ -1552,8 +1713,13 @@ impl NowPlaying {
                             .rounded(px(6.))
                             .overflow_hidden()
                             .bg(theme.secondary)
-                            .when_some(item.thumb(120), |frame, url| {
-                                frame.child(img(url).size_full().rounded(px(6.)).object_fit(ObjectFit::Cover))
+                            .when_some(item.display_thumbnail_url(), |frame, url| {
+                                frame.child(
+                                    async_image_of(Some(art_request_sources(&url)))
+                                        .size_full()
+                                        .rounded(px(6.))
+                                        .object_fit(ObjectFit::Cover),
+                                )
                             }),
                     )
                     .child(
@@ -1594,9 +1760,9 @@ impl NowPlaying {
                         view.playback.update(cx, |playback, cx| playback.jump_to(position, cx))
                     })),
             );
-            list = list.child(row);
-        }
-        let list = stops.wrap(list, Some(t(Str::UpNext).into()), cx);
+            row.into_any_element()
+        });
+        let list = stops.wrap(list.id("np-queue-list"), Some(t(Str::UpNext).into()), cx);
         let tracker = self.reorder.tracker(
             queue.len(),
             cx.listener(|view, event: &ReorderEvent, _, cx| {
@@ -1612,8 +1778,51 @@ impl NowPlaying {
             .overflow_y_scroll()
             .track_scroll(&self.queue_scroll)
             .child(list)
+            .children(self.render_queue_more(cx))
             .child(tracker)
             .into_any_element()
+    }
+
+    /// The end of a growing queue: Load more, its progress, a failure with Retry, or the list's end
+    /// (the JVM QueueMoreRow).
+    fn render_queue_more(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
+        let more = self.playback.read(cx).more.clone()?;
+        let muted = cx.theme().muted_foreground;
+        let load_more = |id: &'static str, label: &'static str, view: &Self, cx: &mut Context<Self>| {
+            view.bar_focus.button(
+                STOP_QUEUE_MORE,
+                Button::new(id).outline().rounded_full().small().label(label).on_click(
+                    cx.listener(|view, _, _, cx| view.playback.update(cx, |playback, cx| playback.load_more(cx))),
+                ),
+                cx,
+            )
+        };
+        let content = if more.loading {
+            h_flex()
+                .gap_2()
+                .items_center()
+                .child(Spinner::new())
+                .child(announced("np-queue-loading", t(Str::QueueLoadingMore)).text_size(px(13.)).text_color(muted))
+                .into_any_element()
+        } else if let Some(code) = &more.error {
+            v_flex()
+                .items_center()
+                .gap_1()
+                .child(alert("np-queue-failed", t(Str::QueueLoadFailed)).text_size(px(13.)).text_color(muted))
+                .child(
+                    crate::a11y::label("np-queue-error", crate::queue_source::error_text(code))
+                        .text_xs()
+                        .text_center()
+                        .text_color(muted.opacity(0.7)),
+                )
+                .child(div().pt_1().child(load_more("np-queue-retry", t(Str::Retry), self, cx)))
+                .into_any_element()
+        } else if more.has_more {
+            load_more("np-queue-load-more", t(Str::QueueLoadMore), self, cx).into_any_element()
+        } else {
+            crate::a11y::label("np-queue-end", t(Str::QueueEnd)).text_size(px(13.)).text_color(muted).into_any_element()
+        };
+        Some(h_flex().w_full().justify_center().p_4().child(content).into_any_element())
     }
 }
 
@@ -1636,6 +1845,7 @@ impl Render for NowPlaying {
         let Some(current) = self.playback.read(cx).current().cloned() else { return div().into_any_element() };
         if self.fullscreen && !window.is_fullscreen() {
             self.fullscreen = false;
+            self.video_fill = false;
         }
         if self.fullscreen {
             return div()
@@ -1697,4 +1907,24 @@ impl Render for NowPlaying {
             )
             .into_any_element()
     }
+}
+
+/// Shared with the JVM app: one language code per line, most recent first.
+const RECENT_TRANSLATIONS_KEY: &str = "captions.recentTranslateLanguages";
+const RECENT_TRANSLATIONS: usize = 3;
+
+fn load_recent_translations(cx: &App) -> Vec<String> {
+    let raw = cx.global::<AppGraph>().settings.get_raw(RECENT_TRANSLATIONS_KEY).ok().flatten().unwrap_or_default();
+    raw.lines().filter(|code| !code.is_empty()).map(str::to_owned).collect()
+}
+
+fn remember_translation(recent: &RefCell<Vec<String>>, code: String, cx: &App) {
+    let codes = {
+        let mut recent = recent.borrow_mut();
+        recent.retain(|known| *known != code);
+        recent.insert(0, code);
+        recent.truncate(RECENT_TRANSLATIONS);
+        recent.clone()
+    };
+    crate::shell::persist_setting(cx, RECENT_TRANSLATIONS_KEY, codes.join("\n"));
 }

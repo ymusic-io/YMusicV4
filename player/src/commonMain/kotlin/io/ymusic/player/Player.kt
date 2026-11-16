@@ -190,7 +190,7 @@ interface Player {
 
     /**
      * [MediaEngine.reset] the active engine and reload the current item at the current position.
-     * Recovers a wedged player. No-op when nothing is loaded. Keeps the current play/pause intent.
+     * Recovers a wedged player, playing. No-op when nothing is loaded.
      */
     fun reload()
 

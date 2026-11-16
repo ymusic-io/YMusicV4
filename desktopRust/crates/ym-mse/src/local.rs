@@ -16,6 +16,17 @@ unsafe extern "C" {
     fn file_av_step(player: *mut c_void) -> c_int;
     fn file_av_set_volume(player: *mut c_void, volume: f64);
     fn file_av_set_video_enabled(player: *mut c_void, on: c_int);
+    fn file_av_set_subtitle_index(player: *mut c_void, stream_index: c_int);
+    fn file_av_set_audio_index(player: *mut c_void, stream_index: c_int);
+    fn file_av_set_sinks(
+        player: *mut c_void,
+        on_pcm: *const c_void,
+        on_progress: *const c_void,
+        on_event: *const c_void,
+        on_caption: Option<CaptionFn>,
+        user: *mut c_void,
+    );
+    fn file_av_dump_captions(player: *mut c_void, stream_index: c_int, on_cue: CaptionFn, user: *mut c_void) -> c_int;
     fn file_av_set_speed(player: *mut c_void, speed: f64);
     fn file_av_set_pitch(player: *mut c_void, pitch: f64);
     fn file_av_set_eq(player: *mut c_void, bands_db: *const f32);
@@ -43,7 +54,7 @@ unsafe extern "C" {
         codec_len: c_int,
     ) -> c_int;
     fn ym_probe(path: *const c_char, out: *mut RawProbe) -> c_int;
-    fn ym_attached_pic(path: *const c_char, stream_index: c_int, out: *mut *mut u8, out_len: *mut c_int) -> c_int;
+    fn ym_attached_pic(path: *const c_char, out: *mut *mut u8, out_len: *mut c_int) -> c_int;
     fn ym_video_frame(
         path: *const c_char,
         max_side: c_int,
@@ -54,11 +65,60 @@ unsafe extern "C" {
     fn ym_free(pointer: *mut c_void);
 }
 
+type CaptionFn = unsafe extern "C" fn(user: *mut c_void, id: c_int, start: f64, end: f64, text: *const c_char);
+
+/// One timed caption, in seconds.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Cue {
+    pub id: i32,
+    pub start: f64,
+    pub end: f64,
+    pub text: String,
+}
+
+/// `file_av_stream_at`'s kinds.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum StreamKind {
+    Audio,
+    Video,
+    Text,
+    Other,
+}
+
+/// One stream of the open file.
+#[derive(Clone, Debug)]
+pub struct AvStream {
+    pub kind: StreamKind,
+    /// The container's stream index, what `set_subtitle_index` and `dump_captions` take.
+    pub index: i32,
+    pub width: i32,
+    pub height: i32,
+    pub lang: String,
+    pub codec: String,
+}
+
+/// Appends a cue to the `Vec<Cue>` behind `user`.
+unsafe extern "C" fn push_cue(user: *mut c_void, id: c_int, start: f64, end: f64, text: *const c_char) {
+    if user.is_null() || text.is_null() {
+        return;
+    }
+    // SAFETY: `user` is the `Mutex<Vec<Cue>>` its registration passed, alive while the C side may call;
+    // `text` is NUL-terminated for the call.
+    let (cues, text) = unsafe { (&*(user as *const std::sync::Mutex<Vec<Cue>>), CStr::from_ptr(text)) };
+    let text = text.to_string_lossy().trim().to_owned();
+    if !text.is_empty() {
+        cues.lock().unwrap().push(Cue { id, start, end, text });
+    }
+}
+
 /// The in-process file player. Every call comes from one player thread, which also calls
 /// [`LocalAv::step`] in a loop while playing; decode and audio output run on file_av's own threads.
 pub struct LocalAv {
     /// A live C player from `file_av_create`, destroyed in `Drop`.
     raw: *mut c_void,
+    /// Cues of the decoded subtitle stream, which `file_av_step` delivers on the calling thread. Boxed
+    /// so its address, the C side's `user`, stays put; dropped after `raw` is destroyed.
+    live_cues: Box<std::sync::Mutex<Vec<Cue>>>,
 }
 
 // SAFETY: file_av is not tied to a thread; one owner drives it at a time (not Sync), and the C side
@@ -72,7 +132,81 @@ impl LocalAv {
     pub fn create() -> Option<Self> {
         // SAFETY: no arguments; a null result is handled.
         let raw = unsafe { file_av_create() };
-        (!raw.is_null()).then_some(Self { raw })
+        if raw.is_null() {
+            return None;
+        }
+        let live_cues = Box::new(std::sync::Mutex::new(Vec::new()));
+        let user = (&*live_cues as *const std::sync::Mutex<Vec<Cue>>).cast_mut().cast();
+        let null = std::ptr::null();
+        // SAFETY: `raw` is live; null sinks are skipped by the C side; `user` outlives `raw` (Drop order).
+        unsafe { file_av_set_sinks(raw, null, null, null, Some(push_cue), user) };
+        Some(Self { raw, live_cues })
+    }
+
+    /// The audio stream the next `open` plays; None (or a stream it lacks) plays the first.
+    pub fn set_audio_index(&mut self, stream_index: Option<i32>) {
+        // SAFETY: `raw` is live until Drop.
+        unsafe { file_av_set_audio_index(self.raw, stream_index.unwrap_or(-1)) }
+    }
+
+    /// Decodes this text stream's cues as playback reaches them (`take_live_cues`); None turns it off.
+    pub fn set_subtitle_index(&mut self, stream_index: Option<i32>) {
+        // SAFETY: `raw` is live until Drop.
+        unsafe { file_av_set_subtitle_index(self.raw, stream_index.unwrap_or(-1)) }
+    }
+
+    /// The cues the subtitle stream delivered since the last call.
+    pub fn take_live_cues(&mut self) -> Vec<Cue> {
+        std::mem::take(&mut *self.live_cues.lock().unwrap())
+    }
+
+    /// Blocking: every cue of this text stream, read from a second open of the file.
+    pub fn dump_captions(&self, stream_index: i32) -> Vec<Cue> {
+        let cues = std::sync::Mutex::new(Vec::new());
+        let user = (&cues as *const std::sync::Mutex<Vec<Cue>>).cast_mut().cast();
+        // SAFETY: `raw` is live; `cues` outlives the call, which delivers every cue before it returns.
+        unsafe { file_av_dump_captions(self.raw, stream_index, push_cue, user) };
+        cues.into_inner().unwrap()
+    }
+
+    /// The open file's streams.
+    pub fn streams(&self) -> Vec<AvStream> {
+        // SAFETY: `raw` is live until Drop.
+        let count = unsafe { file_av_stream_count(self.raw) };
+        (0..count)
+            .filter_map(|position| {
+                let (mut kind, mut index, mut width, mut height) = (-1, -1, 0, 0);
+                let (mut lang, mut codec) = ([0 as c_char; 64], [0 as c_char; 64]);
+                // SAFETY: `raw` is live; every out-pointer is valid and the buffers' lengths are passed.
+                let found = unsafe {
+                    file_av_stream_at(
+                        self.raw,
+                        position,
+                        &mut kind,
+                        &mut index,
+                        &mut width,
+                        &mut height,
+                        lang.as_mut_ptr(),
+                        lang.len() as c_int,
+                        codec.as_mut_ptr(),
+                        codec.len() as c_int,
+                    )
+                };
+                (found == 0).then(|| AvStream {
+                    kind: match kind {
+                        0 => StreamKind::Audio,
+                        STREAM_VIDEO => StreamKind::Video,
+                        2 => StreamKind::Text,
+                        _ => StreamKind::Other,
+                    },
+                    index,
+                    width,
+                    height,
+                    lang: text(&lang).unwrap_or_default(),
+                    codec: text(&codec).unwrap_or_default(),
+                })
+            })
+            .collect()
     }
 
     pub fn open(&mut self, path: &Path) -> Result<(), String> {
@@ -172,28 +306,7 @@ impl LocalAv {
 
     /// The open file has a picture stream (attached cover art does not count).
     pub fn has_video(&self) -> bool {
-        // SAFETY: `raw` is live until Drop.
-        let count = unsafe { file_av_stream_count(self.raw) };
-        (0..count).any(|position| {
-            let (mut kind, mut width, mut height) = (-1, 0, 0);
-            let null: *mut c_int = std::ptr::null_mut();
-            // SAFETY: `raw` is live; the C side skips null out-pointers and zero-length buffers.
-            let found = unsafe {
-                file_av_stream_at(
-                    self.raw,
-                    position,
-                    &mut kind,
-                    null,
-                    &mut width,
-                    &mut height,
-                    null.cast(),
-                    0,
-                    null.cast(),
-                    0,
-                )
-            };
-            found == 0 && kind == STREAM_VIDEO && width.min(height) > 0
-        })
+        self.streams().iter().any(|stream| stream.kind == StreamKind::Video && stream.width.min(stream.height) > 0)
     }
 
     /// Why the last `open` failed.
@@ -312,13 +425,13 @@ unsafe fn take_buffer(pointer: *mut u8, len: usize) -> Vec<u8> {
     bytes
 }
 
-/// Blocking: the encoded bytes (usually JPEG or PNG) of the attached picture at `stream_index`.
+/// Blocking: the encoded bytes (usually JPEG or PNG) of the file's first attached picture.
 /// `Err` carries libav's error code.
-pub fn attached_picture(path: &Path, stream_index: i32) -> Result<Vec<u8>, i32> {
+pub fn attached_picture(path: &Path) -> Result<Vec<u8>, i32> {
     let path = CString::new(path.to_string_lossy().as_bytes()).map_err(|_| -22)?;
     let (mut out, mut len) = (std::ptr::null_mut(), 0);
     // SAFETY: `path` is NUL-terminated; both out-pointers are valid for the call.
-    let rc = unsafe { ym_attached_pic(path.as_ptr(), stream_index, &mut out, &mut len) };
+    let rc = unsafe { ym_attached_pic(path.as_ptr(), &mut out, &mut len) };
     if rc < 0 {
         return Err(rc);
     }

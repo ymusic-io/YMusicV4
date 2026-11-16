@@ -16,6 +16,9 @@ interface SettingsStore {
 
     suspend fun putInt(key: String, value: Int)
 
+    /** Deletes [key]; reads fall back to their default. */
+    suspend fun remove(key: String)
+
     /** The store held nothing when it was opened: nothing was ever saved here (a fresh install). */
     val startedEmpty: Boolean
 }

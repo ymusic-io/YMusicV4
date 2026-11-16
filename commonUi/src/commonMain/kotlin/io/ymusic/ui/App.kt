@@ -172,17 +172,18 @@ import kotlin.math.roundToInt
 
 /** App-level sections — the drawer's three groups (design/final/drawer.html). */
 /** [id] is persisted (the section a restart resumes): stable, never reused, independent of entry order. */
-enum class AppSection(val id: Int, val label: StringResource, val icon: ImageVector, val group: Int) {
-    Discover(1, Res.string.section_discover, Icons.Outlined.OndemandVideo, 0),
-    YtMusic(2, Res.string.section_yt_music, Icons.Default.PlayCircleOutline, 0),
-    Library(3, Res.string.section_library, Icons.Outlined.LibraryMusic, 0),
-    PlayAgain(4, Res.string.section_play_again, Icons.Outlined.History, 1),
-    Downloads(5, Res.string.section_downloads, Icons.Outlined.FileDownload, 1),
-    Settings(6, Res.string.section_settings, Icons.Outlined.Settings, 1),
-    Catalogue(7, Res.string.section_catalogue, Icons.Outlined.Palette, 1),
-    Donate(8, Res.string.section_donate, Icons.Outlined.FavoriteBorder, 2),
-    Telegram(9, Res.string.section_telegram, TelegramIcon, 2),
-    Feedback(10, Res.string.section_feedback, Icons.AutoMirrored.Outlined.Chat, 2),
+/** [key] is what a restart resumes by: fixed, shared with the Rust app, never renamed. */
+enum class AppSection(val key: String, val label: StringResource, val icon: ImageVector, val group: Int) {
+    Discover("discover", Res.string.section_discover, Icons.Outlined.OndemandVideo, 0),
+    YtMusic("ytmusic", Res.string.section_yt_music, Icons.Default.PlayCircleOutline, 0),
+    Library("library", Res.string.section_library, Icons.Outlined.LibraryMusic, 0),
+    PlayAgain("play_again", Res.string.section_play_again, Icons.Outlined.History, 1),
+    Downloads("downloads", Res.string.section_downloads, Icons.Outlined.FileDownload, 1),
+    Settings("settings", Res.string.section_settings, Icons.Outlined.Settings, 1),
+    Catalogue("catalogue", Res.string.section_catalogue, Icons.Outlined.Palette, 1),
+    Donate("donate", Res.string.section_donate, Icons.Outlined.FavoriteBorder, 2),
+    Telegram("telegram", Res.string.section_telegram, TelegramIcon, 2),
+    Feedback("feedback", Res.string.section_feedback, Icons.AutoMirrored.Outlined.Chat, 2),
 }
 
 /** Switch the top-level section from within a screen (e.g. Downloads → "Reveal in Library"); no-op
@@ -220,7 +221,7 @@ private val ResumableSections = setOf(AppSection.Discover, AppSection.Library, A
 @Composable
 fun rememberStartSection(graph: AppGraph): androidx.compose.runtime.MutableState<AppSection> = rememberSaveable {
     val saved = graph.settings.flow(AppSettings.lastSection).value
-    mutableStateOf(ResumableSections.firstOrNull { it.id == saved } ?: AppSection.Discover)
+    mutableStateOf(ResumableSections.firstOrNull { it.key == saved } ?: AppSection.Discover)
 }
 
 /** [sectionState] hoisted for tests and for shells that deep-link from platform surfaces (a
@@ -242,7 +243,7 @@ fun App(
     LaunchedEffect(graph.settings) {
         snapshotFlow { sectionState.value }
             .filter { it in ResumableSections }
-            .collect { graph.settings.put(AppSettings.lastSection, it.id) }
+            .collect { graph.settings.put(AppSettings.lastSection, it.key) }
     }
     key(tag) {
         val direction = if (isRtlLanguage(Locale.current.language)) LayoutDirection.Rtl else LayoutDirection.Ltr
@@ -386,9 +387,9 @@ private fun AppRoot(
         var discoverTab by rememberSaveable {
             val saved = graph.settings.flow(AppSettings.lastDiscoverTab).value
             // Trending music on a fresh install — Home stays empty until YouTube has watch history.
-            mutableStateOf(discoverTabs.firstOrNull { it.id == saved } ?: DiscoverTab.Music)
+            mutableStateOf(discoverTabs.firstOrNull { it.key == saved } ?: DiscoverTab.Music)
         }
-        LaunchedEffect(discoverTab) { graph.settings.put(AppSettings.lastDiscoverTab, discoverTab.id) }
+        LaunchedEffect(discoverTab) { graph.settings.put(AppSettings.lastDiscoverTab, discoverTab.key) }
         // Live swipe progress (−1..1) so the Discover underline tracks the drag, not just the commit.
         var discoverDrag by remember { mutableFloatStateOf(0f) }
         val nowPlayingOpen by graph.pip.nowPlayingOpen.collectAsState()
@@ -701,6 +702,8 @@ private fun AppRoot(
         // The hotkey lands in the input even over submitted results (the results bar takes no typing).
         val hotkeySearch: () -> Unit = {
             if (sectionSearch != null) {
+                graph.pip.nowPlayingOpen.value = false
+                nowPlayingPeeking = false
                 sectionSearch()
                 (layers.lastOrNull() as? AppLayer.Search)?.session?.editing = true
             }
@@ -1396,12 +1399,13 @@ private fun SwipeableSnackbar(data: SnackbarData) {
 /** Discover's five feed tabs (design §1). Home and Music have anonymous backing feeds;
  *  Recommended and Top tracks are built from local play; Account is the signed-in library. [id] is
  *  persisted (the tab a restart resumes): stable, never reused, independent of entry order. */
-enum class DiscoverTab(val id: Int, val label: StringResource, val icon: ImageVector, val hasFeed: Boolean) {
-    Home(1, Res.string.tab_home, Icons.Outlined.Home, hasFeed = true),
-    Music(2, Res.string.tab_music, Icons.Outlined.MusicNote, hasFeed = true),
-    Recommended(3, Res.string.tab_recommended, Icons.Default.StarBorder, hasFeed = true),
-    TopTracks(4, Res.string.tab_top_tracks, Icons.AutoMirrored.Outlined.TrendingUp, hasFeed = true),
-    Account(5, Res.string.tab_account_library, Icons.Outlined.Person, hasFeed = false),
+/** [key] is what a restart resumes by: fixed, shared with the Rust app, never renamed. */
+enum class DiscoverTab(val key: String, val label: StringResource, val icon: ImageVector, val hasFeed: Boolean) {
+    Home("home", Res.string.tab_home, Icons.Outlined.Home, hasFeed = true),
+    Music("music", Res.string.tab_music, Icons.Outlined.MusicNote, hasFeed = true),
+    Recommended("recommended", Res.string.tab_recommended, Icons.Default.StarBorder, hasFeed = true),
+    TopTracks("top_tracks", Res.string.tab_top_tracks, Icons.AutoMirrored.Outlined.TrendingUp, hasFeed = true),
+    Account("account", Res.string.tab_account_library, Icons.Outlined.Person, hasFeed = false),
 }
 
 /** A guest has no account and keeps no YouTube play history: no Account, no Top tracks. */

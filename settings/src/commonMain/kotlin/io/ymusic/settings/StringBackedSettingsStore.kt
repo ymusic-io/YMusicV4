@@ -6,8 +6,8 @@ import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.getAndUpdate
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -39,13 +39,26 @@ abstract class StringBackedSettingsStore : SettingsStore {
     override suspend fun putInt(key: String, value: Int) = put(key, value.toString())
 
     private suspend fun put(key: String, value: String) {
-        data.update { it + (key to value) }
-        // The value is read under the lock, so whichever write commits last commits the latest value.
-        writeMutex.withLock { persist(key, data.value.getValue(key)) }
+        val before = data.getAndUpdate { it + (key to value) }
+        if (before[key] != value) commit(key)
+    }
+
+    override suspend fun remove(key: String) {
+        val before = data.getAndUpdate { it - key }
+        if (key in before) commit(key)
+    }
+
+    /** Writes [key]'s current state under the lock, so whichever put or remove commits last leaves the latest one on disk. */
+    private suspend fun commit(key: String) = writeMutex.withLock {
+        val current = data.value[key]
+        if (current != null) persist(key, current) else erase(key)
     }
 
     /** Stores the one [key] a write changed, on the writer's coroutine. In-memory stores keep the no-op. */
     protected open suspend fun persist(key: String, value: String) {}
+
+    /** Deletes the one [key] [remove] dropped, on the caller's coroutine. In-memory stores keep the no-op. */
+    protected open suspend fun erase(key: String) {}
 }
 
 class InMemorySettingsStore : StringBackedSettingsStore()

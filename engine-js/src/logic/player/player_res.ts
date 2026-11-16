@@ -4,6 +4,7 @@
 import { debug } from "../../debug";
 import { JsEngineErrorImpl } from "../../protocol/command";
 import { playingVideoId } from "./live";
+import { DESKTOP_UA } from "../yt/session";
 
 const CACHE_MS = 3 * 60 * 1000;
 const WAIT_MS = 20_000;
@@ -241,6 +242,7 @@ function buildDownloadJson(e: Entry): Record<string, unknown> {
     "clientName": "WEB",
     "clientNameId": 1,
     "clientVersion": cver,
+    "userAgent": DESKTOP_UA,
     "playerJs": js,
     "videoDetails": videoDetailsForHost(rec["videoDetails"]),
     "microformat": rec["microformat"],

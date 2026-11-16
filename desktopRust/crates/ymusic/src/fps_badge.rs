@@ -66,7 +66,7 @@ impl FpsBadge {
                     let enabled = cx.global::<AppGraph>().settings.get_raw(SHOW_FPS_KEY).ok().flatten().as_deref()
                         == Some("true");
                     let playback = playback.read(cx);
-                    let counter = playback.frame_counter().filter(|_| enabled && playback.is_playing());
+                    let counter = playback.frame_counter().filter(|_| enabled && playback.play_when_ready());
                     let item = playback.current().map(|item| format!("{:?}", item.source));
                     let graph = cx.global::<AppGraph>();
                     counter.map(|counter| (counter, item, graph.tokio.clone(), graph.log.fork("fps")))

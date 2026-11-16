@@ -21,8 +21,9 @@ const RENAMED: [(&str, &str); 4] = [
     ("engine-cache/index.db", "engine-cache/engine-cache.db"),
 ];
 const SIDECARS: [&str; 3] = ["-wal", "-shm", "-journal"];
-/// Caches earlier builds kept where the JVM app keeps nothing; refilled under the JVM app's names.
-const OBSOLETE_DIRS: [&str; 1] = ["bundles"];
+/// Caches earlier builds (this app's or the JVM app's) kept that nothing reads now; refilled under the JVM
+/// app's current names.
+const OBSOLETE_DIRS: [&str; 3] = ["bundles", "art-cache", "image-http-cache"];
 
 /// Blocking. Runs only in the instance that holds the data dir, so nothing has the files open.
 pub fn adopt_jvm_names(data_dir: &Path, log: &Logger) {
@@ -105,8 +106,20 @@ fn remove_if_exists(path: &Path) -> std::io::Result<()> {
 /// Settings earlier builds kept under their own keys, moved to the JVM app's: `(old, new)`.
 const RENAMED_SETTINGS: [(&str, &str); 1] = [("playback.volume", "player.volume")];
 
+/// Settings no build reads any more; both apps delete them.
+const RETIRED_SETTINGS: [&str; 4] =
+    ["app.lastSection", "app.lastDiscoverTab", "app.lastLibraryTab", "app.lastYtMusicTab"];
+
 /// Blocking.
 pub fn adopt_jvm_settings(app_db: &AppDb, log: &Logger) {
+    for key in RETIRED_SETTINGS {
+        if !matches!(app_db.get_raw(key), Ok(Some(_))) {
+            continue;
+        }
+        if let Err(error) = app_db.delete_setting(key) {
+            log.warn(&format!("R90204 the retired setting {key} could not be removed"), Some(&error));
+        }
+    }
     for (old, new) in RENAMED_SETTINGS {
         let Ok(Some(value)) = app_db.get_raw(old) else { continue };
         let moved = match app_db.get_raw(new) {

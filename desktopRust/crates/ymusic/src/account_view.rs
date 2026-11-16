@@ -9,14 +9,15 @@ use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use ym_engine::yt::YtAccountInfo;
 use ym_i18n::{Str, t};
+use ym_image_loader::async_image::async_image_of;
 
 use crate::a11y::{DragRow, FocusList, announced_as, heading};
+use crate::account::AccountController;
 use crate::action_icon::action_icon;
-use crate::feed::{FeedView, feed_width, thumb_for};
-use crate::graph::{AppGraph, on_core};
+use crate::feed::{FeedView, feed_width};
 use crate::settings_view::HOVER_ALPHA;
-use crate::signin::AccountChanged;
 use crate::spinner::Spinner;
+use crate::youtube_thumbnails::thumb_request_sources;
 
 const FEATURES: [Str; 7] = [
     Str::SigninFeatureHome,
@@ -34,13 +35,12 @@ pub struct AccountView {
     feed: Entity<FeedView>,
     /// Discover's Account tab draws the account header; YT Music's Library tab does not.
     header: Option<Entity<AccountHeader>>,
-    /// None until the first check answers.
-    account: Option<YtAccountInfo>,
+    /// The library feed may fetch: signed in, with the profile ready.
+    gate_open: bool,
     sign_in_focus: FocusHandle,
     preface_focus: FocusList,
+    _accounts: Subscription,
 }
-
-impl EventEmitter<AccountChanged> for AccountView {}
 
 impl AccountView {
     pub fn new(feed: Entity<FeedView>, with_header: bool, cx: &mut Context<Self>) -> Self {
@@ -50,56 +50,46 @@ impl AccountView {
             header.update(cx, |header, _| header.owner = Some(view));
             header
         });
+        let accounts = cx.observe(&AccountController::global(cx), |view, _, cx| view.sync(cx));
         let mut account = Self {
             feed,
             header,
-            account: None,
+            gate_open: false,
             sign_in_focus: cx.focus_handle().tab_stop(true),
             preface_focus: FocusList::new(None),
+            _accounts: accounts,
         };
-        account.refresh(cx);
+        account.sync(cx);
         account
     }
 
-    /// Re-checks the account; a change of who is signed in reloads the library.
-    pub fn refresh(&mut self, cx: &mut Context<Self>) {
-        let graph = cx.global::<AppGraph>();
-        let (engine, log) = (graph.engine(), graph.log.fork("account-tab"));
-        let load = on_core(cx, async move { engine.account_info(false, &log).await });
-        cx.spawn(async move |this, cx| {
-            let result = load.await;
-            this.update(cx, |view, cx| {
-                let account = match result {
-                    Some(Ok(account)) => account,
-                    Some(Err(error)) => {
-                        cx.global::<AppGraph>().log.warn("account check failed", Some(&error));
-                        YtAccountInfo::default()
-                    }
-                    None => return,
-                };
-                let changed = view.account.as_ref().map(|old| (old.signed_in, old.channel_id.clone()))
-                    != Some((account.signed_in, account.channel_id.clone()));
-                if account.signed_in {
-                    let top: Option<AnyView> = view.header.clone().map(|header| {
-                        header.update(cx, |header, cx| {
-                            header.account = account.clone();
-                            cx.notify();
-                        });
-                        header.into()
-                    });
-                    view.feed.update(cx, |feed, cx| {
-                        feed.set_top(top);
-                        if changed {
-                            feed.reload(cx);
-                        }
-                    });
-                }
-                view.account = Some(account);
-                cx.notify();
-            })
-            .ok();
-        })
-        .detach();
+    /// Follows the account controller; the library reloads each time its gate opens.
+    fn sync(&mut self, cx: &mut Context<Self>) {
+        let controller = AccountController::global(cx);
+        let (gate_open, account) = {
+            let controller = controller.read(cx);
+            (controller.signed_in && controller.profile_ready, controller.account.clone())
+        };
+        let top: Option<AnyView> = match (&self.header, account) {
+            (Some(header), Some(account)) => {
+                header.update(cx, |header, cx| {
+                    header.account = account;
+                    cx.notify();
+                });
+                Some(header.clone().into())
+            }
+            _ => None,
+        };
+        let reload = gate_open && !self.gate_open;
+        self.gate_open = gate_open;
+        self.feed.update(cx, |feed, cx| {
+            feed.open_gate(gate_open);
+            feed.set_top(top);
+            if reload {
+                feed.reload(cx);
+            }
+        });
+        cx.notify();
     }
 
     fn sign_in(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -107,21 +97,7 @@ impl AccountView {
     }
 
     fn sign_out(&mut self, cx: &mut Context<Self>) {
-        let graph = cx.global::<AppGraph>();
-        let (jar, engines, log) = (graph.cookies.clone(), graph.engines.clone(), graph.log.fork("signout"));
-        let done = on_core(cx, async move { crate::signin::sign_out(jar, engines, &log).await });
-        cx.spawn(async move |this, cx| {
-            let result = done.await;
-            this.update(cx, |view, cx| {
-                if let Some(Err(error)) = result {
-                    cx.global::<AppGraph>().log.warn("sign-out failed", Some(&error));
-                }
-                view.refresh(cx);
-                cx.emit(AccountChanged);
-            })
-            .ok();
-        })
-        .detach();
+        AccountController::global(cx).update(cx, |controller, cx| controller.sign_out(cx));
     }
 
     /// Signed out: what signing in brings, and the button.
@@ -220,10 +196,19 @@ impl AccountView {
 
 impl Render for AccountView {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        match &self.account {
-            None => div().size_full().flex().items_center().justify_center().child(Spinner::new()).into_any_element(),
-            Some(account) if !account.signed_in => self.render_preface(window, cx),
-            Some(_) => self.feed.clone().into_any_element(),
+        let controller = AccountController::global(cx);
+        let (signed_in, profile_ready) = {
+            let controller = controller.read(cx);
+            (controller.signed_in, controller.profile_ready)
+        };
+        // The Account tab waits for the profile before choosing; YT Music's Library tab follows the gate alone.
+        let waiting = !profile_ready && (self.header.is_some() || signed_in);
+        if waiting {
+            div().size_full().flex().items_center().justify_center().child(Spinner::new()).into_any_element()
+        } else if !signed_in {
+            self.render_preface(window, cx)
+        } else {
+            self.feed.clone().into_any_element()
         }
     }
 }
@@ -282,12 +267,25 @@ impl Render for AccountHeader {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = cx.theme().clone();
         let account = self.account.clone();
-        let avatar = thumb_for(&account.thumbs, 92);
+        let avatar = thumb_request_sources(&account.thumbs);
         let initial = account
             .name
             .as_deref()
             .and_then(|name| name.chars().next())
             .map(|letter| letter.to_uppercase().to_string());
+        let fallback = div()
+            .size_full()
+            .rounded_full()
+            .bg(theme.foreground)
+            .text_color(theme.background)
+            .flex()
+            .items_center()
+            .justify_center()
+            .font_bold()
+            .map(|disc| match initial {
+                Some(letter) => disc.child(letter),
+                None => disc.child(Icon::new(Lucide::User)),
+            });
         let owner = self.owner.clone();
         let more = action_icon("account-more", IconName::EllipsisVertical, t(Str::CdMore)).dropdown_menu_with_anchor(
             Anchor::TopRight,
@@ -308,22 +306,16 @@ impl Render for AccountHeader {
             .gap(px(13.))
             .items_center()
             .child(
-                div()
-                    .size(px(46.))
-                    .flex_shrink_0()
-                    .rounded_full()
-                    .overflow_hidden()
-                    .bg(theme.foreground)
-                    .text_color(theme.background)
-                    .flex()
-                    .items_center()
-                    .justify_center()
-                    .font_bold()
-                    .map(|frame| match (avatar, initial) {
-                        (Some(url), _) => frame.child(img(url).size_full().rounded_full().object_fit(ObjectFit::Cover)),
-                        (None, Some(letter)) => frame.child(letter),
-                        (None, None) => frame.child(Icon::new(Lucide::User)),
-                    }),
+                div().size(px(46.)).flex_shrink_0().rounded_full().overflow_hidden().child(match avatar {
+                    // The disc only backs the fallback: under the photo its edge would show as a dark ring.
+                    Some(request) => async_image_of(Some(request))
+                        .size_full()
+                        .rounded_full()
+                        .object_fit(ObjectFit::Cover)
+                        .placeholder(fallback)
+                        .into_any_element(),
+                    None => fallback.into_any_element(),
+                }),
             )
             .child(
                 v_flex()

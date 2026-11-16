@@ -23,6 +23,8 @@ class SabrStreamSpec(
      * arrives ready to GET (PO token bound by the download's spec builder).
      */
     val captionTracks: List<CaptionTrack> = emptyList(),
+    /** The User-Agent the engine fetched this response and minted [poToken] under; null from a bundle that predates it. */
+    val userAgent: String? = null,
 )
 
 /** One timed-text (caption/subtitle) track. [baseUrl] is a plain HTTP GET — not SABR. */

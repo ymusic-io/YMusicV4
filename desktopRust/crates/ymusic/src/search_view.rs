@@ -1,5 +1,6 @@
-//! Search input: a pushed layer with back and the search field on top; below it the saved history
-//! (empty field) or, while typing, the matching history entries above the live suggestions.
+//! The search layer: one per section stack, in input or results mode. Input is back and the field on
+//! top; below it the saved history (empty field) or, while typing, the matching history entries above
+//! the live suggestions. Results are the submitted query's feed, drawn by the Shell under its bar.
 
 use std::time::Duration;
 
@@ -13,7 +14,9 @@ use ym_i18n::{Str, t};
 
 use crate::a11y::{FocusList, label, list_item};
 use crate::action_icon::action_icon;
+use crate::feed::FeedView;
 use crate::graph::{AppGraph, on_core};
+use crate::lazy_rows::LazyRows;
 use crate::settings_view::HOVER_ALPHA;
 
 const SUGGEST_DEBOUNCE: Duration = Duration::from_millis(250);
@@ -21,7 +24,7 @@ const HISTORY_KEY: &str = "search.history";
 const HISTORY_LIMIT: usize = 500;
 /// History rows shown above the live suggestions while typing, so a long history never buries them.
 const TYPED_HISTORY_MATCHES: usize = 5;
-const SHOWN_SUGGESTIONS: usize = 12;
+const QUERY_ROW_ESTIMATE: f32 = 48.;
 
 /// Which service the field searches; the history is shared.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -38,10 +41,17 @@ pub enum SearchEvent {
 pub struct SearchView {
     input: Entity<InputState>,
     mode: SearchMode,
+    submitted: Option<String>,
+    editing: bool,
+    results: Option<Entity<FeedView>>,
+    /// The field takes focus on the next frame it shows.
+    focus_input: bool,
     suggestions: Vec<String>,
     /// Newest first.
     history: Vec<String>,
     generation: u64,
+    scroll: ScrollHandle,
+    rows: LazyRows,
     focus: FocusList,
     /// Back and the field, then the hint under them while there is nothing to list.
     bar_focus: FocusList,
@@ -51,17 +61,12 @@ pub struct SearchView {
 impl EventEmitter<SearchEvent> for SearchView {}
 
 impl SearchView {
-    pub fn new(query: &str, mode: SearchMode, window: &mut Window, cx: &mut Context<Self>) -> Self {
+    pub fn new(mode: SearchMode, window: &mut Window, cx: &mut Context<Self>) -> Self {
         let hint = match mode {
             SearchMode::YouTube => t(Str::SearchYoutube),
             SearchMode::Music => t(Str::YtmusicSearchHint),
         };
-        let input = cx.new(|cx| {
-            let mut state = InputState::new(window, cx).placeholder(hint);
-            state.set_value(query.to_owned(), window, cx);
-            state
-        });
-        input.update(cx, |state, cx| state.focus(window, cx));
+        let input = cx.new(|cx| InputState::new(window, cx).placeholder(hint));
         let subscription = cx.subscribe_in(&input, window, |view, input, event: &InputEvent, _, cx| match event {
             InputEvent::Change => view.query_changed(input.read(cx).value().to_string(), cx),
             InputEvent::PressEnter { .. } => view.submit(input.read(cx).value().to_string(), cx),
@@ -74,18 +79,79 @@ impl SearchView {
                 Vec::new()
             }
         };
-        let mut view = Self {
+        let scroll = ScrollHandle::new();
+        Self {
             input,
             mode,
+            submitted: None,
+            editing: true,
+            results: None,
+            focus_input: true,
             suggestions: Vec::new(),
             history,
             generation: 0,
-            focus: FocusList::new(None),
+            rows: LazyRows::new(scroll.clone(), QUERY_ROW_ESTIMATE),
+            focus: FocusList::new(Some(scroll.clone())),
+            scroll,
             bar_focus: FocusList::new(None),
             _subscription: subscription,
-        };
-        view.query_changed(query.to_owned(), cx);
-        view
+        }
+    }
+
+    pub fn mode(&self) -> SearchMode {
+        self.mode
+    }
+
+    pub fn editing(&self) -> bool {
+        self.editing
+    }
+
+    pub fn submitted(&self) -> Option<&str> {
+        self.submitted.as_deref()
+    }
+
+    pub fn results(&self) -> Option<&Entity<FeedView>> {
+        self.results.as_ref()
+    }
+
+    /// The submitted query's results replace the input; the field keeps the query.
+    pub fn show_results(
+        &mut self,
+        query: String,
+        results: Entity<FeedView>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.editing = false;
+        self.focus_input = false;
+        self.input.update(cx, |input, cx| input.set_value(query.clone(), window, cx));
+        self.submitted = Some(query);
+        self.results = Some(results);
+        self.query_changed(String::new(), cx);
+    }
+
+    /// Back to the input, which still holds the submitted query.
+    pub fn edit(&mut self, cx: &mut Context<Self>) {
+        self.editing = true;
+        self.focus_input = true;
+        let query = self.input.read(cx).value().to_string();
+        self.query_changed(query, cx);
+    }
+
+    /// The input's back: to the results when there are some, else out of search.
+    pub fn back(&mut self, cx: &mut Context<Self>) {
+        if self.submitted.is_some() {
+            self.editing = false;
+            self.query_changed(String::new(), cx);
+        } else {
+            cx.emit(SearchEvent::Back);
+        }
+    }
+
+    /// The layer came back to the top: the field takes focus again if it shows.
+    pub fn raised(&mut self, cx: &mut Context<Self>) {
+        self.focus_input = true;
+        cx.notify();
     }
 
     fn submit(&mut self, query: String, cx: &mut Context<Self>) {
@@ -175,7 +241,7 @@ impl SearchView {
         self.generation += 1;
         let generation = self.generation;
         cx.notify();
-        if query.trim().is_empty() {
+        if !self.editing || query.trim().is_empty() {
             self.suggestions.clear();
             return;
         }
@@ -197,12 +263,19 @@ impl SearchView {
             });
             let result = fetch.await;
             this.update(cx, |view, cx| {
-                if view.generation == generation
-                    && let Some(Ok(suggestions)) = result
-                {
-                    view.suggestions = suggestions;
-                    cx.notify();
+                if view.generation != generation {
+                    return;
                 }
+                // Best-effort: a failed suggest leaves no list, as the JVM SearchScreen does.
+                view.suggestions = match result {
+                    Some(Ok(suggestions)) => suggestions,
+                    Some(Err(error)) => {
+                        cx.global::<AppGraph>().log.fork("search").warn("suggest failed", Some(&error));
+                        Vec::new()
+                    }
+                    None => Vec::new(),
+                };
+                cx.notify();
             })
             .ok();
         })
@@ -212,6 +285,9 @@ impl SearchView {
 
 impl Render for SearchView {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        if std::mem::take(&mut self.focus_input) && self.editing {
+            self.input.update(cx, |state, cx| state.focus(window, cx));
+        }
         let theme = cx.theme().clone();
         let bar = h_flex()
             .gap_2()
@@ -223,8 +299,8 @@ impl Render for SearchView {
             .child(
                 self.bar_focus.button(
                     0,
-                    action_icon("search-back", IconName::ArrowLeft, t(Str::CdBack))
-                        .on_click(cx.listener(|_, _, _, cx| cx.emit(SearchEvent::Back))),
+                    action_icon("search-back", crate::action_icon::auto_mirrored(IconName::ArrowLeft), t(Str::CdBack))
+                        .on_click(cx.listener(|view, _, _, cx| view.back(cx))),
                     cx,
                 ),
             )
@@ -258,23 +334,17 @@ impl Render for SearchView {
                 .suggestions
                 .iter()
                 .filter(|suggestion| !matches.iter().any(|entry| entry.to_lowercase() == suggestion.to_lowercase()))
-                .take(SHOWN_SUGGESTIONS)
                 .cloned()
                 .collect();
             (matches, fresh)
         };
-        let stops = self.focus.list_stops(0..history.len() + suggestions.len(), window, cx);
-        let mut rows = v_flex().id("search-queries");
-        let mut count = 0;
-        for entry in &history {
-            rows = rows.child(self.query_row(count, entry, true, cx));
-            count += 1;
-        }
-        for suggestion in &suggestions {
-            rows = rows.child(self.query_row(count, suggestion, false, cx));
-            count += 1;
-        }
-        let mut rows = v_flex().child(stops.wrap(rows, None, cx));
+        let mut count = history.len() + suggestions.len();
+        let stops = self.focus.list_stops(0..count, window, cx);
+        let rows = self.rows.render(count, 0., stops.kept(), window, |index| match history.get(index) {
+            Some(entry) => self.query_row(index, entry, true, cx).into_any_element(),
+            None => self.query_row(index, &suggestions[index - history.len()], false, cx).into_any_element(),
+        });
+        let mut rows = v_flex().child(stops.wrap(rows.id("search-queries"), None, cx));
         if typed.is_empty() {
             let clear = Button::new("clear-history")
                 .ghost()
@@ -286,6 +356,9 @@ impl Render for SearchView {
             count += 1;
         }
         let rows = self.focus.container(rows, 0..count, cx);
-        v_flex().size_full().child(bar).child(div().id("suggestions").flex_1().overflow_y_scroll().child(rows))
+        v_flex()
+            .size_full()
+            .child(bar)
+            .child(div().id("suggestions").flex_1().overflow_y_scroll().track_scroll(&self.scroll).child(rows))
     }
 }

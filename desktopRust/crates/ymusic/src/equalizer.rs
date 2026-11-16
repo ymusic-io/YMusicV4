@@ -613,15 +613,19 @@ impl Render for EqualizerDialog {
             .py(px(16.))
             .gap(px(16.))
             .child(
-                v_flex().w_full().px(px(16.)).child(self.fader_bank(&tone, lit, cx)).child(
-                    div()
-                        .w_full()
-                        .pt(px(8.))
-                        .text_size(px(11.))
-                        .text_center()
-                        .text_color(theme.muted_foreground)
-                        .child(t(Str::SoundEqHint)),
-                ),
+                v_flex()
+                    .w_full()
+                    .px(px(16.))
+                    .child(self.fader_bank(&tone, lit, cx).layout_direction(LayoutDirection::Ltr))
+                    .child(
+                        div()
+                            .w_full()
+                            .pt(px(8.))
+                            .text_size(px(11.))
+                            .text_center()
+                            .text_color(theme.muted_foreground)
+                            .child(t(Str::SoundEqHint)),
+                    ),
             )
             .child(
                 h_flex()

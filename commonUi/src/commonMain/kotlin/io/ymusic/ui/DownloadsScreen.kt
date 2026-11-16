@@ -111,8 +111,13 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.conflate
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -123,6 +128,7 @@ import projectcommon.error.Playability
 import projectcommon.error.errorCode
 import projectcommon.error.playabilityOf
 import projectcommon.log.captureUnlessEnvironmental
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * The Download Manager: a status filter chip row over one flat adaptive grid (one column on a phone,
@@ -430,6 +436,8 @@ private fun downloadErrorUiText(task: DownloadTask): UiText {
 private fun DownloadTask.showsBar(): Boolean = state == DownloadState.PREPARING ||
     ((state == DownloadState.DOWNLOADING || state == DownloadState.PROCESSING || state == DownloadState.PAUSED) && progress != null)
 
+private val LIBRARY_REGISTER_WAIT = 30.seconds
+
 /** A download's file and link actions, each null when it doesn't apply (no Library row, no rename hook…). */
 private class CompletedFileActions(
     val addToPlaylist: (() -> Unit)?,
@@ -442,8 +450,26 @@ private class CompletedFileActions(
 private fun completedFileActions(graph: AppGraph, task: DownloadTask, service: DownloadService, onRename: () -> Unit): CompletedFileActions {
     val store = graph.mediaStore
     val songActions = LocalSongActions.current
+    // The service registers the file in the Library only after the task turns COMPLETED; a file outside
+    // every Library folder never shows up, so the wait is bounded.
     val libraryItem by produceState<MediaStoreItem?>(null, store, task.state, task.fileUri) {
-        value = if (store != null && task.state == DownloadState.COMPLETED) libraryItemOf(store, task) else null
+        if (store == null || task.state != DownloadState.COMPLETED) {
+            value = null
+            return@produceState
+        }
+        value = withTimeoutOrNull(LIBRARY_REGISTER_WAIT) {
+            store.itemsChanges().onStart { emit(Unit) }.conflate().mapNotNull {
+                try {
+                    libraryItemOf(store, task)
+                } catch (cancel: CancellationException) {
+                    throw cancel
+                } catch (failure: Throwable) {
+                    graph.logger?.fork("downloads", mapOf("taskId" to task.id))
+                        ?.log(Logger.Level.WARN, "library lookup failed", failure)
+                    null
+                }
+            }.first()
+        }
     }
     val item = libraryItem
     val fileUri = task.fileUri

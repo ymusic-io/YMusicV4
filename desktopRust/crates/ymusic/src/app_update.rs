@@ -109,12 +109,14 @@ pub fn show_upgrade_notice(window: &mut Window, cx: &mut App) {
         .message(tf(Str::UpgradedMessage, &[&crate::graph::APP_VERSION_NAME]))
         .action(move |_, _, cx| {
             let changelog = changelog.clone();
-            Button::new("upgrade-changelog").primary().label(t(Str::UpgradedViewChangelog)).on_click(cx.listener(
-                move |notification, _, window, cx| {
+            Button::new("upgrade-changelog")
+                .ghost()
+                .text_color(cx.theme().primary)
+                .label(t(Str::UpgradedViewChangelog))
+                .on_click(cx.listener(move |notification, _, window, cx| {
                     cx.open_url(&changelog);
                     notification.dismiss(window, cx);
-                },
-            ))
+                }))
         })
         // `action` turns autohide off; a hover or keyboard focus on the toast still pauses it.
         .autohide(true);
@@ -235,6 +237,7 @@ pub fn sync_prompt(window: &mut Window, cx: &mut App) {
 /// starts: it must wait for this process to exit, not hand its launch to it.
 fn install_and_restart(cx: &mut App) {
     let Some(service) = cx.global::<AppGraph>().updates.clone() else { return };
+    crate::desktop::yield_activation_to_relaunch();
     let started = on_core(cx, async move { service.install(crate::instance::stop_accepting).await });
     cx.spawn(async move |cx| {
         if started.await == Some(true) {
@@ -398,7 +401,7 @@ impl Render for UpdateDialog {
             );
         }
         let failure = match &state {
-            UpdateState::Failed { failure, trusted: true, .. } if requested => Some(failure),
+            UpdateState::Failed { failure, .. } if requested => Some(failure),
             UpdateState::InstallFailed { failure, .. } => Some(failure),
             _ => None,
         };

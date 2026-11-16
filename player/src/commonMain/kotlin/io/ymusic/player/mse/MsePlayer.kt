@@ -316,9 +316,10 @@ class MsePlayer internal constructor(
     override fun stop() {
         requireMainThread()
         if (released) return
-        when (_status.value.state) {
+        val state = _status.value.state
+        when (state) {
             is PlaybackState.Uninitialized -> return
-            is PlaybackState.Error -> {
+            is PlaybackState.Error -> if (state.error.needReset) {
                 tearDownSession("stop in error")
                 return
             }
@@ -329,7 +330,8 @@ class MsePlayer internal constructor(
         loadTimeoutJob?.cancel()
         loadTimeoutJob = null
         send { it.stop(log) }
-        _status.update { it.copy(state = PlaybackState.Idle, details = null) }
+        // The error stays on the session's state; the next load clears it.
+        if (state !is PlaybackState.Error) _status.update { it.copy(state = PlaybackState.Idle, details = null) }
         _progress.value = Progress()
     }
 

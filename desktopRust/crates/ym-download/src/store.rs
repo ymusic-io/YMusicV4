@@ -297,7 +297,12 @@ fn map_row(row: &Row, log: &Logger) -> rusqlite::Result<DownloadTask> {
         downloaded_bytes: row.get(8)?,
         total_bytes: row.get(9)?,
         file_uri: row.get(10)?,
-        error: error_code.map(|code| TaskError { code, user_message: row.get(11).ok().flatten() }),
+        // A row without a code (an older JVM write) keeps its message, as the JVM task does.
+        error: match (error_code, row.get::<_, Option<String>>(11).ok().flatten()) {
+            (Some(code), user_message) => Some(TaskError { code, user_message }),
+            (None, Some(message)) => Some(TaskError { code: String::new(), user_message: Some(message) }),
+            (None, None) => None,
+        },
         created_at: row.get(13)?,
         updated_at: row.get(14)?,
         file_name: row.get(15)?,

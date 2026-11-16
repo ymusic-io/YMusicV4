@@ -78,7 +78,11 @@ class DownloadService(
     private val playerGate = PlayerResponseGate()
 
     private val pipeline = DownloadPipeline(
-        SabrSpecResolver { videoId -> playerGate.run { resolver.resolve(videoId) } },
+        object : SabrSpecResolver {
+            override suspend fun resolve(videoId: String): ResolvedVideo = playerGate.run { resolver.resolve(videoId) }
+
+            override suspend fun remint(videoId: String): SpecRemint = playerGate.run { resolver.remint(videoId) }
+        },
         client, userAgent, ffmpeg, storage, mediaCache, segmentIndex, logger,
     )
 

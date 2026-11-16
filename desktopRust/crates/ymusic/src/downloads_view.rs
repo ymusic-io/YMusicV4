@@ -12,18 +12,22 @@ use gpui_kit::component::progress::Progress;
 use gpui_kit::component::{ActiveTheme, Icon, IconName, Selectable, Sizable, StyledExt, WindowExt, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
-use ym_download::{DownloadChange, DownloadService, DownloadState, DownloadTask, TaskError};
+use ym_download::{DownloadChange, DownloadFormat, DownloadService, DownloadState, DownloadTask, TaskError};
 use ym_i18n::{Str, t, tf};
+use ym_image_loader::async_image::async_image_of;
 
 use crate::a11y::{DragRow, FocusList, announced, announced_as, heading, list_item};
+use crate::account::AccountController;
 use crate::action_icon::action_icon;
 use crate::download_dialog::{DownloadPicker, DownloadTarget};
 use crate::downloads::pick_download_folder;
 use crate::file_rename::RenameFileDialog;
 use crate::graph::{AppGraph, on_core};
+use crate::lazy_rows::LazyRows;
 use crate::library::PlayLocal;
 use crate::library_playlist::AddToLocalPlaylist;
 use crate::playback::{QueueItem, Source};
+use crate::youtube_thumbnails::art_request_sources;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Filter {
@@ -80,6 +84,7 @@ pub struct DownloadsView {
     tasks: Vec<DownloadTask>,
     filter: Filter,
     scroll: ScrollHandle,
+    rows: LazyRows,
     focus: FocusList,
     /// The filter chips, then the empty filter's message.
     chip_focus: FocusList,
@@ -88,6 +93,8 @@ pub struct DownloadsView {
     chip_drag: DragRow,
     /// Sign-in-required failures to re-run once the account signs in.
     retry_after_sign_in: Vec<String>,
+    /// The list could not be read; the screen says so with Retry (the JVM ErrorState).
+    load_error: Option<&'static str>,
     _changes: Task<()>,
 }
 
@@ -131,10 +138,12 @@ impl DownloadsView {
             filter: Filter::All,
             scroll: scroll.clone(),
             focus: FocusList::new(Some(scroll.clone())),
-            chip_focus: FocusList::new(Some(scroll)),
+            chip_focus: FocusList::new(Some(scroll.clone())),
+            rows: LazyRows::new(scroll, CARD_ROW_ESTIMATE),
             fab_focus: FocusList::new(None),
             chip_drag: DragRow::default(),
             retry_after_sign_in: Vec::new(),
+            load_error: None,
             _changes: changes,
         };
         view.refresh(cx);
@@ -151,9 +160,13 @@ impl DownloadsView {
                     Some(Ok(mut tasks)) => {
                         tasks.reverse();
                         view.tasks = tasks;
+                        view.load_error = None;
                     }
                     Some(Err(error)) => {
-                        cx.global::<AppGraph>().log.warn("the download list could not be read", Some(&error));
+                        cx.global::<AppGraph>()
+                            .log
+                            .warn(&format!("{LOAD_FAILED} the download list could not be read"), Some(&error));
+                        view.load_error = Some(LOAD_FAILED);
                     }
                     None => {}
                 }
@@ -207,25 +220,15 @@ impl DownloadsView {
         let code = task.error.as_ref().map(|error| error.code.clone()).unwrap_or_default();
         let id = task.id.clone();
         match playability(&code) {
-            Some(Playability::SignInRequired) => {
-                let graph = cx.global::<AppGraph>();
-                let (engine, log) = (graph.engine(), graph.log.fork("downloads"));
-                let account = on_core(cx, async move { engine.account_info(false, &log).await });
-                cx.spawn_in(window, async move |this, cx| {
-                    let signed_in = matches!(account.await, Some(Ok(account)) if account.signed_in);
-                    this.update_in(cx, |view, window, cx| {
-                        if signed_in {
-                            view.service.retry(&id);
-                        } else {
-                            view.sign_in_dialog(id, window, cx);
-                        }
-                    })
-                    .ok();
-                })
-                .detach();
+            Some(Playability::SignInRequired)
+                if !cx.global::<AppGraph>().guest && !AccountController::global(cx).read(cx).signed_in =>
+            {
+                self.sign_in_dialog(id, window, cx)
             }
             Some(Playability::Unavailable) => self.unavailable_dialog(id, window, cx),
-            None if code == "folder" => {
+            None if code == ym_download::error::FOLDER_ACCESS_CODE
+                || code == ym_download::error::LEGACY_FOLDER_ACCESS_CODE =>
+            {
                 let pick = pick_download_folder(window, cx);
                 cx.spawn(async move |this, cx| {
                     if pick.await.is_some() {
@@ -280,7 +283,7 @@ impl DownloadsView {
             "removedisk" => self.remove_from_disk(task, window, cx),
             "rename" => {
                 if let Some(file) = file_path(&task) {
-                    RenameFileDialog::open(file, None, window, cx);
+                    RenameFileDialog::open(file, window, cx);
                 }
             }
             _ => {}
@@ -300,7 +303,6 @@ impl DownloadsView {
             DownloadTarget {
                 video_id: task.video_id.clone(),
                 title: task.title.clone(),
-                artist: task.artist.clone(),
                 thumbnail_url: task.thumbnail_url.clone(),
             },
             window,
@@ -308,31 +310,61 @@ impl DownloadsView {
         );
     }
 
+    /// The JVM PlaybackCoordinator.playDownloads: the finished downloads the filter shows, in order,
+    /// from `task`; each is its Library item when the store has indexed it, else the file.
     fn play(&mut self, task: &DownloadTask, cx: &mut Context<Self>) {
-        let Some(path) = file_path(task) else { return };
-        let media = cx.global::<AppGraph>().media.clone();
-        let lookup_path = path.to_string_lossy().into_owned();
-        let lookup =
-            on_core(cx, async move { tokio::task::spawn_blocking(move || media.find_item_by_uri(&lookup_path)).await });
-        let fallback = QueueItem {
-            source: Source::Local(path),
-            title: task.title.clone(),
-            artist: task.artist.clone(),
-            duration_ms: None,
-            duration_label: None,
-            thumbs: Vec::new(),
-            history_code: None,
-            youtube_vid: Some(task.video_id.clone()),
-            loudness_gain_db: task.loudness_gain_db,
-        };
+        let filter = self.filter;
+        let finished: Vec<(DownloadTask, PathBuf)> = self
+            .tasks
+            .iter()
+            .filter(|shown| filter.matches(shown.state) && shown.state == DownloadState::Completed)
+            .filter_map(|shown| file_path(shown).map(|path| (shown.clone(), path)))
+            .collect();
+        let Some(index) = finished.iter().position(|(shown, _)| shown.id == task.id) else { return };
+        let graph = cx.global::<AppGraph>();
+        let (media, log) = (graph.media.clone(), graph.log.fork("play-downloads"));
+        let lookup = on_core(cx, async move {
+            tokio::task::spawn_blocking(move || {
+                finished
+                    .into_iter()
+                    .map(|(task, path)| match media.find_item_by_uri(&path.to_string_lossy()) {
+                        Ok(Some((item, _))) => QueueItem::from_local(&item),
+                        Ok(None) => download_item(&task, path),
+                        Err(error) => {
+                            log.warn("library lookup failed", Some(&error));
+                            download_item(&task, path)
+                        }
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .await
+        });
         cx.spawn(async move |this, cx| {
-            let item = match lookup.await {
-                Some(Ok(Ok(Some((item, _))))) => QueueItem::from_local(&item),
-                _ => fallback,
-            };
-            this.update(cx, |_, cx| cx.emit(PlayLocal { items: vec![item], index: 0 })).ok();
+            let Some(Ok(items)) = lookup.await else { return };
+            this.update(cx, |_, cx| cx.emit(PlayLocal { items, index, shuffle: None })).ok();
         })
         .detach();
+    }
+}
+
+/// A finished download the Library has not indexed: the file, named as the task.
+fn download_item(task: &DownloadTask, path: PathBuf) -> QueueItem {
+    QueueItem {
+        source: Source::Local(path),
+        title: task.title.clone(),
+        artist: task.artist.clone(),
+        duration_ms: None,
+        duration_label: None,
+        thumbs: vec![ym_engine::yt::YtThumb {
+            url: crate::local_art::youtube_art_url(&task.video_id),
+            w: None,
+            h: None,
+        }],
+        media_id: None,
+        history_code: None,
+        youtube_vid: Some(task.video_id.clone()),
+        loudness_gain_db: task.loudness_gain_db,
+        live: false,
     }
 }
 
@@ -406,8 +438,20 @@ pub fn size_label(bytes: i64) -> String {
     }
 }
 
-/// A failure as the user reads it: a category they can act on, else the code.
-pub fn task_error_text(error: &TaskError) -> String {
+/// A failure as the user reads it (the JVM `downloadErrorUiText`): no code reads its message or
+/// "Download failed"; then the folder category, a playability verdict, the message with its code,
+/// else the code.
+pub fn task_error_text(error: Option<&TaskError>) -> String {
+    let Some(error) = error.filter(|error| !error.code.is_empty()) else {
+        return error
+            .and_then(|error| error.user_message.clone())
+            .unwrap_or_else(|| t(Str::DownloadsFailed).to_owned());
+    };
+    if error.code == ym_download::error::FOLDER_ACCESS_CODE
+        || error.code == ym_download::error::LEGACY_FOLDER_ACCESS_CODE
+    {
+        return t(Str::DownloadsErrorFolderAccess).to_owned();
+    }
     match playability(&error.code) {
         Some(Playability::SignInRequired) => return t(Str::PlaybackSignInRequired).to_owned(),
         Some(Playability::Unavailable) => return t(Str::PlaybackUnavailable).to_owned(),
@@ -420,11 +464,22 @@ pub fn task_error_text(error: &TaskError) -> String {
     match error.code.as_str() {
         "network" => t(Str::ErrorNetwork).to_owned(),
         "disk_full" => t(Str::ErrorDiskFull).to_owned(),
-        "folder" => t(Str::DownloadsErrorFolderAccess).to_owned(),
         "live" => t(Str::DownloadLiveUnsupported).to_owned(),
         "processing" => t(Str::ErrorLiveStillProcessing).to_owned(),
         code => tf(Str::ErrorGeneric, &[&code]),
     }
+}
+
+/// A distinct tint per format so the type reads at a glance; white text sits on all of them.
+fn format_badge_color(format: DownloadFormat) -> Hsla {
+    rgb(match format {
+        DownloadFormat::Mp3 => 0x2e7d32,
+        DownloadFormat::M4a => 0x1565c0,
+        DownloadFormat::AudioWebm => 0x00695c,
+        DownloadFormat::VideoMp4 => 0x6a1b9a,
+        DownloadFormat::VideoWebm => 0xb23c17,
+    })
+    .into()
 }
 
 fn state_label(state: DownloadState) -> &'static str {
@@ -440,7 +495,9 @@ fn state_label(state: DownloadState) -> &'static str {
     })
 }
 
+const LOAD_FAILED: &str = "R90034";
 const CARD_MIN: f32 = 340.;
+const CARD_ROW_ESTIMATE: f32 = 120.;
 const THUMB: f32 = 56.;
 
 impl DownloadsView {
@@ -502,6 +559,15 @@ impl DownloadsView {
                         view.update(cx, |view, _| action(&view.service, &id)).ok();
                     })
                 };
+                let share = || {
+                    let video_id = task.video_id.clone();
+                    PopupMenuItem::new(t(Str::CdShare)).on_click(move |_, window, cx| {
+                        if let Some(link) = crate::feed::youtube_share_link("video", &video_id) {
+                            cx.write_to_clipboard(ClipboardItem::new_string(link));
+                            window.push_notification(t(Str::LinkCopied), cx);
+                        }
+                    })
+                };
                 let other_format = || {
                     let task = task.clone();
                     PopupMenuItem::new(t(Str::DownloadOtherFormat))
@@ -528,6 +594,7 @@ impl DownloadsView {
                                 retry_view.update(cx, |view, cx| view.retry(&retry_task, window, cx)).ok();
                             }))
                             .item(other_format())
+                            .item(share())
                             .item(act(t(Str::MenuRemove), DownloadService::remove));
                     }
                     DownloadState::Completed => {
@@ -555,20 +622,32 @@ impl DownloadsView {
                                         .on_click(move |_, _, cx| cx.reveal_path(&path)),
                                 )
                                 .item(PopupMenuItem::new(t(Str::MenuRename)).on_click(move |_, window, cx| {
-                                    RenameFileDialog::open(renamed.clone(), None, window, cx)
+                                    RenameFileDialog::open(renamed.clone(), window, cx)
                                 }));
                         }
+                        menu = menu.item(share());
                         let (disk_view, disk_task) = (view.clone(), task.clone());
-                        menu = menu.separator().item(act(t(Str::MenuRemove), DownloadService::remove)).item(
-                            PopupMenuItem::new(t(Str::MenuRemoveFromDisk)).on_click(move |_, window, cx| {
-                                disk_view
-                                    .update(cx, |view, cx| view.remove_from_disk(disk_task.clone(), window, cx))
-                                    .ok();
-                            }),
-                        );
+                        menu = menu
+                            .item(crate::settings_view::menu_divider())
+                            .item(act(t(Str::MenuRemove), DownloadService::remove))
+                            .item(PopupMenuItem::new(t(Str::MenuRemoveFromDisk)).on_click(move |_, window, cx| {
+                                let (view, task) = (disk_view.clone(), disk_task.clone());
+                                crate::elevated_dialog::ConfirmDialog::new(
+                                    t(Str::DeleteFromDiskTitle),
+                                    tf(Str::DeleteFromDiskMessage, &[&task.title]),
+                                    t(Str::DeleteFromDiskConfirm),
+                                )
+                                .destructive()
+                                .open(window, cx, move |window, cx| {
+                                    view.update(cx, |view, cx| view.remove_from_disk(task.clone(), window, cx)).ok();
+                                });
+                            }));
                     }
                     DownloadState::Canceled => {
-                        menu = menu.item(other_format()).item(act(t(Str::MenuRemove), DownloadService::remove));
+                        menu = menu
+                            .item(other_format())
+                            .item(share())
+                            .item(act(t(Str::MenuRemove), DownloadService::remove));
                     }
                 }
                 menu
@@ -582,7 +661,6 @@ impl DownloadsView {
             .thumbnail_url
             .clone()
             .unwrap_or_else(|| format!("https://i.ytimg.com/vi/{}/mqdefault.jpg", task.video_id));
-        let active = task.state.is_active() || task.state == DownloadState::Paused;
         let fraction = task.progress();
         let percent =
             fraction.filter(|_| task.state.is_active()).map(|value| format!("{}%", (value * 100.).round() as i32));
@@ -590,24 +668,36 @@ impl DownloadsView {
             || (matches!(task.state, DownloadState::Downloading | DownloadState::Processing | DownloadState::Paused)
                 && fraction.is_some());
         let failed = task.state == DownloadState::Failed;
+        let tones = *cx.global::<crate::settings_view::CardTones>();
+        let dark = theme.mode.is_dark();
+        let soft = |color: Hsla| color.opacity(if dark { 0.16 } else { 0.14 });
         let (pill_bg, pill_fg) = match task.state {
-            DownloadState::Failed => (theme.danger, theme.danger_foreground),
-            DownloadState::Completed => (theme.secondary, theme.foreground),
-            _ if active => (theme.primary, theme.primary_foreground),
-            _ => (theme.secondary, theme.muted_foreground),
+            DownloadState::Queued | DownloadState::Canceled => (theme.muted, tones.ink),
+            DownloadState::Paused => {
+                let amber: Hsla = rgb(if dark { 0xe3a63e } else { 0xb5720f }).into();
+                (soft(amber), amber)
+            }
+            DownloadState::Completed => {
+                let green: Hsla = rgb(if dark { 0x57c983 } else { 0x288a50 }).into();
+                (soft(green), green)
+            }
+            DownloadState::Failed => (theme.danger.opacity(0.12), theme.danger),
+            _ => (theme.primary.opacity(0.16), theme.primary),
         };
+        let mono = theme.mono_font_family.clone();
         let status = state_label(task.state);
         let detail: AnyElement = match task.state {
             DownloadState::Downloading | DownloadState::Paused if task.total_bytes > 0 => div()
                 .text_xs()
-                .text_color(theme.muted_foreground)
+                .text_color(tones.ink)
+                .font_family(mono.clone())
                 .child(format!("{} / {}", size_label(task.downloaded_bytes), size_label(task.total_bytes)))
                 .into_any_element(),
             DownloadState::Completed => h_flex()
-                .gap_3()
+                .gap_2()
                 .text_xs()
-                .text_color(theme.muted_foreground)
-                .child(size_label(task.total_bytes))
+                .text_color(tones.ink)
+                .child(div().font_family(mono.clone()).child(size_label(task.total_bytes)))
                 .when_some(short_date(task.updated_at), |row, date| row.child(date))
                 .into_any_element(),
             DownloadState::Failed => {
@@ -623,14 +713,14 @@ impl DownloadsView {
                             .text_xs()
                             .text_color(theme.danger)
                             .line_clamp(2)
-                            .child(task.error.as_ref().map(task_error_text).unwrap_or_default()),
+                            .child(task_error_text(task.error.as_ref())),
                     )
                     .child(
                         self.focus
                             .trailing_button(
                                 row,
                                 1,
-                                Button::new(("retry", row)).outline().xsmall().rounded_full().label(t(Str::Retry)),
+                                Button::new(("retry", row)).primary().xsmall().rounded_full().label(t(Str::Retry)),
                                 cx,
                             )
                             .on_click(cx.listener(move |view, _, window, cx| {
@@ -648,8 +738,9 @@ impl DownloadsView {
         self.focus
             .item(row, list_item(v_flex().id(("download", row)), row).aria_label(label), cx)
             .rounded(px(6.))
+            .bg(if failed { theme.danger.opacity(0.12) } else { tones.ground })
             .border_1()
-            .border_color(theme.border)
+            .border_color(if failed { theme.danger.opacity(0.4) } else { theme.border })
             .p(px(14.))
             .gap_2()
             .child(
@@ -664,7 +755,10 @@ impl DownloadsView {
                             .overflow_hidden()
                             .bg(theme.secondary)
                             .child(
-                                img(SharedString::from(thumb)).size_full().rounded(px(6.)).object_fit(ObjectFit::Cover),
+                                async_image_of(Some(art_request_sources(&thumb)))
+                                    .size_full()
+                                    .rounded(px(6.))
+                                    .object_fit(ObjectFit::Cover),
                             ),
                     )
                     .child(
@@ -688,7 +782,13 @@ impl DownloadsView {
                                             .child(status),
                                     )
                                     .when_some(percent, |row, percent| {
-                                        row.child(div().text_xs().text_color(theme.muted_foreground).child(percent))
+                                        row.child(
+                                            div()
+                                                .text_xs()
+                                                .text_color(tones.ink)
+                                                .font_family(mono.clone())
+                                                .child(percent),
+                                        )
                                     }),
                             ),
                     )
@@ -696,9 +796,11 @@ impl DownloadsView {
             )
             .when(show_bar, |card| {
                 card.child(
-                    div()
-                        .pl(px(THUMB + 12.))
-                        .child(Progress::new(("progress", row)).value(fraction.unwrap_or(0.) * 100.)),
+                    div().pl(px(THUMB + 12.)).child(
+                        Progress::new(("progress", row))
+                            .value(fraction.unwrap_or(0.) * 100.)
+                            .when(task.state == DownloadState::Paused, |bar| bar.color(tones.ink)),
+                    ),
                 )
             })
             .child(
@@ -709,11 +811,11 @@ impl DownloadsView {
                         div().w(px(THUMB)).flex().justify_center().child(
                             div()
                                 .px_1()
+                                .py(px(2.))
                                 .rounded(px(3.))
-                                .border_1()
-                                .border_color(theme.border)
+                                .bg(format_badge_color(task.format))
                                 .text_xs()
-                                .text_color(theme.muted_foreground)
+                                .text_color(white())
                                 .child(task.format.extension().to_uppercase()),
                         ),
                     )
@@ -727,6 +829,21 @@ impl Render for DownloadsView {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         crate::shell::track_scroll(&self.scroll, cx);
         let theme = cx.theme().clone();
+        if let Some(code) = self.load_error {
+            return v_flex()
+                .size_full()
+                .items_center()
+                .justify_center()
+                .gap_3()
+                .p_6()
+                .child(crate::a11y::alert("downloads-error", tf(Str::ErrorGeneric, &[&code])).text_center())
+                .child(
+                    Button::new("downloads-retry")
+                        .label(t(Str::Retry))
+                        .on_click(cx.listener(|view, _, _, cx| view.refresh(cx))),
+                )
+                .into_any_element();
+        }
         if self.tasks.iter().all(|task| task.state == DownloadState::Canceled) {
             return v_flex()
                 .size_full()
@@ -779,7 +896,6 @@ impl Render for DownloadsView {
         let columns = ((width - 32. + 16.) / (CARD_MIN + 16.)).floor().max(1.) as usize;
         let mut grid = v_flex().w_full().px_4().pt_2().pb(px(88.)).gap(px(12.)).child(self.chip_drag.wrap(chips));
         let stops = self.focus.list_stops(0..visible.len(), window, cx);
-        let mut cards = v_flex().id("download-cards").w_full().gap(px(12.));
         if visible.is_empty() {
             grid = grid.child(
                 div()
@@ -789,16 +905,22 @@ impl Render for DownloadsView {
                     .child(announced("downloads-empty", filter.empty()).text_color(theme.muted_foreground)),
             );
         }
-        for (row_index, row) in visible.chunks(columns).enumerate() {
-            let mut cells = h_flex().w_full().gap_4().items_start();
-            for (offset, task) in row.iter().enumerate() {
-                cells = cells.child(div().flex_1().min_w_0().child(self.card(row_index * columns + offset, task, cx)));
-            }
-            for _ in row.len()..columns {
-                cells = cells.child(div().flex_1());
-            }
-            cards = cards.child(cells);
-        }
+        let kept: Vec<usize> = stops.kept().into_iter().map(|position| position / columns).collect();
+        let cards = self
+            .rows
+            .render(visible.len().div_ceil(columns), 12., kept, window, |row_index| {
+                let row = &visible[row_index * columns..((row_index + 1) * columns).min(visible.len())];
+                let mut cells = h_flex().w_full().gap_4().items_start();
+                for (offset, task) in row.iter().enumerate() {
+                    cells =
+                        cells.child(div().flex_1().min_w_0().child(self.card(row_index * columns + offset, task, cx)));
+                }
+                for _ in row.len()..columns {
+                    cells = cells.child(div().flex_1());
+                }
+                cells.into_any_element()
+            })
+            .id("download-cards");
         let grid = grid.child(stops.wrap(cards, Some(t(Str::SectionDownloads).into()), cx));
         let fab = if any_active {
             Some((t(Str::DownloadsPauseAll), Lucide::Pause, true))

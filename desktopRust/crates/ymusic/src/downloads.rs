@@ -12,7 +12,7 @@ use serde_json::Value;
 use ym_common::log::Logger;
 use ym_download::spec::ResolvedVideo;
 use ym_download::streams::{SpecRemint, SpecResolver};
-use ym_download::{DownloadConfig, DownloadError, DownloadService, DownloadState};
+use ym_download::{DownloadConfig, DownloadError, DownloadService};
 use ym_engine::CookieJar;
 use ym_engine::player::ContentPoRemint;
 use ym_i18n::{Str, t, tf};
@@ -27,9 +27,6 @@ use crate::youtube_session::YoutubeSessions;
 /// Where finished downloads go: a `file://` folder URI, shared with the JVM app's key.
 pub const DOWNLOAD_LOCATION_KEY: &str = "download.location";
 const MAX_CONCURRENT: usize = 3;
-/// Every googlevideo request must carry the User-Agent player.js presents.
-const DESKTOP_CHROME_UA: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 \
-    (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36";
 
 struct EngineResolver {
     sessions: Arc<YoutubeSessions>,
@@ -96,10 +93,9 @@ pub fn open(inputs: DownloadInputs) -> Result<DownloadService, String> {
     }
     let cookies = inputs.cookies;
     let settings = inputs.settings;
-    let folder_settings = settings.clone();
+    let (folder_settings, completion_settings) = (settings.clone(), settings.clone());
     let media = inputs.media;
     let completion_log = log.fork("download-library");
-    let completion_tokio = inputs.tokio.clone();
     Ok(DownloadService::new(DownloadConfig {
         tokio: inputs.tokio,
         store: Arc::new(store),
@@ -107,7 +103,7 @@ pub fn open(inputs: DownloadInputs) -> Result<DownloadService, String> {
         resolver: Arc::new(EngineResolver { sessions: inputs.sessions, log: log.fork("download-resolver") }),
         sabr: SabrHttp {
             client: inputs.http.not_following.clone(),
-            user_agent: DESKTOP_CHROME_UA.to_owned(),
+            user_agent: ym_ytmedia::YOUTUBE_USER_AGENT.to_owned(),
             cookies: Some(Arc::new(move |url| {
                 let pairs = cookies.load_for_request(url).ok()?;
                 (!pairs.is_empty())
@@ -123,10 +119,19 @@ pub fn open(inputs: DownloadInputs) -> Result<DownloadService, String> {
         on_completed: Some(Arc::new(move |_, result| {
             let Some(file) = url::Url::parse(&result.uri).ok().and_then(|uri| uri.to_file_path().ok()) else {
                 completion_log.warn(&format!("a finished download has no file path: {}", result.uri), None);
-                return;
+                return Box::pin(async {});
             };
-            let (media, log) = (media.clone(), completion_log.clone());
-            completion_tokio.spawn_blocking(move || add_to_library(&media, &file, &log));
+            let (media, settings, log) = (media.clone(), completion_settings.clone(), completion_log.clone());
+            Box::pin(async move {
+                let blocking_log = log.clone();
+                let registered = tokio::task::spawn_blocking(move || {
+                    add_to_library(&media, settings.as_ref(), &file, &blocking_log)
+                })
+                .await;
+                if let Err(error) = registered {
+                    log.capture_error("registering a finished download in the library failed", &error);
+                }
+            })
         })),
         log,
     }))
@@ -250,7 +255,8 @@ pub fn pick_download_folder(window: &mut Window, cx: &mut App) -> impl Future<Ou
 fn usable_folder(settings: &dyn SettingsStore, media: &MediaStore, log: &Logger) -> Option<PathBuf> {
     let folder = download_folder(settings).filter(|folder| folder.is_dir())?;
     match media.find_bucket_by_uri(&folder.to_string_lossy()) {
-        Ok(Some(bucket)) if !bucket.excluded => Some(folder),
+        // The JVM hasUsableDownloadLocation also needs the folder writable (canWriteFolder).
+        Ok(Some(bucket)) if !bucket.excluded && probe_download_folder(&folder).is_ok() => Some(folder),
         Ok(_) => None,
         Err(error) => {
             log.warn("the download folder's Library entry could not be read", Some(&error));
@@ -296,10 +302,11 @@ pub fn offer_download_location(folder: ym_store::Bucket, window: &mut Window, cx
         .open(window, cx, move |_, cx| save_download_folder(&path, cx));
 }
 
-/// Video ids already saved: Library files tagged with their YouTube id, and finished downloads.
+/// Video ids already saved: Library files tagged with their YouTube id (the JVM
+/// `rememberAvailableOffline`, `store.youtubeVideoIds()`).
 pub fn offline_ids(cx: &App) -> impl Future<Output = HashSet<String>> + use<> {
     let graph = cx.global::<AppGraph>();
-    let (media, service, log) = (graph.media.clone(), graph.downloads.clone(), graph.log.fork("available-offline"));
+    let (media, log) = (graph.media.clone(), graph.log.fork("available-offline"));
     let load = on_core(cx, async move {
         let mut ids = HashSet::new();
         match tokio::task::spawn_blocking(move || media.youtube_video_ids()).await {
@@ -307,27 +314,19 @@ pub fn offline_ids(cx: &App) -> impl Future<Output = HashSet<String>> + use<> {
             Ok(Err(error)) => log.warn("library video ids could not be read", Some(&error)),
             Err(error) => log.warn("library video ids could not be read", Some(&error)),
         }
-        match service.snapshot().await {
-            Ok(tasks) => ids.extend(
-                tasks.into_iter().filter(|task| task.state == DownloadState::Completed).map(|task| task.video_id),
-            ),
-            Err(error) => log.warn("finished downloads could not be read", Some(&error)),
-        }
         ids
     });
     async move { load.await.unwrap_or_default() }
 }
 
-/// Files a finished download under its folder's Library bucket, probed like a scanned file; a
-/// folder outside the Library adds nothing (the JVM app's `registerCompletedDownload`).
-fn add_to_library(media: &MediaStore, file: &Path, log: &Logger) {
-    let Some(folder) = file.parent() else { return };
+/// Files a finished download under the download location's Library bucket, probed like a scanned
+/// file; no download location or no bucket for it adds nothing (the JVM app's
+/// `registerCompletedDownload`).
+fn add_to_library(media: &MediaStore, settings: &dyn SettingsStore, file: &Path, log: &Logger) {
+    let Some(folder) = download_folder(settings) else { return };
     let bucket = match media.find_bucket_by_uri(&folder.to_string_lossy()) {
-        Ok(Some(bucket)) if !bucket.excluded => bucket,
-        Ok(_) => {
-            log.info("a finished download is outside the Library folders");
-            return;
-        }
+        Ok(Some(bucket)) => bucket,
+        Ok(None) => return,
         Err(error) => {
             log.capture_error("registering a finished download in the library failed", &error);
             return;

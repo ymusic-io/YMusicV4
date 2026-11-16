@@ -1,4 +1,4 @@
-//! Settings: appearance, playback, downloads, account, privacy and about.
+//! Settings: appearance, playback, downloads, privacy and about.
 
 use std::cell::Cell;
 use std::path::PathBuf;
@@ -11,7 +11,7 @@ use gpui_kit::component::{
 };
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
-use ym_engine::yt::{YtAccountInfo, YtLocales};
+use ym_engine::yt::YtLocales;
 use ym_i18n::{Str, t, tf};
 use ym_settings::SettingsStore;
 
@@ -22,7 +22,6 @@ use crate::downloads::download_folder;
 use crate::feedback_view::link;
 use crate::graph::{AppGraph, on_core};
 use crate::settings_lists::{Licenses, RegionPicker};
-use crate::signin::AccountChanged;
 use crate::spinner::BusyButton;
 use crate::sponsor_block::SPONSOR_BLOCK_KEY;
 use crate::telemetry::STATS_KEY;
@@ -63,6 +62,7 @@ fn apply_theme(choice: &str, accent: &str, cx: &mut App) {
     let mut tones = ChromeTones { flat: black(), lifted: black(), dialog: black() };
     let mut stack = StackTones { near: black(), far: black(), tab: black() };
     let mut container = AccentTones { ground: black(), ink: black() };
+    let mut card = CardTones { ground: black(), ink: black() };
     Theme::update(cx, |theme| {
         if let Some(font) = ui_font {
             theme.font_family = font;
@@ -113,6 +113,7 @@ fn apply_theme(choice: &str, accent: &str, cx: &mut App) {
         let dialog = if theme.mode.is_dark() { palette.surface_dim } else { palette.surface_elevated };
         tones = ChromeTones { flat: palette.surface, lifted: palette.surface_elevated, dialog };
         stack = StackTones { near: palette.stack_near, far: palette.stack_far, tab: palette.stack_tab };
+        card = CardTones { ground: palette.surface_dim, ink: palette.ink_muted };
         container = if theme.mode.is_dark() {
             AccentTones { ground: oklab_lerp(palette.surface, accent, 0.3), ink: oklab_lerp(accent, white(), 0.35) }
         } else {
@@ -122,6 +123,7 @@ fn apply_theme(choice: &str, accent: &str, cx: &mut App) {
     cx.set_global(tones);
     cx.set_global(stack);
     cx.set_global(container);
+    cx.set_global(card);
 }
 
 /// The JVM app's `primaryContainer` / `onPrimaryContainer`: a selected rail or drawer entry, the
@@ -156,6 +158,20 @@ pub struct StackTones {
 
 impl Global for StackTones {}
 
+/// Every menu's divider: the stock separator draws theme.border, which barely shows on the dark menu.
+pub fn menu_divider() -> PopupMenuItem {
+    PopupMenuItem::element(|_, cx| div().w_full().h(px(1.)).bg(cx.global::<StackTones>().near)).disabled(true)
+}
+
+/// The JVM app's `SurfaceDim` / `InkMuted`: a card lifted off the page and its secondary text.
+#[derive(Clone, Copy)]
+pub struct CardTones {
+    pub ground: Hsla,
+    pub ink: Hsla,
+}
+
+impl Global for CardTones {}
+
 /// The JVM app's `DesignPalette` grounds and inks (commonUi Theme.kt), per mode.
 struct Palette {
     surface: Hsla,
@@ -169,6 +185,7 @@ struct Palette {
     outline: Hsla,
     divider: Hsla,
     ink: Hsla,
+    ink_muted: Hsla,
     ink_secondary: Hsla,
 }
 
@@ -187,6 +204,7 @@ impl Palette {
                 outline: rgb(0x5c5c5c).into(),
                 divider: rgb(0x2a2a2a).into(),
                 ink: rgb(0xe2e2e2).into(),
+                ink_muted: rgb(0xc6c6c6).into(),
                 ink_secondary: rgb(0x9a9a9a).into(),
             }
         } else {
@@ -202,6 +220,7 @@ impl Palette {
                 outline: rgb(0xcfcfcf).into(),
                 divider: rgb(0xe6e6e6).into(),
                 ink: rgb(0x333333).into(),
+                ink_muted: rgb(0x555555).into(),
                 ink_secondary: rgb(0x8a8a8a).into(),
             }
         };
@@ -240,21 +259,111 @@ pub fn save_setting(key: &'static str, value: String, cx: &mut App) {
             Ok(Err(error)) => log.warn(&format!("R93000 setting {key} not saved"), Some(error.as_ref())),
             Err(error) => log.warn(&format!("R93000 setting {key} not saved"), Some(&error)),
         }
-        cx.update(|cx| cx.refresh_windows());
+        cx.update(|cx| {
+            if key == SPONSOR_BLOCK_KEY {
+                crate::sponsor_block::setting_changed(cx);
+            }
+            cx.refresh_windows();
+        });
     })
     .detach();
 }
 
-/// The saved UI language, else the system's.
-pub fn apply_language(settings: &dyn SettingsStore) {
-    match settings.get_raw(LANGUAGE_KEY).ok().flatten().filter(|tag| !tag.is_empty()) {
-        Some(tag) => {
-            ym_i18n::set_locale(&tag);
+/// The languages the picker offers (JVM `UiLanguages`): tag and the language's own name. A tag
+/// doubles as YouTube's hl, so it uses YouTube's codes (Hebrew `iw`, Chinese `zh-CN` / `zh-TW`).
+const UI_LANGUAGES: &[(&str, &str)] = &[
+    ("en", "English"),
+    ("af", "Afrikaans"),
+    ("az", "Azərbaycan"),
+    ("id", "Bahasa Indonesia"),
+    ("ms", "Bahasa Melayu"),
+    ("ca", "Català"),
+    ("cs", "Čeština"),
+    ("de", "Deutsch"),
+    ("et", "Eesti"),
+    ("es", "Español"),
+    ("eu", "Euskara"),
+    ("fil", "Filipino"),
+    ("fr", "Français"),
+    ("hr", "Hrvatski"),
+    ("sw", "Kiswahili"),
+    ("hu", "Magyar"),
+    ("nl", "Nederlands"),
+    ("pl", "Polski"),
+    ("pt", "Português"),
+    ("ro", "Română"),
+    ("sk", "Slovenčina"),
+    ("so", "Soomaali"),
+    ("it", "Italiano"),
+    ("vi", "Tiếng Việt"),
+    ("tr", "Türkçe"),
+    ("el", "Ελληνικά"),
+    ("bg", "Български"),
+    ("mk", "Македонски"),
+    ("ru", "Русский"),
+    ("sr", "Српски"),
+    ("uk", "Українська"),
+    ("hy", "Հայերեն"),
+    ("iw", "עברית"),
+    ("ar", "العربية"),
+    ("fa", "فارسی"),
+    ("ne", "नेपाली"),
+    ("mr", "मराठी"),
+    ("hi", "हिन्दी"),
+    ("bn", "বাংলা"),
+    ("gu", "ગુજરાતી"),
+    ("ta", "தமிழ்"),
+    ("kn", "ಕನ್ನಡ"),
+    ("ml", "മലയാളം"),
+    ("si", "සිංහල"),
+    ("th", "ไทย"),
+    ("ko", "한국어"),
+    ("ja", "日本語"),
+    ("zh-CN", "简体中文"),
+    ("zh-TW", "繁體中文"),
+];
+
+/// JVM `uiLanguageFor`: a device locale tag onto a [`UI_LANGUAGES`] tag, else English.
+fn ui_language_for(locale_tag: &str) -> &'static str {
+    let normalized = locale_tag.replace('_', "-");
+    let parts: Vec<&str> = normalized.split('-').filter(|part| !part.is_empty()).collect();
+    let primary = parts.first().map(|part| part.to_lowercase()).unwrap_or_default();
+    let language = match primary.as_str() {
+        "he" => "iw".to_owned(),
+        "in" => "id".to_owned(),
+        "tl" => "fil".to_owned(),
+        "zh" => {
+            let traditional = parts.iter().skip(1).any(|part| {
+                part.eq_ignore_ascii_case("Hant") || ["TW", "HK", "MO"].contains(&part.to_uppercase().as_str())
+            });
+            (if traditional { "zh-TW" } else { "zh-CN" }).to_owned()
         }
-        None => {
-            ym_i18n::use_system_locale();
-        }
+        _ => primary,
+    };
+    UI_LANGUAGES.iter().find(|(tag, _)| *tag == language).map_or("en", |(tag, _)| tag)
+}
+
+/// JVM `ensureUiLanguage(::defaultUiLanguageTag)`: a blank saved language is seeded from the OS
+/// language and persisted, so the key is never blank for any reader (the engine's hl included).
+fn ensure_ui_language(settings: &dyn SettingsStore) -> Result<String, ym_settings::SettingsError> {
+    let held = settings.get_raw(LANGUAGE_KEY)?.unwrap_or_default();
+    if !held.trim().is_empty() {
+        return Ok(held);
     }
+    let resolved = ui_language_for(&ym_i18n::system_locale_tag()).to_owned();
+    settings.put_raw(LANGUAGE_KEY, resolved.clone())?;
+    Ok(resolved)
+}
+
+/// Seeds the UI language when unset and shows the UI in it; before the engine starts.
+pub fn apply_language(settings: &dyn SettingsStore) -> Result<(), ym_settings::SettingsError> {
+    ym_i18n::set_locale(&ensure_ui_language(settings)?);
+    Ok(())
+}
+
+/// Mirrors the layout for a right-to-left UI language.
+pub fn apply_layout_direction(cx: &mut App) {
+    cx.set_layout_direction(if ym_i18n::is_rtl() { LayoutDirection::Rtl } else { LayoutDirection::Ltr });
 }
 
 fn saved(settings: &dyn SettingsStore, key: &str) -> String {
@@ -266,8 +375,6 @@ pub struct LocaleChanged;
 
 pub struct SettingsView {
     playback: Entity<crate::playback::Playback>,
-    account: Option<YtAccountInfo>,
-    signing_out: bool,
     /// The working region and the region menu, from the engine; None until the first answer.
     pub locales: Option<YtLocales>,
     pub locales_loading: bool,
@@ -278,22 +385,18 @@ pub struct SettingsView {
 }
 
 impl EventEmitter<LocaleChanged> for SettingsView {}
-impl EventEmitter<AccountChanged> for SettingsView {}
 
 impl SettingsView {
     pub fn new(playback: Entity<crate::playback::Playback>, cx: &mut Context<Self>) -> Self {
         let scroll = ScrollHandle::new();
         let mut view = Self {
             playback,
-            account: None,
-            signing_out: false,
             locales: None,
             locales_loading: false,
             cache_used: 0,
             scroll: scroll.clone(),
             focus: FocusList::new(Some(scroll)),
         };
-        view.refresh_account(cx);
         view.load_locales(cx);
         view.refresh_cache_used(None, cx);
         view
@@ -402,22 +505,6 @@ impl SettingsView {
         self.apply_locale(Some(gl), Some(window.window_handle()), cx);
     }
 
-    pub fn refresh_account(&mut self, cx: &mut Context<Self>) {
-        let graph = cx.global::<AppGraph>();
-        let (engine, log) = (graph.engine(), graph.log.fork("settings"));
-        let load = on_core(cx, async move { engine.account_info(false, &log).await });
-        cx.spawn(async move |this, cx| {
-            if let Some(Ok(account)) = load.await {
-                this.update(cx, |view, cx| {
-                    view.account = Some(account);
-                    cx.notify();
-                })
-                .ok();
-            }
-        })
-        .detach();
-    }
-
     fn put(&self, key: &'static str, value: String, cx: &mut Context<Self>) {
         save_setting(key, value, cx);
         cx.notify();
@@ -436,11 +523,8 @@ impl SettingsView {
     }
 
     fn set_language(&mut self, tag: String, window: &mut Window, cx: &mut Context<Self>) {
-        if tag.is_empty() {
-            ym_i18n::use_system_locale();
-        } else {
-            ym_i18n::set_locale(&tag);
-        }
+        ym_i18n::set_locale(&tag);
+        apply_layout_direction(cx);
         // Saved before the notify: the engine re-reads the language from settings.
         let graph = cx.global::<AppGraph>();
         let (settings, log) = (graph.settings.clone(), graph.log.fork("settings"));
@@ -464,26 +548,6 @@ impl SettingsView {
             if pick.await.is_some() {
                 this.update(cx, |_, cx| cx.notify()).ok();
             }
-        })
-        .detach();
-    }
-
-    fn sign_out(&mut self, cx: &mut Context<Self>) {
-        self.signing_out = true;
-        let graph = cx.global::<AppGraph>();
-        let (jar, engines, log) = (graph.cookies.clone(), graph.engines.clone(), graph.log.fork("signout"));
-        let done = on_core(cx, async move { crate::signin::sign_out(jar, engines, &log).await });
-        cx.spawn(async move |this, cx| {
-            let result = done.await;
-            this.update(cx, |view, cx| {
-                view.signing_out = false;
-                if let Some(Err(error)) = result {
-                    cx.global::<AppGraph>().log.warn("sign-out failed", Some(&error));
-                }
-                view.refresh_account(cx);
-                cx.emit(AccountChanged);
-            })
-            .ok();
         })
         .detach();
     }
@@ -547,7 +611,7 @@ fn button_row(
 
 /// The end of a row that opens a panel or a page.
 fn chevron(cx: &App) -> Icon {
-    Icon::new(IconName::ChevronRight).text_color(cx.theme().muted_foreground)
+    crate::action_icon::auto_mirrored(IconName::ChevronRight).text_color(cx.theme().muted_foreground)
 }
 
 /// A control's spoken name: the row's title, then the value it shows.
@@ -555,7 +619,7 @@ fn spoken(title: &str, value: &str) -> String {
     if value.is_empty() || value == title { title.to_owned() } else { format!("{title}, {value}") }
 }
 
-fn language_name(tag: &str) -> String {
+pub(crate) fn language_name(tag: &str) -> String {
     let base = tag.split(['-', '_']).next().unwrap_or(tag);
     let name = match base {
         "en" => "English",
@@ -714,8 +778,11 @@ impl Render for SettingsView {
             });
         let accent_row = self.wide(self.focus.row_button(next(), accent_row, cx));
 
-        let language_label =
-            if language.is_empty() { t(Str::SettingsThemeSystem).to_owned() } else { language_name(&language) };
+        let language_label = UI_LANGUAGES
+            .iter()
+            .find(|(tag, _)| *tag == language)
+            .map_or(language.as_str(), |(_, name)| name)
+            .to_owned();
         let entity = cx.entity().downgrade();
         let language_stop = next();
         let language_row = button_row("language", t(Str::SettingsLanguage), None, language_label.clone(), cx)
@@ -723,13 +790,9 @@ impl Render for SettingsView {
             .track_focus(&self.focus.handle(language_stop, cx))
             .dropdown_menu_with_anchor(Anchor::TopRight, move |mut menu, _, _| {
                 menu = menu.scrollable(true).max_h(px(360.));
-                let system = entity.clone();
-                menu = menu.item(PopupMenuItem::new(t(Str::SettingsThemeSystem)).on_click(move |_, window, cx| {
-                    system.update(cx, |view, cx| view.set_language(String::new(), window, cx)).ok();
-                }));
-                for tag in ym_i18n::available_locales() {
+                for &(tag, name) in UI_LANGUAGES {
                     let view = entity.clone();
-                    menu = menu.item(PopupMenuItem::new(language_name(tag)).on_click(move |_, window, cx| {
+                    menu = menu.item(PopupMenuItem::new(name).on_click(move |_, window, cx| {
                         view.update(cx, |view, cx| view.set_language(tag.to_owned(), window, cx)).ok();
                     }));
                 }
@@ -846,32 +909,6 @@ impl Render for SettingsView {
             self.wide(self.focus.row_button(next(), quick_row, cx)),
         ];
 
-        let (signed_in, account_title, account_hint) = match &self.account {
-            Some(account) if account.signed_in => (
-                true,
-                account.name.clone().or_else(|| account.email.clone()).unwrap_or_default(),
-                account.email.clone().or_else(|| account.handle.clone()),
-            ),
-            _ => (false, t(Str::SigninPrefaceTitle).to_owned(), Some(t(Str::SigninPrefaceSubtitle).to_owned())),
-        };
-        let action = t(if signed_in { Str::AccountSignOut } else { Str::SigninButton });
-        let theme = cx.theme();
-        let action_label =
-            div().font_semibold().text_color(if signed_in { theme.foreground } else { theme.primary }).child(action);
-        let account_row = button_row(
-            if signed_in { "sign-out" } else { "sign-in" },
-            account_title.clone(),
-            account_hint,
-            action_label,
-            cx,
-        )
-        .accessibility_label(spoken(action, &account_title));
-        let account_row = if signed_in {
-            account_row.busy(self.signing_out).on_click(cx.listener(|view, _, _, cx| view.sign_out(cx)))
-        } else {
-            account_row.on_click(|_, window, cx| window.dispatch_action(Box::new(crate::shortcuts::OpenSignIn), cx))
-        };
-        let account = vec![self.wide(self.focus.row_button(next(), account_row, cx))];
         let privacy = vec![
             self.toggle(next(), CRASH_REPORTS_KEY, t(Str::SettingsCrashReports), t(Str::SettingsCrashReportsHint), cx),
             self.toggle(next(), STATS_KEY, t(Str::SettingsStats), t(Str::SettingsStatsHint), cx),
@@ -916,7 +953,6 @@ impl Render for SettingsView {
             .child(section(t(Str::SettingsSectionContent), content, cx))
             .child(section(t(Str::SettingsSectionPlayback), playback, cx))
             .child(section(t(Str::SettingsSectionDownloads), downloads, cx))
-            .child(section(t(Str::SettingsSectionDevices), account, cx))
             .child(section(t(Str::SettingsSectionPrivacy), privacy, cx))
             .child(section(t(Str::SettingsSectionAbout), about, cx))
             .child(section(t(Str::SettingsDebug), debug, cx));

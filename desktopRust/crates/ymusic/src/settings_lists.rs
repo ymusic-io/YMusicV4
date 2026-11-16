@@ -12,8 +12,11 @@ use crate::a11y::FocusList;
 use crate::elevated_dialog::{
     DEFAULT_WIDTH, ROW_HORIZONTAL, ROW_VERTICAL, button_bar, chrome, press, scroll_body, text_button, title_bar,
 };
+use crate::lazy_rows::LazyRows;
 use crate::settings_view::{HOVER_ALPHA, SettingsView};
 use crate::spinner::Spinner;
+
+const LIST_ROW_ESTIMATE: f32 = 44.;
 
 fn close_button(index: usize, focus: &FocusList, label: &'static str, cx: &App) -> Div {
     press(
@@ -47,6 +50,7 @@ pub struct RegionPicker {
     settings: Entity<SettingsView>,
     focus: FocusList,
     scroll: ScrollHandle,
+    rows: LazyRows,
     focused_first: bool,
     _observe: Subscription,
 }
@@ -59,6 +63,7 @@ impl RegionPicker {
             Self {
                 settings,
                 focus: FocusList::modal(Some(scroll.clone()), cx),
+                rows: LazyRows::new(scroll.clone(), LIST_ROW_ESTIMATE),
                 scroll,
                 focused_first: false,
                 _observe: observe,
@@ -86,8 +91,9 @@ impl Render for RegionPicker {
             let first = self.focus.handle(selected.unwrap_or(0), cx);
             window.defer(cx, move |window, cx| window.focus(&first, cx));
         }
-        let mut list = v_flex();
-        for (index, region) in regions.iter().enumerate() {
+        let kept = self.focus.kept_stops(0..regions.len(), window).into_iter().chain(selected);
+        let rows = self.rows.render(regions.len(), 0., kept, window, |index| {
+            let region = &regions[index];
             let is_selected = selected == Some(index);
             let (code, settings) = (region.code.clone(), self.settings.clone());
             let pick = Rc::new(move |window: &mut Window, cx: &mut App| {
@@ -112,8 +118,9 @@ impl Render for RegionPicker {
                 .on_click(move |_, window, cx| pick(window, cx))
                 // The dialog binds Enter to closing; a focused row takes it first.
                 .on_action(move |_: &Confirm, window, cx| on_enter(window, cx));
-            list = list.child(self.focus.item(index, row, cx));
-        }
+            self.focus.item(index, row, cx).into_any_element()
+        });
+        let mut list = v_flex().child(rows);
         if loading && regions.len() <= 1 {
             list = list.child(h_flex().justify_center().py_6().child(Spinner::new()));
         }
@@ -172,6 +179,7 @@ const COMPONENTS: &[Component] = &[
 pub struct Licenses {
     focus: FocusList,
     scroll: ScrollHandle,
+    rows: LazyRows,
     focused_first: bool,
 }
 
@@ -179,7 +187,12 @@ impl Licenses {
     pub fn open(window: &mut Window, cx: &mut App) {
         let view = cx.new(|cx| {
             let scroll = ScrollHandle::new();
-            Self { focus: FocusList::modal(Some(scroll.clone()), cx), scroll, focused_first: false }
+            Self {
+                focus: FocusList::modal(Some(scroll.clone()), cx),
+                rows: LazyRows::new(scroll.clone(), LIST_ROW_ESTIMATE),
+                scroll,
+                focused_first: false,
+            }
         });
         window.open_dialog(cx, move |dialog, window, _| chrome(dialog, DEFAULT_WIDTH, window).child(view.clone()));
     }
@@ -193,7 +206,7 @@ impl Render for Licenses {
             window.defer(cx, move |window, cx| window.focus(&first, cx));
         }
         let theme = cx.theme().clone();
-        let mut list = v_flex().w_full().child(
+        let list = v_flex().w_full().child(
             div()
                 .px(px(ROW_HORIZONTAL))
                 .py(px(ROW_VERTICAL))
@@ -201,7 +214,9 @@ impl Render for Licenses {
                 .text_color(theme.muted_foreground)
                 .child(t(Str::SettingsLicensesIntro)),
         );
-        for (index, component) in COMPONENTS.iter().enumerate() {
+        let kept = self.focus.kept_stops(0..COMPONENTS.len(), window);
+        let rows = self.rows.render(COMPONENTS.len(), 0., kept, window, |index| {
+            let component = &COMPONENTS[index];
             let url = component.url;
             let row = h_flex()
                 .id(("license", index))
@@ -224,8 +239,9 @@ impl Render for Licenses {
                 )
                 .on_click(move |_, _, cx| cx.open_url(url))
                 .on_action(move |_: &Confirm, _, cx| cx.open_url(url));
-            list = list.child(self.focus.item(index, row, cx));
-        }
+            self.focus.item(index, row, cx).into_any_element()
+        });
+        let list = list.child(rows);
         let close = COMPONENTS.len();
         let dismiss = close_button(close, &self.focus, t(Str::CdClose), cx);
         let column = list_dialog(t(Str::SettingsLicenses), list, dismiss, &self.scroll, window, cx);

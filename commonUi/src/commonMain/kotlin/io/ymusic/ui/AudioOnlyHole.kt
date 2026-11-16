@@ -126,7 +126,7 @@ internal fun AudioOnlyArtWave(
     modifier: Modifier = Modifier,
 ) {
     val status by player.status.collectAsState()
-    val sampling = status.playWhenReady && windowVisible()
+    val sampling = status.showsPause() && windowVisible()
     val levels by produceState(FloatArray(WAVE_BARS), player, sampling) {
         val buf = FloatArray(WAVE_BARS)
         if (!sampling) {

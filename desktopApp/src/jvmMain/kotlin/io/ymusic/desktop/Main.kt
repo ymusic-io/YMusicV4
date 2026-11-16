@@ -181,9 +181,11 @@ import io.ymusic.ui.resources.playlist_menu_backup
 import io.ymusic.ui.resources.playlist_menu_restore
 import io.ymusic.ui.resources.sound_volume
 import io.ymusic.ui.resources.ymusic_logo
+import io.ymusic.ui.showsPause
 import io.ymusic.ui.sponsorblock.SqliteSponsorBlockStore
 import io.ymusic.ui.sponsorblock.sponsorBlockJdbcDriver
 import io.ymusic.ui.startupFailedMessage
+import io.ymusic.ytmedia.YOUTUBE_USER_AGENT
 import io.ymusic.ytmedia.cache.DiskMediaBlobCache
 import io.ymusic.ytmedia.cache.MediaCache
 import io.ymusic.ytmedia.cache.SqlDelightBlobIndex
@@ -754,7 +756,7 @@ fun main(args: Array<String>) {
                 if (!queueNotEmpty) miniOpen = false
             }
         }
-        val playing = graph?.player?.status?.collectAsState()?.value?.playWhenReady == true
+        val playing = graph?.player?.status?.collectAsState()?.value?.showsPause() == true
         val playerMenu = rememberPlayerMenu(
             playing = playing,
             hasQueue = queueNotEmpty,
@@ -995,7 +997,7 @@ private suspend fun buildGraph(
         }
         LocalMediaProxy(
             playerCache, client,
-            userAgent = DESKTOP_CHROME_UA,
+            userAgent = YOUTUBE_USER_AGENT,
             logger = rootLogger,
             // Chatty per-part/decision logs; -Dio.ymusic.player.verbose overrides the build default.
             verbose = System.getProperty("io.ymusic.player.verbose")?.toBoolean() ?: DEBUG_BUILD,
@@ -1102,7 +1104,7 @@ private suspend fun buildGraph(
             now = { System.currentTimeMillis() },
             resolver = resolver,
             client = sabrClient,
-            userAgent = DESKTOP_CHROME_UA,
+            userAgent = YOUTUBE_USER_AGENT,
             ffmpeg = ffmpeg,
             storage = io.ymusic.download.DefaultDownloadStorage(
                 FileSystem.SYSTEM,
@@ -1826,10 +1828,6 @@ private val videoWired = java.util.concurrent.atomic.AtomicBoolean(false)
 
 /** Mounted [DesktopPlayerSurface] call sites; the hole closes only when none is left. EDT only. */
 private var surfaceMountCount = 0
-
-private const val DESKTOP_CHROME_UA =
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 " +
-        "(KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
 
 /** A file packed into the app jar (the staged engine bundle + version — see stageEngineJs). */
 private fun readAppResource(name: String): String =

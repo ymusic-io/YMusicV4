@@ -1000,8 +1000,8 @@ jobs:
           if-no-files-found: error
 
       # Release notes: GitHub's "Full Changelog" compare line, the trusted-sources warning, then this
-      # version's section of CHANGELOG.md (the tag's "## <version>", e.g. release-v4.0.5 → "## 4.0.5");
-      # a prerelease carries no CHANGELOG section.
+      # version's section of CHANGELOG.md (the tag's "## <version>", e.g. release-v4.0.5 → "## 4.0.5"),
+      # then a Downloads table linking every platform's assets; a prerelease carries no CHANGELOG section.
       - name: Build the release notes
         env:
           GH_TOKEN: ${{ github.token }}
@@ -1024,6 +1024,35 @@ jobs:
               printf '\n%s\n' "$section" >> "$notes"
             fi
           fi
+          version="$(sed -n 's/^ymusic\.versionName=//p' YMusicV4/gradle.properties | tr -d '[:space:]')"
+          # A link per asset, each checked against the collected files; they work once the draft is published.
+          links() {
+            local row="" file
+            while [ $# -gt 0 ]; do
+              file="YMusic-$version-$2"
+              [ -f "release/$file" ] || { echo "no release/$file for the downloads table" >&2; return 1; }
+              row+="${row:+ · }[$1](https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/$file)"
+              shift 2
+            done
+            echo "$row"
+          }
+          android="$(links arm64 android-arm64.apk armv7 android-armv7.apk x86_64 android-x86_64.apk x86 android-x86.apk)"
+          macos="$(links 'Apple Silicon' macos-arm64.dmg Intel macos-intel.dmg)"
+          windows="$(links x64 windows-x64-setup.exe arm64 windows-arm64-setup.exe)"
+          linux="$(links 'x86_64 .deb' linux-x86_64.deb 'arm64 .deb' linux-arm64.deb 'x86_64 AppImage' linux-x86_64.AppImage 'arm64 AppImage' linux-arm64.AppImage)"
+          cat >> "$notes" <<EOF
+
+          ## Downloads
+
+          | Platform | Download |
+          | --- | --- |
+          | Android | $android |
+          | macOS | $macos |
+          | Windows | $windows |
+          | Linux | $linux |
+
+          Checksums: [SHA256SUMS](https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/SHA256SUMS)
+          EOF
           cat "$notes" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Create the draft release

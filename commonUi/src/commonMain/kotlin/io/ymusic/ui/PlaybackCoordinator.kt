@@ -223,9 +223,18 @@ class PlaybackCoordinator(
         val startIndex = finished.indexOfFirst { (task, _) -> task.id == startId }
         if (startIndex < 0) return
         val store = mediaStore
+        val downloadsLog = log?.fork("play-downloads")
         val items = withContext(Dispatchers.IO) {
             finished.map { (task, uri) ->
-                store?.findItemByUri(Uri.parse(uri))?.toLocalMedia() ?: PlayableItem.LocalMedia(
+                val libraryItem = try {
+                    store?.findItemByUri(Uri.parse(uri))
+                } catch (c: kotlinx.coroutines.CancellationException) {
+                    throw c
+                } catch (e: Exception) {
+                    downloadsLog?.log(Logger.Level.WARN, "library lookup failed", e)
+                    null
+                }
+                libraryItem?.toLocalMedia() ?: PlayableItem.LocalMedia(
                     uri = uri,
                     title = task.title,
                     artist = task.artist,

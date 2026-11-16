@@ -14,7 +14,7 @@ mod vault;
 pub use dpapi::{dpapi_protect, dpapi_unprotect};
 
 pub use link::{DeviceLinkOffer, LinkError, await_cookies, close_offer, create_offer, decrypt, encrypt, post_cookies};
-pub use paste::{SessionCookie, looks_like_curl, looks_signed_in, parse_cookie_paste, to_set_cookie};
+pub use paste::{SessionCookie, import_domain, looks_like_curl, looks_signed_in, parse_cookie_paste, to_set_cookie};
 #[cfg(target_os = "linux")]
 pub use secret_service::{SecretServiceError, secret_service_cookie_key};
 #[cfg(target_os = "macos")]

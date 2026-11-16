@@ -118,6 +118,8 @@ struct Row {
     /// there once laid out in its new slot.
     moved_from: Option<Pixels>,
     glide: Option<Glide>,
+    /// Laid out since the last tracker.
+    built: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -218,13 +220,23 @@ impl Reorder {
     }
 
     /// Follows the pointer while a row is dragged; `on_event` hears each move and the drop. Draw it
-    /// once per frame beside a list of `len` rows.
+    /// once per frame beside a list of `len` rows. A row a lazy list left unbuilt a frame has no
+    /// slot from the next.
     pub fn tracker(
         &self,
         len: usize,
         on_event: impl Fn(&ReorderEvent, &mut Window, &mut App) + 'static,
     ) -> impl IntoElement {
-        self.0.rows.borrow_mut().resize_with(len, Row::default);
+        {
+            let mut rows = self.0.rows.borrow_mut();
+            rows.resize_with(len, Row::default);
+            for row in rows.iter_mut() {
+                if !std::mem::take(&mut row.built) {
+                    row.slot = Bounds::default();
+                    row.layout_top = None;
+                }
+            }
+        }
         if self.0.settling.get().is_some_and(|index| index >= len) {
             self.0.settling.set(None);
         }
@@ -364,8 +376,9 @@ fn dragged_top(drag: &Drag, rows: &[Row], viewport: Bounds<Pixels>) -> Pixels {
     let (Some(first), Some(last), Some(dragged)) = (rows.first(), rows.last(), rows.get(drag.index)) else {
         return top;
     };
-    let highest = first.slot.top().max(viewport.top());
-    let lowest = last.slot.bottom().min(viewport.bottom()) - dragged.slot.size.height;
+    let highest = if first.layout_top.is_some() { first.slot.top().max(viewport.top()) } else { viewport.top() };
+    let lowest = if last.layout_top.is_some() { last.slot.bottom().min(viewport.bottom()) } else { viewport.bottom() }
+        - dragged.slot.size.height;
     if lowest < highest { top } else { top.clamp(highest, lowest) }
 }
 
@@ -435,6 +448,7 @@ impl Element for ReorderRow {
             let mut rows = state.rows.borrow_mut();
             if let Some(row) = rows.get_mut(self.index) {
                 row.slot = bounds;
+                row.built = true;
             }
             let offset = match drag {
                 Some(drag) => dragged_top(&drag, &rows, state.scroll.bounds()) - bounds.origin.y,

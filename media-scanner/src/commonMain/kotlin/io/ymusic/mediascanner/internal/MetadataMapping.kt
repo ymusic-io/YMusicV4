@@ -32,7 +32,7 @@ internal fun MediaFileMetadata.toMediaItemDraft(file: DocumentInfo.File): MediaI
     val audio = streams.filterIsInstance<StreamMetadata.Audio>().firstOrNull()
     val video = streams.filterIsInstance<StreamMetadata.Video>().firstOrNull { !it.isAttachedThumbnail() }
     val subtitle = streams.filterIsInstance<StreamMetadata.Text>().firstOrNull()
-    val thumbnailStreamIndex = streams.indexOfFirst { it.isAttachedThumbnail() }.takeIf { it >= 0 }
+    val thumbnailStreamIndex = streams.firstOrNull { it.isAttachedThumbnail() }?.index
 
     val durationMs = container.duration ?: streams.mapNotNull {
         when (it) {

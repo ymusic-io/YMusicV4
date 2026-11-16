@@ -17,7 +17,6 @@ use crate::elevated_dialog::{
     DEFAULT_WIDTH, ROW_HORIZONTAL, bar_spinner, button_bar, chrome, press, text_button, title_bar,
 };
 use crate::graph::{AppGraph, on_core};
-use crate::library_playlist::Changed;
 
 #[derive(Debug, thiserror::Error)]
 enum RenameError {
@@ -109,13 +108,12 @@ pub struct RenameFileDialog {
     error: Option<String>,
     busy: bool,
     focused: bool,
-    changed: Option<Changed>,
     focus: FocusList,
     _subscription: Subscription,
 }
 
 impl RenameFileDialog {
-    pub fn open(path: PathBuf, changed: Option<Changed>, window: &mut Window, cx: &mut App) {
+    pub fn open(path: PathBuf, window: &mut Window, cx: &mut App) {
         let file_name = path.file_name().map(|name| name.to_string_lossy().into_owned()).unwrap_or_default();
         let dot = file_name.rfind('.').filter(|index| *index > 0).unwrap_or(file_name.len());
         let (stem, extension) = (file_name[..dot].to_owned(), file_name[dot..].to_owned());
@@ -151,7 +149,6 @@ impl RenameFileDialog {
                 error: None,
                 busy: false,
                 focused: false,
-                changed,
                 focus: FocusList::modal(None, cx),
                 _subscription: subscription,
             }
@@ -186,12 +183,7 @@ impl RenameFileDialog {
             this.update_in(cx, |view, window, cx| {
                 view.busy = false;
                 match result {
-                    Ok(_) => {
-                        window.close_dialog(cx);
-                        if let Some(changed) = &view.changed {
-                            changed(window, cx);
-                        }
-                    }
+                    Ok(_) => window.close_dialog(cx),
                     Err(error) => {
                         cx.global::<AppGraph>().log.fork("file-rename").warn("renaming a file failed", Some(&error));
                         view.error = Some(tf(Str::ErrorGeneric, &[&error.code()]));

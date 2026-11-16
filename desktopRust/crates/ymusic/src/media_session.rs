@@ -21,9 +21,13 @@ use std::time::Instant;
 use futures::StreamExt;
 use futures::channel::mpsc;
 use gpui_kit::*;
+use ym_common::log::Logger;
+use ym_image_loader::async_image::GlobalImageLoader;
+use ym_image_loader::{ImageRequest, ImageScale};
 
 use crate::graph::AppGraph;
 use crate::playback::Playback;
+use crate::youtube_thumbnails::youtube_thumb_url;
 
 /// Position drift beyond normal tick jitter: a seek the OS must be told about.
 const SEEK_DRIFT_MS: i64 = 2_000;
@@ -77,6 +81,12 @@ enum Command {
 pub struct MediaSession {
     backend: Option<Backend>,
     published: Option<(Snapshot, Instant)>,
+    log: Logger,
+    /// The local item whose art was last asked for.
+    local_artwork_for: Option<String>,
+    /// That item's key and art url, once known.
+    local_artwork: Option<(String, Option<String>)>,
+    local_artwork_task: Option<Task<()>>,
     _observe: Subscription,
     _commands: Task<()>,
 }
@@ -112,26 +122,39 @@ impl MediaSession {
                 }
                 let applied = target.update(cx, |playback, cx| match command {
                     Command::Toggle => playback.toggle(cx),
-                    Command::Play if !playback.is_playing() => playback.toggle(cx),
-                    Command::Pause if playback.is_playing() => playback.toggle(cx),
+                    Command::Play => playback.play(cx),
+                    Command::Pause => playback.pause(cx),
                     Command::Next => playback.next(cx),
                     Command::Previous => playback.previous(cx),
                     Command::SeekTo(position_ms) => playback.seek(position_ms.max(0), cx),
-                    Command::Play | Command::Pause | Command::Raise => {}
+                    Command::Raise => {}
                 });
                 if applied.is_err() {
                     return;
                 }
             }
         });
-        Self { backend, published: None, _observe: observe, _commands: commands }
+        Self {
+            backend,
+            published: None,
+            log,
+            local_artwork_for: None,
+            local_artwork: None,
+            local_artwork_task: None,
+            _observe: observe,
+            _commands: commands,
+        }
     }
 
     /// Publishes on every change but the position, and on a position jump the OS cannot
     /// extrapolate (a seek), as the JVM app does.
     fn mirror(&mut self, playback: &Entity<Playback>, cx: &mut Context<Self>) {
+        if self.backend.is_none() {
+            return;
+        }
+        self.follow_local_artwork(playback, cx);
         let Some(backend) = &self.backend else { return };
-        let snapshot = snapshot(playback.read(cx), cx);
+        let snapshot = snapshot(playback.read(cx), self.local_artwork.as_ref());
         let changed = match &self.published {
             None => true,
             Some((previous, at)) => {
@@ -144,17 +167,53 @@ impl MediaSession {
             self.published = Some((snapshot, Instant::now()));
         }
     }
+
+    /// The JVM `localArtworkUrl`, once per current local item: an http(s) or `file:` art url as is;
+    /// the app's art scheme, which no OS process can read, as the loader's scaled file. Tagged with
+    /// its item, so a track change never publishes the previous track's art.
+    fn follow_local_artwork(&mut self, playback: &Entity<Playback>, cx: &mut Context<Self>) {
+        let item = playback.read(cx).current().filter(|item| item.video_id().is_none());
+        let key = item.map(|item| item.key());
+        if key == self.local_artwork_for {
+            return;
+        }
+        self.local_artwork_for = key.clone();
+        self.local_artwork = None;
+        self.local_artwork_task = None;
+        let (Some(key), Some(url)) = (key, item.and_then(|item| item.display_thumbnail_url())) else { return };
+        if url.starts_with("https://") || url.starts_with("http://") || url.starts_with("file:") {
+            self.local_artwork = Some((key, Some(url.to_string())));
+            return;
+        }
+        let Some(loader) = cx.try_global::<GlobalImageLoader>().map(|global| global.0.clone()) else { return };
+        let (log, playback) = (self.log.clone(), playback.clone());
+        self.local_artwork_task = Some(cx.spawn(async move |this, cx| {
+            let request = ImageRequest::of(&url, ARTWORK_PX, ARTWORK_PX, ImageScale::Cover);
+            let artwork = match loader.load_file(&request).await {
+                Ok(file) => file.and_then(|file| url::Url::from_file_path(file).ok()).map(String::from),
+                Err(error) => {
+                    log.warn(&format!("media session artwork unavailable: {url}"), Some(&error));
+                    None
+                }
+            };
+            this.update(cx, |session, cx| {
+                session.local_artwork = Some((key, artwork));
+                session.mirror(&playback, cx);
+            })
+            .ok();
+        }));
+    }
 }
 
-fn snapshot(playback: &Playback, cx: &App) -> Snapshot {
+/// The JVM `ARTWORK_PX`: the local art the OS gets.
+const ARTWORK_PX: u32 = 512;
+
+/// `local_artwork` is the current local item's art (its key, its url).
+fn snapshot(playback: &Playback, local_artwork: Option<&(String, Option<String>)>) -> Snapshot {
     let item = playback.current();
-    let artwork_url = item.and_then(|item| item.thumb(i32::MAX)).and_then(|url| {
-        if !crate::local_art::LocalArt::handles(&url) {
-            return Some(url.to_string());
-        }
-        // The OS cannot read the app's art scheme: the loader's cached file stands in.
-        let art = cx.try_global::<crate::local_art::SharedLocalArt>()?;
-        art.0.cached_file(&url).and_then(|file| url::Url::from_file_path(file).ok()).map(String::from)
+    let artwork_url = item.and_then(|item| match item.video_id() {
+        Some(video_id) => Some(youtube_thumb_url(video_id)),
+        None => local_artwork.filter(|(key, _)| *key == item.key()).and_then(|(_, url)| url.clone()),
     });
     // A video queued without its channel gets it once the player names it.
     let artist = item
@@ -164,7 +223,7 @@ fn snapshot(playback: &Playback, cx: &App) -> Snapshot {
         title: item.map(|item| item.title.clone()),
         artist,
         artwork_url,
-        playing: playback.is_playing(),
+        playing: playback.state.is_playing(),
         position_ms: playback.position_ms.max(0),
         duration_ms: (playback.duration_ms > 0).then_some(playback.duration_ms),
         speed: playback.effects.speed,

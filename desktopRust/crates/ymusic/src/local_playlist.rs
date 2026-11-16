@@ -10,20 +10,24 @@ use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use ym_engine::yt::{YtFeedItem, YtFeedPage};
 use ym_i18n::{Plural, Str, plural, t, tf};
+use ym_image_loader::async_image::async_image_of;
 
 use crate::a11y::FocusList;
 use crate::downloads::offline_ids;
 use crate::elevated_dialog::{
     DEFAULT_WIDTH, ROW_HORIZONTAL, bar_spinner, button_bar, chrome, press, scroll_body, text_button, title_bar,
 };
-use crate::feed::{FeedSource, error_text, thumb_for};
+use crate::feed::{FeedSource, error_text};
 use crate::graph::{AppGraph, on_core};
+use crate::lazy_rows::LazyRows;
 use crate::spinner::Spinner;
+use crate::youtube_thumbnails::thumb_request_sources;
 
 const STOP_LOAD_MORE: usize = 0;
 const STOP_CREATE: usize = 1;
 const STOP_NAME: usize = 2;
 const STOP_CANCEL: usize = 3;
+const VIDEO_ROW_ESTIMATE: f32 = 44.;
 
 pub struct LocalPlaylistFromDownloads {
     source: FeedSource,
@@ -36,6 +40,7 @@ pub struct LocalPlaylistFromDownloads {
     busy: bool,
     focus: FocusList,
     scroll: ScrollHandle,
+    rows: LazyRows,
     _subscription: Subscription,
 }
 
@@ -63,6 +68,7 @@ impl LocalPlaylistFromDownloads {
                 name,
                 busy: false,
                 focus: FocusList::modal(Some(scroll.clone()), cx),
+                rows: LazyRows::new(scroll.clone(), VIDEO_ROW_ESTIMATE),
                 scroll,
                 _subscription: subscription,
             };
@@ -247,38 +253,40 @@ impl Render for LocalPlaylistFromDownloads {
                     .child(t(Str::LocalPlaylistEmpty)),
             );
         }
-        for (index, video) in downloaded.iter().enumerate() {
-            rows = rows.child(
-                h_flex()
-                    .id(("local-video", index))
-                    .w_full()
-                    .gap_4()
-                    .px(px(ROW_HORIZONTAL))
-                    .py_1()
-                    .items_center()
-                    .child(
-                        div()
-                            .flex_shrink_0()
-                            .w(px(64.))
-                            .h(px(36.))
-                            .rounded(px(4.))
-                            .overflow_hidden()
-                            .bg(theme.secondary)
-                            .when_some(thumb_for(&video.thumbs, 128), |frame, url| {
-                                frame.child(img(url).size_full().rounded(px(4.)).object_fit(ObjectFit::Cover))
-                            }),
-                    )
-                    .child(
-                        v_flex()
-                            .flex_1()
-                            .min_w_0()
-                            .child(div().text_sm().truncate().child(video.title.clone()))
-                            .when_some(video.subtitle_line1.clone(), |column, line| {
-                                column.child(div().text_xs().text_color(theme.muted_foreground).truncate().child(line))
-                            }),
+        let videos = self.rows.render(downloaded.len(), 0., [], window, |index| {
+            let video = &downloaded[index];
+            h_flex()
+                .id(("local-video", index))
+                .w_full()
+                .gap_4()
+                .px(px(ROW_HORIZONTAL))
+                .py_1()
+                .items_center()
+                .child(
+                    div()
+                        .flex_shrink_0()
+                        .w(px(64.))
+                        .h(px(36.))
+                        .rounded(px(4.))
+                        .overflow_hidden()
+                        .bg(theme.secondary)
+                        .when_some(thumb_request_sources(&video.thumbs), |frame, request| {
+                            frame.child(
+                                async_image_of(Some(request)).size_full().rounded(px(4.)).object_fit(ObjectFit::Cover),
+                            )
+                        }),
+                )
+                .child(
+                    v_flex().flex_1().min_w_0().child(div().text_sm().truncate().child(video.title.clone())).when_some(
+                        video.subtitle_line1.clone(),
+                        |column, line| {
+                            column.child(div().text_xs().text_color(theme.muted_foreground).truncate().child(line))
+                        },
                     ),
-            );
-        }
+                )
+                .into_any_element()
+        });
+        let rows = rows.child(videos);
         let field = Input::new(&self.name)
             .aria_label(t(Str::PlaylistNameHint))
             .when(duplicate, |input| input.border_color(theme.danger));

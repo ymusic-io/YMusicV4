@@ -18,6 +18,9 @@ pub struct SabrStreamSpec {
     pub formats: Vec<AdaptiveFormat>,
     /// Not SABR: carried because it comes from the same player response.
     pub caption_tracks: Vec<CaptionTrack>,
+    /// The User-Agent the engine fetched this response and minted `po_token` under; None from a
+    /// bundle that predates it.
+    pub user_agent: Option<String>,
 }
 
 /// One timed-text track; `base_url` is a plain GET, ready to fetch.

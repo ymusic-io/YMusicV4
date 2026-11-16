@@ -10,6 +10,10 @@ internal class AppStoreSettings private constructor(private val store: AppStore)
         withContext(Dispatchers.IO) { store.putSetting(key, value) }
     }
 
+    override suspend fun erase(key: String) {
+        withContext(Dispatchers.IO) { store.removeSetting(key) }
+    }
+
     companion object {
         suspend fun open(store: AppStore): AppStoreSettings = withContext(Dispatchers.IO) {
             AppStoreSettings(store).apply { seed(store.settings()) }

@@ -1,11 +1,9 @@
-//! The default component assets, the extra Lucide icons the shell uses, and library artwork.
+//! The default component assets, the extra Lucide icons the shell uses, and the app logo.
 
 use std::borrow::Cow;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
-use gpui_kit::{AssetSource, Result, SharedString};
-
-use crate::local_art::LocalArt;
+use gpui_kit::{App, AssetSource, Img, RenderImage, Result, SharedString, img};
 
 gpui_kit::assets::icon_assets!(
     ShellIcons,
@@ -81,7 +79,9 @@ gpui_kit::assets::icon_assets!(
         Headphones,
         Video,
         AudioLines,
-        Image
+        Image,
+        Scan,
+        Shrink
     ]
 );
 
@@ -89,33 +89,54 @@ gpui_kit::assets::icon_assets!(
 pub const SPONSOR_BLOCK_ICON: &str = "brand/sponsor-block.svg";
 
 pub const LOGO_SVG: &str = include_str!("../assets/ymusic-logo.svg");
-const LOGO_PREFIX: &str = "brand/ymusic-logo@";
 
-/// The app logo, full color, for `img()`, rasterized at `device_px` square: gpui draws an SVG image
-/// at its own size and minifies it unfiltered, so it must arrive at the size it is shown.
-pub fn logo_path(device_px: u32) -> SharedString {
-    format!("{LOGO_PREFIX}{device_px}.svg").into()
+/// One rasterized logo per device-pixel size shown (a window shows one or two).
+static LOGOS: Mutex<Vec<(u32, Arc<RenderImage>)>> = Mutex::new(Vec::new());
+
+/// The app logo, full color, as an image `device_px` square: gpui minifies an image unfiltered, so it
+/// must arrive at the size it is shown. Rasterized here rather than through the asset map.
+pub fn logo(device_px: u32, cx: &App) -> Option<Img> {
+    match logo_image(device_px.max(1)) {
+        Ok(image) => Some(img(image)),
+        Err(error) => {
+            let message = "app logo not rasterized";
+            match cx.try_global::<crate::graph::AppGraph>() {
+                Some(graph) => graph.log.warn(message, Some(error.as_ref())),
+                None => ym_common::log::stderr_line(format_args!("{message}: {error:#}")),
+            }
+            None
+        }
+    }
 }
 
-fn logo_at(path: &str) -> Option<String> {
-    let size: u32 = path.strip_prefix(LOGO_PREFIX)?.strip_suffix(".svg")?.parse().ok()?;
-    Some(LOGO_SVG.replacen(r#"width="1024" height="1024""#, &format!(r#"width="{size}" height="{size}""#), 1))
+fn logo_image(side: u32) -> anyhow::Result<Arc<RenderImage>> {
+    let mut logos = LOGOS.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    if let Some((_, image)) = logos.iter().find(|(size, _)| *size == side) {
+        return Ok(image.clone());
+    }
+    let tree = resvg::usvg::Tree::from_str(LOGO_SVG, &resvg::usvg::Options::default())?;
+    let mut pixmap =
+        resvg::tiny_skia::Pixmap::new(side, side).ok_or_else(|| anyhow::anyhow!("no {side} px logo pixmap"))?;
+    let scale = side as f32 / tree.size().width();
+    resvg::render(&tree, resvg::tiny_skia::Transform::from_scale(scale, scale), &mut pixmap.as_mut());
+    // gpui images are straight BGRA.
+    let pixels = pixmap.pixels().iter().flat_map(|pixel| {
+        let color = pixel.demultiply();
+        [color.blue(), color.green(), color.red(), color.alpha()]
+    });
+    let bgra = image::RgbaImage::from_raw(side, side, pixels.collect())
+        .ok_or_else(|| anyhow::anyhow!("logo buffer does not match its size"))?;
+    let image = Arc::new(RenderImage::new(vec![image::Frame::new(bgra)]));
+    logos.push((side, image.clone()));
+    Ok(image)
 }
 
-pub struct AppAssets {
-    pub local_art: Arc<LocalArt>,
-}
+pub struct AppAssets;
 
 impl AssetSource for AppAssets {
     fn load(&self, path: &str) -> Result<Option<Cow<'static, [u8]>>> {
-        if LocalArt::handles(path) {
-            return self.local_art.load(path).map(Some);
-        }
         if path == SPONSOR_BLOCK_ICON {
             return Ok(Some(Cow::Borrowed(include_bytes!("../assets/sponsor-block.svg"))));
-        }
-        if let Some(svg) = logo_at(path) {
-            return Ok(Some(Cow::Owned(svg.into_bytes())));
         }
         match ShellIcons.load(path) {
             Ok(Some(bytes)) => Ok(Some(bytes)),

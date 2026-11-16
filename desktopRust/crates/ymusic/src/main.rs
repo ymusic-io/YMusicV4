@@ -3,6 +3,7 @@
 
 mod a11y;
 mod accent;
+mod account;
 mod account_view;
 mod action_icon;
 mod app_update;
@@ -25,15 +26,17 @@ mod feedback_view;
 mod file_rename;
 mod fps_badge;
 mod graph;
-mod http_client;
+mod images;
 mod instance;
 #[cfg(target_os = "windows")]
 mod jump_list;
 mod launch;
+mod lazy_rows;
 mod library;
 mod library_playlist;
 mod library_search;
 mod local_art;
+mod local_captions;
 mod local_engine;
 mod local_playlist;
 mod media_session;
@@ -47,6 +50,7 @@ mod player_cache;
 mod playlist_download;
 mod playlist_transfer;
 mod queue_nav;
+mod queue_source;
 mod quick_download;
 mod reorder;
 mod search_filter;
@@ -74,6 +78,7 @@ mod win_title_bar;
 #[cfg(target_os = "windows")]
 mod win_video_layer;
 mod youtube_session;
+mod youtube_thumbnails;
 mod yt_playlist;
 
 use gpui_kit::*;
@@ -82,7 +87,6 @@ use ym_i18n::{Str, t};
 
 use crate::cookie_session::{CookieOpen, LockedJar};
 use crate::graph::AppGraph;
-use crate::http_client::ReqwestHttpClient;
 use crate::launch::{BootInputs, Launch};
 
 enum Start {
@@ -139,7 +143,7 @@ fn main() {
     let tokio =
         tokio::runtime::Builder::new_multi_thread().enable_all().thread_name("ym-core").build().expect("tokio runtime");
     let http = HttpClients::new().expect("HTTP client");
-    let local_art = std::sync::Arc::new(crate::local_art::LocalArt::new(data_dir.join("art-cache"), log.fork("art")));
+    let image_loader = crate::images::image_loader(&data_dir, http.following.clone(), tokio.handle().clone(), &log);
     let app_db = graph::open_app_db(&data_dir).unwrap_or_else(|error| boot_failed(&log, &error));
     crate::data_files::import_legacy_files(&app_db, &data_dir, &log);
     let reporting =
@@ -154,7 +158,9 @@ fn main() {
     crate::data_files::adopt_jvm_settings(&app_db, &log);
     crate::desktop::adopt_saved_bounds(&app_db, &window_prefs, &log.fork("window"));
     let saved_window = crate::desktop::load_window_prefs(&window_prefs);
-    crate::settings_view::apply_language(app_db.as_ref());
+    crate::settings_view::apply_language(app_db.as_ref()).unwrap_or_else(|error| {
+        boot_failed(&log, &ym_engine::EngineError::site("R91100", format!("UI language not seeded: {error}")))
+    });
     let inputs = crate::launch::BootInputs {
         tokio: tokio.handle().clone(),
         log: log.clone(),
@@ -174,13 +180,12 @@ fn main() {
             Start::Locked(locked, inputs)
         }
     };
-    let images = ReqwestHttpClient::new(http.following.clone(), tokio.handle().clone());
     #[cfg(target_os = "linux")]
     let tokio_handle = tokio.handle().clone();
 
     crate::a11y::install_debug_log();
-    let assets = crate::assets::AppAssets { local_art: local_art.clone() };
-    let app = application().with_assets(assets).with_http_client(images);
+    let assets = crate::assets::AppAssets;
+    let app = application().with_assets(assets);
     // Opening the app again (Finder, Spotlight, the Dock) brings a window closed to the tray back.
     app.on_reopen(|cx| {
         if let Some(shell) = cx.try_global::<crate::shell::ShellHandle>().and_then(|handle| handle.0.upgrade()) {
@@ -193,6 +198,7 @@ fn main() {
         let _ = inbox_sender.unbounded_send(crate::instance::Request::from_urls(urls));
     });
     app.run(move |cx| {
+        crate::settings_view::apply_layout_direction(cx);
         init(cx);
         cx.set_global(crate::instance::Inbox(inbox));
         cx.on_app_quit(|_| {
@@ -200,7 +206,7 @@ fn main() {
             async {}
         })
         .detach();
-        cx.set_global(crate::local_art::SharedLocalArt(local_art));
+        ym_image_loader::async_image::init(image_loader, cx);
         crate::shortcuts::bind(cx);
         crate::a11y::init(cx);
         crate::reorder::SystemMotion::init(cx);
@@ -256,6 +262,8 @@ fn main() {
         cx.set_global(upgrade_notice);
         let options = WindowOptions {
             window_bounds: Some(window_bounds),
+            // Same floor as the JVM app: small enough to float as a mini video player.
+            window_min_size: Some(size(px(275.), px(170.))),
             // Windows hides the native caption: the app draws its title bar (`win_title_bar`).
             titlebar: Some(TitlebarOptions {
                 title: Some(t(Str::AppName).into()),
@@ -298,7 +306,7 @@ fn main() {
         .expect("open main window");
         #[cfg(target_os = "linux")]
         crate::video_surface::follow_render_device(log.fork("video"));
-        cx.activate(true);
+        crate::desktop::activate_app(cx);
     });
     drop(tokio);
 }

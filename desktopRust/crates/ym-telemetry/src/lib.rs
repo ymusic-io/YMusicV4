@@ -1,8 +1,8 @@
-//! Crash and error reporting to Sentry, as the JVM app reports: warnings and errors ride as
-//! breadcrumbs, `capture_error` is the one event of a failed job (tagged with its trail and error
-//! code, grouped by that code, its run's newest unsent app-log lines sent as Sentry Logs on its
-//! trace), panics are reported by the SDK with those lines too, and the user's switch gates every
-//! event live.
+//! Crash and error reporting to Sentry, as the JVM app reports: log lines stay in the app log,
+//! `capture_error` is the one event of a failed job (tagged with its trail and error code, its trail
+//! hops as breadcrumbs, grouped by that code, its run's newest unsent app-log lines sent as Sentry
+//! Logs on its trace), panics are reported by the SDK with those lines too, and the user's switch
+//! gates every event live.
 
 mod feedback;
 mod log_shipper;
@@ -31,6 +31,10 @@ const ENGINE_VERSION_TAG: &str = "engine.version";
 const PLAYER_VERSION_TAG: &str = "player.version";
 /// Failures that are never defects: the UI already shows their localized category.
 const IGNORED_CATEGORIES: &[&str] = &["network"];
+/// The well-known categories an error's text starts with (`EngineError` shows `<code>: <message>`).
+const CATEGORIES: &[&str] = &["network", "parse", "oom", "captcha", "disk_full", "playback_unavailable"];
+/// How far down an error's sources the code is looked for (the JVM codedError's cycle guard).
+const CODE_CAUSE_DEPTH: usize = 100;
 /// As the JVM app keeps.
 const MAX_BREADCRUMBS: usize = 200;
 /// This workspace's crates: a panic's culprit is the topmost of their frames, never the SDK's or gpui's.
@@ -164,6 +168,55 @@ pub trait ReportPolicy: Send + Sync {
     fn error_log_lines(&self) -> i64;
     /// The share of non-fatal errors sent, 0..=1.
     fn error_sample_rate(&self) -> f64;
+    /// Regex patterns whose match keeps a non-fatal error out of Sentry.
+    fn error_filters(&self) -> Vec<String> {
+        Vec::new()
+    }
+}
+
+/// How many errors down the source chain the filters look (the JVM ErrorPolicy's MAX_CAUSE_DEPTH).
+const FILTER_CAUSE_DEPTH: usize = 5;
+/// The longest text a filter runs on, bounding a careless pattern's backtracking (MAX_SUBJECT_CHARS).
+const FILTER_SUBJECT_CHARS: usize = 512;
+
+/// The filters as compiled regexes, compiled again only when the list changes (the JVM app builds
+/// one ErrorPolicy per rule set).
+fn compiled_filters(filters: &[String]) -> Arc<Vec<regex::Regex>> {
+    type Compiled = (Vec<String>, Arc<Vec<regex::Regex>>);
+    static COMPILED: Mutex<Option<Compiled>> = Mutex::new(None);
+    let mut compiled = COMPILED.lock().unwrap_or_else(PoisonError::into_inner);
+    if let Some((source, patterns)) = compiled.as_ref()
+        && source.as_slice() == filters
+    {
+        return patterns.clone();
+    }
+    let patterns = Arc::new(filters.iter().filter_map(|pattern| regex::Regex::new(pattern).ok()).collect::<Vec<_>>());
+    *compiled = Some((filters.to_vec(), patterns.clone()));
+    patterns
+}
+
+/// The JVM ErrorPolicy.matchesFilter: any pattern found in the text of the error or one of its
+/// sources. Rust errors have no class name, so the text alone is the subject; an invalid pattern is
+/// skipped.
+fn matches_filter(filters: &[String], error: &(dyn std::error::Error + 'static)) -> bool {
+    let patterns = compiled_filters(filters);
+    if patterns.is_empty() {
+        return false;
+    }
+    let mut cause: Option<&(dyn std::error::Error + 'static)> = Some(error);
+    let mut depth = 0;
+    while let Some(current) = cause {
+        if depth == FILTER_CAUSE_DEPTH {
+            break;
+        }
+        depth += 1;
+        let subject: String = current.to_string().chars().take(FILTER_SUBJECT_CHARS).collect();
+        if patterns.iter().any(|pattern| pattern.is_match(&subject)) {
+            return true;
+        }
+        cause = current.source();
+    }
+    false
 }
 
 pub struct Telemetry {
@@ -247,38 +300,50 @@ fn trail_path(trail: &[Crumb]) -> String {
     trail.iter().map(|crumb| crumb.tag.as_str()).collect::<Vec<_>>().join("/")
 }
 
-/// The code an error carries: a category word at the start, else the first site code in its text.
-fn error_code(text: &str) -> Option<String> {
-    if let Some(category) = IGNORED_CATEGORIES.iter().find(|category| text.starts_with(*category)) {
+/// The code an error carries, as the JVM codedError: the deepest of its sources that has one wins,
+/// the code closest to the root cause being the most specific.
+fn error_code(error: &(dyn Error + 'static)) -> Option<String> {
+    let mut deepest = None;
+    let mut cause: Option<&(dyn Error + 'static)> = Some(error);
+    let mut depth = 0;
+    while let Some(current) = cause {
+        if depth == CODE_CAUSE_DEPTH {
+            break;
+        }
+        depth += 1;
+        if let Some(code) = text_code(&current.to_string()) {
+            deepest = Some(code);
+        }
+        cause = current.source();
+    }
+    deepest
+}
+
+/// A category word the text starts with, else the first site code in it.
+fn text_code(text: &str) -> Option<String> {
+    let leading = text.split(':').next().unwrap_or_default();
+    if let Some(category) = CATEGORIES.iter().find(|category| **category == leading) {
         return Some((*category).to_owned());
     }
     let bytes = text.as_bytes();
     (0..bytes.len().saturating_sub(5)).find_map(|start| {
         let candidate = text.get(start..start + 6)?;
-        let code = candidate.as_bytes();
         let bounded = (start == 0 || !bytes[start - 1].is_ascii_alphanumeric())
             && bytes.get(start + 6).is_none_or(|next| !next.is_ascii_alphanumeric());
-        (bounded && matches!(code[0], b'E' | b'R') && code[1..].iter().all(u8::is_ascii_digit))
-            .then(|| candidate.to_owned())
+        (bounded && is_site_code(candidate)).then(|| candidate.to_owned())
     })
 }
 
+/// `E#####` (YMusicV4, engine-js, the server) or `R#####` (this app): one throw site.
+fn is_site_code(code: &str) -> bool {
+    let bytes = code.as_bytes();
+    bytes.len() == 6 && matches!(bytes[0], b'E' | b'R') && bytes[1..].iter().all(u8::is_ascii_digit)
+}
+
 impl LogSink for SentrySink {
-    fn log(&self, level: Level, trail: &[Crumb], message: &str, error: Option<&(dyn Error + 'static)>) {
-        if level < Level::Warn {
-            return;
-        }
-        let text = match error {
-            Some(error) => format!("{message}: {error}"),
-            None => message.to_owned(),
-        };
-        sentry::add_breadcrumb(Breadcrumb {
-            category: Some(trail_path(trail)),
-            message: Some(text),
-            level: if level == Level::Error { SentryLevel::Error } else { SentryLevel::Warning },
-            ..Default::default()
-        });
-    }
+    /// Lines are not sent from here (the JVM SentryLogger.log): the app log keeps them, and an error
+    /// event takes the newest along.
+    fn log(&self, _level: Level, _trail: &[Crumb], _message: &str, _error: Option<&(dyn Error + 'static)>) {}
 
     fn capture_error(&self, trail: &[Crumb], message: &str, error: &(dyn Error + 'static)) {
         self.capture_error_with(trail, message, error, &CaptureExtras::default());
@@ -294,9 +359,11 @@ impl LogSink for SentrySink {
         if !reports_allowed() {
             return;
         }
-        let description = error.to_string();
-        let code = error_code(&description).or_else(|| error_code(message));
+        let code = error_code(error).or_else(|| text_code(message));
         if code.as_deref().is_some_and(|code| IGNORED_CATEGORIES.contains(&code)) {
+            return;
+        }
+        if matches_filter(&self.policy.error_filters(), error) {
             return;
         }
         let rate = self.policy.error_sample_rate().clamp(0.0, 1.0);
@@ -350,11 +417,15 @@ impl LogSink for SentrySink {
     }
 }
 
-/// The JVM app's grouping: a site code is one throw site, one issue; an uncoded error groups by its
-/// type within its trail, so one failure shape in two subsystems stays two issues.
+/// The JVM app's grouping: a site code is one throw site, one issue; a category code ("parse",
+/// "oom") is shared by every subsystem, so it groups per trail, as an uncoded error groups by its type
+/// within its trail: one failure shape in two subsystems stays two issues.
 fn fingerprint(code: Option<&str>, trail: &str, event: &Event<'_>) -> Option<Vec<String>> {
     if let Some(code) = code {
-        return Some(vec![code.to_owned()]);
+        if is_site_code(code) || trail.is_empty() {
+            return Some(vec![code.to_owned()]);
+        }
+        return Some(vec![code.to_owned(), trail.to_owned()]);
     }
     if trail.is_empty() {
         return None;

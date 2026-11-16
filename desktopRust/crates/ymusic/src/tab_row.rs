@@ -38,11 +38,11 @@ pub fn tab_row(
                 .rounded(px(6.))
                 .text_sm()
                 .hover(|style| style.bg(theme.primary.opacity(HOVER_ALPHA)))
-                .when(active, |tab| tab.font_semibold().text_color(theme.foreground))
+                .when(active, |tab| tab.font_semibold().text_color(theme.primary))
                 .when(!active, |tab| tab.text_color(theme.muted_foreground))
                 .child(label)
                 .when(active, |tab| {
-                    tab.child(div().absolute().bottom_0().left_3().right_3().h(px(2.)).bg(theme.foreground))
+                    tab.child(div().absolute().bottom_0().left_3().right_3().h(px(2.)).bg(theme.primary))
                 })
                 .on_click(move |_, window, cx| on_select(index, window, cx)),
         );

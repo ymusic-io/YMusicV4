@@ -15,6 +15,13 @@ pub fn lucide_size(material_size: f32) -> f32 {
     (material_size * 20. / 24. / 2.).round() * 2.
 }
 
+/// `icon` flipped in a right-to-left UI, for a glyph that points along the reading direction (back,
+/// a disclosure chevron), as Compose's AutoMirrored icons are.
+pub fn auto_mirrored(icon: impl Into<Icon>) -> Icon {
+    let icon = icon.into();
+    if ym_i18n::is_rtl() { icon.transform(Transformation::scale(size(-1., 1.))) } else { icon }
+}
+
 /// A ghost button: a Lucide `icon` matching the standard glyph in the standard hit target, `label`
 /// spoken and shown as its tooltip.
 pub fn action_icon(id: impl Into<ElementId>, icon: impl Into<Icon>, label: impl Into<SharedString>) -> Button {

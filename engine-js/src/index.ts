@@ -8,3 +8,4 @@ import "./protocol/http"; // HttpRequest over the "http" pipe command
 // whichever scraping module imports { Cookies }, not registered here.
 import "./lifecycle"; // "init" health check + "shutdown" (SIGINT as a pipe)
 import "./logic"; // scraping logic (no player)
+import "./logic/yt/user_agent"; // DESKTOP_UA on every request that sets no User-Agent

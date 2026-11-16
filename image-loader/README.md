@@ -45,7 +45,7 @@ Our own simple Compose image loader (jvm + android + compose-iOS targets).
 - **Concurrency** — two **LIFO gates**: http(s) sources and local ones (files, `art:`) get separate pools, so a slow
   download never holds up a local cover. Newest request first; a load whose every caller cancelled frees its slot.
 
-- **Memory budget** — `defaultMemoryCacheBudget()`: desktop ~1/128 of physical RAM (32–128MB; 64MB when the jlinked
+- **Memory budget** — `defaultMemoryCacheBudget()`: desktop ~1/128 of physical RAM (16–30MB; 30MB when the jlinked
   runtime lacks `jdk.management`), Android a slice of the heap class (16–256MB).
 
 - **AsyncImage** — `AsyncImage(loader, url, …)` or `AsyncImage(loader, key, sources, …)` measures itself and loads

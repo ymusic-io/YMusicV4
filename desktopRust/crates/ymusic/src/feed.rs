@@ -12,14 +12,16 @@ use gpui_kit::component::{
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use ym_common::log::Logger;
-use ym_engine::yt::{YtFeedItem, YtFeedPage, YtFilterGroup, YtPageHeader, YtSectionHeader, YtThumb};
+use ym_engine::yt::{YtFeedItem, YtFeedPage, YtFilterGroup, YtPageHeader, YtSectionHeader};
 use ym_engine::{DynamicEngine, EngineError, ErrorKind};
 use ym_i18n::{Str, t, tf};
+use ym_image_loader::async_image::async_image_of;
 
 use crate::a11y::{DragRow, FocusList, alert, announced, announced_as, heading, list_item};
 use crate::action_icon::{HIT, action_icon, sized_action_icon};
 use crate::download_dialog::DownloadTarget;
 use crate::graph::{AppGraph, on_core};
+use crate::lazy_rows::LazyRows;
 use crate::local_playlist::LocalPlaylistFromDownloads;
 use crate::offline::{OfflineMarks, offline_mark};
 use crate::playlist_download::PlaylistDownload;
@@ -27,6 +29,7 @@ use crate::quick_download::saved_preset;
 use crate::settings_view::{HOVER_ALPHA, StackTones};
 use crate::spinner::{BusyButton, LoadingLine, Spinner};
 use crate::tab_row::tab_row;
+use crate::youtube_thumbnails::thumb_request_sources;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum FeedSource {
@@ -116,7 +119,14 @@ impl FeedSource {
         match &self {
             Self::TopTracks => top_tracks(history).await,
             Self::Account => engine.account_library(continuation, &log).await,
-            Self::Home => engine.home_feed(continuation, refresh, &log).await,
+            // Home is a music app's front door: music first, per section (across sections would tear
+            // headers off their items).
+            Self::Home => engine.home_feed(continuation, refresh, &log).await.map(|mut page| {
+                for section in &mut page.sections {
+                    section.items = rank_music_first(std::mem::take(&mut section.items));
+                }
+                page
+            }),
             Self::Trending => engine.trending_music_feed(&log).await,
             Self::Recommended => engine.recommended_feed(&log).await,
             Self::MusicHome => engine.music_home(continuation, refresh, &log).await,
@@ -192,6 +202,11 @@ pub struct Play {
     pub item: YtFeedItem,
     pub queue: Option<Vec<YtFeedItem>>,
     pub shuffle: bool,
+    /// The playlist page whose list the queue continues past the loaded videos (the JVM
+    /// `queueSource` of a playlist page).
+    pub playlist: Option<String>,
+    /// That playlist's length, loaded or not, when its page says.
+    pub playlist_total: Option<i32>,
 }
 
 /// Something to do with a video besides opening it.
@@ -263,10 +278,15 @@ pub struct FeedView {
     chips_drag: DragRow,
     tabs_drag: DragRow,
     carousel_drags: std::cell::RefCell<std::collections::HashMap<usize, DragRow>>,
+    /// Each list or grid section's lazily built rows, by section.
+    section_rows: std::cell::RefCell<std::collections::HashMap<usize, LazyRows>>,
+    carousel_rows: std::cell::RefCell<std::collections::HashMap<usize, LazyRows>>,
     offline: Entity<OfflineMarks>,
-    /// Channel items offer Subscribe / Unsubscribe only when signed in.
-    signed_in: bool,
+    /// False for a signed-in-only feed until its owner confirms a sign-in: it fetches nothing before
+    /// (the JVM Account and YT Music Library tabs build their session only once signed in).
+    gate_open: bool,
     _offline: Subscription,
+    _accounts: Subscription,
 }
 
 /// Which page header a detail page shows.
@@ -288,10 +308,12 @@ impl EventEmitter<ItemAction> for FeedView {}
 
 impl FeedView {
     pub fn new(source: FeedSource, title: Option<SharedString>, cx: &mut Context<Self>) -> Self {
+        let source_needs_sign_in = matches!(source, FeedSource::Account | FeedSource::MusicLibrary);
         let scroll = ScrollHandle::new();
         OfflineMarks::refresh(cx);
         let offline = OfflineMarks::shared(cx);
         let observe_offline = cx.observe(&offline, |_, _, cx| cx.notify());
+        let observe_accounts = cx.observe(&crate::account::AccountController::global(cx), |_, _, cx| cx.notify());
         let mut view = Self {
             source,
             title,
@@ -315,16 +337,31 @@ impl FeedView {
             chips_drag: DragRow::default(),
             tabs_drag: DragRow::default(),
             carousel_drags: Default::default(),
+            section_rows: Default::default(),
+            carousel_rows: Default::default(),
             offline,
-            signed_in: false,
+            gate_open: !source_needs_sign_in,
             _offline: observe_offline,
+            _accounts: observe_accounts,
         };
-        view.reload(cx);
+        if view.gate_open {
+            view.reload(cx);
+        }
         view
+    }
+
+    /// Lets a signed-in-only feed fetch (true) or holds it (false).
+    pub fn open_gate(&mut self, open: bool) {
+        self.gate_open = open;
     }
 
     pub fn title(&self) -> Option<SharedString> {
         self.title.clone().or_else(|| self.page.page_header.as_ref()?.title.clone().map(Into::into))
+    }
+
+    /// A YouTube Music page (album, artist, playlist), whose search is music search.
+    pub fn is_music_page(&self) -> bool {
+        matches!(self.source, FeedSource::MusicBrowse(_))
     }
 
     /// Playlists title their bar "Playlist", not with the playlist's name.
@@ -365,7 +402,23 @@ impl FeedView {
             return;
         }
         let start = if shuffle { rand::Rng::random_range(&mut rand::rng(), 0..videos.len()) } else { 0 };
-        cx.emit(Play { item: videos[start].clone(), queue: Some(videos), shuffle });
+        let (playlist, playlist_total) = (self.playlist_url(), self.playlist_total());
+        cx.emit(Play { item: videos[start].clone(), queue: Some(videos), shuffle, playlist, playlist_total });
+    }
+
+    /// A playlist page's link, which its queue continues from.
+    fn playlist_total(&self) -> Option<i32> {
+        self.page.page_header.as_ref().and_then(|header| header.item_count)
+    }
+
+    fn playlist_url(&self) -> Option<String> {
+        if self.header_kind() != HeaderKind::Playlist {
+            return None;
+        }
+        match &self.source {
+            FeedSource::Playlist(url) | FeedSource::MusicBrowse(url) => Some(url.clone()),
+            _ => None,
+        }
     }
 
     fn share_page(&self) -> Option<String> {
@@ -482,6 +535,9 @@ impl FeedView {
 
     pub fn reload(&mut self, cx: &mut Context<Self>) {
         self.phase = Phase::Loading;
+        if !self.gate_open {
+            return;
+        }
         self.fetch(None, false, cx);
     }
 
@@ -489,6 +545,9 @@ impl FeedView {
     /// filter, the current list staying up under the loading line until the new one lands; a
     /// failure keeps it and says why.
     pub fn refresh(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if !self.gate_open {
+            return;
+        }
         if !matches!(self.phase, Phase::Ready) {
             return self.reload(cx);
         }
@@ -613,7 +672,6 @@ impl FeedView {
                     Some(Ok(page)) if append => view.append(page),
                     Some(Ok(page)) => {
                         view.replace(page, false);
-                        view.check_signed_in(cx);
                     }
                     Some(Err(error)) if append => view.more_failed = Some(error),
                     Some(Err(error)) => view.phase = Phase::Failed(error),
@@ -649,34 +707,6 @@ impl FeedView {
         self.more_failed = None;
     }
 
-    /// Reads the cookie-only sign-in gate when the page has channel items to offer Subscribe on.
-    fn check_signed_in(&mut self, cx: &mut Context<Self>) {
-        let has_channels =
-            self.page.sections.iter().any(|section| section.items.iter().any(|item| item.kind == "channel"));
-        if !has_channels {
-            return;
-        }
-        let graph = cx.global::<AppGraph>();
-        let (engine, log) = (graph.engine(), graph.log.fork("feed-signed-in"));
-        let status = on_core(cx, async move {
-            let status = engine.login_status(&log).await;
-            if let Err(error) = &status {
-                log.warn("sign-in status could not be read", Some(error));
-            }
-            status
-        });
-        cx.spawn(async move |this, cx| {
-            if let Some(Ok(signed_in)) = status.await {
-                this.update(cx, |view, cx| {
-                    view.signed_in = signed_in;
-                    cx.notify();
-                })
-                .ok();
-            }
-        })
-        .detach();
-    }
-
     /// Subscribe / Unsubscribe from a channel item's menu, reported by notification.
     fn subscribe_channel(&mut self, channel_id: String, subscribe: bool, window: &mut Window, cx: &mut Context<Self>) {
         let graph = cx.global::<AppGraph>();
@@ -708,7 +738,12 @@ impl FeedView {
         let title = Some(SharedString::from(item.title.clone()));
         let source = match item.kind.as_str() {
             "video" => {
-                cx.emit(Play { item: item.clone(), queue, shuffle: false });
+                // On a playlist page a tap plays the page's list from that video (the JVM playAll with
+                // the page's queue source); elsewhere a section's own queue, or a radio.
+                let playlist = self.playlist_url();
+                let queue = if playlist.is_some() { Some(self.videos()) } else { queue };
+                let playlist_total = self.playlist_total();
+                cx.emit(Play { item: item.clone(), queue, shuffle: false, playlist, playlist_total });
                 return;
             }
             "playlist" => item
@@ -736,6 +771,13 @@ impl FeedView {
             self.source = source;
             self.phase = Phase::Loading;
             self.fetch(None, false, cx);
+        }
+    }
+
+    /// The Ctrl/Cmd+digit handler of a page with its own tab row (a channel's).
+    pub fn select_page_tab(&mut self, index: usize, cx: &mut Context<Self>) {
+        if let Some(url) = self.page.page_tabs.get(index).and_then(|tab| tab.url.clone()) {
+            self.open_tab(url, cx);
         }
     }
 }
@@ -770,19 +812,6 @@ fn section_title(header: &YtSectionHeader) -> Option<String> {
         })
     });
     localized.map(|key| t(key).to_owned()).or_else(|| header.title.clone())
-}
-
-/// The smallest variant at least `width` px wide, else the largest.
-pub fn thumb_for(thumbs: &[YtThumb], width: i32) -> Option<SharedString> {
-    thumbs
-        .iter()
-        .find(|thumb| thumb.w.is_some_and(|w| w >= width))
-        .or_else(|| thumbs.last())
-        .map(|thumb| absolute_url(&thumb.url).into())
-}
-
-fn absolute_url(url: &str) -> String {
-    if url.starts_with("//") { format!("https:{url}") } else { url.to_owned() }
 }
 
 fn centered(content: impl IntoElement) -> Div {
@@ -887,8 +916,8 @@ impl FeedView {
     /// The banner (when there is one), then avatar, name, meta and Subscribe.
     fn render_channel_header(&self, header: &YtPageHeader, cx: &mut Context<Self>) -> AnyElement {
         let theme = cx.theme().clone();
-        let avatar = thumb_for(&header.thumbs, 128);
-        let banner = thumb_for(&header.banner, 1280);
+        let avatar = thumb_request_sources(&header.thumbs);
+        let banner = thumb_request_sources(&header.banner);
         let meta = [header.subtitle_line1.clone(), header.subtitle_line2.clone()]
             .into_iter()
             .flatten()
@@ -902,7 +931,7 @@ impl FeedView {
             self.actions.button(ACTION_SUBSCRIBE, pill, cx)
         });
         v_flex()
-            .when_some(banner, |column, url| {
+            .when_some(banner, |column, request| {
                 column.child(
                     div()
                         .mx_4()
@@ -911,7 +940,7 @@ impl FeedView {
                         .rounded(px(12.))
                         .overflow_hidden()
                         .bg(theme.secondary)
-                        .child(img(url).size_full().rounded(px(12.)).object_fit(ObjectFit::Cover)),
+                        .child(async_image_of(Some(request)).size_full().rounded(px(12.)).object_fit(ObjectFit::Cover)),
                 )
             })
             .child(
@@ -920,8 +949,14 @@ impl FeedView {
                     .py_2()
                     .gap_4()
                     .items_center()
-                    .when_some(avatar, |row, url| {
-                        row.child(img(url).size(px(64.)).rounded_full().object_fit(ObjectFit::Cover).flex_shrink_0())
+                    .when_some(avatar, |row, request| {
+                        row.child(
+                            async_image_of(Some(request))
+                                .size(px(64.))
+                                .rounded_full()
+                                .object_fit(ObjectFit::Cover)
+                                .flex_shrink_0(),
+                        )
                     })
                     .child(
                         v_flex()
@@ -981,14 +1016,20 @@ impl FeedView {
 
     fn render_generic_header(&self, header: &YtPageHeader, cx: &App) -> AnyElement {
         let theme = cx.theme();
-        let avatar = thumb_for(&header.thumbs, 160);
+        let avatar = thumb_request_sources(&header.thumbs);
         h_flex()
             .px_4()
             .pt_2()
             .gap_4()
             .pb_2()
-            .when_some(avatar, |row, url| {
-                row.child(img(url).size(px(88.)).rounded_full().object_fit(ObjectFit::Cover).flex_shrink_0())
+            .when_some(avatar, |row, request| {
+                row.child(
+                    async_image_of(Some(request))
+                        .size(px(88.))
+                        .rounded_full()
+                        .object_fit(ObjectFit::Cover)
+                        .flex_shrink_0(),
+                )
             })
             .child(
                 v_flex()
@@ -1037,6 +1078,8 @@ const ACTION_RETRY_MORE: usize = 10;
 /// The page's Show more, after any chip.
 const CHIPS_SHOW_MORE: usize = 64;
 const ROW_GAP: f32 = 16.;
+const FEED_ROW_ESTIMATE: f32 = 112.;
+const CAROUSEL_CELL: f32 = 80.;
 
 impl Bands {
     fn for_width(width: f32) -> Self {
@@ -1134,7 +1177,8 @@ impl FeedView {
         let target = item.clone();
         let top_tracks = matches!(self.source, FeedSource::TopTracks);
         let downloaded = self.downloaded(item, cx);
-        let channel_id = (item.kind == "channel" && self.signed_in)
+        let signed_in = crate::account::AccountController::global(cx).read(cx).signed_in;
+        let channel_id = (item.kind == "channel" && signed_in)
             .then(|| item.channel_id.clone().unwrap_or_else(|| item.id.clone()))
             .filter(|id| !id.is_empty());
         let more = action_icon(
@@ -1186,7 +1230,7 @@ impl FeedView {
                 }
                 if video && downloaded {
                     let video_id = target.id.clone();
-                    menu = menu.separator().label(t(Str::SectionLibrary)).item(
+                    menu = menu.item(crate::settings_view::menu_divider()).label(t(Str::SectionLibrary)).item(
                         PopupMenuItem::new(t(Str::CdAddToPlaylist)).on_click(move |_, window, cx| {
                             crate::library_playlist::AddToLocalPlaylist::open(vec![video_id.clone()], None, window, cx);
                         }),
@@ -1225,7 +1269,13 @@ impl FeedView {
 
     fn menu_action(&mut self, item: YtFeedItem, action: MenuAction, window: &mut Window, cx: &mut Context<Self>) {
         match action {
-            MenuAction::PlaySingle => cx.emit(Play { item: item.clone(), queue: Some(vec![item]), shuffle: false }),
+            MenuAction::PlaySingle => cx.emit(Play {
+                item: item.clone(),
+                queue: Some(vec![item]),
+                shuffle: false,
+                playlist: None,
+                playlist_total: None,
+            }),
             MenuAction::Feed(action) => cx.emit(ItemAction { item, action }),
             MenuAction::Share => {
                 if let Some(link) = share_link(&item) {
@@ -1307,14 +1357,17 @@ impl FeedView {
                     v_flex()
                         .items_center()
                         .gap_1()
-                        .child(
-                            div().size(px(76.)).rounded_full().overflow_hidden().bg(theme.secondary).when_some(
-                                thumb_for(&item.thumbs, 152),
-                                |frame, url| {
-                                    frame.child(img(url).size_full().rounded_full().object_fit(ObjectFit::Cover))
-                                },
-                            ),
-                        )
+                        .child(div().size(px(76.)).rounded_full().overflow_hidden().bg(theme.secondary).when_some(
+                            thumb_request_sources(&item.thumbs),
+                            |frame, request| {
+                                frame.child(
+                                    async_image_of(Some(request))
+                                        .size_full()
+                                        .rounded_full()
+                                        .object_fit(ObjectFit::Cover),
+                                )
+                            },
+                        ))
                         .child(div().pt_1().text_sm().font_medium().truncate().child(item.title.clone()))
                         .when_some(subtitle(item), |column, line| {
                             column.child(div().text_xs().text_color(theme.muted_foreground).truncate().child(line))
@@ -1331,8 +1384,8 @@ impl FeedView {
             .rounded(px(5.))
             .overflow_hidden()
             .bg(theme.secondary)
-            .when_some(thumb_for(&item.thumbs, 640), |frame, url| {
-                frame.child(img(url).size_full().rounded(px(5.)).object_fit(ObjectFit::Cover))
+            .when_some(thumb_request_sources(&item.thumbs), |frame, request| {
+                frame.child(async_image_of(Some(request)).size_full().rounded(px(5.)).object_fit(ObjectFit::Cover))
             })
             .when(self.downloaded(item, cx), |frame| frame.child(offline_mark(theme.primary, 5.)))
             .when_some(badge(item), |frame, text| {
@@ -1402,8 +1455,8 @@ impl FeedView {
             .bg(theme.secondary)
             .when(round, |frame| frame.rounded_full())
             .when(!round, |frame| frame.rounded(px(6.)))
-            .when_some(thumb_for(&item.thumbs, (width * 2.) as i32), |frame, url| {
-                let picture = img(url).size_full().object_fit(ObjectFit::Cover);
+            .when_some(thumb_request_sources(&item.thumbs), |frame, request| {
+                let picture = async_image_of(Some(request)).size_full().object_fit(ObjectFit::Cover);
                 frame.child(if round { picture.rounded_full() } else { picture.rounded(px(6.)) })
             })
             .when(self.downloaded(item, cx), |frame| frame.child(offline_mark(theme.primary, 6.)))
@@ -1472,7 +1525,7 @@ impl FeedView {
     ) -> AnyElement {
         let theme = cx.theme().clone();
         let title = header.and_then(section_title);
-        let avatar = header.and_then(|header| thumb_for(&header.icon_thumbs, 52));
+        let avatar = header.and_then(|header| thumb_request_sources(&header.icon_thumbs));
         let count = header.and_then(|header| header.count.clone());
         let cta = header.and_then(|header| header.cta_deeplink.clone().zip(header.cta_text.clone()));
         h_flex()
@@ -1482,7 +1535,9 @@ impl FeedView {
             .gap_2()
             .items_center()
             .child(div().w(px(4.)).h(px(16.)).rounded_sm().bg(theme.primary))
-            .when_some(avatar, |row, url| row.child(img(url).size(px(26.)).rounded_full().object_fit(ObjectFit::Cover)))
+            .when_some(avatar, |row, request| {
+                row.child(async_image_of(Some(request)).size(px(26.)).rounded_full().object_fit(ObjectFit::Cover))
+            })
             .child(
                 match title.clone() {
                     Some(title) => heading(("section-title", section_index), 2, title),
@@ -1501,7 +1556,7 @@ impl FeedView {
                     .ghost()
                     .small()
                     .label(label)
-                    .icon(Icon::new(IconName::ChevronRight))
+                    .icon(crate::action_icon::auto_mirrored(IconName::ChevronRight))
                     .on_click(cx.listener(move |view, _, _, cx| view.open_link(&link, title.clone(), cx)));
                 row.child(self.controls.button(section_index * 3, button, cx))
             })
@@ -1514,6 +1569,10 @@ impl FeedView {
                 row.child(self.controls.button(section_index * 3 + 1, button, cx))
             })
             .into_any_element()
+    }
+
+    fn new_rows(&self) -> LazyRows {
+        LazyRows::new(self.scroll.clone(), FEED_ROW_ESTIMATE)
     }
 
     fn toggle_section(&mut self, section_index: usize, cx: &mut Context<Self>) {
@@ -1590,24 +1649,16 @@ impl FeedView {
                 let drag = self.carousel_drags.borrow_mut().entry(section_index).or_default().clone();
                 let row_scroll = drag.scroll().clone();
                 let stops = self.focus.list_stops(first_item..first_item + section.items.len(), window, cx);
-                let mut row = h_flex()
-                    .id(("carousel-scroll", section_index))
-                    .track_scroll(&row_scroll)
-                    .overflow_x_scroll()
-                    .restrict_scroll_to_axis()
-                    .gap_1()
-                    .px_3();
-                for (offset, item) in section.items.iter().enumerate() {
-                    row = row.child(
-                        self.clickable(
-                            ("carousel", first_item + offset),
-                            offset,
-                            item,
-                            None,
-                            Some(row_scroll.clone()),
-                            cx,
-                        )
-                        .w(px(80.))
+                let cells = self
+                    .carousel_rows
+                    .borrow_mut()
+                    .entry(section_index)
+                    .or_insert_with(|| LazyRows::horizontal(row_scroll.clone(), CAROUSEL_CELL))
+                    .clone();
+                let cells = cells.render(section.items.len(), 4., stops.kept(), window, |offset| {
+                    let item = &section.items[offset];
+                    self.clickable(("carousel", first_item + offset), offset, item, None, Some(row_scroll.clone()), cx)
+                        .w(px(CAROUSEL_CELL))
                         .flex_shrink_0()
                         .p_1()
                         .child(
@@ -1616,17 +1667,28 @@ impl FeedView {
                                 .gap_1()
                                 .child(
                                     div().size(px(64.)).rounded_full().overflow_hidden().bg(theme.secondary).when_some(
-                                        thumb_for(&item.thumbs, 128),
-                                        |frame, url| {
-                                            frame
-                                                .child(img(url).size_full().rounded_full().object_fit(ObjectFit::Cover))
+                                        thumb_request_sources(&item.thumbs),
+                                        |frame, request| {
+                                            frame.child(
+                                                async_image_of(Some(request))
+                                                    .size_full()
+                                                    .rounded_full()
+                                                    .object_fit(ObjectFit::Cover),
+                                            )
                                         },
                                     ),
                                 )
                                 .child(div().w_full().text_xs().text_center().truncate().child(item.title.clone())),
-                        ),
-                    );
-                }
+                        )
+                        .into_any_element()
+                });
+                let row = h_flex()
+                    .id(("carousel-scroll", section_index))
+                    .track_scroll(&row_scroll)
+                    .overflow_x_scroll()
+                    .restrict_scroll_to_axis()
+                    .px_3()
+                    .child(cells);
                 return block.child(drag.wrap(stops.wrap(row, title, cx))).into_any_element();
             }
             _ => {}
@@ -1642,14 +1704,17 @@ impl FeedView {
         let shown = if section.collapsible && !expanded { limit.min(section.items.len()) } else { section.items.len() };
         let items = &section.items[..shown];
         let stops = self.focus.list_stops(first_item..first_item + shown, window, cx);
-        let mut list = v_flex().id(("section-items", section_index)).w_full();
-        if bands.columns == 1 {
-            for (offset, item) in items.iter().enumerate() {
-                list = list.child(self.render_row(item, first_item + offset, offset, bands, queue.clone(), cx));
-            }
-        } else {
-            let inset = bands.inset();
-            for (chunk_index, chunk) in items.chunks(bands.columns).enumerate() {
+        let columns = bands.columns;
+        let lines = shown.div_ceil(columns);
+        let kept: Vec<usize> = stops.kept().into_iter().map(|position| position / columns).collect();
+        let rows = self.section_rows.borrow_mut().entry(section_index).or_insert_with(|| self.new_rows()).clone();
+        let inset = bands.inset();
+        let list = rows
+            .render(lines, 0., kept, window, |line| {
+                if columns == 1 {
+                    return self.render_row(&items[line], first_item + line, line, bands, queue.clone(), cx);
+                }
+                let chunk = &items[line * columns..((line + 1) * columns).min(shown)];
                 let mut row = h_flex()
                     .w_full()
                     .items_start()
@@ -1657,15 +1722,15 @@ impl FeedView {
                     .pb(px(ROW_GAP - 2. * inset))
                     .gap(px(bands.gutter - 2. * inset));
                 for (offset, item) in chunk.iter().enumerate() {
-                    let position = chunk_index * bands.columns + offset;
+                    let position = line * columns + offset;
                     row = row.child(self.render_card(item, first_item + position, position, bands, queue.clone(), cx));
                 }
-                for _ in chunk.len()..bands.columns {
+                for _ in chunk.len()..columns {
                     row = row.child(div().flex_1().min_w_0());
                 }
-                list = list.child(row);
-            }
-        }
+                row.into_any_element()
+            })
+            .id(("section-items", section_index));
         block = block.child(stops.wrap(list, title, cx));
         if section.collapsible && section.items.len() > limit {
             let label = if expanded {
@@ -1788,14 +1853,46 @@ enum MenuAction {
 }
 
 fn share_link(item: &YtFeedItem) -> Option<String> {
-    match item.kind.as_str() {
-        "video" => Some(format!("https://youtu.be/{}", item.id)),
-        "playlist" if !item.id.is_empty() => Some(format!("https://www.youtube.com/playlist?list={}", item.id)),
-        "channel" => {
-            item.channel_id.as_ref().or(Some(&item.id)).map(|id| format!("https://www.youtube.com/channel/{id}"))
+    youtube_share_link(&item.kind, &item.id)
+}
+
+/// The JVM `rankMusicFirst`: YouTube Mixes (RD radios), then music videos, then videos from an
+/// official artist channel, then verified channels, then the rest; every other item keeps its slot
+/// while the ranked ones reorder through the remaining slots, stable within each band.
+fn rank_music_first(items: Vec<YtFeedItem>) -> Vec<YtFeedItem> {
+    fn band(item: &YtFeedItem) -> Option<u8> {
+        if item.kind == "playlist" && item.id.starts_with("RD") {
+            return Some(0);
         }
-        _ => None,
+        if item.kind != "video" {
+            return None;
+        }
+        Some(match item.owner_badge.as_deref() {
+            _ if item.music_video => 1,
+            Some("artist") => 2,
+            Some("verified") => 3,
+            _ => 4,
+        })
     }
+    let mut movable: Vec<YtFeedItem> = items.iter().filter(|item| band(item).is_some()).cloned().collect();
+    movable.sort_by_key(band);
+    let mut ranked = movable.into_iter();
+    items.into_iter().map(|item| if band(&item).is_some() { ranked.next().unwrap_or(item) } else { item }).collect()
+}
+
+/// The JVM `youtubeShareLink`: the YouTube web link of a video, playlist or channel on the app's own
+/// domain; a YouTube Music browse id (an album's MPREb…) has no www page and keeps its music url.
+pub fn youtube_share_link(kind: &str, id: &str) -> Option<String> {
+    if kind == "playlist" && (id.starts_with("MPRE") || id.starts_with("FE")) {
+        return Some(format!("https://music.youtube.com/browse/{id}"));
+    }
+    let path = match kind {
+        "video" => format!("watch?v={id}"),
+        "playlist" => format!("playlist?list={}", id.strip_prefix("VL").unwrap_or(id)),
+        "channel" if id.starts_with("UC") => format!("channel/{id}"),
+        _ => return None,
+    };
+    Some(format!("https://www.ymusicapp.com/{path}"))
 }
 
 impl Render for FeedView {

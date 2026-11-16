@@ -97,6 +97,12 @@ impl BundleSource {
         self.embedded
     }
 
+    /// The published bundle `remote` this build would take: none without a pinned key, since no remote
+    /// bundle is ever trusted then (the JVM DefaultJsSourceProvider.published).
+    pub fn published(&self, remote: Option<BundleVersion>) -> Option<BundleVersion> {
+        remote.filter(|_| !self.public_key.trim().is_empty())
+    }
+
     /// The cached remote bundle when it verifies and is newer than the embedded one. Blocking.
     pub fn cached(&self) -> Option<(String, i64)> {
         if self.public_key.trim().is_empty() {

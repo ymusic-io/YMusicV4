@@ -40,6 +40,11 @@ internal class ScanController(private val scope: CoroutineScope, private val log
 
     private val queued = mutableListOf<ScanAction>()
 
+    /** Shows [message] in the app snackbar, like a scan summary. */
+    fun notify(message: String) {
+        _summaries.tryEmit(message)
+    }
+
     /** Start [action], or queue it behind the running scan; each one's summary (or error) surfaces on [summaries]. */
     fun start(action: ScanAction) {
         if (running) {

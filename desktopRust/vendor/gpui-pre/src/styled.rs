@@ -1,9 +1,9 @@
 use crate::{
     self as gpui, AbsoluteLength, AlignContent, AlignItems, AlignSelf, BorderStyle, CursorStyle,
     DefiniteLength, Display, Fill, FlexDirection, FlexWrap, Font, FontFeatures, FontStyle,
-    FontWeight, GridPlacement, GridTemplate, GridTemplateMinSize, Hsla, JustifyContent, Length,
-    SharedString, StrikethroughStyle, StyleRefinement, TextAlign, TextOverflow,
-    TextStyleRefinement, UnderlineStyle, WhiteSpace, px, relative, rems,
+    FontWeight, GridPlacement, GridTemplate, GridTemplateMinSize, Hsla, JustifyContent,
+    LayoutDirection, Length, SharedString, StrikethroughStyle, StyleRefinement, TextAlign,
+    TextOverflow, TextStyleRefinement, UnderlineStyle, WhiteSpace, px, relative, rems,
 };
 pub use gpui_macros::{
     border_style_methods, box_shadow_style_methods, cursor_style_methods, margin_style_methods,
@@ -116,6 +116,12 @@ pub trait Styled: Sized {
     /// Set the text alignment of the element.
     fn text_align(mut self, align: TextAlign) -> Self {
         self.text_style().text_align = Some(align);
+        self
+    }
+
+    /// Sets the layout direction of the element and its subtree.
+    fn layout_direction(mut self, direction: LayoutDirection) -> Self {
+        self.text_style().direction = Some(direction);
         self
     }
 

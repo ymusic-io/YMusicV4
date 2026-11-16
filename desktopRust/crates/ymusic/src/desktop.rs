@@ -358,6 +358,57 @@ pub fn set_dock_visible(visible: bool) {
 #[cfg(not(target_os = "macos"))]
 pub fn set_dock_visible(_visible: bool) {}
 
+/// Brings the app to the front. From macOS 14 activation is cooperative, and `activate` is the
+/// call that takes the activation an earlier app yielded to this one.
+#[cfg(target_os = "macos")]
+pub fn activate_app(cx: &mut App) {
+    use objc2::rc::Retained;
+    use objc2::runtime::{AnyClass, AnyObject};
+    use objc2::{msg_send, sel};
+    let Some(app_class) = AnyClass::get(c"NSApplication") else { return cx.activate(true) };
+    // SAFETY: plain AppKit calls on the main thread.
+    unsafe {
+        let app: Retained<AnyObject> = msg_send![app_class, sharedApplication];
+        let cooperative: bool = msg_send![&*app, respondsToSelector: sel!(activate)];
+        if cooperative {
+            let _: () = msg_send![&*app, activate];
+            return;
+        }
+    }
+    cx.activate(true);
+}
+
+#[cfg(not(target_os = "macos"))]
+pub fn activate_app(cx: &mut App) {
+    cx.activate(true);
+}
+
+/// Lets the version an update relaunches take the front: this app quits before the new one has a
+/// window, and macOS 14+ activates the new one only with the active app's yield.
+#[cfg(target_os = "macos")]
+pub fn yield_activation_to_relaunch() {
+    use objc2::rc::Retained;
+    use objc2::runtime::{AnyClass, AnyObject};
+    use objc2::{msg_send, sel};
+    let (Some(app_class), Some(bundle_class)) = (AnyClass::get(c"NSApplication"), AnyClass::get(c"NSBundle")) else {
+        return;
+    };
+    // SAFETY: plain AppKit calls on the main thread.
+    unsafe {
+        let app: Retained<AnyObject> = msg_send![app_class, sharedApplication];
+        let can_yield: bool =
+            msg_send![&*app, respondsToSelector: sel!(yieldActivationToApplicationWithBundleIdentifier:)];
+        let bundle: Retained<AnyObject> = msg_send![bundle_class, mainBundle];
+        let bundle_id: Option<Retained<AnyObject>> = msg_send![&*bundle, bundleIdentifier];
+        if let (true, Some(bundle_id)) = (can_yield, bundle_id) {
+            let _: () = msg_send![&*app, yieldActivationToApplicationWithBundleIdentifier: &*bundle_id];
+        }
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+pub fn yield_activation_to_relaunch() {}
+
 /// The app's accent as RGBA for the pinned title bar pin; 0 until the theme is applied.
 static PIN_ACCENT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
 

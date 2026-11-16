@@ -18,6 +18,7 @@ use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use ym_engine::yt::{YtFeedItem, YtFeedPage, YtLocaleOption};
 use ym_i18n::{Plural, Str, plural, t, tf};
+use ym_image_loader::async_image::async_image_of;
 use ym_store::Playlist;
 
 use crate::a11y::FocusList;
@@ -28,13 +29,15 @@ use crate::elevated_dialog::{
     ConfirmDialog, DEFAULT_WIDTH, ROW_HORIZONTAL, bar_spinner, button_bar, chrome, press, scroll_body, text_button,
     title_bar,
 };
-use crate::feed::{FeedSource, error_text, thumb_for};
+use crate::feed::{FeedSource, error_text};
 use crate::graph::{AppGraph, on_core};
+use crate::lazy_rows::LazyRows;
 use crate::quick_download::{
     PRESET_FIELD_STOPS, QuickPreset, dropdown, load_languages, option_line, preset_fields, saved_preset,
 };
 use crate::settings_view::HOVER_ALPHA;
 use crate::spinner::Spinner;
+use crate::youtube_thumbnails::thumb_request_sources;
 
 type CheckAction = fn(&mut PlaylistDownload);
 type OnCreated = Rc<dyn Fn(Playlist, &mut App)>;
@@ -48,6 +51,7 @@ const STOP_TARGET: usize = STOP_PREFIX + 1;
 const STOP_DOWNLOAD: usize = STOP_TARGET + 1;
 const STOP_CANCEL: usize = STOP_DOWNLOAD + 1;
 const STOP_ROWS: usize = STOP_CANCEL + 1;
+const VIDEO_ROW_ESTIMATE: f32 = 56.;
 /// The form's width: room for the options beside the thumbnails.
 const DIALOG_WIDTH: f32 = 760.;
 
@@ -68,6 +72,7 @@ pub struct PlaylistDownload {
     target: Option<Playlist>,
     folder: Option<PathBuf>,
     scroll: ScrollHandle,
+    rows: LazyRows,
     focus: FocusList,
 }
 
@@ -100,6 +105,7 @@ impl PlaylistDownload {
             target: None,
             folder,
             scroll: scroll.clone(),
+            rows: LazyRows::new(scroll.clone(), VIDEO_ROW_ESTIMATE),
             focus: FocusList::modal(Some(scroll), cx),
         };
         view.add_videos(page);
@@ -523,8 +529,10 @@ impl PlaylistDownload {
                     .rounded(px(6.))
                     .overflow_hidden()
                     .bg(theme.secondary)
-                    .when_some(thumb_for(&video.thumbs, 192), |frame, url| {
-                        frame.child(img(url).size_full().rounded(px(6.)).object_fit(ObjectFit::Cover))
+                    .when_some(thumb_request_sources(&video.thumbs), |frame, request| {
+                        frame.child(
+                            async_image_of(Some(request)).size_full().rounded(px(6.)).object_fit(ObjectFit::Cover),
+                        )
                     })
                     .when_some(video.duration.clone(), |frame, duration| {
                         frame.child(
@@ -575,11 +583,13 @@ impl PlaylistDownload {
 impl Render for PlaylistDownload {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let count = self.picked().len();
-        let mut rows = v_flex().gap_1();
-        for (index, video) in self.videos.clone().iter().enumerate() {
-            rows = rows.child(self.row(index, video, cx));
-        }
-        let rows = self.focus.container(rows, STOP_ROWS..STOP_ROWS + self.videos.len(), cx);
+        let videos = self.videos.clone();
+        let row_stops = STOP_ROWS..STOP_ROWS + videos.len();
+        let kept = self.focus.kept_stops(row_stops.clone(), window);
+        let rows = self
+            .rows
+            .render(videos.len(), 4., kept, window, |index| self.row(index, &videos[index], cx).into_any_element());
+        let rows = self.focus.container(div().child(rows), row_stops, cx);
         let body = v_flex()
             .w_full()
             .px(px(ROW_HORIZONTAL))

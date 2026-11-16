@@ -22,6 +22,10 @@ const SKIP_SEGMENT_COLOR: u32 = 0xFFC107;
 const SLIDER_BAR_HEIGHT: f32 = 6.;
 const THUMB_RADIUS: f32 = 8.;
 
+struct Handle(WeakEntity<SponsorBlock>);
+
+impl Global for Handle {}
+
 pub struct SponsorBlock {
     playback: Entity<Playback>,
     armed_for: Option<String>,
@@ -34,7 +38,14 @@ pub struct SponsorBlock {
 impl SponsorBlock {
     pub fn new(playback: Entity<Playback>, cx: &mut Context<Self>) -> Self {
         let observe = cx.observe(&playback, |sponsor, playback, cx| sponsor.observe(&playback, cx));
+        cx.set_global(Handle(cx.entity().downgrade()));
         Self { playback, armed_for: None, current: None, _observe: observe }
+    }
+
+    fn rearm(&mut self, cx: &mut Context<Self>) {
+        self.armed_for = None;
+        let playback = self.playback.clone();
+        self.observe(&playback, cx);
     }
 
     fn observe(&mut self, playback: &Entity<Playback>, cx: &mut Context<Self>) {
@@ -59,7 +70,8 @@ impl SponsorBlock {
         let load = on_core(cx, async move { segments_for(&id, store, remote, settings, &log).await });
         let target = self.playback.downgrade();
         cx.spawn(async move |this, cx| {
-            let Some(Some((whitelisted, segments))) = load.await else { return };
+            let Some(armed) = load.await else { return };
+            let (whitelisted, segments) = armed.unwrap_or_default();
             let spans = segments
                 .iter()
                 .map(|segment| ((segment.start_time * 1000.0) as i64, (segment.end_time * 1000.0) as i64))
@@ -96,17 +108,19 @@ impl SponsorBlock {
                 Err(error) => log.warn("R90021 sponsorblock whitelist not saved", Some(&error)),
             }
         });
-        let playback = self.playback.clone();
         cx.spawn(async move |this, cx| {
             write.await;
-            this.update(cx, |sponsor, cx| {
-                sponsor.armed_for = None;
-                sponsor.observe(&playback, cx);
-            })
-            .ok();
+            this.update(cx, |sponsor, cx| sponsor.rearm(cx)).ok();
         })
         .detach();
     }
+}
+
+/// The SponsorBlock setting was saved: the current item is armed again under it, so turning it off
+/// stops skipping at once (the JVM SponsorBlockCoordinator follows the setting).
+pub fn setting_changed(cx: &mut App) {
+    let Some(sponsor) = cx.try_global::<Handle>().map(|handle| handle.0.clone()) else { return };
+    sponsor.update(cx, |sponsor, cx| sponsor.rearm(cx)).ok();
 }
 
 /// SponsorBlock spans (start, end ms) as track fractions (the JVM app's `skipSegmentFractions`): one

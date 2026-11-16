@@ -16,14 +16,16 @@ use gpui_kit::*;
 use ym_engine::EngineError;
 use ym_engine::yt::{YtComment, YtCommentPage, YtThumb, YtVideoDetails};
 use ym_i18n::{Str, t, tf};
+use ym_image_loader::async_image::async_image_of;
 
 use crate::a11y::{FocusList, alert, announced};
 use crate::action_icon::{HIT, action_icon};
 use crate::elevated_dialog::{ConfirmDialog, button_bar, chrome, press, scroll_body, text_button, title_bar};
-use crate::feed::{FeedSource, Navigate, error_text, thumb_for};
+use crate::feed::{FeedSource, Navigate, error_text};
 use crate::graph::{AppGraph, on_core};
 use crate::settings_view::HOVER_ALPHA;
 use crate::spinner::Spinner;
+use crate::youtube_thumbnails::thumb_request_sources;
 
 const LIKE: &str = "LIKE";
 const DISLIKE: &str = "DISLIKE";
@@ -517,13 +519,19 @@ impl VideoDetailsView {
 
     fn avatar(thumbs: &[YtThumb], size: f32, cx: &App) -> Div {
         let frame = div().size(px(size)).flex_shrink_0().rounded_full().overflow_hidden().bg(cx.theme().secondary);
-        match thumb_for(thumbs, (size * 2.) as i32) {
-            Some(url) => frame.child(img(url).size_full().rounded_full().object_fit(ObjectFit::Cover)),
-            None => frame
-                .flex()
-                .items_center()
-                .justify_center()
-                .child(Icon::new(Lucide::User).size(px(size / 2.)).text_color(cx.theme().muted_foreground)),
+        let person = Icon::new(Lucide::User).size(px(size / 2.)).text_color(cx.theme().muted_foreground);
+        match thumb_request_sources(thumbs) {
+            Some(request) => frame.child(
+                async_image_of(Some(request))
+                    .size_full()
+                    .rounded_full()
+                    .object_fit(ObjectFit::Cover)
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .placeholder(person),
+            ),
+            None => frame.flex().items_center().justify_center().child(person),
         }
     }
 
@@ -629,7 +637,7 @@ impl VideoDetailsView {
                     cx,
                 ),
             );
-        let link = format!("https://youtu.be/{}", self.video_id);
+        let link = crate::feed::youtube_share_link("video", &self.video_id).unwrap_or_default();
         let share = Self::pill_button("details-share", Lucide::Share2)
             .accessibility_label(t(Str::CdShare))
             .tooltip(t(Str::CdShare))

@@ -4309,6 +4309,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "libwebp-sys"
+version = "0.9.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "54cd30df7c7165ce74a456e4ca9732c603e8dc5e60784558c1c6dc047f876733"
+dependencies = [
+ "cc",
+ "glob",
+]
+
+[[package]]
 name = "libxdo"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8762,6 +8772,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "webp"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c071456adef4aca59bf6a583c46b90ff5eb0b4f758fc347cea81290288f37ce1"
+dependencies = [
+ "libwebp-sys",
+]
+
+[[package]]
 name = "webpki-root-certs"
 version = "1.0.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9873,6 +9892,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "ym-image-loader"
+version = "0.1.0"
+dependencies = [
+ "bytes",
+ "futures",
+ "gpui-kit",
+ "image",
+ "indexmap",
+ "libc",
+ "reqwest",
+ "sha2 0.10.9",
+ "tokio",
+ "webp",
+ "windows 0.62.2",
+ "ym-common",
+]
+
+[[package]]
 name = "ym-logstore"
 version = "0.1.0"
 dependencies = [
@@ -9959,6 +9996,7 @@ dependencies = [
 name = "ym-telemetry"
 version = "0.1.0"
 dependencies = [
+ "regex",
  "reqwest",
  "sentry",
  "serde_json",
@@ -10026,6 +10064,7 @@ dependencies = [
  "qrcode",
  "rand 0.9.5",
  "raw-window-handle",
+ "regex",
  "reqwest",
  "resvg 0.46.0",
  "rfd",
@@ -10042,6 +10081,7 @@ dependencies = [
  "ym-engine",
  "ym-history",
  "ym-i18n",
+ "ym-image-loader",
  "ym-logstore",
  "ym-mse",
  "ym-remote-config",

@@ -9,5 +9,8 @@ SELECT key, value FROM setting;
 put:
 INSERT OR REPLACE INTO setting(key, value) VALUES (?, ?);
 
+remove:
+DELETE FROM setting WHERE key = ?;
+
 putIfAbsent:
 INSERT OR IGNORE INTO setting(key, value) VALUES (?, ?);

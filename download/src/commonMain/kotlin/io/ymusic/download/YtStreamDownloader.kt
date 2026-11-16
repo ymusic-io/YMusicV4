@@ -91,6 +91,7 @@ class DownloadedStreams(
 class YtStreamDownloader(
     private val resolver: SabrSpecResolver,
     private val client: KmpHttpClient,
+    /** Used when the engine's spec names no User-Agent (a bundle that predates it). */
     private val userAgent: String,
     private val storage: DownloadStorage,
     private val mediaCache: MediaCache?,
@@ -135,7 +136,7 @@ class YtStreamDownloader(
         // Captions are KB-scale; fetched after the media, whole (no range-resume), not folded into progress.
         // Best-effort: a caption that fails to download is logged and skipped — it must not fail the media.
         val captionFiles = captionPicks.mapNotNull { track ->
-            runCatching { downloadCaption(task.id, track) }
+            runCatching { downloadCaption(task.id, track, spec.userAgent ?: userAgent) }
                 .onFailure {
                     if (it is CancellationException) throw it
                     log?.log(Logger.Level.WARN, "caption ${track.languageCode} failed: ${it.message}", it)
@@ -210,7 +211,7 @@ class YtStreamDownloader(
     }
 
     /** GET the caption's WebVTT into a scratch file. A body without cues is a failure, never an empty track. */
-    private suspend fun downloadCaption(taskId: String, track: CaptionTrack): DownloadedCaption {
+    private suspend fun downloadCaption(taskId: String, track: CaptionTrack, userAgent: String): DownloadedCaption {
         val scratch = storage.scratch(taskId, "cc.${captionKey(track.languageCode, track.isAsr)}.vtt")
         scratch.delete() // tiny file — always refetch whole rather than resume a partial
         val url = track.baseUrl + (if ('?' in track.baseUrl) "&" else "?") + "fmt=vtt"
@@ -250,7 +251,7 @@ class YtStreamDownloader(
             try {
                 SabrSession(logger = log).download(
                     client = client,
-                    userAgent = userAgent,
+                    userAgent = current.userAgent ?: userAgent,
                     spec = current,
                     audio = SabrTrack(audioFmt, audioFile),
                     video = videoFmt?.let { SabrTrack(it, videoFile!!) },

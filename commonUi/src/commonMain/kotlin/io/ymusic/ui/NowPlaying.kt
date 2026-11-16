@@ -160,6 +160,7 @@ import io.ymusic.player.VideoQualityState
 import io.ymusic.player.isEnded
 import io.ymusic.player.isPlaying
 import io.ymusic.settings.AppSettings
+import io.ymusic.settings.SettingsStore
 import io.ymusic.settings.flow
 import io.ymusic.settings.put
 import io.ymusic.ui.resources.Res
@@ -441,7 +442,7 @@ fun NowPlayingScreen(
         }
     }
     val status by coordinator.player.status.collectAsState()
-    val playWhenReady = status.playWhenReady
+    val showsPause = status.showsPause()
     val audioOnly = showsAudioOnly(coordinator.player)
     KeepScreenOn(status.state.isPlaying() && !status.state.isEnded() && !audioOnly)
     val armed = VideoOverlayNative.armed
@@ -449,8 +450,8 @@ fun NowPlayingScreen(
     val showGen = VideoOverlayNative.showGen
     val scrubbing = VideoOverlayNative.scrubbing
     val menusOpen = VideoOverlayNative.menusOpen
-    LaunchedEffect(playWhenReady, armed, overlayVisible, showGen, scrubbing, menusOpen) {
-        if (armed && overlayVisible && playWhenReady && !scrubbing && menusOpen == 0) {
+    LaunchedEffect(showsPause, armed, overlayVisible, showGen, scrubbing, menusOpen) {
+        if (armed && overlayVisible && showsPause && !scrubbing && menusOpen == 0) {
             delay(OVERLAY_HIDE_DELAY_MS)
             VideoOverlayNative.visible = false
         }
@@ -720,7 +721,7 @@ private fun PortraitNowPlaying(
                         Modifier.align(Alignment.BottomEnd).padding(end = 6.dp, bottom = 4.dp),
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
-                        CaptionToggle(player, offTint = Color(0xFFDCDCDC))
+                        CaptionToggle(player, graph.settings, offTint = Color(0xFFDCDCDC))
                         ActionIcon(
                             Icons.Default.Fullscreen,
                             stringResource(Res.string.cd_fullscreen),
@@ -1064,7 +1065,7 @@ private fun BoxScope.VideoOverlayControls(
             if (isFullscreen) {
                 OverlayPlayerActions(coordinator, tint = Color(0xFFEEEEEE), iconSize = iconSize, hitSize = hitSize, scale = scale)
             }
-            CaptionToggle(player, offTint = Color(0xFFEEEEEE), iconSize = iconSize, hitSize = hitSize)
+            CaptionToggle(player, coordinator.graph.settings, offTint = Color(0xFFEEEEEE), iconSize = iconSize, hitSize = hitSize)
             if (onToggleRotationLock != null) {
                 ActionIcon(
                     if (rotationLocked) Icons.Default.ScreenLockRotation else Icons.Default.ScreenRotation,
@@ -1177,9 +1178,17 @@ private fun BoxScope.PlayerCaptionOverlay(
  * captions are on. Picking a language turns captions on and selects it; Off hides them.
  */
 @Composable
-private fun CaptionToggle(player: io.ymusic.player.Player, offTint: Color, iconSize: Dp = 24.dp, hitSize: Dp = 40.dp) {
+private fun CaptionToggle(
+    player: io.ymusic.player.Player,
+    settings: SettingsStore,
+    offTint: Color,
+    iconSize: Dp = 24.dp,
+    hitSize: Dp = 40.dp,
+) {
     val captions by player.captions.collectAsState()
     val config by player.config.collectAsState()
+    val recentLanguages by remember(settings) { settings.flow(AppSettings.recentTranslateLanguages) }.collectAsState()
+    val scope = rememberCoroutineScope()
     if (captions.tracks.isEmpty()) return
     var open by remember { mutableStateOf(false) }
     var translateOpen by remember { mutableStateOf(false) }
@@ -1192,6 +1201,10 @@ private fun CaptionToggle(player: io.ymusic.player.Player, offTint: Color, iconS
         player.setCaptionVisible(true)
         open = false
         translateOpen = false
+        if (track.kind == AUTO_TRANSLATE_KIND) {
+            val recent = (listOf(track.languageCode) + recentLanguages).distinct().take(RECENT_TRANSLATE_LANGUAGES)
+            scope.launch { settings.put(AppSettings.recentTranslateLanguages, recent.toSet()) }
+        }
     }
     val onTrack = tracks.firstOrNull { isOn(it) } ?: translations.firstOrNull { isOn(it) }
     val captionState = onTrack?.displayName ?: stringResource(Res.string.captions_off)
@@ -1239,7 +1252,19 @@ private fun CaptionToggle(player: io.ymusic.player.Player, offTint: Color, iconS
         // ~150 languages: a lazy list, so opening it does not compose every row.
         if (translateOpen) {
             DropdownMenu(expanded = true, onDismissRequest = { translateOpen = false }) {
+                val recent = recentLanguages.mapNotNull { code -> translations.firstOrNull { it.languageCode == code } }
                 LazyColumn(Modifier.size(width = 240.dp, height = 360.dp)) {
+                    if (recent.isNotEmpty()) {
+                        items(recent, key = { "recent-${it.id}" }) { track ->
+                            DropdownMenuItem(
+                                text = { Text(track.displayName) },
+                                onClick = { pick(track) },
+                                modifier = Modifier.menuChoice(isOn(track)),
+                                trailingIcon = selectedCheck(isOn(track)),
+                            )
+                        }
+                        item(key = "recent-divider") { MoreMenuDivider() }
+                    }
                     items(translations, key = { it.id }) { track ->
                         DropdownMenuItem(
                             text = { Text(track.displayName) },
@@ -1256,6 +1281,8 @@ private fun CaptionToggle(player: io.ymusic.player.Player, offTint: Color, iconS
 
 /** Engine track kind for YouTube auto-translate languages (clones of a source track, one per language). */
 private const val AUTO_TRANSLATE_KIND = "asrt"
+
+private const val RECENT_TRANSLATE_LANGUAGES = 3
 
 /** A playback failure for the user: a known category, the text the source gave for it (YouTube's own words
  *  for a playability verdict), else our message for the verdict, else "Playback failed (code)". */
@@ -1634,7 +1661,7 @@ private fun MoreMenuItem(
 
 @Composable
 private fun MoreMenuDivider() {
-    HorizontalDivider(Modifier.padding(vertical = DesignSpacing.Space4), color = DesignColors.Divider)
+    HorizontalDivider(Modifier.padding(vertical = DesignSpacing.Space4), color = DesignColors.StackNear)
 }
 
 /** The ⋮ menu, grouped: this video + queue · sound · player. Captions live on the video CC control;
@@ -2275,4 +2302,4 @@ private fun queueItemActions(coordinator: PlaybackCoordinator, index: Int, item:
 }
 
 /** The play button shows Pause while playback is wanted, but not once the track has ended. */
-internal fun PlaybackStatus.showsPause(): Boolean = playWhenReady && !state.isEnded()
+fun PlaybackStatus.showsPause(): Boolean = playWhenReady && !state.isEnded()
