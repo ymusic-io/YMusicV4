@@ -20,6 +20,7 @@ use crate::a11y::{DragRow, FocusList, alert, announced, announced_as, heading, l
 use crate::action_icon::{HIT, action_icon, sized_action_icon};
 use crate::download_dialog::DownloadTarget;
 use crate::graph::{AppGraph, on_core};
+use crate::lazy_rows::LazyRows;
 use crate::local_playlist::LocalPlaylistFromDownloads;
 use crate::offline::{OfflineMarks, offline_mark};
 use crate::playlist_download::PlaylistDownload;
@@ -275,6 +276,8 @@ pub struct FeedView {
     chips_drag: DragRow,
     tabs_drag: DragRow,
     carousel_drags: std::cell::RefCell<std::collections::HashMap<usize, DragRow>>,
+    /// Each list or grid section's lazily built rows, by section.
+    section_rows: std::cell::RefCell<std::collections::HashMap<usize, LazyRows>>,
     offline: Entity<OfflineMarks>,
     /// False for a signed-in-only feed until its owner confirms a sign-in: it fetches nothing before
     /// (the JVM Account and YT Music Library tabs build their session only once signed in).
@@ -331,6 +334,7 @@ impl FeedView {
             chips_drag: DragRow::default(),
             tabs_drag: DragRow::default(),
             carousel_drags: Default::default(),
+            section_rows: Default::default(),
             offline,
             gate_open: !source_needs_sign_in,
             _offline: observe_offline,
@@ -1071,6 +1075,7 @@ const ACTION_RETRY_MORE: usize = 10;
 /// The page's Show more, after any chip.
 const CHIPS_SHOW_MORE: usize = 64;
 const ROW_GAP: f32 = 16.;
+const FEED_ROW_ESTIMATE: f32 = 112.;
 
 impl Bands {
     fn for_width(width: f32) -> Self {
@@ -1557,6 +1562,10 @@ impl FeedView {
             .into_any_element()
     }
 
+    fn new_rows(&self) -> LazyRows {
+        LazyRows::new(self.scroll.clone(), FEED_ROW_ESTIMATE)
+    }
+
     fn toggle_section(&mut self, section_index: usize, cx: &mut Context<Self>) {
         if !self.expanded.remove(&section_index) {
             self.expanded.insert(section_index);
@@ -1683,14 +1692,17 @@ impl FeedView {
         let shown = if section.collapsible && !expanded { limit.min(section.items.len()) } else { section.items.len() };
         let items = &section.items[..shown];
         let stops = self.focus.list_stops(first_item..first_item + shown, window, cx);
-        let mut list = v_flex().id(("section-items", section_index)).w_full();
-        if bands.columns == 1 {
-            for (offset, item) in items.iter().enumerate() {
-                list = list.child(self.render_row(item, first_item + offset, offset, bands, queue.clone(), cx));
-            }
-        } else {
-            let inset = bands.inset();
-            for (chunk_index, chunk) in items.chunks(bands.columns).enumerate() {
+        let columns = bands.columns;
+        let lines = shown.div_ceil(columns);
+        let kept: Vec<usize> = stops.kept().into_iter().map(|position| position / columns).collect();
+        let rows = self.section_rows.borrow_mut().entry(section_index).or_insert_with(|| self.new_rows()).clone();
+        let inset = bands.inset();
+        let list = rows
+            .render(lines, 0., kept, window, |line| {
+                if columns == 1 {
+                    return self.render_row(&items[line], first_item + line, line, bands, queue.clone(), cx);
+                }
+                let chunk = &items[line * columns..((line + 1) * columns).min(shown)];
                 let mut row = h_flex()
                     .w_full()
                     .items_start()
@@ -1698,15 +1710,15 @@ impl FeedView {
                     .pb(px(ROW_GAP - 2. * inset))
                     .gap(px(bands.gutter - 2. * inset));
                 for (offset, item) in chunk.iter().enumerate() {
-                    let position = chunk_index * bands.columns + offset;
+                    let position = line * columns + offset;
                     row = row.child(self.render_card(item, first_item + position, position, bands, queue.clone(), cx));
                 }
-                for _ in chunk.len()..bands.columns {
+                for _ in chunk.len()..columns {
                     row = row.child(div().flex_1().min_w_0());
                 }
-                list = list.child(row);
-            }
-        }
+                row.into_any_element()
+            })
+            .id(("section-items", section_index));
         block = block.child(stops.wrap(list, title, cx));
         if section.collapsible && section.items.len() > limit {
             let label = if expanded {

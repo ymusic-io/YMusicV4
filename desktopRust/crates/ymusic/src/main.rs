@@ -31,6 +31,7 @@ mod instance;
 #[cfg(target_os = "windows")]
 mod jump_list;
 mod launch;
+mod lazy_rows;
 mod library;
 mod library_playlist;
 mod library_search;
