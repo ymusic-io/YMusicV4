@@ -29,7 +29,7 @@ pub fn encode_items(items: &[QueueItem]) -> String {
         .map(|item| {
             let thumbs: Vec<Value> =
                 item.thumbs.iter().map(|thumb| json!({ "url": thumb.url, "w": thumb.w, "h": thumb.h })).collect();
-            let thumbnail = item.thumb(480).map(String::from);
+            let thumbnail = item.display_thumbnail_url().map(String::from);
             let mut row = json!({
                 "title": item.title,
                 "artist": item.artist,
@@ -196,7 +196,10 @@ fn record_watch_rows(
                     video_id: video_id.clone(),
                     title: if item.title.is_empty() { video_id.clone() } else { item.title.clone() },
                     artist: item.artist.clone(),
-                    thumbnail_url: item.thumb(i32::MAX).map(|url| url.to_string()),
+                    thumbnail_url: Some(
+                        item.display_thumbnail_url()
+                            .map_or_else(|| crate::youtube_thumbnails::youtube_thumb_url(video_id), String::from),
+                    ),
                     duration: item.duration_label.clone(),
                     duration_ms: item.duration_ms,
                 },
@@ -390,7 +393,7 @@ fn snapshot(playback: &Playback, playing: bool, temporary: &HashSet<PathBuf>) ->
             queue_id: playback.queue_id.clone(),
             title: item.title.clone(),
             subtitle: item.artist.clone(),
-            thumbnail_url: item.thumb(480).map(String::from),
+            thumbnail_url: item.display_thumbnail_url().map(String::from),
             queue_index: index,
             queue_size: size,
             position_ms: playback.position_ms.max(0),
@@ -398,7 +401,7 @@ fn snapshot(playback: &Playback, playing: bool, temporary: &HashSet<PathBuf>) ->
             strip_start,
             strip_thumbs: queue[strip_start..(strip_start + PlayAgainSession::STRIP_SIZE).min(size)]
                 .iter()
-                .map(|item| item.thumb(120).map(String::from))
+                .map(|item| item.display_thumbnail_url().map(String::from))
                 .collect(),
             source_token: playback.more.as_ref().and_then(|more| more.resume_token.clone()),
         },
