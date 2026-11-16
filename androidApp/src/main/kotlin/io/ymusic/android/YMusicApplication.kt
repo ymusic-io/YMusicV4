@@ -231,8 +231,9 @@ class YMusicApplication : Application() {
 
     /** The current Activity's folder pick (a SAF tree, or a `file://` folder where the device has no tree
      *  picker), registered while it lives. The graph is app-scoped but a pick needs an Activity; a scan is
-     *  always user-driven, so one is up when this runs. */
-    @Volatile var folderPicker: (suspend () -> Uri?)? = null
+     *  always user-driven, so one is up when this runs. `writable` = only a folder the app can write into may be
+     *  chosen (the download location). */
+    @Volatile var folderPicker: (suspend (writable: Boolean) -> Uri?)? = null
 
     /** The current Activity's QR scan — same lifecycle as [folderPicker]. */
     @Volatile var qrScanner: (suspend () -> String?)? = null
@@ -975,14 +976,14 @@ class YMusicApplication : Application() {
 
     /** SAF folder pick + full scan into [store]; returns how it ended, or null when canceled. */
     private suspend fun scanPickedFolder(store: BetterMediaStore, onProgress: (Int) -> Unit): ScanResult? {
-        val treeUri = folderPicker?.invoke() ?: return null
+        val treeUri = folderPicker?.invoke(false) ?: return null
         return scanUris(store, listOf(treeUri), onProgress)
     }
 
     /** Pick a folder and register it as a Library bucket (no media scan — works even when empty),
      *  returning its uri. Used to choose a download location. */
     private suspend fun pickAndRegisterFolder(store: BetterMediaStore): String? {
-        val treeUri = folderPicker?.invoke() ?: return null
+        val treeUri = folderPicker?.invoke(true) ?: return null
         val folder = SafDocumentsProvider(applicationContext).queryDocument(treeUri) as? DocumentInfo.Folder ?: return null
         store.upsertBucket(BucketDraft(uri = folder.uri, name = folder.name))
         return folder.uri.toString()
