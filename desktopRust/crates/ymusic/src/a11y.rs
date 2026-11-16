@@ -461,6 +461,14 @@ impl FocusList {
         self.slots.borrow().iter().position(|slot| slot.handle.is_focused(window))
     }
 
+    /// The positions a lazy list of `items`, each its own Tab stop, keeps built wherever it is
+    /// scrolled: the first and last (Tab, Shift+Tab, Home and End reach them) and the focused one.
+    pub fn kept_stops(&self, items: Range<usize>, window: &Window) -> Vec<usize> {
+        let mut kept: Vec<usize> = [Some(0), items.len().checked_sub(1)].into_iter().flatten().collect();
+        kept.extend(self.focused(window).filter(|stop| items.contains(stop)).map(|stop| stop - items.start));
+        kept
+    }
+
     /// Makes `element`, a full-width row already tracking [`Self::handle`]`(index)`, the list's `index`th
     /// stop, ringed inside: a control's own ring is drawn outside it, where the row's card clips it.
     pub fn row(&self, index: usize, element: impl IntoElement, cx: &App) -> Div {
