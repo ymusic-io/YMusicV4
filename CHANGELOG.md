@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 4.0.24
 
 ### NEW
 - Linux: the dock icon's right-click menu has Pause/Resume and Stop while there is a queue, as the macOS Dock menu does ([b4532cf1c](https://github.com/ymusic-io/YMusicV4/commit/b4532cf1cd47144da3c83efe49dc8e934eb2f67d))
