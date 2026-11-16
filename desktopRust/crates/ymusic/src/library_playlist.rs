@@ -85,6 +85,7 @@ pub struct AddToLocalPlaylist {
     changed: Option<Changed>,
     focus: FocusList,
     scroll: ScrollHandle,
+    rows: LazyRows,
     focused_first: bool,
     busy: bool,
 }
@@ -99,6 +100,7 @@ impl AddToLocalPlaylist {
                 failed: false,
                 changed,
                 focus: FocusList::modal(Some(scroll.clone()), cx),
+                rows: LazyRows::new(scroll.clone(), PICK_ROW_ESTIMATE),
                 scroll,
                 focused_first: false,
                 busy: false,
@@ -214,8 +216,9 @@ impl Render for AddToLocalPlaylist {
                     cx,
                 )
                 .on_click(cx.listener(|view, _, window, cx| view.activate(0, window, cx)));
-                let mut list = v_flex().w_full().child(self.focus.item(0, new_row, cx));
-                for (index, playlist) in playlists.into_iter().enumerate() {
+                let kept = self.focus.kept_stops(1..playlists.len() + 1, window);
+                let rows = self.rows.render(playlists.len(), 0., kept, window, |index| {
+                    let playlist = &playlists[index];
                     let row = pick_row(
                         ("local-playlist", index),
                         Icon::new(Lucide::ListMusic),
@@ -224,8 +227,9 @@ impl Render for AddToLocalPlaylist {
                         cx,
                     )
                     .on_click(cx.listener(move |view, _, window, cx| view.activate(index + 1, window, cx)));
-                    list = list.child(self.focus.item(index + 1, row, cx));
-                }
+                    self.focus.item(index + 1, row, cx).into_any_element()
+                });
+                let list = v_flex().w_full().child(self.focus.item(0, new_row, cx)).child(rows);
                 scroll_body("local-playlists", &self.scroll, list, window, cx).into_any_element()
             }
         };
@@ -595,6 +599,7 @@ pub struct ArrangePlaylist {
 }
 
 const ARRANGE_ICON: f32 = 22.;
+const PICK_ROW_ESTIMATE: f32 = 48.;
 const ARRANGE_ROW_ESTIMATE: f32 = 52.;
 const CONTROL_UNDO: usize = 0;
 const CONTROL_CANCEL: usize = 1;
