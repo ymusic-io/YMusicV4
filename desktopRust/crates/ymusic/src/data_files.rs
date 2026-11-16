@@ -22,7 +22,7 @@ const RENAMED: [(&str, &str); 4] = [
 ];
 const SIDECARS: [&str; 3] = ["-wal", "-shm", "-journal"];
 /// Caches earlier builds kept where the JVM app keeps nothing; refilled under the JVM app's names.
-const OBSOLETE_DIRS: [&str; 1] = ["bundles"];
+const OBSOLETE_DIRS: [&str; 2] = ["bundles", "art-cache"];
 
 /// Blocking. Runs only in the instance that holds the data dir, so nothing has the files open.
 pub fn adopt_jvm_names(data_dir: &Path, log: &Logger) {

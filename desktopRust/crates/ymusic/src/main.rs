@@ -145,7 +145,6 @@ fn main() {
     let tokio =
         tokio::runtime::Builder::new_multi_thread().enable_all().thread_name("ym-core").build().expect("tokio runtime");
     let http = HttpClients::new().expect("HTTP client");
-    let local_art = std::sync::Arc::new(crate::local_art::LocalArt::new(data_dir.join("art-cache"), log.fork("art")));
     let image_loader = crate::images::image_loader(&data_dir, http.following.clone(), tokio.handle().clone(), &log);
     let app_db = graph::open_app_db(&data_dir).unwrap_or_else(|error| boot_failed(&log, &error));
     crate::data_files::import_legacy_files(&app_db, &data_dir, &log);
@@ -188,7 +187,7 @@ fn main() {
     let tokio_handle = tokio.handle().clone();
 
     crate::a11y::install_debug_log();
-    let assets = crate::assets::AppAssets { local_art };
+    let assets = crate::assets::AppAssets;
     let app = application().with_assets(assets).with_http_client(images);
     // Opening the app again (Finder, Spotlight, the Dock) brings a window closed to the tray back.
     app.on_reopen(|cx| {

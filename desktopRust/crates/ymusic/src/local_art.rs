@@ -2,17 +2,14 @@
 //! Library item, `art://file?kind=…&uri=…` and `art://yt/<video id>` for a file outside it, resolved by
 //! [`MediaStoreArtFetcher`] through the image loader.
 
-use std::borrow::Cow;
-use std::hash::{DefaultHasher, Hash, Hasher};
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
 
-use anyhow::{Context as _, anyhow, bail};
+use anyhow::{Context as _, anyhow};
 use futures::future::BoxFuture;
 use image::codecs::jpeg::JpegEncoder;
 use image::{DynamicImage, RgbaImage};
-use ym_common::log::Logger;
 use ym_image_loader::async_image::LoadedImage;
 use ym_image_loader::{
     Bitmap, DEFAULT_MAX_IMAGE_BYTES, DecodedImage, ImageFetcher, ImageLoadError, ImageLoader, ImageRequest, ImageScale,
@@ -53,7 +50,7 @@ pub fn file_art_url(file_uri: &str, has_cover: bool, youtube_vid: Option<&str>, 
 /// An art url as this app's earlier releases saved it in queue rows (`local-art/<kind>/<stream>/<px>/
 /// <size>/<mtime>/<path>`) in its `art://file` form; any other url as it is.
 pub fn adopt_legacy_art_url(url: String) -> String {
-    let Some(rest) = url.strip_prefix(PREFIX) else { return url };
+    let Some(rest) = url.strip_prefix(LEGACY_PREFIX) else { return url };
     let mut parts = rest.splitn(6, '/');
     let (Some(kind), Some(file)) = (parts.next(), parts.nth(4)) else { return url };
     let file_uri = ym_common::file_uri::to_file_uri(file);
@@ -278,94 +275,5 @@ fn encode_jpeg(frame: RgbaImage) -> anyhow::Result<Vec<u8>> {
     Ok(jpeg.into_inner())
 }
 
-const PREFIX: &str = "local-art/";
-
-enum Kind {
-    Cover(i32),
-    Frame,
-}
-
-struct ArtKey<'a> {
-    kind: Kind,
-    px: u32,
-    file: &'a Path,
-}
-
-fn parse(path: &str) -> anyhow::Result<ArtKey<'_>> {
-    let rest = path.strip_prefix(PREFIX).ok_or_else(|| anyhow!("not a local art path"))?;
-    let mut parts = rest.splitn(6, '/');
-    let mut next = || parts.next().ok_or_else(|| anyhow!("malformed local art path"));
-    let (kind, stream, px) = (next()?, next()?, next()?);
-    let (_size, _modified, file) = (next()?, next()?, next()?);
-    let stream: i32 = stream.parse().context("local art stream index")?;
-    let kind = match kind {
-        "cover" => Kind::Cover(stream),
-        "frame" => Kind::Frame,
-        other => bail!("unknown local art kind {other:?}"),
-    };
-    Ok(ArtKey { kind, px: px.parse().context("local art size")?, file: Path::new(file) })
-}
-
-pub struct LocalArt {
-    cache_dir: PathBuf,
-    log: Logger,
-}
-
-impl LocalArt {
-    pub fn new(cache_dir: PathBuf, log: Logger) -> Self {
-        Self { cache_dir, log }
-    }
-
-    pub fn handles(path: &str) -> bool {
-        path.starts_with(PREFIX)
-    }
-
-    /// Blocking: the thumbnail's JPEG bytes, extracted on a cache miss.
-    pub fn load(&self, path: &str) -> anyhow::Result<Cow<'static, [u8]>> {
-        let result = self.load_or_extract(path);
-        if let Err(error) = &result {
-            self.log.warn("local artwork failed", Some(error.as_ref()));
-        }
-        result
-    }
-
-    fn cache_file(&self, path: &str) -> PathBuf {
-        let mut hasher = DefaultHasher::new();
-        path.hash(&mut hasher);
-        self.cache_dir.join(format!("{:016x}.jpg", hasher.finish()))
-    }
-
-    fn load_or_extract(&self, path: &str) -> anyhow::Result<Cow<'static, [u8]>> {
-        let key = parse(path)?;
-        let file = self.cache_file(path);
-        match std::fs::read(&file) {
-            Ok(bytes) => return Ok(bytes.into()),
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-            Err(error) => return Err(error).context("reading cached artwork"),
-        }
-        let jpeg = extract(&key)?;
-        std::fs::create_dir_all(&self.cache_dir).context("creating the artwork cache")?;
-        let partial = file.with_extension("part");
-        std::fs::write(&partial, &jpeg).context("writing cached artwork")?;
-        std::fs::rename(&partial, &file).context("committing cached artwork")?;
-        Ok(jpeg.into())
-    }
-}
-
-fn extract(key: &ArtKey) -> anyhow::Result<Vec<u8>> {
-    let image = match key.kind {
-        Kind::Cover(stream) => {
-            let bytes = attached_picture(key.file, stream)?;
-            let image = image::load_from_memory(&bytes).context("decoding the attached picture")?;
-            if image.width() > key.px || image.height() > key.px { image.thumbnail(key.px, key.px) } else { image }
-        }
-        Kind::Frame => {
-            let frame =
-                ym_mse::video_frame(key.file, key.px).map_err(|code| anyhow!("video frame: libav error {code}"))?;
-            let rgba = RgbaImage::from_raw(frame.width, frame.height, frame.rgba)
-                .ok_or_else(|| anyhow!("video frame buffer does not match its size"))?;
-            DynamicImage::ImageRgba8(rgba)
-        }
-    };
-    encode_jpeg(image.to_rgba8())
-}
+/// How earlier releases named local art in saved queue rows.
+const LEGACY_PREFIX: &str = "local-art/";

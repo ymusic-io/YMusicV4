@@ -1,11 +1,8 @@
-//! The default component assets, the extra Lucide icons the shell uses, and library artwork.
+//! The default component assets, the extra Lucide icons the shell uses, and the app logo.
 
 use std::borrow::Cow;
-use std::sync::Arc;
 
 use gpui_kit::{AssetSource, Result, SharedString};
-
-use crate::local_art::LocalArt;
 
 gpui_kit::assets::icon_assets!(
     ShellIcons,
@@ -104,15 +101,10 @@ fn logo_at(path: &str) -> Option<String> {
     Some(LOGO_SVG.replacen(r#"width="1024" height="1024""#, &format!(r#"width="{size}" height="{size}""#), 1))
 }
 
-pub struct AppAssets {
-    pub local_art: Arc<LocalArt>,
-}
+pub struct AppAssets;
 
 impl AssetSource for AppAssets {
     fn load(&self, path: &str) -> Result<Option<Cow<'static, [u8]>>> {
-        if LocalArt::handles(path) {
-            return self.local_art.load(path).map(Some);
-        }
         if path == SPONSOR_BLOCK_ICON {
             return Ok(Some(Cow::Borrowed(include_bytes!("../assets/sponsor-block.svg"))));
         }
