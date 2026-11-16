@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 4.0.23
 
 ### NEW
 - Captions: the auto-translate list starts with the last 3 languages you picked, above a divider, so the usual ones need no scrolling through 150 languages ([#298](https://github.com/ymusic-io/YMusicV4/issues/298), [74b4e9e76](https://github.com/ymusic-io/YMusicV4/commit/74b4e9e7667105258d1dd7a31412e05bcac1e6bc), [25c181c33](https://github.com/ymusic-io/YMusicV4/commit/25c181c33ac364954601f988947dec3a3cd1c7c6), [dab9c071e](https://github.com/ymusic-io/YMusicV4/commit/dab9c071e13458761d064dd60ed2db54c2588b58), [babc44ad3](https://github.com/ymusic-io/YMusicV4/commit/babc44ad3a3cd20a5ef1b450d551d4f311e61358))
