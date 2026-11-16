@@ -7,6 +7,7 @@ use std::borrow::Cow;
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use anyhow::{Context as _, anyhow, bail};
 use gpui_kit::SharedString;
@@ -14,6 +15,10 @@ use image::codecs::jpeg::JpegEncoder;
 use image::{DynamicImage, RgbaImage};
 use ym_common::log::Logger;
 use ym_engine::yt::YtThumb;
+use ym_image_loader::{
+    DEFAULT_MAX_IMAGE_BYTES, DecodedImage, ImageFetcher, ImageLoadError, ImageScale, ImageSourceCache, Reason,
+    decode_scaled_file, source_cache_key,
+};
 use ym_store::MediaItem;
 
 const PREFIX: &str = "local-art/";
@@ -109,6 +114,8 @@ enum Kind {
 struct ArtKey<'a> {
     kind: Kind,
     px: u32,
+    file_size: &'a str,
+    modified: &'a str,
     file: &'a Path,
 }
 
@@ -117,14 +124,95 @@ fn parse(path: &str) -> anyhow::Result<ArtKey<'_>> {
     let mut parts = rest.splitn(6, '/');
     let mut next = || parts.next().ok_or_else(|| anyhow!("malformed local art path"));
     let (kind, stream, px) = (next()?, next()?, next()?);
-    let (_size, _modified, file) = (next()?, next()?, next()?);
+    let (file_size, modified, file) = (next()?, next()?, next()?);
     let stream: i32 = stream.parse().context("local art stream index")?;
     let kind = match kind {
         "cover" => Kind::Cover(stream),
         "frame" => Kind::Frame,
         other => bail!("unknown local art kind {other:?}"),
     };
-    Ok(ArtKey { kind, px: px.parse().context("local art size")?, file: Path::new(file) })
+    Ok(ArtKey { kind, px: px.parse().context("local art size")?, file_size, modified, file: Path::new(file) })
+}
+
+/// The JVM `mediaStoreArtFetcher` for this app's `local-art/` paths: the embedded cover or a decoded
+/// frame, kept in the JVM app's `image-cover-cache` keyed as there (kind, file URI, size, mtime: a
+/// changed file extracts again), so every view size decodes from that file instead of extracting again.
+pub struct LocalArtFetcher {
+    pub cover_cache: Arc<ImageSourceCache>,
+}
+
+impl ImageFetcher for LocalArtFetcher {
+    fn fetch(
+        &self,
+        url: &str,
+        size: (u32, u32),
+        scale: ImageScale,
+    ) -> Option<futures::future::BoxFuture<'static, Result<DecodedImage, ImageLoadError>>> {
+        if !LocalArt::handles(url) {
+            return None;
+        }
+        let (cache, url) = (self.cover_cache.clone(), url.to_owned());
+        Some(Box::pin(async move {
+            let label = url.clone();
+            tokio::task::spawn_blocking(move || extract_cached(&cache, &url, size, scale)).await.map_err(|error| {
+                ImageLoadError::with_cause(Reason::Undecodable, format!("local art task failed: {label}"), error)
+            })?
+        }))
+    }
+}
+
+/// Blocking: the cover cache's file for `url`, extracted on a miss, decoded to `size`.
+fn extract_cached(
+    cache: &ImageSourceCache,
+    url: &str,
+    size: (u32, u32),
+    scale: ImageScale,
+) -> Result<DecodedImage, ImageLoadError> {
+    let key = parse(url)
+        .map_err(|error| ImageLoadError::new(Reason::Unsupported, format!("malformed art url: {url}: {error:#}")))?;
+    let kind = match key.kind {
+        Kind::Cover(_) => "cover",
+        Kind::Frame => "frame",
+    };
+    let file_uri = ym_store::file_uri(&key.file.to_string_lossy());
+    let cache_key = source_cache_key(&format!("{kind}:{file_uri}:{}:{}", key.file_size, key.modified));
+    let cached = cache.file_path(&cache_key).map_err(|error| {
+        ImageLoadError::with_cause(Reason::Undecodable, format!("cover cache unreadable: {url}"), error)
+    })?;
+    let file = match cached {
+        Some(file) => file,
+        None => {
+            if !key.file.exists() {
+                return Err(ImageLoadError::new(Reason::NotFound, format!("no such file: {url}")));
+            }
+            let encoded = extract_encoded(&key).map_err(|error| {
+                ImageLoadError::new(Reason::Undecodable, format!("local art extraction failed: {url}: {error:#}"))
+            })?;
+            cache.write_blocking(&cache_key, std::io::Cursor::new(encoded), DEFAULT_MAX_IMAGE_BYTES, url)?
+        }
+    };
+    decode_scaled_file(&file, size, scale, url)
+}
+
+/// The JVM extractors' output: the embedded picture as stored (`-c copy`), a frame as a full-size JPEG.
+/// Whole in memory: `ym_attached_pic` and `ym_video_frame` hand back one buffer.
+fn extract_encoded(key: &ArtKey) -> anyhow::Result<Vec<u8>> {
+    match key.kind {
+        Kind::Cover(stream) => {
+            ym_mse::attached_picture(key.file, stream).map_err(|code| anyhow!("attached picture: libav error {code}"))
+        }
+        Kind::Frame => {
+            let frame = ym_mse::video_frame(key.file, 0).map_err(|code| anyhow!("video frame: libav error {code}"))?;
+            let rgba = RgbaImage::from_raw(frame.width, frame.height, frame.rgba)
+                .ok_or_else(|| anyhow!("video frame buffer does not match its size"))?;
+            let mut jpeg = Cursor::new(Vec::new());
+            DynamicImage::ImageRgba8(rgba)
+                .to_rgb8()
+                .write_with_encoder(JpegEncoder::new_with_quality(&mut jpeg, JPEG_QUALITY))
+                .context("encoding the video frame")?;
+            Ok(jpeg.into_inner())
+        }
+    }
 }
 
 /// The app's [`LocalArt`], for code that needs a thumbnail's file rather than an image element.

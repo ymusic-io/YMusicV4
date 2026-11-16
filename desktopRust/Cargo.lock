@@ -10081,6 +10081,7 @@ dependencies = [
  "ym-engine",
  "ym-history",
  "ym-i18n",
+ "ym-image-loader",
  "ym-logstore",
  "ym-mse",
  "ym-remote-config",

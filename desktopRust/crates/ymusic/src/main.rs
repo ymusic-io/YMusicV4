@@ -27,6 +27,7 @@ mod file_rename;
 mod fps_badge;
 mod graph;
 mod http_client;
+mod images;
 mod instance;
 #[cfg(target_os = "windows")]
 mod jump_list;
@@ -144,6 +145,7 @@ fn main() {
         tokio::runtime::Builder::new_multi_thread().enable_all().thread_name("ym-core").build().expect("tokio runtime");
     let http = HttpClients::new().expect("HTTP client");
     let local_art = std::sync::Arc::new(crate::local_art::LocalArt::new(data_dir.join("art-cache"), log.fork("art")));
+    let image_loader = crate::images::image_loader(&data_dir, http.following.clone(), tokio.handle().clone(), &log);
     let app_db = graph::open_app_db(&data_dir).unwrap_or_else(|error| boot_failed(&log, &error));
     crate::data_files::import_legacy_files(&app_db, &data_dir, &log);
     let reporting =
@@ -208,6 +210,7 @@ fn main() {
         })
         .detach();
         cx.set_global(crate::local_art::SharedLocalArt(local_art));
+        ym_image_loader::async_image::init(image_loader, cx);
         crate::shortcuts::bind(cx);
         crate::a11y::init(cx);
         crate::reorder::SystemMotion::init(cx);
