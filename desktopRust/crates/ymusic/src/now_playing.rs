@@ -16,6 +16,7 @@ use gpui_kit::component::{ActiveTheme, Icon, IconName, Sizable, StyledExt, Windo
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use ym_i18n::{Str, t, tf};
+use ym_image_loader::async_image::async_image_of;
 
 use crate::a11y::{FocusList, SliderStop, alert, announced, heading, list_item};
 use crate::action_icon::{HIT, glyph_action_icon, lucide_size, sized_action_icon};
@@ -35,6 +36,7 @@ use crate::sponsor_block::SponsorBlock;
 use crate::video_layer::VideoLayer;
 #[cfg(target_os = "windows")]
 use crate::win_video_layer::VideoLayer;
+use crate::youtube_thumbnails::art_request_sources;
 
 const CONTROLS_HIDE_AFTER: Duration = Duration::from_secs(3);
 const SKIP_MS: i64 = 10_000;
@@ -1712,7 +1714,12 @@ impl NowPlaying {
                             .overflow_hidden()
                             .bg(theme.secondary)
                             .when_some(item.thumb(120), |frame, url| {
-                                frame.child(img(url).size_full().rounded(px(6.)).object_fit(ObjectFit::Cover))
+                                frame.child(
+                                    async_image_of(Some(art_request_sources(&url)))
+                                        .size_full()
+                                        .rounded(px(6.))
+                                        .object_fit(ObjectFit::Cover),
+                                )
                             }),
                     )
                     .child(
