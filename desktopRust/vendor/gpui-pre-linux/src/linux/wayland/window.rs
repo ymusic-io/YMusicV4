@@ -1895,6 +1895,19 @@ impl PlatformWindow for WaylandWindow {
         activation.activate(token, &state.surface);
     }
 
+    fn complete_activation_token(&self, token: String) {
+        let state = self.borrow();
+        if let Some(gtk_shell) = &state.globals.gtk_shell {
+            gtk_shell.set_startup_id(Some(token));
+            // Flushed now: the app may be quitting.
+            if let Some(backend) = gtk_shell.backend().upgrade()
+                && let Err(err) = backend.flush()
+            {
+                log::warn!("flushing gtk_shell1.set_startup_id failed: {err}");
+            }
+        }
+    }
+
     fn request_attention(&self) {}
 
     fn is_active(&self) -> bool {

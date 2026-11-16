@@ -1295,6 +1295,9 @@ pub trait PlatformWindow: HasWindowHandle + HasDisplayHandle {
     fn activate_with_token(&self, _token: String) {
         self.activate();
     }
+    /// Ends the launch feedback (GNOME's busy cursor) an XDG activation token from another client
+    /// started, without activating anything; a no-op where there is none.
+    fn complete_activation_token(&self, _token: String) {}
     /// Requests that the operating system draw attention to this window.
     fn request_attention(&self) {}
     fn is_active(&self) -> bool;
