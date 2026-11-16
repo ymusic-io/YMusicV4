@@ -1833,6 +1833,7 @@ impl Playback {
         F: FnOnce(Arc<DynamicEngine>, ym_common::log::Logger) -> Fut + Send + 'static,
         Fut: Future<Output = Result<(), EngineError>> + Send + 'static,
     {
+        cx.global::<AppGraph>().youtube.check_update();
         let Some(commands) = &self.commands else { return };
         let log = cx.global::<AppGraph>().log.fork("playback");
         let (result, done) = futures::channel::oneshot::channel();
