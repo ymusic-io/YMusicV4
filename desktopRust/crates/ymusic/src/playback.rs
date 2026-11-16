@@ -638,6 +638,17 @@ impl Playback {
         }
     }
 
+    /// The JVM PlayerImpl.stopActive: a load waiting for the YouTube engine is dropped and the
+    /// engines stop. A YouTube session in Error stays up, its Error with it, so a broken one is reset
+    /// by the next load.
+    fn stop_active(&mut self, cx: &mut Context<Self>) {
+        self.prepare_job = None;
+        self.send_local(LocalCommand::Stop);
+        self.loaded_video = None;
+        self.command(cx, |engine, log| async move { engine.player_stop(&log).await });
+        self.state = self.stopped_state();
+    }
+
     pub fn level_tap(&self) -> Option<LevelTap> {
         match self.active? {
             Active::YouTube => self.session.as_ref().map(|session| LevelTap::YouTube(session.host.clone())),
@@ -930,10 +941,7 @@ impl Playback {
         self.queue.clear();
         self.queue_revision += 1;
         self.index = 0;
-        self.send_local(LocalCommand::Stop);
-        self.loaded_video = None;
-        self.command(cx, |engine, log| async move { engine.player_stop(&log).await });
-        self.state = self.stopped_state();
+        self.stop_active(cx);
         self.nav.reset(self.index);
         self.publish_queue(true, cx);
         cx.notify();
@@ -958,10 +966,7 @@ impl Playback {
         if was_current {
             if self.queue.is_empty() {
                 self.index = 0;
-                self.send_local(LocalCommand::Stop);
-                self.loaded_video = None;
-                self.command(cx, |engine, log| async move { engine.player_stop(&log).await });
-                self.state = self.stopped_state();
+                self.stop_active(cx);
                 self.refresh_prepare_next(cx);
             } else {
                 self.load_current(cx);
