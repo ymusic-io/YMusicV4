@@ -180,7 +180,7 @@ R95000 D now playing: a local queue item could not be looked up in the library t
 R96000 D single instance: another process holds the data dir's instance lock but took no request
 R96001 D single instance: the lock, loopback listener or port file could not be set up
 R96002 D open with: none of the files the OS asked the app to open could be read
-R96010 - debug data slot: the worktree's .ymusic-dev-slot is unreadable or lacks slot= / an absolute root= (logged; the default dev data dir is used)
+R96010 - debug workspace: the worktree's .ymusic-dev-data is unreadable or lacks name= / an absolute root= (logged; the default dev data dir is used)
 R98000 D cookies: the cookie store (app.db secret) could not be read at launch
 R98001 D cookies: sealing the saved sign-in under a password failed
 R98002 D cookies: the unlock screen's unlock, guest or sign-out failed for a reason other than a wrong password

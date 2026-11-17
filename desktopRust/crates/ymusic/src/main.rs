@@ -112,7 +112,7 @@ fn main() {
     let dev = cfg!(debug_assertions).then(crate::dev_instance::resolve);
     let data_dir = match &dev {
         Some(dev) => {
-            crate::dev_instance::set_slot(dev.slot);
+            crate::dev_instance::set_workspace(dev.workspace.clone());
             dev.dir.clone()
         }
         None => crate::data_files::release_data_dir(),
@@ -124,14 +124,14 @@ fn main() {
     }
     let log_setup = crate::telemetry::logger(&data_dir);
     let log = log_setup.log.clone();
-    if let Some(problem) = dev.and_then(|dev| dev.slot_file_problem) {
+    if let Some(problem) = dev.and_then(|dev| dev.workspace_file_problem) {
         log.warn(
-            &format!("R96010 the worktree's dev slot file is unusable, using the default data dir: {problem}"),
+            &format!("R96010 the worktree's dev workspace file is unusable, using the default data dir: {problem}"),
             None,
         );
     }
-    if let Some(slot) = crate::dev_instance::slot() {
-        log.info(&format!("debug data slot {slot}: {}", data_dir.display()));
+    if let Some(workspace) = crate::dev_instance::workspace() {
+        log.info(&format!("debug workspace {} ({}): {}", workspace.name, workspace.id, data_dir.display()));
     }
     // Before any window or Jump List: they take the process's ID from then on.
     #[cfg(target_os = "windows")]

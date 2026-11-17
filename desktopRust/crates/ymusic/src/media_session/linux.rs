@@ -69,11 +69,11 @@ impl Backend {
     }
 }
 
-/// The JVM app's name (a debug slot's own), else one of this process's own when another player
+/// The JVM app's name (a debug workspace's own), else one of this process's own when another player
 /// holds it.
 fn request_name(connection: &Connection) -> Result<(), String> {
-    let preferred = match crate::dev_instance::slot() {
-        Some(slot) => format!("{BUS_NAME}.dev{slot}"),
+    let preferred = match crate::dev_instance::workspace() {
+        Some(workspace) => format!("{BUS_NAME}.dev{}", workspace.id),
         None => BUS_NAME.to_owned(),
     };
     let candidates = [preferred, format!("{BUS_NAME}.instance{}", std::process::id())];

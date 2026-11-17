@@ -151,46 +151,23 @@ pub fn set_dock_icon(log: &Logger) {
         let app: Retained<AnyObject> = msg_send![app_class, sharedApplication];
         let _: () = msg_send![&*app, setApplicationIconImage: &*image];
     }
-    show_dev_slot_badge();
 }
 
 #[cfg(not(target_os = "macos"))]
 pub fn set_dock_icon(_log: &Logger) {}
 
-/// A debug slot's number on its Dock tile, to tell side-by-side instances apart.
-#[cfg(target_os = "macos")]
-fn show_dev_slot_badge() {
-    use objc2::msg_send;
-    use objc2::rc::Retained;
-    use objc2::runtime::{AnyClass, AnyObject};
-    let Some(slot) = crate::dev_instance::slot() else { return };
-    let (Some(app_class), Some(string_class)) = (AnyClass::get(c"NSApplication"), AnyClass::get(c"NSString")) else {
-        return;
-    };
-    let Ok(label) = std::ffi::CString::new(slot.to_string()) else { return };
-    // SAFETY: plain AppKit calls on the main thread; the label outlives the call that copies it.
-    unsafe {
-        let app: Retained<AnyObject> = msg_send![app_class, sharedApplication];
-        let tile: Option<Retained<AnyObject>> = msg_send![&*app, dockTile];
-        let text: Option<Retained<AnyObject>> = msg_send![string_class, stringWithUTF8String: label.as_ptr()];
-        if let (Some(tile), Some(text)) = (tile, text) {
-            let _: () = msg_send![&*tile, setBadgeLabel: &*text];
-        }
-    }
-}
-
 /// The app's AppUserModelID, which the installer's shortcuts carry too: the taskbar and the media
 /// flyout find the name and icon through the Start menu shortcut carrying it, and a pin merges with
 /// the running window only when they match. Debug builds take their own, so they never touch the
-/// installed app's taskbar button, and a debug slot its own, so each instance keeps its button and
-/// Jump List.
+/// installed app's taskbar button, and a debug workspace its own, so each instance keeps its button
+/// and Jump List.
 #[cfg(target_os = "windows")]
 fn app_user_model_id() -> &'static str {
     static ID: std::sync::OnceLock<String> = std::sync::OnceLock::new();
-    ID.get_or_init(|| match (cfg!(debug_assertions), crate::dev_instance::slot()) {
+    ID.get_or_init(|| match (cfg!(debug_assertions), crate::dev_instance::workspace()) {
         (false, _) => "io.ymusic.windows".to_owned(),
         (true, None) => "io.ymusic.windows.dev".to_owned(),
-        (true, Some(slot)) => format!("io.ymusic.windows.dev{slot}"),
+        (true, Some(workspace)) => format!("io.ymusic.windows.dev.{}", workspace.id),
     })
 }
 
@@ -277,23 +254,27 @@ fn write_dev_start_menu_entry(exe: &Path, arguments: &str) -> anyhow::Result<()>
     }
 }
 
-/// The entry's name, which the media flyout shows: a debug slot's carries its number.
+/// The entry's name, which the media flyout shows: a debug workspace's carries the workspace name,
+/// with what a file name cannot hold replaced.
 #[cfg(all(target_os = "windows", debug_assertions))]
 fn dev_start_menu_entry_name() -> String {
-    match crate::dev_instance::slot() {
-        Some(slot) => format!("YMusic Dev #{slot}.lnk"),
-        None => "YMusic Dev.lnk".to_owned(),
-    }
+    let Some(workspace) = crate::dev_instance::workspace() else { return "YMusic Dev.lnk".to_owned() };
+    let name: String = workspace
+        .name
+        .chars()
+        .map(|character| if character.is_control() || r#"<>:"/\|?*"#.contains(character) { '-' } else { character })
+        .collect();
+    format!("YMusic Dev ({}).lnk", name.trim_end_matches(['.', ' ']))
 }
 
 const APP_ID: &str = "io.ymusic.YMusic";
 
 /// The Wayland app_id and X11 WM_CLASS of the window; GNOME takes its icon from the desktop entry
-/// of the same name. A debug slot has its own, so the dock keeps each instance apart.
+/// of the same name. A debug workspace has its own, so the dock keeps each instance apart.
 pub fn app_id() -> &'static str {
     static ID: std::sync::OnceLock<String> = std::sync::OnceLock::new();
-    ID.get_or_init(|| match crate::dev_instance::slot() {
-        Some(slot) => format!("{APP_ID}.dev{slot}"),
+    ID.get_or_init(|| match crate::dev_instance::workspace() {
+        Some(workspace) => format!("{APP_ID}.dev{}", workspace.id),
         None => APP_ID.to_owned(),
     })
 }
@@ -411,9 +392,6 @@ pub fn set_dock_visible(visible: bool) {
     unsafe {
         let app: Retained<AnyObject> = msg_send![app_class, sharedApplication];
         let _: bool = msg_send![&*app, setActivationPolicy: policy];
-    }
-    if visible {
-        show_dev_slot_badge();
     }
 }
 

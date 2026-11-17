@@ -97,7 +97,7 @@ impl MediaSession {
         let log = cx.global::<AppGraph>().log.fork("media-session");
         // zbus runs on Tokio once a dependency enables its tokio feature: connecting outside the
         // runtime panics ("there is no reactor running").
-        let backend = if crate::dev_instance::owns_global_resources() {
+        let backend = if crate::dev_instance::media_session_allowed() {
             let runtime = cx.global::<AppGraph>().tokio.enter();
             let started = Backend::start(sender, log.clone());
             drop(runtime);
@@ -109,7 +109,7 @@ impl MediaSession {
                 }
             }
         } else {
-            log.info("a debug slot after the first leaves the OS media session and media keys to slot 1");
+            log.info("a debug workspace run starts no OS media session (YMUSIC_DEV_MEDIA_SESSION=1 turns it on)");
             None
         };
         let observe = cx.observe(&playback, |session, playback, cx| session.mirror(&playback, cx));
