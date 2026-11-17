@@ -117,6 +117,9 @@ cmd_run() {
                 . "$root/$ENV_FILE_NAME"
             fi
             cd "$root/desktopRust"
+            # rustup puts cargo in ~/.cargo/bin, which a non-login shell's PATH lacks.
+            command -v cargo >/dev/null 2>&1 || PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
+            command -v cargo >/dev/null 2>&1 || die "cargo not found (install Rust via rustup)"
             # findshlibs overflows its arithmetic on macOS, which panics a debug build.
             exec cargo run -p ymusic --config 'profile.dev.package.findshlibs.overflow-checks=false'
             ;;
