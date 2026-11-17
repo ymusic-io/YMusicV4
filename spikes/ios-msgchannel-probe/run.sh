@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Build + run the mixed-content probe in the iOS Simulator, streaming its [mixed] log.
-# Intel host → iosX64 (x86_64) simulator. Usage: ./run.sh
+# Intel host → x86_64 simulator (plain swiftc, no Kotlin framework). Usage: ./run.sh
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 BUILD="$HERE/build"

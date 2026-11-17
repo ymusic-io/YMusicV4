@@ -37,43 +37,24 @@ val generateIosBuildConfig by tasks.registering {
  */
 kotlin {
     withComposeIosTargets {
-        val ffmpegSlug = when (name) {
-            "iosArm64" -> "ios-arm64"
-            "iosSimulatorArm64" -> "ios-simulator-arm64"
-            else -> null
-        }
         binaries.framework {
             baseName = "YMusicApp"
             isStatic = false
-            // Compose MP 1.11.1's ui-uikit links iOS 26 symbols (UIViewLayoutRegion), which need the
-            // iOS 26 SDK / Xcode 26. To build on an older Xcode, allow those undefined at link — Compose
-            // @available-guards their use, so they're never touched below iOS 26. Drop when on Xcode 26.
+            // Escape hatch for Xcode < 26 only (the Xcode build phase passes it there): Compose MP 1.11.1's
+            // ui-uikit references the iOS 26 UIViewLayoutRegion, absent from older SDKs. It hides every
+            // other undefined symbol too, so a missing library becomes a launch crash.
             if (providers.gradleProperty("iosAllowUndefined").orNull == "true") {
+                logger.warn(
+                    "w: -PiosAllowUndefined=true: YMusicApp links with -undefined dynamic_lookup; a missing " +
+                        "symbol crashes at runtime instead of failing the link. Only for Xcode < 26.",
+                )
                 linkerOpts("-undefined", "dynamic_lookup")
             }
             linkerOpts("-framework", "MediaPlayer")
             linkerOpts("-framework", "LocalAuthentication")
-            // Same as :playground: cinterop linkerOpts is ignored; bake libav + VT here.
-            val lib = ffmpegSlug?.let {
-                rootProject.projectDir.parentFile.resolve("ffmpeg-build/out/$it/lib")
-            }
-            if (lib != null && lib.resolve("libavcodec.a").isFile) {
-                linkerOpts("-L${lib.absolutePath}")
-                linkerOpts("-lavformat", "-lavcodec", "-lswscale", "-lswresample", "-lavutil")
-                if (lib.resolve("libdav1d.a").isFile) linkerOpts("-ldav1d")
-                if (lib.resolve("libvpx.a").isFile) linkerOpts("-lvpx")
-                linkerOpts(
-                    "-framework", "AudioToolbox",
-                    "-framework", "CoreAudio",
-                    "-framework", "VideoToolbox",
-                    "-framework", "CoreMedia",
-                    "-framework", "CoreFoundation",
-                    "-framework", "CoreVideo",
-                    "-framework", "AVFoundation",
-                    "-framework", "QuartzCore",
-                    "-lz", "-lbz2", "-liconv",
-                )
-            }
+            // sqliter's Apple cinterop klib carries no -lsqlite3; SQLDelight's linkSqlite adds it only to
+            // binaries of modules applying its plugin, so a framework of a consumer states it.
+            linkerOpts("-lsqlite3")
         }
     }
     // The KMP plugin requires at least one target, and the Compose iOS targets are host-gated OFF
