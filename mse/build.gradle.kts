@@ -34,29 +34,32 @@ fun mseClangArch(targetName: String): List<String> = when (targetName) {
 fun mseLibDir(targetName: String) =
     layout.buildDirectory.dir("mse-native/$targetName").get().asFile
 
-fun ffmpegIosSdk(targetName: String): String? = when (targetName) {
-    "iosArm64" -> "iphoneos"
-    "iosSimulatorArm64" -> "iphonesimulator"
-    else -> null
+fun ffmpegSlug(targetName: String): String = when (targetName) {
+    "iosArm64" -> "ios-arm64"
+    "iosSimulatorArm64" -> "ios-simulator-arm64"
+    "macosX64" -> "macos-x86_64"
+    "macosArm64" -> "macos-arm64"
+    else -> error("no ffmpeg-build slug for $targetName")
 }
 
-/** The static iOS libav `buildMseHost<Target>` requires; null for the macOS targets (stub host). */
-fun ffmpegIosPrefix(targetName: String): File? {
-    val slug = when (targetName) {
-        "iosArm64" -> "ios-arm64"
-        "iosSimulatorArm64" -> "ios-simulator-arm64"
-        else -> return null
+/** iOS links ffmpeg-build's static iOS libav; macOS the desktop app's shared libav. */
+fun ffmpegPrefix(targetName: String): File = FfmpegBuild.root(project).resolve("out/${ffmpegSlug(targetName)}")
+
+fun isIos(targetName: String) = targetName.startsWith("ios")
+
+fun requireFfmpeg(targetName: String, prefix: File) {
+    val avcodec = if (isIos(targetName)) "lib/libavcodec.a" else "lib/libavcodec.dylib"
+    if (File(prefix, avcodec).isFile && File(prefix, "include").isDirectory) return
+    val build = when (targetName) {
+        "iosArm64" -> "on an Apple Silicon Mac: scripts/build-ios.sh iphoneos"
+        "iosSimulatorArm64" -> "on an Apple Silicon Mac: scripts/build-ios.sh iphonesimulator"
+        "macosArm64" -> "on an Apple Silicon Mac: scripts/build-desktop.sh"
+        else -> "on an Intel Mac: scripts/build-desktop.sh"
     }
-    return FfmpegBuild.root(project).resolve("out/$slug")
-}
-
-fun requireFfmpegIos(targetName: String, prefix: File) {
-    if (File(prefix, "lib/libavcodec.a").isFile && File(prefix, "include").isDirectory) return
     throw GradleException(
-        "$targetName: no static iOS ffmpeg at $prefix (needs lib/libavcodec.a and include/). " +
-            "The iOS MSE host links it; there is no fallback. Build it in the ffmpeg-build checkout " +
-            "next to this repo (github.com/ymusic-io/ffmpeg-build), on an Apple Silicon Mac: " +
-            "scripts/build-ios.sh ${ffmpegIosSdk(targetName)}",
+        "$targetName: no ffmpeg at $prefix (needs $avcodec and include/). The MSE host links it; " +
+            "there is no fallback. Build it in the ffmpeg-build checkout next to this repo " +
+            "(github.com/ymusic-io/ffmpeg-build), $build",
     )
 }
 
@@ -67,78 +70,87 @@ fun registerMseNativeLib(targetName: String): TaskProvider<Exec> {
         return tasks.named(taskName) as TaskProvider<Exec>
     }
     val out = mseLibDir(targetName)
-    val ffmpeg = ffmpegIosPrefix(targetName)
+    val ffmpeg = ffmpegPrefix(targetName)
     val qjsInc = rootProject.projectDir.resolve("quickjs/native")
     val task = tasks.register<Exec>(taskName) {
-        // `*.o` / `ar r` would otherwise pick up a previous variant's objects (stub vs ffmpeg).
         doFirst {
-            if (ffmpeg != null) requireFfmpegIos(targetName, ffmpeg)
+            requireFfmpeg(targetName, ffmpeg)
             out.deleteRecursively()
             out.mkdirs()
         }
         inputs.dir(mseNativeSrc)
-        if (ffmpeg != null) {
-            // A tree, not inputs.dir: a missing prefix must reach requireFfmpegIos, not input validation.
-            inputs.files(fileTree(File(ffmpeg, "include")))
-            inputs.dir(qjsInc)
-        }
+        // A tree, not inputs.dir: a missing prefix must reach requireFfmpeg, not input validation.
+        inputs.files(fileTree(File(ffmpeg, "include")))
+        inputs.dir(qjsInc)
         outputs.file(File(out, "libmsehost.a"))
         inputs.property("production", productionC)
         workingDir(out)
         val arch = mseClangArch(targetName).joinToString(" ")
-        val cmd = if (ffmpeg != null) {
-            val srcs = listOf(
-                "mse_host.c", "mse_ffmpeg.c", "mse_caps.c", "mse_vt.c", "mse_vt_blit.c", "audio_fx.c",
-                "vpresent.c", "vpresent_cpu.c", "vpresent_vt.c", "vpipe.c", "vpipe_hw_vt.c",
-            )
-                .joinToString(" ") { "'${mseNativeSrc.resolve(it)}'" }
-            val objc = listOf("mse_vt_layer.m", "mse_vt_dec.m")
-                .joinToString(" ") { "'${mseNativeSrc.resolve(it)}'" }
-            "set -e; cc $arch -O2 -w -DPRODUCTION=$productionC -c $srcs " +
-                "-I'${mseNativeSrc.absolutePath}' -I'${qjsInc.absolutePath}' " +
-                "-I'${File(ffmpeg, "include").absolutePath}' && " +
-                "cc $arch -O2 -w -fobjc-arc -DPRODUCTION=$productionC -c $objc " +
-                "-I'${mseNativeSrc.absolutePath}' && ar rcs libmsehost.a *.o"
-        } else {
-            "set -e; cc $arch -O2 -w -c '${mseNativeSrc.resolve("mse_stub.c")}' " +
-                "-I'${mseNativeSrc.absolutePath}' && ar rcs libmsehost.a *.o"
-        }
+        val srcs = listOf(
+            "mse_host.c", "mse_ffmpeg.c", "mse_caps.c", "mse_vt.c", "mse_vt_blit.c", "audio_fx.c",
+            "vpresent.c", "vpresent_cpu.c", "vpresent_vt.c", "vpipe.c", "vpipe_hw_vt.c", "vt_overlay_none.c",
+        )
+            .joinToString(" ") { "'${mseNativeSrc.resolve(it)}'" }
+        val objc = listOf("mse_vt_layer.m", "mse_vt_dec.m")
+            .joinToString(" ") { "'${mseNativeSrc.resolve(it)}'" }
+        val cmd = "set -e; cc $arch -O2 -w -DPRODUCTION=$productionC -c $srcs " +
+            "-I'${mseNativeSrc.absolutePath}' -I'${qjsInc.absolutePath}' " +
+            "-I'${File(ffmpeg, "include").absolutePath}' && " +
+            "cc $arch -O2 -w -fobjc-arc -DPRODUCTION=$productionC -c $objc " +
+            "-I'${mseNativeSrc.absolutePath}' && ar rcs libmsehost.a *.o"
         commandLine("bash", "-c", cmd)
     }
     return task
+}
+
+/** What a final binary linking the MSE host needs: libav and the Apple frameworks the C calls. */
+fun mseHostLinkerOpts(targetName: String): List<String> {
+    val lib = File(ffmpegPrefix(targetName), "lib")
+    return buildList {
+        add("-L${lib.absolutePath}")
+        addAll(listOf("-lavformat", "-lavcodec", "-lswscale", "-lswresample", "-lavutil"))
+        if (isIos(targetName)) {
+            if (File(lib, "libdav1d.a").isFile) add("-ldav1d")
+            if (File(lib, "libvpx.a").isFile) add("-lvpx")
+        } else {
+            // Shared libav, loaded from the ffmpeg-build checkout: test binaries and labs only.
+            addAll(listOf("-rpath", lib.absolutePath))
+        }
+        listOf(
+            "AudioToolbox", "CoreAudio", "VideoToolbox", "CoreMedia", "CoreFoundation", "CoreVideo",
+            "CoreGraphics", "AVFoundation", "QuartzCore",
+        ).forEach { addAll(listOf("-framework", it)) }
+        addAll(listOf("-lz", "-lbz2", "-liconv"))
+    }
+}
+
+// cinterop ignores DSL linkerOpts ("not supported by cinterop"); only the .def's reach the klib, and
+// through it every binary that links :mse. So the def is generated per target with them appended.
+fun registerMseDef(targetName: String): Pair<TaskProvider<Task>, File> {
+    val base = project.file("native/cinterop/mse.def")
+    val out = layout.buildDirectory.file("mse-def/$targetName/mse.def").get().asFile
+    val linkerOpts = mseHostLinkerOpts(targetName).joinToString(" ")
+    val task = tasks.register("generateMseDef${targetName.replaceFirstChar { it.uppercase() }}") {
+        inputs.file(base)
+        inputs.property("linkerOpts", linkerOpts)
+        outputs.file(out)
+        doLast { out.writeText(base.readText().trimEnd() + "\nlinkerOpts = $linkerOpts\n") }
+    }
+    return task to out
 }
 
 val configureMseNative: KotlinNativeTarget.() -> Unit = {
     val targetName = name
     val libTask = registerMseNativeLib(targetName)
     val libDir = mseLibDir(targetName)
-    val ffmpeg = ffmpegIosPrefix(targetName)
+    val (defTask, defOut) = registerMseDef(targetName)
     compilations.getByName("main").cinterops.create("mse") {
-        defFile(project.file("native/cinterop/mse.def"))
+        definitionFile.set(defOut)
         includeDirs(mseNativeSrc)
         extraOpts("-libraryPath", libDir.absolutePath)
-        if (ffmpeg != null) {
-            // Baked into the klib, so :dynamic-engine / :playground do not repeat -L/-l/frameworks.
-            linkerOpts("-L${File(ffmpeg, "lib").absolutePath}")
-            linkerOpts("-lavformat", "-lavcodec", "-lswscale", "-lswresample", "-lavutil")
-            val flib = File(ffmpeg, "lib")
-            if (File(flib, "libdav1d.a").isFile) linkerOpts("-ldav1d")
-            if (File(flib, "libvpx.a").isFile) linkerOpts("-lvpx")
-            linkerOpts(
-                "-framework", "AudioToolbox",
-                "-framework", "CoreAudio",
-                "-framework", "VideoToolbox",
-                "-framework", "CoreMedia",
-                "-framework", "CoreFoundation",
-                "-framework", "CoreVideo",
-                "-framework", "AVFoundation",
-                "-framework", "QuartzCore",
-                "-lz", "-lbz2", "-liconv",
-            )
-        }
     }
     tasks.named("cinteropMse${targetName.replaceFirstChar { it.uppercase() }}").configure {
-        dependsOn(libTask)
+        dependsOn(libTask, defTask)
         inputs.file(libDir.resolve("libmsehost.a"))
     }
 }

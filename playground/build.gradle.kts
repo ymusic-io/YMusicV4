@@ -31,32 +31,9 @@ kotlin {
     }
 
     withComposeIosTargets {
-        val ffmpegSlug = when (name) {
-            "iosArm64" -> "ios-arm64"
-            "iosSimulatorArm64" -> "ios-simulator-arm64"
-            else -> error("no static iOS ffmpeg for $name")
-        }
         binaries.framework {
             baseName = "MsePlayground"
             isStatic = false
-            // cinterop linkerOpts is ignored on this Kotlin; bake libav + VT into the app framework.
-            // A missing prefix fails :mse's buildMseHost first, with the build command.
-            val lib = FfmpegBuild.root(project).resolve("out/$ffmpegSlug/lib")
-            linkerOpts("-L${lib.absolutePath}")
-            linkerOpts("-lavformat", "-lavcodec", "-lswscale", "-lswresample", "-lavutil")
-            if (lib.resolve("libdav1d.a").isFile) linkerOpts("-ldav1d")
-            if (lib.resolve("libvpx.a").isFile) linkerOpts("-lvpx")
-            linkerOpts(
-                "-framework", "AudioToolbox",
-                "-framework", "CoreAudio",
-                "-framework", "VideoToolbox",
-                "-framework", "CoreMedia",
-                "-framework", "CoreFoundation",
-                "-framework", "CoreVideo",
-                "-framework", "AVFoundation",
-                "-framework", "QuartzCore",
-                "-lz", "-lbz2", "-liconv",
-            )
         }
     }
 
