@@ -426,6 +426,8 @@
     <string name="settings_audio_focus_apps">Pozastaviť, keď iné aplikácie prehrávajú zvuk</string>
     <string name="settings_sponsor_block">SponsorBlock</string>
     <string name="settings_sponsor_block_hint">Automaticky preskakovať sponzorované úseky vo videách YouTube. Pre konkrétne video sa dá vypnúť v Práve hrá.</string>
+    <string name="settings_stable_volume">Stabilná hlasitosť</string>
+    <string name="settings_stable_volume_hint">Vyrovnáva hlasné a tiché pasáže a prehráva každú skladbu s podobnou hlasitosťou.</string>
     <string name="sponsor_block_included">SponsorBlock je pre toto video zapnutý</string>
     <string name="sponsor_block_excluded">SponsorBlock je pre toto video vypnutý</string>
     <string name="settings_sound">Zvuk</string>

@@ -418,6 +418,8 @@
     <string name="settings_audio_focus_apps">অন্য অ্যাপ শব্দ চালালে থামান</string>
     <string name="settings_sponsor_block">SponsorBlock</string>
     <string name="settings_sponsor_block_hint">YouTube ভিডিওর স্পনসর অংশ স্বয়ংক্রিয়ভাবে বাদ দিন। Now Playing থেকে কোনো ভিডিওর জন্য বন্ধ করুন।</string>
+    <string name="settings_stable_volume">স্থির ভলিউম</string>
+    <string name="settings_stable_volume_hint">জোরালো ও মৃদু অংশ সমান করে এবং প্রতিটি গান প্রায় একই আওয়াজে চালায়।</string>
     <string name="sponsor_block_included">এই ভিডিওর জন্য SponsorBlock চালু</string>
     <string name="sponsor_block_excluded">এই ভিডিওর জন্য SponsorBlock বন্ধ</string>
     <string name="settings_sound">সাউন্ড</string>

@@ -388,6 +388,8 @@
     <string name="settings_audio_focus_apps">Tạm dừng khi ứng dụng khác phát âm thanh</string>
     <string name="settings_sponsor_block">Chặn quảng cáo trong video</string>
     <string name="settings_sponsor_block_hint">Tự động bỏ qua các đoạn được tài trợ trong video YouTube. Tắt cho một video từ Đang phát.</string>
+    <string name="settings_stable_volume">Âm lượng ổn định</string>
+    <string name="settings_stable_volume_hint">Cân bằng đoạn to và nhỏ, phát mọi bài hát ở mức âm lượng tương tự nhau.</string>
     <string name="sponsor_block_included">Chặn quảng cáo trong video này</string>
     <string name="sponsor_block_excluded">Bỏ chặn quảng cáo trong video này</string>
     <string name="settings_sound">Âm thanh</string>

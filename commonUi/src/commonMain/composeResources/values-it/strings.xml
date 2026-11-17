@@ -422,6 +422,8 @@
     <string name="settings_audio_focus_apps">Metti in pausa quando altre app riproducono suoni</string>
     <string name="settings_sponsor_block">SponsorBlock</string>
     <string name="settings_sponsor_block_hint">Salta automaticamente i segmenti sponsorizzati nei video di YouTube. Disattivabile per singolo video dalla schermata di riproduzione.</string>
+    <string name="settings_stable_volume">Volume stabile</string>
+    <string name="settings_stable_volume_hint">Uniforma le parti forti e quelle deboli e riproduce ogni brano a un volume simile.</string>
     <string name="sponsor_block_included">SponsorBlock attivato per questo video</string>
     <string name="sponsor_block_excluded">SponsorBlock disattivato per questo video</string>
     <string name="settings_sound">Audio</string>

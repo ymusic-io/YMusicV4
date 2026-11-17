@@ -414,6 +414,8 @@
     <string name="settings_audio_focus_apps">他のアプリが音を再生したら一時停止</string>
     <string name="settings_sponsor_block">SponsorBlock</string>
     <string name="settings_sponsor_block_hint">YouTube 動画のスポンサー区間を自動的にスキップします。動画ごとに再生画面からオフにできます。</string>
+    <string name="settings_stable_volume">音量の安定化</string>
+    <string name="settings_stable_volume_hint">大きい部分と小さい部分の差を抑え、どの曲も同じくらいの音量で再生します。</string>
     <string name="sponsor_block_included">この動画で SponsorBlock を有効にしました</string>
     <string name="sponsor_block_excluded">この動画で SponsorBlock を無効にしました</string>
     <string name="settings_sound">サウンド</string>

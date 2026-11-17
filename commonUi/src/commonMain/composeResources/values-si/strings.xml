@@ -418,6 +418,8 @@
     <string name="settings_audio_focus_apps">වෙනත් යෙදුම් ශබ්ද වාදනය කරන විට විරාම කරන්න</string>
     <string name="settings_sponsor_block">SponsorBlock</string>
     <string name="settings_sponsor_block_hint">YouTube වීඩියෝවල අනුග්‍රාහක කොටස් ස්වයංක්‍රීයව මඟ හරින්න. දැන් වාදනය වන තිරයෙන් වීඩියෝවකට අක්‍රිය කරන්න.</string>
+    <string name="settings_stable_volume">ස්ථාවර ශබ්දය</string>
+    <string name="settings_stable_volume_hint">හඬ වැඩි සහ අඩු කොටස් සමාන කර සෑම ගීතයක්ම සමාන ශබ්දයකින් වාදනය කරයි.</string>
     <string name="sponsor_block_included">මෙම වීඩියෝව සඳහා SponsorBlock සක්‍රියයි</string>
     <string name="sponsor_block_excluded">මෙම වීඩියෝව සඳහා SponsorBlock අක්‍රියයි</string>
     <string name="settings_sound">ශබ්දය</string>

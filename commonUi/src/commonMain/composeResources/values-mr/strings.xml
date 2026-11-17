@@ -418,6 +418,8 @@
     <string name="settings_audio_focus_apps">इतर अ‍ॅप्स आवाज वाजवतात तेव्हा थांबवा</string>
     <string name="settings_sponsor_block">SponsorBlock</string>
     <string name="settings_sponsor_block_hint">YouTube व्हिडिओमधील प्रायोजित भाग आपोआप वगळा. एखाद्या व्हिडिओसाठी प्लेअर स्क्रीनवरून बंद करा.</string>
+    <string name="settings_stable_volume">स्थिर व्हॉल्यूम</string>
+    <string name="settings_stable_volume_hint">मोठे आणि हळू भाग समान करते आणि प्रत्येक गाणे साधारण सारख्या आवाजात वाजवते.</string>
     <string name="sponsor_block_included">या व्हिडिओसाठी SponsorBlock सुरू केले</string>
     <string name="sponsor_block_excluded">या व्हिडिओसाठी SponsorBlock बंद केले</string>
     <string name="settings_sound">आवाज</string>

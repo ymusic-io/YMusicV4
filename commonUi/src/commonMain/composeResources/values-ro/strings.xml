@@ -422,6 +422,8 @@
     <string name="settings_audio_focus_apps">Întrerupe când alte aplicații redau sunet</string>
     <string name="settings_sponsor_block">SponsorBlock</string>
     <string name="settings_sponsor_block_hint">Omite automat segmentele sponsorizate din videoclipurile YouTube. Dezactivează pentru un videoclip din Se redă acum.</string>
+    <string name="settings_stable_volume">Volum stabil</string>
+    <string name="settings_stable_volume_hint">Echilibrează pasajele puternice și cele încete și redă fiecare melodie la un volum asemănător.</string>
     <string name="sponsor_block_included">SponsorBlock activat pentru acest videoclip</string>
     <string name="sponsor_block_excluded">SponsorBlock dezactivat pentru acest videoclip</string>
     <string name="settings_sound">Sunet</string>

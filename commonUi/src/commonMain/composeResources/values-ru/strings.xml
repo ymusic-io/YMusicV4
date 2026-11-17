@@ -426,6 +426,8 @@
     <string name="settings_audio_focus_apps">Пауза, когда другие приложения воспроизводят звук</string>
     <string name="settings_sponsor_block">SponsorBlock</string>
     <string name="settings_sponsor_block_hint">Автоматически пропускать спонсорские вставки в видео YouTube. Для отдельного видео можно отключить на экране воспроизведения.</string>
+    <string name="settings_stable_volume">Стабильная громкость</string>
+    <string name="settings_stable_volume_hint">Выравнивает громкие и тихие фрагменты и воспроизводит все треки с похожей громкостью.</string>
     <string name="sponsor_block_included">SponsorBlock включён для этого видео</string>
     <string name="sponsor_block_excluded">SponsorBlock отключён для этого видео</string>
     <string name="settings_sound">Звук</string>

@@ -418,6 +418,8 @@
     <string name="settings_audio_focus_apps">અન્ય ઍપ અવાજ વગાડે ત્યારે થોભાવો</string>
     <string name="settings_sponsor_block">SponsorBlock</string>
     <string name="settings_sponsor_block_hint">YouTube વીડિયોમાં સ્પૉન્સર કરેલા ભાગો આપમેળે છોડો. Now Playing માંથી કોઈ વીડિયો માટે બંધ કરો.</string>
+    <string name="settings_stable_volume">સ્થિર વૉલ્યૂમ</string>
+    <string name="settings_stable_volume_hint">મોટા અને ધીમા ભાગોને સરખા કરે છે અને દરેક ગીતને લગભગ સમાન અવાજે વગાડે છે.</string>
     <string name="sponsor_block_included">આ વીડિયો માટે SponsorBlock ચાલુ</string>
     <string name="sponsor_block_excluded">આ વીડિયો માટે SponsorBlock બંધ</string>
     <string name="settings_sound">સાઉન્ડ</string>

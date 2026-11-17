@@ -422,6 +422,8 @@
     <string name="settings_audio_focus_apps">Pausar quando outros apps reproduzirem som</string>
     <string name="settings_sponsor_block">SponsorBlock</string>
     <string name="settings_sponsor_block_hint">Pula automaticamente trechos patrocinados em vídeos do YouTube. Desative para um vídeo na tela de reprodução.</string>
+    <string name="settings_stable_volume">Volume estável</string>
+    <string name="settings_stable_volume_hint">Equilibra as partes altas e baixas e toca cada música com um volume parecido.</string>
     <string name="sponsor_block_included">SponsorBlock ativado para este vídeo</string>
     <string name="sponsor_block_excluded">SponsorBlock desativado para este vídeo</string>
     <string name="settings_sound">Som</string>

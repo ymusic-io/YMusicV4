@@ -418,6 +418,8 @@
     <string name="settings_audio_focus_apps">Pausieren, wenn andere Apps Ton abspielen</string>
     <string name="settings_sponsor_block">SponsorBlock</string>
     <string name="settings_sponsor_block_hint">Gesponserte Abschnitte in YouTube-Videos automatisch überspringen. In „Aktuelle Wiedergabe“ für einzelne Videos abschaltbar.</string>
+    <string name="settings_stable_volume">Stabile Lautstärke</string>
+    <string name="settings_stable_volume_hint">Gleicht laute und leise Passagen aus und spielt jeden Titel ähnlich laut ab.</string>
     <string name="sponsor_block_included">SponsorBlock für dieses Video aktiviert</string>
     <string name="sponsor_block_excluded">SponsorBlock für dieses Video deaktiviert</string>
     <string name="settings_sound">Sound</string>

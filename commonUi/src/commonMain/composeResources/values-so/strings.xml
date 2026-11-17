@@ -418,6 +418,8 @@
     <string name="settings_audio_focus_apps">Jooji marka apps kale ay cod daaraan</string>
     <string name="settings_sponsor_block">SponsorBlock</string>
     <string name="settings_sponsor_block_hint">Si iskeed ah uga bood qaybaha la maalgashaday ee muuqaalada YouTube. Muuqaal gaar ah ka xidh La daarayo.</string>
+    <string name="settings_stable_volume">Cod deggan</string>
+    <string name="settings_stable_volume_hint">Isle ekeysiiya qaybaha dhawaaqa sare iyo kuwa hoose, hees kastana ku shida cod isku mid ah.</string>
     <string name="sponsor_block_included">Muuqaalkan waa loo furay SponsorBlock</string>
     <string name="sponsor_block_excluded">Muuqaalkan waa looga xidhay SponsorBlock</string>
     <string name="settings_sound">Codka</string>

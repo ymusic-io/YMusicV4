@@ -418,6 +418,8 @@
     <string name="settings_audio_focus_apps">பிற ஆப்ஸ் ஒலி இயக்கும்போது இடைநிறுத்து</string>
     <string name="settings_sponsor_block">SponsorBlock</string>
     <string name="settings_sponsor_block_hint">YouTube வீடியோக்களில் ஸ்பான்சர் பகுதிகளைத் தானாகத் தவிர்க்கவும். Now Playing இலிருந்து ஒரு வீடியோவுக்கு முடக்கலாம்.</string>
+    <string name="settings_stable_volume">நிலையான ஒலியளவு</string>
+    <string name="settings_stable_volume_hint">உரத்த மற்றும் மென்மையான பகுதிகளைச் சமன்செய்து ஒவ்வொரு பாடலையும் ஏறக்குறைய ஒரே ஒலியளவில் இயக்கும்.</string>
     <string name="sponsor_block_included">இந்த வீடியோவுக்கு SponsorBlock இயக்கப்பட்டது</string>
     <string name="sponsor_block_excluded">இந்த வீடியோவுக்கு SponsorBlock முடக்கப்பட்டது</string>
     <string name="settings_sound">ஒலி</string>

@@ -215,6 +215,13 @@ object AppSettings {
     val sponsorBlockEnabled = BoolSetting("playback.sponsorBlock", true)
 
     /**
+     * YouTube's Stable volume: playback applies the loudness gain (streams, and files whose measured gain
+     * was stored) and picks YouTube's dynamic-range-compressed track. Downloads and scans store the gain
+     * either way. player.js reads this key over the settings protocol.
+     */
+    val stableVolume = BoolSetting("playback.stableVolume", true)
+
+    /**
      * Overlay pictures-per-second on the Now Playing / fullscreen video hole.
      * Off by default. Sampling runs only while that hole is composed, the window is focused,
      * and playWhenReady is true.

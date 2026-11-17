@@ -76,6 +76,8 @@ data class PlaybackConfig(
     val preampDb: Float = 0f,
     /** False bypasses the equalizer/bass/virtualizer/preamp (system audio effects take over); the values are kept. */
     val inAppAudioFx: Boolean = true,
+    /** False: no loudness gain ([PlayableItem.loudnessScale], YouTube's), and no YouTube stable-volume track. */
+    val stableVolume: Boolean = true,
     val loop: Boolean = false,
     val preferCaptionLanguage: Pair<String, Long> = UNDETERMINED_LANGUAGE to 0L,
     val scaleMode: ScaleMode = ScaleMode.CONTAIN,
