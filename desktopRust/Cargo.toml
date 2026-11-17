@@ -21,6 +21,7 @@ url = "2"
 rusqlite = { version = "0.41", features = ["bundled"] }
 
 [patch.crates-io]
+gpui-component = { path = "vendor/gpui-component" }
 gpui-pre = { path = "vendor/gpui-pre" }
 gpui-pre-linux = { path = "vendor/gpui-pre-linux" }
 gpui-pre-wgpu = { path = "vendor/gpui-pre-wgpu" }
