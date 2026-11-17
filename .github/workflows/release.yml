@@ -493,6 +493,15 @@ jobs:
           echo "signing as: $IDENTITY"
           echo "CODESIGN_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
 
+      # Runs the packed ffmpeg through the app's process runner: it must start, and its Duration line
+      # (the Library's durations and @size:seconds playlist codes) must keep its formatting.
+      - name: Check the packed ffmpeg
+        working-directory: YMusicV4/desktopRust
+        run: |
+          export YMUSIC_V4_DIR="$GITHUB_WORKSPACE/YMusicV4"
+          export FFMPEG_BUILD_DIR="$GITHUB_WORKSPACE/ffmpeg-build"
+          cargo test -p ym-ffmpeg --test duration_format
+
       - name: Package the DMG
         working-directory: YMusicV4/desktopRust
         run: |
@@ -621,6 +630,21 @@ jobs:
           SECRETS_PASSPHRASE: ${{ secrets.SECRETS_PASSPHRASE }}
         run: |
           ./decrypt.sh
+
+      # Runs the packed ffmpeg through the app's process runner: it must start, and its Duration line
+      # (the Library's durations and @size:seconds playlist codes) must keep its formatting.
+      - name: Check the packed ffmpeg
+        shell: bash
+        working-directory: YMusicV4/desktopRust
+        env:
+          CC_aarch64_pc_windows_gnullvm: clang
+          AR_aarch64_pc_windows_gnullvm: llvm-ar
+          CARGO_TARGET_AARCH64_PC_WINDOWS_GNULLVM_LINKER: clang
+        run: |
+          set -euo pipefail
+          export YMUSIC_V4_DIR="$GITHUB_WORKSPACE/YMusicV4"
+          export FFMPEG_BUILD_DIR="$GITHUB_WORKSPACE/ffmpeg-build"
+          PATH="$(cygpath -u "$MINGW_HOME")/bin:$PATH" cargo test -p ym-ffmpeg --test duration_format
 
       # The MinGW bin dir goes on PATH for this step alone: gcc/clang load their own DLLs from it (cc1.exe
       # dies silently without them), but it would shadow Git Bash's tools in other steps.
@@ -819,6 +843,15 @@ jobs:
           SECRETS_PASSPHRASE: ${{ secrets.SECRETS_PASSPHRASE }}
         run: |
           ./decrypt.sh
+
+      # Runs the packed ffmpeg through the app's process runner: it must start, and its Duration line
+      # (the Library's durations and @size:seconds playlist codes) must keep its formatting.
+      - name: Check the packed ffmpeg
+        working-directory: YMusicV4/desktopRust
+        run: |
+          export YMUSIC_V4_DIR="$GITHUB_WORKSPACE/YMusicV4"
+          export FFMPEG_BUILD_DIR="$GITHUB_WORKSPACE/ffmpeg-build"
+          cargo test -p ym-ffmpeg --test duration_format
 
       - name: Package the .deb and the AppImage
         working-directory: YMusicV4/desktopRust
