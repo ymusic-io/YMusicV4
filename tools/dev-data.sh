@@ -5,8 +5,11 @@
 #   tools/dev-data.sh create            give this checkout its data dir, copied from ~/.ymusic
 #   tools/dev-data.sh remove [--keep-data]
 #                                       forget this checkout's data dir and delete it (unless --keep-data)
+#   tools/dev-data.sh release <checkout> <dir> [--keep-data]
+#                                       delete <dir> if <checkout> owns it (dev-worktree.sh remove, once
+#                                       the checkout is gone)
 #   tools/dev-data.sh list              show the data dirs and their checkouts
-#   tools/dev-data.sh prune             delete the data dirs whose checkout is gone
+#   tools/dev-data.sh prune [-y]        delete the data dirs whose checkout is gone, after confirmation
 #
 # A checkout's dir is ~/.ymusic-dev/<name>/, <name> being the checkout's folder name (with a -2, -3, …
 # suffix when another checkout holds it): `owner` holds the checkout's absolute path, `jvm/` is the
@@ -64,6 +67,28 @@ lock_root() {
         sleep 0.2
     done
     trap 'rmdir "$DATA_ROOT/.lock" 2>/dev/null || true' EXIT
+}
+
+# 32-bit FNV-1a over the UTF-8 bytes, as 8 lowercase hex digits: the apps' workspace tag.
+fnv1a32_hex() {
+    local hash=$((0x811c9dc5)) byte
+    for byte in $(printf '%s' "$1" | od -An -v -tu1); do
+        hash=$((((hash ^ byte) * 0x01000193) & 0xffffffff))
+    done
+    printf '%08x\n' "$hash"
+}
+
+# The hidden desktop entries the workspace's Linux runs write: the JVM app's and the Rust app's.
+remove_desktop_entries() {
+    local tag apps file
+    tag=$(fnv1a32_hex "$1")
+    apps="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
+    for file in "$apps/io.ymusic.desktop.dev$tag.desktop" "$apps/io.ymusic.YMusic.dev$tag.desktop"; do
+        if [ -e "$file" ] || [ -L "$file" ]; then
+            rm -f "$file"
+            echo "  deleted $file"
+        fi
+    done
 }
 
 # Hex of the release app's sign-in key, or nothing when it cannot be read.
@@ -195,6 +220,22 @@ cmd_create() {
     cat "$data_file"
 }
 
+# Deletes [dir] (unless [keep] is 1) and its desktop entries, when [owner] owns it.
+release_dir() {
+    local owner=$1 dir=$2 keep=$3
+    if [ -z "$dir" ] || [ "$(owner_of "$dir")" != "$owner" ]; then
+        echo "${dir:-the data dir} belongs to another checkout: left as is"
+        return 0
+    fi
+    remove_desktop_entries "$(basename "$dir")"
+    if [ "$keep" = 1 ]; then
+        echo "kept $dir (tools/dev-data.sh prune deletes it once the checkout is gone)"
+    else
+        rm -rf "$dir"
+        echo "deleted $dir"
+    fi
+}
+
 cmd_remove() {
     local keep=0
     case "${1:-}" in
@@ -209,14 +250,42 @@ cmd_remove() {
     local dir
     dir=$(data_file_field "$data_file" root)
     rm -f "$data_file"
-    if [ "$keep" = 1 ]; then
-        echo "kept $dir (tools/dev-data.sh prune deletes it once the checkout is gone)"
-    elif [ -n "$dir" ] && [ "$(owner_of "$dir")" = "$root" ]; then
-        rm -rf "$dir"
-        echo "deleted $dir"
-    else
-        echo "$dir belongs to another checkout: left as is"
+    release_dir "$root" "$dir" "$keep"
+}
+
+cmd_release() {
+    local owner="" dir="" keep=0
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --keep-data) keep=1 ;;
+            *)
+                if [ -z "$owner" ]; then owner=$1; elif [ -z "$dir" ]; then dir=$1; else die "usage: tools/dev-data.sh release <checkout> <dir> [--keep-data]"; fi
+                ;;
+        esac
+        shift
+    done
+    [ -n "$owner" ] && [ -n "$dir" ] || die "usage: tools/dev-data.sh release <checkout> <dir> [--keep-data]"
+    release_dir "$owner" "$dir" "$keep"
+}
+
+# present, none (no owner file), unreachable (the closest existing ancestor is a mount root: the
+# owner's volume may only be unmounted) or gone.
+owner_state() {
+    local owner=$1 ancestor
+    if [ -z "$owner" ]; then
+        echo none
+        return 0
     fi
+    if [ -d "$owner" ]; then
+        echo present
+        return 0
+    fi
+    ancestor=$(dirname "$owner")
+    while [ ! -d "$ancestor" ]; do ancestor=$(dirname "$ancestor"); done
+    case "$ancestor" in
+        / | /Volumes | /media | /mnt | /run/media | "/media/${USER:-}" | "/run/media/${USER:-}") echo unreachable ;;
+        *) echo gone ;;
+    esac
 }
 
 cmd_list() {
@@ -227,25 +296,57 @@ cmd_list() {
         local owner size
         owner=$(owner_of "$dir")
         size=$(du -sh "$dir" 2>/dev/null | cut -f1)
-        if [ -z "$owner" ]; then
-            echo "$(basename "$dir")  $size  no owner (prune deletes it)"
-        elif [ -d "$owner" ]; then
-            echo "$(basename "$dir")  $size  $owner"
-        else
-            echo "$(basename "$dir")  $size  gone: $owner (prune deletes it)"
-        fi
+        case "$(owner_state "$owner")" in
+            present) echo "$(basename "$dir")  $size  $owner" ;;
+            none) echo "$(basename "$dir")  $size  no owner (prune deletes it)" ;;
+            unreachable) echo "$(basename "$dir")  $size  unreachable: $owner (its volume is not mounted?)" ;;
+            gone) echo "$(basename "$dir")  $size  gone: $owner (prune deletes it)" ;;
+        esac
     done
 }
 
 cmd_prune() {
+    local yes=0
+    case "${1:-}" in
+        -y | --yes) yes=1 ;;
+        "") ;;
+        *) die "prune takes only -y" ;;
+    esac
     lock_root
-    local dir
+    local dir owner doomed=()
     for dir in "$DATA_ROOT"/*/; do
         [ -d "$dir" ] || continue
         dir=${dir%/}
-        local owner
         owner=$(owner_of "$dir")
-        if [ -n "$owner" ] && [ -d "$owner" ]; then continue; fi
+        case "$(owner_state "$owner")" in
+            present) ;;
+            unreachable) echo "skipped $dir: $owner is unreachable (its volume is not mounted?)" ;;
+            *) doomed+=("$dir") ;;
+        esac
+    done
+    if [ ${#doomed[@]} -eq 0 ]; then
+        echo "nothing to prune"
+        return 0
+    fi
+    echo "data dirs whose checkout is gone:"
+    for dir in "${doomed[@]}"; do
+        owner=$(owner_of "$dir")
+        echo "  $dir  (${owner:-no owner})"
+    done
+    if [ "$yes" != 1 ]; then
+        [ -t 0 ] || die "rerun with -y to delete them"
+        local answer
+        read -r -p "delete them? [y/N] " answer || answer=""
+        case "$answer" in
+            y | Y | yes) ;;
+            *)
+                echo "left as is"
+                return 0
+                ;;
+        esac
+    fi
+    for dir in "${doomed[@]}"; do
+        remove_desktop_entries "$(basename "$dir")"
         rm -rf "$dir"
         echo "deleted $dir"
     done
@@ -253,11 +354,11 @@ cmd_prune() {
 
 case "${1:-}" in
     create) cmd_create ;;
-    remove)
+    remove | release | prune)
+        command=$1
         shift
-        cmd_remove "$@"
+        "cmd_$command" "$@"
         ;;
     list) cmd_list ;;
-    prune) cmd_prune ;;
-    *) die "usage: tools/dev-data.sh create | remove [--keep-data] | list | prune" ;;
+    *) die "usage: tools/dev-data.sh create | remove [--keep-data] | release <checkout> <dir> [--keep-data] | list | prune [-y]" ;;
 esac
