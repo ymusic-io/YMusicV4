@@ -11,9 +11,7 @@ use gpui_kit::assets::IconName as Lucide;
 use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::menu::{DropdownMenu, PopupMenuItem};
 use gpui_kit::component::progress::Progress;
-use gpui_kit::component::{
-    ActiveTheme, Disableable, Icon, IconName, Selectable, Sizable, StyledExt, WindowExt, h_flex, v_flex,
-};
+use gpui_kit::component::{ActiveTheme, Icon, IconName, Selectable, Sizable, StyledExt, WindowExt, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use ym_download::{DownloadChange, DownloadFormat, DownloadService, DownloadState, DownloadTask, TaskError};
@@ -104,6 +102,9 @@ pub struct DownloadsView {
     load_error: Option<&'static str>,
     /// The tasks picked on the selection bar; selection mode lasts while it holds any.
     selected_ids: HashSet<String>,
+    /// What Select all restores when clicked again; only valid until the selection or the shown list
+    /// changes otherwise.
+    selection_before_select_all: Option<HashSet<String>>,
     long_press: Option<LongPress>,
     /// The card a long press just selected: its release is not a click.
     long_pressed: Option<String>,
@@ -194,6 +195,7 @@ impl DownloadsView {
             retry_after_sign_in: Vec::new(),
             load_error: None,
             selected_ids: HashSet::new(),
+            selection_before_select_all: None,
             long_press: None,
             long_pressed: None,
             bar_focus: FocusList::new(None),
@@ -216,7 +218,11 @@ impl DownloadsView {
                 match result {
                     Some(Ok(mut tasks)) => {
                         tasks.reverse();
+                        let shown_before = view.shown_ids();
                         view.tasks = tasks;
+                        if view.shown_ids() != shown_before {
+                            view.selection_before_select_all = None;
+                        }
                         view.load_error = None;
                         view.drop_gone_selection(cx);
                     }
@@ -238,6 +244,7 @@ impl DownloadsView {
 
     fn apply(&mut self, change: DownloadChange, cx: &mut Context<Self>) {
         let task = |tasks: &mut Vec<DownloadTask>, id: &str| tasks.iter_mut().position(|task| task.id == id);
+        let shown_before = self.selection_before_select_all.is_some().then(|| self.shown_ids());
         match change {
             DownloadChange::Added(added) => self.tasks.insert(0, *added),
             DownloadChange::Removed { id } => self.tasks.retain(|task| task.id != id),
@@ -269,6 +276,9 @@ impl DownloadsView {
                 }
             }
         }
+        if shown_before.is_some_and(|shown_before| self.shown_ids() != shown_before) {
+            self.selection_before_select_all = None;
+        }
         self.drop_gone_selection(cx);
         self.refresh_deletable(false, cx);
         cx.notify();
@@ -284,6 +294,7 @@ impl DownloadsView {
 
     fn change_selection(&mut self, cx: &mut Context<Self>, change: impl FnOnce(&mut HashSet<String>)) {
         let was_selecting = self.selecting();
+        self.selection_before_select_all = None;
         change(&mut self.selected_ids);
         if was_selecting != self.selecting() {
             self.long_press = None;
@@ -347,12 +358,33 @@ impl DownloadsView {
         });
     }
 
-    /// Adds the tasks the filter shows.
-    fn select_all(&mut self, cx: &mut Context<Self>) {
+    /// The tasks the filter shows, in order.
+    fn shown_ids(&self) -> Vec<String> {
         let filter = self.filter;
-        let shown: Vec<String> =
-            self.tasks.iter().filter(|task| filter.matches(task.state)).map(|task| task.id.clone()).collect();
-        self.change_selection(cx, |selected| selected.extend(shown));
+        self.tasks.iter().filter(|task| filter.matches(task.state)).map(|task| task.id.clone()).collect()
+    }
+
+    fn all_shown_selected(&self) -> bool {
+        let filter = self.filter;
+        let mut shown = self.tasks.iter().filter(|task| filter.matches(task.state)).peekable();
+        shown.peek().is_some() && shown.all(|task| self.selected_ids.contains(&task.id))
+    }
+
+    /// Adds the tasks the filter shows, or, once all are selected, restores the selection from before
+    /// (without one, deselects the shown tasks).
+    fn toggle_select_all(&mut self, cx: &mut Context<Self>) {
+        let shown = self.shown_ids();
+        if self.all_shown_selected() {
+            let restored = self
+                .selection_before_select_all
+                .take()
+                .unwrap_or_else(|| self.selected_ids.iter().filter(|id| !shown.contains(id)).cloned().collect());
+            self.change_selection(cx, |selected| *selected = restored);
+        } else if !shown.is_empty() {
+            let before = self.selected_ids.clone();
+            self.change_selection(cx, |selected| selected.extend(shown));
+            self.selection_before_select_all = Some(before);
+        }
     }
 
     /// Selection mode, with only `id` selected.
@@ -842,14 +874,14 @@ impl DownloadsView {
     fn selection_bar(&self, cx: &mut Context<Self>) -> AnyElement {
         let selected: Vec<&DownloadTask> = self.selected_tasks().collect();
         let count = selected.len() as i64;
-        let filter = self.filter;
-        let can_select_all =
-            self.tasks.iter().any(|task| filter.matches(task.state) && !self.selected_ids.contains(&task.id));
+        let all_selected = self.all_shown_selected();
+        let accent = cx.theme().primary;
         let close = action_icon("selection-close", Icon::new(Lucide::X), t(Str::CdClose))
             .on_click(cx.listener(|view, _, _, cx| view.clear_selection(cx)));
         let select_all = action_icon("selection-all", Icon::new(Lucide::ListChecks), t(Str::SelectAll))
-            .disabled(!can_select_all)
-            .on_click(cx.listener(|view, _, _, cx| view.select_all(cx)));
+            .toggled(all_selected)
+            .when(all_selected, |button| button.text_color(accent))
+            .on_click(cx.listener(|view, _, _, cx| view.toggle_select_all(cx)));
         let pause = selected.iter().any(|task| can_pause(task)).then(|| {
             action_icon("selection-pause", Icon::new(Lucide::Pause), t(Str::DownloadsActionPause))
                 .on_click(cx.listener(|view, _, _, cx| view.pause_selected(cx)))
@@ -1299,6 +1331,7 @@ impl Render for DownloadsView {
             let chip = if selected { chip.primary() } else { chip.outline() };
             let chip = chip.on_click(cx.listener(move |view, _, _, cx| {
                 view.filter = candidate;
+                view.selection_before_select_all = None;
                 cx.notify();
             }));
             chips = chips.child(self.chip_focus.button(index, chip, cx));
