@@ -418,6 +418,8 @@
     <string name="settings_audio_focus_apps">Peata, kui teised rakendused heli esitavad</string>
     <string name="settings_sponsor_block">SponsorBlock</string>
     <string name="settings_sponsor_block_hint">Jäta YouTube'i videotes sponsitud lõigud automaatselt vahele. Üksiku video jaoks lülita välja vaates Praegu mängib.</string>
+    <string name="settings_stable_volume">Stabiilne helitugevus</string>
+    <string name="settings_stable_volume_hint">Ühtlustab valjud ja vaiksed kohad ning esitab iga loo sarnase valjusega.</string>
     <string name="sponsor_block_included">SponsorBlock on selle video jaoks sees</string>
     <string name="sponsor_block_excluded">SponsorBlock on selle video jaoks väljas</string>
     <string name="settings_sound">Heli</string>

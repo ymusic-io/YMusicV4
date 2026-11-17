@@ -414,6 +414,8 @@
     <string name="settings_audio_focus_apps">Jeda apabila apl lain memainkan bunyi</string>
     <string name="settings_sponsor_block">SponsorBlock</string>
     <string name="settings_sponsor_block_hint">Langkau segmen tajaan dalam video YouTube secara automatik. Matikan untuk sesuatu video daripada Sedang Dimainkan.</string>
+    <string name="settings_stable_volume">Kelantangan stabil</string>
+    <string name="settings_stable_volume_hint">Menyamakan bahagian kuat dan perlahan serta memainkan setiap lagu pada kelantangan yang serupa.</string>
     <string name="sponsor_block_included">SponsorBlock didayakan untuk video ini</string>
     <string name="sponsor_block_excluded">SponsorBlock dinyahdayakan untuk video ini</string>
     <string name="settings_sound">Bunyi</string>

@@ -110,7 +110,8 @@ internal class PlayerImpl(
     private var loudnessScale = 1f
 
     /** What the engines apply: [currentConfig] with the audio effects flattened while they are off
-     *  and the volume lowered while [ducked] or [voiceDucked] and scaled by [loudnessScale], plus [videoHidden]. */
+     *  and the volume lowered while [ducked] or [voiceDucked] and scaled by [loudnessScale] under
+     *  [PlaybackConfig.stableVolume], plus [videoHidden]. */
     private val engineConfig: PlaybackConfig
         get() = currentConfig.let {
             if (it.inAppAudioFx) {
@@ -122,7 +123,7 @@ internal class PlayerImpl(
             val duck = minOf(if (ducked) DUCK_VOLUME else 1f, if (voiceDucked) VOICE_DUCK_VOLUME else 1f)
             it.copy(volume = it.volume * duck)
         }
-            .let { it.copy(volume = it.volume * loudnessScale, videoHidden = videoHidden) }
+            .let { it.copy(volume = it.volume * (if (it.stableVolume) loudnessScale else 1f), videoHidden = videoHidden) }
 
     /** The engine bound to the current item — internal routing state; not exposed (the UI hands one
      *  video container to the engines and each owns its own surface, so it never needs this). */
@@ -399,6 +400,8 @@ internal class PlayerImpl(
     override fun setPreamp(db: Float) = pushConfig(currentConfig.copy(preampDb = db.coerceIn(-12f, 12f)))
 
     override fun setInAppAudioFx(enabled: Boolean) = pushConfig(currentConfig.copy(inAppAudioFx = enabled))
+
+    override fun setStableVolume(enabled: Boolean) = pushConfig(currentConfig.copy(stableVolume = enabled))
 
     override fun setAudioOnly(audioOnly: Boolean) {
         pushConfig(currentConfig.copy(audioOnly = audioOnly))

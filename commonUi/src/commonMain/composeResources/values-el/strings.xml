@@ -418,6 +418,8 @@
     <string name="settings_audio_focus_apps">Παύση όταν άλλες εφαρμογές παίζουν ήχο</string>
     <string name="settings_sponsor_block">SponsorBlock</string>
     <string name="settings_sponsor_block_hint">Αυτόματη παράλειψη χορηγούμενων τμημάτων στα βίντεο του YouTube. Απενεργοποιήστε το για ένα βίντεο από την Αναπαραγωγή τώρα.</string>
+    <string name="settings_stable_volume">Σταθερή ένταση</string>
+    <string name="settings_stable_volume_hint">Εξισορροπεί τα δυνατά και τα ήσυχα σημεία και παίζει κάθε τραγούδι σε παρόμοια ένταση.</string>
     <string name="sponsor_block_included">Το SponsorBlock ενεργοποιήθηκε για αυτό το βίντεο</string>
     <string name="sponsor_block_excluded">Το SponsorBlock απενεργοποιήθηκε για αυτό το βίντεο</string>
     <string name="settings_sound">Ήχος</string>

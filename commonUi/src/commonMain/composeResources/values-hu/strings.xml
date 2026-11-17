@@ -418,6 +418,8 @@
     <string name="settings_audio_focus_apps">Szüneteltetés, ha más alkalmazás hangot játszik le</string>
     <string name="settings_sponsor_block">SponsorBlock</string>
     <string name="settings_sponsor_block_hint">A szponzorált részek automatikus átugrása a YouTube-videókban. Egy adott videónál a Most szól képernyőn kapcsolható ki.</string>
+    <string name="settings_stable_volume">Stabil hangerő</string>
+    <string name="settings_stable_volume_hint">Kiegyenlíti a hangos és halk részeket, és minden dalt hasonló hangerővel játszik le.</string>
     <string name="sponsor_block_included">SponsorBlock bekapcsolva ehhez a videóhoz</string>
     <string name="sponsor_block_excluded">SponsorBlock kikapcsolva ehhez a videóhoz</string>
     <string name="settings_sound">Hang</string>

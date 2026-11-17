@@ -414,6 +414,8 @@
     <string name="settings_audio_focus_apps">หยุดชั่วคราวเมื่อแอปอื่นเล่นเสียง</string>
     <string name="settings_sponsor_block">SponsorBlock</string>
     <string name="settings_sponsor_block_hint">ข้ามช่วงผู้สนับสนุนในวิดีโอ YouTube โดยอัตโนมัติ ปิดสำหรับวิดีโอใดก็ได้จากหน้ากำลังเล่น</string>
+    <string name="settings_stable_volume">ระดับเสียงคงที่</string>
+    <string name="settings_stable_volume_hint">ปรับช่วงที่ดังและเบาให้สม่ำเสมอ และเล่นทุกเพลงด้วยระดับเสียงใกล้เคียงกัน</string>
     <string name="sponsor_block_included">เปิด SponsorBlock สำหรับวิดีโอนี้แล้ว</string>
     <string name="sponsor_block_excluded">ปิด SponsorBlock สำหรับวิดีโอนี้แล้ว</string>
     <string name="settings_sound">เสียง</string>

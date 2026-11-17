@@ -418,6 +418,8 @@
     <string name="settings_audio_focus_apps">दूसरे ऐप आवाज़ चलाएं तो रोकें</string>
     <string name="settings_sponsor_block">SponsorBlock</string>
     <string name="settings_sponsor_block_hint">YouTube वीडियो में स्पॉन्सर वाले हिस्से अपने-आप छोड़ें। किसी वीडियो के लिए प्लेयर स्क्रीन से बंद करें।</string>
+    <string name="settings_stable_volume">स्थिर वॉल्यूम</string>
+    <string name="settings_stable_volume_hint">तेज़ और धीमे हिस्सों को बराबर करता है और हर गाना लगभग एक जैसी आवाज़ में चलाता है।</string>
     <string name="sponsor_block_included">इस वीडियो के लिए SponsorBlock चालू है</string>
     <string name="sponsor_block_excluded">इस वीडियो के लिए SponsorBlock बंद है</string>
     <string name="settings_sound">साउंड</string>

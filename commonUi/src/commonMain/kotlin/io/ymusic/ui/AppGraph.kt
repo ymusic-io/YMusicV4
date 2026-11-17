@@ -340,6 +340,7 @@ class AppGraph(
         bindings.launch { AppSettings.retiredKeys.forEach { settings.remove(it) } }
         bindPlayerConfig(bindings)
         bindings.launch { pip.pictureHidden.collect { player.setVideoHidden(it) } }
+        bindings.launch { settings.flow(AppSettings.stableVolume).collect { player.setStableVolume(it) } }
         bindPlayerCacheLimit(bindings)
         SponsorBlockCoordinator(this, bindings)
         bindings.launch {

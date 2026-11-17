@@ -158,6 +158,9 @@ interface Player {
     /** Sets [PlaybackConfig.inAppAudioFx]. */
     fun setInAppAudioFx(enabled: Boolean)
 
+    /** Sets [PlaybackConfig.stableVolume]. */
+    fun setStableVolume(enabled: Boolean)
+
     /** Sets [PlaybackConfig.audioOnly]. Quality is unchanged and restored when this is false. */
     fun setAudioOnly(audioOnly: Boolean)
 

@@ -418,6 +418,8 @@
     <string name="settings_audio_focus_apps">Pausatu beste aplikazio batzuek soinua erreproduzitzen dutenean</string>
     <string name="settings_sponsor_block">SponsorBlock</string>
     <string name="settings_sponsor_block_hint">Saltatu automatikoki YouTube bideoetako babesleen zatiak. Desaktibatu bideo jakin baterako Orain erreproduzitzen pantailatik.</string>
+    <string name="settings_stable_volume">Bolumen egonkorra</string>
+    <string name="settings_stable_volume_hint">Zati ozenak eta isilak berdintzen ditu eta abesti bakoitza antzeko bolumenean erreproduzitzen du.</string>
     <string name="sponsor_block_included">SponsorBlock gaituta bideo honetarako</string>
     <string name="sponsor_block_excluded">SponsorBlock desgaituta bideo honetarako</string>
     <string name="settings_sound">Soinua</string>

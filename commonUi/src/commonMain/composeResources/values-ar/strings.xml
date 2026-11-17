@@ -408,6 +408,8 @@
     <string name="settings_audio_focus_apps">الإيقاف المؤقت عند تشغيل تطبيقات أخرى للصوت</string>
     <string name="settings_sponsor_block">مانع الإعلانات</string>
     <string name="settings_sponsor_block_hint">تخطي مقاطع الرعاية في فيديوهات يوتيوب تلقائيًا. يمكن إيقافه لفيديو من قيد التشغيل.</string>
+    <string name="settings_stable_volume">مستوى صوت ثابت</string>
+    <string name="settings_stable_volume_hint">يوازن بين الأجزاء العالية والهادئة ويشغّل كل أغنية بمستوى صوت متقارب.</string>
     <string name="sponsor_block_included">حجب الإعلانات المموَّلة لهذا الفيديو</string>
     <string name="sponsor_block_excluded">عرض الإعلانات المموَّلة لهذا الفيديو</string>
     <string name="settings_sound">الصوت</string>

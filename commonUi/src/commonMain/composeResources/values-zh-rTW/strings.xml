@@ -414,6 +414,8 @@
     <string name="settings_audio_focus_apps">其他應用程式播放聲音時暫停</string>
     <string name="settings_sponsor_block">SponsorBlock</string>
     <string name="settings_sponsor_block_hint">自動略過 YouTube 影片中的贊助片段。可在「現正播放」中針對單一影片關閉。</string>
+    <string name="settings_stable_volume">穩定音量</string>
+    <string name="settings_stable_volume_hint">平衡大聲與輕柔的段落，讓每首歌的音量相近。</string>
     <string name="sponsor_block_included">已為這部影片啟用 SponsorBlock</string>
     <string name="sponsor_block_excluded">已為這部影片停用 SponsorBlock</string>
     <string name="settings_sound">音效</string>

@@ -414,6 +414,8 @@
     <string name="settings_audio_focus_apps">Jeda saat aplikasi lain memutar suara</string>
     <string name="settings_sponsor_block">SponsorBlock</string>
     <string name="settings_sponsor_block_hint">Lewati segmen sponsor di video YouTube secara otomatis. Nonaktifkan untuk video tertentu dari layar Sedang diputar.</string>
+    <string name="settings_stable_volume">Volume stabil</string>
+    <string name="settings_stable_volume_hint">Menyeimbangkan bagian keras dan pelan serta memutar setiap lagu dengan kenyaringan yang serupa.</string>
     <string name="sponsor_block_included">SponsorBlock diaktifkan untuk video ini</string>
     <string name="sponsor_block_excluded">SponsorBlock dinonaktifkan untuk video ini</string>
     <string name="settings_sound">Suara</string>

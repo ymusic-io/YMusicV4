@@ -214,6 +214,8 @@ internal class StubPlayer : Player {
     override fun setPreamp(db: Float) {}
     override fun setInAppAudioFx(enabled: Boolean) {}
 
+    override fun setStableVolume(enabled: Boolean) {}
+
     override fun setAudioOnly(audioOnly: Boolean) {}
 
     override fun selectVideoQuality(quality: String) {}

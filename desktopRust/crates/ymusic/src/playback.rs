@@ -25,6 +25,7 @@ use crate::youtube_session::YoutubeSession;
 
 /// The JVM app's keys.
 const VOLUME_KEY: &str = "player.volume";
+pub const STABLE_VOLUME_KEY: &str = "playback.stableVolume";
 /// `"1"` audio only, `"0"` video.
 const AUDIO_ONLY_KEY: &str = "player.audioOnly";
 const LOOP_MODE_KEY: &str = "player.loopMode";
@@ -484,6 +485,8 @@ pub struct Playback {
     gain: f32,
     /// The local item's attenuate-only loudness gain.
     local_gain: f32,
+    /// Both loudness gains apply (the JVM `PlaybackConfig.stableVolume`).
+    stable_volume: bool,
     pub volume: f32,
     pub effects: AudioEffects,
     pub nav: QueueNav,
@@ -586,6 +589,13 @@ impl Playback {
                 .unwrap_or_else(|| QUALITY_AUTO.to_owned()),
             gain: 1.0,
             local_gain: 1.0,
+            stable_volume: cx
+                .global::<AppGraph>()
+                .settings
+                .get_raw(STABLE_VOLUME_KEY)
+                .ok()
+                .flatten()
+                .is_none_or(|value| value != "false"),
             volume: if muted { 0.0 } else { saved_volume.unwrap_or(1.0).clamp(0.0, 1.0) },
             effects: AudioEffects::load(cx.global::<AppGraph>().settings.as_ref()),
             nav: {
@@ -1631,11 +1641,26 @@ impl Playback {
         session.host.set_tone(&self.effects.tone);
     }
 
-    fn apply_volume(&self) {
-        if let Some(session) = &self.session {
-            session.host.set_volume(self.volume * self.gain);
+    /// The Stable volume switch: the gains change at once, the bundle's track choice through a
+    /// fresh pull of the setting it reads.
+    pub fn set_stable_volume(&mut self, enabled: bool, cx: &mut Context<Self>) {
+        if self.stable_volume == enabled {
+            return;
         }
-        self.send_local(LocalCommand::Volume(self.volume * self.local_gain));
+        self.stable_volume = enabled;
+        self.apply_volume();
+        self.command(cx, |engine, _| async move {
+            engine.player_notify_settings_changed();
+            Ok(())
+        });
+    }
+
+    fn apply_volume(&self) {
+        let (gain, local_gain) = if self.stable_volume { (self.gain, self.local_gain) } else { (1.0, 1.0) };
+        if let Some(session) = &self.session {
+            session.host.set_volume(self.volume * gain);
+        }
+        self.send_local(LocalCommand::Volume(self.volume * local_gain));
     }
 
     fn send_local(&self, command: LocalCommand) {

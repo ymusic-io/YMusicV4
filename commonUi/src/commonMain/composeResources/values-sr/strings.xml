@@ -422,6 +422,8 @@
     <string name="settings_audio_focus_apps">Паузирај када друге апликације пуштају звук</string>
     <string name="settings_sponsor_block">SponsorBlock</string>
     <string name="settings_sponsor_block_hint">Аутоматски прескаче спонзорисане делове у YouTube видеима. Искључите за појединачни видео у „Сада се пушта“.</string>
+    <string name="settings_stable_volume">Стабилна јачина звука</string>
+    <string name="settings_stable_volume_hint">Уједначава гласне и тихе делове и пушта сваку песму сличном јачином.</string>
     <string name="sponsor_block_included">SponsorBlock је омогућен за овај видео</string>
     <string name="sponsor_block_excluded">SponsorBlock је онемогућен за овај видео</string>
     <string name="settings_sound">Звук</string>
