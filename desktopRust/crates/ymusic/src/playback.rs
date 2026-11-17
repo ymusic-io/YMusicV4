@@ -1451,7 +1451,19 @@ impl Playback {
         });
     }
 
+    /// The JVM PlayerImpl.playAt: the current item is reloaded only when it failed or ended; otherwise
+    /// it plays on, resumes when paused, or keeps loading (a repeat tap).
     pub fn jump_to(&mut self, index: usize, cx: &mut Context<Self>) {
+        if index == self.index
+            && self.current().is_some()
+            && !self.state.is_ended()
+            && !matches!(self.state, PlaybackState::Error(_))
+        {
+            if !self.play_when_ready {
+                self.play(cx);
+            }
+            return;
+        }
         if index < self.queue.len() {
             self.nav.jump(index, self.queue.len());
             self.index = index;
