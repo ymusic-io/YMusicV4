@@ -304,7 +304,7 @@ fn main() {
             } else {
                 WindowBackgroundAppearance::Transparent
             },
-            app_id: Some(crate::desktop::APP_ID.into()),
+            app_id: Some(crate::desktop::app_id().into()),
             icon: window_icon,
             ..Default::default()
         };
