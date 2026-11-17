@@ -34,14 +34,30 @@ fun mseClangArch(targetName: String): List<String> = when (targetName) {
 fun mseLibDir(targetName: String) =
     layout.buildDirectory.dir("mse-native/$targetName").get().asFile
 
+fun ffmpegIosSdk(targetName: String): String? = when (targetName) {
+    "iosArm64" -> "iphoneos"
+    "iosSimulatorArm64" -> "iphonesimulator"
+    else -> null
+}
+
+/** The static iOS libav `buildMseHost<Target>` requires; null for the macOS targets (stub host). */
 fun ffmpegIosPrefix(targetName: String): File? {
     val slug = when (targetName) {
         "iosArm64" -> "ios-arm64"
         "iosSimulatorArm64" -> "ios-simulator-arm64"
-        else -> null
-    } ?: return null
-    val dir = rootProject.projectDir.parentFile.resolve("ffmpeg-build/out/$slug")
-    return dir.takeIf { File(it, "lib/libavcodec.a").isFile }
+        else -> return null
+    }
+    return FfmpegBuild.root(project).resolve("out/$slug")
+}
+
+fun requireFfmpegIos(targetName: String, prefix: File) {
+    if (File(prefix, "lib/libavcodec.a").isFile && File(prefix, "include").isDirectory) return
+    throw GradleException(
+        "$targetName: no static iOS ffmpeg at $prefix (needs lib/libavcodec.a and include/). " +
+            "The iOS MSE host links it; there is no fallback. Build it in the ffmpeg-build checkout " +
+            "next to this repo (github.com/ymusic-io/ffmpeg-build), on an Apple Silicon Mac: " +
+            "scripts/build-ios.sh ${ffmpegIosSdk(targetName)}",
+    )
 }
 
 fun registerMseNativeLib(targetName: String): TaskProvider<Exec> {
@@ -56,12 +72,14 @@ fun registerMseNativeLib(targetName: String): TaskProvider<Exec> {
     val task = tasks.register<Exec>(taskName) {
         // `*.o` / `ar r` would otherwise pick up a previous variant's objects (stub vs ffmpeg).
         doFirst {
+            if (ffmpeg != null) requireFfmpegIos(targetName, ffmpeg)
             out.deleteRecursively()
             out.mkdirs()
         }
         inputs.dir(mseNativeSrc)
         if (ffmpeg != null) {
-            inputs.dir(File(ffmpeg, "include"))
+            // A tree, not inputs.dir: a missing prefix must reach requireFfmpegIos, not input validation.
+            inputs.files(fileTree(File(ffmpeg, "include")))
             inputs.dir(qjsInc)
         }
         outputs.file(File(out, "libmsehost.a"))
