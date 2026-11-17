@@ -1091,7 +1091,12 @@ impl LibraryView {
                         let cancel = AtomicBool::new(false);
                         let mut total = ym_store::ScanReport::default();
                         for root in &roots {
-                            let report = ym_store::scan_folder(&store, root, &cancel)?;
+                            let report = ym_store::scan_folder(
+                                &store,
+                                ym_ffmpeg::FfmpegMetadataGetter::shared(),
+                                root,
+                                &cancel,
+                            )?;
                             total.added += report.added;
                             total.updated += report.updated;
                             total.unchanged += report.unchanged;

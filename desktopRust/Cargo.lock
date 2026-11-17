@@ -10004,7 +10004,7 @@ dependencies = [
  "thiserror 2.0.21",
  "tokio",
  "ym-common",
- "ym-mse",
+ "ym-ffmpeg",
 ]
 
 [[package]]

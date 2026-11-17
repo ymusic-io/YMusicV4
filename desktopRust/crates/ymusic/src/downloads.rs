@@ -195,7 +195,7 @@ pub fn register_download_folder(media: &MediaStore, folder: &Path) -> Result<(),
 
 /// Blocking and long: what is already in the download folder shows up in the Library.
 pub fn scan_download_folder(media: &MediaStore, folder: &Path, log: &Logger) {
-    match ym_store::scan_folder(media, folder, &AtomicBool::new(false)) {
+    match ym_store::scan_folder(media, ym_ffmpeg::FfmpegMetadataGetter::shared(), folder, &AtomicBool::new(false)) {
         Ok(report) => {
             for error in &report.errors {
                 log.warn(&format!("scan skipped {}: {}", error.path.display(), error.message), None);
@@ -333,7 +333,7 @@ fn add_to_library(media: &MediaStore, settings: &dyn SettingsStore, file: &Path,
             return;
         }
     };
-    match ym_store::scan_file(media, file, bucket.id) {
+    match ym_store::scan_file(media, ym_ffmpeg::FfmpegMetadataGetter::shared(), file, bucket.id) {
         Ok(report) => {
             for error in &report.errors {
                 log.warn(&format!("a finished download was not indexed: {}", error.message), None);
