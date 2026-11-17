@@ -1028,10 +1028,8 @@ impl DownloadsView {
                         }
                         menu = menu.item(share());
                         let (disk_view, disk_task) = (view.clone(), task.clone());
-                        menu = menu
-                            .item(crate::settings_view::menu_divider())
-                            .item(act(t(Str::MenuRemove), DownloadService::remove))
-                            .item(PopupMenuItem::new(t(Str::MenuRemoveFromDisk)).on_click(move |_, window, cx| {
+                        menu = menu.separator().item(act(t(Str::MenuRemove), DownloadService::remove)).item(
+                            PopupMenuItem::new(t(Str::MenuRemoveFromDisk)).on_click(move |_, window, cx| {
                                 let (view, task) = (disk_view.clone(), disk_task.clone());
                                 crate::elevated_dialog::ConfirmDialog::new(
                                     t(Str::DeleteFromDiskTitle),
@@ -1042,7 +1040,8 @@ impl DownloadsView {
                                 .open(window, cx, move |window, cx| {
                                     view.update(cx, |view, cx| view.remove_from_disk(task.clone(), window, cx)).ok();
                                 });
-                            }));
+                            }),
+                        );
                     }
                     DownloadState::Canceled => {
                         menu = menu

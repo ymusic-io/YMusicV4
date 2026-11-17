@@ -217,8 +217,11 @@ pub fn preset_fields(
     let mut index = first;
     let (current, change) = (preset.clone(), on_change.clone());
     let format_menu = dropdown("preset-format", t(Str::DownloadFormat), preset.label(), focus, index, cx)
-        .dropdown_menu(move |mut menu, _, _| {
-            menu = menu.scrollable(true).max_h(px(360.)).label(t(Str::DownloadAudioOnly));
+        .dropdown_menu(move |menu, _, cx| {
+            let mut menu = crate::settings_view::field_menu(menu, cx)
+                .scrollable(true)
+                .max_h(px(360.))
+                .label(t(Str::DownloadAudioOnly).to_uppercase());
             for format in audio_formats {
                 let (picked, change) = (QuickPreset { format: *format, ..current.clone() }, change.clone());
                 menu = menu.item(
@@ -228,7 +231,7 @@ pub fn preset_fields(
                 );
             }
             for container in video_formats {
-                menu = menu.label(format!("{} · {}", t(Str::DownloadVideo), format_name(*container)));
+                menu = menu.label(format!("{} · {}", t(Str::DownloadVideo), format_name(*container)).to_uppercase());
                 for height in PRESET_HEIGHTS {
                     let picked = QuickPreset { format: *container, height: Some(height), ..current.clone() };
                     let change = change.clone();
@@ -248,7 +251,8 @@ pub fn preset_fields(
         let (current, change) = (preset.clone(), on_change.clone());
         let shown = quality_name(preset.audio_quality).to_owned();
         let quality = dropdown("preset-quality", t(Str::DownloadQuality), shown, focus, index, cx).dropdown_menu(
-            move |mut menu, _, _| {
+            move |menu, _, cx| {
+                let mut menu = crate::settings_view::field_menu(menu, cx);
                 for quality in AudioQuality::ALL.into_iter().rev() {
                     let (picked, change) = (QuickPreset { audio_quality: quality, ..current.clone() }, change.clone());
                     menu = menu.item(
@@ -273,8 +277,8 @@ pub fn preset_fields(
         let (current, change, options) = (preset.clone(), on_change.clone(), languages.to_vec());
         let shown = language_name(value, languages).unwrap_or_else(|| none_label.to_owned());
         let selected = value.map(str::to_owned);
-        dropdown(id, label, shown, focus, index, cx).dropdown_menu(move |mut menu, _, _| {
-            menu = menu.scrollable(true).max_h(px(360.));
+        dropdown(id, label, shown, focus, index, cx).dropdown_menu(move |menu, _, cx| {
+            let mut menu = crate::settings_view::field_menu(menu, cx).scrollable(true).max_h(px(360.));
             let (picked, on_pick) = (apply(&current, None), change.clone());
             menu = menu.item(
                 PopupMenuItem::new(none_label)

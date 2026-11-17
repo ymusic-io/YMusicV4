@@ -1267,7 +1267,7 @@ impl FeedView {
                 }
                 if video && downloaded {
                     let video_id = target.id.clone();
-                    menu = menu.item(crate::settings_view::menu_divider()).label(t(Str::SectionLibrary)).item(
+                    menu = menu.separator().label(t(Str::SectionLibrary)).item(
                         PopupMenuItem::new(t(Str::CdAddToPlaylist)).on_click(move |_, window, cx| {
                             crate::library_playlist::AddToLocalPlaylist::open(vec![video_id.clone()], None, window, cx);
                         }),
@@ -1892,7 +1892,8 @@ impl FeedView {
             .busy(busy)
             .accessibility_label(format!("{}, {current}", t(Str::CdSort)))
             .track_focus(&self.chips.handle(CHIPS_SORT, cx))
-            .dropdown_menu_with_anchor(Anchor::TopLeft, move |mut menu, _, _| {
+            .dropdown_menu_with_anchor(Anchor::TopLeft, move |menu, _, _| {
+                let mut menu = crate::settings_view::sort_menu(menu);
                 for (index, option) in options.iter().enumerate() {
                     let (view, token, selected) = (view.clone(), option.token.clone(), option.selected);
                     menu = menu.item(PopupMenuItem::new(option.title.clone()).checked(selected).on_click(

@@ -1,7 +1,7 @@
 use crate::{ActiveTheme, Disableable, StyledExt, h_flex};
 use gpui::{
-    AnyElement, App, ClickEvent, ElementId, InteractiveElement, IntoElement, MouseButton,
-    ParentElement, RenderOnce, Role, SharedString, StatefulInteractiveElement as _,
+    AnyElement, App, Background, ClickEvent, ElementId, Hsla, InteractiveElement, IntoElement,
+    MouseButton, ParentElement, RenderOnce, Role, SharedString, StatefulInteractiveElement as _,
     StyleRefinement, Styled, Window, accesskit::Toggled, prelude::FluentBuilder as _,
 };
 use gpui_base::TestSupportExt as _;
@@ -15,6 +15,8 @@ pub(crate) struct MenuItemElement {
     disabled: bool,
     selected: bool,
     checked: Option<bool>,
+    highlight: Option<Hsla>,
+    disabled_color: Option<Hsla>,
     on_click: Option<Box<dyn Fn(&ClickEvent, &mut Window, &mut App) + 'static>>,
     on_hover: Option<Box<dyn Fn(&bool, &mut Window, &mut App) + 'static>>,
     children: SmallVec<[AnyElement; 2]>,
@@ -31,6 +33,8 @@ impl MenuItemElement {
             disabled: false,
             selected: false,
             checked: None,
+            highlight: None,
+            disabled_color: None,
             on_click: None,
             on_hover: None,
             children: SmallVec::new(),
@@ -48,6 +52,18 @@ impl MenuItemElement {
     /// drawn by the menu.
     pub(crate) fn checked(mut self, checked: Option<bool>) -> Self {
         self.checked = checked;
+        self
+    }
+
+    /// Set the fill of the hovered or selected item, `None` for the theme's `accent`.
+    pub(crate) fn highlight(mut self, color: Option<Hsla>) -> Self {
+        self.highlight = color;
+        self
+    }
+
+    /// Set the ink of a disabled item, `None` for the theme's `muted_foreground`.
+    pub(crate) fn disabled_color(mut self, color: Option<Hsla>) -> Self {
+        self.disabled_color = color;
         self
     }
 
@@ -101,6 +117,10 @@ impl ParentElement for MenuItemElement {
 
 impl RenderOnce for MenuItemElement {
     fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
+        let highlight: Background = match self.highlight {
+            Some(color) => color.into(),
+            None => cx.theme().tokens.accent.into(),
+        };
         h_flex()
             .id(self.id)
             .test_support()
@@ -130,23 +150,19 @@ impl RenderOnce for MenuItemElement {
                 // Not `group_hover` on the item's own group: GPUI styles an
                 // element before registering its group, and that fallback keeps
                 // the pointer's item lit after a key moves the highlight away.
-                this.hover(|this| {
-                    this.bg(cx.theme().tokens.accent)
-                        .text_color(cx.theme().accent_foreground)
-                })
-                .when(self.selected, |this| {
-                    this.bg(cx.theme().tokens.accent)
-                        .text_color(cx.theme().accent_foreground)
-                })
-                .when_some(self.on_click, |this, on_click| {
-                    this.on_mouse_down(MouseButton::Left, move |_, _, cx| {
-                        cx.stop_propagation();
+                this.hover(|this| this.bg(highlight).text_color(cx.theme().accent_foreground))
+                    .when(self.selected, |this| {
+                        this.bg(highlight).text_color(cx.theme().accent_foreground)
                     })
-                    .on_click(on_click)
-                })
+                    .when_some(self.on_click, |this, on_click| {
+                        this.on_mouse_down(MouseButton::Left, move |_, _, cx| {
+                            cx.stop_propagation();
+                        })
+                        .on_click(on_click)
+                    })
             })
             .when(self.disabled, |this| {
-                this.text_color(cx.theme().muted_foreground)
+                this.text_color(self.disabled_color.unwrap_or(cx.theme().muted_foreground))
             })
             .children(self.children)
     }

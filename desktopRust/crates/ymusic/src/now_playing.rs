@@ -9,7 +9,7 @@ use std::time::{Duration, Instant};
 
 use gpui_kit::base::slider::{SliderEvent, SliderState};
 use gpui_kit::component::button::{Button, ButtonCustomVariant, ButtonVariants};
-use gpui_kit::component::menu::{DropdownMenu, PopupMenuItem};
+use gpui_kit::component::menu::{DropdownMenu, PopupMenu, PopupMenuItem};
 use gpui_kit::component::slider::Slider;
 use gpui_kit::component::{ActiveTheme, Icon, Sizable, StyledExt, WindowExt, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
@@ -30,6 +30,7 @@ use crate::playback::{
 };
 use crate::queue_nav::LoopMode;
 use crate::reorder::{Reorder, ReorderEvent};
+use crate::settings_view::accent_choice_menu;
 use crate::spinner::Spinner;
 use crate::sponsor_block::SponsorBlock;
 #[cfg(not(target_os = "windows"))]
@@ -303,19 +304,8 @@ fn on_video_menu(button: Button, cx: &App) -> Button {
     )
 }
 
-/// A menu row with its current `value` at the end, in the secondary ink.
-fn menu_value_item(label: &'static str, value: String) -> PopupMenuItem {
-    PopupMenuItem::element(move |_, cx| {
-        h_flex().w_full().gap_4().items_center().child(div().flex_1().min_w_0().child(label)).child(
-            div()
-                .max_w(px(96.))
-                .truncate()
-                .text_size(px(13.))
-                .text_color(cx.theme().muted_foreground)
-                .child(value.clone()),
-        )
-    })
-}
+/// The ⋮ menu's fixed width (the JVM `MoreMenuWidth`), so labels wrap instead of widening it.
+const MORE_MENU_WIDTH: f32 = 280.;
 
 /// [`on_video`] when `over_video`, else the button as it is.
 fn video_chrome(button: Button, over_video: bool, cx: &App) -> Button {
@@ -987,7 +977,7 @@ impl NowPlaying {
                             .collect();
                         if !recent.is_empty() {
                             items.extend(recent.into_iter().map(&pick));
-                            items.push(crate::settings_view::menu_divider());
+                            items.push(PopupMenuItem::separator());
                         }
                         items.extend(translations.iter().map(&pick));
                         let items = std::rc::Rc::new(std::cell::RefCell::new(Some(items)));
@@ -1191,7 +1181,8 @@ impl NowPlaying {
             .accessibility_label(format!("{}, {current}", t(Str::DownloadQuality)))
             .dropdown_menu_with_anchor(
                 if over_video.is_some() { Anchor::BottomRight } else { Anchor::TopRight },
-                move |mut menu, _, _| {
+                move |menu, _, cx| {
+                    let mut menu = accent_choice_menu(menu, cx);
                     for (quality, text) in &choices {
                         let (playback, pick) = (playback.clone(), quality.clone());
                         menu = menu.item(PopupMenuItem::new(text.clone()).checked(*quality == selected).on_click(
@@ -1360,8 +1351,9 @@ impl NowPlaying {
         let queue_playback = self.playback.clone();
         let more = sized_action_icon("np-more", MaterialIcon::MoreVert, t(Str::CdMore), ICON, HIT)
             .track_focus(&self.bar_focus.handle(STOP_MORE, cx))
-            .dropdown_menu_with_anchor(Anchor::TopRight, move |mut menu, window, cx| {
+            .dropdown_menu_with_anchor(Anchor::TopRight, move |menu, window, cx| {
                 let icon = |name: MaterialIcon| Icon::new(name);
+                let mut menu = menu.min_w(px(MORE_MENU_WIDTH)).max_w(px(MORE_MENU_WIDTH));
                 if let Some(more_video_id) = &more_video_id {
                     let (details, video_id) = (view.clone(), more_video_id.clone());
                     menu = menu.item(
@@ -1414,25 +1406,27 @@ impl NowPlaying {
                         },
                     ),
                 );
-                menu = menu.item(crate::settings_view::menu_divider());
+                menu = menu.separator();
                 let effects = queue_playback.read(cx).effects;
                 let speed = format!("{}×", crate::speed_pitch::trimmed(effects.speed));
                 let speed_pitch = view.clone();
                 menu = menu.item(
-                    menu_value_item(t(Str::MenuSpeedPitch), speed).icon(icon(MaterialIcon::SpeedOutlined)).on_click(
-                        move |_, _, cx| {
+                    PopupMenuItem::new(t(Str::MenuSpeedPitch))
+                        .detail(speed)
+                        .icon(icon(MaterialIcon::SpeedOutlined))
+                        .on_click(move |_, _, cx| {
                             speed_pitch.update(cx, |_, cx| cx.emit(NowPlayingEvent::OpenSpeedPitch)).ok();
-                        },
-                    ),
+                        }),
                 );
                 let preset = crate::audio_effects::preset_name(&effects.tone.eq_db).to_owned();
                 let equalizer = view.clone();
                 menu = menu.item(
-                    menu_value_item(t(Str::SoundEq), preset).icon(icon(MaterialIcon::EqualizerOutlined)).on_click(
-                        move |_, _, cx| {
+                    PopupMenuItem::new(t(Str::SoundEq))
+                        .detail(preset)
+                        .icon(icon(MaterialIcon::EqualizerOutlined))
+                        .on_click(move |_, _, cx| {
                             equalizer.update(cx, |_, cx| cx.emit(NowPlayingEvent::OpenEqualizer)).ok();
-                        },
-                    ),
+                        }),
                 );
                 let audio = queue_playback.read(cx).audio_tracks();
                 if audio.tracks.len() > 1 {
@@ -1441,34 +1435,30 @@ impl NowPlaying {
                         .iter()
                         .find(|track| audio.selected.as_ref() == Some(&track.id))
                         .map(|track| track.display_name.clone());
-                    let title = match current {
-                        Some(name) => format!("{} · {name}", t(Str::DownloadAudioTrack)),
-                        None => t(Str::DownloadAudioTrack).to_owned(),
-                    };
                     let (tracks, selected, target) = (audio.tracks, audio.selected, queue_playback.clone());
-                    menu = menu.submenu_with_icon(
-                        Some(icon(MaterialIcon::GraphicEqOutlined)),
-                        title,
-                        window,
-                        cx,
-                        move |mut submenu, _, _| {
-                            for track in &tracks {
-                                let (playback, id) = (target.clone(), track.id.clone());
-                                submenu = submenu.item(
-                                    PopupMenuItem::new(track.display_name.clone())
-                                        .checked(selected.as_ref() == Some(&track.id))
-                                        .on_click(move |_, _, cx| {
-                                            playback
-                                                .update(cx, |playback, cx| playback.select_audio_track(id.clone(), cx))
-                                        }),
-                                );
-                            }
-                            submenu
-                        },
+                    let submenu = PopupMenu::build(window, cx, move |submenu, _, cx| {
+                        let mut submenu =
+                            accent_choice_menu(submenu, cx).min_w(px(MORE_MENU_WIDTH)).max_w(px(MORE_MENU_WIDTH));
+                        for track in &tracks {
+                            let (playback, id) = (target.clone(), track.id.clone());
+                            submenu = submenu.item(
+                                PopupMenuItem::new(track.display_name.clone())
+                                    .checked(selected.as_ref() == Some(&track.id))
+                                    .on_click(move |_, _, cx| {
+                                        playback.update(cx, |playback, cx| playback.select_audio_track(id.clone(), cx))
+                                    }),
+                            );
+                        }
+                        submenu
+                    });
+                    menu = menu.item(
+                        PopupMenuItem::submenu(t(Str::DownloadAudioTrack), submenu)
+                            .icon(icon(MaterialIcon::GraphicEqOutlined))
+                            .when_some(current, |item, name| item.detail(name)),
                     );
                 }
                 let reload = queue_playback.clone();
-                menu.item(crate::settings_view::menu_divider()).item(
+                menu.separator().item(
                     PopupMenuItem::new(t(Str::MenuReloadPlayer))
                         .icon(icon(MaterialIcon::RefreshOutlined))
                         .on_click(move |_, _, cx| reload.update(cx, |playback, cx| playback.reload(cx))),
