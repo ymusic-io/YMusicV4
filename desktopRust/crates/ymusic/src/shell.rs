@@ -1267,6 +1267,7 @@ impl Shell {
         let graph = cx.global::<AppGraph>();
         let (downloads, settings, media, log) =
             (graph.downloads.clone(), graph.settings.clone(), graph.media.clone(), graph.log.fork("dev-download"));
+        let history = graph.history.clone();
         let (format, video_id) = spec.split_once(':').unwrap_or(("M4A", spec));
         let Some(format) = ym_download::DownloadFormat::from_name(format) else {
             log.warn(&format!("unknown download format {format}"), None);
@@ -1283,11 +1284,11 @@ impl Shell {
                 log.warn(&format!("the dev download folder could not be saved: {error}"), None);
             }
             if let Some(dir) = std::env::var_os("YMUSIC_DEV_DOWNLOAD_DIR").map(std::path::PathBuf::from) {
-                let (media, register_log) = (media.clone(), log.clone());
+                let (media, history, register_log) = (media.clone(), history.clone(), log.clone());
                 let registered =
                     tokio::task::spawn_blocking(move || {
                         match crate::downloads::register_download_folder(&media, &dir) {
-                            Ok(()) => crate::downloads::scan_download_folder(&media, &dir, &register_log),
+                            Ok(()) => crate::downloads::scan_download_folder(&media, &history, &dir, &register_log),
                             Err(error) => register_log
                                 .warn("the dev download folder could not be added to the Library", Some(&error)),
                         }

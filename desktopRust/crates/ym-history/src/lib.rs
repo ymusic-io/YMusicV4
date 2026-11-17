@@ -280,6 +280,24 @@ impl PlayHistory {
         Ok(())
     }
 
+    /// A local file's watch time moves to its new playlist code, added to any the new code has.
+    pub fn rekey_local(&self, old_code: &str, new_code: &str) -> rusqlite::Result<()> {
+        if old_code == new_code {
+            return Ok(());
+        }
+        let mut connection = self.connection.lock().unwrap();
+        let transaction = connection.transaction()?;
+        transaction.execute(
+            "INSERT INTO local_play_history(code, watch_time, tracked_at) \
+             SELECT ?2, watch_time, tracked_at FROM local_play_history WHERE code = ?1 \
+             ON CONFLICT(code) DO UPDATE SET watch_time = watch_time + excluded.watch_time, \
+             tracked_at = MAX(tracked_at, excluded.tracked_at)",
+            [old_code, new_code],
+        )?;
+        transaction.execute("DELETE FROM local_play_history WHERE code = ?", [old_code])?;
+        transaction.commit()
+    }
+
     pub fn delete_youtube(&self, video_id: &str) -> rusqlite::Result<()> {
         self.connection.lock().unwrap().execute("DELETE FROM yt_play_history WHERE video_id = ?", [video_id])?;
         Ok(())

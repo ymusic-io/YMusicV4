@@ -160,6 +160,7 @@ R90043 - library: the one-time Library rescan after the probe moved to the ffmpe
 R90044 - library: the one-time Library rescan did not start because its flag could not be read from the settings (logged; tried again at the next launch)
 R90045 - library: the one-time Library rescan could not index some files of a Library folder (a probe failure, e.g. a missing or quarantined ffmpeg); their items stay marked for a probe by a later scan (logged, with the count and the first error)
 R90046 - signals: the SIGTERM/SIGINT handling (pipe, thread or sigaction) did not install on macOS or Linux; those signals end the process without the quit hooks (logged)
+R90047 - library: play history did not follow a file whose playlist code a re-probe moved (local_play_history rekey failed); that file's watch-time rank stays under the old code (logged)
 R90200 D data dir: a database this app's earlier builds named differently could not take the JVM app's name (logged; retried next launch)
 R90201 D data dir: the window bounds kept in app.db could not move to window.properties (logged)
 R90202 D data dir: the old window.bounds setting could not be removed from app.db (logged)

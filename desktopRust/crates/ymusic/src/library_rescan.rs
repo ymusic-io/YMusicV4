@@ -7,6 +7,7 @@ use std::sync::atomic::Ordering;
 use std::time::Duration;
 
 use ym_common::log::Logger;
+use ym_history::PlayHistory;
 use ym_settings::SettingsStore;
 use ym_store::MediaStore;
 
@@ -29,18 +30,23 @@ pub fn schedule(graph: &AppGraph) {
             return log.warn("R90044 the one-time Library rescan did not start: its flag is unreadable", Some(&*error));
         }
     }
-    let (settings, media) = (graph.settings.clone(), graph.media.clone());
+    let (settings, media, history) = (graph.settings.clone(), graph.media.clone(), graph.history.clone());
     graph.tokio.spawn(async move {
         tokio::time::sleep(START_DELAY).await;
         tokio::task::spawn_blocking(move || {
-            if let Err(error) = rescan(settings.as_ref(), &media, &log) {
+            if let Err(error) = rescan(settings.as_ref(), &media, &history, &log) {
                 log.warn("R90043 the one-time Library rescan failed", Some(&*error));
             }
         });
     });
 }
 
-fn rescan(settings: &dyn SettingsStore, media: &MediaStore, log: &Logger) -> Result<(), Box<dyn Error + Send + Sync>> {
+fn rescan(
+    settings: &dyn SettingsStore,
+    media: &MediaStore,
+    history: &PlayHistory,
+    log: &Logger,
+) -> Result<(), Box<dyn Error + Send + Sync>> {
     if !settings.boolean(PROBES_INVALIDATED_KEY, false)? {
         media.invalidate_probes()?;
         settings.put_raw(PROBES_INVALIDATED_KEY, "true".to_owned())?;
@@ -53,6 +59,7 @@ fn rescan(settings: &dyn SettingsStore, media: &MediaStore, log: &Logger) -> Res
             continue;
         }
         let report = ym_store::scan_folder(media, ym_ffmpeg::FfmpegMetadataGetter::shared(), path, &crate::QUITTING)?;
+        crate::library::follow_recoded(history, &report.recoded, log);
         if let Some(first) = report.errors.first() {
             log.warn(
                 &format!(
