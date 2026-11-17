@@ -1175,6 +1175,7 @@ impl DownloadsView {
             .on_mouse_up(MouseButton::Left, cx.listener(|view, _, _, _| view.release_long_press()))
             .on_mouse_up_out(MouseButton::Left, cx.listener(|view, _, _, _| view.release_long_press()))
             .when(selecting, |card| card.cursor_pointer())
+            .flex_grow_1()
             .rounded(px(6.))
             .bg(if failed { theme.danger.opacity(0.12) } else { tones.ground })
             .border_1()
@@ -1355,10 +1356,10 @@ impl Render for DownloadsView {
             .rows
             .render(visible.len().div_ceil(columns), 12., kept, window, |row_index| {
                 let row = &visible[row_index * columns..((row_index + 1) * columns).min(visible.len())];
-                let mut cells = h_flex().w_full().gap_4().items_start();
+                let mut cells = h_flex().w_full().gap_4().items_stretch();
                 for (offset, task) in row.iter().enumerate() {
-                    cells =
-                        cells.child(div().flex_1().min_w_0().child(self.card(row_index * columns + offset, task, cx)));
+                    let card = self.card(row_index * columns + offset, task, cx);
+                    cells = cells.child(v_flex().flex_1().min_w_0().child(card));
                 }
                 for _ in row.len()..columns {
                     cells = cells.child(div().flex_1());
