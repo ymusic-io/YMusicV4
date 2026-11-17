@@ -23,11 +23,11 @@ internal val isLinux = "linux" in System.getProperty("os.name").orEmpty().lowerc
 /** WM_CLASS of every AWT window: XToolkit derives it from the main class name. */
 private const val RELEASE_WM_CLASS = "io-ymusic-desktop-MainKt"
 
-/** A dev slot's run gets its own, so the shell keeps it apart from the other runs. */
-private val linuxWmClass: String = DevInstance.slot?.let { "$RELEASE_WM_CLASS-dev$it" } ?: RELEASE_WM_CLASS
+/** A dev workspace's run gets its own, so the shell keeps it apart from the other runs. */
+private val linuxWmClass: String = DevInstance.workspaceTag?.let { "$RELEASE_WM_CLASS-dev$it" } ?: RELEASE_WM_CLASS
 
 /** The hidden .desktop entry's id, which MPRIS names as the player's DesktopEntry too. */
-internal val linuxDesktopEntryId: String = DevInstance.slot?.let { "io.ymusic.desktop.dev$it" } ?: "io.ymusic.desktop"
+internal val linuxDesktopEntryId: String = DevInstance.workspaceTag?.let { "io.ymusic.desktop.dev$it" } ?: "io.ymusic.desktop"
 
 /**
  * Hack: XToolkit takes WM_CLASS from the main class name and offers no API to set it. Before the

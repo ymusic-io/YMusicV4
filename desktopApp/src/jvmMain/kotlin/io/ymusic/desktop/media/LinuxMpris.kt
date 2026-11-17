@@ -71,7 +71,7 @@ internal class LinuxMprisSession(
     }
 
     private fun requestBusName(): String {
-        val candidates = listOf(DevInstance.slot?.let { "$BUS_NAME.dev$it" } ?: BUS_NAME, "$BUS_NAME.instance${ProcessHandle.current().pid()}")
+        val candidates = listOf(DevInstance.workspaceTag?.let { "$BUS_NAME.dev$it" } ?: BUS_NAME, "$BUS_NAME.instance${ProcessHandle.current().pid()}")
         for (name in candidates) {
             val reply = bus.callBlocking(
                 "org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "RequestName",

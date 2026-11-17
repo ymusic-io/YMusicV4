@@ -298,8 +298,8 @@ fun main(args: Array<String>) {
     File(ymusicDataDir(), "logs").listFiles { file -> file.name.startsWith("ymusic.log") }?.forEach { it.delete() }
     val launchFiles = launchFileUris(args.toList())
     // macOS LaunchServices already keeps one app process; Windows and Linux start one per launch, and
-    // so does a dev slot's `gradlew run` on any OS.
-    val instance = if (isWindows || isLinux || DevInstance.slot != null) {
+    // so does a dev workspace's `gradlew run` on any OS.
+    val instance = if (isWindows || isLinux || DevInstance.workspace != null) {
         val command = InstanceCommand.of(args.toList())
         val log = rootLogger.fork("instance")
         val claim = try {
@@ -392,7 +392,7 @@ fun main(args: Array<String>) {
 
     if (isLinux) {
         runCatching { applyLinuxWmClass() }
-            .onFailure { rootLogger.fork("wm-class").log(Logger.Level.WARN, "dev slot WM_CLASS not set", it) }
+            .onFailure { rootLogger.fork("wm-class").log(Logger.Level.WARN, "dev workspace WM_CLASS not set", it) }
     }
 
     application {
@@ -410,10 +410,6 @@ fun main(args: Array<String>) {
                             LayoutDirection.Ltr,
                             androidx.compose.ui.geometry.Size(192f, 192f),
                         )
-                    }
-                    val slot = DevInstance.slot
-                    if (slot != null && taskbar.isSupported(java.awt.Taskbar.Feature.ICON_BADGE_TEXT)) {
-                        taskbar.setIconBadge(slot.toString())
                     }
                 }
             }.onFailure { rootLogger.fork("dock").log(Logger.Level.WARN, "dock icon set failed", it) }
@@ -533,17 +529,6 @@ fun main(args: Array<String>) {
                 val windowIcon = painterResource(Res.drawable.ymusic_logo)
                 LaunchedEffect(window, windowIcon) {
                     window.iconImages = listOf(16, 20, 24, 32, 40, 48, 64, 128, 256).map { windowIcon.rasterize(it) }
-                }
-            }
-            val slot = DevInstance.slot
-            if (isWindows && slot != null) {
-                LaunchedEffect(window) {
-                    runCatching {
-                        val taskbar = java.awt.Taskbar.getTaskbar()
-                        if (taskbar.isSupported(java.awt.Taskbar.Feature.ICON_BADGE_IMAGE_WINDOW)) {
-                            taskbar.setWindowIconBadge(window, devSlotBadge(slot))
-                        }
-                    }.onFailure { rootLogger.fork("taskbar").log(Logger.Level.WARN, "dev slot badge not set", it) }
                 }
             }
             val closeApp = {
@@ -1081,15 +1066,14 @@ private suspend fun buildGraph(
     }
 
     // OS media surface + media keys (macOS Now Playing, Linux MPRIS, Windows SMTC). Commands come
-    // back on the Main dispatcher, where the player is driven. Dev slots 2 and up leave the media keys
-    // to slot 1, so one key press never drives two runs.
-    val devSlot = DevInstance.slot
-    if (devSlot == null || devSlot == 1) {
+    // back on the Main dispatcher, where the player is driven. A dev workspace's run leaves the media
+    // keys to the other apps unless YMUSIC_DEV_MEDIA_SESSION=1.
+    if (DevInstance.usesMediaSession) {
         connectMediaSession(player, CoroutineScope(Dispatchers.Main), imageLoader, rootLogger.fork("now-playing")) {
             showWindowRequests.tryEmit(Unit)
         }
     } else {
-        rootLogger.fork("now-playing").log(Logger.Level.INFO, "dev slot $devSlot: no OS media session")
+        rootLogger.fork("now-playing").log(Logger.Level.INFO, "dev workspace: no OS media session (YMUSIC_DEV_MEDIA_SESSION=1 opens one)")
     }
 
     // Offline downloads: SABR stack over ffmpeg. Spec comes from the MSE engine's cached
@@ -1677,7 +1661,7 @@ private fun saveWindowPrefs(size: DpSize, position: WindowPosition) {
 /** Sends the app logs as one anonymous Sentry report for the Feedback screen. */
 private val captureFeedbackReportAction: suspend (String, String?) -> Unit = { subject, message ->
     withContext(Dispatchers.IO) {
-        val exportName = DevInstance.slot?.let { "dev$it-$FEEDBACK_LOG_NAME" } ?: FEEDBACK_LOG_NAME
+        val exportName = DevInstance.workspaceTag?.let { "dev$it-$FEEDBACK_LOG_NAME" } ?: FEEDBACK_LOG_NAME
         val export = File(System.getProperty("java.io.tmpdir"), exportName)
         // The report still goes without the log when the export fails or the log store is stuck.
         val attachments = try {

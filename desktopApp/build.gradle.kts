@@ -87,18 +87,20 @@ if (ffmpegForDev != null) {
         }
 }
 
-// Dev runs live in the checkout's dev data slot (tools/dev-slot.sh) and name its branch in the window
-// title. An explicit YMUSIC_DATA_DIR other than the slot's own jvm/ keeps its one folder, with no slot.
-// Run tasks only: a packaged launcher never carries these.
-val devRunSlot: DevSlot? by lazy {
+// Dev runs live in the checkout's workspace data dir (tools/dev-data.sh) and name its branch in the
+// window title. An explicit YMUSIC_DATA_DIR other than the workspace's own jvm/ keeps its one folder,
+// with no workspace. Run tasks only: a packaged launcher never carries these.
+val devRunWorkspace: DevWorkspace? by lazy {
     val explicitDir = providers.environmentVariable("YMUSIC_DATA_DIR").orNull?.takeIf { it.isNotBlank() }
-    devSlot()?.takeIf { slot -> explicitDir == null || File(explicitDir).absoluteFile == File(slot.root, "jvm").absoluteFile }
+    devWorkspace()?.takeIf { workspace ->
+        explicitDir == null || File(explicitDir).absoluteFile == File(workspace.root, "jvm").absoluteFile
+    }
 }
 val devRunBranch: String? by lazy { devBranch() }
 tasks.withType<JavaExec>().matching { !it.name.contains("Distributable") }.configureEach {
-    devRunSlot?.let { slot ->
-        environment("YMUSIC_DATA_DIR", File(slot.root, "jvm").path)
-        systemProperty("ymusic.devSlot", slot.number.toString())
+    devRunWorkspace?.let { workspace ->
+        environment("YMUSIC_DATA_DIR", File(workspace.root, "jvm").path)
+        systemProperty("ymusic.devWorkspace", workspace.name)
     }
     devRunBranch?.let { systemProperty("ymusic.devBranch", it) }
 }
