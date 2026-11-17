@@ -95,6 +95,12 @@ pub fn slot() -> Option<u32> {
     SLOT.get().copied().flatten()
 }
 
+/// Slots after the first leave machine-wide resources (the OS media session and its media keys)
+/// to slot 1, so one key press never reaches two instances.
+pub fn owns_global_resources() -> bool {
+    slot().is_none_or(|slot| slot == 1)
+}
+
 /// The branch a debug build was built from, or its commit when HEAD was detached.
 pub fn branch() -> Option<&'static str> {
     option_env!("YM_GIT_BRANCH").filter(|branch| !branch.is_empty())
