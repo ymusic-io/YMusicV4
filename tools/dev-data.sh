@@ -259,13 +259,25 @@ prepare_app_db() {
     fi
 }
 
+# The data file names a complete workspace that this checkout owns.
+data_file_is_current() {
+    local data_file=$1 root=$2 name dir
+    name=$(data_file_field "$data_file" name)
+    dir=$(data_file_field "$data_file" root)
+    [ -n "$name" ] && [ -n "$dir" ] && [ "$(basename "$dir")" = "$name" ] \
+        && [ -d "$dir/jvm" ] && [ -d "$dir/rust" ] && [ "$(owner_of "$dir")" = "$root" ]
+}
+
 cmd_create() {
     local root data_file
     root=$(checkout_root)
     data_file="$root/$DATA_FILE_NAME"
     if [ -f "$data_file" ]; then
-        cat "$data_file"
-        return 0
+        if data_file_is_current "$data_file" "$root"; then
+            cat "$data_file"
+            return 0
+        fi
+        echo "$DATA_FILE_NAME does not name a complete data dir owned by $root: making one"
     fi
     if [ -d "$RELEASE_DIR" ] && ! command -v sqlite3 >/dev/null; then
         die "copying $RELEASE_DIR needs the sqlite3 command line tool"
@@ -299,6 +311,8 @@ cmd_create() {
             mkdir -p "$dir/jvm.copying"
         fi
         cp -pR "$dir/jvm.copying" "$dir/rust.copying"
+        # A half-built dir keeps a stale jvm/ or rust/, which mv would move the copy into.
+        rm -rf "$dir/jvm" "$dir/rust"
         mv "$dir/jvm.copying" "$dir/jvm"
         mv "$dir/rust.copying" "$dir/rust"
         PARTIAL_DIRS=()
