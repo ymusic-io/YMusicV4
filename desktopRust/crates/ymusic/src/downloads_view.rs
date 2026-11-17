@@ -108,6 +108,11 @@ pub struct DownloadsView {
     long_press: Option<LongPress>,
     /// The card a long press just selected: its release is not a click.
     long_pressed: Option<String>,
+    /// The card that started selection mode or was toggled last: focus returns to it when the mode
+    /// ends and its bar, holding focus, goes away (the JVM `selectionOrigin`).
+    selection_origin: Option<String>,
+    /// Selection mode just ended: the next render focuses [`Self::selection_origin`], else the first card.
+    refocus_card: bool,
     /// The selection bar's buttons.
     bar_focus: FocusList,
     /// The selected finished downloads whose Library row exists: what Remove from disk deletes (the
@@ -198,6 +203,8 @@ impl DownloadsView {
             selection_before_select_all: None,
             long_press: None,
             long_pressed: None,
+            selection_origin: None,
+            refocus_card: false,
             bar_focus: FocusList::new(None),
             deletable: Vec::new(),
             deletable_candidates: Vec::new(),
@@ -298,6 +305,7 @@ impl DownloadsView {
         change(&mut self.selected_ids);
         if was_selecting != self.selecting() {
             self.long_press = None;
+            self.refocus_card = was_selecting;
             cx.emit(SelectionModeChanged);
         }
         self.refresh_deletable(false, cx);
@@ -351,6 +359,7 @@ impl DownloadsView {
     }
 
     fn toggle_selected(&mut self, id: &str, cx: &mut Context<Self>) {
+        self.selection_origin = Some(id.to_owned());
         self.change_selection(cx, |selected| {
             if !selected.remove(id) {
                 selected.insert(id.to_owned());
@@ -389,6 +398,7 @@ impl DownloadsView {
 
     /// Selection mode, with only `id` selected.
     fn start_selection(&mut self, id: String, cx: &mut Context<Self>) {
+        self.selection_origin = Some(id.clone());
         self.change_selection(cx, |selected| *selected = HashSet::from([id]));
     }
 
@@ -1271,6 +1281,7 @@ impl Render for DownloadsView {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         crate::shell::track_scroll(&self.scroll, cx);
         let theme = cx.theme().clone();
+        let refocus = std::mem::take(&mut self.refocus_card).then(|| self.selection_origin.take());
         if let Some(code) = self.load_error {
             return v_flex()
                 .size_full()
@@ -1307,6 +1318,14 @@ impl Render for DownloadsView {
         }
         let filter = self.filter;
         let visible: Vec<DownloadTask> = self.tasks.iter().filter(|task| filter.matches(task.state)).cloned().collect();
+        if let Some(origin) = refocus {
+            let row = origin.and_then(|id| visible.iter().position(|task| task.id == id));
+            if let Some(row) = row.or((!visible.is_empty()).then_some(0)) {
+                let card = self.focus.handle(row, cx);
+                // After the closing dialog or menu hands focus back to its opener, which the bar took along.
+                window.defer(cx, move |window, cx| window.focus(&card, cx));
+            }
+        }
         let any_active = self.tasks.iter().any(|task| task.state.is_active());
         let any_paused = self.tasks.iter().any(|task| task.state == DownloadState::Paused);
 
@@ -1472,8 +1491,10 @@ impl DeleteSelectedDialog {
                             Err(error) => {
                                 let mut props = serde_json::Map::new();
                                 props.insert("taskId".into(), target.task_id.clone().into());
-                                log.fork_with("downloads", props)
-                                    .capture_error("delete from storage failed", error.as_ref());
+                                log.fork_with("downloads", props).capture_error(
+                                    &format!("{DELETE_SELECTED_FAILED} delete from storage failed"),
+                                    error.as_ref(),
+                                );
                                 true
                             }
                         }
@@ -1493,7 +1514,7 @@ impl DeleteSelectedDialog {
                         .global::<AppGraph>()
                         .log
                         .fork("downloads")
-                        .capture_error("delete from storage failed", &error),
+                        .capture_error(&format!("{DELETE_SELECTED_FAILED} delete from storage failed"), &error),
                     None => {}
                 }
                 if view.remaining.is_empty() {

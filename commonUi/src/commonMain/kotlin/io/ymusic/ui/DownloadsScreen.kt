@@ -57,13 +57,17 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.InputMode
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalInputModeManager
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.onLongClick
 import androidx.compose.ui.semantics.semantics
@@ -158,6 +162,7 @@ import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringArrayResource
 import org.jetbrains.compose.resources.stringResource
 import projectcommon.error.Playability
+import projectcommon.error.TechnicalException
 import projectcommon.error.errorCode
 import projectcommon.error.playabilityOf
 import projectcommon.log.captureUnlessEnvironmental
@@ -280,7 +285,14 @@ fun DownloadsScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
         selectionBeforeSelectAll = null
     }
     val endSelection = { changeSelection(emptySet()) }
-    val toggleSelected = { id: String -> changeSelection(if (id in selectedIds) selectedIds - id else selectedIds + id) }
+    // The card focus returns to when selection mode ends and its bar, holding focus, goes away.
+    var selectionOrigin by remember { mutableStateOf<String?>(null) }
+    var focusCard by remember { mutableStateOf<String?>(null) }
+    val keyboardMode = LocalInputModeManager.current.inputMode == InputMode.Keyboard
+    val toggleSelected = { id: String ->
+        selectionOrigin = id
+        changeSelection(if (id in selectedIds) selectedIds - id else selectedIds + id)
+    }
     val allShownSelected = shownIds.isNotEmpty() && selection.containsAll(shownIds)
     val toggleSelectAll = {
         if (allShownSelected) {
@@ -293,6 +305,17 @@ fun DownloadsScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
         }
     }
     NestedBackHandler(enabled = selecting) { endSelection() }
+    LaunchedEffect(selecting) {
+        if (selecting) return@LaunchedEffect
+        val origin = selectionOrigin ?: return@LaunchedEffect
+        selectionOrigin = null
+        if (!keyboardMode) return@LaunchedEffect
+        val target = origin.takeIf { it in shownIds } ?: shownIds.firstOrNull() ?: return@LaunchedEffect
+        // The filter chips are the grid's first item.
+        val gridIndex = shownIds.indexOf(target) + 1
+        if (gridState.layoutInfo.visibleItemsInfo.none { it.index == gridIndex }) gridState.scrollToItem(gridIndex)
+        focusCard = target
+    }
     val selectedTasks = visible.filter { it.id in selection }
     val deletableItems = rememberDeletableItems(graph, selectedTasks)
     var confirming by remember { mutableStateOf<SelectionConfirm?>(null) }
@@ -395,7 +418,12 @@ fun DownloadsScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
                     selecting = selecting,
                     selected = task.id in selection,
                     onToggleSelected = { toggleSelected(task.id) },
-                    onStartSelection = { changeSelection(setOf(task.id)) },
+                    onStartSelection = {
+                        selectionOrigin = task.id
+                        changeSelection(setOf(task.id))
+                    },
+                    requestFocus = focusCard == task.id,
+                    onFocusRequested = { focusCard = null },
                     onRetry = { retry(task) },
                     onPlay = { scope.launch { coordinator.playDownloads(shown, task.id) } },
                     onRevealLibrary = if (store != null) ({
@@ -596,7 +624,7 @@ private fun DeleteSelectedDialog(
                                 val code = failure.errorCode()
                                 val log = graph.logger?.fork("downloads", mapOf("taskId" to taskId))
                                 if (code == null) {
-                                    log?.captureError(failure, "delete from storage failed")
+                                    log?.captureError(TechnicalException("E70082", "delete from storage failed", cause = failure))
                                 } else {
                                     log?.log(Logger.Level.WARN, "delete from storage failed", failure)
                                 }
@@ -662,6 +690,8 @@ private fun DownloadCard(
     selected: Boolean,
     onToggleSelected: () -> Unit,
     onStartSelection: () -> Unit,
+    requestFocus: Boolean,
+    onFocusRequested: () -> Unit,
     onRetry: () -> Unit,
     onPlay: () -> Unit,
     onRevealLibrary: (() -> Unit)?,
@@ -674,16 +704,25 @@ private fun DownloadCard(
     val haptics = LocalHapticFeedback.current
     val startSelection by rememberUpdatedState(onStartSelection)
     val selectLabel = stringResource(Res.string.downloads_action_select)
-    val selectionGesture = if (selecting) {
-        Modifier.toggleable(value = selected, role = Role.Checkbox, onValueChange = { onToggleSelected() })
-    } else {
-        Modifier.focusRing(RoundedCornerShape(MediaCardCorner)).focusable().pointerInput(Unit) {
-            detectTapGestures(onLongPress = {
-                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                startSelection()
-            })
+    val focusRequester = remember { FocusRequester() }
+    if (requestFocus) {
+        LaunchedEffect(Unit) {
+            focusRequester.requestFocus()
+            onFocusRequested()
         }
     }
+    val selectionGesture = Modifier.focusRequester(focusRequester).focusRing(RoundedCornerShape(MediaCardCorner)).then(
+        if (selecting) {
+            Modifier.toggleable(value = selected, role = Role.Checkbox, onValueChange = { onToggleSelected() })
+        } else {
+            Modifier.focusable().pointerInput(Unit) {
+                detectTapGestures(onLongPress = {
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    startSelection()
+                })
+            }
+        },
+    )
     Surface(
         shape = RoundedCornerShape(MediaCardCorner),
         color = if (failed) c.dangerSoft else c.surface,
@@ -756,8 +795,8 @@ private fun DownloadCard(
                             if (!selecting) {
                                 Button(
                                     onClick = onRetry,
-                                    // Retry is on the card's ⋮ too: Tab moves card to card.
-                                    modifier = Modifier.focusProperties { canFocus = false },
+                                    // Retry is on the card's ⋮ too: Tab moves card to card. A remote enters the card for it.
+                                    modifier = Modifier.focusProperties { canFocus = platformIsTelevision }.tvExitSideways(),
                                     shape = RoundedCornerShape(percent = 50),
                                     colors = ButtonDefaults.buttonColors(containerColor = c.accent, contentColor = c.onAccent),
                                     contentPadding = PaddingValues(horizontal = DesignSpacing.Space16, vertical = DesignSpacing.Space4),

@@ -1382,6 +1382,7 @@ impl FeedView {
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let theme = cx.theme().clone();
+        let more = self.more_menu(item, ("card-more", index), cx);
         let card = self
             .clickable(("feed-card", index), position, item, queue, None, cx)
             .flex_1()
@@ -1410,7 +1411,7 @@ impl FeedView {
                             column.child(div().text_xs().text_color(theme.muted_foreground).truncate().child(line))
                         }),
                 )
-                .child(div().absolute().top_0().right_0().child(self.more_menu(item, ("card-more", index), cx)))
+                .child(div().absolute().top_0().right_0().child(more))
                 .into_any_element();
         }
         let stack_tab = (item.kind == "playlist").then(|| cx.global::<StackTones>().tab);
@@ -1463,7 +1464,7 @@ impl FeedView {
                             column.child(div().text_xs().text_color(theme.muted_foreground).truncate().child(line))
                         }),
                 )
-                .child(self.more_menu(item, ("card-more", index), cx)),
+                .child(more),
         )
         .into_any_element()
     }
@@ -1479,6 +1480,7 @@ impl FeedView {
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let theme = cx.theme().clone();
+        let more = self.more_menu(item, ("row-more", index), cx);
         let (width, height, round) = match item.kind.as_str() {
             "channel" => (74., 74., true),
             _ if bands.square => (92., 92., false),
@@ -1546,7 +1548,7 @@ impl FeedView {
                                     .child(div().text_xs().text_color(theme.muted_foreground).line_clamp(2).child(line))
                             }),
                     )
-                    .child(self.more_menu(item, ("row-more", index), cx)),
+                    .child(more),
             )
             .into_any_element()
     }

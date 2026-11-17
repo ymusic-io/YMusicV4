@@ -618,6 +618,8 @@ private fun FullscreenVideo(graph: AppGraph, coordinator: PlaybackCoordinator, o
     SyncSensorRotation(rotation)
     val fillScreen by graph.videoFillScreen
     var controlsStrip by remember { mutableStateOf<Dp?>(null) }
+    // Out here: the overlay leaves composition while hidden, and a reload on every show pops the button in late.
+    val sponsorBlock = rememberSponsorBlockState(coordinator)
     Box(Modifier.fillMaxSize()) {
         PlayerSurfaceHole(
             player,
@@ -632,6 +634,7 @@ private fun FullscreenVideo(graph: AppGraph, coordinator: PlaybackCoordinator, o
             AutoHidingOverlay {
                 FullscreenVideoControls(
                     coordinator, status, progress, current,
+                    sponsorBlock = sponsorBlock,
                     fillScreen = fillScreen,
                     onToggleFill = { graph.videoFillScreen.value = !graph.videoFillScreen.value },
                     rotation = rotation,
@@ -1054,6 +1057,7 @@ private fun BoxScope.FullscreenVideoControls(
     status: PlaybackStatus,
     progress: io.ymusic.player.Progress,
     current: PlayableItem?,
+    sponsorBlock: SponsorBlockState,
     fillScreen: Boolean,
     onToggleFill: () -> Unit,
     rotation: VideoRotation,
@@ -1122,7 +1126,7 @@ private fun BoxScope.FullscreenVideoControls(
             VideoDetailsAction(coordinator, current, OverlayInk, iconSize, hitSize)
             SpeedAction(player, OverlayInk, iconSize, hitSize, scale)
             EqualizerAction(coordinator, OverlayInk, iconSize, hitSize)
-            SponsorBlockToggle(coordinator, offTint = OverlayInk, iconSize = iconSize, hitSize = hitSize)
+            SponsorBlockToggle(coordinator, sponsorBlock, offTint = OverlayInk, iconSize = iconSize, hitSize = hitSize)
             DownloadAction(coordinator, tint = OverlayInk, iconSize = iconSize, hitSize = hitSize)
             PlayerSleepTimerButton(coordinator, sleepMs, offTint = OverlayInk, iconSize = iconSize, hitSize = hitSize)
             ShareAction(current, OverlayInk, iconSize, hitSize)
@@ -1560,7 +1564,7 @@ private fun PlayerTopBar(coordinator: PlaybackCoordinator, sleepMs: Long?, onClo
         ActionIcon(Icons.Default.KeyboardArrowDown, stringResource(Res.string.cd_close), onClick = onClose)
         Box(Modifier.weight(1f))
         DownloadAction(coordinator)
-        SponsorBlockToggle(coordinator)
+        SponsorBlockToggle(coordinator, rememberSponsorBlockState(coordinator))
         PlayerSleepTimerButton(coordinator, sleepMs)
         qualityChoices(player)?.let { choices ->
             QualityChip(choices.label, choices.options, choices.selectedId) { player.selectVideoQuality(it) }
@@ -1590,14 +1594,9 @@ private fun DownloadAction(
     )
 }
 
-/** Skips the current video's sponsor segments while accent; hidden while the video has none or SponsorBlock is off. */
+/** The current video's SponsorBlock state, reloaded when the video, its whitelist or the setting changes. */
 @Composable
-private fun SponsorBlockToggle(
-    coordinator: PlaybackCoordinator,
-    offTint: Color = DesignColors.InkMuted,
-    iconSize: Dp = 24.dp,
-    hitSize: Dp = 40.dp,
-) {
+private fun rememberSponsorBlockState(coordinator: PlaybackCoordinator): SponsorBlockState {
     val queue by coordinator.player.queue.collectAsState()
     val videoId = queue.currentItem?.videoId
     val sponsorBlock = coordinator.graph.sponsorBlock
@@ -1609,6 +1608,21 @@ private fun SponsorBlockToggle(
     LaunchedEffect(videoId, sbChanges, sbEnabled) {
         sbState = videoId?.let { sponsorBlock.load(it).state } ?: SponsorBlockState.Unavailable
     }
+    return sbState
+}
+
+/** Skips the current video's sponsor segments while accent; hidden while the video has none or SponsorBlock is off. */
+@Composable
+private fun SponsorBlockToggle(
+    coordinator: PlaybackCoordinator,
+    sbState: SponsorBlockState,
+    offTint: Color = DesignColors.InkMuted,
+    iconSize: Dp = 24.dp,
+    hitSize: Dp = 40.dp,
+) {
+    val queue by coordinator.player.queue.collectAsState()
+    val videoId = queue.currentItem?.videoId
+    val sponsorBlock = coordinator.graph.sponsorBlock
     val scope = rememberCoroutineScope()
     val showSnackbar = LocalSnackbar.current
     val includedMsg = stringResource(Res.string.sponsor_block_included)

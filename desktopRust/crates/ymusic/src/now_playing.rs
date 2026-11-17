@@ -1786,6 +1786,7 @@ impl NowPlaying {
                         view.reorder.start(position, event.position.y, window, cx);
                     }),
                 );
+            let more = self.queue_item_menu(position, active, item, cx).into_any_element();
             let row =
                 list_item(h_flex().id(("np-queue-item", position)), position).aria_label(label).aria_selected(active);
             let queue_len = queue.len();
@@ -1841,7 +1842,7 @@ impl NowPlaying {
                                     .child(div().text_xs().text_color(theme.muted_foreground).truncate().child(detail))
                             }),
                     )
-                    .child(self.queue_item_menu(position, active, item, cx))
+                    .child(more)
                     .on_key_down(cx.listener(move |view, event: &KeyDownEvent, window, cx| {
                         let modifiers = &event.keystroke.modifiers;
                         if !modifiers.alt || modifiers.platform || modifiers.control || modifiers.shift {

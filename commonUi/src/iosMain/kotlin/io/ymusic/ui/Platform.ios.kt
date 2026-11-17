@@ -11,6 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import platform.UIKit.UIApplication
@@ -22,6 +23,10 @@ internal actual val platformIsTelevision: Boolean = false
 internal actual val desktopLayoutHole: Boolean = false
 
 internal actual val contextMenuKey: Key = Key.Menu
+
+internal actual val KeyEvent.isKeyRepeat: Boolean get() = false
+
+internal actual val KeyEvent.isLongPress: Boolean get() = false
 
 actual fun Modifier.a11yActionLabel(label: String?): Modifier =
     if (label.isNullOrEmpty()) this

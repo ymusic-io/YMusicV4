@@ -3,6 +3,7 @@ package io.ymusic.ui
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEvent
 
 /** True where the primary pointer is a finger (Android/iOS). Mouse-driven platforms disable
  *  touch idioms like edge-swipe — Compose's mouse drag slop is ~0.1dp, so a whole-screen drag
@@ -17,6 +18,12 @@ internal expect val desktopLayoutHole: Boolean
 
 /** The keyboard's context-menu key (the Menu / Application key; Macs have none). */
 internal expect val contextMenuKey: Key
+
+/** A key-down the system repeats while the key is held; false where repeats are not reported. */
+internal expect val KeyEvent.isKeyRepeat: Boolean
+
+/** The repeat that marks a key held past the long-press timeout (Android's `FLAG_LONG_PRESS`); false elsewhere. */
+internal expect val KeyEvent.isLongPress: Boolean
 
 /** The system back gesture/button (Android's BackHandler): while [enabled], [onBack] intercepts
  *  it instead of finishing the app. No-op on platforms without a system back concept. */

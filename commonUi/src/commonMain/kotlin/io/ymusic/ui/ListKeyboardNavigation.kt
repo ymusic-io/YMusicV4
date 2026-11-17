@@ -4,10 +4,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.onFocusedBoundsChanged
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
@@ -27,7 +24,11 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.findRootCoordinates
-import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.modifier.ModifierLocalModifierNode
+import androidx.compose.ui.modifier.modifierLocalMapOf
+import androidx.compose.ui.modifier.modifierLocalOf
+import androidx.compose.ui.node.GlobalPositionAwareModifierNode
+import androidx.compose.ui.node.ModifierNodeElement
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 
@@ -82,12 +83,15 @@ private fun arrowMove(event: KeyEvent, orientation: ListOrientation, focusManage
  * [MoreMenu]) and leaves past the last; focus coming back in, by Tab or Shift+Tab, lands on the item
  * focused last; Shift+F10 or the context-menu key opens the focused item's ⋮. Only on a lazy list or
  * grid: [focusRestorer] restores into the list's own focus group, whose children are the items.
+ * On a TV it adds [tvItemKeys].
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun Modifier.itemList(): Modifier {
     val focused = remember { FocusedItem() }
-    return onFocusedBoundsChanged { focused.coordinates = it }
+    val menus = remember { ItemMenus() }
+    val list = onFocusedBoundsChanged { focused.coordinates = it }
+        .then(ItemMenusElement(menus))
         .focusProperties {
             val restore = onEnter
             // focusRestorer also redirects a requestFocus aimed at another item; restore only for Tab.
@@ -100,8 +104,69 @@ internal fun Modifier.itemList(): Modifier {
         .focusRestorer()
         .onKeyEvent { event ->
             event.type == KeyEventType.KeyDown && !event.hasCommandModifier && event.isMenuKey &&
-                focused.coordinates?.let(ItemMenus::openInside) == true
+                focused.coordinates?.let(menus::openInside) == true
         }
+    return if (platformIsTelevision) list.tvItemKeys(focused, menus) else list
+}
+
+/**
+ * A remote's keys on an [itemList]: holding OK opens the focused item's ⋮, and Left or Right with
+ * nowhere to go enters the item (its ⋮). Compose's D-pad search moves among an item's siblings only,
+ * never into it, and remotes have no Tab.
+ */
+@Composable
+private fun Modifier.tvItemKeys(focused: FocusedItem, menus: ItemMenus): Modifier {
+    val focusManager = LocalFocusManager.current
+    val hold = remember { OkHold() }
+    return onPreviewKeyEvent { event ->
+        if (event.key != Key.DirectionCenter && event.key != Key.Enter && event.key != Key.NumPadEnter) {
+            return@onPreviewKeyEvent false
+        }
+        when (event.type) {
+            KeyEventType.KeyDown -> when {
+                !event.isKeyRepeat -> {
+                    hold.openedMenu = false
+                    false
+                }
+                hold.openedMenu -> true
+                event.isLongPress -> {
+                    hold.openedMenu = focused.coordinates?.let(menus::openInside) == true
+                    hold.openedMenu
+                }
+                else -> false
+            }
+            // The item's click must not follow the menu: its key-up arrives (cancelled) after the menu opened.
+            KeyEventType.KeyUp -> hold.openedMenu.also { hold.openedMenu = false }
+            else -> false
+        }
+    }.onKeyEvent { event ->
+        val direction = event.sidewaysDirection() ?: return@onKeyEvent false
+        focusManager.moveFocus(direction) || focusManager.moveFocus(FocusDirection.Enter)
+    }
+}
+
+/** On a TV, Left or Right with nowhere to go leaves a control inside an item for the item, as [tvItemKeys] entered it. */
+@Composable
+internal fun Modifier.tvExitSideways(): Modifier {
+    if (!platformIsTelevision) return this
+    val focusManager = LocalFocusManager.current
+    return onKeyEvent { event ->
+        val direction = event.sidewaysDirection() ?: return@onKeyEvent false
+        focusManager.moveFocus(direction) || focusManager.moveFocus(FocusDirection.Exit)
+    }
+}
+
+private fun KeyEvent.sidewaysDirection(): FocusDirection? {
+    if (type != KeyEventType.KeyDown || hasCommandModifier) return null
+    return when (key) {
+        Key.DirectionRight -> FocusDirection.Right
+        Key.DirectionLeft -> FocusDirection.Left
+        else -> null
+    }
+}
+
+private class OkHold {
+    var openedMenu = false
 }
 
 private class FocusedItem {
@@ -111,8 +176,8 @@ private class FocusedItem {
 private val KeyEvent.isMenuKey: Boolean
     get() = (key == Key.F10 && isShiftPressed) || (key == contextMenuKey && !isShiftPressed)
 
-/** The item ⋮ menus on screen, so the context-menu key on a focused item opens the one inside it. */
-internal object ItemMenus {
+/** One [itemList]'s ⋮ menus on screen, so the context-menu key on a focused item opens the one inside it. */
+internal class ItemMenus {
     class Anchor(val open: () -> Unit) {
         var coordinates: LayoutCoordinates? = null
     }
@@ -140,16 +205,59 @@ internal object ItemMenus {
     }
 }
 
-/** Registers this ⋮ with [ItemMenus], opened by [open] when its item holds focus. */
-@Composable
-internal fun Modifier.itemMenuAnchor(open: () -> Unit): Modifier {
-    val currentOpen by rememberUpdatedState(open)
-    val anchor = remember { ItemMenus.Anchor { currentOpen() } }
-    DisposableEffect(anchor) {
-        ItemMenus.add(anchor)
-        onDispose { ItemMenus.remove(anchor) }
+private val ModifierLocalItemMenus = modifierLocalOf<ItemMenus?> { null }
+
+private class ItemMenusElement(val menus: ItemMenus) : ModifierNodeElement<ItemMenusNode>() {
+    override fun create() = ItemMenusNode(menus)
+
+    override fun update(node: ItemMenusNode) {
+        node.provide(ModifierLocalItemMenus, menus)
     }
-    return onGloballyPositioned { anchor.coordinates = it }
+
+    override fun equals(other: Any?) = other is ItemMenusElement && other.menus === menus
+
+    override fun hashCode() = menus.hashCode()
+}
+
+private class ItemMenusNode(menus: ItemMenus) : Modifier.Node(), ModifierLocalModifierNode {
+    override val providedValues = modifierLocalMapOf(ModifierLocalItemMenus to menus)
+}
+
+/** Registers this ⋮ with its [itemList]'s [ItemMenus], opened by [open] when its item holds focus. */
+internal fun Modifier.itemMenuAnchor(open: () -> Unit): Modifier = then(ItemMenuAnchorElement(open))
+
+private class ItemMenuAnchorElement(val open: () -> Unit) : ModifierNodeElement<ItemMenuAnchorNode>() {
+    override fun create() = ItemMenuAnchorNode(open)
+
+    override fun update(node: ItemMenuAnchorNode) {
+        node.open = open
+    }
+
+    override fun equals(other: Any?) = other is ItemMenuAnchorElement && other.open === open
+
+    override fun hashCode() = open.hashCode()
+}
+
+private class ItemMenuAnchorNode(var open: () -> Unit) :
+    Modifier.Node(),
+    ModifierLocalModifierNode,
+    GlobalPositionAwareModifierNode {
+    private val anchor = ItemMenus.Anchor { open() }
+    private var menus: ItemMenus? = null
+
+    override fun onAttach() {
+        menus = ModifierLocalItemMenus.current?.also { it.add(anchor) }
+    }
+
+    override fun onDetach() {
+        menus?.remove(anchor)
+        menus = null
+        anchor.coordinates = null
+    }
+
+    override fun onGloballyPositioned(coordinates: LayoutCoordinates) {
+        anchor.coordinates = coordinates
+    }
 }
 
 /**
