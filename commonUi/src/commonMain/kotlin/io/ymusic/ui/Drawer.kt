@@ -262,5 +262,5 @@ private fun DrawerRow(
 }
 
 private val DrawerSheetWidth = 300.dp
-internal val DrawerIconSize = 23.dp
+internal val DrawerIconSize = DesignSpacing.Space24
 private val DrawerIconStart = 20.dp
