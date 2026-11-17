@@ -44,6 +44,9 @@ pub struct ScanReport {
     pub unchanged: usize,
     pub removed: usize,
     pub errors: Vec<ScanError>,
+    /// `(old, new)` playlist codes whose memberships followed a re-probed file
+    /// ([`MediaStore::save_item_recoded`]); other stores keyed by the code follow them too.
+    pub recoded: Vec<(String, String)>,
 }
 
 /// A file ffmpeg could not read, typed by its name.
@@ -380,12 +383,22 @@ fn index_file(
     }
     match ffmpeg.get_metadata(&path) {
         Ok(info) if has_audio(&info) || info.has_video() => {
-            store.save_item(&MediaItem {
+            let item = MediaItem {
                 bucket_id: Some(bucket_id),
                 file_size: size,
                 last_modified: modified,
                 ..item_from_metadata(&path, uri, &info)
-            })?;
+            };
+            match existing.as_ref().and_then(|(previous, _)| duration_recode(previous, &item)) {
+                Some(old_code) => {
+                    if store.save_item_recoded(&item, &old_code)?.1 {
+                        report.recoded.push((old_code, item.playlist_code()));
+                    }
+                }
+                None => {
+                    store.save_item(&item)?;
+                }
+            }
             if existing.is_some() {
                 report.updated += 1;
             } else {
@@ -396,6 +409,18 @@ fn index_file(
         Err(error) => report.errors.push(ScanError { path, message: error.to_string() }),
     }
     Ok(())
+}
+
+/// The old code of an untagged file whose code changes only because a probe measured its duration
+/// a little differently (libav's exact milliseconds against ffmpeg's centisecond `Duration:` line).
+fn duration_recode(previous: &MediaItem, probed: &MediaItem) -> Option<String> {
+    let (Some(previous_ms), Some(probed_ms)) = (previous.duration_ms, probed.duration_ms) else { return None };
+    let same_file = previous.youtube_vid.is_none()
+        && probed.youtube_vid.is_none()
+        && previous.file_size == probed.file_size
+        && (previous_ms - probed_ms).abs() < 1000;
+    let old_code = previous.playlist_code();
+    (same_file && old_code != probed.playlist_code()).then_some(old_code)
 }
 
 fn has_audio(metadata: &MediaFileMetadata) -> bool {

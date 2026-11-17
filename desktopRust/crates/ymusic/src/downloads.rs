@@ -3,7 +3,6 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::sync::atomic::AtomicBool;
 
 use futures::future::BoxFuture;
 use gpui_kit::component::WindowExt;
@@ -194,9 +193,10 @@ pub fn register_download_folder(media: &MediaStore, folder: &Path) -> Result<(),
 }
 
 /// Blocking and long: what is already in the download folder shows up in the Library.
-pub fn scan_download_folder(media: &MediaStore, folder: &Path, log: &Logger) {
-    match ym_store::scan_folder(media, ym_ffmpeg::FfmpegMetadataGetter::shared(), folder, &AtomicBool::new(false)) {
+pub fn scan_download_folder(media: &MediaStore, history: &ym_history::PlayHistory, folder: &Path, log: &Logger) {
+    match ym_store::scan_folder(media, ym_ffmpeg::FfmpegMetadataGetter::shared(), folder, &crate::QUITTING) {
         Ok(report) => {
+            crate::library::follow_recoded(history, &report.recoded, log);
             for error in &report.errors {
                 log.warn(&format!("scan skipped {}: {}", error.path.display(), error.message), None);
             }
@@ -210,6 +210,7 @@ pub fn scan_download_folder(media: &MediaStore, folder: &Path, log: &Logger) {
 pub fn assign_download_folder(folder: PathBuf, cx: &App) -> impl Future<Output = Result<(), String>> + use<> {
     let graph = cx.global::<AppGraph>();
     let (media, settings, log) = (graph.media.clone(), graph.settings.clone(), graph.log.fork("download-folder"));
+    let history = graph.history.clone();
     let assign = on_core(cx, async move {
         tokio::task::spawn_blocking(move || {
             probe_download_folder(&folder).map_err(|problem| t(problem).to_owned())?;
@@ -220,7 +221,7 @@ pub fn assign_download_folder(folder: PathBuf, cx: &App) -> impl Future<Output =
             if let Err(error) = settings.put_raw(DOWNLOAD_LOCATION_KEY, folder_uri(&folder)) {
                 log.warn(&format!("the download folder could not be saved: {error}"), None);
             }
-            tokio::task::spawn_blocking(move || scan_download_folder(&media, &folder, &log));
+            tokio::task::spawn_blocking(move || scan_download_folder(&media, &history, &folder, &log));
             Ok(())
         })
         .await

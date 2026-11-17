@@ -101,14 +101,16 @@ open class FfmpegMetadataGetter(
     )
 
     /**
-     * Decodes ONE representative video frame of [uri] to a JPEG and pipes it out (`ffmpeg -i <input>
-     * -vf thumbnail -frames:v 1 -c:v mjpeg -update 1 -f image2 pipe:1`) — a poster/thumbnail for a real
-     * video.
+     * Decodes ONE representative key frame of [uri], within 640x640, to a JPEG and pipes it out — a
+     * poster/thumbnail for a real video.
      *
      * Uses ffmpeg's `thumbnail` filter, which scans a batch of frames and picks the most representative
      * one (by histogram), so it sidesteps black intro/lead-in frames without us probing the duration or
-     * seeking to a position. The `image2` muxer with `-update 1` writes the single JPEG to the pipe (the
-     * trimmed prebuilt has no `image2pipe`).
+     * seeking to a position. The filter holds its whole batch (100 frames) and the decoder some frames per
+     * thread, so only key frames are decoded, on one thread, and scaled before the filter: on full-size
+     * frames a 4K video's run takes 1.7 GB. The `image2` muxer with `-update 1` writes the single JPEG to
+     * the pipe (the trimmed prebuilt has no `image2pipe`). The Rust desktop app's `extract_thumbnail`
+     * runs the same argv.
      *
      * Lifecycle and fail-fast match [getAttachedPic]: the returned [Source] OWNS the child (drain to EOF
      * or [Source.close] to tear down the process + input proxy — always close it), and a [uri] with no
@@ -119,8 +121,9 @@ open class FfmpegMetadataGetter(
         uri,
         args = { spec ->
             listOf(
-                "-hide_banner", "-loglevel", "error", "-i", spec,
-                "-vf", "thumbnail", "-frames:v", "1", "-an", "-c:v", "mjpeg", "-update", "1", "-f", "image2", "pipe:1",
+                "-hide_banner", "-loglevel", "error", "-threads", "1", "-skip_frame", "nokey", "-i", spec,
+                "-vf", "scale=w='min(1280,iw)':h='min(1280,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2:flags=fast_bilinear,thumbnail",
+                "-frames:v", "1", "-an", "-c:v", "mjpeg", "-update", "1", "-f", "image2", "pipe:1",
             )
         },
         onNoOutput = { stderr, exitCode -> FfmpegThumbnailException(stderr, exitCode) },

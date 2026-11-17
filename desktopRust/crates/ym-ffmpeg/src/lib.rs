@@ -17,6 +17,11 @@ pub use metadata::{ContainerMetadata, MediaFileMetadata, MetadataMap, StreamKind
 pub const METADATA_TIMEOUT: Duration = Duration::from_secs(3);
 /// An image run decodes up to the `thumbnail` filter's batch of frames before it writes.
 pub const IMAGE_TIMEOUT: Duration = Duration::from_secs(15);
+/// The `thumbnail` filter holds 100 frames and the decoder some per thread: on full-size frames a 4K
+/// video's run takes 1.7 GB. Same argv as kmpFfmpeg's `extractThumbnail`.
+const THUMBNAIL_INPUT_OPTIONS: [&str; 4] = ["-threads", "1", "-skip_frame", "nokey"];
+const THUMBNAIL_FILTER: &str =
+    "scale=w='min(1280,iw)':h='min(1280,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2:flags=fast_bilinear,thumbnail";
 
 /// A failed ffmpeg run, with its site code.
 #[derive(Debug, thiserror::Error)]
@@ -93,7 +98,7 @@ impl FfmpegMetadataGetter {
     pub fn get_attached_pic(&self, path: &Path, max_bytes: usize) -> Result<Vec<u8>, FfmpegError> {
         let rest =
             ["-map", "0:disp:attached_pic", "-c", "copy", "-frames:v", "1", "-update", "1", "-f", "image2", "pipe:1"];
-        let finished = self.single_image(path, &rest, max_bytes)?;
+        let finished = self.single_image(path, &[], &rest, max_bytes)?;
         if finished.stdout.is_empty() {
             return Err(FfmpegError::new(
                 "R40008",
@@ -103,12 +108,24 @@ impl FfmpegMetadataGetter {
         Ok(finished.stdout)
     }
 
-    /// A representative frame (ffmpeg's `thumbnail` filter, past black lead-ins) as a JPEG; bounded
-    /// as [`Self::get_attached_pic`].
+    /// A representative key frame (ffmpeg's `thumbnail` filter, past black lead-ins) as a JPEG
+    /// within 640x640; bounded as [`Self::get_attached_pic`].
     pub fn extract_thumbnail(&self, path: &Path, max_bytes: usize) -> Result<Vec<u8>, FfmpegError> {
-        let rest =
-            ["-vf", "thumbnail", "-frames:v", "1", "-an", "-c:v", "mjpeg", "-update", "1", "-f", "image2", "pipe:1"];
-        let finished = self.single_image(path, &rest, max_bytes)?;
+        let rest = [
+            "-vf",
+            THUMBNAIL_FILTER,
+            "-frames:v",
+            "1",
+            "-an",
+            "-c:v",
+            "mjpeg",
+            "-update",
+            "1",
+            "-f",
+            "image2",
+            "pipe:1",
+        ];
+        let finished = self.single_image(path, &THUMBNAIL_INPUT_OPTIONS, &rest, max_bytes)?;
         if finished.stdout.is_empty() {
             return Err(FfmpegError::new(
                 "R40009",
@@ -118,8 +135,14 @@ impl FfmpegMetadataGetter {
         Ok(finished.stdout)
     }
 
-    fn single_image(&self, path: &Path, rest: &[&str], max_bytes: usize) -> Result<process::Finished, FfmpegError> {
-        let args = args(&["-hide_banner", "-loglevel", "error"], path, rest);
+    fn single_image(
+        &self,
+        path: &Path,
+        input_options: &[&str],
+        rest: &[&str],
+        max_bytes: usize,
+    ) -> Result<process::Finished, FfmpegError> {
+        let args = args(&[&["-hide_banner", "-loglevel", "error"], input_options].concat(), path, rest);
         process::run(self.binary()?, &args, Some(max_bytes), IMAGE_TIMEOUT)
     }
 }

@@ -10011,12 +10011,14 @@ dependencies = [
 name = "ym-telemetry"
 version = "0.1.0"
 dependencies = [
+ "libc",
  "regex",
  "reqwest",
  "sentry",
  "serde_json",
  "thiserror 2.0.21",
  "tokio",
+ "windows 0.62.2",
  "ym-common",
  "ym-logstore",
 ]

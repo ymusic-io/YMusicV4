@@ -9,7 +9,6 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
-use std::sync::atomic::AtomicBool;
 
 use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::menu::{DropdownMenu, PopupMenuItem};
@@ -1084,24 +1083,25 @@ impl LibraryView {
                 return;
             }
             let scan = cx.update(|cx| {
-                let log = cx.global::<AppGraph>().log.fork("download-location");
+                let graph = cx.global::<AppGraph>();
+                let (log, history) = (graph.log.fork("download-location"), graph.history.clone());
                 on_core(cx, async move {
                     tokio::task::spawn_blocking(move || {
                         let first_folder = store.root_buckets()?.is_empty();
-                        let cancel = AtomicBool::new(false);
                         let mut total = ym_store::ScanReport::default();
                         for root in &roots {
                             let report = ym_store::scan_folder(
                                 &store,
                                 ym_ffmpeg::FfmpegMetadataGetter::shared(),
                                 root,
-                                &cancel,
+                                &crate::QUITTING,
                             )?;
                             total.added += report.added;
                             total.updated += report.updated;
                             total.unchanged += report.unchanged;
                             total.removed += report.removed;
                             total.errors.extend(report.errors);
+                            follow_recoded(&history, &report.recoded, &log);
                         }
                         let offer = if first_folder { crate::downloads::location_offer(&store, &log)? } else { None };
                         Ok::<_, ym_store::StoreError>((total, offer))
@@ -2292,5 +2292,18 @@ impl Render for LibraryView {
                     }),
             )
             .into_any_element()
+    }
+}
+
+/// Play history follows the playlist codes a scan moved ([`ym_store::ScanReport::recoded`]); a
+/// failure costs only that file's watch-time rank.
+pub fn follow_recoded(history: &ym_history::PlayHistory, recoded: &[(String, String)], log: &ym_common::log::Logger) {
+    for (old_code, new_code) in recoded {
+        if let Err(error) = history.rekey_local(old_code, new_code) {
+            log.warn(
+                &format!("R90047 play history did not follow a recoded file ({old_code} -> {new_code})"),
+                Some(&error),
+            );
+        }
     }
 }
