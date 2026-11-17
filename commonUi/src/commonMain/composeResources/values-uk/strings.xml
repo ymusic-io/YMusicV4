@@ -834,6 +834,7 @@
     <string name="native_blocked_help">На робочому чи навчальному комп’ютері попросіть адміністратора дозволити YMusic. На власному комп’ютері перевірте Smart App Control у розділі «Безпека Windows».</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Оновлення</string>
+    <string name="a11y_loading">Завантаження</string>
     <!-- Download manager multi-select -->
     <string name="select_all">Вибрати все</string>
     <string name="downloads_action_select">Вибрати</string>

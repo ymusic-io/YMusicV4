@@ -670,6 +670,7 @@
     <string name="native_blocked_help">Su un PC di lavoro o scolastico, chiedi all'amministratore di consentire YMusic. Sul tuo PC, controlla Controllo intelligente delle app in Sicurezza di Windows.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Aggiornamento</string>
+    <string name="a11y_loading">Caricamento</string>
     <!-- Download manager multi-select -->
     <string name="select_all">Seleziona tutto</string>
     <string name="downloads_action_select">Seleziona</string>

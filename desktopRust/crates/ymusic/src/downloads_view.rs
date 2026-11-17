@@ -951,9 +951,8 @@ impl DownloadsView {
         let view = cx.entity().downgrade();
         let task = task.clone();
         let more = action_icon(("download-more", row), MaterialIcon::MoreVert, t(Str::CdMore));
-        let menu = self.focus.trailing_button(row, 0, more, cx).dropdown_menu_with_anchor(
-            Anchor::TopRight,
-            move |mut menu, _, _| {
+        let menu =
+            self.focus.menu_button(row, more, cx).dropdown_menu_with_anchor(Anchor::TopRight, move |mut menu, _, _| {
                 let id = task.id.clone();
                 let act = |label: &'static str, action: fn(&DownloadService, &str)| {
                     let (view, id) = (view.clone(), id.clone());
@@ -1056,8 +1055,7 @@ impl DownloadsView {
                 menu.item(PopupMenuItem::new(t(Str::DownloadsActionSelect)).on_click(move |_, _, cx| {
                     select_view.update(cx, |view, cx| view.start_selection(select_id.clone(), cx)).ok();
                 }))
-            },
-        );
+            });
         own_press(menu)
     }
 

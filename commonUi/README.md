@@ -65,6 +65,11 @@ The shared Compose Multiplatform app UI (jvm + android; iOS later).
   (`openDocument` → Merge by name or Replace all, via `BetterMediaStore.restorePlaylists`). Smart playlists are
   never included. Each action hides when its `AppGraph` seam is null.
 
+- **Loading more** — every Show more / Load more / more replies and its Retry goes through `LoadMoreFocus`
+  (`LoadMoreFocus.kt`): activating it focuses the spinner (`LoadingMoreIndicator`, read as "Loading"), and when the
+  page settles focus moves to the first new item, else to the control that is back, else to the last item. A collapsed
+  section's Show more (N) focuses the first revealed item; Show less keeps focus on the (keyed) toggle.
+
 - **Thumbnails** — render through `:image-loader` (`LocalImageLoader` provided from `AppGraph.imageLoader`; null
   keeps placeholder boxes).
 

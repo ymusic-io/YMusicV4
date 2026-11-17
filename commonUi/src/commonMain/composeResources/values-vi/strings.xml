@@ -775,6 +775,7 @@
     <string name="native_blocked_help">Trên máy tính cơ quan hoặc trường học, hãy nhờ quản trị viên cho phép YMusic. Trên máy tính của bạn, hãy kiểm tra Smart App Control trong Bảo mật Windows.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Đang làm mới</string>
+    <string name="a11y_loading">Đang tải</string>
     <!-- Download manager multi-select -->
     <string name="select_all">Chọn tất cả</string>
     <string name="downloads_action_select">Chọn</string>

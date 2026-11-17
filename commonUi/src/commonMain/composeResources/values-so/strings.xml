@@ -662,6 +662,7 @@
     <string name="native_blocked_help">Kombiyuutarka shaqada ama dugsiga, ka codso maamulahaaga inuu oggolaado YMusic. Kombiyuutarkaaga, hubi Smart App Control oo ku jira Windows Security.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Cusboonaysiinaya</string>
+    <string name="a11y_loading">Waa la soo rarayaa</string>
     <!-- Download manager multi-select -->
     <string name="select_all">Dooro dhammaan</string>
     <string name="downloads_action_select">Dooro</string>

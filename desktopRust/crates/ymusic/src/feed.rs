@@ -14,7 +14,7 @@ use ym_engine::{DynamicEngine, EngineError, ErrorKind};
 use ym_i18n::{Str, t, tf};
 use ym_image_loader::async_image::async_image_of;
 
-use crate::a11y::{DragRow, FocusList, alert, announced, announced_as, heading, list_item};
+use crate::a11y::{DragRow, FocusList, LoadMoreFocus, alert, announced, announced_as, heading, list_item};
 use crate::action_icon::{HIT, action_icon, auto_mirrored, sized_action_icon};
 use crate::assets::MaterialIcon;
 use crate::download_dialog::DownloadTarget;
@@ -250,6 +250,7 @@ pub struct FeedView {
     phase: Phase,
     loading_more: bool,
     more_failed: Option<EngineError>,
+    more_focus: LoadMoreFocus,
     /// The chip or sort option whose page is loading; the current page stays up until it lands.
     refiltering: Option<Refilter>,
     /// An F5 reload is in flight; the page stays up under the loading line until it lands.
@@ -319,6 +320,7 @@ impl FeedView {
             phase: Phase::Loading,
             loading_more: false,
             more_failed: None,
+            more_focus: LoadMoreFocus::new(cx),
             refiltering: None,
             refreshing: false,
             generation: 0,
@@ -578,13 +580,53 @@ impl FeedView {
         .detach();
     }
 
-    fn load_more(&mut self, cx: &mut Context<Self>) {
+    fn load_more(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let Some(continuation) = self.page.continuation.clone() else { return };
         if self.loading_more || self.more_failed.is_some() || self.refreshing {
             return;
         }
         self.loading_more = true;
+        let loaded = self.page.sections.iter().map(|section| section.items.len()).sum();
+        self.more_focus.start(loaded, window, cx);
         self.fetch(Some(continuation), true, cx);
+    }
+
+    /// Where focus goes once a page the user asked for settles: see [`LoadMoreFocus`].
+    fn settle_more_focus(&mut self, bands: Bands, window: &mut Window, cx: &mut Context<Self>) {
+        let total = self.page.sections.iter().map(|section| section.items.len()).sum();
+        let Some(settled) = self.more_focus.settle(self.loading_more, total, window) else { return };
+        let control = if self.more_failed.is_some() {
+            Some(self.actions.handle(ACTION_RETRY_MORE, cx))
+        } else if self.page.continuation.is_some() {
+            Some(self.chips.handle(CHIPS_SHOW_MORE, cx))
+        } else {
+            None
+        };
+        let item = |index| self.item_shown(index, bands).then(|| self.focus.handle(index, cx));
+        if let Some(target) = settled.target(item, control, None) {
+            window.focus(&target, cx);
+        }
+    }
+
+    /// Whether the item at `index` across all sections is on the page, not in a collapsed section's
+    /// hidden part.
+    fn item_shown(&self, index: usize, bands: Bands) -> bool {
+        let mut first = 0;
+        for (section_index, section) in self.page.sections.iter().enumerate() {
+            if index < first + section.items.len() {
+                return index - first < self.shown_count(section, section_index, bands);
+            }
+            first += section.items.len();
+        }
+        false
+    }
+
+    fn shown_count(&self, section: &ym_engine::yt::YtSection, section_index: usize, bands: Bands) -> usize {
+        if section.layout != "carousel" && section.collapsible && !self.expanded.contains(&section_index) {
+            collapsed_count(section, bands).min(section.items.len())
+        } else {
+            section.items.len()
+        }
     }
 
     /// A chip or sort option re-serves the page in place: the current page stays up, the option
@@ -1182,7 +1224,7 @@ impl FeedView {
         let more =
             action_icon(key, Icon::new(MaterialIcon::MoreVert).text_color(cx.theme().muted_foreground), t(Str::CdMore));
         self.focus
-            .trailing_button(key.1, 0, more, cx)
+            .menu_button(key.1, more, cx)
             .dropdown_menu_with_anchor(Anchor::TopRight, move |mut menu, _, cx| {
                 let video = target.kind == "video";
                 let mut actions: Vec<(Str, MenuAction)> = Vec::new();
@@ -1578,6 +1620,24 @@ impl FeedView {
         cx.notify();
     }
 
+    /// A section's Show more (N) / Show less: expanding focuses the first revealed item, collapsing
+    /// keeps focus on the toggle and scrolls it back into view.
+    fn toggle_more(
+        &mut self,
+        section_index: usize,
+        first_revealed: usize,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let expanding = !self.expanded.contains(&section_index);
+        self.toggle_section(section_index, cx);
+        if expanding {
+            window.focus(&self.focus.handle(first_revealed, cx), cx);
+        } else {
+            self.controls.reveal(section_index * 3 + 2, cx);
+        }
+    }
+
     fn render_section(
         &self,
         section: &ym_engine::yt::YtSection,
@@ -1604,10 +1664,10 @@ impl FeedView {
             ));
         }
         let queue = (section.play_mode.as_deref() == Some("queue")).then(|| std::rc::Rc::new(section.items.clone()));
+        let collapsed = collapsed_count(section, bands);
+        let shown = self.shown_count(section, section_index, bands);
         match section.layout.as_str() {
             "tags" => {
-                let shown =
-                    if section.collapsible && !expanded { 10.min(section.items.len()) } else { section.items.len() };
                 let stops = self.focus.list_stops(first_item..first_item + shown, window, cx);
                 let mut pills = h_flex().id(("section-items", section_index)).flex_wrap().gap_2().px_4().py_1();
                 for (offset, item) in section.items.iter().take(shown).enumerate() {
@@ -1625,18 +1685,20 @@ impl FeedView {
                         }));
                     pills = pills.child(self.focus.button(first_item + offset, tag, cx));
                 }
-                if section.collapsible && section.items.len() > 10 {
+                if section.collapsible && section.items.len() > collapsed {
                     let label = if expanded {
                         t(Str::ShowLess).to_owned()
                     } else {
-                        tf(Str::ShowMoreN, &[&(section.items.len() - 10)])
+                        tf(Str::ShowMoreN, &[&(section.items.len() - collapsed)])
                     };
                     let more = Button::new(("tags-more", section_index))
                         .small()
                         .outline()
                         .rounded_full()
                         .label(label)
-                        .on_click(cx.listener(move |view, _, _, cx| view.toggle_section(section_index, cx)));
+                        .on_click(cx.listener(move |view, _, window, cx| {
+                            view.toggle_more(section_index, first_item + collapsed, window, cx)
+                        }));
                     pills = pills.child(self.controls.button(section_index * 3 + 2, more, cx));
                 }
                 return block.child(stops.wrap(pills, title, cx)).into_any_element();
@@ -1689,15 +1751,6 @@ impl FeedView {
             }
             _ => {}
         }
-        // A collapsed section keeps columns x rows, rows from the engine's ladder or 4/3/2.
-        let ladder: Vec<usize> = if section.collapsed_rows.is_empty() {
-            vec![4, 3, 2]
-        } else {
-            section.collapsed_rows.iter().map(|rows| (*rows).max(1) as usize).collect()
-        };
-        let rows = ladder.get(bands.columns - 1).or(ladder.last()).copied().unwrap_or(2);
-        let limit = bands.columns * rows;
-        let shown = if section.collapsible && !expanded { limit.min(section.items.len()) } else { section.items.len() };
         let items = &section.items[..shown];
         let stops = self.focus.list_stops(first_item..first_item + shown, window, cx);
         let columns = bands.columns;
@@ -1728,11 +1781,11 @@ impl FeedView {
             })
             .id(("section-items", section_index));
         block = block.child(stops.wrap(list, title, cx));
-        if section.collapsible && section.items.len() > limit {
+        if section.collapsible && section.items.len() > collapsed {
             let label = if expanded {
                 t(Str::ShowLess).to_owned()
             } else {
-                tf(Str::ShowMoreN, &[&(section.items.len() - limit)])
+                tf(Str::ShowMoreN, &[&(section.items.len() - collapsed)])
             };
             let more = Button::new(("section-more", section_index))
                 .outline()
@@ -1743,13 +1796,30 @@ impl FeedView {
                     Icon::new(MaterialIcon::KeyboardArrowDown)
                         .when(expanded, |chevron| chevron.rotate(percentage(0.5))),
                 )
-                .on_click(cx.listener(move |view, _, _, cx| view.toggle_section(section_index, cx)));
+                .on_click(cx.listener(move |view, _, window, cx| {
+                    view.toggle_more(section_index, first_item + collapsed, window, cx)
+                }));
             block = block.child(
                 div().px(px(bands.margin)).child(self.controls.button(section_index * 3 + 2, more, cx).w_full()),
             );
         }
         block.into_any_element()
     }
+}
+
+/// How many items a collapsible section shows collapsed: ten tags, or columns x rows, rows from the
+/// engine's ladder or 4/3/2.
+fn collapsed_count(section: &ym_engine::yt::YtSection, bands: Bands) -> usize {
+    if section.layout == "tags" {
+        return 10;
+    }
+    let ladder: Vec<usize> = if section.collapsed_rows.is_empty() {
+        vec![4, 3, 2]
+    } else {
+        section.collapsed_rows.iter().map(|rows| (*rows).max(1) as usize).collect()
+    };
+    let rows = ladder.get(bands.columns - 1).or(ladder.last()).copied().unwrap_or(2);
+    bands.columns * rows
 }
 
 impl FeedView {
@@ -1923,6 +1993,7 @@ impl Render for FeedView {
             Phase::Ready => {}
         }
         let bands = Bands::for_width(feed_width(window));
+        self.settle_more_focus(bands, window, cx);
         let theme = cx.theme().clone();
         let mut column = v_flex().w_full().pb_4().children(self.top.clone());
         let tabs = self.page.page_tabs.clone();
@@ -1994,16 +2065,21 @@ impl Render for FeedView {
             first_item += section.items.len();
         }
         if self.loading_more {
-            column = column.child(h_flex().justify_center().p_3().child(Spinner::new()));
+            column = column.child(h_flex().justify_center().p_3().child(self.more_focus.indicator(
+                "more-loading",
+                t(Str::A11yLoading),
+                Spinner::new(),
+                cx,
+            )));
         } else if let Some(error) = &self.more_failed {
             column = column.child(
                 v_flex().items_center().gap_2().py_4().child(alert("more-error", error_text(error)).text_sm()).child(
                     self.actions.button(
                         ACTION_RETRY_MORE,
                         Button::new("retry-more").small().label(t(Str::Retry)).on_click(cx.listener(
-                            |view, _, _, cx| {
+                            |view, _, window, cx| {
                                 view.more_failed = None;
-                                view.load_more(cx);
+                                view.load_more(window, cx);
                             },
                         )),
                         cx,
@@ -2021,7 +2097,7 @@ impl Render for FeedView {
                                 .rounded_full()
                                 .w_full()
                                 .label(t(Str::ShowMore))
-                                .on_click(cx.listener(|view, _, _, cx| view.load_more(cx))),
+                                .on_click(cx.listener(|view, _, window, cx| view.load_more(window, cx))),
                             cx,
                         )
                         .w_full(),

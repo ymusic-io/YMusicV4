@@ -662,6 +662,7 @@
     <string name="native_blocked_help">অফিস বা স্কুলের পিসিতে আপনার অ্যাডমিনিস্ট্রেটরকে YMusic অনুমতি দিতে বলুন। নিজের পিসিতে Windows Security-তে Smart App Control দেখুন।</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">রিফ্রেশ হচ্ছে</string>
+    <string name="a11y_loading">লোড হচ্ছে</string>
     <!-- Download manager multi-select -->
     <string name="select_all">সব নির্বাচন করুন</string>
     <string name="downloads_action_select">নির্বাচন করুন</string>

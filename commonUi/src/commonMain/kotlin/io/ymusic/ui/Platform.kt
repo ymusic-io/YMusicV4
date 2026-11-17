@@ -2,6 +2,7 @@ package io.ymusic.ui
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.key.Key
 
 /** True where the primary pointer is a finger (Android/iOS). Mouse-driven platforms disable
  *  touch idioms like edge-swipe — Compose's mouse drag slop is ~0.1dp, so a whole-screen drag
@@ -13,6 +14,9 @@ internal expect val platformIsTelevision: Boolean
 
 /** Desktop Compose UI uses a transparent window with a layout hole over a video-only Frame. */
 internal expect val desktopLayoutHole: Boolean
+
+/** The keyboard's context-menu key (the Menu / Application key; Macs have none). */
+internal expect val contextMenuKey: Key
 
 /** The system back gesture/button (Android's BackHandler): while [enabled], [onBack] intercepts
  *  it instead of finishing the app. No-op on platforms without a system back concept. */

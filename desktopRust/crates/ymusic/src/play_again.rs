@@ -225,7 +225,7 @@ impl PlayAgainView {
         let view = cx.entity().downgrade();
         let (from_start, removed) = (session.clone(), session.queue_id.clone());
         let more = action_icon(("play-again-more", position), MaterialIcon::MoreVert, t(Str::CdMore));
-        let more = self.focus.trailing_button(position, 0, more, cx).dropdown_menu_with_anchor(
+        let more = self.focus.menu_button(position, more, cx).dropdown_menu_with_anchor(
             Anchor::TopRight,
             move |menu, _, _| {
                 let (restart, remove) = (view.clone(), view.clone());

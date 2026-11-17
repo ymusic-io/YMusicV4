@@ -196,6 +196,7 @@ private fun AccountCard(account: YtAccountInfo, onSignOut: () -> Unit, onSwitchA
                     add(stringResource(Res.string.account_sign_out) to onSignOut)
                 },
             ),
+            inFocusableItem = false,
         )
     }
 }

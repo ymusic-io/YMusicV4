@@ -1375,7 +1375,7 @@ impl DownloadPicker {
         label: String,
         detail: Option<String>,
         selected: Option<bool>,
-        on_pick: impl Fn(&mut Self) + 'static,
+        on_pick: impl Fn(&mut Self, &mut Window, &mut App) + 'static,
         cx: &mut Context<Self>,
     ) -> Stateful<Div> {
         let theme = cx.theme().clone();
@@ -1412,12 +1412,12 @@ impl DownloadPicker {
             .when_some(detail, |tile, detail| {
                 tile.child(div().text_size(px(12.)).text_color(theme.muted_foreground).child(detail))
             })
-            .on_click(cx.listener(move |picker, _, _, cx| {
-                click(picker);
+            .on_click(cx.listener(move |picker, _, window, cx| {
+                click(picker, window, cx);
                 cx.notify();
             }))
-            .on_action(cx.listener(move |picker, _: &Confirm, _, cx| {
-                enter(picker);
+            .on_action(cx.listener(move |picker, _: &Confirm, window, cx| {
+                enter(picker, window, cx);
                 cx.notify();
             }));
         self.focus.item(stop, tile, cx)
@@ -1438,7 +1438,7 @@ impl DownloadPicker {
                     video_label(option),
                     Some(download_size(bytes)),
                     Some(Some(height) == self.height),
-                    move |picker| picker.height = Some(height),
+                    move |picker, _, _| picker.height = Some(height),
                     cx,
                 )
                 .into_any_element(),
@@ -1451,7 +1451,11 @@ impl DownloadPicker {
                     t(Str::DownloadLess).to_owned(),
                     None,
                     None,
-                    |picker| picker.all_qualities = false,
+                    |picker, window, cx| {
+                        picker.all_qualities = false;
+                        let more = picker.focus.handle(STOP_TILES + QUALITY_COLLAPSE_OVER - 1, cx);
+                        window.focus(&more, cx);
+                    },
                     cx,
                 )
             } else {
@@ -1461,7 +1465,7 @@ impl DownloadPicker {
                     tf(Str::DownloadMoreQualities, &[&(video.len() - shown)]),
                     Some(tf(Str::DownloadDownTo, &[&lowest])),
                     None,
-                    |picker| picker.all_qualities = true,
+                    |picker, _, _| picker.all_qualities = true,
                     cx,
                 )
             };

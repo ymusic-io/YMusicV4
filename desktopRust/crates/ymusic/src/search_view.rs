@@ -204,7 +204,7 @@ impl SearchView {
                     .when(history, |actions| {
                         actions.child(
                             self.focus
-                                .trailing_button(
+                                .trailing_stop(
                                     index,
                                     0,
                                     action_icon(
@@ -219,7 +219,7 @@ impl SearchView {
                     })
                     .child(
                         self.focus
-                            .trailing_button(
+                            .trailing_stop(
                                 index,
                                 1,
                                 action_icon(

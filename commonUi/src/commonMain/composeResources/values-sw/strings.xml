@@ -662,6 +662,7 @@
     <string name="native_blocked_help">Kwenye kompyuta ya kazini au shuleni, muombe msimamizi wako aruhusu YMusic. Kwenye kompyuta yako, angalia Smart App Control katika Windows Security.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Inaonyesha upya</string>
+    <string name="a11y_loading">Inapakia</string>
     <!-- Download manager multi-select -->
     <string name="select_all">Chagua zote</string>
     <string name="downloads_action_select">Chagua</string>

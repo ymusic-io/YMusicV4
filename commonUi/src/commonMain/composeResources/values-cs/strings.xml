@@ -678,6 +678,7 @@
     <string name="native_blocked_help">Na pracovním nebo školním počítači požádejte správce, aby YMusic povolil. Na vlastním počítači zkontrolujte Smart App Control v Zabezpečení Windows.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Obnovování</string>
+    <string name="a11y_loading">Načítání</string>
     <!-- Download manager multi-select -->
     <string name="select_all">Vybrat vše</string>
     <string name="downloads_action_select">Vybrat</string>

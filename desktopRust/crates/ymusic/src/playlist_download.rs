@@ -20,7 +20,7 @@ use ym_i18n::{Plural, Str, plural, t, tf};
 use ym_image_loader::async_image::async_image_of;
 use ym_store::Playlist;
 
-use crate::a11y::FocusList;
+use crate::a11y::{FocusList, LoadMoreFocus};
 use crate::action_icon::action_icon;
 use crate::assets::MaterialIcon;
 use crate::download_dialog::DownloadTarget;
@@ -61,6 +61,7 @@ pub struct PlaylistDownload {
     videos: Vec<YtFeedItem>,
     continuation: Option<String>,
     loading_more: bool,
+    more_focus: LoadMoreFocus,
     /// Every video id listed so far: a newly loaded page arrives checked, a seen one keeps its box.
     seen: HashSet<String>,
     checked: HashSet<String>,
@@ -95,6 +96,7 @@ impl PlaylistDownload {
             videos: Vec::new(),
             continuation: page.continuation.clone(),
             loading_more: false,
+            more_focus: LoadMoreFocus::new(cx),
             seen: HashSet::new(),
             checked: HashSet::new(),
             index_prefix: false,
@@ -153,6 +155,7 @@ impl PlaylistDownload {
             return;
         }
         self.loading_more = true;
+        self.more_focus.start(self.videos.len(), window, cx);
         let graph = cx.global::<AppGraph>();
         let (engine, history, log) = (graph.engine(), graph.history.clone(), graph.log.fork("playlist-download"));
         let load = on_core(cx, self.source.clone().load(engine, history, Some(continuation), log));
@@ -289,7 +292,9 @@ impl PlaylistDownload {
     fn header(&self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = cx.theme().clone();
         let load_more: AnyElement = if self.loading_more {
-            Spinner::new().small().into_any_element()
+            self.more_focus
+                .indicator("load-more-loading", t(Str::A11yLoading), Spinner::new().small(), cx)
+                .into_any_element()
         } else if self.continuation.is_some() {
             self.focus
                 .button(
@@ -577,6 +582,13 @@ impl PlaylistDownload {
 
 impl Render for PlaylistDownload {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        if let Some(settled) = self.more_focus.settle(self.loading_more, self.videos.len(), window) {
+            let control = self.continuation.is_some().then(|| self.focus.handle(STOP_LOAD_MORE, cx));
+            let row = |index| Some(self.focus.handle(STOP_ROWS + index, cx));
+            if let Some(target) = settled.target(row, control, None) {
+                window.focus(&target, cx);
+            }
+        }
         let count = self.picked().len();
         let videos = self.videos.clone();
         let row_stops = STOP_ROWS..STOP_ROWS + videos.len();

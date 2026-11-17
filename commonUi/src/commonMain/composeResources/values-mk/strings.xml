@@ -662,6 +662,7 @@
     <string name="native_blocked_help">На службен или училишен компјутер, побарајте од администраторот да го дозволи YMusic. На својот компјутер, проверете го Smart App Control во Windows Security.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Се освежува</string>
+    <string name="a11y_loading">Се вчитува</string>
     <!-- Download manager multi-select -->
     <string name="select_all">Избери ги сите</string>
     <string name="downloads_action_select">Избери</string>

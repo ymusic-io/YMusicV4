@@ -678,6 +678,7 @@
     <string name="native_blocked_help">Na komputerze służbowym lub szkolnym poproś administratora o zezwolenie na YMusic. Na własnym komputerze sprawdź Smart App Control w Zabezpieczeniach Windows.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Odświeżanie</string>
+    <string name="a11y_loading">Ładowanie</string>
     <!-- Download manager multi-select -->
     <string name="select_all">Zaznacz wszystko</string>
     <string name="downloads_action_select">Zaznacz</string>

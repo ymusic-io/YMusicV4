@@ -662,6 +662,7 @@
     <string name="native_blocked_help">Sa PC sa trabaho o paaralan, hilingin sa administrator na payagan ang YMusic. Sa sarili mong PC, tingnan ang Smart App Control sa Windows Security.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Nire-refresh</string>
+    <string name="a11y_loading">Naglo-load</string>
     <!-- Download manager multi-select -->
     <string name="select_all">Piliin lahat</string>
     <string name="downloads_action_select">Piliin</string>

@@ -662,6 +662,7 @@
     <string name="native_blocked_help">කාර්යාල හෝ පාසල් PC එකක, YMusic ට ඉඩ දෙන ලෙස ඔබේ පරිපාලකගෙන් ඉල්ලන්න. ඔබේම PC එකේ, Windows Security හි Smart App Control පරීක්ෂා කරන්න.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">නැවුම් කරමින්</string>
+    <string name="a11y_loading">පූරණය වෙමින්</string>
     <!-- Download manager multi-select -->
     <string name="select_all">සියල්ල තෝරන්න</string>
     <string name="downloads_action_select">තෝරන්න</string>

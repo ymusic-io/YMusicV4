@@ -662,6 +662,7 @@
     <string name="native_blocked_help">Աշխատանքային կամ դպրոցական համակարգչում խնդրեք ադմինիստրատորին թույլատրել YMusic-ը։ Ձեր համակարգչում ստուգեք Smart App Control-ը Windows Security-ում։</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Թարմացվում է</string>
+    <string name="a11y_loading">Բեռնվում է</string>
     <!-- Download manager multi-select -->
     <string name="select_all">Ընտրել բոլորը</string>
     <string name="downloads_action_select">Ընտրել</string>
