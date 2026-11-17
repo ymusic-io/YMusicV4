@@ -122,7 +122,7 @@ open class FfmpegMetadataGetter(
         args = { spec ->
             listOf(
                 "-hide_banner", "-loglevel", "error", "-threads", "1", "-skip_frame", "nokey", "-i", spec,
-                "-vf", "scale=w=640:h=640:force_original_aspect_ratio=decrease:force_divisible_by=2:flags=fast_bilinear,thumbnail",
+                "-vf", "scale=w='min(1280,iw)':h='min(1280,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2:flags=fast_bilinear,thumbnail",
                 "-frames:v", "1", "-an", "-c:v", "mjpeg", "-update", "1", "-f", "image2", "pipe:1",
             )
         },
