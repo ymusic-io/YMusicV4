@@ -67,7 +67,10 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
@@ -178,6 +181,41 @@ internal fun TrackScroll(scrolled: () -> Boolean) {
         onDispose { host.release(token) }
     }
     LaunchedEffect(host, token) { snapshotFlow(scrolled).collect { host.report(token, it) } }
+}
+
+/**
+ * The shell app bar's stand-in: while a section screen holds a mode of its own (Downloads' selection), it
+ * draws its bar here through [ReplaceAppBar] and the shell shows that instead of its own. Owned and provided
+ * by the app shell.
+ */
+@Stable
+internal class AppBarSlot {
+    var replacement: (@Composable () -> Unit)? by mutableStateOf(null)
+        private set
+
+    fun claim(bar: @Composable () -> Unit) {
+        replacement = bar
+    }
+
+    fun release(bar: @Composable () -> Unit) {
+        if (replacement === bar) replacement = null
+    }
+}
+
+/** The app shell's [AppBarSlot]; null outside the shell. */
+internal val LocalAppBarSlot = staticCompositionLocalOf<AppBarSlot?> { null }
+
+/** Shows [bar] in place of the shell's app bar while [enabled] and this call stays composed. */
+@Composable
+internal fun ReplaceAppBar(enabled: Boolean, bar: @Composable () -> Unit) {
+    val slot = LocalAppBarSlot.current ?: return
+    val latest by rememberUpdatedState(bar)
+    DisposableEffect(slot, enabled) {
+        if (!enabled) return@DisposableEffect onDispose {}
+        val claimed: @Composable () -> Unit = { latest() }
+        slot.claim(claimed)
+        onDispose { slot.release(claimed) }
+    }
 }
 
 /** The app chrome's tone, shared by the app bars and the rail so they read as one layer. */
