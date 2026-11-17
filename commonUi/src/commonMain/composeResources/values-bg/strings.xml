@@ -662,6 +662,7 @@
     <string name="native_blocked_help">На служебен или училищен компютър помолете администратора да разреши YMusic. На собствения си компютър проверете Smart App Control в „Защита на Windows“.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Опресняване</string>
+    <string name="a11y_loading">Зареждане</string>
     <!-- Download manager multi-select -->
     <string name="select_all">Избери всички</string>
     <string name="downloads_action_select">Избери</string>

@@ -14,7 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
@@ -59,6 +59,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -122,6 +124,7 @@ internal class CommentList {
     var continuation by mutableStateOf<String?>(null)
     var loading by mutableStateOf(false)
     var errorCode by mutableStateOf<String?>(null)
+    val focus = LoadMoreFocus()
 }
 
 /** The watch page minus the player for [videoId]: details, then comments paged on demand. */
@@ -418,6 +421,7 @@ private fun VideoDetailsContent(
     LaunchedEffect(nearEnd, state.comments.comments.size) {
         if (nearEnd && state.comments.errorCode == null) state.loadMore(state.comments)
     }
+    state.comments.focus.Settle(state.comments.loading, state.comments.comments.size, controlShown = state.comments.errorCode != null)
     LazyColumn(modifier, state = listState) {
         when {
             details != null -> item("details") { DetailsHeader(state, details, onOpenChannel) }
@@ -605,21 +609,31 @@ private fun LazyListScope.commentsSection(
             if (header != null) Composer(state, header)
         }
     }
-    items(state.comments.comments, key = { "c:" + it.id }) { comment ->
+    itemsIndexed(state.comments.comments, key = { _, comment -> "c:" + comment.id }) { index, comment ->
         Column {
-            CommentRow(state, comment, onOpenChannel, indent = false)
+            CommentRow(state, comment, onOpenChannel, indent = false, modifier = state.comments.focus.item(index))
             if (state.replyingTo == comment.id) ReplyComposer(state, comment)
-            if (comment.repliesContinuation != null) RepliesToggle(state, comment)
+            val toggle = remember { FocusRequester() }
+            if (comment.repliesContinuation != null) RepliesToggle(state, comment, toggle)
             state.replies[comment.id]?.let { list ->
-                list.comments.forEach { reply -> CommentRow(state, reply, onOpenChannel, indent = true) }
-                ListFooter(list, indent = true, moreLabel = stringResource(Res.string.video_details_more_replies)) { state.loadMore(list) }
+                list.comments.forEachIndexed { replyIndex, reply ->
+                    CommentRow(state, reply, onOpenChannel, indent = true, modifier = list.focus.item(replyIndex))
+                }
+                val moreLabel = stringResource(Res.string.video_details_more_replies)
+                ListFooter(list, indent = true, moreLabel = moreLabel) { state.loadMore(list) }
+                list.focus.Settle(
+                    list.loading,
+                    list.comments.size,
+                    controlShown = list.errorCode != null || list.continuation != null,
+                    fallback = toggle,
+                )
             }
         }
     }
     item("comments-footer") {
         val list = state.comments
         when {
-            list.loading || (list.errorCode == null && list.continuation != null) -> Spinner(Modifier.heightIn(min = 72.dp))
+            list.loading || (list.errorCode == null && list.continuation != null) -> Spinner(list.focus, Modifier.heightIn(min = 72.dp))
             list.errorCode != null -> ListFooter(list, indent = false, moreLabel = null) { state.loadMore(list) }
             state.header != null && list.comments.isEmpty() -> Text(
                 stringResource(Res.string.video_details_no_comments),
@@ -722,12 +736,13 @@ private fun CommentRow(
     comment: YtComment,
     onOpenChannel: (url: String, title: String) -> Unit,
     indent: Boolean,
+    modifier: Modifier = Modifier,
 ) {
     val author = comment.author
     val authorUrl = comment.authorChannelUrl
     val openAuthor = if (author != null && authorUrl != null) Modifier.clickable { onOpenChannel(authorUrl, author) } else Modifier
     Row(
-        Modifier.fillMaxWidth().padding(
+        modifier.fillMaxWidth().padding(
             start = if (indent) DesignSpacing.Space48 + DesignSpacing.Space16 else DesignSpacing.Space16,
             end = DesignSpacing.Space16,
             top = DesignSpacing.Space8,
@@ -892,7 +907,7 @@ private fun CommentActions(state: VideoDetailsState, comment: YtComment, canRepl
 }
 
 @Composable
-private fun RepliesToggle(state: VideoDetailsState, comment: YtComment) {
+private fun RepliesToggle(state: VideoDetailsState, comment: YtComment, focusRequester: FocusRequester) {
     val open = state.replies.containsKey(comment.id)
     Text(
         if (open) stringResource(Res.string.video_details_hide_replies) else stringResource(Res.string.video_details_replies, comment.replyCount.orEmpty()),
@@ -900,7 +915,11 @@ private fun RepliesToggle(state: VideoDetailsState, comment: YtComment) {
         modifier = Modifier
             .padding(start = DesignSpacing.Space48 + DesignSpacing.Space16)
             .clip(RoundedCornerShape(999.dp))
-            .clickable { state.toggleReplies(comment) }
+            .focusRequester(focusRequester)
+            .clickable {
+                state.toggleReplies(comment)
+                state.replies[comment.id]?.focus?.start(0)
+            }
             .padding(horizontal = DesignSpacing.Space8, vertical = DesignSpacing.Space4),
     )
 }
@@ -909,13 +928,17 @@ private fun RepliesToggle(state: VideoDetailsState, comment: YtComment) {
 @Composable
 private fun ListFooter(list: CommentList, indent: Boolean, moreLabel: String?, onMore: () -> Unit) {
     val start = if (indent) DesignSpacing.Space48 + DesignSpacing.Space16 else DesignSpacing.Space16
+    val more = {
+        list.focus.start(list.comments.size)
+        onMore()
+    }
     when {
-        list.loading -> Spinner(Modifier.padding(start = start).heightIn(min = 48.dp))
+        list.loading -> Spinner(list.focus, Modifier.padding(start = start).heightIn(min = 48.dp))
         list.errorCode != null -> Row(Modifier.padding(start = start), verticalAlignment = Alignment.CenterVertically) {
             Text(errorMessage(list.errorCode!!), style = androidx.compose.ui.text.TextStyle(fontSize = 12.sp, color = DesignColors.InkSecondary))
-            TextButton(onClick = onMore) { Text(stringResource(Res.string.retry)) }
+            TextButton(onClick = more, modifier = list.focus.control) { Text(stringResource(Res.string.retry)) }
         }
-        list.continuation != null && moreLabel != null -> TextButton(onClick = onMore, modifier = Modifier.padding(start = start)) {
+        list.continuation != null && moreLabel != null -> TextButton(onClick = more, modifier = Modifier.padding(start = start).then(list.focus.control)) {
             Text(moreLabel, color = DesignColors.Accent)
         }
     }
@@ -932,5 +955,12 @@ private fun Avatar(thumbs: List<io.ymusic.dynamicengine.yt.YtThumb>, size: andro
 private fun Spinner(modifier: Modifier) {
     Box(modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
         CircularProgressIndicator(Modifier.size(28.dp), strokeWidth = 2.dp)
+    }
+}
+
+@Composable
+private fun Spinner(focus: LoadMoreFocus, modifier: Modifier) {
+    Box(modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        LoadingMoreIndicator(focus) { CircularProgressIndicator(Modifier.size(28.dp), strokeWidth = 2.dp) }
     }
 }

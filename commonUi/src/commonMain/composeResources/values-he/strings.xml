@@ -670,6 +670,7 @@
     <string name="native_blocked_help">במחשב של העבודה או בית הספר, בקש ממנהל המערכת לאפשר את YMusic. במחשב שלך, בדוק את Smart App Control באבטחת Windows.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">מרענן</string>
+    <string name="a11y_loading">בטעינה</string>
     <!-- Download manager multi-select -->
     <string name="select_all">בחירת הכול</string>
     <string name="downloads_action_select">בחירה</string>

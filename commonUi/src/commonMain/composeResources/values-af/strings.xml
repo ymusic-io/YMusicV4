@@ -662,6 +662,7 @@
     <string name="native_blocked_help">Op 'n werk- of skoolrekenaar, vra jou administrateur om YMusic toe te laat. Op jou eie rekenaar, gaan Smart App Control in Windows Security na.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Verfris tans</string>
+    <string name="a11y_loading">Laai tans</string>
     <!-- Download manager multi-select -->
     <string name="select_all">Kies alles</string>
     <string name="downloads_action_select">Kies</string>

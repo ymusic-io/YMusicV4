@@ -670,6 +670,7 @@
     <string name="native_blocked_help">En un PC de la feina o de l'escola, demana a l'administrador que permeti YMusic. Al teu PC, comprova Smart App Control a Seguretat del Windows.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">S'està actualitzant</string>
+    <string name="a11y_loading">S'està carregant</string>
     <!-- Download manager multi-select -->
     <string name="select_all">Selecciona-ho tot</string>
     <string name="downloads_action_select">Selecciona</string>

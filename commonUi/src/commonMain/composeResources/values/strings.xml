@@ -817,6 +817,8 @@
     <string name="native_blocked_help">On a work or school PC, ask your administrator to allow YMusic. On your own PC, check Smart App Control in Windows Security.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Refreshing</string>
+    <!-- A focused spinner while a page of items loads -->
+    <string name="a11y_loading">Loading</string>
     <!-- Download manager multi-select -->
     <string name="select_all">Select all</string>
     <string name="downloads_action_select">Select</string>

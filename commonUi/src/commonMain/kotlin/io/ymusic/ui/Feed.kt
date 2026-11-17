@@ -581,6 +581,10 @@ private fun FeedSections(
 ) {
     // Collapsible sections start collapsed; the map survives recomposition, keyed by section slot.
     val expanded = remember { mutableStateMapOf<Int, Boolean>() }
+    val sectionFocus = remember { HashMap<Int, LoadMoreFocus>() }
+    val moreFocus = remember(pager) { LoadMoreFocus() }
+    val itemTotal = state.sections.sumOf { it.items.size }
+    moreFocus.Settle(loading = state.loadingMore, count = itemTotal, controlShown = state.continuation != null)
     BoxWithConstraints(modifier.fillMaxSize()) {
         val layoutWidth = railStableWidth(maxWidth)
         val metrics = gridMetricsFor(layoutWidth)
@@ -601,6 +605,7 @@ private fun FeedSections(
                 // mockups give the feed a small inset under the app bar (search.html .grid).
                 item { Spacer(Modifier.height(6.dp)) }
             }
+            var firstIndex = 0
             state.sections.forEachIndexed { index, section ->
                 if (index > 0) {
                     // The section separator: a hairline centered in the inter-section air (the
@@ -618,6 +623,10 @@ private fun FeedSections(
                 }
                 feedSection(
                     section = section,
+                    sectionIndex = index,
+                    firstIndex = firstIndex,
+                    moreFocus = moreFocus,
+                    sectionFocus = sectionFocus.getOrPut(index) { LoadMoreFocus() },
                     columns = columns,
                     metrics = metrics,
                     wide = wide,
@@ -629,15 +638,24 @@ private fun FeedSections(
                     onPlayItem = onPlayItem,
                     onDeeplink = onDeeplink,
                 )
+                firstIndex += section.items.size
             }
             if (state.continuation != null) {
                 item {
                     if (state.loadingMore) {
                         Box(Modifier.fillMaxWidth().padding(12.dp), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(Modifier.size(28.dp))
+                            LoadingMoreIndicator(moreFocus)
                         }
                     } else {
-                        ShowMoreButton(stringResource(Res.string.show_more), expanded = false, onClick = { pager.loadMore() })
+                        ShowMoreButton(
+                            stringResource(Res.string.show_more),
+                            expanded = false,
+                            modifier = moreFocus.control,
+                            onClick = {
+                                moreFocus.start(itemTotal)
+                                pager.loadMore()
+                            },
+                        )
                     }
                 }
             }
@@ -654,6 +672,10 @@ private val COLLAPSED_ROWS_BY_COLUMNS = listOf(4, 3, 2)
 
 private fun androidx.compose.foundation.lazy.LazyListScope.feedSection(
     section: YtSection,
+    sectionIndex: Int,
+    firstIndex: Int,
+    moreFocus: LoadMoreFocus,
+    sectionFocus: LoadMoreFocus,
     columns: Int,
     metrics: GridMetrics,
     wide: Boolean,
@@ -689,21 +711,16 @@ private fun androidx.compose.foundation.lazy.LazyListScope.feedSection(
     // "Show more" toggle — the header's chevron and the button below both expand it.
     if (section.layout == YtSection.LAYOUT_TAGS) {
         val shown = if (expanded || !section.collapsible) section.items else section.items.take(TAGS_COLLAPSED)
-        item { TagFlow(shown, onOpen) }
+        item { TagFlow(shown, onOpen) { i -> moreFocus.item(firstIndex + i).then(sectionFocus.item(i)) } }
         if (section.collapsible && section.items.size > TAGS_COLLAPSED) {
-            item {
-                val label = if (expanded) {
-                    stringResource(Res.string.show_less)
-                } else {
-                    stringResource(Res.string.show_more_n, section.items.size - TAGS_COLLAPSED)
-                }
-                ShowMoreButton(label, expanded = expanded, onClick = onToggle)
+            item(key = showMoreKey(sectionIndex)) {
+                SectionToggle(section, TAGS_COLLAPSED, expanded, sectionFocus, onToggle)
             }
         }
         return
     }
     if (section.layout == YtSection.LAYOUT_CAROUSEL) {
-        item { ChannelCarousel(section.items, onOpen) }
+        item { ChannelCarousel(section.items, onOpen) { i -> moreFocus.item(firstIndex + i) } }
         return
     }
     // A collapsed section keeps a few rows, resolved by column count from an engine-supplied
@@ -719,6 +736,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.feedSection(
                 item,
                 actions = itemActions(item, coordinator),
                 onClick = itemClick(item, section, coordinator, onOpen, onPlayItem),
+                modifier = moreFocus.item(firstIndex + i).then(sectionFocus.item(i)),
                 wide = wide,
                 compactTitle = compactTitle,
             )
@@ -740,12 +758,13 @@ private fun androidx.compose.foundation.lazy.LazyListScope.feedSection(
                     ),
                 horizontalArrangement = Arrangement.spacedBy(metrics.gutter - metrics.inset * 2),
             ) {
-                rows[r].forEach { item ->
+                rows[r].forEachIndexed { column, item ->
+                    val position = r * columns + column
                     FeedGridCard(
                         item,
                         actions = itemActions(item, coordinator),
                         onClick = itemClick(item, section, coordinator, onOpen, onPlayItem),
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).then(moreFocus.item(firstIndex + position)).then(sectionFocus.item(position)),
                         inset = metrics.inset,
                     )
                 }
@@ -754,15 +773,34 @@ private fun androidx.compose.foundation.lazy.LazyListScope.feedSection(
         }
     }
     if (section.collapsible && section.items.size > collapsedCount) {
-        item {
-            val label = if (expanded) {
-                stringResource(Res.string.show_less)
-            } else {
-                stringResource(Res.string.show_more_n, section.items.size - collapsedCount)
-            }
-            ShowMoreButton(label, expanded = expanded, onClick = onToggle)
+        item(key = showMoreKey(sectionIndex)) {
+            SectionToggle(section, collapsedCount, expanded, sectionFocus, onToggle)
         }
     }
+}
+
+/** Keyed, so a focused toggle keeps its node (and focus) when the rows above it come and go. */
+private fun showMoreKey(sectionIndex: Int) = "show-more:$sectionIndex"
+
+/** A collapsible section's "Show more (N)" / "Show less": expanding focuses the first revealed item,
+ *  collapsing keeps focus on the toggle. */
+@Composable
+private fun SectionToggle(section: YtSection, collapsedCount: Int, expanded: Boolean, focus: LoadMoreFocus, onToggle: () -> Unit) {
+    val label = if (expanded) {
+        stringResource(Res.string.show_less)
+    } else {
+        stringResource(Res.string.show_more_n, section.items.size - collapsedCount)
+    }
+    ShowMoreButton(
+        label,
+        expanded = expanded,
+        modifier = focus.control,
+        onClick = {
+            if (expanded) focus.collapse() else focus.reveal(collapsedCount)
+            onToggle()
+        },
+    )
+    focus.Settle(loading = false, count = section.items.size, controlShown = true)
 }
 
 private fun itemClick(

@@ -662,6 +662,7 @@
     <string name="native_blocked_help">در رایانهٔ محل کار یا مدرسه، از سرپرست سیستم بخواهید YMusic را مجاز کند. در رایانهٔ شخصی خود، Smart App Control را در Windows Security بررسی کنید.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">در حال تازه‌سازی</string>
+    <string name="a11y_loading">در حال بارگیری</string>
     <!-- Download manager multi-select -->
     <string name="select_all">انتخاب همه</string>
     <string name="downloads_action_select">انتخاب</string>

@@ -434,19 +434,19 @@ fun ShowMoreButton(label: String, expanded: Boolean, onClick: () -> Unit, modifi
  *  buttons) rendered as a wrap of navigation pills — no artwork, each opens its browse via [onOpen]. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun TagFlow(items: List<YtFeedItem>, onOpen: ((YtFeedItem) -> Unit)?) {
+internal fun TagFlow(items: List<YtFeedItem>, onOpen: ((YtFeedItem) -> Unit)?, itemModifier: (Int) -> Modifier = { Modifier }) {
     FlowRow(
         Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        items.forEach { item -> TagPill(item.title, item.accent) { onOpen?.invoke(item) } }
+        items.forEachIndexed { index, item -> TagPill(item.title, item.accent, itemModifier(index)) { onOpen?.invoke(item) } }
     }
 }
 
 /** A [YtSection.LAYOUT_CAROUSEL] row: avatar-over-name cells scrolling horizontally at every width. */
 @Composable
-internal fun ChannelCarousel(items: List<YtFeedItem>, onOpen: ((YtFeedItem) -> Unit)?) {
+internal fun ChannelCarousel(items: List<YtFeedItem>, onOpen: ((YtFeedItem) -> Unit)?, itemModifier: (Int) -> Modifier = { Modifier }) {
     val rowState = rememberLazyListState()
     LazyRow(
         Modifier.horizontalMouseDragScroll(rowState),
@@ -460,6 +460,7 @@ internal fun ChannelCarousel(items: List<YtFeedItem>, onOpen: ((YtFeedItem) -> U
                 Modifier
                     .width(CAROUSEL_CELL_WIDTH)
                     .clip(RoundedCornerShape(12.dp))
+                    .then(itemModifier(i))
                     .then(if (onOpen != null) Modifier.clickable { onOpen(item) } else Modifier)
                     .padding(DesignSpacing.Space4),
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -482,10 +483,10 @@ private val CAROUSEL_CELL_WIDTH = 80.dp
 /** One navigation pill: a rounded, softly-filled chip whose border takes the tag's backend accent
  *  colour (YouTube Music's per-mood/genre colour, 8-hex AARRGGBB) when present. */
 @Composable
-private fun TagPill(label: String, accent: String?, onClick: () -> Unit) {
+private fun TagPill(label: String, accent: String?, modifier: Modifier, onClick: () -> Unit) {
     val shape = RoundedCornerShape(999.dp)
     val border = remember(accent) { accent?.let { runCatching { Color(it.toLong(16)) }.getOrNull() } } ?: DesignColors.OutlineSoft
-    ChipTapArea(onClick) { indication ->
+    ChipTapArea(onClick, modifier) { indication ->
         Text(
             label,
             style = TextStyle(fontSize = ChipTextSize, fontWeight = FontWeight.Medium, color = DesignColors.Ink),

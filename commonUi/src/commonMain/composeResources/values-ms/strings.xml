@@ -654,6 +654,7 @@
     <string name="native_blocked_help">Pada PC kerja atau sekolah, minta pentadbir anda membenarkan YMusic. Pada PC anda sendiri, semak Smart App Control dalam Windows Security.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Memuat semula</string>
+    <string name="a11y_loading">Memuatkan</string>
     <!-- Download manager multi-select -->
     <string name="select_all">Pilih semua</string>
     <string name="downloads_action_select">Pilih</string>

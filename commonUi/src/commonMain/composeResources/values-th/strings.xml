@@ -654,6 +654,7 @@
     <string name="native_blocked_help">หากเป็นพีซีของที่ทำงานหรือโรงเรียน โปรดขอให้ผู้ดูแลระบบอนุญาต YMusic หากเป็นพีซีส่วนตัว โปรดตรวจสอบ Smart App Control ในความปลอดภัยของ Windows</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">กำลังรีเฟรช</string>
+    <string name="a11y_loading">กำลังโหลด</string>
     <!-- Download manager multi-select -->
     <string name="select_all">เลือกทั้งหมด</string>
     <string name="downloads_action_select">เลือก</string>

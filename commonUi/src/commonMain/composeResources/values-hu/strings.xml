@@ -662,6 +662,7 @@
     <string name="native_blocked_help">Munkahelyi vagy iskolai gépen kérd meg a rendszergazdát, hogy engedélyezze a YMusicot. A saját gépeden ellenőrizd a Smart App Control beállítást a Windows biztonságban.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Frissítés</string>
+    <string name="a11y_loading">Betöltés</string>
     <!-- Download manager multi-select -->
     <string name="select_all">Összes kijelölése</string>
     <string name="downloads_action_select">Kijelölés</string>

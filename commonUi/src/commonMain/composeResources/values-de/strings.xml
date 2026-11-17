@@ -662,6 +662,7 @@
     <string name="native_blocked_help">Bitte an einem Arbeits- oder Schul-PC deinen Administrator, YMusic zuzulassen. Prüfe auf deinem eigenen PC die intelligente App-Steuerung in der Windows-Sicherheit.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Wird aktualisiert</string>
+    <string name="a11y_loading">Wird geladen</string>
     <!-- Download manager multi-select -->
     <string name="select_all">Alle auswählen</string>
     <string name="downloads_action_select">Auswählen</string>

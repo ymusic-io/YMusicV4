@@ -662,6 +662,7 @@
     <string name="native_blocked_help">Laneko edo ikastetxeko ordenagailu batean, eskatu administratzaileari YMusic baimentzeko. Zure ordenagailuan, begiratu Smart App Control Windows Security atalean.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Freskatzen</string>
+    <string name="a11y_loading">Kargatzen</string>
     <!-- Download manager multi-select -->
     <string name="select_all">Hautatu guztiak</string>
     <string name="downloads_action_select">Hautatu</string>

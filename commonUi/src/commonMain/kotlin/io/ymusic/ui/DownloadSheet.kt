@@ -341,12 +341,14 @@ private fun QualityGrid(state: DownloadOptionsState) {
     var expanded by remember { mutableStateOf(false) }
     val collapsible = video.size > QUALITY_COLLAPSE_OVER
     val shown = if (collapsible && !expanded) video.take(QUALITY_COLLAPSE_OVER - 1) else video
+    val focus = remember { LoadMoreFocus() }
+    focus.Settle(loading = false, count = video.size, controlShown = true)
     Column(verticalArrangement = Arrangement.spacedBy(DesignSpacing.Space8)) {
         SectionLabel(stringResource(Res.string.download_quality))
         val tiles: List<@Composable (Modifier) -> Unit> = buildList {
-            shown.forEach { option ->
+            shown.forEachIndexed { index, option ->
                 add { modifier ->
-                    Tile(option.label(), formatDownloadSize(if (state.format == DownloadFormat.VIDEO_WEBM) option.webmBytes ?: 0 else option.mp4Bytes), option.height == state.height, modifier) {
+                    Tile(option.label(), formatDownloadSize(if (state.format == DownloadFormat.VIDEO_WEBM) option.webmBytes ?: 0 else option.mp4Bytes), option.height == state.height, modifier.then(focus.item(index))) {
                         state.height = option.height
                     }
                 }
@@ -354,13 +356,19 @@ private fun QualityGrid(state: DownloadOptionsState) {
             if (collapsible) {
                 add { modifier ->
                     if (expanded) {
-                        MoreTile(stringResource(Res.string.download_less), null, modifier) { expanded = false }
+                        MoreTile(stringResource(Res.string.download_less), null, modifier.then(focus.control)) {
+                            focus.collapse()
+                            expanded = false
+                        }
                     } else {
                         MoreTile(
                             stringResource(Res.string.download_more_qualities, video.size - shown.size),
                             stringResource(Res.string.download_down_to, video.last().label()),
-                            modifier,
-                        ) { expanded = true }
+                            modifier.then(focus.control),
+                        ) {
+                            focus.reveal(shown.size)
+                            expanded = true
+                        }
                     }
                 }
             }

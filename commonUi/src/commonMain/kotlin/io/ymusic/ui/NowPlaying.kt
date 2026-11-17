@@ -739,6 +739,8 @@ private fun PortraitNowPlaying(
             }
         }
 
+        val queueMoreFocus = remember { LoadMoreFocus() }
+        QueueMoreSettle(queueMoreFocus, queue)
         LazyColumn(
             state = listState,
             modifier = Modifier.weight(1f).background(DesignColors.Surface).itemList(),
@@ -788,9 +790,9 @@ private fun PortraitNowPlaying(
             }
             itemsIndexed(queue.items) { index, item ->
                 val current = index == queue.currentIndex
-                QueueRow(coordinator, index, item, current = current, dragState)
+                QueueRow(coordinator, index, item, current = current, dragState, modifier = queueMoreFocus.item(index))
             }
-            queue.more?.let { more -> item { QueueMoreRow(player, more) } }
+            queue.more?.let { more -> item { QueueMoreRow(player, more, queue.items.size, queueMoreFocus) } }
         }
     }
 }
@@ -857,13 +859,15 @@ private fun LandscapeNowPlaying(
                         if (queue.currentIndex >= 0) currentRowFocus.focusListItem(queueListState, queue.currentIndex)
                     }
                 }
+                val queueMoreFocus = remember { LoadMoreFocus() }
+                QueueMoreSettle(queueMoreFocus, queue)
                 LazyColumn(state = queueListState, modifier = Modifier.weight(1f).listKeyboardNavigation(items = true)) {
                     itemsIndexed(queue.items) { index, item ->
                         val current = index == queue.currentIndex
                         QueueRow(coordinator, index, item, current = current, dragState, large = largeRows,
-                            focusRequester = if (current) currentRowFocus else null)
+                            focusRequester = if (current) currentRowFocus else null, modifier = queueMoreFocus.item(index))
                     }
-                    queue.more?.let { more -> item { QueueMoreRow(player, more) } }
+                    queue.more?.let { more -> item { QueueMoreRow(player, more, queue.items.size, queueMoreFocus) } }
                 }
             }
         }
@@ -2211,9 +2215,19 @@ private fun TransportButtons(
 private val QueueState.displayTotal: Int
     get() = more?.totalCount?.coerceAtLeast(items.size) ?: items.size
 
+@Composable
+private fun QueueMoreSettle(focus: LoadMoreFocus, queue: QueueState) {
+    val more = queue.more
+    focus.Settle(more?.loading == true, queue.items.size, controlShown = more != null && (more.error != null || more.hasMore))
+}
+
 /** The end of a growing queue: Load more, its progress, a failure with Retry, or the list's end. */
 @Composable
-private fun QueueMoreRow(player: Player, more: QueueMore) {
+private fun QueueMoreRow(player: Player, more: QueueMore, count: Int, focus: LoadMoreFocus) {
+    val loadMore = {
+        focus.start(count)
+        player.loadMore()
+    }
     Box(
         Modifier.fillMaxWidth().padding(horizontal = DesignSpacing.Space16, vertical = DesignSpacing.Space16),
         contentAlignment = Alignment.Center,
@@ -2221,12 +2235,14 @@ private fun QueueMoreRow(player: Player, more: QueueMore) {
         val noteStyle = TextStyle(fontSize = 13.sp, color = DesignColors.InkSecondary)
         val error = more.error
         when {
-            more.loading -> Row(
-                horizontalArrangement = Arrangement.spacedBy(DesignSpacing.Space8),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-                Text(stringResource(Res.string.queue_loading_more), style = noteStyle)
+            more.loading -> LoadingMoreIndicator(focus, label = stringResource(Res.string.queue_loading_more)) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(DesignSpacing.Space8),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                    Text(stringResource(Res.string.queue_loading_more), style = noteStyle, modifier = Modifier.a11ySilent())
+                }
             }
             error != null -> Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -2239,14 +2255,15 @@ private fun QueueMoreRow(player: Player, more: QueueMore) {
                     textAlign = TextAlign.Center,
                 )
                 Box(Modifier.padding(top = DesignSpacing.Space4)) {
-                    PlayPill(Icons.Default.Refresh, stringResource(Res.string.retry), filled = false, onClick = player::loadMore)
+                    PlayPill(Icons.Default.Refresh, stringResource(Res.string.retry), filled = false, modifier = focus.control, onClick = loadMore)
                 }
             }
             more.hasMore -> PlayPill(
                 Icons.Default.ExpandMore,
                 stringResource(Res.string.queue_load_more),
                 filled = false,
-                onClick = player::loadMore,
+                modifier = focus.control,
+                onClick = loadMore,
             )
             else -> Text(stringResource(Res.string.queue_end), style = noteStyle)
         }
@@ -2324,6 +2341,7 @@ private fun QueueRow(
     dragState: ReorderDragState,
     large: Boolean = false,
     focusRequester: FocusRequester? = null,
+    modifier: Modifier = Modifier,
 ) {
     val dragging = dragState.draggingIndex == index
     val swipeState = rememberSwipeToDismissBoxState()
@@ -2355,7 +2373,7 @@ private fun QueueRow(
         gesturesEnabled = dragState.draggingIndex == null,
     ) {
         val swiping = swipeState.dismissDirection != SwipeToDismissBoxValue.Settled
-        QueueRowContent(coordinator, index, item, current, dragState, large, dragging, swiping, focusRequester)
+        QueueRowContent(coordinator, index, item, current, dragState, large, dragging, swiping, focusRequester, modifier)
     }
 }
 
@@ -2370,6 +2388,7 @@ private fun QueueRowContent(
     dragging: Boolean,
     swiping: Boolean,
     focusRequester: FocusRequester? = null,
+    modifier: Modifier = Modifier,
 ) {
     val sub = listOfNotNull(item.displayDuration, item.displaySubtitle).joinToString(" · ")
     val playLabel = stringResource(Res.string.cd_play)
@@ -2394,6 +2413,7 @@ private fun QueueRowContent(
             )
             .then(if (current) Modifier.background(DesignColors.Accent.copy(alpha = 0.1f)) else Modifier)
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
+            .then(modifier)
             .clickable(role = Role.Button, onClickLabel = playLabel) { coordinator.player.playAt(index) }
             .a11yRowLabel(label)
             .padding(horizontal = 16.dp, vertical = if (large) 10.dp else 8.dp),

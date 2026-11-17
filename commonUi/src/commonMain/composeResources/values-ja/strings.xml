@@ -654,6 +654,7 @@
     <string name="native_blocked_help">職場や学校の PC では、管理者に YMusic の許可を依頼してください。個人の PC では、Windows セキュリティのスマート アプリ コントロールを確認してください。</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">再読み込み中</string>
+    <string name="a11y_loading">読み込み中</string>
     <!-- Download manager multi-select -->
     <string name="select_all">すべて選択</string>
     <string name="downloads_action_select">選択</string>

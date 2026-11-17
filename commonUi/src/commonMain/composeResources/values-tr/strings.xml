@@ -662,6 +662,7 @@
     <string name="native_blocked_help">İş veya okul bilgisayarında yöneticinizden YMusic'e izin vermesini isteyin. Kendi bilgisayarınızda Windows Güvenliği'ndeki Akıllı Uygulama Denetimi'ni kontrol edin.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Yenileniyor</string>
+    <string name="a11y_loading">Yükleniyor</string>
     <!-- Download manager multi-select -->
     <string name="select_all">Tümünü seç</string>
     <string name="downloads_action_select">Seç</string>

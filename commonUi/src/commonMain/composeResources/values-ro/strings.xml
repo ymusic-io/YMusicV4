@@ -670,6 +670,7 @@
     <string name="native_blocked_help">Pe un PC de la serviciu sau școală, cere administratorului să permită YMusic. Pe PC-ul tău, verifică Smart App Control în Securitate Windows.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Se reîmprospătează</string>
+    <string name="a11y_loading">Se încarcă</string>
     <!-- Download manager multi-select -->
     <string name="select_all">Selectează tot</string>
     <string name="downloads_action_select">Selectează</string>

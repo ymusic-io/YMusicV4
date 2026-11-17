@@ -654,6 +654,7 @@
     <string name="native_blocked_help">如果是工作或学校的电脑，请让管理员允许 YMusic。如果是自己的电脑，请在 Windows 安全中心查看智能应用控制。</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">正在刷新</string>
+    <string name="a11y_loading">正在加载</string>
     <!-- Download manager multi-select -->
     <string name="select_all">全选</string>
     <string name="downloads_action_select">选择</string>

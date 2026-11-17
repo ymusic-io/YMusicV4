@@ -670,6 +670,7 @@
     <string name="native_blocked_help">Na poslovnom ili školskom računalu zamolite administratora da dopusti YMusic. Na vlastitom računalu provjerite Smart App Control u Sigurnosti sustava Windows.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Osvježavanje</string>
+    <string name="a11y_loading">Učitavanje</string>
     <!-- Download manager multi-select -->
     <string name="select_all">Odaberi sve</string>
     <string name="downloads_action_select">Odaberi</string>
