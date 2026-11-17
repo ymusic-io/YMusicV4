@@ -11,12 +11,14 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
@@ -42,8 +44,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -56,6 +60,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.onLongClick
@@ -213,6 +219,10 @@ fun DownloadsScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
     // Report scroll into the shell's ScrollHost so the shared app bar lifts on scroll, like Library/Discover.
     val gridState = rememberLazyGridState()
     TrackScroll { gridState.canScrollBackward }
+    // A lazy grid top-aligns a row's cards at their own heights: each card reports its natural height and
+    // takes its row's tallest as a minimum.
+    val columns by remember(gridState) { derivedStateOf { gridState.layoutInfo.maxSpan } }
+    val naturalHeights = remember { mutableStateMapOf<String, Int>() }
 
     val navigate = LocalNavigateToSection.current
     val folderReveal = LocalLibraryFolderReveal.current
@@ -253,6 +263,7 @@ fun DownloadsScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
     var selectionBeforeSelectAll by remember { mutableStateOf<Set<String>?>(null) }
     val visibleIds = visible.mapTo(HashSet()) { it.id }
     val shownIds = shown.map { it.id }
+    LaunchedEffect(shownIds) { naturalHeights.keys.retainAll(shownIds.toSet()) }
     LaunchedEffect(visibleIds) {
         val kept = selectedIds intersect visibleIds
         if (kept != selectedIds) {
@@ -362,10 +373,18 @@ fun DownloadsScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
                     }
                 }
             }
-            items(shown, key = { it.id }) { task ->
+            itemsIndexed(shown, key = { _, task -> task.id }) { index, task ->
+                val rowMinHeight = if (columns > 1) {
+                    val rowStart = index / columns * columns
+                    val rowEnd = minOf(rowStart + columns, shown.size)
+                    (rowStart until rowEnd).maxOf { naturalHeights[shown[it].id] ?: 0 }
+                } else {
+                    0
+                }
                 DownloadCard(
                     task, service,
-                    modifier = Modifier.animateItem(),
+                    modifier = Modifier.animateItem().heightIn(min = with(LocalDensity.current) { rowMinHeight.toDp() }),
+                    onNaturalHeight = { height -> if (naturalHeights[task.id] != height) naturalHeights[task.id] = height },
                     selecting = selecting,
                     selected = task.id in selection,
                     onToggleSelected = { toggleSelected(task.id) },
@@ -631,6 +650,7 @@ private fun DownloadCard(
     task: DownloadTask,
     service: DownloadService,
     modifier: Modifier,
+    onNaturalHeight: (Int) -> Unit,
     selecting: Boolean,
     selected: Boolean,
     onToggleSelected: () -> Unit,
@@ -663,7 +683,12 @@ private fun DownloadCard(
         border = BorderStroke(1.dp, if (selected) c.accent else if (failed) c.danger.copy(alpha = 0.4f) else c.border),
         modifier = modifier.fillMaxWidth(),
     ) {
-        Column(selectionGesture.padding(CardPadding), verticalArrangement = Arrangement.spacedBy(DesignSpacing.Space8)) {
+        // wrapContentHeight drops the row's min height, so the reported height is the content's own; the gesture
+        // before it still spans the stretched card.
+        Column(
+            selectionGesture.wrapContentHeight(Alignment.Top).onSizeChanged { onNaturalHeight(it.height) }.padding(CardPadding),
+            verticalArrangement = Arrangement.spacedBy(DesignSpacing.Space8),
+        ) {
             // While selecting, the card's toggle merges the whole card into one checkbox stop instead.
             val rowSemantics = Modifier.semantics(mergeDescendants = !selecting) {
                 if (!selecting) onLongClick(selectLabel) { startSelection(); true }
