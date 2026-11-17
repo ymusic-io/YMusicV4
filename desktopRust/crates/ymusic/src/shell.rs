@@ -1079,12 +1079,7 @@ impl Shell {
         let view = cx.new(|cx| DownloadsView::new(service, cx));
         let play = cx.subscribe(&view, |shell, _, event: &PlayLocal, cx| {
             let (items, index, shuffle) = (event.items.clone(), event.index, event.shuffle);
-            shell.playback.update(cx, |playback, cx| {
-                if let Some(shuffle) = shuffle {
-                    playback.set_shuffle(shuffle, cx);
-                }
-                playback.play_queue(items, index, cx)
-            });
+            shell.playback.update(cx, |playback, cx| playback.play_queue(items, index, shuffle, cx));
         });
         let reveal = cx.subscribe(&view, |shell, _, event: &RevealInLibrary, cx| {
             shell.stacks.entry(Section::Library).or_default().pushed.clear();
@@ -1125,12 +1120,7 @@ impl Shell {
         let view = cx.new(|cx| LibraryView::new(store, cx));
         let play = cx.subscribe(&view, |shell, _, event: &PlayLocal, cx| {
             let (items, index, shuffle) = (event.items.clone(), event.index, event.shuffle);
-            shell.playback.update(cx, |playback, cx| {
-                if let Some(shuffle) = shuffle {
-                    playback.set_shuffle(shuffle, cx);
-                }
-                playback.play_queue(items, index, cx)
-            });
+            shell.playback.update(cx, |playback, cx| playback.play_queue(items, index, shuffle, cx));
         });
         let queue =
             cx.subscribe(&view, |shell, _, event: &QueueLocal, cx| {
@@ -1632,12 +1622,7 @@ impl Shell {
         });
         let play = cx.subscribe(&view, |shell, _, event: &PlayLocal, cx| {
             let (items, index, shuffle) = (event.items.clone(), event.index, event.shuffle);
-            shell.playback.update(cx, |playback, cx| {
-                if let Some(shuffle) = shuffle {
-                    playback.set_shuffle(shuffle, cx);
-                }
-                playback.play_queue(items, index, cx)
-            });
+            shell.playback.update(cx, |playback, cx| playback.play_queue(items, index, shuffle, cx));
         });
         let queue =
             cx.subscribe(&view, |shell, _, event: &QueueLocal, cx| {
