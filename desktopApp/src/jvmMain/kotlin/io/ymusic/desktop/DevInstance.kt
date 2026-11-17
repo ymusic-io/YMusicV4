@@ -20,6 +20,9 @@ internal object DevInstance {
     /** `YMusic · <branch>` in a dev run on a known branch, plain `YMusic` otherwise. */
     val appTitle: String = listOfNotNull("YMusic", branch).joinToString(" · ")
 
+    /** The Linux desktop entry's Name: [appTitle] in a workspace run, which has its own entry; plain `YMusic` in the shared one. */
+    val desktopEntryName: String = if (workspace != null) appTitle else "YMusic"
+
     /** Workspace runs leave the OS media session (and so the media keys) alone unless asked. */
     val usesMediaSession: Boolean = workspace == null || System.getenv("YMUSIC_DEV_MEDIA_SESSION") == "1"
 

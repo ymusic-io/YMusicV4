@@ -32,7 +32,9 @@ of the app data (YMusicV4's workspace setup script). It writes `.ymusic-dev-data
 `root=<data folder>`) at the worktree root, which a debug build reads at launch: its data dir becomes
 `<root>/rust`, and it takes its own Windows AppUserModelID (`io.ymusic.windows.dev.<id>`), Linux app
 id (`io.ymusic.YMusic.dev<id>`) and MPRIS name (`org.mpris.MediaPlayer2.ymusic.dev<id>`), where `<id>`
-is the 32-bit FNV-1a of the name in 8 hex digits, as the JVM app derives it. A workspace run starts no
+is the 32-bit FNV-1a of the name in 8 hex digits, as the JVM app derives it. Only a workspace run names
+the branch in its Linux desktop entry; a debug run without one writes the shared `io.ymusic.YMusic` entry
+with the plain app name. A workspace run starts no
 OS media session (media keys, Now Playing) unless `YMUSIC_DEV_MEDIA_SESSION=1`. `--print-data-dir`
 prints the data dir, workspace and title a launch would use and exits.
 

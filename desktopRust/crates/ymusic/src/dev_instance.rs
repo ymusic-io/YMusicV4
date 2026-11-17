@@ -138,3 +138,10 @@ pub fn window_title() -> String {
     }
     title
 }
+
+/// The Linux desktop entry's name: [`window_title`] in a workspace run, which has its own entry; the
+/// app's name in the shared one a release install uses too.
+#[cfg(target_os = "linux")]
+pub fn desktop_entry_name() -> String {
+    if workspace().is_some() { window_title() } else { t(Str::AppName).to_owned() }
+}
