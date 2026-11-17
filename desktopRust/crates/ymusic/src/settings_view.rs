@@ -4,7 +4,7 @@ use std::cell::Cell;
 use std::path::PathBuf;
 
 use gpui_kit::component::button::{Button, ButtonVariants};
-use gpui_kit::component::menu::{DropdownMenu, PopupMenuItem, PopupMenuStyle};
+use gpui_kit::component::menu::{DropdownMenu, PopupMenu, PopupMenuItem, PopupMenuStyle};
 use gpui_kit::component::switch::Switch;
 use gpui_kit::component::{
     ActiveTheme, Colorize, FocusableExt, Icon, Side, StyledExt, Theme, ThemeMode, WindowExt, h_flex, v_flex,
@@ -215,6 +215,17 @@ fn menu_style(palette: &Palette, accent: Hsla) -> PopupMenuStyle {
         label_padding_x: Some(px(16.)),
         label_padding_y: Some(px(8.)),
     }
+}
+
+/// A picker's menu whose current choice reads in the accent, the others in regular weight (the JVM
+/// app's quality, rotation and audio-track menus).
+pub fn accent_choice_menu(menu: PopupMenu, cx: &App) -> PopupMenu {
+    let accent = cx.theme().primary;
+    menu.restyle(|style| {
+        style.font_weight = Some(FontWeight::NORMAL);
+        style.checked_color = Some(accent);
+        style.checked_weight = Some(FontWeight::SEMIBOLD);
+    })
 }
 
 /// The JVM app's `SurfaceDim` / `InkMuted`: a card lifted off the page and its secondary text.
