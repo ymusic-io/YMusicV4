@@ -129,7 +129,7 @@ fun mseHostLinkerOpts(targetName: String): List<String> {
 fun registerMseDef(targetName: String): Pair<TaskProvider<Task>, File> {
     val base = project.file("native/cinterop/mse.def")
     val out = layout.buildDirectory.file("mse-def/$targetName/mse.def").get().asFile
-    val linkerOpts = mseHostLinkerOpts(targetName).joinToString(" ")
+    val linkerOpts = mseHostLinkerOpts(targetName).joinToString(" ", transform = ::defQuote)
     val task = tasks.register("generateMseDef${targetName.replaceFirstChar { it.uppercase() }}") {
         inputs.file(base)
         inputs.property("linkerOpts", linkerOpts)

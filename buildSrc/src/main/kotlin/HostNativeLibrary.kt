@@ -319,7 +319,7 @@ abstract class GenerateHostLibraryDef @Inject constructor(private val exec: Exec
 
     private fun splitDefArgs(text: String): List<String> =
         Regex("\"([^\"]*)\"|(\\S+)").findAll(text).map { it.groupValues[1].ifEmpty { it.groupValues[2] } }.toList()
-
-    /** The def parser splits on whitespace outside double quotes. */
-    private fun defQuote(arg: String): String = if (arg.none { it.isWhitespace() }) arg else "\"$arg\""
 }
+
+/** One argument of a cinterop `.def`'s `compilerOpts`/`linkerOpts`: the def parser splits on whitespace outside double quotes. */
+fun defQuote(arg: String): String = if (arg.none { it.isWhitespace() }) arg else "\"$arg\""
