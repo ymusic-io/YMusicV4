@@ -52,7 +52,13 @@ export function installOrigEnv(): void {
   if (typeof setImageRequest === "function") (setImageRequest as Function)(requestImage);
   (0, eval)(origIdlStubsJs);
   const reshape = (0, eval)(chromeShapesJs) as unknown;
-  if (typeof reshape === "function") reshapeChromePrototypes = reshape as () => void;
+  if (typeof reshape === "function") {
+    reshapeChromePrototypes = reshape as () => void;
+    const iframeNames = (reshape as unknown as Record<string, unknown>)["iframeNames"];
+    const setIframeNameOrder = origEnvHandle ? origEnvHandle["setIframeNameOrder"] : undefined;
+    if (Array.isArray(iframeNames) && typeof setIframeNameOrder === "function")
+      (setIframeNameOrder as Function)(iframeNames);
+  }
   const installChromeBackedApis = origEnvHandle
     ? origEnvHandle["installChromeBackedApis"]
     : undefined;
