@@ -1,9 +1,10 @@
 //! Keyboard reach the way the JVM app's Compose focus works: every list item, card, tab and chip is
 //! a real focus stop (Enter or Space activates it, the screen reader announces it), and an arrow key
 //! moves focus geometrically, to the nearest stop on screen in that direction, preferring one that
-//! lines up (Android's FocusFinder rule), so focus enters and leaves lists in screen order. A list
-//! ([`FocusList::list_stops`]) is one Tab stop, its item focused last; any other stop is its own. The
-//! focused stop is ringed and scrolled into view.
+//! lines up (Android's FocusFinder rule), so focus enters and leaves lists in screen order. Tab enters
+//! a list ([`FocusList::list_stops`]) on its item focused last, then steps item by item, each item's
+//! own controls after it, and leaves it past the last; any other stop is its own. The focused stop is
+//! ringed and scrolled into view.
 
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
@@ -571,8 +572,9 @@ impl FocusList {
         self.ringed(slot, element, None, cx)
     }
 
-    /// Makes `button` the `control`th control inside the `index`th item (its ⋮): in the Tab order with
-    /// its item when the item is in a [`Self::list_stops`] list, its own stop otherwise.
+    /// Makes `button` the `control`th control inside the `index`th item (its ⋮): in the Tab order right
+    /// after its item, and while focus is outside a [`Self::list_stops`] list only with the item holding
+    /// its stop.
     pub fn trailing_button(&self, index: usize, control: usize, button: Button, cx: &App) -> Button {
         let handle = self.trailing(index, control, cx);
         button.tab_stop(handle.tab_stop).track_focus(&handle)
@@ -588,9 +590,11 @@ impl FocusList {
         controls[control].clone()
     }
 
-    /// The stops in `items` as one list: a single Tab stop, the item focused last (until then the
-    /// [`Self::set_entry`] one, else the first) with its [`Self::trailing_button`]s, the arrows
-    /// within. Call it before rendering the items, whose focus handles copy the Tab order then;
+    /// The stops in `items` as one list. While focus is outside it, Tab enters on one item, the one
+    /// focused last (until then the [`Self::set_entry`] one, else the first), with its
+    /// [`Self::trailing_button`]s; while it holds focus every item and its trailing buttons are Tab
+    /// stops in index order, so Tab past the last item (Shift+Tab before the first) leaves the list.
+    /// Call it before rendering the items, whose focus handles copy the Tab order then;
     /// [`ListStops::wrap`] makes their container the list.
     pub fn list_stops(&self, items: Range<usize>, window: &Window, cx: &App) -> ListStops<'_> {
         let held = self.tab_items.borrow_mut().entry(items.start).or_default().clone();
@@ -606,10 +610,11 @@ impl FocusList {
         let entry = entry.and_then(|entry| items.clone().position(|index| self.handle(index, cx) == entry));
         let active = held.get().or(entry).unwrap_or(0).min(items.len().saturating_sub(1));
         for (position, index) in items.clone().enumerate() {
+            let stop = focused.is_some() || position == active;
             // Sets the shared flag, which each element's copy of the handle reads.
-            self.handle(index, cx).tab_stop(position == active);
+            self.handle(index, cx).tab_stop(stop);
             for handle in controls(index) {
-                handle.clone().tab_stop(position == active);
+                handle.clone().tab_stop(stop);
             }
         }
         ListStops { list: self, items, active, focused: focused.is_some() }
@@ -638,7 +643,7 @@ impl FocusList {
     }
 }
 
-/// A list's items, one Tab stop, from [`FocusList::list_stops`].
+/// A list's items from [`FocusList::list_stops`].
 pub struct ListStops<'a> {
     list: &'a FocusList,
     items: Range<usize>,
@@ -647,8 +652,8 @@ pub struct ListStops<'a> {
 }
 
 impl ListStops<'_> {
-    /// The positions a lazy list keeps built wherever it is scrolled: the item holding the Tab
-    /// stop, and while the list holds focus its first and last, for Home and End.
+    /// The positions a lazy list keeps built wherever it is scrolled: the item Tab enters on, and
+    /// while the list holds focus its first and last, for Home and End and for Tab to leave past them.
     pub fn kept(&self) -> Vec<usize> {
         let mut kept = vec![self.active];
         if self.focused && !self.items.is_empty() {
