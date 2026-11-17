@@ -17,11 +17,15 @@
 # `name=<name>` and `root=<dir>` lines; the Gradle run task and the Rust app read it.
 #
 # Both copies are made once, read only on ~/.ymusic, of everything but the instance lock/port, the logs,
-# update downloads and the caches that refill themselves (SKIPPED below). Every SQLite database is
-# copied with its WAL and checkpointed in the copy. In app.db the per-install telemetry/update rows are
-# dropped, and a cookie jar sealed under the OS user's key gets that key as its secret row
+# update downloads, the download work dir and the caches that refill themselves (SKIPPED below). Every
+# SQLite database is copied with its WAL and checkpointed in the copy. In app.db the per-install
+# telemetry/update rows and the download location are dropped, and a cookie jar sealed under the OS
+# user's key gets that key as its secret row
 # cookie-key.bin (where both dev apps keep it): read from the macOS Keychain or the Linux Secret
 # Service (service io.ymusic.desktop, account cookie-key), never written back.
+#
+# The library is copied as is: its rows still name the real files, so deleting or renaming a track in
+# a workspace deletes or renames the real one.
 set -euo pipefail
 
 DATA_ROOT="$HOME/.ymusic-dev"
@@ -31,9 +35,10 @@ KEY_SERVICE=io.ymusic.desktop
 RELEASE_KEY_ACCOUNT=cookie-key
 FALLBACK_KEY_ROW=cookie-key.bin
 COOKIE_JAR_ROW=api-cookies.json
-SKIPPED="instance.lock instance.port logs.db logs.db-wal logs.db-shm logs update http-cache engine-cache player-cache image-source-cache image-cover-cache image-scaled-cache image-variants"
-# Per-install state, not preferences: a copied device id would merge two installs' telemetry.
-DROPPED_SETTINGS="'telemetry.deviceId','telemetry.lastLoadedEngineJsVer','telemetry.lastLoadedPlayerJsVer','telemetry.nativeBlockReportedVersion','update.lastRunVersionCode','update.autoDownloadFailed'"
+SKIPPED="instance.lock instance.port logs.db logs.db-wal logs.db-shm logs update download-work http-cache engine-cache player-cache image-source-cache image-cover-cache image-scaled-cache image-variants"
+# Per-install state, not preferences: a copied device id would merge two installs' telemetry. The
+# download location is the user's real music folder.
+DROPPED_SETTINGS="'telemetry.deviceId','telemetry.lastLoadedEngineJsVer','telemetry.lastLoadedPlayerJsVer','telemetry.nativeBlockReportedVersion','update.lastRunVersionCode','update.autoDownloadFailed','download.location'"
 # "YMC1U": a jar sealed under the OS user's key; "YMC1P": under the user's password (no key to copy).
 USER_SEAL_HEX=594D433155
 # Set to a keychain file to read the release key from it instead of the login keychain (tests).
@@ -207,6 +212,8 @@ cmd_create() {
             copy_release_data "$dir/jvm.copying"
             prepare_app_db "$dir/jvm.copying/app.db"
             checkpoint_databases "$dir/jvm.copying"
+            echo "  the library still names your real files: deleting or renaming a track in this workspace deletes or renames the real one"
+            echo "  the download location is not copied: this workspace asks for its own folder"
         else
             echo "no $RELEASE_DIR: $dir starts empty"
             mkdir -p "$dir/jvm.copying"
