@@ -55,7 +55,18 @@ fn main() {
         println!("cargo:rustc-env=YM_{}={value}", variable.trim_start_matches("YMUSIC_"));
     }
     // The Sentry release names the commit a build was cut from, as the JVM app's.
-    println!("cargo:rustc-env=YM_GIT_COMMIT={}", git_commit());
+    let root = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap()).join("../..");
+    println!("cargo:rustc-env=YM_GIT_COMMIT={}", git_commit(&root));
+    // Debug builds name their branch in the window title and read their worktree's data slot, to run
+    // side by side (`dev_instance.rs`).
+    if std::env::var_os("CARGO_CFG_DEBUG_ASSERTIONS").is_some() {
+        if let Some(branch) = git_branch(&root) {
+            println!("cargo:rustc-env=YM_GIT_BRANCH={branch}");
+        }
+        if let Some(worktree) = git(&root, &["rev-parse", "--show-toplevel"]) {
+            println!("cargo:rustc-env=YM_WORKTREE_ROOT={worktree}");
+        }
+    }
     // Private release inputs; empty leaves the app on its embedded bundles and defaults. Read as
     // Gradle's localProp does: YMusicV4's gitignored secrets.properties, then local.properties,
     // which wins; the environment wins over both.
@@ -115,38 +126,42 @@ fn main() {
 
 /// `git rev-parse --short=10 HEAD` of this workspace (the JVM build's `gitCommit()`), else "unknown";
 /// reruns when HEAD moves.
-fn git_commit() -> String {
-    let root = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap()).join("../..");
-    if let Some(git_dir) = git_dir(&root) {
-        let head = git_dir.join("HEAD");
+fn git_commit(root: &std::path::Path) -> String {
+    if let Some(head) = git_path(root, "HEAD") {
         println!("cargo:rerun-if-changed={}", head.display());
         let branch = std::fs::read_to_string(&head)
             .ok()
-            .and_then(|text| text.trim().strip_prefix("ref:").map(|reference| git_dir.join(reference.trim())));
-        for path in branch.into_iter().chain([git_dir.join("packed-refs")]).filter(|path| path.exists()) {
+            .and_then(|text| text.trim().strip_prefix("ref:").and_then(|reference| git_path(root, reference.trim())));
+        for path in branch.into_iter().chain(git_path(root, "packed-refs")).filter(|path| path.exists()) {
             println!("cargo:rerun-if-changed={}", path.display());
         }
     }
+    git(root, &["rev-parse", "--short=10", "HEAD"]).unwrap_or_else(|| "unknown".to_owned())
+}
+
+/// The checked-out branch, else the short commit of a detached HEAD. A switch rewrites `HEAD`,
+/// which [`git_commit`] reruns on.
+fn git_branch(root: &std::path::Path) -> Option<String> {
+    git(root, &["rev-parse", "--abbrev-ref", "HEAD"])
+        .filter(|branch| branch != "HEAD")
+        .or_else(|| git(root, &["rev-parse", "--short", "HEAD"]))
+}
+
+/// Where git keeps `name` for this checkout: a worktree's own `HEAD`, the shared refs.
+fn git_path(root: &std::path::Path, name: &str) -> Option<PathBuf> {
+    git(root, &["rev-parse", "--git-path", name]).map(|path| root.join(path))
+}
+
+fn git(root: &std::path::Path, args: &[&str]) -> Option<String> {
     std::process::Command::new("git")
-        .args(["rev-parse", "--short=10", "HEAD"])
-        .current_dir(&root)
+        .args(args)
+        .current_dir(root)
         .output()
         .ok()
         .filter(|output| output.status.success())
         .and_then(|output| String::from_utf8(output.stdout).ok())
-        .map(|commit| commit.trim().to_owned())
-        .filter(|commit| !commit.is_empty())
-        .unwrap_or_else(|| "unknown".to_owned())
-}
-
-/// The repository's git directory: `.git`, or where a submodule's or worktree's `.git` file points.
-fn git_dir(root: &std::path::Path) -> Option<PathBuf> {
-    let dot_git = root.join(".git");
-    if dot_git.is_dir() {
-        return Some(dot_git);
-    }
-    let text = std::fs::read_to_string(&dot_git).ok()?;
-    Some(root.join(text.trim().strip_prefix("gitdir:")?.trim()))
+        .map(|text| text.trim().to_owned())
+        .filter(|text| !text.is_empty())
 }
 
 /// Java properties escapes (`\:`, `\=`, `\\`), which the JVM build's files may carry.

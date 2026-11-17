@@ -16,6 +16,7 @@ mod cookie_lock;
 mod cookie_session;
 mod data_files;
 mod desktop;
+mod dev_instance;
 #[cfg(target_os = "linux")]
 mod dock_quicklist;
 mod download_dialog;
@@ -85,7 +86,6 @@ mod yt_playlist;
 
 use gpui_kit::*;
 use ym_common::http::HttpClients;
-use ym_i18n::{Str, t};
 
 use crate::cookie_session::{CookieOpen, LockedJar};
 use crate::graph::AppGraph;
@@ -109,18 +109,30 @@ pub const DEV_DATA_DIR_ARG: &str = "--data-dir=";
 
 fn main() {
     ym_i18n::use_system_locale();
-    // Debug runs can be pointed at a throwaway data dir for automated checks.
-    let data_dir = if cfg!(debug_assertions) {
-        std::env::args_os()
-            .skip(1)
-            .find_map(|arg| arg.to_str()?.strip_prefix(DEV_DATA_DIR_ARG).map(std::path::PathBuf::from))
-            .or_else(|| std::env::var_os("YMUSIC_DATA_DIR").map(std::path::PathBuf::from))
-            .unwrap_or_else(|| dirs::data_local_dir().unwrap_or_else(std::env::temp_dir).join("YMusicRust"))
-    } else {
-        crate::data_files::release_data_dir()
+    let dev = cfg!(debug_assertions).then(crate::dev_instance::resolve);
+    let data_dir = match &dev {
+        Some(dev) => {
+            crate::dev_instance::set_slot(dev.slot);
+            dev.dir.clone()
+        }
+        None => crate::data_files::release_data_dir(),
     };
+    if let Some(dev) = &dev
+        && std::env::args().any(|arg| arg == crate::dev_instance::PRINT_DATA_DIR_ARG)
+    {
+        return dev.print();
+    }
     let log_setup = crate::telemetry::logger(&data_dir);
     let log = log_setup.log.clone();
+    if let Some(problem) = dev.and_then(|dev| dev.slot_file_problem) {
+        log.warn(
+            &format!("R96010 the worktree's dev slot file is unusable, using the default data dir: {problem}"),
+            None,
+        );
+    }
+    if let Some(slot) = crate::dev_instance::slot() {
+        log.info(&format!("debug data slot {slot}: {}", data_dir.display()));
+    }
     // Before any window or Jump List: they take the process's ID from then on.
     #[cfg(target_os = "windows")]
     crate::desktop::claim_app_user_model_id(&log.fork("app-id"));
@@ -268,7 +280,7 @@ fn main() {
             window_min_size: Some(size(px(275.), px(170.))),
             // Windows hides the native caption: the app draws its title bar (`win_title_bar`).
             titlebar: Some(TitlebarOptions {
-                title: Some(t(Str::AppName).into()),
+                title: Some(crate::dev_instance::window_title().into()),
                 appears_transparent: cfg!(target_os = "windows"),
                 ..Default::default()
             }),

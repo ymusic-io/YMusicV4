@@ -1019,7 +1019,7 @@ impl Tray {
         ])?;
         let tray = TrayIconBuilder::new()
             .with_icon(icon)
-            .with_tooltip(t(Str::AppName))
+            .with_tooltip(crate::dev_instance::window_title())
             .with_menu(Box::new(menu))
             .with_menu_on_left_click(false)
             .build()?;
@@ -1127,7 +1127,7 @@ impl Tray {
             }
         }
         // Hack: tray-icon fits its click target to the button again only in its own setters.
-        self.icon.set_tooltip(Some(t(Str::AppName)))?;
+        self.icon.set_tooltip(Some(crate::dev_instance::window_title()))?;
         Ok(())
     }
 }
@@ -1266,7 +1266,7 @@ impl ksni::Tray for SniTray {
     }
 
     fn title(&self) -> String {
-        t(Str::AppName).into()
+        crate::dev_instance::window_title()
     }
 
     fn status(&self) -> ksni::Status {
@@ -1279,7 +1279,7 @@ impl ksni::Tray for SniTray {
     }
 
     fn tool_tip(&self) -> ksni::ToolTip {
-        ksni::ToolTip { title: t(Str::AppName).into(), ..Default::default() }
+        ksni::ToolTip { title: crate::dev_instance::window_title(), ..Default::default() }
     }
 
     fn menu(&self) -> Vec<ksni::MenuItem<Self>> {
@@ -1426,7 +1426,7 @@ pub fn frame(content: AnyElement, window: &mut Window, cx: &mut App) -> AnyEleme
         .pl(px(90.))
         .text_sm()
         .font_weight(FontWeight::BOLD)
-        .child(t(Str::AppName));
+        .child(crate::dev_instance::window_title());
     let bar = TitleBar::new()
         .bg(theme.title_bar)
         .border_color(theme.border)
