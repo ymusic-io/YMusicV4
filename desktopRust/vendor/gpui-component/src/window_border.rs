@@ -8,10 +8,9 @@ use gpui::{
 
 use crate::ActiveTheme;
 
-#[cfg(not(target_os = "linux"))]
+// Zero on Linux too: Root's frame is the window's only frame, flush with the surface, so the
+// platform's client inset and the dialog scrim (`window_paddings`) match what is drawn.
 pub(crate) const SHADOW_SIZE: Pixels = px(0.0);
-#[cfg(target_os = "linux")]
-pub(crate) const SHADOW_SIZE: Pixels = px(20.0);
 const BORDER_SIZE: Pixels = px(1.0);
 /// Half-width of the resize hit band on each side of the visible frame (inner border).
 const RESIZE_HIT_SIZE: Pixels = px(4.0);
@@ -250,7 +249,7 @@ impl RenderOnce for WindowBorder {
                     .when(!tiling.bottom, |div| div.border_b(BORDER_SIZE))
                     .when(!tiling.left, |div| div.border_l(BORDER_SIZE))
                     .when(!tiling.right, |div| div.border_r(BORDER_SIZE))
-                    .when(!tiling.is_tiled(), |div| {
+                    .when(!tiling.is_tiled() && visual_shadow > px(0.0), |div| {
                         let opacity = if is_window_active { 1.0 } else { 0.7 };
                         div.shadow(vec![
                             // Keep the effective outer reach below SHADOW_SIZE. GPUI
