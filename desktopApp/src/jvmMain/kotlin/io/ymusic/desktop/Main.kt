@@ -389,6 +389,11 @@ fun main(args: Array<String>) {
         classifyNativeLoadFailure(it, NativeComponent.Media, windowsPolicyMessages(rootLogger.fork("native-libs")))
     }
 
+    if (isLinux) {
+        runCatching { applyLinuxWmClass() }
+            .onFailure { rootLogger.fork("wm-class").log(Logger.Level.WARN, "dev slot WM_CLASS not set", it) }
+    }
+
     application {
         // Dock ignores Window(icon=). Vector is 192dp; Density(1024/192) makes the
         // VectorPainter cache 1024px. Size must stay 192: macOS getResolutionVariants
@@ -404,6 +409,10 @@ fun main(args: Array<String>) {
                             LayoutDirection.Ltr,
                             androidx.compose.ui.geometry.Size(192f, 192f),
                         )
+                    }
+                    val slot = DevInstance.slot
+                    if (slot != null && taskbar.isSupported(java.awt.Taskbar.Feature.ICON_BADGE_TEXT)) {
+                        taskbar.setIconBadge(slot.toString())
                     }
                 }
             }.onFailure { rootLogger.fork("dock").log(Logger.Level.WARN, "dock icon set failed", it) }
@@ -523,6 +532,17 @@ fun main(args: Array<String>) {
                 val windowIcon = painterResource(Res.drawable.ymusic_logo)
                 LaunchedEffect(window, windowIcon) {
                     window.iconImages = listOf(16, 20, 24, 32, 40, 48, 64, 128, 256).map { windowIcon.rasterize(it) }
+                }
+            }
+            val slot = DevInstance.slot
+            if (isWindows && slot != null) {
+                LaunchedEffect(window) {
+                    runCatching {
+                        val taskbar = java.awt.Taskbar.getTaskbar()
+                        if (taskbar.isSupported(java.awt.Taskbar.Feature.ICON_BADGE_IMAGE_WINDOW)) {
+                            taskbar.setWindowIconBadge(window, devSlotBadge(slot))
+                        }
+                    }.onFailure { rootLogger.fork("taskbar").log(Logger.Level.WARN, "dev slot badge not set", it) }
                 }
             }
             val closeApp = {

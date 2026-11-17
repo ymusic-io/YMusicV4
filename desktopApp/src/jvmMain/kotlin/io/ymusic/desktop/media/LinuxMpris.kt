@@ -1,6 +1,8 @@
 package io.ymusic.desktop.media
 
+import io.ymusic.desktop.DevInstance
 import io.ymusic.desktop.isLinuxDebInstall
+import io.ymusic.desktop.linuxDesktopEntryId
 import kmpcommon.log.Logger
 import java.io.File
 import java.util.concurrent.Executors
@@ -69,7 +71,7 @@ internal class LinuxMprisSession(
     }
 
     private fun requestBusName(): String {
-        val candidates = listOf(BUS_NAME, "$BUS_NAME.instance${ProcessHandle.current().pid()}")
+        val candidates = listOf(DevInstance.slot?.let { "$BUS_NAME.dev$it" } ?: BUS_NAME, "$BUS_NAME.instance${ProcessHandle.current().pid()}")
         for (name in candidates) {
             val reply = bus.callBlocking(
                 "org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "RequestName",
@@ -150,7 +152,7 @@ internal class LinuxMprisSession(
         "CanRaise" to Variant("b", false),
         "HasTrackList" to Variant("b", false),
         "Identity" to Variant("s", "YMusic"),
-        "DesktopEntry" to Variant("s", if (isLinuxDebInstall) "ymusic-YMusic" else "io.ymusic.desktop"),
+        "DesktopEntry" to Variant("s", if (isLinuxDebInstall) "ymusic-YMusic" else linuxDesktopEntryId),
         "SupportedUriSchemes" to Variant("as", emptyList<String>()),
         "SupportedMimeTypes" to Variant("as", emptyList<String>()),
     )
