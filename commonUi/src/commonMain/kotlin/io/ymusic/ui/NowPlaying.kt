@@ -61,12 +61,12 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.RepeatOne
-import androidx.compose.material.icons.filled.ScreenLockLandscape
-import androidx.compose.material.icons.filled.ScreenLockPortrait
 import androidx.compose.material.icons.filled.ScreenRotation
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.StayCurrentLandscape
+import androidx.compose.material.icons.filled.StayCurrentPortrait
 import androidx.compose.material.icons.outlined.ClosedCaptionOff
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Equalizer
@@ -1210,8 +1210,8 @@ private fun RotationMenuButton(rotation: VideoRotation, onSelect: (VideoRotation
 private val VideoRotation.icon: ImageVector
     get() = when (this) {
         VideoRotation.Free -> Icons.Default.ScreenRotation
-        VideoRotation.Landscape -> Icons.Default.ScreenLockLandscape
-        VideoRotation.Portrait -> Icons.Default.ScreenLockPortrait
+        VideoRotation.Landscape -> Icons.Default.StayCurrentLandscape
+        VideoRotation.Portrait -> Icons.Default.StayCurrentPortrait
     }
 
 private val VideoRotation.label: StringResource
