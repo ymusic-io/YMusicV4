@@ -238,7 +238,8 @@ class MsePlayer internal constructor(
         val width = viewportW
         val height = viewportH
         if (captionChanged(previous, config)) send { applyCaptionConfig(it, config) }
-        if (previous != null && config.stableVolume != previous.stableVolume) send { it.notifySettingsChanged() }
+        // A session's first config re-pulls too: setConfig drops changes while player/init runs.
+        if (config.stableVolume != previous?.stableVolume) send { it.notifySettingsChanged() }
         val quality = config.preferVideoQuality.first.takeIf { it != VideoQualityState.AUDIO_ONLY }
         val trace = MseLoadTrace(
             source.videoId,
@@ -367,7 +368,7 @@ class MsePlayer internal constructor(
             }
             if (captionChanged(previous, config)) applyCaptionConfig(enginePlayer, config)
             // player.js reads the setting itself; the store already holds the value this config came from.
-            if (previous != null && config.stableVolume != previous.stableVolume) enginePlayer.notifySettingsChanged()
+            if (config.stableVolume != previous?.stableVolume) enginePlayer.notifySettingsChanged()
         }
     }
 
