@@ -10,12 +10,13 @@
 #       engine bundles, writes .ymusic-dev.env (FFMPEG_BUILD_DIR), then tools/dev-data.sh create (the
 #       checkout's own copy of ~/.ymusic)
 #   tools/dev-worktree.sh run kotlin|rust
-#       the desktop app of this checkout on its data dir
+#       the desktop app of this checkout on its data dir; refuses without one (the Kotlin app's default
+#       is the real ~/.ymusic) unless YMUSIC_DATA_DIR names a dir
 #   tools/dev-worktree.sh remove <path-or-branch> [--keep-data] [--delete-branch]
-#       deletes the worktree's data dir (unless --keep-data), then git worktree remove; the branch stays
-#       unless --delete-branch
-#   tools/dev-worktree.sh list | prune
-#       the data dirs and their checkouts; prune deletes those whose checkout is gone
+#       git worktree remove, then deletes the worktree's data dir (unless --keep-data); a worktree with
+#       changes, or one git refuses to remove, keeps everything. The branch stays unless --delete-branch
+#   tools/dev-worktree.sh list | prune [-y]
+#       the data dirs and their checkouts; prune deletes those whose checkout is gone, after confirmation
 set -euo pipefail
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd -P)
@@ -109,8 +110,14 @@ cmd_new() {
 cmd_run() {
     local root
     root=$(checkout_root)
-    [ -f "$root/$DATA_FILE_NAME" ] || echo "no workspace data dir here: the app runs on the default one (tools/dev-worktree.sh setup makes one)"
     case "${1:-}" in
+        kotlin | rust) ;;
+        *) die "usage: tools/dev-worktree.sh run kotlin|rust" ;;
+    esac
+    if [ ! -f "$root/$DATA_FILE_NAME" ] && [ -z "${YMUSIC_DATA_DIR:-}" ]; then
+        die "$root has no workspace data dir, so the app would run on its default one (the Kotlin app's is your real ~/.ymusic): run tools/dev-worktree.sh setup first, or set YMUSIC_DATA_DIR"
+    fi
+    case "$1" in
         kotlin)
             cd "$root"
             exec ./gradlew :desktopApp:run
@@ -127,9 +134,11 @@ cmd_run() {
             # findshlibs overflows its arithmetic on macOS, which panics a debug build.
             exec cargo run -p ymusic --config 'profile.dev.package.findshlibs.overflow-checks=false'
             ;;
-        *) die "usage: tools/dev-worktree.sh run kotlin|rust" ;;
     esac
 }
+
+# Setup's own files in a checkout: links into the main checkout, the env file and the data file.
+SETUP_LINKS="secrets.properties local.properties signing"
 
 cmd_remove() {
     local target="" keep_data="" delete_branch=0
@@ -142,36 +151,57 @@ cmd_remove() {
         shift
     done
     [ -n "$target" ] || die "usage: tools/dev-worktree.sh remove <path-or-branch> [--keep-data] [--delete-branch]"
-    local path="" branch="" line current="" current_branch=""
+    local path="" branch="" locked="" line current="" current_branch="" current_locked=""
     while IFS= read -r line; do
         case "$line" in
-            "worktree "*) current=${line#worktree } current_branch="" ;;
+            "worktree "*) current=${line#worktree } current_branch="" current_locked="" ;;
             "branch refs/heads/"*) current_branch=${line#branch refs/heads/} ;;
+            locked*) current_locked=1 ;;
             "")
                 if [ "$current" = "$target" ] || [ "$current_branch" = "$target" ] \
                     || { [ -d "$target" ] && [ "$current" = "$(cd "$target" && pwd -P)" ]; }; then
-                    path=$current branch=$current_branch
+                    path=$current branch=$current_branch locked=$current_locked
                 fi
                 ;;
         esac
     done < <(git worktree list --porcelain; echo)
     [ -n "$path" ] || die "no worktree for $target"
     [ "$path" != "$(main_checkout)" ] || die "$path is the main checkout"
-    # What setup added: a branch made before .gitignore knew these would count them as changes.
-    local link
-    for link in secrets.properties local.properties signing; do
-        if [ -L "$path/$link" ]; then rm -f "$path/$link"; fi
-    done
-    rm -f "$path/$ENV_FILE_NAME"
+    [ -z "$locked" ] || die "$path is locked (git worktree unlock it first): nothing removed"
+    local excludes=(":!$DATA_FILE_NAME" ":!$ENV_FILE_NAME") link
+    for link in $SETUP_LINKS; do excludes+=(":!$link"); done
     local changes
-    changes=$(cd "$path" && git status --porcelain -- . ":!$DATA_FILE_NAME")
-    [ -z "$changes" ] || die "$path has changes, commit or discard them first:
+    changes=$(cd "$path" && git status --porcelain -- . "${excludes[@]}")
+    [ -z "$changes" ] || die "$path has changes, commit or discard them first (nothing removed):
 $changes"
-    if [ -f "$path/$DATA_FILE_NAME" ]; then
-        (cd "$path" && "$SCRIPT_DIR/dev-data.sh" remove $keep_data)
+    local data_dir=""
+    if [ -f "$path/$DATA_FILE_NAME" ]; then data_dir=$(sed -n 's/^root=//p' "$path/$DATA_FILE_NAME"); fi
+    # Set aside, not deleted: a branch whose .gitignore predates them sees them as untracked, which git
+    # worktree remove refuses; if it refuses anyway they go back.
+    local aside name set_aside=()
+    aside=$(mktemp -d "${TMPDIR:-/tmp}/dev-worktree-remove.XXXXXX")
+    for name in $SETUP_LINKS; do
+        if [ -L "$path/$name" ]; then
+            mv "$path/$name" "$aside/$name"
+            set_aside+=("$name")
+        fi
+    done
+    for name in "$ENV_FILE_NAME" "$DATA_FILE_NAME"; do
+        if [ -f "$path/$name" ] && [ ! -L "$path/$name" ]; then
+            mv "$path/$name" "$aside/$name"
+            set_aside+=("$name")
+        fi
+    done
+    if ! git worktree remove "$path"; then
+        for name in ${set_aside[@]+"${set_aside[@]}"}; do
+            mv "$aside/$name" "$path/$name" || die "git worktree remove refused $path; its setup files stay in $aside"
+        done
+        rmdir "$aside"
+        die "git worktree remove refused $path: it and its data dir are left as they were"
     fi
-    git worktree remove "$path"
+    rm -rf "$aside"
     echo "removed $path"
+    if [ -n "$data_dir" ]; then "$SCRIPT_DIR/dev-data.sh" release "$path" "$data_dir" $keep_data; fi
     if [ "$delete_branch" = 1 ] && [ -n "$branch" ]; then git branch -d "$branch"; fi
 }
 
@@ -181,6 +211,6 @@ case "${1:-}" in
         shift
         "cmd_$command" "$@"
         ;;
-    list | prune) "$SCRIPT_DIR/dev-data.sh" "$1" ;;
-    *) die "usage: tools/dev-worktree.sh new <branch> [base] [--path <dir>] | setup | run kotlin|rust | remove <path-or-branch> [--keep-data] [--delete-branch] | list | prune" ;;
+    list | prune) "$SCRIPT_DIR/dev-data.sh" "$@" ;;
+    *) die "usage: tools/dev-worktree.sh new <branch> [base] [--path <dir>] | setup | run kotlin|rust | remove <path-or-branch> [--keep-data] [--delete-branch] | list | prune [-y]" ;;
 esac

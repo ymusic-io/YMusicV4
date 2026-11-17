@@ -340,7 +340,7 @@ pub fn sync_desktop_entry() -> anyhow::Result<()> {
     write_if_changed(&icon_file, LOGO_PNG)?;
     let entry = format!(
         "[Desktop Entry]\nType=Application\nName={}\nExec={}\nIcon={}\nStartupWMClass={app_id}\nSingleMainWindow=true\nNoDisplay=true\n",
-        crate::dev_instance::window_title(),
+        crate::dev_instance::desktop_entry_name(),
         desktop_exec_quoted(&exe.to_string_lossy()),
         icon_file.display(),
     );
