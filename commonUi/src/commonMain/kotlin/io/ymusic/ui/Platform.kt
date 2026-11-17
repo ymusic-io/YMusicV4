@@ -46,12 +46,12 @@ internal expect val rotationLockSupported: Boolean
 @Composable
 internal expect fun KeepScreenOn(enabled: Boolean)
 
-/** Status-bar height even while bars are hidden (fullscreen overlay title). No-op on desktop. */
+/** Fullscreen overlay title: below the status bar even while bars are hidden, sides as [keepAboveNavigationBar]. No-op on desktop. */
 @Composable
 internal expect fun Modifier.keepBelowStatusBar(): Modifier
 
 /** Fullscreen bottom controls: clear of the navigation bar, its gesture area and the display cutout even while
- *  the bars are hidden. No-op on desktop. */
+ *  the bars are hidden, with equal side padding so a one-sided cutout leaves the chrome symmetric. No-op on desktop. */
 @Composable
 internal expect fun Modifier.keepAboveNavigationBar(): Modifier
 

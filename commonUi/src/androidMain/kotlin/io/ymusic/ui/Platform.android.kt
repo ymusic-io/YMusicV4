@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.mandatorySystemGestures
 import androidx.compose.foundation.layout.navigationBarsIgnoringVisibility
 import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
 import androidx.compose.foundation.layout.systemGestures
 import androidx.compose.foundation.layout.union
@@ -35,6 +36,7 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
@@ -169,7 +171,7 @@ internal actual fun KeepScreenOn(enabled: Boolean) {
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal actual fun Modifier.keepBelowStatusBar(): Modifier =
-    windowInsetsPadding(WindowInsets.statusBarsIgnoringVisibility)
+    windowInsetsPadding(WindowInsets.statusBarsIgnoringVisibility).padding(horizontal = fullscreenSideInset())
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -178,8 +180,20 @@ internal actual fun Modifier.keepAboveNavigationBar(): Modifier =
         WindowInsets.navigationBarsIgnoringVisibility
             .union(WindowInsets.mandatorySystemGestures)
             .union(WindowInsets.displayCutout)
-            .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
-    )
+            .only(WindowInsetsSides.Bottom),
+    ).padding(horizontal = fullscreenSideInset())
+
+/** The wider of the two side insets, for both sides: a cutout or side nav bar on one edge keeps the chrome symmetric. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun fullscreenSideInset(): Dp {
+    val density = LocalDensity.current
+    val sides = WindowInsets.navigationBarsIgnoringVisibility
+        .union(WindowInsets.mandatorySystemGestures)
+        .union(WindowInsets.displayCutout)
+    val widestPx = maxOf(sides.getLeft(density, LayoutDirection.Ltr), sides.getRight(density, LayoutDirection.Ltr))
+    return with(density) { widestPx.toDp() }
+}
 
 // The system honours at most this much exclusion height per edge (config_systemGestureExclusionLimitDp).
 private val SystemGestureExclusionLimit = 200.dp
