@@ -137,9 +137,11 @@ pub struct NowPlaying {
     dragging_seek: bool,
     /// Where a seek-bar drag points; the clock shows it while dragging (the JVM scrubMs).
     scrub_ms: Option<i64>,
-    /// The video controls are up: a click on the picture toggles them, a key or the seek bar shows
-    /// them, and they hide `CONTROLS_HIDE_AFTER` past `shown_at` while playing.
+    /// The video controls are up: a click on the picture toggles them, a key, the seek bar or a
+    /// pause shows them, and they hide `CONTROLS_HIDE_AFTER` past `shown_at` while playing.
     controls_shown: bool,
+    /// [`Playback::is_playing`] at the last playback change, to catch the step into paused.
+    was_playing: bool,
     shown_at: Rc<Cell<Instant>>,
     /// The overlay's open menus, a bit each: hiding the controls would close them.
     held_menus: Rc<Cell<u8>>,
@@ -363,10 +365,16 @@ impl NowPlaying {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
+        let was_playing = playback.read(cx).is_playing();
         let seek = cx.new(|_| SliderState::new().min(0.).max(1.).step(0.001));
         let subscriptions = vec![
             cx.observe(&sponsor_block, |_, _, cx| cx.notify()),
             cx.observe_in(&playback, window, |view, playback, window, cx| {
+                let playing = playback.read(cx).is_playing();
+                if view.was_playing && !playing {
+                    view.show_controls(cx);
+                }
+                view.was_playing = playing;
                 if !view.dragging_seek {
                     let playback = playback.read(cx);
                     let fraction = if playback.duration_ms > 0 {
@@ -427,6 +435,7 @@ impl NowPlaying {
             dragging_seek: false,
             scrub_ms: None,
             controls_shown: true,
+            was_playing,
             shown_at: Rc::new(Cell::new(Instant::now())),
             held_menus: Rc::default(),
             picture_pressed: false,
