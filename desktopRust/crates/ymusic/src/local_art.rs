@@ -6,20 +6,17 @@ use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
 
-use anyhow::{Context as _, anyhow};
 use futures::future::BoxFuture;
-use image::codecs::jpeg::JpegEncoder;
-use image::{DynamicImage, RgbaImage};
+use ym_ffmpeg::{FfmpegError, FfmpegMetadataGetter};
 use ym_image_loader::async_image::LoadedImage;
 use ym_image_loader::{
     Bitmap, DEFAULT_MAX_IMAGE_BYTES, DecodedImage, ImageFetcher, ImageLoadError, ImageLoader, ImageRequest, ImageScale,
-    ImageSourceCache, Reason, decode_scaled, decode_scaled_file, scale_decoded, source_cache_key,
+    ImageSourceCache, Reason, decode_scaled, decode_scaled_file, source_cache_key,
 };
 use ym_store::{MediaItem, MediaStore};
 
 use crate::youtube_thumbnails::{youtube_image_key, youtube_thumbnail_sources};
 
-const JPEG_QUALITY: u8 = 85;
 const ART_KIND_COVER: &str = "cover";
 const ART_KIND_FRAME: &str = "frame";
 
@@ -189,15 +186,12 @@ fn resolve(
             if !path.exists() {
                 return Err(ImageLoadError::new(Reason::NotFound, format!("no such file: {url}")));
             }
-            let extract_failed = |error: anyhow::Error| {
-                ImageLoadError::new(Reason::Undecodable, format!("art extraction failed: {url}: {error:#}"))
+            let extract_failed = |error: FfmpegError| {
+                ImageLoadError::new(Reason::Undecodable, format!("art extraction failed: {url}: {error}"))
             };
-            if kind == ART_KIND_COVER {
-                let bytes = attached_picture(&path).map_err(extract_failed)?;
-                decode_scaled(&bytes, size, scale, url).map(Resolved::Decoded)
-            } else {
-                Ok(Resolved::Decoded(scale_decoded(video_frame(&path).map_err(extract_failed)?, size, scale)))
-            }
+            let bytes = if kind == ART_KIND_COVER { attached_picture(&path) } else { video_frame(&path) }
+                .map_err(extract_failed)?;
+            decode_scaled(&bytes, size, scale, url).map(Resolved::Decoded)
         }
         ArtUrl::Picture(id) => {
             let media = MEDIA
@@ -232,14 +226,10 @@ fn resolve(
                     if !path.exists() {
                         return Err(ImageLoadError::new(Reason::NotFound, format!("no such file: {url}")));
                     }
-                    let encoded = if kind == ART_KIND_COVER {
-                        attached_picture(&path)
-                    } else {
-                        video_frame(&path).and_then(encode_jpeg)
-                    }
-                    .map_err(|error| {
-                        ImageLoadError::new(Reason::Undecodable, format!("art extraction failed: {url}: {error:#}"))
-                    })?;
+                    let encoded = if kind == ART_KIND_COVER { attached_picture(&path) } else { video_frame(&path) }
+                        .map_err(|error| {
+                            ImageLoadError::new(Reason::Undecodable, format!("art extraction failed: {url}: {error}"))
+                        })?;
                     cache.write_blocking(&key, Cursor::new(encoded), DEFAULT_MAX_IMAGE_BYTES, url)?
                 }
             };
@@ -248,27 +238,15 @@ fn resolve(
     }
 }
 
-/// The embedded picture as stored (the JVM `getAttachedPic`, `-c copy`). Whole in memory:
-/// `ym_attached_pic` hands back one buffer.
-fn attached_picture(path: &Path) -> anyhow::Result<Vec<u8>> {
-    ym_mse::attached_picture(path).map_err(|code| anyhow!("attached picture: libav error {code}"))
+/// The embedded picture as stored (the JVM `getAttachedPic`). Whole in memory: `decode_scaled` takes
+/// bytes, and a bounded buffer is what lets the child be capped and timed out.
+fn attached_picture(path: &Path) -> Result<Vec<u8>, FfmpegError> {
+    FfmpegMetadataGetter::shared().get_attached_pic(path, DEFAULT_MAX_IMAGE_BYTES as usize)
 }
 
-/// One full-size frame of the video (the JVM `extractThumbnail`).
-fn video_frame(path: &Path) -> anyhow::Result<RgbaImage> {
-    let frame = ym_mse::video_frame(path, 0).map_err(|code| anyhow!("video frame: libav error {code}"))?;
-    RgbaImage::from_raw(frame.width, frame.height, frame.rgba)
-        .ok_or_else(|| anyhow!("video frame buffer does not match its size"))
-}
-
-/// A frame as the JVM extractor writes it into the cover cache: a JPEG.
-fn encode_jpeg(frame: RgbaImage) -> anyhow::Result<Vec<u8>> {
-    let mut jpeg = Cursor::new(Vec::new());
-    DynamicImage::ImageRgba8(frame)
-        .to_rgb8()
-        .write_with_encoder(JpegEncoder::new_with_quality(&mut jpeg, JPEG_QUALITY))
-        .context("encoding the video frame")?;
-    Ok(jpeg.into_inner())
+/// A representative frame as a JPEG (the JVM `extractThumbnail`), held as [`attached_picture`] is.
+fn video_frame(path: &Path) -> Result<Vec<u8>, FfmpegError> {
+    FfmpegMetadataGetter::shared().extract_thumbnail(path, DEFAULT_MAX_IMAGE_BYTES as usize)
 }
 
 /// How earlier releases named local art in saved queue rows.
