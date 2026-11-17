@@ -193,7 +193,7 @@ impl Section {
 
     fn icon(self) -> Icon {
         match self {
-            Section::Discover => Icon::new(MaterialIcon::OndemandVideo),
+            Section::Discover => Icon::new(MaterialIcon::OndemandVideoOutlined),
             Section::YtMusic => Icon::new(Lucide::CirclePlay),
             Section::Library => Icon::new(Lucide::LibraryBig),
             Section::PlayAgain => Icon::new(Lucide::RotateCcwClock),
