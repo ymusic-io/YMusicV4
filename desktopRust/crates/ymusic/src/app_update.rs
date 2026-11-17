@@ -15,7 +15,7 @@ use futures::channel::mpsc;
 use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::notification::Notification;
 use gpui_kit::component::progress::Progress;
-use gpui_kit::component::{ActiveTheme, Icon, IconName, Sizable, StyledExt, WindowExt, h_flex, v_flex};
+use gpui_kit::component::{ActiveTheme, Icon, Sizable, StyledExt, WindowExt, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use ym_i18n::{Str, t, tf};
@@ -574,7 +574,9 @@ impl Render for CheckUpdateDialog {
             Some(CheckResult::UpToDate) => h_flex()
                 .gap_4()
                 .items_center()
-                .child(Icon::new(IconName::CircleCheck).text_color(theme.success))
+                .child(
+                    Icon::new(crate::assets::MaterialIcon::CheckCircleRounded).size(px(22.)).text_color(theme.success),
+                )
                 .child(div().text_size(px(14.)).child(t(Str::UpdateUpToDate))),
             Some(CheckResult::Failed) => h_flex()
                 .child(div().text_size(px(14.)).text_color(theme.muted_foreground).child(t(Str::UpdateCheckFailed))),

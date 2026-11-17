@@ -4,7 +4,7 @@
 use gpui_kit::base::actions::Confirm;
 use gpui_kit::base::slider::{SliderEvent, SliderState};
 use gpui_kit::component::slider::Slider;
-use gpui_kit::component::{ActiveTheme, Icon, IconName, StyledExt, WindowExt, h_flex, v_flex};
+use gpui_kit::component::{ActiveTheme, Icon, StyledExt, WindowExt, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use ym_i18n::{Str, t};
@@ -247,7 +247,9 @@ impl CaptionStyleDialog {
                         .flex()
                         .items_center()
                         .justify_center()
-                        .when(is_selected, |dot| dot.child(Icon::new(IconName::Check).size(px(16.)).text_color(check))),
+                        .when(is_selected, |dot| {
+                            dot.child(Icon::new(crate::assets::MaterialIcon::Check).size(px(16.)).text_color(check))
+                        }),
                 )
                 .on_click(cx.listener(move |view, _, _, cx| view.pick(text, hex, cx)))
                 .on_action(cx.listener(move |view, _: &Confirm, _, cx| view.pick(text, hex, cx)));

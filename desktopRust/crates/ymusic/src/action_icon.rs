@@ -8,13 +8,6 @@ use gpui_kit::*;
 const ICON: f32 = 24.;
 pub const HIT: f32 = 40.;
 
-/// The size to draw a Lucide glyph at to cover what the JVM app's Material glyph of `material_size`
-/// does: Lucide's strokes reach the edges of its 24 box, Material's ink keeps within a 20 live area.
-/// Even, so it centers exactly in an even hit target.
-pub fn lucide_size(material_size: f32) -> f32 {
-    (material_size * 20. / 24. / 2.).round() * 2.
-}
-
 /// `icon` flipped in a right-to-left UI, for a glyph that points along the reading direction (back,
 /// a disclosure chevron), as Compose's AutoMirrored icons are.
 pub fn auto_mirrored(icon: impl Into<Icon>) -> Icon {
@@ -22,31 +15,13 @@ pub fn auto_mirrored(icon: impl Into<Icon>) -> Icon {
     if ym_i18n::is_rtl() { icon.transform(Transformation::scale(size(-1., 1.))) } else { icon }
 }
 
-/// A ghost button: a Lucide `icon` matching the standard glyph in the standard hit target, `label`
-/// spoken and shown as its tooltip.
-pub fn action_icon(id: impl Into<ElementId>, icon: impl Into<Icon>, label: impl Into<SharedString>) -> Button {
-    sized_action_icon(id, icon, label, ICON, HIT)
-}
-
-/// [`action_icon`] with the JVM app's own Material glyph at the standard size.
+/// A ghost button: `icon` at the standard size in the standard hit target, `label` spoken and shown as its
+/// tooltip.
 pub fn material_action_icon(id: impl Into<ElementId>, icon: impl Into<Icon>, label: impl Into<SharedString>) -> Button {
     glyph_action_icon(id, icon, label, ICON, HIT)
 }
 
-/// [`action_icon`] with a Lucide glyph matching the JVM app's `iconSize` = `icon_size`, in a `hit_size`
-/// circle.
-pub fn sized_action_icon(
-    id: impl Into<ElementId>,
-    icon: impl Into<Icon>,
-    label: impl Into<SharedString>,
-    icon_size: f32,
-    hit_size: f32,
-) -> Button {
-    glyph_action_icon(id, icon, label, lucide_size(icon_size), hit_size)
-}
-
-/// [`action_icon`] with the glyph drawn at `glyph_size` as is: for a glyph from the JVM app's own
-/// drawables, not Lucide.
+/// [`material_action_icon`] with the glyph at the JVM app's `iconSize` = `glyph_size`, in a `hit_size` circle.
 pub fn glyph_action_icon(
     id: impl Into<ElementId>,
     icon: impl Into<Icon>,

@@ -7,7 +7,7 @@ use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::menu::{DropdownMenu, PopupMenuItem};
 use gpui_kit::component::switch::Switch;
 use gpui_kit::component::{
-    ActiveTheme, Colorize, FocusableExt, Icon, IconName, StyledExt, Theme, ThemeMode, WindowExt, h_flex, v_flex,
+    ActiveTheme, Colorize, FocusableExt, Icon, StyledExt, Theme, ThemeMode, WindowExt, h_flex, v_flex,
 };
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
@@ -611,7 +611,8 @@ fn button_row(
 
 /// The end of a row that opens a panel or a page.
 fn chevron(cx: &App) -> Icon {
-    crate::action_icon::auto_mirrored(IconName::ChevronRight).text_color(cx.theme().muted_foreground)
+    crate::action_icon::auto_mirrored(crate::assets::MaterialIcon::KeyboardArrowRight)
+        .text_color(cx.theme().muted_foreground)
 }
 
 /// A control's spoken name: the row's title, then the value it shows.
@@ -657,7 +658,8 @@ pub(crate) fn language_name(tag: &str) -> String {
 
 impl SettingsView {
     fn link_row(&self, index: usize, id: &'static str, title: &'static str, url: String, cx: &App) -> AnyElement {
-        let link = Icon::new(IconName::ExternalLink).text_color(cx.theme().muted_foreground);
+        let link = crate::action_icon::auto_mirrored(crate::assets::MaterialIcon::OpenInNewOutlined)
+            .text_color(cx.theme().muted_foreground);
         let button = button_row(id, title, None, link, cx)
             .accessibility_label(title)
             .tooltip(url.clone())

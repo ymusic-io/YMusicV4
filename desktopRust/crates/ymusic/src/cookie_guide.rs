@@ -5,7 +5,6 @@
 
 use std::time::Duration;
 
-use gpui_kit::assets::IconName as Lucide;
 use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::{ActiveTheme, Icon, Selectable, StyledExt, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
@@ -13,7 +12,8 @@ use gpui_kit::*;
 use ym_i18n::{Str, t};
 
 use crate::a11y::{FocusList, label};
-use crate::action_icon::sized_action_icon;
+use crate::action_icon::glyph_action_icon;
+use crate::assets::{GUIDE_CURSOR_ICON, MaterialIcon};
 
 const WINDOW_MAX: f32 = 380.;
 const WINDOW_HEIGHT: f32 = 220.;
@@ -28,6 +28,11 @@ const MENU_WIDTH: f32 = 128.;
 const INNER_RADIUS: f32 = 9.;
 const PAUSE_ICON: f32 = 20.;
 const PAUSE_HIT: f32 = 36.;
+const PAGE_PLAY_ICON: f32 = 22.;
+/// The pointer's box, and where its tip sits in it.
+const CURSOR_BOX: f32 = 20.;
+const CURSOR_TIP_X: f32 = 5.;
+const CURSOR_TIP_Y: f32 = 1.;
 
 /// Light schematic chrome: it stays light in the dark theme so it still reads as a browser window.
 mod chrome {
@@ -205,19 +210,15 @@ impl CookieGuide {
                     .border_color(if address_focused { accent } else { rgb(chrome::TOOLS_LINE).into() })
                     .child(div().text_size(px(9.)).text_color(rgb(chrome::TEXT)).child("youtube.com")),
             );
-        let page = v_flex()
-            .flex_1()
-            .when(!tools_open, |page| page.rounded_b(px(INNER_RADIUS)))
-            .bg(rgb(chrome::PAGE))
-            .child(div().h(px(8.)).bg(rgb(chrome::HEADER)))
-            .child(
-                div()
-                    .flex_1()
-                    .flex()
-                    .items_center()
-                    .justify_center()
-                    .child(Icon::new(Lucide::Play).size(px(20.)).text_color(rgb(chrome::HEADER))),
-            );
+        let page =
+            v_flex()
+                .flex_1()
+                .when(!tools_open, |page| page.rounded_b(px(INNER_RADIUS)))
+                .bg(rgb(chrome::PAGE))
+                .child(div().h(px(8.)).bg(rgb(chrome::HEADER)))
+                .child(div().flex_1().flex().items_center().justify_center().child(
+                    Icon::new(MaterialIcon::PlayArrow).size(px(PAGE_PLAY_ICON)).text_color(rgb(chrome::HEADER)),
+                ));
         // A picture of the browser, which lays out left to right in every UI language.
         let mut frame = div()
             .relative()
@@ -259,9 +260,9 @@ impl CookieGuide {
         frame = frame.child(
             div()
                 .absolute()
-                .left(at.x - px(2.))
-                .top(at.y - px(2.))
-                .child(Icon::new(Lucide::MousePointer2).size(px(18.)).text_color(accent)),
+                .left(at.x - px(CURSOR_TIP_X))
+                .top(at.y - px(CURSOR_TIP_Y))
+                .child(Icon::empty().path(GUIDE_CURSOR_ICON).size(px(CURSOR_BOX)).text_color(accent)),
         );
         let key = match step {
             Step::DevTools => Some((self.browser.devtools_key(), true)),
@@ -402,9 +403,9 @@ impl Render for CookieGuide {
             .w_full()
             .child(self.window_frame(cx));
         let pause_label = t(if self.paused { Str::CdSigninPastePlay } else { Str::CdSigninPastePause });
-        let pause = sized_action_icon(
+        let pause = glyph_action_icon(
             "signin-paste-pause",
-            if self.paused { Lucide::Play } else { Lucide::Pause },
+            if self.paused { MaterialIcon::PlayArrow } else { MaterialIcon::Pause },
             pause_label,
             PAUSE_ICON,
             PAUSE_HIT,
