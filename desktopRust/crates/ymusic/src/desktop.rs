@@ -1410,11 +1410,10 @@ impl Tray {
 }
 
 /// GNOME on Wayland leaves decorations to the app: a client-decorated window draws its own title
-/// bar, border and resize edges. No drop shadow: its blur does not fade out on every GPU (a hard
-/// dark band around the window on the NVIDIA box), and the margin it needs is dead space.
+/// bar here; its border and resize edges are Root's frame.
 #[cfg(target_os = "linux")]
 pub fn frame(content: AnyElement, window: &mut Window, cx: &mut App) -> AnyElement {
-    use gpui_kit::component::{TitleBar, v_flex, window_border};
+    use gpui_kit::component::{TitleBar, v_flex};
     if !matches!(window.window_decorations(), Decorations::Client { .. }) {
         return content;
     }
@@ -1433,8 +1432,12 @@ pub fn frame(content: AnyElement, window: &mut Window, cx: &mut App) -> AnyEleme
         .border_color(theme.border)
         .on_close_window(|_, window, cx| close_from_title_bar(window, cx))
         .child(title);
-    let content = v_flex().size_full().bg(theme.background).child(bar).child(div().flex_1().min_h_0().child(content));
-    window_border().shadow_size(px(0.)).child(content).into_any_element()
+    v_flex()
+        .size_full()
+        .bg(theme.background)
+        .child(bar)
+        .child(div().flex_1().min_h_0().child(content))
+        .into_any_element()
 }
 
 #[cfg(target_os = "windows")]
