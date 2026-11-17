@@ -149,10 +149,10 @@ fn describe_file(store: &ym_store::MediaStore, path: PathBuf, log: &ym_common::l
         Ok(_) => {}
         Err(error) => log.warn("opened file: the Library lookup failed", Some(&error)),
     }
-    match ym_store::describe_file(&path) {
+    match ym_store::describe_file(&path, ym_ffmpeg::FfmpegMetadataGetter::shared()) {
         Ok(described) => {
-            if let Some(code) = described.probe_error {
-                log.warn(&format!("opened file probe failed (libav {code}): playing it under its name"), None);
+            if let Some(error) = &described.probe_error {
+                log.warn("opened file probe failed: playing it under its name", Some(error));
             }
             Some(QueueItem::from_file(&described.item))
         }

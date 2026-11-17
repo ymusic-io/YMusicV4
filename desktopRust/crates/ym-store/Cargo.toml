@@ -10,7 +10,7 @@ rusqlite.workspace = true
 ym-common = { path = "../ym-common" }
 thiserror.workspace = true
 tokio.workspace = true
-ym-mse = { path = "../ym-mse" }
+ym-ffmpeg = { path = "../ym-ffmpeg" }
 
 [lints]
 workspace = true

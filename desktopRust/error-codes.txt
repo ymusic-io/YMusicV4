@@ -42,6 +42,15 @@ R30003 D remote config: fetching /v1/config failed (logged; the held config stay
 R30004 D js bundle: the cached remote bundle failed its signature and was deleted (logged; embedded used)
 R31801 D remote config: /v1/config refused this build (a 4xx other than 403 or 429; captured, the held config stays)
 R31802 D remote config: /v1/config answered a config this build cannot read (captured, the held config stays)
+R40001 - ffmpeg: no ffmpeg binary found (YMUSIC_FFMPEG, beside the executable, the dev build)
+R40002 - ffmpeg: the ffmpeg binary could not be started
+R40003 - ffmpeg: a metadata or image run passed its timeout and was killed
+R40004 - ffmpeg: reading the child's stdout/stderr failed
+R40005 - ffmpeg: waiting for the child failed
+R40006 - ffmpeg: an image run wrote more than the byte cap (killed)
+R40007 - ffmpeg metadata: the `ffmpeg -i` dump has no `Input #` block (not openable as media; stderr tail in the message)
+R40008 - ffmpeg: no attached picture written (the file has no cover)
+R40009 - ffmpeg: no thumbnail frame written (no decodable video)
 R90001 D app boot: the engine cache store could not be opened (data dir I/O, index)
 R90002 D playback: the native MSE host could not be created
 R90003 D playback: the player reported an error state without a code of its own
@@ -147,6 +156,7 @@ R90039 - telemetry: the running-launch marker could not be read or written at la
 R90040 D Linux file dialog: the Tokio task driving the portal dialog failed (logged; treated as canceled)
 R90041 - downloads: Remove from disk on the selection bar could not delete a selected file or its Library row; the dialog keeps it and shows the code (the JVM E70082, captured)
 R90042 - telemetry: the running-launch marker could not be removed at quit; the next launch reports an unclean exit (logged)
+R90043 - library: the one-time Library rescan after the probe moved to the ffmpeg binary failed (flag unreadable or unsaved, or a store error); fire and forget, not retried (logged)
 R90200 D data dir: a database this app's earlier builds named differently could not take the JVM app's name (logged; retried next launch)
 R90201 D data dir: the window bounds kept in app.db could not move to window.properties (logged)
 R90202 D data dir: the old window.bounds setting could not be removed from app.db (logged)

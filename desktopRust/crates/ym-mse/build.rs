@@ -80,8 +80,6 @@ fn main() {
     for source in COMMON_C.iter().chain(platform_c) {
         c.file(native.join(source));
     }
-    c.file("native/ym_probe.c");
-    println!("cargo:rerun-if-changed=native/ym_probe.c");
     c.compile("msehost_c");
     for entry in std::fs::read_dir(&native).unwrap().flatten() {
         println!("cargo:rerun-if-changed={}", entry.path().display());
@@ -93,11 +91,6 @@ fn main() {
         println!("cargo:rustc-link-lib=dylib={name}");
     }
     println!("cargo:ffmpeg_lib={}", lib.display());
-    // The packed ffmpeg executable (rpath to its own libav) the download mux runs.
-    let packed = ffmpeg.join("pack").join(if windows { "ffmpeg.exe" } else { "ffmpeg" });
-    if packed.is_file() {
-        println!("cargo:ffmpeg_bin={}", packed.display());
-    }
     // Windows has no rpath: the executable's build copies these DLLs beside itself.
     if windows {
         println!("cargo:ffmpeg_dlls={}", ffmpeg.join("pack").display());
