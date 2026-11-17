@@ -4,10 +4,10 @@ use std::cell::Cell;
 use std::path::PathBuf;
 
 use gpui_kit::component::button::{Button, ButtonVariants};
-use gpui_kit::component::menu::{DropdownMenu, PopupMenuItem};
+use gpui_kit::component::menu::{DropdownMenu, PopupMenuItem, PopupMenuStyle};
 use gpui_kit::component::switch::Switch;
 use gpui_kit::component::{
-    ActiveTheme, Colorize, FocusableExt, Icon, StyledExt, Theme, ThemeMode, WindowExt, h_flex, v_flex,
+    ActiveTheme, Colorize, FocusableExt, Icon, Side, StyledExt, Theme, ThemeMode, WindowExt, h_flex, v_flex,
 };
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
@@ -63,6 +63,7 @@ fn apply_theme(choice: &str, accent: &str, cx: &mut App) {
     let mut stack = StackTones { near: black(), far: black(), tab: black() };
     let mut container = AccentTones { ground: black(), ink: black() };
     let mut card = CardTones { ground: black(), ink: black() };
+    let mut menu = PopupMenuStyle::default();
     Theme::update(cx, |theme| {
         if let Some(font) = ui_font {
             theme.font_family = font;
@@ -114,6 +115,7 @@ fn apply_theme(choice: &str, accent: &str, cx: &mut App) {
         tones = ChromeTones { flat: palette.surface, lifted: palette.surface_elevated, dialog };
         stack = StackTones { near: palette.stack_near, far: palette.stack_far, tab: palette.stack_tab };
         card = CardTones { ground: palette.surface_dim, ink: palette.ink_muted };
+        menu = menu_style(&palette, accent);
         container = if theme.mode.is_dark() {
             AccentTones { ground: oklab_lerp(palette.surface, accent, 0.3), ink: oklab_lerp(accent, white(), 0.35) }
         } else {
@@ -124,6 +126,7 @@ fn apply_theme(choice: &str, accent: &str, cx: &mut App) {
     cx.set_global(stack);
     cx.set_global(container);
     cx.set_global(card);
+    cx.set_global(menu);
 }
 
 /// The JVM app's `primaryContainer` / `onPrimaryContainer`: a selected rail or drawer entry, the
@@ -158,9 +161,60 @@ pub struct StackTones {
 
 impl Global for StackTones {}
 
-/// Every menu's divider: the stock separator draws theme.border, which barely shows on the dark menu.
-pub fn menu_divider() -> PopupMenuItem {
-    PopupMenuItem::element(|_, cx| div().w_full().h(px(1.)).bg(cx.global::<StackTones>().near)).disabled(true)
+/// Every menu as the JVM app draws Material 3's `DropdownMenu` (androidx material3 1.4 `Menu.kt`,
+/// `MenuTokens`, `ListTokens`) with its theme and `MoreMenuItem` / `MoreMenuDivider`.
+fn menu_style(palette: &Palette, accent: Hsla) -> PopupMenuStyle {
+    PopupMenuStyle {
+        background: Some(palette.surface_dim),
+        radius: Some(px(4.)),
+        // Elevation level 2 (3dp), as Material's own CSS spells it; gpui's blur is CSS's halved.
+        shadow: Some(vec![
+            BoxShadow::new(px(0.), px(1.), black().opacity(0.3)).blur_radius(px(1.)),
+            BoxShadow::new(px(0.), px(2.), black().opacity(0.15)).blur_radius(px(3.)).spread_radius(px(2.)),
+        ]),
+        offset: Some(px(0.)),
+        padding_x: Some(px(0.)),
+        padding_y: Some(px(8.)),
+        item_gap: Some(px(0.)),
+        min_width: Some(px(112.)),
+        max_width: Some(px(280.)),
+        item_height: Some(px(48.)),
+        item_padding_x: Some(px(12.)),
+        item_radius: Some(px(0.)),
+        highlight: Some(accent.opacity(HOVER_ALPHA)),
+        text_size: Some(px(14.)),
+        line_height: Some(px(20.)),
+        font_weight: Some(FontWeight::MEDIUM),
+        disabled_color: Some(palette.ink.opacity(0.38)),
+        icon_size: Some(px(20.)),
+        icon_color: Some(palette.ink_muted),
+        icon_slot: Some(px(24.)),
+        icon_gap: Some(px(12.)),
+        trailing_gap: Some(px(12.)),
+        trailing_slot: Some(px(24.)),
+        check_side: Some(Side::Right),
+        check_size: Some(px(24.)),
+        check_color: Some(accent),
+        check_visible: None,
+        checked_color: None,
+        checked_weight: None,
+        submenu_icon_size: Some(px(18.)),
+        submenu_icon_color: Some(palette.ink_secondary),
+        detail_text_size: Some(px(13.)),
+        detail_weight: Some(FontWeight::NORMAL),
+        detail_color: Some(palette.ink_secondary),
+        detail_max_width: Some(px(96.)),
+        separator_color: Some(palette.stack_near),
+        separator_thickness: Some(px(1.)),
+        separator_margin_y: Some(px(4.)),
+        // `MenuGroupLabel`.
+        label_text_size: Some(px(11.)),
+        label_line_height: Some(px(13.)),
+        label_weight: Some(FontWeight::SEMIBOLD),
+        label_color: Some(palette.ink_secondary),
+        label_padding_x: Some(px(16.)),
+        label_padding_y: Some(px(8.)),
+    }
 }
 
 /// The JVM app's `SurfaceDim` / `InkMuted`: a card lifted off the page and its secondary text.

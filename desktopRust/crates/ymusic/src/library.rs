@@ -1512,7 +1512,7 @@ pub fn song_cell<V: SongMenuHost>(
                 );
             }
             menu_list
-                .item(crate::settings_view::menu_divider())
+                .separator()
                 .item(PopupMenuItem::new(reveal_label()).on_click(move |_, _, cx| cx.reveal_path(&path)))
                 .item(PopupMenuItem::new(t(Str::MenuRemoveFromDisk)).on_click(move |_, window, cx| {
                     library_playlist::confirm_delete_from_disk(

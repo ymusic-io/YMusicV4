@@ -985,7 +985,7 @@ impl NowPlaying {
                             .collect();
                         if !recent.is_empty() {
                             items.extend(recent.into_iter().map(&pick));
-                            items.push(crate::settings_view::menu_divider());
+                            items.push(PopupMenuItem::separator());
                         }
                         items.extend(translations.iter().map(&pick));
                         let items = std::rc::Rc::new(std::cell::RefCell::new(Some(items)));
@@ -1412,7 +1412,7 @@ impl NowPlaying {
                         },
                     ),
                 );
-                menu = menu.item(crate::settings_view::menu_divider());
+                menu = menu.separator();
                 let effects = queue_playback.read(cx).effects;
                 let speed = format!("{}×", crate::speed_pitch::trimmed(effects.speed));
                 let speed_pitch = view.clone();
@@ -1466,7 +1466,7 @@ impl NowPlaying {
                     );
                 }
                 let reload = queue_playback.clone();
-                menu.item(crate::settings_view::menu_divider()).item(
+                menu.separator().item(
                     PopupMenuItem::new(t(Str::MenuReloadPlayer))
                         .icon(icon(MaterialIcon::RefreshOutlined))
                         .on_click(move |_, _, cx| reload.update(cx, |playback, cx| playback.reload(cx))),
