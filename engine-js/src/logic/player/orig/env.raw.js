@@ -4337,5 +4337,8 @@
     endLayoutProbes: function () {
       layoutProbes = false;
     },
+    startLayoutProbes: function () {
+      layoutProbes = true;
+    },
   };
 })();

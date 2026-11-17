@@ -11,9 +11,15 @@ import {
   onLoopAtEnd,
   resetDrainCounts,
 } from "../../protocol/mse";
-import { applyChromeShapes, applyNavigatorLanguages, endLayoutProbes, installOrigEnv } from "./env";
+import {
+  applyChromeShapes,
+  applyNavigatorLanguages,
+  endLayoutProbes,
+  installOrigEnv,
+  startLayoutProbes,
+} from "./env";
 import { installMediaCapabilities } from "./media_caps";
-import { applyHostScreen } from "./device";
+import { applyHostScreen, withEnvScreen } from "./device";
 import { installXhr } from "../yt/xhr";
 import { installFetch } from "../yt/fetch";
 import { executeWithCookies } from "../yt/cookies";
@@ -669,6 +675,21 @@ export interface PlayerLoadOptions {
   loop: boolean;
 }
 
+/** A re-mint's BotGuard run sees the env the first snapshot saw: desktop geometry, real layout. */
+function asFirstMint<T>(fn: () => Promise<T>): Promise<T> {
+  startLayoutProbes();
+  return withEnvScreen(fn).then(
+    function (value) {
+      endLayoutProbes();
+      return value;
+    },
+    function (e: unknown) {
+      endLayoutProbes();
+      throw e;
+    },
+  );
+}
+
 class Player {
   private player: YtApp | null = null;
   private speed = 1;
@@ -739,8 +760,10 @@ class Player {
     applyChromeShapes();
     this.mintFn = await initStep(minterFromConfig(cfg, out), "botguard", "E20156");
     setRemintHook(function () {
-      return remint(function () {
-        return fetchPlayerConfig(true);
+      return asFirstMint(function () {
+        return remint(function () {
+          return fetchPlayerConfig(true);
+        });
       });
     });
     endLayoutProbes();

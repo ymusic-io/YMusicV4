@@ -80,6 +80,12 @@ export function endLayoutProbes(): void {
   if (typeof end === "function") (end as () => void)();
 }
 
+/** Real layout again, for a re-mint: BotGuard measures text, and zero heights are no browser. */
+export function startLayoutProbes(): void {
+  const start = origEnvHandle ? origEnvHandle["startLayoutProbes"] : undefined;
+  if (typeof start === "function") (start as () => void)();
+}
+
 /** navigator.language(s) as Chrome derives them from the Accept-Language the homepage was fetched
  *  with; kept at the env default when the config predates `acceptLanguage`. */
 export function applyNavigatorLanguages(acceptLanguage: unknown): void {
