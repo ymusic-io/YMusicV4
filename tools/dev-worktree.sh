@@ -7,16 +7,20 @@
 #   tools/dev-worktree.sh setup
 #       idempotent, inside any checkout: links the main checkout's gitignored build inputs
 #       (secrets.properties, local.properties, signing/), makes ../ffmpeg-build resolve, copies the built
-#       engine bundles, writes .ymusic-dev.env (FFMPEG_BUILD_DIR), then tools/dev-slot.sh claim
+#       engine bundles, writes .ymusic-dev.env (FFMPEG_BUILD_DIR), then tools/dev-data.sh create (the
+#       checkout's own copy of ~/.ymusic)
 #   tools/dev-worktree.sh run kotlin|rust
-#       the desktop app of this checkout on its dev slot
-#   tools/dev-worktree.sh remove <path-or-branch> [--wipe] [--delete-branch]
-#       tools/dev-slot.sh release, then git worktree remove; the branch stays unless --delete-branch
+#       the desktop app of this checkout on its data dir
+#   tools/dev-worktree.sh remove <path-or-branch> [--keep-data] [--delete-branch]
+#       deletes the worktree's data dir (unless --keep-data), then git worktree remove; the branch stays
+#       unless --delete-branch
+#   tools/dev-worktree.sh list | prune
+#       the data dirs and their checkouts; prune deletes those whose checkout is gone
 set -euo pipefail
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd -P)
 ENV_FILE_NAME=.ymusic-dev.env
-SLOT_FILE_NAME=.ymusic-dev-slot
+DATA_FILE_NAME=.ymusic-dev-data
 
 die() {
     echo "dev-worktree: $*" >&2
@@ -70,7 +74,7 @@ cmd_setup() {
     else
         echo "  no ffmpeg-build at $ffmpeg_build: build it (ffmpeg-build/scripts/build-desktop.sh) or set FFMPEG_BUILD_DIR"
     fi
-    "$SCRIPT_DIR/dev-slot.sh" claim
+    "$SCRIPT_DIR/dev-data.sh" create
 }
 
 cmd_new() {
@@ -105,7 +109,7 @@ cmd_new() {
 cmd_run() {
     local root
     root=$(checkout_root)
-    [ -f "$root/$SLOT_FILE_NAME" ] || echo "no dev slot here: the app runs on the default data dir (tools/dev-worktree.sh setup claims one)"
+    [ -f "$root/$DATA_FILE_NAME" ] || echo "no workspace data dir here: the app runs on the default one (tools/dev-worktree.sh setup makes one)"
     case "${1:-}" in
         kotlin)
             cd "$root"
@@ -128,16 +132,16 @@ cmd_run() {
 }
 
 cmd_remove() {
-    local target="" wipe="" delete_branch=0
+    local target="" keep_data="" delete_branch=0
     while [ $# -gt 0 ]; do
         case "$1" in
-            --wipe) wipe=--wipe ;;
+            --keep-data) keep_data=--keep-data ;;
             --delete-branch) delete_branch=1 ;;
             *) target=$1 ;;
         esac
         shift
     done
-    [ -n "$target" ] || die "usage: tools/dev-worktree.sh remove <path-or-branch> [--wipe] [--delete-branch]"
+    [ -n "$target" ] || die "usage: tools/dev-worktree.sh remove <path-or-branch> [--keep-data] [--delete-branch]"
     local path="" branch="" line current="" current_branch=""
     while IFS= read -r line; do
         case "$line" in
@@ -160,11 +164,11 @@ cmd_remove() {
     done
     rm -f "$path/$ENV_FILE_NAME"
     local changes
-    changes=$(cd "$path" && git status --porcelain -- . ":!$SLOT_FILE_NAME")
+    changes=$(cd "$path" && git status --porcelain -- . ":!$DATA_FILE_NAME")
     [ -z "$changes" ] || die "$path has changes, commit or discard them first:
 $changes"
-    if [ -f "$path/$SLOT_FILE_NAME" ]; then
-        (cd "$path" && "$SCRIPT_DIR/dev-slot.sh" release $wipe)
+    if [ -f "$path/$DATA_FILE_NAME" ]; then
+        (cd "$path" && "$SCRIPT_DIR/dev-data.sh" remove $keep_data)
     fi
     git worktree remove "$path"
     echo "removed $path"
@@ -177,5 +181,6 @@ case "${1:-}" in
         shift
         "cmd_$command" "$@"
         ;;
-    *) die "usage: tools/dev-worktree.sh new <branch> [base] [--path <dir>] | setup | run kotlin|rust | remove <path-or-branch> [--wipe] [--delete-branch]" ;;
+    list | prune) "$SCRIPT_DIR/dev-data.sh" "$1" ;;
+    *) die "usage: tools/dev-worktree.sh new <branch> [base] [--path <dir>] | setup | run kotlin|rust | remove <path-or-branch> [--keep-data] [--delete-branch] | list | prune" ;;
 esac

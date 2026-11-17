@@ -106,7 +106,7 @@ Commit every change before the session ends. One logical change per commit.
 Never leave a working tree of mixed experiments uncommitted: later we cannot
 tell what used to work, what broke it, or why (engine-js vs native MSE vs player vs UI).
 
-- **Worktrees for desktop work:** create them with `tools/dev-worktree.sh new <branch>`, or run `tools/dev-worktree.sh setup` inside one a harness made. It links the gitignored build inputs and claims the checkout's own dev data slot (`tools/dev-slot.sh`), so dev builds of several branches run side by side.
+- **Worktrees for desktop work:** create them with `tools/dev-worktree.sh new <branch>`, or run `tools/dev-worktree.sh setup` inside one a harness made. It links the gitignored build inputs and gives the checkout its own copy of `~/.ymusic` (`tools/dev-data.sh`), so dev builds of several branches run side by side; `tools/dev-worktree.sh remove` deletes both again.
 - Message: what changed and why, not a diary of tool calls.
 - **Every commit message carries one `Rust:` line** — `Rust: ported` (its desktopRust/ side is in this commit or this branch) or `Rust: n/a. <why it does not apply>`. There is no todo: port it in the same branch. The commit-msg hook (`.githooks/commit-msg`) rejects anything else; merge commits are exempt.
 - Do not mix unrelated work (engine-js vs `:mse` host vs player vs UI) in one commit.

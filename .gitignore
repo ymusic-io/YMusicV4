@@ -17,7 +17,7 @@ tools
 # The dev setup scripts are shared; the rest of the root tools/ stays private.
 !/tools/
 /tools/*
-!/tools/dev-slot.sh
+!/tools/dev-data.sh
 !/tools/dev-worktree.sh
 test-cache
 ymusic-android
@@ -53,8 +53,8 @@ secrets.properties
 # no trailing slash: a worktree links signing/ in from the main checkout (tools/dev-worktree.sh)
 /signing
 
-# this checkout's dev data slot (tools/dev-slot.sh) and dev env (tools/dev-worktree.sh)
-/.ymusic-dev-slot
+# this checkout's workspace data dir (tools/dev-data.sh) and dev env (tools/dev-worktree.sh)
+/.ymusic-dev-data
 /.ymusic-dev.env
 
 # legacy app sources, kept locally for reference only
