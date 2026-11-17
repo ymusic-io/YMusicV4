@@ -11,10 +11,9 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 
-use gpui_kit::assets::IconName as Lucide;
 use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::menu::{DropdownMenu, PopupMenuItem};
-use gpui_kit::component::{ActiveTheme, Disableable, Icon, IconName, Sizable, StyledExt, WindowExt, h_flex, v_flex};
+use gpui_kit::component::{ActiveTheme, Disableable, Icon, Sizable, StyledExt, WindowExt, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use ym_i18n::{Str, t, tf};
@@ -22,7 +21,8 @@ use ym_image_loader::async_image::async_image_of;
 use ym_store::{Bucket, MediaItem, MediaStore, Playlist, PlaylistItemDetail};
 
 use crate::a11y::{DragRow, FocusList, announced, heading, label, list_item};
-use crate::action_icon::action_icon;
+use crate::action_icon::{auto_mirrored, material_action_icon};
+use crate::assets::MaterialIcon;
 use crate::graph::{AppGraph, on_core};
 use crate::lazy_rows::LazyRows;
 use crate::library_playlist::{self, AddToLocalPlaylist, ArrangePlaylist, Changed, NameMode, PlaylistNameDialog};
@@ -160,12 +160,14 @@ const CARD_MAX: f32 = 176.;
 const SONG_MIN: f32 = 360.;
 const GRID_PADDING: f32 = 10.;
 const THUMB: f32 = 56.;
+const THUMB_ICON: f32 = 21.;
+const GRID_CARD_ICON: f32 = 28.;
 pub const SONG_ROW_ESTIMATE: f32 = 72.;
 const CARD_ROW_ESTIMATE: f32 = 72.;
 /// The Playlists tab's first cards, ahead of the user's playlists.
-const SYSTEM_PLAYLISTS: [(OpenPlaylist, Lucide, Str); 2] = [
-    (OpenPlaylist::Recent, Lucide::RotateCcwClock, Str::PlaylistRecentPlayDesc),
-    (OpenPlaylist::Top, Lucide::Flame, Str::PlaylistTopTracksDesc),
+const SYSTEM_PLAYLISTS: [(OpenPlaylist, MaterialIcon, Str); 2] = [
+    (OpenPlaylist::Recent, MaterialIcon::History, Str::PlaylistRecentPlayDesc),
+    (OpenPlaylist::Top, MaterialIcon::Whatshot, Str::PlaylistTopTracksDesc),
 ];
 
 /// The cards a Library tab lists: its folders, playlists or artist / album / genre groups.
@@ -1377,13 +1379,13 @@ fn wheel_scrolls_row(row: ScrollHandle) -> impl Fn(&ScrollEvent, &mut Window, &m
 /// The artwork filling its frame with `corner_radius` corners, the icon while it loads or when there
 /// is none.
 pub fn art_or_icon(
-    icon: Lucide,
+    icon: Icon,
     art: Option<SharedString>,
     icon_size: Pixels,
     corner_radius: f32,
     cx: &App,
 ) -> AnyElement {
-    let placeholder = Icon::new(icon).size(icon_size).text_color(cx.theme().muted_foreground);
+    let placeholder = icon.size(icon_size).text_color(cx.theme().muted_foreground);
     match art {
         Some(url) => async_image_of(Some(art_request_sources(&url)))
             .size_full()
@@ -1438,7 +1440,7 @@ pub fn song_cell<V: SongMenuHost>(
         .join(", ");
     let view = cx.entity().downgrade();
     let song = item.clone();
-    let more = action_icon(("song-more", index), IconName::EllipsisVertical, t(Str::CdMore));
+    let more = material_action_icon(("song-more", index), MaterialIcon::MoreVert, t(Str::CdMore));
     let more = focus.trailing_button(index, 0, more, cx).dropdown_menu_with_anchor(
         Anchor::TopRight,
         move |menu_list, _, _| {
@@ -1533,7 +1535,7 @@ pub fn song_cell<V: SongMenuHost>(
         .rounded(px(10.))
         .hover(|style| style.bg(theme.primary.opacity(crate::settings_view::HOVER_ALPHA)))
         .child(LibraryView::thumb(
-            if item.video_codec.is_some() { Lucide::Film } else { Lucide::Music },
+            Icon::new(MaterialIcon::MusicNote),
             crate::local_art::local_art_url(item).map(SharedString::from),
             item.duration_ms,
             cx,
@@ -1552,12 +1554,12 @@ pub fn song_cell<V: SongMenuHost>(
 }
 
 fn more_button(id: impl Into<ElementId>) -> Button {
-    action_icon(id, IconName::EllipsisVertical, t(Str::CdMore))
+    material_action_icon(id, MaterialIcon::MoreVert, t(Str::CdMore))
 }
 
 impl LibraryView {
     /// A 56 thumbnail: the art, else the file kind's icon, with the duration badged at the bottom-end.
-    pub fn thumb(icon: Lucide, art: Option<SharedString>, duration_ms: Option<i64>, cx: &App) -> Div {
+    pub fn thumb(icon: Icon, art: Option<SharedString>, duration_ms: Option<i64>, cx: &App) -> Div {
         let theme = cx.theme();
         div()
             .relative()
@@ -1569,7 +1571,7 @@ impl LibraryView {
             .flex()
             .items_center()
             .justify_center()
-            .child(art_or_icon(icon, art, px(20.), 10., cx))
+            .child(art_or_icon(icon, art, px(THUMB_ICON), 10., cx))
             .when_some(duration_ms, |thumb, duration| {
                 thumb.child(
                     div()
@@ -1603,7 +1605,7 @@ impl LibraryView {
     fn card(
         id: ElementId,
         position: usize,
-        icon: Lucide,
+        icon: Icon,
         art: Option<SharedString>,
         title: String,
         subtitle: Option<String>,
@@ -1642,14 +1644,14 @@ impl LibraryView {
                         .flex()
                         .items_center()
                         .justify_center()
-                        .child(art_or_icon(icon, art, px(40.), 10., cx))
+                        .child(art_or_icon(icon, art, px(GRID_CARD_ICON), 10., cx))
                         .when(marked, |tile| {
                             tile.child(
                                 div()
                                     .absolute()
                                     .top(px(6.))
                                     .left(px(6.))
-                                    .child(Icon::new(Lucide::Download).size(px(18.)).text_color(theme.primary)),
+                                    .child(Icon::new(MaterialIcon::Download).size(px(18.)).text_color(theme.primary)),
                             )
                         }),
                 )
@@ -1662,7 +1664,7 @@ impl LibraryView {
                         .gap_1()
                         .items_center()
                         .min_w_0()
-                        .child(Icon::new(Lucide::Download).size(px(14.)).text_color(theme.primary))
+                        .child(Icon::new(MaterialIcon::Download).size(px(14.)).text_color(theme.primary))
                         .child(
                             div()
                                 .text_xs()
@@ -1696,7 +1698,7 @@ impl LibraryView {
             .outline()
             .small()
             .rounded_full()
-            .icon(Lucide::ArrowUpDown)
+            .icon(auto_mirrored(MaterialIcon::Sort))
             .label(current)
             .accessibility_label(format!("{}, {current}", t(Str::CdSort)))
             .track_focus(&self.tool_focus.handle(TOOL_SORT, cx))
@@ -1714,13 +1716,13 @@ impl LibraryView {
                 menu
             });
         let toggle = if manual {
-            action_icon("sort-direction", Lucide::SquarePen, t(Str::ArrangeSongs))
+            material_action_icon("sort-direction", MaterialIcon::EditOutlined, t(Str::ArrangeSongs))
                 .on_click(cx.listener(|view, _, window, cx| view.arrange(window, cx)))
         } else {
             let direction = if state.descending { Str::CdSortDescending } else { Str::CdSortAscending };
-            action_icon(
+            material_action_icon(
                 "sort-direction",
-                if state.descending { IconName::ArrowDown } else { IconName::ArrowUp },
+                if state.descending { MaterialIcon::ArrowDownward } else { MaterialIcon::ArrowUpward },
                 t(direction),
             )
             .on_click(cx.listener(move |view, _, _, cx| {
@@ -1740,7 +1742,7 @@ impl LibraryView {
         self.tool_focus
             .button(
                 TOOL_RESCAN,
-                action_icon("rescan", Lucide::RefreshCw, t(Str::LibraryRescan))
+                material_action_icon("rescan", MaterialIcon::Refresh, t(Str::LibraryRescan))
                     .disabled(self.scanning)
                     .on_click(cx.listener(|view, _, _, cx| view.rescan(cx))),
                 cx,
@@ -1774,11 +1776,7 @@ impl LibraryView {
             },
         ));
         bar.child(self.crumb_focus.item(0, link, cx))
-            .child(
-                crate::action_icon::auto_mirrored(IconName::ChevronRight)
-                    .size(px(16.))
-                    .text_color(theme.muted_foreground),
-            )
+            .child(auto_mirrored(MaterialIcon::KeyboardArrowRight).size(px(16.)).text_color(theme.muted_foreground))
             .child(div().text_sm().font_semibold().truncate().child(title))
             .when(has_songs, |bar| bar.child(self.shuffle_chip(cx)))
     }
@@ -1827,7 +1825,7 @@ impl LibraryView {
                 for (depth, bucket) in self.path.iter().enumerate() {
                     let name = bucket.display_name().to_owned();
                     crumbs = crumbs.child(
-                        crate::action_icon::auto_mirrored(IconName::ChevronRight)
+                        auto_mirrored(MaterialIcon::KeyboardArrowRight)
                             .size(px(16.))
                             .text_color(theme.muted_foreground),
                     );
@@ -1922,7 +1920,7 @@ impl LibraryView {
             .outline()
             .small()
             .rounded_full()
-            .icon(Lucide::Shuffle)
+            .icon(MaterialIcon::Shuffle)
             .label(t(Str::ShuffleAll))
             .on_click(cx.listener(|view, _, _, cx| view.shuffle_all(cx)));
         self.tool_focus.button(TOOL_SHUFFLE, chip, cx)
@@ -1982,7 +1980,7 @@ impl LibraryView {
         let card = Self::card(
             ("folder", index).into(),
             index,
-            Lucide::Folder,
+            Icon::new(MaterialIcon::Folder),
             None,
             bucket.display_name().to_owned(),
             (!grid).then(|| t(Str::LibraryFolder).to_owned()),
@@ -2010,7 +2008,7 @@ impl LibraryView {
             let card = Self::card(
                 ("system-playlist", index).into(),
                 index,
-                icon,
+                Icon::new(icon),
                 None,
                 open.title(),
                 Some(t(description).to_owned()),
@@ -2046,7 +2044,7 @@ impl LibraryView {
         let card = Self::card(
             ("user-playlist", position).into(),
             index,
-            Lucide::ListMusic,
+            auto_mirrored(MaterialIcon::PlaylistPlay),
             art,
             playlist.name.clone(),
             Some(subtitle),
@@ -2072,11 +2070,11 @@ impl LibraryView {
         grid: bool,
         cx: &mut Context<Self>,
     ) -> AnyElement {
-        let icon = match self.tab {
-            Tab::Artists => Lucide::User,
-            Tab::Albums => Lucide::Disc,
-            _ => Lucide::Tag,
-        };
+        let icon = Icon::new(match self.tab {
+            Tab::Artists => MaterialIcon::Person,
+            Tab::Albums => MaterialIcon::Album,
+            _ => MaterialIcon::Category,
+        });
         let (name, count, art_item) = group.clone();
         let art = art_item.and_then(|item| crate::local_art::local_art_url(&item).map(SharedString::from));
         let subtitle = ym_i18n::plural(ym_i18n::Plural::NSongs, count as i64, &[&count]);
