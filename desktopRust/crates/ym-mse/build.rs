@@ -80,8 +80,6 @@ fn main() {
     for source in COMMON_C.iter().chain(platform_c) {
         c.file(native.join(source));
     }
-    c.file("native/ym_probe.c");
-    println!("cargo:rerun-if-changed=native/ym_probe.c");
     c.compile("msehost_c");
     for entry in std::fs::read_dir(&native).unwrap().flatten() {
         println!("cargo:rerun-if-changed={}", entry.path().display());

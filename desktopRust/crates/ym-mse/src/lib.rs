@@ -10,7 +10,7 @@ pub use frames::{
     Matrix, Picture, PictureKind, PlaneLayout, QueueFamily, QueueLock, VulkanDevice, VulkanFormat, VulkanImageState,
     decode_on_vulkan,
 };
-pub use local::{AvStream, Cue, Frame, LocalAv, Probe, StreamKind, attached_picture, probe, video_frame};
+pub use local::{AvStream, Cue, LocalAv, StreamKind};
 
 /// EQ bands' centre frequencies, Hz.
 pub const EQ_BANDS_HZ: [u32; 10] = [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
