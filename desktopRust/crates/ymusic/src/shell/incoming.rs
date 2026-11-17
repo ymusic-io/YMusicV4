@@ -126,7 +126,7 @@ impl Shell {
                     Source::YouTube(_) => None,
                 });
                 cx.global::<AppGraph>().temporary_uris.lock().unwrap().extend(loose);
-                shell.playback.update(cx, |playback, cx| playback.play_queue(items, 0, cx));
+                shell.playback.update(cx, |playback, cx| playback.play_queue(items, 0, None, cx));
                 shell.now_playing_open = true;
                 shell.show_window(cx);
                 cx.notify();

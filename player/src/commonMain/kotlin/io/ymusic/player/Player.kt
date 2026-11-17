@@ -94,7 +94,8 @@ interface Player {
 
     fun clearQueue()
 
-    /** Jump to and load the queue item at [index]. */
+    /** Jump to and load the queue item at [index]. The current item is reloaded only when it failed
+     *  or ended; otherwise it plays on, resumes when paused, or keeps loading (a repeat tap). */
     fun playAt(index: Int)
 
     fun play()
