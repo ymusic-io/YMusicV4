@@ -37,11 +37,19 @@ struct Slot {
     painted: Cell<u64>,
     /// The visible part of the list's scroll container then, which clips what the stop shows.
     viewport: Cell<Option<Bounds<Pixels>>>,
-    /// The item's ⋮, which Shift+F10 and the Menu key open.
+    /// The item's ⋮, which Shift+F10 and the Menu key open, kept across frames for its dropdown state.
     menu: RefCell<Option<FocusHandle>>,
+    /// Set by this build's [`FocusList::menu_button`], taken by the item's: a later item at this position
+    /// without a ⋮ must not expose the old one.
+    menu_armed: Cell<bool>,
 }
 
 impl Slot {
+    /// The ⋮ this build's item has, consuming [`Self::menu_armed`].
+    fn take_menu(&self) -> Option<FocusHandle> {
+        if self.menu_armed.replace(false) { self.menu.borrow().clone() } else { None }
+    }
+
     /// What shows of the stop, `None` when it is scrolled out of its list's viewport.
     fn visible(&self) -> Option<Bounds<Pixels>> {
         let bounds = self.bounds.get();
@@ -245,8 +253,8 @@ fn arrows<E: InteractiveElement>(element: E, sideways: bool) -> E {
     })
 }
 
-/// [`on_arrows`], and Shift+F10 or the Menu key while `slot` itself holds focus opens its item's ⋮.
-fn on_menu_key<E: InteractiveElement>(slot: &Rc<Slot>, element: E) -> E {
+/// [`on_arrows`], and Shift+F10 or the Menu key while `slot` itself holds focus opens its item's ⋮, `menu`.
+fn on_menu_key<E: InteractiveElement>(slot: &Rc<Slot>, menu: Option<FocusHandle>, element: E) -> E {
     let slot = slot.clone();
     on_arrows(element).on_key_down(move |event: &KeyDownEvent, window, cx| {
         let modifiers = &event.keystroke.modifiers;
@@ -258,9 +266,8 @@ fn on_menu_key<E: InteractiveElement>(slot: &Rc<Slot>, element: E) -> E {
         if !pressed || modifiers.platform || modifiers.control || modifiers.alt || !slot.handle.is_focused(window) {
             return;
         }
-        let menu = slot.menu.borrow().clone();
-        if let Some(menu) = menu {
-            open_menu(&menu, window, cx);
+        if let Some(menu) = &menu {
+            open_menu(menu, window, cx);
             cx.stop_propagation();
         }
     })
@@ -352,6 +359,7 @@ impl FocusList {
                 painted: Cell::new(0),
                 viewport: Cell::new(None),
                 menu: RefCell::default(),
+                menu_armed: Cell::new(false),
             });
             RovingItems::register(cx, &slot);
             slots.push(slot);
@@ -374,6 +382,7 @@ impl FocusList {
             painted: Cell::new(0),
             viewport: Cell::new(None),
             menu: RefCell::default(),
+            menu_armed: Cell::new(false),
         });
         RovingItems::register(cx, &slot);
         self.slots.borrow_mut()[index] = slot.clone();
@@ -433,12 +442,13 @@ impl FocusList {
 
     fn ringed(&self, slot: Rc<Slot>, element: Stateful<Div>, row: Option<ScrollHandle>, cx: &App) -> Stateful<Div> {
         let ring = cx.theme().ring;
-        let menu = slot.menu.borrow().clone();
-        let element = element.when_some(menu, |element, menu| {
+        let menu = slot.take_menu();
+        let element = element.when_some(menu.clone(), |element, menu| {
             element.on_a11y_action(AccessibleAction::ShowContextMenu, move |_, window, cx| open_menu(&menu, window, cx))
         });
         on_menu_key(
             &slot,
+            menu,
             element
                 .track_focus(&slot.handle)
                 .relative()
@@ -480,13 +490,23 @@ impl FocusList {
     /// Makes `element`, already tracking [`Self::handle`]`(index)`, the list's `index`th stop.
     pub fn wrap(&self, index: usize, element: impl IntoElement, cx: &App) -> Div {
         let slot = self.slot(index, cx);
-        on_menu_key(&slot, div().relative().flex_shrink_0().child(element).child(self.tracker(slot.clone(), None)))
+        let menu = slot.take_menu();
+        on_menu_key(
+            &slot,
+            menu,
+            div().relative().flex_shrink_0().child(element).child(self.tracker(slot.clone(), None)),
+        )
     }
 
     /// [`Self::wrap`] for `element` already tracking `handle`, one the view holds to focus it by.
     pub fn wrap_for(&self, index: usize, handle: &FocusHandle, element: impl IntoElement, cx: &App) -> Div {
         let slot = self.slot_for(index, handle, cx);
-        on_menu_key(&slot, div().relative().flex_shrink_0().child(element).child(self.tracker(slot.clone(), None)))
+        let menu = slot.take_menu();
+        on_menu_key(
+            &slot,
+            menu,
+            div().relative().flex_shrink_0().child(element).child(self.tracker(slot.clone(), None)),
+        )
     }
 
     /// Scrolls the `index`th stop into view on the next paint, as when it gains focus: a toggle
@@ -530,7 +550,12 @@ impl FocusList {
         .top_0()
         .left_0()
         .size_full();
-        on_menu_key(&slot, div().relative().w_full().child(element).child(self.tracker(slot.clone(), None)).child(ring))
+        let menu = slot.take_menu();
+        on_menu_key(
+            &slot,
+            menu,
+            div().relative().w_full().child(element).child(self.tracker(slot.clone(), None)).child(ring),
+        )
     }
 
     /// [`Self::row`] for a row that is one button.
@@ -617,9 +642,11 @@ impl FocusList {
 
     /// Makes `button` the `index`th item's ⋮: not a Tab stop; Shift+F10 or the Menu key on the item
     /// opens it, and so does the screen reader's show-menu action. `button` carries the dropdown menu.
+    /// Call it before the item's own builder ([`Self::item`], [`Self::wrap`], [`Self::row`]) in every build.
     pub fn menu_button(&self, index: usize, button: Button, cx: &App) -> Button {
         let slot = self.slot(index, cx);
         let handle = slot.menu.borrow_mut().get_or_insert_with(|| cx.focus_handle()).clone();
+        slot.menu_armed.set(true);
         button.tab_stop(false).track_focus(&handle)
     }
 
