@@ -4,6 +4,8 @@ Module detail for the one-line summary in the root [`AGENTS.md`](../AGENTS.md) �
 
 - **Run** — the JVM desktop product shell: `./gradlew :desktopApp:run`.
 
+- **Dev slots** — runs of several checkouts side by side. `tools/dev-slot.sh claim` (or `tools/dev-worktree.sh setup`) gives a checkout slot N, `~/.ymusic-dev/<N>/`, seeded once from `~/.ymusic` (settings, cookie jar, window geometry). The run tasks read the checkout's `.ymusic-dev-slot` and pass `YMUSIC_DATA_DIR=<slot>/jvm`, `-Dymusic.devSlot=N` and `-Dymusic.devBranch` (`DevInstance`, read only when there is no `jpackage.app-path`). A slot's run titles itself `YMusic · <branch> · #<N>`, keeps its cookie key in its own `app.db` (`cookie-key.bin`), badges the Dock tile / taskbar button with N, and takes its own Windows AppUserModelID (`io.ymusic.windows.devN`), Linux WM_CLASS and desktop entry, and MPRIS name (`…ymusic.devN`). Slots 2 and up open no OS media session, so the media keys drive slot 1 only. An explicit `YMUSIC_DATA_DIR` other than the slot's `jvm/` runs slot-less.
+
 - **Boot sequence** — boots:
   - `DynamicEngineManager` (QuickJS + engine-js)
   - a file-backed `:media-store` + `:media-scanner` "Scan folder…" (packed ffmpeg, or `-Dio.ymusic.ffmpeg` / PATH)
