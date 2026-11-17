@@ -248,12 +248,38 @@ fun DownloadsScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
     }
 
     var selectedIds by remember { mutableStateOf(emptySet<String>()) }
+    // What Select all restores when clicked again; only valid until the selection or the shown list
+    // changes otherwise.
+    var selectionBeforeSelectAll by remember { mutableStateOf<Set<String>?>(null) }
     val visibleIds = visible.mapTo(HashSet()) { it.id }
-    LaunchedEffect(visibleIds) { selectedIds = selectedIds intersect visibleIds }
+    val shownIds = shown.map { it.id }
+    LaunchedEffect(visibleIds) {
+        val kept = selectedIds intersect visibleIds
+        if (kept != selectedIds) {
+            selectedIds = kept
+            selectionBeforeSelectAll = null
+        }
+    }
+    LaunchedEffect(shownIds) { selectionBeforeSelectAll = null }
     val selection = selectedIds intersect visibleIds
     val selecting = selection.isNotEmpty()
-    val endSelection = { selectedIds = emptySet() }
-    val toggleSelected = { id: String -> selectedIds = if (id in selectedIds) selectedIds - id else selectedIds + id }
+    val changeSelection = { ids: Set<String> ->
+        selectedIds = ids
+        selectionBeforeSelectAll = null
+    }
+    val endSelection = { changeSelection(emptySet()) }
+    val toggleSelected = { id: String -> changeSelection(if (id in selectedIds) selectedIds - id else selectedIds + id) }
+    val allShownSelected = shownIds.isNotEmpty() && selection.containsAll(shownIds)
+    val toggleSelectAll = {
+        if (allShownSelected) {
+            val restored = selectionBeforeSelectAll ?: (selection - shownIds.toSet())
+            changeSelection(restored)
+        } else if (shownIds.isNotEmpty()) {
+            val before = selection
+            changeSelection(selection + shownIds)
+            selectionBeforeSelectAll = before
+        }
+    }
     NestedBackHandler(enabled = selecting) { endSelection() }
     val selectedTasks = visible.filter { it.id in selection }
     val deletableItems = rememberDeletableItems(graph, selectedTasks)
@@ -280,9 +306,9 @@ fun DownloadsScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
         }
         DownloadSelectionBar(
             count = selection.size,
-            canSelectAll = shown.any { it.id !in selection },
+            allSelected = allShownSelected,
             onClose = endSelection,
-            onSelectAll = { selectedIds = selection + shown.map { it.id } },
+            onToggleSelectAll = toggleSelectAll,
             onPause = if (pausable.isEmpty()) {
                 null
             } else {
@@ -329,7 +355,10 @@ fun DownloadsScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
                         LibraryChip(
                             if (entry == DownloadFilter.ALL) label else "$label ${visible.count { entry.matches(it.state) }}",
                             selected = entry == filter,
-                        ) { filter = entry }
+                        ) {
+                            filter = entry
+                            selectionBeforeSelectAll = null
+                        }
                     }
                 }
             }
@@ -340,7 +369,7 @@ fun DownloadsScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
                     selecting = selecting,
                     selected = task.id in selection,
                     onToggleSelected = { toggleSelected(task.id) },
-                    onStartSelection = { selectedIds = setOf(task.id) },
+                    onStartSelection = { changeSelection(setOf(task.id)) },
                     onRetry = { retry(task) },
                     onPlay = { scope.launch { coordinator.playDownloads(shown, task.id) } },
                     onRevealLibrary = if (store != null) ({
@@ -417,9 +446,9 @@ private sealed interface SelectionConfirm {
 @Composable
 private fun DownloadSelectionBar(
     count: Int,
-    canSelectAll: Boolean,
+    allSelected: Boolean,
     onClose: () -> Unit,
-    onSelectAll: () -> Unit,
+    onToggleSelectAll: () -> Unit,
     onPause: (() -> Unit)?,
     onResume: (() -> Unit)?,
     onRemove: () -> Unit,
@@ -430,12 +459,12 @@ private fun DownloadSelectionBar(
     AppBarRow {
         ActionIcon(Icons.Default.Close, stringResource(Res.string.cd_close), onClick = onClose)
         AppBarTitle(pluralText(Res.plurals.downloads_selected_count, count, count))
-        ActionIcon(
+        ToggleActionIcon(
             Icons.Default.SelectAll,
             stringResource(Res.string.select_all),
-            tint = if (canSelectAll) DesignColors.InkMuted else DesignColors.InkMuted.copy(alpha = DisabledAlpha),
-            enabled = canSelectAll,
-            onClick = onSelectAll,
+            checked = allSelected,
+            tint = if (allSelected) DesignColors.Accent else DesignColors.InkMuted,
+            onCheckedChange = { onToggleSelectAll() },
         )
         onPause?.let { ActionIcon(Icons.Filled.Pause, stringResource(Res.string.downloads_action_pause), onClick = it) }
         onResume?.let { ActionIcon(Icons.Filled.PlayArrow, stringResource(Res.string.downloads_action_resume), onClick = it) }
@@ -1055,4 +1084,3 @@ private val ContentIndent = ThumbSize + CardGap // aligns the bar under the text
 private val DownloadCardMinWidth = 340.dp // adaptive grid: 1 column on a phone, more as width allows
 private val FabClearance = 88.dp // bottom inset so the FAB doesn't cover the last card
 private val SelectToggleSize = 40.dp // ActionIcon's hit size: the checkbox takes the ⋮'s slot without a layout shift
-private const val DisabledAlpha = 0.38f
