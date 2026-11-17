@@ -24,7 +24,19 @@ The build reads the YMusicV4 checkout (C sources, engine bundles, strings, the v
 and `../../ffmpeg-build` (`.cargo/config.toml`); an environment variable of the same name overrides them.
 
 Debug builds keep their data in `YMusicRust` under the OS's local data dir, apart from the installed
-app's `~/.ymusic`; `YMUSIC_DATA_DIR` picks another. Without YMusicV4's `secrets.properties` (its
+app's `~/.ymusic`; `--data-dir=` or `YMUSIC_DATA_DIR` picks another. Their window title names the branch
+they were built from.
+
+To run several debug builds side by side (one per worktree), set each worktree up with its own copy
+of the app data (YMusicV4's workspace setup script). It writes `.ymusic-dev-data` (`name=<workspace>`,
+`root=<data folder>`) at the worktree root, which a debug build reads at launch: its data dir becomes
+`<root>/rust`, and it takes its own Windows AppUserModelID (`io.ymusic.windows.dev.<id>`), Linux app
+id (`io.ymusic.YMusic.dev<id>`) and MPRIS name (`org.mpris.MediaPlayer2.ymusic.dev<id>`), where `<id>`
+is the 32-bit FNV-1a of the name in 8 hex digits, as the JVM app derives it. A workspace run starts no
+OS media session (media keys, Now Playing) unless `YMUSIC_DEV_MEDIA_SESSION=1`. `--print-data-dir`
+prints the data dir, workspace and title a launch would use and exits.
+
+Without YMusicV4's `secrets.properties` (its
 `remote.config.url`, `bundle.signing.public.key`, `update.public.key`, `sentry.dsn`) the app runs on its
 embedded bundles, with no config service, QR sign-in, self-update or crash reports.
 
