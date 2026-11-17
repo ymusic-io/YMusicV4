@@ -297,8 +297,9 @@ fun main(args: Array<String>) {
     // The log moved to logs.db: the text log files of older builds go.
     File(ymusicDataDir(), "logs").listFiles { file -> file.name.startsWith("ymusic.log") }?.forEach { it.delete() }
     val launchFiles = launchFileUris(args.toList())
-    // macOS LaunchServices already keeps one app process; Windows and Linux start one per launch.
-    val instance = if (isWindows || isLinux) {
+    // macOS LaunchServices already keeps one app process; Windows and Linux start one per launch, and
+    // so does a dev slot's `gradlew run` on any OS.
+    val instance = if (isWindows || isLinux || DevInstance.slot != null) {
         val command = InstanceCommand.of(args.toList())
         val log = rootLogger.fork("instance")
         val claim = try {
@@ -1080,9 +1081,15 @@ private suspend fun buildGraph(
     }
 
     // OS media surface + media keys (macOS Now Playing, Linux MPRIS, Windows SMTC). Commands come
-    // back on the Main dispatcher, where the player is driven.
-    connectMediaSession(player, CoroutineScope(Dispatchers.Main), imageLoader, rootLogger.fork("now-playing")) {
-        showWindowRequests.tryEmit(Unit)
+    // back on the Main dispatcher, where the player is driven. Dev slots 2 and up leave the media keys
+    // to slot 1, so one key press never drives two runs.
+    val devSlot = DevInstance.slot
+    if (devSlot == null || devSlot == 1) {
+        connectMediaSession(player, CoroutineScope(Dispatchers.Main), imageLoader, rootLogger.fork("now-playing")) {
+            showWindowRequests.tryEmit(Unit)
+        }
+    } else {
+        rootLogger.fork("now-playing").log(Logger.Level.INFO, "dev slot $devSlot: no OS media session")
     }
 
     // Offline downloads: SABR stack over ffmpeg. Spec comes from the MSE engine's cached
@@ -1670,7 +1677,8 @@ private fun saveWindowPrefs(size: DpSize, position: WindowPosition) {
 /** Sends the app logs as one anonymous Sentry report for the Feedback screen. */
 private val captureFeedbackReportAction: suspend (String, String?) -> Unit = { subject, message ->
     withContext(Dispatchers.IO) {
-        val export = File(System.getProperty("java.io.tmpdir"), FEEDBACK_LOG_NAME)
+        val exportName = DevInstance.slot?.let { "dev$it-$FEEDBACK_LOG_NAME" } ?: FEEDBACK_LOG_NAME
+        val export = File(System.getProperty("java.io.tmpdir"), exportName)
         // The report still goes without the log when the export fails or the log store is stuck.
         val attachments = try {
             withTimeoutOrNull(FEEDBACK_EXPORT_TIMEOUT_MS) { logStore.exportGzip(FileSystem.SYSTEM, export.absolutePath.toPath()) }
