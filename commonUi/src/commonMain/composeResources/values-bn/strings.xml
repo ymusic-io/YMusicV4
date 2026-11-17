@@ -306,8 +306,10 @@
     <string name="cd_exit_fullscreen">পূর্ণ স্ক্রিন থেকে বেরোন</string>
     <string name="cd_fit_video">ভিডিও মানানসই করুন</string>
     <string name="cd_fill_video">স্ক্রিন ভরাট করুন</string>
-    <string name="cd_lock_rotation">ঘোরানো লক করুন</string>
-    <string name="cd_unlock_rotation">ঘোরানো আনলক করুন</string>
+    <string name="cd_screen_rotation">স্ক্রিন ঘোরানো</string>
+    <string name="rotation_lock_landscape">ল্যান্ডস্কেপে লক করুন</string>
+    <string name="rotation_lock_portrait">পোর্ট্রেটে লক করুন</string>
+    <string name="rotation_free">মুক্তভাবে ঘোরান</string>
     <string name="cd_rewind10">10 সেকেন্ড পিছিয়ে যান</string>
     <string name="cd_forward10">10 সেকেন্ড এগিয়ে যান</string>
     <string name="cd_repeat_off">পুনরাবৃত্তি: বন্ধ</string>

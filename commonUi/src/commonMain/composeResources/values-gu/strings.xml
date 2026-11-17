@@ -306,8 +306,10 @@
     <string name="cd_exit_fullscreen">પૂર્ણ સ્ક્રીનમાંથી બહાર નીકળો</string>
     <string name="cd_fit_video">વીડિયો ફિટ કરો</string>
     <string name="cd_fill_video">સ્ક્રીન ભરો</string>
-    <string name="cd_lock_rotation">રોટેશન લૉક કરો</string>
-    <string name="cd_unlock_rotation">રોટેશન અનલૉક કરો</string>
+    <string name="cd_screen_rotation">સ્ક્રીન ફેરવવી</string>
+    <string name="rotation_lock_landscape">લેન્ડસ્કેપમાં લૉક કરો</string>
+    <string name="rotation_lock_portrait">પોર્ટ્રેટમાં લૉક કરો</string>
+    <string name="rotation_free">મુક્ત રીતે ફેરવો</string>
     <string name="cd_rewind10">10 સેકન્ડ પાછળ</string>
     <string name="cd_forward10">10 સેકન્ડ આગળ</string>
     <string name="cd_repeat_off">પુનરાવર્તન: બંધ</string>

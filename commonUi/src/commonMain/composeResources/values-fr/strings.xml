@@ -310,8 +310,10 @@
     <string name="cd_exit_fullscreen">Quitter le plein écran</string>
     <string name="cd_fit_video">Ajuster la vidéo</string>
     <string name="cd_fill_video">Remplir l'écran</string>
-    <string name="cd_lock_rotation">Verrouiller la rotation</string>
-    <string name="cd_unlock_rotation">Déverrouiller la rotation</string>
+    <string name="cd_screen_rotation">Rotation de l'écran</string>
+    <string name="rotation_lock_landscape">Verrouiller en paysage</string>
+    <string name="rotation_lock_portrait">Verrouiller en portrait</string>
+    <string name="rotation_free">Rotation libre</string>
     <string name="cd_rewind10">Reculer de 10 secondes</string>
     <string name="cd_forward10">Avancer de 10 secondes</string>
     <string name="cd_repeat_off">Répéter : désactivé</string>

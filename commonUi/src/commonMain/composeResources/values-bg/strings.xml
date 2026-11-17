@@ -306,8 +306,10 @@
     <string name="cd_exit_fullscreen">Изход от цял екран</string>
     <string name="cd_fit_video">Побери видеото</string>
     <string name="cd_fill_video">Запълни екрана</string>
-    <string name="cd_lock_rotation">Заключи завъртането</string>
-    <string name="cd_unlock_rotation">Отключи завъртането</string>
+    <string name="cd_screen_rotation">Завъртане на екрана</string>
+    <string name="rotation_lock_landscape">Заключване хоризонтално</string>
+    <string name="rotation_lock_portrait">Заключване вертикално</string>
+    <string name="rotation_free">Свободно завъртане</string>
     <string name="cd_rewind10">10 секунди назад</string>
     <string name="cd_forward10">10 секунди напред</string>
     <string name="cd_repeat_off">Повторение: изключено</string>

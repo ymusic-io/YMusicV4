@@ -61,7 +61,8 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.RepeatOne
-import androidx.compose.material.icons.filled.ScreenLockRotation
+import androidx.compose.material.icons.filled.ScreenLockLandscape
+import androidx.compose.material.icons.filled.ScreenLockPortrait
 import androidx.compose.material.icons.filled.ScreenRotation
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SkipNext
@@ -183,7 +184,6 @@ import io.ymusic.ui.resources.cd_fill_video
 import io.ymusic.ui.resources.cd_fit_video
 import io.ymusic.ui.resources.cd_forward10
 import io.ymusic.ui.resources.cd_fullscreen
-import io.ymusic.ui.resources.cd_lock_rotation
 import io.ymusic.ui.resources.cd_more
 import io.ymusic.ui.resources.cd_next
 import io.ymusic.ui.resources.cd_pause
@@ -193,10 +193,10 @@ import io.ymusic.ui.resources.cd_repeat_all
 import io.ymusic.ui.resources.cd_repeat_off
 import io.ymusic.ui.resources.cd_repeat_one
 import io.ymusic.ui.resources.cd_rewind10
+import io.ymusic.ui.resources.cd_screen_rotation
 import io.ymusic.ui.resources.cd_scroll_to_now_playing
 import io.ymusic.ui.resources.cd_share
 import io.ymusic.ui.resources.cd_shuffle
-import io.ymusic.ui.resources.cd_unlock_rotation
 import io.ymusic.ui.resources.download_audio_track
 import io.ymusic.ui.resources.download_quality
 import io.ymusic.ui.resources.error_captcha
@@ -230,6 +230,9 @@ import io.ymusic.ui.resources.queue_next
 import io.ymusic.ui.resources.queue_save_as_yt_playlist
 import io.ymusic.ui.resources.remove_from_queue
 import io.ymusic.ui.resources.retry
+import io.ymusic.ui.resources.rotation_free
+import io.ymusic.ui.resources.rotation_lock_landscape
+import io.ymusic.ui.resources.rotation_lock_portrait
 import io.ymusic.ui.resources.signin_button
 import io.ymusic.ui.resources.sound_eq
 import io.ymusic.ui.resources.sponsor_block_excluded
@@ -611,8 +614,8 @@ private fun FullscreenVideo(graph: AppGraph, coordinator: PlaybackCoordinator, o
     SideEffect { VideoOverlayNative.armed = true }
     LaunchedEffect(Unit) { VideoOverlayNative.show() }
     SyncImmersiveSystemBars(immersive = true)
-    val rotationLocked by graph.videoRotationLocked
-    SyncSensorRotation(locked = rotationLocked)
+    val rotation by graph.videoRotation
+    SyncSensorRotation(rotation)
     val fillScreen by graph.videoFillScreen
     var controlsStrip by remember { mutableStateOf<Dp?>(null) }
     Box(Modifier.fillMaxSize()) {
@@ -631,9 +634,9 @@ private fun FullscreenVideo(graph: AppGraph, coordinator: PlaybackCoordinator, o
                     coordinator, status, progress, current,
                     fillScreen = fillScreen,
                     onToggleFill = { graph.videoFillScreen.value = !graph.videoFillScreen.value },
-                    rotationLocked = rotationLocked,
-                    onToggleRotationLock = if (rotationLockSupported) {
-                        { graph.videoRotationLocked.value = !graph.videoRotationLocked.value }
+                    rotation = rotation,
+                    onSelectRotation = if (rotationLockSupported) {
+                        { graph.videoRotation.value = it }
                     } else {
                         null
                     },
@@ -1049,8 +1052,8 @@ private fun BoxScope.FullscreenVideoControls(
     current: PlayableItem?,
     fillScreen: Boolean,
     onToggleFill: () -> Unit,
-    rotationLocked: Boolean,
-    onToggleRotationLock: (() -> Unit)?,
+    rotation: VideoRotation,
+    onSelectRotation: ((VideoRotation) -> Unit)?,
     onExit: () -> Unit,
     onStripHeight: (Dp) -> Unit,
 ) {
@@ -1084,16 +1087,7 @@ private fun BoxScope.FullscreenVideoControls(
                 Spacer(Modifier.width(DesignSpacing.Space4 * scale))
             }
             CaptionToggle(player, coordinator.graph.settings, offTint = OverlayInk, iconSize = iconSize, hitSize = hitSize)
-            if (onToggleRotationLock != null) {
-                ActionIcon(
-                    if (rotationLocked) Icons.Default.ScreenLockRotation else Icons.Default.ScreenRotation,
-                    stringResource(if (rotationLocked) Res.string.cd_unlock_rotation else Res.string.cd_lock_rotation),
-                    iconSize = iconSize,
-                    hitSize = hitSize,
-                    tint = OverlayInk,
-                    onClick = onToggleRotationLock,
-                )
-            }
+            if (onSelectRotation != null) RotationMenuButton(rotation, onSelectRotation, iconSize, hitSize)
             ActionIcon(
                 if (fillScreen) Icons.Default.FitScreen else Icons.Default.CropFree,
                 stringResource(if (fillScreen) Res.string.cd_fit_video else Res.string.cd_fill_video),
@@ -1174,6 +1168,58 @@ private fun BoxScope.VideoOverlayChrome(
         )
     }
 }
+
+/** Opens a menu holding the video in landscape or portrait, or letting it rotate freely; its glyph shows the mode. */
+@Composable
+private fun RotationMenuButton(rotation: VideoRotation, onSelect: (VideoRotation) -> Unit, iconSize: Dp, hitSize: Dp) {
+    var menuOpen by remember { mutableStateOf(false) }
+    HoldVideoOverlay(menuOpen)
+    Box {
+        ActionIcon(
+            rotation.icon,
+            "${stringResource(Res.string.cd_screen_rotation)}, ${stringResource(rotation.label)}",
+            iconSize = iconSize,
+            hitSize = hitSize,
+            tint = OverlayInk,
+            onClick = { menuOpen = true },
+        )
+        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+            listOf(VideoRotation.Landscape, VideoRotation.Portrait, VideoRotation.Free).forEach { option ->
+                val selected = option == rotation
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            stringResource(option.label),
+                            color = if (selected) DesignColors.Accent else DesignColors.Ink,
+                            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                        )
+                    },
+                    leadingIcon = { Icon(option.icon, contentDescription = null, Modifier.size(20.dp), tint = DesignColors.InkMuted) },
+                    trailingIcon = selectedCheck(selected),
+                    onClick = {
+                        onSelect(option)
+                        menuOpen = false
+                    },
+                    modifier = Modifier.menuChoice(selected),
+                )
+            }
+        }
+    }
+}
+
+private val VideoRotation.icon: ImageVector
+    get() = when (this) {
+        VideoRotation.Free -> Icons.Default.ScreenRotation
+        VideoRotation.Landscape -> Icons.Default.ScreenLockLandscape
+        VideoRotation.Portrait -> Icons.Default.ScreenLockPortrait
+    }
+
+private val VideoRotation.label: StringResource
+    get() = when (this) {
+        VideoRotation.Free -> Res.string.rotation_free
+        VideoRotation.Landscape -> Res.string.rotation_lock_landscape
+        VideoRotation.Portrait -> Res.string.rotation_lock_portrait
+    }
 
 /** Glyphs and labels over the video. */
 private val OverlayInk = Color(0xFFEEEEEE)

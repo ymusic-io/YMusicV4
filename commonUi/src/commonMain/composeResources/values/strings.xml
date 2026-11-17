@@ -374,8 +374,10 @@
     <string name="cd_minimize">Minimize</string>
     <string name="cd_fit_video">Fit video</string>
     <string name="cd_fill_video">Fill screen</string>
-    <string name="cd_lock_rotation">Lock rotation</string>
-    <string name="cd_unlock_rotation">Unlock rotation</string>
+    <string name="cd_screen_rotation">Screen rotation</string>
+    <string name="rotation_lock_landscape">Lock landscape</string>
+    <string name="rotation_lock_portrait">Lock portrait</string>
+    <string name="rotation_free">Free rotate</string>
     <string name="cd_rewind10">Rewind 10 seconds</string>
     <string name="cd_forward10">Forward 10 seconds</string>
     <string name="cd_repeat_off">Repeat: off</string>

@@ -310,8 +310,10 @@
     <string name="cd_exit_fullscreen">Ieși din ecranul complet</string>
     <string name="cd_fit_video">Încadrează videoclipul</string>
     <string name="cd_fill_video">Umple ecranul</string>
-    <string name="cd_lock_rotation">Blochează rotirea</string>
-    <string name="cd_unlock_rotation">Deblochează rotirea</string>
+    <string name="cd_screen_rotation">Rotirea ecranului</string>
+    <string name="rotation_lock_landscape">Blochează pe orizontală</string>
+    <string name="rotation_lock_portrait">Blochează pe verticală</string>
+    <string name="rotation_free">Rotire liberă</string>
     <string name="cd_rewind10">Înapoi 10 secunde</string>
     <string name="cd_forward10">Înainte 10 secunde</string>
     <string name="cd_repeat_off">Repetă: dezactivat</string>

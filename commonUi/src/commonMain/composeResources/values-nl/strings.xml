@@ -306,8 +306,10 @@
     <string name="cd_exit_fullscreen">Volledig scherm sluiten</string>
     <string name="cd_fit_video">Video passend maken</string>
     <string name="cd_fill_video">Scherm vullen</string>
-    <string name="cd_lock_rotation">Rotatie vergrendelen</string>
-    <string name="cd_unlock_rotation">Rotatie ontgrendelen</string>
+    <string name="cd_screen_rotation">Schermrotatie</string>
+    <string name="rotation_lock_landscape">Liggend vergrendelen</string>
+    <string name="rotation_lock_portrait">Staand vergrendelen</string>
+    <string name="rotation_free">Vrij draaien</string>
     <string name="cd_rewind10">10 seconden terug</string>
     <string name="cd_forward10">10 seconden vooruit</string>
     <string name="cd_repeat_off">Herhalen: uit</string>

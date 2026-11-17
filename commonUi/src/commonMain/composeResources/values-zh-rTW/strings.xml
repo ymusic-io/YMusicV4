@@ -302,8 +302,10 @@
     <string name="cd_exit_fullscreen">結束全螢幕</string>
     <string name="cd_fit_video">符合影片大小</string>
     <string name="cd_fill_video">填滿螢幕</string>
-    <string name="cd_lock_rotation">鎖定螢幕旋轉</string>
-    <string name="cd_unlock_rotation">解鎖螢幕旋轉</string>
+    <string name="cd_screen_rotation">螢幕旋轉</string>
+    <string name="rotation_lock_landscape">鎖定橫向</string>
+    <string name="rotation_lock_portrait">鎖定直向</string>
+    <string name="rotation_free">自由旋轉</string>
     <string name="cd_rewind10">倒轉 10 秒</string>
     <string name="cd_forward10">快轉 10 秒</string>
     <string name="cd_repeat_off">重複播放：關閉</string>

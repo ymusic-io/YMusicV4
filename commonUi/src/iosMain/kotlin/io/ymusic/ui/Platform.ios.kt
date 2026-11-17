@@ -46,7 +46,7 @@ internal actual fun SyncSystemBars(dark: Boolean) {
 }
 
 @Composable
-internal actual fun SyncSensorRotation(locked: Boolean) {
+internal actual fun SyncSensorRotation(rotation: VideoRotation) {
     // Info.plist already lists portrait and both landscapes.
 }
 

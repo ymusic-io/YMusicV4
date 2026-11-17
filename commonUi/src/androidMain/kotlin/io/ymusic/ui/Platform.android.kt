@@ -109,7 +109,7 @@ internal actual fun SyncSystemBars(dark: Boolean) {
 }
 
 @Composable
-internal actual fun SyncSensorRotation(locked: Boolean) {
+internal actual fun SyncSensorRotation(rotation: VideoRotation) {
     val view = LocalView.current
     if (view.isInEditMode) return
     val activity = remember(view) {
@@ -119,11 +119,12 @@ internal actual fun SyncSensorRotation(locked: Boolean) {
         }
         ctx as? Activity
     }
-    // Toggling must not pass through UNSPECIFIED, or LOCKED could capture the system's orientation.
     SideEffect {
-        activity?.requestedOrientation =
-            if (locked) ActivityInfo.SCREEN_ORIENTATION_LOCKED
-            else ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR
+        activity?.requestedOrientation = when (rotation) {
+            VideoRotation.Free -> ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR
+            VideoRotation.Landscape -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            VideoRotation.Portrait -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+        }
     }
     DisposableEffect(activity) {
         onDispose {

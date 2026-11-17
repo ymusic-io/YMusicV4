@@ -346,8 +346,10 @@
     <string name="cd_minimize">Thu nhỏ</string>
     <string name="cd_fit_video">Vừa khít</string>
     <string name="cd_fill_video">Phóng đầy</string>
-    <string name="cd_lock_rotation">Khóa xoay</string>
-    <string name="cd_unlock_rotation">Mở khóa xoay</string>
+    <string name="cd_screen_rotation">Xoay màn hình</string>
+    <string name="rotation_lock_landscape">Khóa ngang</string>
+    <string name="rotation_lock_portrait">Khóa dọc</string>
+    <string name="rotation_free">Xoay tự do</string>
     <string name="cd_rewind10">Tua lùi 10 giây</string>
     <string name="cd_forward10">Tua tới 10 giây</string>
     <string name="cd_repeat_off">Lặp lại: tắt</string>

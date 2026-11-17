@@ -306,8 +306,10 @@
     <string name="cd_exit_fullscreen">Verlaat volskerm</string>
     <string name="cd_fit_video">Pas video</string>
     <string name="cd_fill_video">Vul skerm</string>
-    <string name="cd_lock_rotation">Sluit rotasie</string>
-    <string name="cd_unlock_rotation">Ontsluit rotasie</string>
+    <string name="cd_screen_rotation">Skermrotasie</string>
+    <string name="rotation_lock_landscape">Sluit landskap</string>
+    <string name="rotation_lock_portrait">Sluit portret</string>
+    <string name="rotation_free">Vrye rotasie</string>
     <string name="cd_rewind10">Spoel 10 sekondes terug</string>
     <string name="cd_forward10">Spoel 10 sekondes vorentoe</string>
     <string name="cd_repeat_off">Herhaal: af</string>

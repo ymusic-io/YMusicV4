@@ -306,8 +306,10 @@
     <string name="cd_exit_fullscreen">خروج از تمام‌صفحه</string>
     <string name="cd_fit_video">متناسب با ویدیو</string>
     <string name="cd_fill_video">پر کردن صفحه</string>
-    <string name="cd_lock_rotation">قفل چرخش</string>
-    <string name="cd_unlock_rotation">باز کردن قفل چرخش</string>
+    <string name="cd_screen_rotation">چرخش صفحه</string>
+    <string name="rotation_lock_landscape">قفل در حالت افقی</string>
+    <string name="rotation_lock_portrait">قفل در حالت عمودی</string>
+    <string name="rotation_free">چرخش آزاد</string>
     <string name="cd_rewind10">10 ثانیه عقب</string>
     <string name="cd_forward10">10 ثانیه جلو</string>
     <string name="cd_repeat_off">تکرار: خاموش</string>

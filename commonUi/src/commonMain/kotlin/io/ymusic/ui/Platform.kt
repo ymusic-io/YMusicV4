@@ -32,11 +32,14 @@ internal expect fun SyncSystemBars(dark: Boolean)
 @Composable
 internal expect fun SyncImmersiveSystemBars(immersive: Boolean)
 
-/** Fullscreen video: follow the phone's rotation, or hold the current orientation while [locked]. */
-@Composable
-internal expect fun SyncSensorRotation(locked: Boolean)
+/** How full-screen video follows the phone: rotating freely, or held in landscape or portrait. */
+enum class VideoRotation { Free, Landscape, Portrait }
 
-/** Whether [SyncSensorRotation] can hold an orientation against the sensor and the system lock. */
+/** Fullscreen video: follow the phone's rotation, or hold landscape or portrait (either way up). */
+@Composable
+internal expect fun SyncSensorRotation(rotation: VideoRotation)
+
+/** Whether [SyncSensorRotation] can hold an orientation against the system lock. */
 internal expect val rotationLockSupported: Boolean
 
 /** Holds the display awake (no idle dim/lock) while [enabled]. No-op on desktop. */
