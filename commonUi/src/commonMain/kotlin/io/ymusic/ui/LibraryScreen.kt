@@ -482,29 +482,39 @@ private fun FoldersTab(
     // (id, displayName) instead of the bucket itself so the browse position survives the section
     // leaving composition (saveable): coming back from Discover reopens the same folder.
     var path by rememberSaveable(stateSaver = CrumbPathSaver) { mutableStateOf(listOf<Pair<Long, String>>()) }
+    // Until seeded from the setting or a reveal, nothing loads or writes back: root would overwrite the saved folder.
+    var pathRestored by rememberSaveable { mutableStateOf(false) }
     NestedBackHandler(enabled = path.isNotEmpty()) { path = path.dropLast(1) }
     var folders by remember { mutableStateOf<List<MediaStoreBucket>?>(null) }
     var items by remember { mutableStateOf<List<MediaStoreItem>>(emptyList()) }
     val folderListState = rememberLazyListState()
     val folderGridState = rememberLazyGridState()
 
-    // "Show in folder": open the requested bucket by walking its ancestor chain up to a root.
+    // "Show in folder" opens the requested bucket and wins over the saved folder.
     LaunchedEffect(revealBucket) {
-        val target = revealBucket ?: return@LaunchedEffect
-        val byId = store.allBuckets().associateBy { it.id }
-        val chain = mutableListOf<Pair<Long, String>>()
-        var id: Long? = target
-        while (id != null) {
-            val bucket = byId[id] ?: break
-            chain.add(0, bucket.id to bucket.displayName)
-            id = bucket.parentId
+        val target = revealBucket
+        if (target != null) {
+            path = crumbChain(store, target).orEmpty()
+            pathRestored = true
+            onRevealHandled()
+        } else if (!pathRestored) {
+            val savedId = settings.flow(AppSettings.libraryFoldersOpen).value.toLongOrNull()
+            path = savedId?.let { crumbChain(store, it) }.orEmpty()
+            pathRestored = true
         }
-        path = chain
-        onRevealHandled()
     }
 
-    LaunchedEffect(path, content) {
+    LaunchedEffect(path, pathRestored) {
+        if (pathRestored) settings.put(AppSettings.libraryFoldersOpen, path.lastOrNull()?.first?.toString().orEmpty())
+    }
+
+    LaunchedEffect(path, content, pathRestored) {
+        if (!pathRestored) return@LaunchedEffect
         val currentId = path.lastOrNull()?.first
+        if (currentId != null && store.findBucket(currentId) == null) {
+            path = emptyList()
+            return@LaunchedEffect
+        }
         folders = store.childBuckets(currentId)
         items = store.itemsInBucket(currentId)
     }
@@ -735,6 +745,18 @@ private val groupSortOptions = listOf(
     SortOption<Pair<String, List<MediaStoreItem>>>(Res.string.sort_name, compareBy { it.first.lowercase() }),
     SortOption(Res.string.sort_date_created, compareBy { it.second.minOfOrNull { m -> m.createdAt } ?: 0L }),
 )
+
+/** The crumb path from a root down to [bucketId], or null when it or any ancestor is gone. */
+private suspend fun crumbChain(store: BetterMediaStore, bucketId: Long): List<Pair<Long, String>>? {
+    val chain = mutableListOf<Pair<Long, String>>()
+    var id: Long? = bucketId
+    while (id != null) {
+        val bucket = store.findBucket(id) ?: return null
+        chain.add(0, bucket.id to bucket.displayName)
+        id = bucket.parentId
+    }
+    return chain
+}
 
 /** Saves the folder browse path as a flat [id, name, id, name, …] list. */
 private val CrumbPathSaver = listSaver<List<Pair<Long, String>>, Any>(

@@ -123,6 +123,9 @@ object AppSettings {
     /** The Library tab the app reopens on: a LibraryTab key, blank = none yet. */
     val lastLibraryTab = StringSetting("library.lastTab", "")
 
+    /** The folder the Folders tab reopens on: its bucket id in decimal, blank = the root. */
+    val libraryFoldersOpen = StringSetting("library.folders.open", "")
+
     /** A Library list's sort choice, `"<option index>,<1 = descending>"`; blank = the list's default. */
     fun librarySort(id: String) = StringSetting("library.sort.$id", "")
 
