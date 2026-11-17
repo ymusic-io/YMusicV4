@@ -35,6 +35,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -67,7 +68,10 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
@@ -178,6 +182,41 @@ internal fun TrackScroll(scrolled: () -> Boolean) {
         onDispose { host.release(token) }
     }
     LaunchedEffect(host, token) { snapshotFlow(scrolled).collect { host.report(token, it) } }
+}
+
+/**
+ * The shell app bar's stand-in: while a section screen holds a mode of its own (Downloads' selection), it
+ * draws its bar here through [ReplaceAppBar] and the shell shows that instead of its own. Owned and provided
+ * by the app shell.
+ */
+@Stable
+internal class AppBarSlot {
+    var replacement: (@Composable () -> Unit)? by mutableStateOf(null)
+        private set
+
+    fun claim(bar: @Composable () -> Unit) {
+        replacement = bar
+    }
+
+    fun release(bar: @Composable () -> Unit) {
+        if (replacement === bar) replacement = null
+    }
+}
+
+/** The app shell's [AppBarSlot]; null outside the shell. */
+internal val LocalAppBarSlot = staticCompositionLocalOf<AppBarSlot?> { null }
+
+/** Shows [bar] in place of the shell's app bar while [enabled] and this call stays composed. */
+@Composable
+internal fun ReplaceAppBar(enabled: Boolean, bar: @Composable () -> Unit) {
+    val slot = LocalAppBarSlot.current ?: return
+    val latest by rememberUpdatedState(bar)
+    DisposableEffect(slot, enabled) {
+        if (!enabled) return@DisposableEffect onDispose {}
+        val claimed: @Composable () -> Unit = { latest() }
+        slot.claim(claimed)
+        onDispose { slot.release(claimed) }
+    }
 }
 
 /** The app chrome's tone, shared by the app bars and the rail so they read as one layer. */
@@ -327,10 +366,15 @@ internal fun TabLabel(text: String, active: Boolean) {
  *  the glyphs keep the mockups' 16dp margins; vertical paddings are the mockup values unshaved
  *  (5/7dp, top +1 standing in for the under-status-bar margin) because the title and the search
  *  pill carry no inset — shaving the bottom made non-icon content sit visibly low in the bar. */
+
+/** [ActionIcon]'s default hit box: the height of an app bar row's content. */
+private val AppBarIconHitSize = 40.dp
+
 @Composable
 internal fun AppBarRow(content: @Composable RowScope.() -> Unit) {
     Row(
-        Modifier.fillMaxWidth().padding(start = 8.dp, end = 8.dp, top = 6.dp, bottom = 7.dp),
+        // A bar without icon buttons (Settings, Downloads in rail mode) keeps their height.
+        Modifier.fillMaxWidth().padding(start = 8.dp, end = 8.dp, top = 6.dp, bottom = 7.dp).heightIn(min = AppBarIconHitSize),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
         content = content,

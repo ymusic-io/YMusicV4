@@ -654,4 +654,18 @@
     <string name="native_blocked_help">Di PC kantor atau sekolah, minta administrator untuk mengizinkan YMusic. Di PC Anda sendiri, periksa Smart App Control di Keamanan Windows.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Memuat ulang</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">Pilih semua</string>
+    <string name="downloads_action_select">Pilih</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="other">%1$d dipilih</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="other">Hapus %1$d unduhan dari daftar?</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">File yang sudah selesai tetap ada di perangkat ini.</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="other">Hapus %1$d file?</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">File yang dihapus tidak dapat dipulihkan.</string>
 </resources>

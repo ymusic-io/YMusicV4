@@ -662,4 +662,21 @@
     <string name="native_blocked_help">Töö- või koolisarvutis paluge administraatoril YMusic lubada. Oma arvutis kontrollige Smart App Controli jaotises Windowsi turve.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Värskendamine</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">Vali kõik</string>
+    <string name="downloads_action_select">Vali</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="one">%1$d valitud</item>
+        <item quantity="other">%1$d valitud</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="one">Kas eemaldada loendist %1$d allalaadimine?</item>
+        <item quantity="other">Kas eemaldada loendist %1$d allalaadimist?</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">Valmis failid jäävad sellesse seadmesse.</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="one">Kas kustutada %1$d fail?</item>
+        <item quantity="other">Kas kustutada %1$d faili?</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">Kustutatud faile ei saa taastada.</string>
 </resources>

@@ -662,4 +662,21 @@
     <string name="native_blocked_help">На службен или училишен компјутер, побарајте од администраторот да го дозволи YMusic. На својот компјутер, проверете го Smart App Control во Windows Security.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Се освежува</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">Избери ги сите</string>
+    <string name="downloads_action_select">Избери</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="one">Избрани: %1$d</item>
+        <item quantity="other">Избрани: %1$d</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="one">Да се отстрани %1$d преземање од листата?</item>
+        <item quantity="other">Да се отстранат %1$d преземања од листата?</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">Завршените датотеки остануваат на овој уред.</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="one">Да се избрише %1$d датотека?</item>
+        <item quantity="other">Да се избришат %1$d датотеки?</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">Избришаните датотеки не може да се вратат.</string>
 </resources>

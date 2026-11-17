@@ -662,4 +662,21 @@
     <string name="native_blocked_help">Munkahelyi vagy iskolai gépen kérd meg a rendszergazdát, hogy engedélyezze a YMusicot. A saját gépeden ellenőrizd a Smart App Control beállítást a Windows biztonságban.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Frissítés</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">Összes kijelölése</string>
+    <string name="downloads_action_select">Kijelölés</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="one">%1$d kijelölve</item>
+        <item quantity="other">%1$d kijelölve</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="one">Eltávolítasz %1$d letöltést a listáról?</item>
+        <item quantity="other">Eltávolítasz %1$d letöltést a listáról?</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">A befejezett fájlok ezen az eszközön maradnak.</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="one">Törölsz %1$d fájlt?</item>
+        <item quantity="other">Törölsz %1$d fájlt?</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">A törölt fájlok nem állíthatók vissza.</string>
 </resources>

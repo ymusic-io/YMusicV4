@@ -662,4 +662,21 @@
     <string name="native_blocked_help">Bitte an einem Arbeits- oder Schul-PC deinen Administrator, YMusic zuzulassen. Prüfe auf deinem eigenen PC die intelligente App-Steuerung in der Windows-Sicherheit.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Wird aktualisiert</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">Alle auswählen</string>
+    <string name="downloads_action_select">Auswählen</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="one">%1$d ausgewählt</item>
+        <item quantity="other">%1$d ausgewählt</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="one">%1$d Download aus der Liste entfernen?</item>
+        <item quantity="other">%1$d Downloads aus der Liste entfernen?</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">Fertige Dateien bleiben auf diesem Gerät.</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="one">%1$d Datei löschen?</item>
+        <item quantity="other">%1$d Dateien löschen?</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">Gelöschte Dateien können nicht wiederhergestellt werden.</string>
 </resources>

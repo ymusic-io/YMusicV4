@@ -915,6 +915,7 @@ private fun AppRoot(
         // The shell owns app-bar elevation: content reports its scroll via TrackScroll into this host, and the
         // bar, the rail and the status-bar strip read it. (Content never touches them directly.)
         val scrollHost = remember { ScrollHost() }
+        val appBarSlot = remember { AppBarSlot() }
         Box(
             Modifier.fillMaxSize()
                 .then(if (desktopLayoutHole) Modifier else Modifier.background(DesignColors.Surface))
@@ -1066,6 +1067,7 @@ private fun AppRoot(
                         }
                         CompositionLocalProvider(
                             LocalScrollHost provides scrollHost,
+                            LocalAppBarSlot provides appBarSlot,
                             LocalSnackbar provides showSnackbar,
                             LocalScanController provides scanController,
                             LocalOpenNavDrawer provides if (railWindow) null else { { scope.launch { drawer.open() } } },
@@ -1087,7 +1089,10 @@ private fun AppRoot(
                                 contentWindowInsets = WindowInsets(0),
                                 topBar = {
                                     // Search and the detail pages carry their own app bars.
-                                    if (layers.isEmpty()) {
+                                    val replacementBar = appBarSlot.replacement
+                                    if (layers.isEmpty() && replacementBar != null) {
+                                        ElevatedBarColumn { replacementBar() }
+                                    } else if (layers.isEmpty()) {
                                         // Library's tab row lives in its own body (it needs the loaded state),
                                         // so the shell bar drops its shadow there and lets that row cast it —
                                         // keeping bar + tabs one continuous elevated surface.

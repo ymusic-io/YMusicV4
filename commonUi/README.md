@@ -18,6 +18,11 @@ The shared Compose Multiplatform app UI (jvm + android; iOS later).
   open on desktop windows from 1200dp; touch windows start collapsed. A TV expands it while it holds focus. Now Playing and Search are the same screens on every size.
   Width-based layout reads `railStableWidth`, so expanding resizes cards without changing a column count.
 
+- **Screen-owned app bar** — a section screen with a mode of its own swaps the shell's app bar through
+  `ReplaceAppBar` (`AppBarSlot` in `AppBars.kt`); the shell draws the replacement in the same elevated bar and
+  restores its own when the call leaves composition. First user: the Download manager's multi-select (long press
+  or ⋮ → Select; X · "N selected" · Select all · Pause · Resume · ⋮ Remove from list / Remove from disk).
+
 - **SponsorBlock seam** — `ymusic.ui.sponsorblock`: `SponsorBlockApi` + `MockSponsorBlockApi` +
   SQLite cache/whitelist (`SponsorBlockStore`) + `SponsorBlockService` + `SponsorBlockCoordinator`
   (queue videoId → `Player.setSkipSegments`). The mock returns a 0–10s intro and a 60–75s mid-roll;

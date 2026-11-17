@@ -662,4 +662,21 @@
     <string name="native_blocked_help">Աշխատանքային կամ դպրոցական համակարգչում խնդրեք ադմինիստրատորին թույլատրել YMusic-ը։ Ձեր համակարգչում ստուգեք Smart App Control-ը Windows Security-ում։</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Թարմացվում է</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">Ընտրել բոլորը</string>
+    <string name="downloads_action_select">Ընտրել</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="one">Ընտրված է՝ %1$d</item>
+        <item quantity="other">Ընտրված է՝ %1$d</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="one">Հեռացնե՞լ %1$d ներբեռնում ցանկից</item>
+        <item quantity="other">Հեռացնե՞լ %1$d ներբեռնում ցանկից</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">Ավարտված ֆայլերը մնում են այս սարքում։</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="one">Ջնջե՞լ %1$d ֆայլ</item>
+        <item quantity="other">Ջնջե՞լ %1$d ֆայլ</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">Ջնջված ֆայլերը հնարավոր չէ վերականգնել։</string>
 </resources>

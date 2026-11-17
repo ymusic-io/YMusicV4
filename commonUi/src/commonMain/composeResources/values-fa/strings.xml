@@ -662,4 +662,21 @@
     <string name="native_blocked_help">در رایانهٔ محل کار یا مدرسه، از سرپرست سیستم بخواهید YMusic را مجاز کند. در رایانهٔ شخصی خود، Smart App Control را در Windows Security بررسی کنید.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">در حال تازه‌سازی</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">انتخاب همه</string>
+    <string name="downloads_action_select">انتخاب</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="one">%1$d مورد انتخاب شد</item>
+        <item quantity="other">%1$d مورد انتخاب شد</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="one">%1$d دانلود از لیست حذف شود؟</item>
+        <item quantity="other">%1$d دانلود از لیست حذف شود؟</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">فایل‌های تکمیل‌شده روی این دستگاه می‌مانند.</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="one">%1$d فایل حذف شود؟</item>
+        <item quantity="other">%1$d فایل حذف شود؟</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">فایل‌های حذف‌شده قابل بازیابی نیستند.</string>
 </resources>

@@ -662,4 +662,21 @@
     <string name="native_blocked_help">කාර්යාල හෝ පාසල් PC එකක, YMusic ට ඉඩ දෙන ලෙස ඔබේ පරිපාලකගෙන් ඉල්ලන්න. ඔබේම PC එකේ, Windows Security හි Smart App Control පරීක්ෂා කරන්න.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">නැවුම් කරමින්</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">සියල්ල තෝරන්න</string>
+    <string name="downloads_action_select">තෝරන්න</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="one">%1$dක් තෝරා ඇත</item>
+        <item quantity="other">%1$dක් තෝරා ඇත</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="one">ලැයිස්තුවෙන් බාගැනීම් %1$dක් ඉවත් කරන්නද?</item>
+        <item quantity="other">ලැයිස්තුවෙන් බාගැනීම් %1$dක් ඉවත් කරන්නද?</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">සම්පූර්ණ වූ ගොනු මෙම උපාංගයේ ඉතිරි වේ.</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="one">ගොනු %1$dක් මකන්නද?</item>
+        <item quantity="other">ගොනු %1$dක් මකන්නද?</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">මකා දැමූ ගොනු නැවත ලබා ගත නොහැක.</string>
 </resources>
