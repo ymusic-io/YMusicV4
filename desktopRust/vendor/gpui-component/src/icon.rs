@@ -174,6 +174,10 @@ impl Icon {
         &self.source
     }
 
+    pub(crate) fn has_text_color(&self) -> bool {
+        self.text_color.is_some()
+    }
+
     /// Whether `other` takes up exactly the same space as this icon. The
     /// source, color and transformation change only what it paints.
     pub(crate) fn same_layout(&self, other: &Self) -> bool {

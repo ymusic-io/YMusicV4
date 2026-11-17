@@ -6,7 +6,12 @@ use gpui::{
     RenderOnce, SharedString, Styled, Window, prelude::FluentBuilder,
 };
 
-use crate::{Selectable, button::Button, menu::PopupMenu, popover::Popover};
+use crate::{
+    Selectable,
+    button::Button,
+    menu::{PopupMenu, PopupMenuStyle},
+    popover::Popover,
+};
 
 /// A dropdown menu trait for buttons and other interactive elements
 pub trait DropdownMenu: Styled + Selectable + InteractiveElement + IntoElement + 'static {
@@ -108,12 +113,16 @@ where
         let builder = self.builder.clone();
         let menu_state =
             window.use_keyed_state(self.id.clone(), cx, |_, _| DropdownMenuState::default());
+        let offset = cx
+            .try_global::<PopupMenuStyle>()
+            .and_then(|style| style.offset);
 
         Popover::new(SharedString::from(format!("popover:{}", self.id)))
             .appearance(false)
             .overlay_closable(false)
             .trigger(self.trigger)
             .anchor(self.anchor)
+            .when_some(offset, |this, offset| this.offset(offset))
             .when_some(self.on_open_change, |this, callback| {
                 this.on_open_change(move |open, window, cx| callback(open, window, cx))
             })

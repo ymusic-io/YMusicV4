@@ -12,7 +12,10 @@ use gpui::{
     StatefulInteractiveElement, Styled, WeakEntity, Window, anchored, deferred, div,
     prelude::FluentBuilder, px, rems,
 };
-use gpui::{ClickEvent, Half, MouseDownEvent, OwnedMenuItem, Point, Subscription};
+use gpui::{
+    BoxShadow, ClickEvent, DefiniteLength, Div, FontWeight, Global, Half, Hsla, MouseDownEvent,
+    OwnedMenuItem, Point, Subscription,
+};
 use gpui_base::TestSupportExt as _;
 
 use std::collections::HashSet;
@@ -35,6 +38,79 @@ pub fn init(cx: &mut App) {
     ]);
 }
 
+/// How popup menus are drawn. An application sets it once with `cx.set_global`; each menu copies
+/// it when built, and [`PopupMenu::restyle`] adjusts one menu's copy. A `None` field keeps the
+/// stock look.
+#[derive(Clone, Default)]
+pub struct PopupMenuStyle {
+    /// The surface fill, else the theme's `popover`.
+    pub background: Option<Hsla>,
+    /// The surface corners, else the theme's `radius`.
+    pub radius: Option<Pixels>,
+    /// The surface shadow, replacing the stock ring and shadow.
+    pub shadow: Option<Vec<BoxShadow>>,
+    /// The gap between a dropdown menu and its trigger.
+    pub offset: Option<Pixels>,
+    /// The item column's padding inside the surface, start and end.
+    pub padding_x: Option<Pixels>,
+    /// The item column's padding inside the surface, top and bottom.
+    pub padding_y: Option<Pixels>,
+    /// The space between two items.
+    pub item_gap: Option<Pixels>,
+    pub min_width: Option<Pixels>,
+    pub max_width: Option<Pixels>,
+    /// A row's minimum height; a label that wraps grows it.
+    pub item_height: Option<Pixels>,
+    pub item_padding_x: Option<Pixels>,
+    pub item_radius: Option<Pixels>,
+    /// The fill of the hovered or keyboard-selected item, else the theme's `accent`.
+    pub highlight: Option<Hsla>,
+    pub text_size: Option<Pixels>,
+    pub line_height: Option<Pixels>,
+    pub font_weight: Option<FontWeight>,
+    pub disabled_color: Option<Hsla>,
+    pub icon_size: Option<Pixels>,
+    /// The tint of an item icon that sets none itself.
+    pub icon_color: Option<Hsla>,
+    /// The leading icon column's minimum width; the icon sits at its start.
+    pub icon_slot: Option<Pixels>,
+    /// The space between the leading icon column and the label.
+    pub icon_gap: Option<Pixels>,
+    /// The space between the label and what trails it (detail, check, chevron, shortcut).
+    pub trailing_gap: Option<Pixels>,
+    /// The trailing column's minimum width; its content sits at its start.
+    pub trailing_slot: Option<Pixels>,
+    /// The side the check of a checked item is drawn on, else `Side::Left`.
+    pub check_side: Option<Side>,
+    pub check_size: Option<Pixels>,
+    pub check_color: Option<Hsla>,
+    /// `Some(false)` draws no check: the item still reports its checked state.
+    pub check_visible: Option<bool>,
+    /// The label ink of a checked item.
+    pub checked_color: Option<Hsla>,
+    pub checked_weight: Option<FontWeight>,
+    pub submenu_icon_size: Option<Pixels>,
+    pub submenu_icon_color: Option<Hsla>,
+    /// An item's [`PopupMenuItem::detail`] text.
+    pub detail_text_size: Option<Pixels>,
+    pub detail_weight: Option<FontWeight>,
+    pub detail_color: Option<Hsla>,
+    pub detail_max_width: Option<Pixels>,
+    pub separator_color: Option<Hsla>,
+    pub separator_thickness: Option<Pixels>,
+    /// The space above and below a separator.
+    pub separator_margin_y: Option<Pixels>,
+    /// A [`PopupMenuItem::Label`] group heading.
+    pub label_text_size: Option<Pixels>,
+    pub label_line_height: Option<Pixels>,
+    pub label_weight: Option<FontWeight>,
+    pub label_color: Option<Hsla>,
+    pub label_padding_x: Option<Pixels>,
+    pub label_padding_y: Option<Pixels>,
+}
+
+impl Global for PopupMenuStyle {}
+
 /// An menu item in a popup menu.
 pub enum PopupMenuItem {
     /// A menu separator item.
@@ -48,6 +124,7 @@ pub enum PopupMenuItem {
         disabled: bool,
         checked: bool,
         is_link: bool,
+        detail: Option<SharedString>,
         action: Option<Box<dyn Action>>,
         // For link item
         handler: Option<Rc<dyn Fn(&ClickEvent, &mut Window, &mut App)>>,
@@ -65,6 +142,7 @@ pub enum PopupMenuItem {
     Submenu {
         icon: Option<Icon>,
         label: SharedString,
+        detail: Option<SharedString>,
         disabled: bool,
         menu: Entity<PopupMenu>,
     },
@@ -82,6 +160,7 @@ impl PopupMenuItem {
             checked: false,
             action: None,
             is_link: false,
+            detail: None,
             handler: None,
         }
     }
@@ -109,6 +188,7 @@ impl PopupMenuItem {
         PopupMenuItem::Submenu {
             icon: None,
             label: label.into(),
+            detail: None,
             disabled: false,
             menu,
         }
@@ -139,6 +219,19 @@ impl PopupMenuItem {
             }
             PopupMenuItem::Submenu { icon: i, .. } => {
                 *i = Some(icon.into());
+            }
+            _ => {}
+        }
+        self
+    }
+
+    /// Set a secondary text drawn before the item's end, such as its current value.
+    ///
+    /// Only works for [`PopupMenuItem::Item`] and [`PopupMenuItem::Submenu`].
+    pub fn detail(mut self, text: impl Into<SharedString>) -> Self {
+        match &mut self {
+            PopupMenuItem::Item { detail, .. } | PopupMenuItem::Submenu { detail, .. } => {
+                *detail = Some(text.into());
             }
             _ => {}
         }
@@ -226,6 +319,7 @@ impl PopupMenuItem {
             checked: false,
             action: None,
             is_link: true,
+            detail: None,
             handler: Some(Rc::new(move |_, _, cx| cx.open_url(&href))),
         }
     }
@@ -277,6 +371,16 @@ impl PopupMenuItem {
 
     fn a11y_label(&self) -> Option<SharedString> {
         match self {
+            PopupMenuItem::Item {
+                label,
+                detail: Some(detail),
+                ..
+            }
+            | PopupMenuItem::Submenu {
+                label,
+                detail: Some(detail),
+                ..
+            } => Some(format!("{label}, {detail}").into()),
             PopupMenuItem::Item { label, .. }
             | PopupMenuItem::Label(label)
             | PopupMenuItem::Submenu { label, .. } => Some(label.clone()),
@@ -338,12 +442,17 @@ pub struct PopupMenu {
     /// content mask, so the items container's `overflow_y_scroll` clip never
     /// reaches it, while the scroll offset is still baked into its anchor.
     priority: usize,
+    style: PopupMenuStyle,
 
     _subscriptions: Vec<Subscription>,
 }
 
 impl PopupMenu {
     pub(crate) fn new(cx: &mut App) -> Self {
+        let style = cx
+            .try_global::<PopupMenuStyle>()
+            .cloned()
+            .unwrap_or_default();
         Self {
             focus_handle: cx.focus_handle(),
             action_context: None,
@@ -355,7 +464,7 @@ impl PopupMenu {
             min_width: None,
             max_width: None,
             max_height: None,
-            check_side: Side::Left,
+            check_side: style.check_side.unwrap_or(Side::Left),
             checkable: HashSet::new(),
             bounds: Bounds::default(),
             scrollable: false,
@@ -365,6 +474,7 @@ impl PopupMenu {
             size: Size::default(),
             submenu_anchor: (Anchor::TopLeft, Pixels::ZERO),
             priority: gpui_base::POPUP_PRIORITY,
+            style,
             _subscriptions: vec![],
         }
     }
@@ -470,6 +580,16 @@ impl PopupMenu {
     /// Set the side to show check icon, default is `Side::Left`.
     pub fn check_side(mut self, side: Side) -> Self {
         self.check_side = side;
+        self
+    }
+
+    /// Adjust this menu's copy of the application's [`PopupMenuStyle`].
+    pub fn restyle(mut self, f: impl FnOnce(&mut PopupMenuStyle)) -> Self {
+        let check_side = self.style.check_side;
+        f(&mut self.style);
+        if self.style.check_side != check_side {
+            self.check_side = self.style.check_side.unwrap_or(Side::Left);
+        }
         self
     }
 
@@ -1253,26 +1373,82 @@ impl PopupMenu {
         })
     }
 
-    fn render_icon(
-        has_icon: bool,
-        checked: bool,
-        icon: Option<Icon>,
-        _: &mut Window,
-        _: &mut Context<Self>,
-    ) -> Option<impl IntoElement> {
+    fn render_icon(&self, has_icon: bool, checked: bool, icon: Option<Icon>) -> Option<AnyElement> {
         if !has_icon {
             return None;
         }
 
-        let icon = if let Some(icon) = icon {
-            icon.clone()
-        } else if checked {
-            Icon::new(IconName::Check)
+        let style = &self.style;
+        let (icon, size, color) = if let Some(icon) = icon {
+            let color = (!icon.has_text_color())
+                .then_some(style.icon_color)
+                .flatten();
+            (icon, style.icon_size, color)
+        } else if checked && style.check_visible != Some(false) {
+            (
+                Icon::new(IconName::Check),
+                style.check_size.or(style.icon_size),
+                style.check_color,
+            )
         } else {
-            Icon::empty()
+            (Icon::empty(), style.icon_size, None)
         };
+        let icon = match size {
+            Some(size) => icon.with_size(size),
+            None => icon.xsmall(),
+        }
+        .when_some(color, |icon, color| icon.text_color(color));
 
-        Some(icon.xsmall())
+        Some(match style.icon_slot {
+            Some(slot) => h_flex().min_w(slot).child(icon).into_any_element(),
+            None => icon.into_any_element(),
+        })
+    }
+
+    /// The trailing check of a checked item, when the menu draws checks on the right.
+    fn render_right_check(&self, checked: bool, options: RenderOptions) -> Option<AnyElement> {
+        let style = &self.style;
+        if !(options.check_side.is_right() && checked) || style.check_visible == Some(false) {
+            return None;
+        }
+        let icon = match style.check_size {
+            Some(size) => Icon::new(IconName::Check).with_size(size),
+            None => Icon::new(IconName::Check).xsmall(),
+        }
+        .when_some(style.check_color, |icon, color| icon.text_color(color));
+        Some(match style.trailing_slot {
+            Some(slot) => h_flex().min_w(slot).child(icon).into_any_element(),
+            None => icon.into_any_element(),
+        })
+    }
+
+    /// An item's label, in the checked ink when it is checked.
+    fn render_label(&self, label: SharedString, checked: bool) -> Div {
+        let style = &self.style;
+        div()
+            .flex_1()
+            .min_w_0()
+            .when(checked, |this| {
+                this.when_some(style.checked_color, |this, color| this.text_color(color))
+                    .when_some(style.checked_weight, |this, weight| {
+                        this.font_weight(weight)
+                    })
+            })
+            .child(label)
+    }
+
+    fn render_detail(&self, detail: Option<SharedString>, cx: &App) -> Option<Div> {
+        let style = &self.style;
+        detail.map(|detail| {
+            div()
+                .flex_shrink_0()
+                .truncate()
+                .when_some(style.detail_max_width, |this, width| this.max_w(width))
+                .when_some(style.detail_text_size, |this, size| this.text_size(size))
+                .when_some(style.detail_weight, |this, weight| this.font_weight(weight))
+                .text_color(style.detail_color.unwrap_or(cx.theme().muted_foreground))
+                .child(detail)
+        })
     }
 
     /// Calculate the anchor corner and left offset for child submenu
@@ -1315,13 +1491,11 @@ impl PopupMenu {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> MenuItemElement {
+        let style = &self.style;
         let has_left_icon = options.has_left_icon;
-        let is_left_check = options.check_side.is_left() && item.is_checked();
-        let right_check_icon = if options.check_side.is_right() && item.is_checked() {
-            Some(Icon::new(IconName::Check).xsmall())
-        } else {
-            None
-        };
+        let checked = item.is_checked();
+        let is_left_check = options.check_side.is_left() && checked;
+        let right_check_icon = self.render_right_check(checked, options);
 
         let selected = self.selected_index == Some(ix);
         const EDGE_PADDING: Pixels = px(4.);
@@ -1333,15 +1507,34 @@ impl PopupMenu {
             Size::Small => (rems(1.25), options.radius.half()),
             _ => (rems(1.625), options.radius),
         };
+        let item_height: DefiniteLength = match style.item_height {
+            Some(height) => height.into(),
+            None => item_height.into(),
+        };
+        let radius = style.item_radius.unwrap_or(radius);
+        let icon_gap: DefiniteLength = match style.icon_gap {
+            Some(gap) => gap.into(),
+            None => rems(0.25).into(),
+        };
 
         let this = MenuItemElement::new(ix)
             .relative()
-            .text_sm()
+            .map(|this| match style.text_size {
+                Some(size) => this.text_size(size),
+                None => this.text_sm(),
+            })
+            .when_some(style.line_height, |this, height| this.line_height(height))
+            .when_some(style.font_weight, |this, weight| this.font_weight(weight))
             .py_0()
-            .px(INNER_PADDING)
+            .map(|this| match style.item_padding_x {
+                Some(padding) => this.px(padding),
+                None => this.px(INNER_PADDING),
+            })
             .rounded(radius)
             .items_center()
             .selected(selected)
+            .highlight(style.highlight)
+            .disabled_color(style.disabled_color)
             .on_hover(cx.listener(move |this, hovered, window, cx| {
                 if *hovered {
                     // Pointing elsewhere closes the open submenu; take back
@@ -1367,27 +1560,45 @@ impl PopupMenu {
                 cx.notify();
             }))
             .when_some(item.a11y_label(), |this, label| this.aria_label(label))
-            .checked(
-                (item.is_checked() || self.checkable.contains(&ix)).then(|| item.is_checked()),
-            );
+            .checked((checked || self.checkable.contains(&ix)).then_some(checked));
 
         match item {
-            PopupMenuItem::Separator => this
-                .h_auto()
-                .p_0()
-                .my_0p5()
-                .mx_neg_1()
-                .border_b(px(2.))
-                .border_color(cx.theme().border)
-                .disabled(true),
-            PopupMenuItem::Label(label) => this.disabled(true).cursor_default().child(
-                h_flex()
-                    .cursor_default()
-                    .items_center()
-                    .gap_x_1()
-                    .children(Self::render_icon(has_left_icon, false, None, window, cx))
-                    .child(div().flex_1().child(label.clone())),
-            ),
+            PopupMenuItem::Separator => {
+                let (padding_start, padding_end) = match style.padding_x {
+                    Some(padding) => (padding, padding),
+                    None => (EDGE_PADDING, EDGE_PADDING),
+                };
+                this.h_auto()
+                    .p_0()
+                    .map(|this| match style.separator_margin_y {
+                        Some(margin) => this.my(margin),
+                        None => this.my_0p5(),
+                    })
+                    .ml(-padding_start)
+                    .mr(-padding_end)
+                    .border_b(style.separator_thickness.unwrap_or(px(2.)))
+                    .border_color(style.separator_color.unwrap_or(cx.theme().border))
+                    .disabled(true)
+            }
+            PopupMenuItem::Label(label) => this
+                .disabled(true)
+                .cursor_default()
+                .when_some(style.label_padding_x, |this, padding| this.px(padding))
+                .when_some(style.label_padding_y, |this, padding| this.py(padding))
+                .when_some(style.label_text_size, |this, size| this.text_size(size))
+                .when_some(style.label_line_height, |this, height| {
+                    this.line_height(height)
+                })
+                .when_some(style.label_weight, |this, weight| this.font_weight(weight))
+                .child(
+                    h_flex()
+                        .when_some(style.label_color, |this, color| this.text_color(color))
+                        .cursor_default()
+                        .items_center()
+                        .gap_x(icon_gap)
+                        .children(self.render_icon(has_left_icon, false, None))
+                        .child(div().flex_1().child(label.clone())),
+                ),
             PopupMenuItem::ElementItem {
                 render,
                 icon,
@@ -1405,20 +1616,22 @@ impl PopupMenu {
                         .flex_1()
                         .min_h(item_height)
                         .items_center()
-                        .gap_x_1()
-                        .children(Self::render_icon(
-                            has_left_icon,
-                            is_left_check,
-                            icon.clone(),
-                            window,
-                            cx,
-                        ))
+                        .gap_x(icon_gap)
+                        .children(self.render_icon(has_left_icon, is_left_check, icon.clone()))
                         .child((render)(window, cx))
-                        .children(right_check_icon.map(|icon| icon.ml_3())),
+                        .children(right_check_icon.map(|icon| {
+                            div()
+                                .map(|this| match style.trailing_gap {
+                                    Some(gap) => this.ml(gap),
+                                    None => this.ml_3(),
+                                })
+                                .child(icon)
+                        })),
                 ),
             PopupMenuItem::Item {
                 icon,
                 label,
+                detail,
                 action,
                 disabled,
                 is_link,
@@ -1434,22 +1647,29 @@ impl PopupMenu {
                     }))
                 })
                 .disabled(*disabled)
-                .h(item_height)
-                .gap_x_1()
-                .children(Self::render_icon(
-                    has_left_icon,
-                    is_left_check,
-                    icon.clone(),
-                    window,
-                    cx,
-                ))
+                .map(|this| match style.item_height {
+                    Some(height) => this.min_h(height),
+                    None => this.h(item_height),
+                })
+                .gap_x(icon_gap)
+                .children(self.render_icon(has_left_icon, is_left_check, icon.clone()))
                 .child(
                     h_flex()
                         .w_full()
-                        .gap_3()
+                        .map(|this| match style.trailing_gap {
+                            Some(gap) => this.gap(gap),
+                            None => this.gap_3(),
+                        })
                         .items_center()
                         .justify_between()
-                        .when(!show_link_icon, |this| this.child(label.clone()))
+                        .when(!show_link_icon, |this| {
+                            this.child(self.render_label(label.clone(), checked))
+                        })
+                        .children(self.render_detail(detail.clone(), cx).map(|detail| {
+                            h_flex()
+                                .when_some(self.style.trailing_slot, |this, slot| this.min_w(slot))
+                                .child(detail)
+                        }))
                         .children(right_check_icon)
                         .when(show_link_icon, |this| {
                             this.child(
@@ -1471,6 +1691,7 @@ impl PopupMenu {
             PopupMenuItem::Submenu {
                 icon,
                 label,
+                detail,
                 menu,
                 disabled,
             } => this
@@ -1487,25 +1708,37 @@ impl PopupMenu {
                         .min_h(item_height)
                         .size_full()
                         .items_center()
-                        .gap_x_1()
-                        .children(Self::render_icon(
-                            has_left_icon,
-                            false,
-                            icon.clone(),
-                            window,
-                            cx,
-                        ))
+                        .gap_x(icon_gap)
+                        .children(self.render_icon(has_left_icon, false, icon.clone()))
                         .child(
                             h_flex()
                                 .flex_1()
-                                .gap_2()
+                                .map(|this| match style.trailing_gap {
+                                    Some(gap) => this.gap(gap),
+                                    None => this.gap_2(),
+                                })
                                 .items_center()
                                 .justify_between()
-                                .child(label.clone())
+                                .child(self.render_label(label.clone(), false))
                                 .child(
-                                    Icon::new(IconName::ChevronRight)
-                                        .xsmall()
-                                        .text_color(cx.theme().muted_foreground),
+                                    h_flex()
+                                        .items_center()
+                                        .when_some(style.trailing_slot, |this, slot| {
+                                            this.min_w(slot)
+                                        })
+                                        .children(self.render_detail(detail.clone(), cx))
+                                        .child(
+                                            match style.submenu_icon_size {
+                                                Some(size) => Icon::new(IconName::ChevronRight)
+                                                    .with_size(size),
+                                                None => Icon::new(IconName::ChevronRight).xsmall(),
+                                            }
+                                            .text_color(
+                                                style
+                                                    .submenu_icon_color
+                                                    .unwrap_or(cx.theme().muted_foreground),
+                                            ),
+                                        ),
                                 ),
                         ),
                 )
@@ -1608,6 +1841,13 @@ impl Render for PopupMenu {
             .on_action(cx.listener(Self::dismiss))
             .on_mouse_down_out(cx.listener(Self::on_mouse_down_out))
             .popover_style(cx)
+            .when_some(self.style.background, |this, background| {
+                this.bg(background)
+            })
+            .when_some(self.style.radius, |this, radius| this.rounded(radius))
+            .when_some(self.style.shadow.clone(), |this, shadow| {
+                this.shadow(shadow)
+            })
             .text_color(cx.theme().popover_foreground)
             .relative()
             .occlude()
@@ -1615,10 +1855,18 @@ impl Render for PopupMenu {
                 v_flex()
                     .id("items")
                     .p_1()
-                    .gap_y_0p5()
-                    .min_w(rems(8.))
+                    .when_some(self.style.padding_x, |this, padding| this.px(padding))
+                    .when_some(self.style.padding_y, |this, padding| this.py(padding))
+                    .map(|this| match self.style.item_gap {
+                        Some(gap) => this.gap_y(gap),
+                        None => this.gap_y_0p5(),
+                    })
+                    .map(|this| match self.style.min_width {
+                        Some(min_width) => this.min_w(min_width),
+                        None => this.min_w(rems(8.)),
+                    })
                     .when_some(self.min_width, |this, min_width| this.min_w(min_width))
-                    .map(|this| match self.max_width {
+                    .map(|this| match self.max_width.or(self.style.max_width) {
                         Some(max_width) => this.max_w(max_width),
                         None => this.max_w(rems(31.25)),
                     })
