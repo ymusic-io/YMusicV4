@@ -18,7 +18,7 @@ use crate::account::{AccountController, Accounts};
 use crate::account_view::AccountView;
 use crate::action_icon::{HIT, action_icon};
 use crate::download_dialog::{DownloadPicker, DownloadTarget};
-use crate::downloads_view::{DownloadsView, RevealInLibrary};
+use crate::downloads_view::{DownloadsView, RevealInLibrary, SelectionModeChanged};
 use crate::feed::{FeedAction, FeedSource, FeedView, ItemAction, Navigate, Play, RequestSearch};
 use crate::feedback_view::FeedbackView;
 use crate::graph::{AppGraph, on_core};
@@ -78,6 +78,19 @@ pub fn track_scroll(scroll: &ScrollHandle, cx: &App) {
 pub fn chrome_tone(cx: &App) -> Hsla {
     let tones = cx.global::<crate::settings_view::ChromeTones>();
     if cx.global::<ScrollHost>().lifted.get() { tones.lifted } else { tones.flat }
+}
+
+/// A section's top bar: icon buttons and the page title in a row on the chrome tone.
+pub fn top_bar(cx: &App) -> Div {
+    h_flex()
+        .gap_2()
+        .px_2()
+        .pt(px(BAR_PAD_TOP))
+        .pb(px(BAR_PAD_BOTTOM))
+        // A bar without icon buttons (Settings in rail mode) keeps their height.
+        .min_h(px(BAR_PAD_TOP + HIT + BAR_PAD_BOTTOM))
+        .items_center()
+        .bg(chrome_tone(cx))
 }
 
 /// The shadow a lifted bar casts on the page below it, laid over the page's top edge.
@@ -1088,7 +1101,8 @@ impl Shell {
             let file = event.file.clone();
             library.update(cx, |library, cx| library.reveal_file(file, cx));
         });
-        self._subscriptions.extend([play, reveal]);
+        let selection = cx.subscribe(&view, |_, _, _: &SelectionModeChanged, cx| cx.notify());
+        self._subscriptions.extend([play, reveal, selection]);
         self.downloads = Some(view.clone());
         view
     }
@@ -1690,6 +1704,12 @@ impl Shell {
         if previous != section {
             self.rebuild_local_discover(cx);
         }
+        if previous == Section::Downloads
+            && section != Section::Downloads
+            && let Some(view) = &self.downloads
+        {
+            view.update(cx, |view, cx| view.clear_selection(cx));
+        }
         cx.notify();
     }
 
@@ -1750,16 +1770,19 @@ impl Shell {
             None => {}
         }
         let content = self.root_content(window, cx);
+        // Selecting downloads, their selection bar stands in for this bar and casts the shadow.
+        let downloads_selecting =
+            self.section == Section::Downloads && self.downloads.as_ref().is_some_and(|view| view.read(cx).selecting());
         let tab_row = match self.section {
             Section::Discover if !wide => Some(self.discover_tabs(false, cx)),
             Section::YtMusic => Some(self.music_tabs(cx)),
             _ => None,
         };
         // Library's own tab row, under this bar, casts the shadow.
-        let shadow = (self.section != Section::Library).then(|| bar_shadow(cx)).flatten();
+        let shadow = (self.section != Section::Library && !downloads_selecting).then(|| bar_shadow(cx)).flatten();
         v_flex()
             .size_full()
-            .child(self.root_bar(rail_mode, wide, cx))
+            .when(!downloads_selecting, |main| main.child(self.root_bar(rail_mode, wide, cx)))
             .children(tab_row)
             .child(div().flex_1().min_h_0().relative().child(content).children(shadow))
             .into_any_element()
@@ -1824,15 +1847,7 @@ impl Shell {
         let searchable = matches!(self.section, Section::Discover | Section::YtMusic | Section::Library);
         // The title slot keeps the widest tab label's room, so the inline tabs never shift.
         let reserve = DiscoverTab::ALL.iter().map(|tab| tab.label().chars().count()).max().unwrap_or(0) as f32 * 9.5;
-        h_flex()
-            .gap_2()
-            .px_2()
-            .pt(px(BAR_PAD_TOP))
-            .pb(px(BAR_PAD_BOTTOM))
-            // A bar without icon buttons (Settings in rail mode) keeps their height.
-            .min_h(px(BAR_PAD_TOP + HIT + BAR_PAD_BOTTOM))
-            .items_center()
-            .bg(chrome_tone(cx))
+        top_bar(cx)
             .when(!rail_mode, |bar| {
                 bar.child(self.chrome_focus.button(
                     CHROME_DRAWER,
@@ -2246,8 +2261,8 @@ impl Shell {
         cx.notify();
     }
 
-    /// Peels back full screen, Now Playing, then the drawer; with none open, a second Esc within
-    /// the double-click window goes back.
+    /// Peels back full screen, Now Playing, the drawer, then the downloads selection; with none
+    /// open, a second Esc within the double-click window goes back.
     fn escape(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if window.is_fullscreen() {
             window.toggle_fullscreen();
@@ -2255,6 +2270,10 @@ impl Shell {
             self.now_playing_open = false;
         } else if self.drawer_open {
             self.drawer_open = false;
+        } else if self.section == Section::Downloads
+            && let Some(view) = self.downloads.clone().filter(|view| view.read(cx).selecting())
+        {
+            view.update(cx, |view, cx| view.clear_selection(cx));
         } else if let Some(Layer::SignIn(view)) = self.stacks.get(&self.section).and_then(|stack| stack.pushed.last()) {
             view.clone().update(cx, |view, cx| view.back(cx));
             return;

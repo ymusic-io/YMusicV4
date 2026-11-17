@@ -1,7 +1,9 @@
 //! The download manager: every task with its state and progress, filtered by state, with per-task
 //! and whole-queue controls. The list is the service's snapshot, kept current from its changes.
 
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 use futures::StreamExt;
 use futures::channel::mpsc;
@@ -13,12 +15,12 @@ use gpui_kit::component::{ActiveTheme, Icon, IconName, Selectable, Sizable, Styl
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use ym_download::{DownloadChange, DownloadFormat, DownloadService, DownloadState, DownloadTask, TaskError};
-use ym_i18n::{Str, t, tf};
+use ym_i18n::{Plural, Str, plural, t, tf};
 use ym_image_loader::async_image::async_image_of;
 
 use crate::a11y::{DragRow, FocusList, announced, announced_as, heading, list_item};
 use crate::account::AccountController;
-use crate::action_icon::action_icon;
+use crate::action_icon::{HIT, action_icon, hit_target};
 use crate::download_dialog::{DownloadPicker, DownloadTarget};
 use crate::downloads::pick_download_folder;
 use crate::file_rename::RenameFileDialog;
@@ -95,7 +97,36 @@ pub struct DownloadsView {
     retry_after_sign_in: Vec<String>,
     /// The list could not be read; the screen says so with Retry (the JVM ErrorState).
     load_error: Option<&'static str>,
+    /// The tasks picked on the selection bar; selection mode lasts while it holds any.
+    selected_ids: HashSet<String>,
+    long_press: Option<LongPress>,
+    /// The card a long press just selected: its release is not a click.
+    long_pressed: Option<String>,
+    /// The selection bar's buttons.
+    bar_focus: FocusList,
     _changes: Task<()>,
+}
+
+/// A press held on a card, mouse or Enter/Space (Compose `combinedClickable`'s long click): once it
+/// lasts [`LONG_PRESS`], the card is selected.
+struct LongPress {
+    id: String,
+    /// Where a mouse press went down; moving past [`TOUCH_SLOP`] lets it go.
+    origin: Option<Point<Pixels>>,
+    _timer: Task<()>,
+}
+
+type SelectionAction = fn(&mut DownloadsView, &mut Window, &mut Context<DownloadsView>);
+
+/// Selection mode began or ended: the shell swaps its bar for the selection bar.
+pub struct SelectionModeChanged;
+
+/// What a failed task's Retry does first.
+enum RetryRoute {
+    SignInDialog,
+    UnavailableDialog,
+    PickFolder,
+    Plain,
 }
 
 /// Open the Library at the folder holding a finished download.
@@ -105,6 +136,7 @@ pub struct RevealInLibrary {
 
 impl EventEmitter<PlayLocal> for DownloadsView {}
 impl EventEmitter<RevealInLibrary> for DownloadsView {}
+impl EventEmitter<SelectionModeChanged> for DownloadsView {}
 
 impl DownloadsView {
     pub fn new(service: DownloadService, cx: &mut Context<Self>) -> Self {
@@ -144,6 +176,10 @@ impl DownloadsView {
             chip_drag: DragRow::default(),
             retry_after_sign_in: Vec::new(),
             load_error: None,
+            selected_ids: HashSet::new(),
+            long_press: None,
+            long_pressed: None,
+            bar_focus: FocusList::new(None),
             _changes: changes,
         };
         view.refresh(cx);
@@ -161,12 +197,14 @@ impl DownloadsView {
                         tasks.reverse();
                         view.tasks = tasks;
                         view.load_error = None;
+                        view.drop_gone_selection(cx);
                     }
                     Some(Err(error)) => {
                         cx.global::<AppGraph>()
                             .log
                             .warn(&format!("{LOAD_FAILED} the download list could not be read"), Some(&error));
                         view.load_error = Some(LOAD_FAILED);
+                        view.clear_selection(cx);
                     }
                     None => {}
                 }
@@ -210,25 +248,117 @@ impl DownloadsView {
                 }
             }
         }
+        self.drop_gone_selection(cx);
         cx.notify();
+    }
+
+    pub fn selecting(&self) -> bool {
+        !self.selected_ids.is_empty()
+    }
+
+    pub fn clear_selection(&mut self, cx: &mut Context<Self>) {
+        self.change_selection(cx, HashSet::clear);
+    }
+
+    fn change_selection(&mut self, cx: &mut Context<Self>, change: impl FnOnce(&mut HashSet<String>)) {
+        let was_selecting = self.selecting();
+        change(&mut self.selected_ids);
+        if was_selecting != self.selecting() {
+            self.long_press = None;
+            cx.emit(SelectionModeChanged);
+        }
+        cx.notify();
+    }
+
+    fn toggle_selected(&mut self, id: &str, cx: &mut Context<Self>) {
+        self.change_selection(cx, |selected| {
+            if !selected.remove(id) {
+                selected.insert(id.to_owned());
+            }
+        });
+    }
+
+    /// Exactly the tasks the filter shows.
+    fn select_all(&mut self, cx: &mut Context<Self>) {
+        let filter = self.filter;
+        let shown: HashSet<String> =
+            self.tasks.iter().filter(|task| filter.matches(task.state)).map(|task| task.id.clone()).collect();
+        self.change_selection(cx, |selected| *selected = shown);
+    }
+
+    /// Drops the picks whose task is gone from the screen (removed, or canceled: no filter shows it).
+    fn drop_gone_selection(&mut self, cx: &mut Context<Self>) {
+        if !self.selecting() {
+            return;
+        }
+        let shown: HashSet<&str> =
+            self.tasks.iter().filter(|task| Filter::All.matches(task.state)).map(|task| task.id.as_str()).collect();
+        if self.selected_ids.iter().all(|id| shown.contains(id.as_str())) {
+            return;
+        }
+        let shown: HashSet<String> = shown.into_iter().map(str::to_owned).collect();
+        self.change_selection(cx, |selected| selected.retain(|id| shown.contains(id)));
+    }
+
+    fn selected_tasks(&self) -> impl Iterator<Item = &DownloadTask> {
+        self.tasks.iter().filter(|task| self.selected_ids.contains(&task.id))
+    }
+
+    fn start_long_press(&mut self, id: String, origin: Option<Point<Pixels>>, cx: &mut Context<Self>) {
+        self.long_pressed = None;
+        let timer = cx.spawn(async move |this, cx| {
+            cx.background_executor().timer(LONG_PRESS).await;
+            this.update(cx, |view, cx| view.long_press_lasted(cx)).ok();
+        });
+        self.long_press = Some(LongPress { id, origin, _timer: timer });
+    }
+
+    fn release_long_press(&mut self) {
+        self.long_press = None;
+    }
+
+    fn long_press_moved(&mut self, position: Point<Pixels>) {
+        let moved = self.long_press.as_ref().and_then(|press| press.origin).is_some_and(|origin| {
+            let delta = position - origin;
+            f32::from(delta.x).hypot(f32::from(delta.y)) > TOUCH_SLOP
+        });
+        if moved {
+            self.long_press = None;
+        }
+    }
+
+    /// A long press selects its card; while selecting, it toggles the card as a click does.
+    fn long_press_lasted(&mut self, cx: &mut Context<Self>) {
+        let Some(press) = self.long_press.take() else { return };
+        if self.selecting() {
+            self.toggle_selected(&press.id, cx);
+        } else {
+            self.change_selection(cx, |selected| {
+                selected.insert(press.id.clone());
+            });
+        }
+        self.long_pressed = Some(press.id);
+    }
+
+    /// A card is not clickable outside selection mode; in it, a click toggles the card.
+    fn card_clicked(&mut self, id: &str, cx: &mut Context<Self>) {
+        if self.long_pressed.take().is_some_and(|pressed| pressed == id) {
+            return;
+        }
+        if self.selecting() {
+            self.toggle_selected(id, cx);
+        }
     }
 
     /// A Retry that a playability verdict answers first: signed out on a sign-in verdict, the
     /// sign-in dialog (the task re-runs once signed in); an unavailable verdict offers removal; a
     /// lost folder re-picks it.
     fn retry(&mut self, task: &DownloadTask, window: &mut Window, cx: &mut Context<Self>) {
-        let code = task.error.as_ref().map(|error| error.code.clone()).unwrap_or_default();
         let id = task.id.clone();
-        match playability(&code) {
-            Some(Playability::SignInRequired)
-                if !cx.global::<AppGraph>().guest && !AccountController::global(cx).read(cx).signed_in =>
-            {
-                self.sign_in_dialog(id, window, cx)
-            }
-            Some(Playability::Unavailable) => self.unavailable_dialog(id, window, cx),
-            None if code == ym_download::error::FOLDER_ACCESS_CODE
-                || code == ym_download::error::LEGACY_FOLDER_ACCESS_CODE =>
-            {
+        match retry_route(task, cx) {
+            RetryRoute::SignInDialog => self.sign_in_dialog(id, window, cx),
+            RetryRoute::UnavailableDialog => self.unavailable_dialog(id, window, cx),
+            RetryRoute::PickFolder => {
                 let pick = pick_download_folder(window, cx);
                 cx.spawn(async move |this, cx| {
                     if pick.await.is_some() {
@@ -237,7 +367,7 @@ impl DownloadsView {
                 })
                 .detach();
             }
-            _ => self.service.retry(&id),
+            RetryRoute::Plain => self.service.retry(&id),
         }
     }
 
@@ -280,7 +410,7 @@ impl DownloadsView {
             }
             "format" => Self::other_format(&task, window, cx),
             "addto" => AddToLocalPlaylist::open(vec![task.video_id.clone()], None, window, cx),
-            "removedisk" => self.remove_from_disk(task, window, cx),
+            "removedisk" => self.remove_from_disk(vec![task], window, cx),
             "rename" => {
                 if let Some(file) = file_path(&task) {
                     RenameFileDialog::open(file, window, cx);
@@ -377,6 +507,11 @@ fn file_path(task: &DownloadTask) -> Option<PathBuf> {
     url::Url::parse(stored).ok()?.to_file_path().ok()
 }
 
+/// `control` keeps its presses: the card around it neither long-presses nor clicks with them.
+fn own_press(control: impl IntoElement) -> Div {
+    div().flex_shrink_0().on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation()).child(control)
+}
+
 pub(crate) enum Playability {
     SignInRequired,
     Unavailable,
@@ -393,6 +528,48 @@ pub(crate) fn playability(code: &str) -> Option<Playability> {
         }
         _ => None,
     }
+}
+
+fn retry_route(task: &DownloadTask, cx: &App) -> RetryRoute {
+    let code = task.error.as_ref().map_or("", |error| error.code.as_str());
+    match playability(code) {
+        Some(Playability::SignInRequired)
+            if !cx.global::<AppGraph>().guest && !AccountController::global(cx).read(cx).signed_in =>
+        {
+            RetryRoute::SignInDialog
+        }
+        Some(Playability::Unavailable) => RetryRoute::UnavailableDialog,
+        None if code == ym_download::error::FOLDER_ACCESS_CODE
+            || code == ym_download::error::LEGACY_FOLDER_ACCESS_CODE =>
+        {
+            RetryRoute::PickFolder
+        }
+        _ => RetryRoute::Plain,
+    }
+}
+
+/// Pause on the selection bar: what the card's menu pauses.
+fn can_pause(task: &DownloadTask) -> bool {
+    task.state.is_active()
+}
+
+/// Resume on the selection bar: a paused task, or a failed one whose Retry asks nothing first.
+fn can_resume(task: &DownloadTask, cx: &App) -> bool {
+    match task.state {
+        DownloadState::Paused => true,
+        DownloadState::Failed => matches!(retry_route(task, cx), RetryRoute::Plain),
+        _ => false,
+    }
+}
+
+/// Remove on the selection bar: the states whose card menu has Remove.
+fn can_remove(task: &DownloadTask) -> bool {
+    matches!(task.state, DownloadState::Failed | DownloadState::Completed | DownloadState::Canceled)
+}
+
+/// Remove from disk on the selection bar: the state whose card menu has it.
+fn can_delete_file(task: &DownloadTask) -> bool {
+    task.state == DownloadState::Completed
 }
 
 fn retry_dialog(
@@ -496,60 +673,218 @@ fn state_label(state: DownloadState) -> &'static str {
 }
 
 const LOAD_FAILED: &str = "R90034";
+const FILE_NOT_DELETED: &str = "R90022";
+/// Compose's `ViewConfiguration.longPressTimeoutMillis`.
+const LONG_PRESS: Duration = Duration::from_millis(500);
+/// How far a held mouse may move and still be a long press.
+const TOUCH_SLOP: f32 = 8.;
 const CARD_MIN: f32 = 340.;
 const CARD_ROW_ESTIMATE: f32 = 120.;
 const THUMB: f32 = 56.;
 
 impl DownloadsView {
-    /// Deletes the finished file and its Library row, then the task; a failed delete keeps the task
-    /// and says so.
-    fn remove_from_disk(&mut self, task: DownloadTask, window: &mut Window, cx: &mut Context<Self>) {
-        let Some(path) = file_path(&task) else {
-            self.service.remove(&task.id);
-            return;
-        };
+    /// Deletes each finished file and its Library row, then its task; a failed delete keeps its task,
+    /// and one notice says so.
+    fn remove_from_disk(&mut self, tasks: Vec<DownloadTask>, window: &mut Window, cx: &mut Context<Self>) {
         let graph = cx.global::<AppGraph>();
         let (media, log) = (graph.media.clone(), graph.log.fork("downloads"));
         let delete = on_core(cx, async move {
             tokio::task::spawn_blocking(move || {
-                let removed = std::fs::remove_file(&path);
-                if removed.as_ref().is_ok()
-                    || removed.as_ref().is_err_and(|error| error.kind() == std::io::ErrorKind::NotFound)
-                {
-                    let row = media.find_item_by_uri(&path.to_string_lossy());
-                    if let Err(error) = row.and_then(|row| row.map_or(Ok(()), |(item, _)| media.delete_item(item.id))) {
-                        log.warn("the deleted download's Library row could not be removed", Some(&error));
-                    }
-                }
-                removed
+                tasks
+                    .into_iter()
+                    .map(|task| {
+                        let Some(path) = file_path(&task) else { return (task.id, Ok(())) };
+                        let removed = std::fs::remove_file(&path);
+                        if removed.as_ref().is_ok()
+                            || removed.as_ref().is_err_and(|error| error.kind() == std::io::ErrorKind::NotFound)
+                        {
+                            let row = media.find_item_by_uri(&path.to_string_lossy());
+                            if let Err(error) =
+                                row.and_then(|row| row.map_or(Ok(()), |(item, _)| media.delete_item(item.id)))
+                            {
+                                log.warn("the deleted download's Library row could not be removed", Some(&error));
+                            }
+                        }
+                        (task.id, removed)
+                    })
+                    .collect::<Vec<_>>()
             })
             .await
         });
         cx.spawn_in(window, async move |this, cx| {
-            let result = delete.await;
-            this.update_in(cx, |view, window, cx| match result {
-                Some(Ok(Ok(()))) => view.service.remove(&task.id),
-                Some(Ok(Err(error))) if error.kind() == std::io::ErrorKind::NotFound => view.service.remove(&task.id),
-                Some(Ok(Err(error))) => {
-                    cx.global::<AppGraph>().log.warn("R90022 downloaded file not deleted", Some(&error));
-                    window.push_notification(tf(Str::ErrorGeneric, &[&"R90022"]), cx);
+            let Some(outcome) = delete.await else { return };
+            this.update_in(cx, |view, window, cx| {
+                let failures: Vec<std::io::Error> = match outcome {
+                    Ok(results) => results
+                        .into_iter()
+                        .filter_map(|(id, result)| match result {
+                            Err(error) if error.kind() != std::io::ErrorKind::NotFound => Some(error),
+                            _ => {
+                                view.service.remove(&id);
+                                None
+                            }
+                        })
+                        .collect(),
+                    Err(error) => vec![std::io::Error::other(error)],
+                };
+                for error in &failures {
+                    cx.global::<AppGraph>()
+                        .log
+                        .warn(&format!("{FILE_NOT_DELETED} downloaded file not deleted"), Some(error));
                 }
-                Some(Err(error)) => {
-                    cx.global::<AppGraph>().log.warn("R90022 downloaded file not deleted", Some(&error));
-                    window.push_notification(tf(Str::ErrorGeneric, &[&"R90022"]), cx);
+                if !failures.is_empty() {
+                    window.push_notification(tf(Str::ErrorGeneric, &[&FILE_NOT_DELETED]), cx);
                 }
-                None => {}
             })
             .ok();
         })
         .detach();
     }
 
+    fn pause_selected(&mut self, cx: &mut Context<Self>) {
+        for task in self.selected_tasks().filter(|task| can_pause(task)) {
+            self.service.pause(&task.id);
+        }
+        self.clear_selection(cx);
+    }
+
+    fn resume_selected(&mut self, cx: &mut Context<Self>) {
+        for task in self.selected_tasks().filter(|task| can_resume(task, cx)) {
+            if task.state == DownloadState::Paused {
+                self.service.resume(&task.id);
+            } else {
+                self.service.retry(&task.id);
+            }
+        }
+        self.clear_selection(cx);
+    }
+
+    fn remove_selected(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let ids: Vec<String> =
+            self.selected_tasks().filter(|task| can_remove(task)).map(|task| task.id.clone()).collect();
+        let count = ids.len() as i64;
+        let view = cx.entity().downgrade();
+        crate::elevated_dialog::ConfirmDialog::new(
+            plural(Plural::DownloadsRemoveSelectedTitle, count, &[&count]),
+            t(Str::DownloadsRemoveSelectedMessage),
+            t(Str::MenuRemove),
+        )
+        .open(window, cx, move |_, cx| {
+            view.update(cx, |view, cx| {
+                for id in &ids {
+                    view.service.remove(id);
+                }
+                view.clear_selection(cx);
+            })
+            .ok();
+        });
+    }
+
+    fn delete_selected(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let tasks: Vec<DownloadTask> = self.selected_tasks().filter(|task| can_delete_file(task)).cloned().collect();
+        let count = tasks.len() as i64;
+        let view = cx.entity().downgrade();
+        crate::elevated_dialog::ConfirmDialog::new(
+            plural(Plural::DownloadsDeleteSelectedTitle, count, &[&count]),
+            t(Str::DownloadsDeleteSelectedMessage),
+            t(Str::DeleteFromDiskConfirm),
+        )
+        .destructive()
+        .open(window, cx, move |window, cx| {
+            view.update(cx, |view, cx| {
+                view.remove_from_disk(tasks.clone(), window, cx);
+                view.clear_selection(cx);
+            })
+            .ok();
+        });
+    }
+
+    /// The bar that stands in for the section's while selecting: leave, the count, Select all, then
+    /// each action that some selected task can take.
+    fn selection_bar(&self, cx: &mut Context<Self>) -> AnyElement {
+        let selected: Vec<&DownloadTask> = self.selected_tasks().collect();
+        let count = selected.len() as i64;
+        let actions: [(bool, &'static str, Lucide, SelectionAction); 4] = [
+            (
+                selected.iter().any(|task| can_pause(task)),
+                t(Str::DownloadsActionPause),
+                Lucide::Pause,
+                |view, _, cx| view.pause_selected(cx),
+            ),
+            (
+                selected.iter().any(|task| can_resume(task, cx)),
+                t(Str::DownloadsActionResume),
+                Lucide::Play,
+                |view, _, cx| view.resume_selected(cx),
+            ),
+            (
+                selected.iter().any(|task| can_remove(task)),
+                t(Str::MenuRemoveFolder),
+                Lucide::ListX,
+                Self::remove_selected,
+            ),
+            (
+                selected.iter().any(|task| can_delete_file(task)),
+                t(Str::MenuRemoveFromDisk),
+                Lucide::Trash,
+                Self::delete_selected,
+            ),
+        ];
+        let close = action_icon("selection-close", Icon::new(Lucide::X), t(Str::CdClose))
+            .on_click(cx.listener(|view, _, _, cx| view.clear_selection(cx)));
+        let select_all = action_icon("selection-all", Icon::new(Lucide::ListChecks), t(Str::PlaylistImportSelectAll))
+            .on_click(cx.listener(|view, _, _, cx| view.select_all(cx)));
+        let mut bar = crate::shell::top_bar(cx)
+            .child(self.bar_focus.button(0, close, cx))
+            .child(
+                heading("selection-count", 1, plural(Plural::DownloadsSelectedCount, count, &[&count]))
+                    .flex_1()
+                    .min_w_0()
+                    .truncate()
+                    .text_lg()
+                    .font_semibold(),
+            )
+            .child(self.bar_focus.button(1, select_all, cx));
+        for (index, (shown, label, icon, act)) in actions.into_iter().enumerate() {
+            if shown {
+                let button = action_icon(("selection-action", index), Icon::new(icon), label)
+                    .on_click(cx.listener(move |view, _, window, cx| act(view, window, cx)));
+                bar = bar.child(self.bar_focus.button(2 + index, button, cx));
+            }
+        }
+        bar.into_any_element()
+    }
+
+    /// The card's checkbox while selecting: toggles it, as a click on the card does.
+    fn check(&self, row: usize, task: &DownloadTask, checked: bool, cx: &mut Context<Self>) -> Div {
+        let theme = cx.theme();
+        let (primary, on_primary, border) = (theme.primary, theme.primary_foreground, theme.muted_foreground);
+        let id = task.id.clone();
+        let mark = div()
+            .size(px(18.))
+            .flex()
+            .items_center()
+            .justify_center()
+            .rounded(px(4.))
+            .border_2()
+            .border_color(if checked { primary } else { border })
+            .when(checked, |mark| {
+                mark.bg(primary).child(Icon::new(IconName::Check).size(px(14.)).text_color(on_primary))
+            });
+        let button = hit_target(("download-check", row), HIT)
+            .role(Role::CheckBox)
+            .toggled(checked)
+            .accessibility_label(task.title.clone())
+            .child(mark)
+            .on_click(cx.listener(move |view, _, _, cx| view.toggle_selected(&id, cx)));
+        own_press(self.focus.trailing_button(row, 0, button, cx))
+    }
+
     fn menu(&self, row: usize, task: &DownloadTask, cx: &mut Context<Self>) -> impl IntoElement {
         let view = cx.entity().downgrade();
         let task = task.clone();
         let more = action_icon(("download-more", row), IconName::EllipsisVertical, t(Str::CdMore));
-        self.focus.trailing_button(row, 0, more, cx).dropdown_menu_with_anchor(
+        let menu = self.focus.trailing_button(row, 0, more, cx).dropdown_menu_with_anchor(
             Anchor::TopRight,
             move |mut menu, _, _| {
                 let id = task.id.clone();
@@ -639,7 +974,8 @@ impl DownloadsView {
                                 )
                                 .destructive()
                                 .open(window, cx, move |window, cx| {
-                                    view.update(cx, |view, cx| view.remove_from_disk(task.clone(), window, cx)).ok();
+                                    view.update(cx, |view, cx| view.remove_from_disk(vec![task.clone()], window, cx))
+                                        .ok();
                                 });
                             }));
                     }
@@ -652,7 +988,8 @@ impl DownloadsView {
                 }
                 menu
             },
-        )
+        );
+        own_press(menu)
     }
 
     fn card(&self, row: usize, task: &DownloadTask, cx: &mut Context<Self>) -> AnyElement {
@@ -715,7 +1052,7 @@ impl DownloadsView {
                             .line_clamp(2)
                             .child(task_error_text(task.error.as_ref())),
                     )
-                    .child(
+                    .child(own_press(
                         self.focus
                             .trailing_button(
                                 row,
@@ -728,19 +1065,72 @@ impl DownloadsView {
                                     view.retry(&task, window, cx);
                                 }
                             })),
-                    )
+                    ))
                     .into_any_element()
             }
             _ => div().into_any_element(),
         };
         let label =
             [task.title.clone(), status.to_owned()].into_iter().chain(percent.clone()).collect::<Vec<_>>().join(", ");
+        let selecting = self.selecting();
+        let checked = self.selected_ids.contains(&task.id);
+        let card_focus = self.focus.handle(row, cx);
+        let (click_id, press_id, key_press_id) = (task.id.clone(), task.id.clone(), task.id.clone());
+        let trailing = if selecting {
+            self.check(row, task, checked, cx).into_any_element()
+        } else {
+            self.menu(row, task, cx).into_any_element()
+        };
         self.focus
-            .item(row, list_item(v_flex().id(("download", row)), row).aria_label(label), cx)
+            .item(
+                row,
+                list_item(v_flex().id(("download", row)), row)
+                    .aria_label(label)
+                    .when(selecting, |card| card.aria_selected(checked)),
+                cx,
+            )
+            .on_click(cx.listener(move |view, _, _, cx| view.card_clicked(&click_id, cx)))
+            .on_mouse_down(
+                MouseButton::Left,
+                cx.listener(move |view, event: &MouseDownEvent, _, cx| {
+                    view.start_long_press(press_id.clone(), Some(event.position), cx)
+                }),
+            )
+            .on_mouse_move(cx.listener(|view, event: &MouseMoveEvent, _, _| {
+                if event.pressed_button == Some(MouseButton::Left) {
+                    view.long_press_moved(event.position);
+                }
+            }))
+            .on_mouse_up(MouseButton::Left, cx.listener(|view, _, _, _| view.release_long_press()))
+            .on_mouse_up_out(MouseButton::Left, cx.listener(|view, _, _, _| view.release_long_press()))
+            .on_key_down(cx.listener(move |view, event: &KeyDownEvent, window, cx| {
+                let keystroke = &event.keystroke;
+                if matches!(keystroke.key.as_str(), "enter" | "space")
+                    && !keystroke.modifiers.modified()
+                    && !event.is_held
+                    && card_focus.is_focused(window)
+                {
+                    view.start_long_press(key_press_id.clone(), None, cx);
+                }
+            }))
+            .on_key_up(cx.listener(|view, _: &KeyUpEvent, _, _| view.release_long_press()))
+            .when(selecting, |card| card.cursor_pointer())
             .rounded(px(6.))
-            .bg(if failed { theme.danger.opacity(0.12) } else { tones.ground })
+            .bg(if checked {
+                theme.primary.opacity(0.12)
+            } else if failed {
+                theme.danger.opacity(0.12)
+            } else {
+                tones.ground
+            })
             .border_1()
-            .border_color(if failed { theme.danger.opacity(0.4) } else { theme.border })
+            .border_color(if checked {
+                theme.primary
+            } else if failed {
+                theme.danger.opacity(0.4)
+            } else {
+                theme.border
+            })
             .p(px(14.))
             .gap_2()
             .child(
@@ -792,7 +1182,7 @@ impl DownloadsView {
                                     }),
                             ),
                     )
-                    .child(self.menu(row, task, cx)),
+                    .child(trailing),
             )
             .when(show_bar, |card| {
                 card.child(
@@ -922,14 +1312,17 @@ impl Render for DownloadsView {
             })
             .id("download-cards");
         let grid = grid.child(stops.wrap(cards, Some(t(Str::SectionDownloads).into()), cx));
-        let fab = if any_active {
+        let selecting = self.selecting();
+        let fab = if selecting {
+            None
+        } else if any_active {
             Some((t(Str::DownloadsPauseAll), Lucide::Pause, true))
         } else if any_paused {
             Some((t(Str::DownloadsResumeAll), Lucide::Play, false))
         } else {
             None
         };
-        div()
+        let page = div()
             .relative()
             .size_full()
             .child(div().id("downloads-scroll").size_full().overflow_y_scroll().track_scroll(&self.scroll).child(grid))
@@ -943,7 +1336,14 @@ impl Render for DownloadsView {
                         ),
                     );
                 frame.child(div().absolute().right_4().bottom_4().child(self.fab_focus.button(0, fab, cx)))
-            })
+            });
+        if !selecting {
+            return page.into_any_element();
+        }
+        v_flex()
+            .size_full()
+            .child(self.selection_bar(cx))
+            .child(div().flex_1().min_h_0().relative().child(page).children(crate::shell::bar_shadow(cx)))
             .into_any_element()
     }
 }
