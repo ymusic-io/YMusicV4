@@ -4,6 +4,8 @@ Module detail for the one-line summary in the root [`AGENTS.md`](../AGENTS.md) �
 
 - **Run** — the JVM desktop product shell: `./gradlew :desktopApp:run`.
 
+- **Dev workspaces** — runs of several checkouts side by side. `tools/dev-worktree.sh setup` (via `tools/dev-data.sh create`) gives a checkout `~/.ymusic-dev/<name>/`, its `jvm/` a copy of `~/.ymusic` made once (library included; logs, update downloads and refillable caches left out). The run tasks read the checkout's `.ymusic-dev-data` and pass `YMUSIC_DATA_DIR=<root>/jvm`, `-Dymusic.devWorkspace=<name>` and `-Dymusic.devBranch` (`DevInstance`, read only when there is no `jpackage.app-path`). A workspace run titles itself `YMusic · <branch>`, keeps its cookie key in its own `app.db` (`cookie-key.bin`), and takes OS ids tagged with the name's FNV-1a-32 hex (`<tag>`): Windows AppUserModelID `io.ymusic.windows.dev.<tag>`, Linux WM_CLASS `io-ymusic-desktop-MainKt-dev<tag>` and desktop entry `io.ymusic.desktop.dev<tag>`, MPRIS `org.mpris.MediaPlayer2.ymusic.dev<tag>`. It opens no OS media session (media keys) unless `YMUSIC_DEV_MEDIA_SESSION=1`. An explicit `YMUSIC_DATA_DIR` other than the workspace's `jvm/` runs without a workspace.
+
 - **Boot sequence** — boots:
   - `DynamicEngineManager` (QuickJS + engine-js)
   - a file-backed `:media-store` + `:media-scanner` "Scan folder…" (packed ffmpeg, or `-Dio.ymusic.ffmpeg` / PATH)
