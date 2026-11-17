@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 4.0.25
 
 ### NEW
 - Full-screen video has its controls in three rows: time with quality, captions and fit/fill; the full-width seek bar; then details & comments, speed, equalizer, SponsorBlock, download, sleep timer and share, which full screen lacked before ([e3d6af894](https://github.com/ymusic-io/YMusicV4/commit/e3d6af894ecfdfbb2ec9940c4e7cd9c5850a7973), [09c084869](https://github.com/ymusic-io/YMusicV4/commit/09c084869898c4ad55ea4be141a2d51e07215085), [1b4d20d6d](https://github.com/ymusic-io/YMusicV4/commit/1b4d20d6d903829dbe43d8511787011565988d63), [464462aa1](https://github.com/ymusic-io/YMusicV4/commit/464462aa18667b9922d4098df4651139fde8931e), [677564293](https://github.com/ymusic-io/YMusicV4/commit/677564293928431d29779b15676d7db413e1ae60))
@@ -13,6 +13,7 @@
 - Desktop: the side rail slides open and closed instead of jumping ([e056c2a35](https://github.com/ymusic-io/YMusicV4/commit/e056c2a35b0f212cba2bf3db15a09f3769a01af8))
 
 ### FIXED
+- Desktop: a damaged media file could close the app while the Library scanned it or showed its artwork; now only that file fails. After the update, the Library rescans once in the background ([#308](https://github.com/ymusic-io/YMusicV4/issues/308), [9555b8d02](https://github.com/ymusic-io/YMusicV4/commit/9555b8d0283c67fdf91f332cb5afe23a2a414168), [7e4217bb0](https://github.com/ymusic-io/YMusicV4/commit/7e4217bb0ad78837ab7251a82c430fabf5947ff6), [affddf992](https://github.com/ymusic-io/YMusicV4/commit/affddf9923c20dc3eca1611b3b2eb95f2a155085), [d277ced4d](https://github.com/ymusic-io/YMusicV4/commit/d277ced4d7de93e5df6bdb1e07916f67b28294fa))
 - Fewer "Botguard bypass failed" (E60065) stops. When YouTube's bot check rejected playback, the automatic retry almost never got through on a phone; it now recovers as it does on desktop ([29ce1b665](https://github.com/ymusic-io/YMusicV4/commit/29ce1b6654d91dd640bbeb18795b191e2d70e5e9), [b6f374ed6](https://github.com/ymusic-io/YMusicV4/commit/b6f374ed6e90c8d49677ec4567c9723ea89acb1a))
 - Tapping the song that is already playing, in a list or in Up next, started it over; it now keeps playing, or resumes if paused ([11a525a12](https://github.com/ymusic-io/YMusicV4/commit/11a525a12a7e76962fc48572961dda0d89863b79), [722aed4e0](https://github.com/ymusic-io/YMusicV4/commit/722aed4e0915de358516d95a7343ab9cb8ca9620), [bcb9e790f](https://github.com/ymusic-io/YMusicV4/commit/bcb9e790f66334c8e2fef0dbc41e1fb27c87a5fe), [a9c4affb6](https://github.com/ymusic-io/YMusicV4/commit/a9c4affb694a509464233c8329f3de4ca172c6ed))
 - Android: in full screen, the seek bar sat on the bottom edge, under the navigation bar or gesture area ([e3d6af894](https://github.com/ymusic-io/YMusicV4/commit/e3d6af894ecfdfbb2ec9940c4e7cd9c5850a7973), [464462aa1](https://github.com/ymusic-io/YMusicV4/commit/464462aa18667b9922d4098df4651139fde8931e))
