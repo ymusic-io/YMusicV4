@@ -654,4 +654,18 @@
     <string name="native_blocked_help">회사 또는 학교 PC에서는 관리자에게 YMusic 허용을 요청하세요. 개인 PC에서는 Windows 보안의 스마트 앱 컨트롤을 확인하세요.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">새로고침 중</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">모두 선택</string>
+    <string name="downloads_action_select">선택</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="other">%1$d개 선택됨</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="other">다운로드 %1$d개를 목록에서 삭제할까요?</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">완료된 파일은 이 기기에 남아 있습니다.</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="other">파일 %1$d개를 삭제할까요?</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">삭제한 파일은 복구할 수 없습니다.</string>
 </resources>

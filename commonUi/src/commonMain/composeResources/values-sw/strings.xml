@@ -662,4 +662,21 @@
     <string name="native_blocked_help">Kwenye kompyuta ya kazini au shuleni, muombe msimamizi wako aruhusu YMusic. Kwenye kompyuta yako, angalia Smart App Control katika Windows Security.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Inaonyesha upya</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">Chagua zote</string>
+    <string name="downloads_action_select">Chagua</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="one">%1$d imechaguliwa</item>
+        <item quantity="other">%1$d zimechaguliwa</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="one">Ungependa kuondoa kipakuliwa %1$d kwenye orodha?</item>
+        <item quantity="other">Ungependa kuondoa vipakuliwa %1$d kwenye orodha?</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">Faili zilizokamilika zitabaki kwenye kifaa hiki.</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="one">Ungependa kufuta faili %1$d?</item>
+        <item quantity="other">Ungependa kufuta faili %1$d?</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">Faili zilizofutwa haziwezi kurejeshwa.</string>
 </resources>

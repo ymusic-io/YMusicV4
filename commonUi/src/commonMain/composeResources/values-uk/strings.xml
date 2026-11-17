@@ -834,4 +834,27 @@
     <string name="native_blocked_help">На робочому чи навчальному комп’ютері попросіть адміністратора дозволити YMusic. На власному комп’ютері перевірте Smart App Control у розділі «Безпека Windows».</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Оновлення</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">Вибрати все</string>
+    <string name="downloads_action_select">Вибрати</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="one">Вибрано: %1$d</item>
+        <item quantity="few">Вибрано: %1$d</item>
+        <item quantity="many">Вибрано: %1$d</item>
+        <item quantity="other">Вибрано: %1$d</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="one">Прибрати %1$d завантаження зі списку?</item>
+        <item quantity="few">Прибрати %1$d завантаження зі списку?</item>
+        <item quantity="many">Прибрати %1$d завантажень зі списку?</item>
+        <item quantity="other">Прибрати %1$d завантаження зі списку?</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">Готові файли залишаться на цьому пристрої.</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="one">Видалити %1$d файл?</item>
+        <item quantity="few">Видалити %1$d файли?</item>
+        <item quantity="many">Видалити %1$d файлів?</item>
+        <item quantity="other">Видалити %1$d файлу?</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">Видалені файли не можна відновити.</string>
 </resources>

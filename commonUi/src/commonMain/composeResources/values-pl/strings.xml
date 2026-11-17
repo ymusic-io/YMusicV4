@@ -678,4 +678,27 @@
     <string name="native_blocked_help">Na komputerze służbowym lub szkolnym poproś administratora o zezwolenie na YMusic. Na własnym komputerze sprawdź Smart App Control w Zabezpieczeniach Windows.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Odświeżanie</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">Zaznacz wszystko</string>
+    <string name="downloads_action_select">Zaznacz</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="one">Zaznaczono: %1$d</item>
+        <item quantity="few">Zaznaczono: %1$d</item>
+        <item quantity="many">Zaznaczono: %1$d</item>
+        <item quantity="other">Zaznaczono: %1$d</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="one">Usunąć %1$d pobieranie z listy?</item>
+        <item quantity="few">Usunąć %1$d pobierania z listy?</item>
+        <item quantity="many">Usunąć %1$d pobierań z listy?</item>
+        <item quantity="other">Usunąć %1$d pobierania z listy?</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">Ukończone pliki pozostaną na tym urządzeniu.</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="one">Usunąć %1$d plik?</item>
+        <item quantity="few">Usunąć %1$d pliki?</item>
+        <item quantity="many">Usunąć %1$d plików?</item>
+        <item quantity="other">Usunąć %1$d pliku?</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">Usuniętych plików nie można odzyskać.</string>
 </resources>

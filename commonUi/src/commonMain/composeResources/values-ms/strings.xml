@@ -654,4 +654,18 @@
     <string name="native_blocked_help">Pada PC kerja atau sekolah, minta pentadbir anda membenarkan YMusic. Pada PC anda sendiri, semak Smart App Control dalam Windows Security.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Memuat semula</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">Pilih semua</string>
+    <string name="downloads_action_select">Pilih</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="other">%1$d dipilih</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="other">Alih keluar %1$d muat turun daripada senarai?</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">Fail yang telah selesai kekal pada peranti ini.</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="other">Padam %1$d fail?</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">Fail yang dipadam tidak boleh dipulihkan.</string>
 </resources>

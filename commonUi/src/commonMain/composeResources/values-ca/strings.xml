@@ -670,4 +670,24 @@
     <string name="native_blocked_help">En un PC de la feina o de l'escola, demana a l'administrador que permeti YMusic. Al teu PC, comprova Smart App Control a Seguretat del Windows.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">S'està actualitzant</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">Selecciona-ho tot</string>
+    <string name="downloads_action_select">Selecciona</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="one">%1$d seleccionat</item>
+        <item quantity="many">%1$d seleccionats</item>
+        <item quantity="other">%1$d seleccionats</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="one">Vols treure %1$d descàrrega de la llista?</item>
+        <item quantity="many">Vols treure %1$d descàrregues de la llista?</item>
+        <item quantity="other">Vols treure %1$d descàrregues de la llista?</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">Els fitxers acabats es queden en aquest dispositiu.</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="one">Vols suprimir %1$d fitxer?</item>
+        <item quantity="many">Vols suprimir %1$d fitxers?</item>
+        <item quantity="other">Vols suprimir %1$d fitxers?</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">Els fitxers suprimits no es poden recuperar.</string>
 </resources>

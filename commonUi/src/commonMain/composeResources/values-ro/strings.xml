@@ -670,4 +670,24 @@
     <string name="native_blocked_help">Pe un PC de la serviciu sau școală, cere administratorului să permită YMusic. Pe PC-ul tău, verifică Smart App Control în Securitate Windows.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Se reîmprospătează</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">Selectează tot</string>
+    <string name="downloads_action_select">Selectează</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="one">%1$d selectat</item>
+        <item quantity="few">%1$d selectate</item>
+        <item quantity="other">%1$d selectate</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="one">Elimini %1$d descărcare din listă?</item>
+        <item quantity="few">Elimini %1$d descărcări din listă?</item>
+        <item quantity="other">Elimini %1$d de descărcări din listă?</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">Fișierele finalizate rămân pe acest dispozitiv.</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="one">Ștergi %1$d fișier?</item>
+        <item quantity="few">Ștergi %1$d fișiere?</item>
+        <item quantity="other">Ștergi %1$d de fișiere?</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">Fișierele șterse nu pot fi recuperate.</string>
 </resources>

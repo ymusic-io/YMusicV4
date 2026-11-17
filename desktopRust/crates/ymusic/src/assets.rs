@@ -83,7 +83,8 @@ gpui_kit::assets::icon_assets!(
         Scan,
         Shrink,
         SlidersVertical,
-        MicVocal
+        MicVocal,
+        ListChecks
     ]
 );
 

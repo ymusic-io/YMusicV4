@@ -662,4 +662,21 @@
     <string name="native_blocked_help">ജോലിസ്ഥലത്തെയോ സ്കൂളിലെയോ PC-യിൽ, YMusic അനുവദിക്കാൻ നിങ്ങളുടെ അഡ്മിനിസ്ട്രേറ്ററോട് ആവശ്യപ്പെടുക. നിങ്ങളുടെ സ്വന്തം PC-യിൽ, Windows Security-യിൽ Smart App Control പരിശോധിക്കുക.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">റിഫ്രഷ് ചെയ്യുന്നു</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">എല്ലാം തിരഞ്ഞെടുക്കുക</string>
+    <string name="downloads_action_select">തിരഞ്ഞെടുക്കുക</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="one">%1$d എണ്ണം തിരഞ്ഞെടുത്തു</item>
+        <item quantity="other">%1$d എണ്ണം തിരഞ്ഞെടുത്തു</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="one">ലിസ്റ്റിൽ നിന്ന് %1$d ഡൗൺലോഡ് നീക്കം ചെയ്യണോ?</item>
+        <item quantity="other">ലിസ്റ്റിൽ നിന്ന് %1$d ഡൗൺലോഡ് നീക്കം ചെയ്യണോ?</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">പൂർത്തിയായ ഫയലുകൾ ഈ ഉപകരണത്തിൽ തന്നെ നിലനിൽക്കും.</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="one">%1$d ഫയൽ ഇല്ലാതാക്കണോ?</item>
+        <item quantity="other">%1$d ഫയൽ ഇല്ലാതാക്കണോ?</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">ഇല്ലാതാക്കിയ ഫയലുകൾ വീണ്ടെടുക്കാനാകില്ല.</string>
 </resources>

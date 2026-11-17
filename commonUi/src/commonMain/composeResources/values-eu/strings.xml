@@ -662,4 +662,21 @@
     <string name="native_blocked_help">Laneko edo ikastetxeko ordenagailu batean, eskatu administratzaileari YMusic baimentzeko. Zure ordenagailuan, begiratu Smart App Control Windows Security atalean.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Freskatzen</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">Hautatu guztiak</string>
+    <string name="downloads_action_select">Hautatu</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="one">%1$d hautatuta</item>
+        <item quantity="other">%1$d hautatuta</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="one">%1$d deskarga zerrendatik kendu nahi duzu?</item>
+        <item quantity="other">%1$d deskarga zerrendatik kendu nahi dituzu?</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">Amaitutako fitxategiak gailu honetan geratzen dira.</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="one">%1$d fitxategi ezabatu nahi duzu?</item>
+        <item quantity="other">%1$d fitxategi ezabatu nahi dituzu?</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">Ezabatutako fitxategiak ezin dira berreskuratu.</string>
 </resources>

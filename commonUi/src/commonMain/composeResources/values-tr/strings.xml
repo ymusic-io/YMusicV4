@@ -662,4 +662,21 @@
     <string name="native_blocked_help">İş veya okul bilgisayarında yöneticinizden YMusic'e izin vermesini isteyin. Kendi bilgisayarınızda Windows Güvenliği'ndeki Akıllı Uygulama Denetimi'ni kontrol edin.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Yenileniyor</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">Tümünü seç</string>
+    <string name="downloads_action_select">Seç</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="one">%1$d seçildi</item>
+        <item quantity="other">%1$d seçildi</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="one">%1$d indirme listeden kaldırılsın mı?</item>
+        <item quantity="other">%1$d indirme listeden kaldırılsın mı?</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">Tamamlanan dosyalar bu cihazda kalır.</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="one">%1$d dosya silinsin mi?</item>
+        <item quantity="other">%1$d dosya silinsin mi?</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">Silinen dosyalar kurtarılamaz.</string>
 </resources>

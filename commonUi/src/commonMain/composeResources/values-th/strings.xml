@@ -654,4 +654,18 @@
     <string name="native_blocked_help">หากเป็นพีซีของที่ทำงานหรือโรงเรียน โปรดขอให้ผู้ดูแลระบบอนุญาต YMusic หากเป็นพีซีส่วนตัว โปรดตรวจสอบ Smart App Control ในความปลอดภัยของ Windows</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">กำลังรีเฟรช</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">เลือกทั้งหมด</string>
+    <string name="downloads_action_select">เลือก</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="other">เลือกแล้ว %1$d รายการ</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="other">นำการดาวน์โหลด %1$d รายการออกจากรายการไหม</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">ไฟล์ที่ดาวน์โหลดเสร็จแล้วจะยังอยู่ในอุปกรณ์นี้</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="other">ลบ %1$d ไฟล์ไหม</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">ไฟล์ที่ลบแล้วจะกู้คืนไม่ได้</string>
 </resources>

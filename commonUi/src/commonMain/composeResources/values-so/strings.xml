@@ -662,4 +662,21 @@
     <string name="native_blocked_help">Kombiyuutarka shaqada ama dugsiga, ka codso maamulahaaga inuu oggolaado YMusic. Kombiyuutarkaaga, hubi Smart App Control oo ku jira Windows Security.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Cusboonaysiinaya</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">Dooro dhammaan</string>
+    <string name="downloads_action_select">Dooro</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="one">%1$d la doortay</item>
+        <item quantity="other">%1$d la doortay</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="one">Ka saar %1$d dajin liiska?</item>
+        <item quantity="other">Ka saar %1$d dajin liiska?</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">Faylasha dhammaystiran waxay ku hadhayaan qalabkan.</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="one">Tirtir %1$d fayl?</item>
+        <item quantity="other">Tirtir %1$d fayl?</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">Faylasha la tirtiray dib looma soo celin karo.</string>
 </resources>

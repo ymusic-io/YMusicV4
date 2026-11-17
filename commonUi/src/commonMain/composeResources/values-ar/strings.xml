@@ -826,4 +826,33 @@
     <string name="native_blocked_help">على جهاز العمل أو المدرسة، اطلب من المسؤول السماح بتشغيل YMusic. على جهازك الشخصي، تحقق من Smart App Control في أمان Windows.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">جارٍ التحديث</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">تحديد الكل</string>
+    <string name="downloads_action_select">تحديد</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="zero">تم تحديد %1$d</item>
+        <item quantity="one">تم تحديد %1$d</item>
+        <item quantity="two">تم تحديد %1$d</item>
+        <item quantity="few">تم تحديد %1$d</item>
+        <item quantity="many">تم تحديد %1$d</item>
+        <item quantity="other">تم تحديد %1$d</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="zero">إزالة %1$d تنزيل من القائمة؟</item>
+        <item quantity="one">إزالة تنزيل واحد من القائمة؟</item>
+        <item quantity="two">إزالة تنزيلين من القائمة؟</item>
+        <item quantity="few">إزالة %1$d تنزيلات من القائمة؟</item>
+        <item quantity="many">إزالة %1$d تنزيلًا من القائمة؟</item>
+        <item quantity="other">إزالة %1$d تنزيل من القائمة؟</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">تبقى الملفات المكتملة على هذا الجهاز.</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="zero">حذف %1$d ملف؟</item>
+        <item quantity="one">حذف ملف واحد؟</item>
+        <item quantity="two">حذف ملفين؟</item>
+        <item quantity="few">حذف %1$d ملفات؟</item>
+        <item quantity="many">حذف %1$d ملفًا؟</item>
+        <item quantity="other">حذف %1$d ملف؟</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">لا يمكن استعادة الملفات المحذوفة.</string>
 </resources>

@@ -654,4 +654,18 @@
     <string name="native_blocked_help">若是公司或學校的電腦，請向系統管理員要求允許 YMusic。若是個人電腦，請到 Windows 安全性查看智慧型應用程式控制。</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">正在重新整理</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">全選</string>
+    <string name="downloads_action_select">選取</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="other">已選取 %1$d 項</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="other">要從清單中移除 %1$d 個下載項目嗎？</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">已完成的檔案會保留在這部裝置上。</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="other">要刪除 %1$d 個檔案嗎？</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">刪除的檔案無法復原。</string>
 </resources>

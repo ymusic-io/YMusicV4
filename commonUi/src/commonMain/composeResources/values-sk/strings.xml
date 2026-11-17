@@ -678,4 +678,27 @@
     <string name="native_blocked_help">Na pracovnom alebo školskom počítači požiadajte správcu, aby povolil YMusic. Na vlastnom počítači skontrolujte Smart App Control v Zabezpečení Windows.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Obnovuje sa</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">Vybrať všetko</string>
+    <string name="downloads_action_select">Vybrať</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="one">Vybrané: %1$d</item>
+        <item quantity="few">Vybrané: %1$d</item>
+        <item quantity="many">Vybrané: %1$d</item>
+        <item quantity="other">Vybrané: %1$d</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="one">Odstrániť zo zoznamu %1$d stiahnutie?</item>
+        <item quantity="few">Odstrániť zo zoznamu %1$d stiahnutia?</item>
+        <item quantity="many">Odstrániť zo zoznamu %1$d stiahnutia?</item>
+        <item quantity="other">Odstrániť zo zoznamu %1$d stiahnutí?</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">Dokončené súbory zostanú v tomto zariadení.</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="one">Odstrániť %1$d súbor?</item>
+        <item quantity="few">Odstrániť %1$d súbory?</item>
+        <item quantity="many">Odstrániť %1$d súboru?</item>
+        <item quantity="other">Odstrániť %1$d súborov?</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">Odstránené súbory sa nedajú obnoviť.</string>
 </resources>

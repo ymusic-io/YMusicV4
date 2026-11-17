@@ -654,4 +654,18 @@
     <string name="native_blocked_help">如果是工作或学校的电脑，请让管理员允许 YMusic。如果是自己的电脑，请在 Windows 安全中心查看智能应用控制。</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">正在刷新</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">全选</string>
+    <string name="downloads_action_select">选择</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="other">已选择 %1$d 项</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="other">要从列表中移除 %1$d 个下载吗？</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">已完成的文件会保留在此设备上。</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="other">要删除 %1$d 个文件吗？</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">已删除的文件无法恢复。</string>
 </resources>
