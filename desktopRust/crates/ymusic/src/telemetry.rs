@@ -251,8 +251,12 @@ fn arm_exit_marker(data_dir: &Path, launch: &str, sink: &SentrySink, log: &Logge
                 next(info);
             }));
             let _ = EXIT_MARKER.set(marker);
-            if let Some(previous) = previous {
-                sink.report_unclean_exit(&previous);
+            match previous {
+                Some(previous) if previous.before_boot => {
+                    log.info("the previous launch ended with the OS (a shutdown or restart): not reported")
+                }
+                Some(previous) => sink.report_unclean_exit(&previous),
+                None => {}
             }
         }
         Err(error) => {

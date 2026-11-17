@@ -304,9 +304,10 @@ impl SentrySink {
 
 impl SentrySink {
     /// Blocking. A launch that died without a clean quit or a reported panic (a native crash, a stack
-    /// overflow, a kill): one fatal event, taking that launch's newest log lines.
+    /// overflow, a kill): one fatal event, taking that launch's newest log lines. One the OS ended (it
+    /// booted since) is not reported.
     pub fn report_unclean_exit(&self, previous: &UncleanExit) {
-        if previous.panicked || !reports_allowed() {
+        if previous.panicked || previous.before_boot || !reports_allowed() {
             return;
         }
         let lines = self.policy.error_log_lines();

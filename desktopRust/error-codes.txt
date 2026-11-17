@@ -150,7 +150,7 @@ R90033 D player session: player/init was not done within 30 s; the boot fails an
 R90034 D downloads: the download list could not be read from downloads.db; the screen shows the code with Retry (the JVM E70081, logged)
 R90035 D Linux dock menu: the quicklist could not be served on the session bus (logged; the dock shows only its own entries)
 R90036 D Linux dock menu: a quicklist update could not be published (LayoutUpdated or the LauncherEntry Update signal; logged)
-R90037 - telemetry: the previous launch ended without a clean quit or a reported panic (a native crash, a stack overflow, a kill); one fatal event at the next launch, with that launch's log lines (captured)
+R90037 - telemetry: the previous launch ended without a clean quit or a reported panic (a native crash, a stack overflow, a kill); one fatal event at the next launch, with that launch's log lines (captured). Not for a launch the OS booted after (a shutdown or restart ended it)
 R90038 - telemetry: an earlier launch's log lines could not be claimed for its unclean-exit event (logged; the event goes without them)
 R90039 - telemetry: the running-launch marker could not be read or written at launch; an unclean exit of this launch goes unreported (logged)
 R90040 D Linux file dialog: the Tokio task driving the portal dialog failed (logged; treated as canceled)
