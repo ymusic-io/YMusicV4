@@ -18,6 +18,7 @@ tools
 !/tools/
 /tools/*
 !/tools/dev-slot.sh
+!/tools/dev-worktree.sh
 test-cache
 ymusic-android
 # desktopRust ships its packaging scripts and vendored docs; the rules above are for private root folders.
@@ -49,10 +50,12 @@ androidApp/src/main/assets/composeResources/
 local.properties
 # build keys and passwords, and the Android keystore: sealed into secrets.enc by ./encrypt.sh
 secrets.properties
-/signing/
+# no trailing slash: a worktree links signing/ in from the main checkout (tools/dev-worktree.sh)
+/signing
 
-# this checkout's dev data slot (tools/dev-slot.sh)
+# this checkout's dev data slot (tools/dev-slot.sh) and dev env (tools/dev-worktree.sh)
 /.ymusic-dev-slot
+/.ymusic-dev.env
 
 # legacy app sources, kept locally for reference only
 /YMusicLegacy
