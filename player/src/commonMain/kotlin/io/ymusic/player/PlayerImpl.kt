@@ -236,6 +236,11 @@ internal class PlayerImpl(
 
     override fun playAt(index: Int) {
         if (released) return
+        val status = _status.value
+        if (index == controller.state.currentIndex && !status.state.isEnded() && status.state !is PlaybackState.Error) {
+            if (!status.playWhenReady) play()
+            return
+        }
         if (controller.moveTo(index)) {
             lastChange = QueueChange.User
             publishQueue(refreshNext = false)
