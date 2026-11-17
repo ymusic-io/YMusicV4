@@ -10,11 +10,11 @@
 # app's data dir and `rust/` the Rust app's. The checkout's gitignored `.ymusic-dev-slot` holds
 # `slot=N` and `root=<slot dir>` lines; the Gradle run task and the Rust run helpers read it.
 #
-# A new slot is seeded once from the release app's ~/.ymusic (read only): app.db (settings and the
-# sealed cookie jar, minus per-install telemetry/update rows) and window.properties. A sign-in key
-# held outside app.db is copied too: on macOS into the slot's own Keychain item (service
-# io.ymusic.desktop, account cookie-key.dev<N>), and as app.db's cookie-key.bin row for the Rust
-# debug build; on Linux from the Secret Service into app.db's cookie-key.bin row of both apps.
+# A new slot is seeded once from the release app's ~/.ymusic, read only: app.db (the settings and the
+# sealed cookie jar, minus per-install telemetry/update rows) and window.properties. Both dev apps
+# keep a slot's sign-in key in its app.db (secret row cookie-key.bin), so the release key that sealed
+# a copied jar goes there: from the macOS Keychain or the Linux Secret Service (service
+# io.ymusic.desktop, account cookie-key), never written back.
 set -euo pipefail
 
 SLOTS_ROOT="$HOME/.ymusic-dev"
@@ -29,8 +29,10 @@ COOKIE_JAR_ROW=api-cookies.json
 SEED_DROPPED_SETTINGS="'telemetry.deviceId','telemetry.lastLoadedEngineJsVer','telemetry.lastLoadedPlayerJsVer','telemetry.nativeBlockReportedVersion','update.lastRunVersionCode','update.autoDownloadFailed'"
 # "YMC1U": a jar sealed under the OS user's key; "YMC1P": under the user's password (no key to copy).
 USER_SEAL_HEX=594D433155
-# Set to a keychain file to keep every Keychain read and write off the login keychain (tests).
+# Set to a keychain file to read the release key from it instead of the login keychain (tests).
 KEYCHAIN="${DEV_SLOT_KEYCHAIN:-}"
+RELEASE_KEY_READ=0
+RELEASE_KEY_HEX=""
 
 die() {
     echo "dev-slot: $*" >&2
@@ -41,10 +43,6 @@ checkout_root() {
     local top
     top=$(git rev-parse --show-toplevel) || die "not inside a git checkout"
     (cd "$top" && pwd -P)
-}
-
-slot_key_account() {
-    echo "$RELEASE_KEY_ACCOUNT.dev$1"
 }
 
 keychain_args() {
@@ -72,6 +70,7 @@ release_key_hex() {
     case "$(uname -s)" in
         Darwin)
             local out
+            echo "    macOS may ask to let 'security' read the YMusic sign-in key: Allow is enough (Always Allow lets it read without asking from then on)" >&2
             # shellcheck disable=SC2046
             out=$(security find-generic-password -s "$KEY_SERVICE" -a "$RELEASE_KEY_ACCOUNT" -w $(keychain_args) 2>/dev/null) || return 0
             # `security -w` prints a password that is not text as hex.
@@ -96,27 +95,8 @@ release_key_hex() {
     esac
 }
 
-# Makes the copied jar in [db] openable by [app] in slot [n] under the key [key_hex].
-install_key() {
-    local app=$1 n=$2 key_hex=$3 db=$4
-    if [ "$app" = jvm ] && [ "$(uname -s)" = Darwin ]; then
-        # shellcheck disable=SC2046
-        security add-generic-password -U -s "$KEY_SERVICE" -a "$(slot_key_account "$n")" \
-            -l "YMusic dev slot $n sign-in key" -X "$key_hex" $(keychain_args) \
-            || die "could not write the Keychain item $KEY_SERVICE/$(slot_key_account "$n")"
-        echo "    sign-in key copied to the Keychain item $KEY_SERVICE/$(slot_key_account "$n")"
-    else
-        sqlite3 "$db" "INSERT OR REPLACE INTO secret(name, value) VALUES('$FALLBACK_KEY_ROW', X'$key_hex');"
-        echo "    sign-in key copied to app.db ($FALLBACK_KEY_ROW)"
-    fi
-}
-
 seed_app_db() {
-    local target=$1 app=$2 n=$3
-    if ! command -v sqlite3 >/dev/null; then
-        echo "    sqlite3 not found: settings and sign-in not seeded"
-        return 0
-    fi
+    local target=$1
     local staged="$target/app.db.seeding"
     rm -f "$staged" "$staged-wal" "$staged-shm"
     # Plain file copies: nothing ever opens, locks or writes the release app's files.
@@ -127,10 +107,13 @@ seed_app_db() {
     local seal
     seal=$(sqlite3 "$staged" "SELECT hex(substr(value, 1, 5)) FROM secret WHERE name='$COOKIE_JAR_ROW';")
     if [ "$seal" = "$USER_SEAL_HEX" ]; then
-        local key_hex
-        key_hex=$(release_key_hex "$staged")
-        if [ ${#key_hex} -eq 64 ]; then
-            install_key "$app" "$n" "$key_hex" "$staged"
+        if [ "$RELEASE_KEY_READ" = 0 ]; then
+            RELEASE_KEY_HEX=$(release_key_hex "$staged")
+            RELEASE_KEY_READ=1
+        fi
+        if [ ${#RELEASE_KEY_HEX} -eq 64 ]; then
+            sqlite3 "$staged" "INSERT OR REPLACE INTO secret(name, value) VALUES('$FALLBACK_KEY_ROW', X'$RELEASE_KEY_HEX');"
+            echo "    sign-in key copied to app.db ($FALLBACK_KEY_ROW)"
         else
             sqlite3 "$staged" "DELETE FROM secret WHERE name='$COOKIE_JAR_ROW';"
             echo "    the release sign-in key is unreadable: settings seeded, the slot starts signed out"
@@ -148,14 +131,14 @@ seed_app_db() {
 }
 
 seed() {
-    local target=$1 app=$2 n=$3
+    local target=$1 app=$2
     echo "  $app/:"
     if [ -e "$target/app.db" ]; then
         echo "    has data already, not seeded"
         return 0
     fi
     if [ -f "$RELEASE_DIR/app.db" ]; then
-        seed_app_db "$target" "$app" "$n"
+        seed_app_db "$target"
     else
         echo "    no $RELEASE_DIR/app.db: starts empty"
     fi
@@ -172,6 +155,9 @@ cmd_claim() {
     if [ -f "$slot_file" ]; then
         cat "$slot_file"
         return 0
+    fi
+    if [ -f "$RELEASE_DIR/app.db" ] && ! command -v sqlite3 >/dev/null; then
+        die "seeding a slot from $RELEASE_DIR/app.db needs the sqlite3 command line tool"
     fi
     lock_slots
     local n chosen=""
@@ -195,8 +181,8 @@ cmd_claim() {
     mkdir -p "$dir/jvm" "$dir/rust"
     printf '%s\n' "$root" >"$dir/owner"
     echo "claimed slot $chosen for $root"
-    seed "$dir/jvm" jvm "$chosen"
-    seed "$dir/rust" rust "$chosen"
+    seed "$dir/jvm" jvm
+    seed "$dir/rust" rust
     printf 'slot=%s\nroot=%s\n' "$chosen" "$dir" >"$slot_file"
     cat "$slot_file"
 }
@@ -221,12 +207,6 @@ cmd_release() {
     rm -f "$slot_file"
     if [ "$wipe" = 1 ]; then
         rm -rf "${SLOTS_ROOT:?}/$n"
-        if [ "$(uname -s)" = Darwin ]; then
-            # shellcheck disable=SC2046
-            if security delete-generic-password -s "$KEY_SERVICE" -a "$(slot_key_account "$n")" $(keychain_args) >/dev/null 2>&1; then
-                echo "deleted the Keychain item $KEY_SERVICE/$(slot_key_account "$n")"
-            fi
-        fi
         echo "released slot $n and wiped $dir"
     else
         echo "released slot $n; its data stays in $dir for the next claim (--wipe deletes it)"

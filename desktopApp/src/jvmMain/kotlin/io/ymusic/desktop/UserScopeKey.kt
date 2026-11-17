@@ -22,17 +22,25 @@ internal const val FALLBACK_KEY_SECRET = "$KEY_NAME.bin"
 
 /**
  * The key the cookie jar is sealed under by default: one only this OS user can recover, so a copied
- * file or disk is unreadable — though any app running as that user can still ask for it.
+ * file or disk is unreadable — though any app running as that user can still ask for it. A dev
+ * slot's run keeps it in the slot's own [AppStore] (where tools/dev-slot.sh seeds it, the Rust debug
+ * build's place too), off the release app's OS key item.
  * Blocking (keychain / DPAPI / D-Bus): call it off the main thread.
  */
 internal fun userScopeCookieKey(store: AppStore, log: Logger?): SecretKey {
-    val bytes = when (desktopOsKey()) {
+    val bytes = when {
+        DevInstance.slot != null -> store.secretOrPut(FALLBACK_KEY_SECRET, randomSecret(KEY_BYTES))
+        else -> osUserKey(store, log)
+    }
+    return SecretKeySpec(bytes, "AES")
+}
+
+private fun osUserKey(store: AppStore, log: Logger?): ByteArray =
+    when (desktopOsKey()) {
         "macos" -> MacKeychain.getOrCreateSecret(APP_ID, KEY_NAME, KEY_BYTES)
         "windows" -> WindowsDpapi.getOrCreateSecret(store, KEY_BYTES)
         else -> linuxSecret(store, log)
     }
-    return SecretKeySpec(bytes, "AES")
-}
 
 private fun randomSecret(size: Int) = ByteArray(size).also { SecureRandom().nextBytes(it) }
 
