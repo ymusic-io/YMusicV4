@@ -110,6 +110,12 @@ pub fn boot_failed(log: &ym_common::log::Logger, error: &ym_engine::EngineError)
 /// shell link, which sets no environment.
 pub const DEV_DATA_DIR_ARG: &str = "--data-dir=";
 
+/// Set when the app quits: the `cancel` of every Library scan, so none outlives the quit.
+pub static QUITTING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Blocking tasks still running after the quit hooks are left to the process exit past this.
+const RUNTIME_SHUTDOWN_WAIT: std::time::Duration = std::time::Duration::from_secs(2);
+
 fn main() {
     ym_i18n::use_system_locale();
     let dev = cfg!(debug_assertions).then(crate::dev_instance::resolve);
@@ -224,6 +230,7 @@ fn main() {
         init(cx);
         cx.set_global(crate::instance::Inbox(inbox));
         cx.on_app_quit(|_| {
+            QUITTING.store(true, std::sync::atomic::Ordering::Relaxed);
             crate::instance::stop_accepting();
             async {}
         })
@@ -336,7 +343,7 @@ fn main() {
         crate::video_surface::follow_render_device(log.fork("video"));
         crate::desktop::activate_app(cx);
     });
-    drop(tokio);
+    tokio.shutdown_timeout(RUNTIME_SHUTDOWN_WAIT);
 }
 
 /// Debug: `YMUSIC_DEV_WINDOW=WxH` opens the window at that size, for checking breakpoints.

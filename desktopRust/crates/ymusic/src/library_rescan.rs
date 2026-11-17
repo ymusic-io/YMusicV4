@@ -3,7 +3,6 @@
 
 use std::error::Error;
 use std::path::Path;
-use std::sync::atomic::AtomicBool;
 use std::time::Duration;
 
 use ym_settings::SettingsStore;
@@ -37,9 +36,13 @@ pub fn schedule(graph: &AppGraph) {
 fn rescan(settings: &dyn SettingsStore, media: &MediaStore) -> Result<(), Box<dyn Error + Send + Sync>> {
     settings.put_raw(RESCAN_DONE_KEY, "true".to_owned())?;
     media.invalidate_probes()?;
-    let cancel = AtomicBool::new(false);
     for root in media.root_buckets()? {
-        ym_store::scan_folder(media, ym_ffmpeg::FfmpegMetadataGetter::shared(), Path::new(&root.uri), &cancel)?;
+        ym_store::scan_folder(
+            media,
+            ym_ffmpeg::FfmpegMetadataGetter::shared(),
+            Path::new(&root.uri),
+            &crate::QUITTING,
+        )?;
     }
     Ok(())
 }

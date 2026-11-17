@@ -3,7 +3,6 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::sync::atomic::AtomicBool;
 
 use futures::future::BoxFuture;
 use gpui_kit::component::WindowExt;
@@ -195,7 +194,7 @@ pub fn register_download_folder(media: &MediaStore, folder: &Path) -> Result<(),
 
 /// Blocking and long: what is already in the download folder shows up in the Library.
 pub fn scan_download_folder(media: &MediaStore, folder: &Path, log: &Logger) {
-    match ym_store::scan_folder(media, ym_ffmpeg::FfmpegMetadataGetter::shared(), folder, &AtomicBool::new(false)) {
+    match ym_store::scan_folder(media, ym_ffmpeg::FfmpegMetadataGetter::shared(), folder, &crate::QUITTING) {
         Ok(report) => {
             for error in &report.errors {
                 log.warn(&format!("scan skipped {}: {}", error.path.display(), error.message), None);

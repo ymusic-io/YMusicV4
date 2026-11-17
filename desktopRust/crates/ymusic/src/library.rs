@@ -9,7 +9,6 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
-use std::sync::atomic::AtomicBool;
 
 use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::menu::{DropdownMenu, PopupMenuItem};
@@ -1088,14 +1087,13 @@ impl LibraryView {
                 on_core(cx, async move {
                     tokio::task::spawn_blocking(move || {
                         let first_folder = store.root_buckets()?.is_empty();
-                        let cancel = AtomicBool::new(false);
                         let mut total = ym_store::ScanReport::default();
                         for root in &roots {
                             let report = ym_store::scan_folder(
                                 &store,
                                 ym_ffmpeg::FfmpegMetadataGetter::shared(),
                                 root,
-                                &cancel,
+                                &crate::QUITTING,
                             )?;
                             total.added += report.added;
                             total.updated += report.updated;
