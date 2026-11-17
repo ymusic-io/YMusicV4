@@ -24,6 +24,7 @@ import javax.inject.Inject
  * a `linkingDef`'s library links (see [hostLibraryDef]); `pkg-config [pkgConfigModule]`; on macOS
  * `brew --prefix --installed [brewFormula]`. [libs] are linked when the hit is a prefix; pkg-config
  * brings its own. The first of [libs] is the one looked for among the linking library's dependencies.
+ * A target other than the host's own (`-PkmpTargets=all`) is found only through the override.
  */
 data class HostNativeLibrary(
     val displayName: String,
@@ -53,6 +54,7 @@ fun Project.hostLibraryDef(
     val task = tasks.register("generate${capitalized}Def", GenerateHostLibraryDef::class.java) {
         this.baseDef.set(baseDef)
         this.targetName.set(targetName)
+        hostTargetName.set(hostDesktopTargetName)
         displayName.set(library.displayName)
         pkgConfigModule.set(library.pkgConfigModule)
         brewFormula.set(library.brewFormula)
@@ -76,6 +78,10 @@ abstract class GenerateHostLibraryDef @Inject constructor(private val exec: Exec
     abstract val baseDef: RegularFileProperty
 
     @get:Input abstract val targetName: Property<String>
+
+    /** The one target the lookups below can answer for; any other needs [prefixOverride]. */
+    @get:Input @get:Optional
+    abstract val hostTargetName: Property<String>
 
     @get:Input abstract val displayName: Property<String>
 
@@ -147,6 +153,16 @@ abstract class GenerateHostLibraryDef @Inject constructor(private val exec: Exec
                     "${targetName.get()}: ${overrideName.get()}=$prefix has no include/${probeHeader.get()} " +
                         "and lib/ under it. Point it at the ${displayName.get()} install prefix.",
                 )
+        }
+        val host = hostTargetName.orNull
+        if (targetName.get() != host) {
+            // pkg-config, Homebrew and the linking library all answer with the host's copy, which links only for the host.
+            throw GradleException(
+                "${targetName.get()}: cannot locate ${displayName.get()} for a cross target from this " +
+                    "${host ?: System.getProperty("os.name")} host: every lookup finds the host's own copy, which would " +
+                    "fail at link time. Point ${overrideName.get()} at a ${displayName.get()} prefix built for " +
+                    "${targetName.get()} (include/${probeHeader.get()} and lib/), or build ${targetName.get()} on its own host.",
+            )
         }
         searched += "${overrideName.get()}: not set"
         if (linkingDef.isPresent) fromLinkingLibrary(linkingDef.get().asFile, searched)?.let { return it }

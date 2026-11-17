@@ -9,6 +9,13 @@ val hostOs: org.gradle.internal.os.OperatingSystem =
     org.gradle.internal.os.OperatingSystem.current()
 val hostIsArm64 = System.getProperty("os.arch").let { it == "aarch64" || it == "arm64" }
 
+/** The desktop Kotlin/Native target the build host itself runs; null off macOS and Linux. */
+val hostDesktopTargetName: String? = when {
+    hostOs.isMacOsX -> if (hostIsArm64) "macosArm64" else "macosX64"
+    hostOs.isLinux -> if (hostIsArm64) "linuxArm64" else "linuxX64"
+    else -> null
+}
+
 fun KotlinMultiplatformExtension.withAppleTargets(
     configure: KotlinNativeTarget.() -> Unit = {}
 ) {
