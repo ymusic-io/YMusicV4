@@ -4,9 +4,9 @@
 # (:commonUi:embedAndSignAppleFrameworkForXcode, -PkmpTargets=all so iosArm64 is configured on this
 # Intel host); Xcode compiles iosApp/iOSApp.swift, which hosts MainViewControllerKt.MainViewController.
 #
-# REQUIRES XCODE 16+ (iOS 18 SDK): Compose Multiplatform 1.11.1's ui-uikit links against
-# UIViewLayoutRegion (iOS 18), which is absent from Xcode 15.3's iOS 17.4 SDK. The Kotlin side
-# compiles for arm64 on any Xcode; only the framework LINK needs the iOS 18 SDK.
+# Xcode 26 (iOS 26 SDK) links cleanly. Compose Multiplatform 1.11.1's ui-uikit references the iOS 26
+# UIViewLayoutRegion, so on an older Xcode the build phase falls back to -PiosAllowUndefined=true
+# (-undefined dynamic_lookup) and says so with a build warning.
 #
 #   ruby gen_xcodeproj.rb
 require "xcodeproj"
@@ -49,9 +49,13 @@ gradle_phase.shell_script = <<~SH
   SIGN_ID="${EXPANDED_CODE_SIGN_IDENTITY:-}"
   unset EXPANDED_CODE_SIGN_IDENTITY
   # -PkmpTargets=all so iosArm64 / iosSimulatorArm64 are configured even on this Intel host.
-  # -PiosAllowUndefined=true lets Compose 1.11.1's iOS 26 symbols link on an older Xcode
-  # (@available-guarded, so unused below iOS 26). Drop it once building with Xcode 26.
-  ./gradlew --no-daemon :iosAppKotlin:embedAndSignAppleFrameworkForXcode -PkmpTargets=all -PiosAllowUndefined=true
+  # Xcode < 26 lacks Compose 1.11.1's iOS 26 UIViewLayoutRegion; only there link with dynamic_lookup.
+  ALLOW_UNDEFINED=""
+  if [ "${XCODE_VERSION_MAJOR:-0}" -lt 2600 ]; then
+    echo "warning: Xcode ${XCODE_VERSION_ACTUAL:-?} is older than 26: YMusicApp.framework links with -undefined dynamic_lookup, so a missing symbol crashes at runtime instead of failing the build"
+    ALLOW_UNDEFINED="-PiosAllowUndefined=true"
+  fi
+  ./gradlew --no-daemon :iosAppKotlin:embedAndSignAppleFrameworkForXcode -PkmpTargets=all $ALLOW_UNDEFINED
   FW="$TARGET_BUILD_DIR/$FRAMEWORKS_FOLDER_PATH/YMusicApp.framework"
   if [ -n "$SIGN_ID" ] && [ "$SIGN_ID" != "-" ] && [ -d "$FW" ]; then
     /usr/bin/codesign --force --sign "$SIGN_ID" --timestamp=none "$FW"

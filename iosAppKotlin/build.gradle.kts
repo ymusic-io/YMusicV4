@@ -40,10 +40,14 @@ kotlin {
         binaries.framework {
             baseName = "YMusicApp"
             isStatic = false
-            // Compose MP 1.11.1's ui-uikit links iOS 26 symbols (UIViewLayoutRegion), which need the
-            // iOS 26 SDK / Xcode 26. To build on an older Xcode, allow those undefined at link — Compose
-            // @available-guards their use, so they're never touched below iOS 26. Drop when on Xcode 26.
+            // Escape hatch for Xcode < 26 only (the Xcode build phase passes it there): Compose MP 1.11.1's
+            // ui-uikit references the iOS 26 UIViewLayoutRegion, absent from older SDKs. It hides every
+            // other undefined symbol too, so a missing library becomes a launch crash.
             if (providers.gradleProperty("iosAllowUndefined").orNull == "true") {
+                logger.warn(
+                    "w: -PiosAllowUndefined=true: YMusicApp links with -undefined dynamic_lookup; a missing " +
+                        "symbol crashes at runtime instead of failing the link. Only for Xcode < 26.",
+                )
                 linkerOpts("-undefined", "dynamic_lookup")
             }
             linkerOpts("-framework", "MediaPlayer")
