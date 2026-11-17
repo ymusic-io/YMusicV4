@@ -10,8 +10,14 @@ import android.os.Build
 import android.view.accessibility.AccessibilityManager
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.displayCutout
+import androidx.compose.foundation.layout.mandatorySystemGestures
+import androidx.compose.foundation.layout.navigationBarsIgnoringVisibility
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
 import androidx.compose.foundation.layout.systemGestures
+import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.systemGestureExclusion
 import androidx.compose.runtime.Composable
@@ -163,6 +169,16 @@ internal actual fun KeepScreenOn(enabled: Boolean) {
 @Composable
 internal actual fun Modifier.keepBelowStatusBar(): Modifier =
     windowInsetsPadding(WindowInsets.statusBarsIgnoringVisibility)
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal actual fun Modifier.keepAboveNavigationBar(): Modifier =
+    windowInsetsPadding(
+        WindowInsets.navigationBarsIgnoringVisibility
+            .union(WindowInsets.mandatorySystemGestures)
+            .union(WindowInsets.displayCutout)
+            .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
+    )
 
 // The system honours at most this much exclusion height per edge (config_systemGestureExclusionLimitDp).
 private val SystemGestureExclusionLimit = 200.dp

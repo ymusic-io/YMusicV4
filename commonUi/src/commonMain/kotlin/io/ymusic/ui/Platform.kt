@@ -47,6 +47,11 @@ internal expect fun KeepScreenOn(enabled: Boolean)
 @Composable
 internal expect fun Modifier.keepBelowStatusBar(): Modifier
 
+/** Fullscreen bottom controls: clear of the navigation bar, its gesture area and the display cutout even while
+ *  the bars are hidden. No-op on desktop. */
+@Composable
+internal expect fun Modifier.keepAboveNavigationBar(): Modifier
+
 /** Android gesture nav: claims a vertically centred slice of the start-edge back-gesture strip (the
  *  OS-maximum 200dp) so a swipe there opens the nav drawer instead of going back. No-op elsewhere. */
 @Composable
