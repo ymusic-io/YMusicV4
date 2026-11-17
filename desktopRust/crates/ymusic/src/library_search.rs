@@ -11,7 +11,7 @@ use ym_i18n::{Str, t, tf};
 use ym_store::{MediaItem, MediaStore};
 
 use crate::a11y::{FocusList, heading, list_item};
-use crate::action_icon::{auto_mirrored, material_action_icon};
+use crate::action_icon::{action_icon, auto_mirrored};
 use crate::assets::MaterialIcon;
 use crate::graph::{AppGraph, on_core};
 use crate::lazy_rows::LazyRows;
@@ -232,18 +232,17 @@ impl Render for LibrarySearchView {
             .pb(px(3.))
             .border_b_1()
             .border_color(theme.border)
-            .child(
-                self.bar_focus.button(
-                    0,
-                    material_action_icon("library-search-back", auto_mirrored(MaterialIcon::ArrowBack), t(Str::CdBack))
-                        .on_click(cx.listener(|view, _, _, cx| {
-                            if !view.back(cx) {
-                                cx.emit(LibrarySearchEvent::Back);
-                            }
-                        })),
-                    cx,
+            .child(self.bar_focus.button(
+                0,
+                action_icon("library-search-back", auto_mirrored(MaterialIcon::ArrowBack), t(Str::CdBack)).on_click(
+                    cx.listener(|view, _, _, cx| {
+                        if !view.back(cx) {
+                            cx.emit(LibrarySearchEvent::Back);
+                        }
+                    }),
                 ),
-            )
+                cx,
+            ))
             .child(
                 self.bar_focus
                     .field(1, &self.input.focus_handle(cx), Input::new(&self.input).cleanable(true), cx)

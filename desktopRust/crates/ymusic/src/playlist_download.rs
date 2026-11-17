@@ -21,7 +21,7 @@ use ym_image_loader::async_image::async_image_of;
 use ym_store::Playlist;
 
 use crate::a11y::FocusList;
-use crate::action_icon::material_action_icon;
+use crate::action_icon::action_icon;
 use crate::assets::MaterialIcon;
 use crate::download_dialog::DownloadTarget;
 use crate::downloads::{download_folder, offline_ids, pick_download_folder, usable_download_folder};
@@ -308,7 +308,7 @@ impl PlaylistDownload {
         };
         let _ = window;
         let view = cx.entity().downgrade();
-        let menu = material_action_icon("check-menu", MaterialIcon::MoreVert, t(Str::CdMore))
+        let menu = action_icon("check-menu", MaterialIcon::MoreVert, t(Str::CdMore))
             .track_focus(&self.focus.handle(STOP_MENU, cx))
             .dropdown_menu_with_anchor(Anchor::TopRight, move |mut menu, _, _| {
                 let entries: [(Str, CheckAction); 4] = [

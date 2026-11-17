@@ -12,7 +12,7 @@ use ym_i18n::{Str, t, tf};
 use ym_image_loader::async_image::async_image_of;
 
 use crate::a11y::{FocusList, alert, announced, list_item};
-use crate::action_icon::material_action_icon;
+use crate::action_icon::action_icon;
 use crate::assets::MaterialIcon;
 use crate::graph::{AppGraph, on_core};
 use crate::lazy_rows::LazyRows;
@@ -224,7 +224,7 @@ impl PlayAgainView {
         let detail = detail.join(" · ");
         let view = cx.entity().downgrade();
         let (from_start, removed) = (session.clone(), session.queue_id.clone());
-        let more = material_action_icon(("play-again-more", position), MaterialIcon::MoreVert, t(Str::CdMore));
+        let more = action_icon(("play-again-more", position), MaterialIcon::MoreVert, t(Str::CdMore));
         let more = self.focus.trailing_button(position, 0, more, cx).dropdown_menu_with_anchor(
             Anchor::TopRight,
             move |menu, _, _| {

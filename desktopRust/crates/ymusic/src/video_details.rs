@@ -18,7 +18,7 @@ use ym_i18n::{Str, t, tf};
 use ym_image_loader::async_image::async_image_of;
 
 use crate::a11y::{FocusList, alert, announced};
-use crate::action_icon::{HIT, auto_mirrored, material_action_icon};
+use crate::action_icon::{HIT, action_icon, auto_mirrored};
 use crate::assets::MaterialIcon;
 use crate::elevated_dialog::{ConfirmDialog, button_bar, chrome, press, scroll_body, text_button, title_bar};
 use crate::feed::{FeedSource, Navigate, error_text};
@@ -703,7 +703,7 @@ impl VideoDetailsView {
                     .child(div().flex_1().child(Textarea::new(input)))
                     .when(draft == Draft::Edit && !busy, |row| {
                         row.child(self.stop(
-                            material_action_icon("cancel-edit", MaterialIcon::Close, t(Str::DialogCancel)).on_click(
+                            action_icon("cancel-edit", MaterialIcon::Close, t(Str::DialogCancel)).on_click(
                                 cx.listener(|view, _, _, cx| {
                                     view.editing = None;
                                     cx.notify();
@@ -722,7 +722,7 @@ impl VideoDetailsView {
                             .into_any_element()
                     } else {
                         self.stop(
-                            material_action_icon(id, auto_mirrored(MaterialIcon::Send), t(Str::VideoDetailsPost))
+                            action_icon(id, auto_mirrored(MaterialIcon::Send), t(Str::VideoDetailsPost))
                                 .on_click(cx.listener(move |view, _, window, cx| view.send(draft, window, cx))),
                             cx,
                         )
@@ -794,7 +794,7 @@ impl VideoDetailsView {
                 row.child(
                     self.focus.wrap(
                         index,
-                        material_action_icon(more_id, MaterialIcon::MoreVert, t(Str::CdMore))
+                        action_icon(more_id, MaterialIcon::MoreVert, t(Str::CdMore))
                             .track_focus(&self.focus.handle(index, cx))
                             .dropdown_menu_with_anchor(Anchor::TopRight, move |mut menu, _, _| {
                                 if menu_comment.edit_token.is_some() {

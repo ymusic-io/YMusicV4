@@ -23,7 +23,7 @@ use ym_image_loader::async_image::async_image_of;
 
 use crate::a11y::FocusList;
 use crate::account::AccountController;
-use crate::action_icon::material_action_icon;
+use crate::action_icon::action_icon;
 use crate::assets::MaterialIcon;
 use crate::downloads::{download_folder, offline_ids, pick_download_folder, usable_download_folder};
 use crate::downloads_view::{Playability, playability};
@@ -1292,7 +1292,7 @@ impl DownloadPicker {
                         .object_fit(ObjectFit::Cover),
                 )
             });
-        let rename = material_action_icon(
+        let rename = action_icon(
             "download-rename",
             Icon::new(MaterialIcon::EditOutlined).text_color(ink_soft(cx)),
             t(Str::DownloadEditName),

@@ -21,7 +21,7 @@ use ym_image_loader::async_image::async_image_of;
 use ym_store::{Bucket, MediaItem, MediaStore, Playlist, PlaylistItemDetail};
 
 use crate::a11y::{DragRow, FocusList, announced, heading, label, list_item};
-use crate::action_icon::{auto_mirrored, material_action_icon};
+use crate::action_icon::{action_icon, auto_mirrored};
 use crate::assets::MaterialIcon;
 use crate::graph::{AppGraph, on_core};
 use crate::lazy_rows::LazyRows;
@@ -1440,7 +1440,7 @@ pub fn song_cell<V: SongMenuHost>(
         .join(", ");
     let view = cx.entity().downgrade();
     let song = item.clone();
-    let more = material_action_icon(("song-more", index), MaterialIcon::MoreVert, t(Str::CdMore));
+    let more = action_icon(("song-more", index), MaterialIcon::MoreVert, t(Str::CdMore));
     let more = focus.trailing_button(index, 0, more, cx).dropdown_menu_with_anchor(
         Anchor::TopRight,
         move |menu_list, _, _| {
@@ -1554,7 +1554,7 @@ pub fn song_cell<V: SongMenuHost>(
 }
 
 fn more_button(id: impl Into<ElementId>) -> Button {
-    material_action_icon(id, MaterialIcon::MoreVert, t(Str::CdMore))
+    action_icon(id, MaterialIcon::MoreVert, t(Str::CdMore))
 }
 
 impl LibraryView {
@@ -1716,11 +1716,11 @@ impl LibraryView {
                 menu
             });
         let toggle = if manual {
-            material_action_icon("sort-direction", MaterialIcon::EditOutlined, t(Str::ArrangeSongs))
+            action_icon("sort-direction", MaterialIcon::EditOutlined, t(Str::ArrangeSongs))
                 .on_click(cx.listener(|view, _, window, cx| view.arrange(window, cx)))
         } else {
             let direction = if state.descending { Str::CdSortDescending } else { Str::CdSortAscending };
-            material_action_icon(
+            action_icon(
                 "sort-direction",
                 if state.descending { MaterialIcon::ArrowDownward } else { MaterialIcon::ArrowUpward },
                 t(direction),
@@ -1742,7 +1742,7 @@ impl LibraryView {
         self.tool_focus
             .button(
                 TOOL_RESCAN,
-                material_action_icon("rescan", MaterialIcon::Refresh, t(Str::LibraryRescan))
+                action_icon("rescan", MaterialIcon::Refresh, t(Str::LibraryRescan))
                     .disabled(self.scanning)
                     .on_click(cx.listener(|view, _, _, cx| view.rescan(cx))),
                 cx,

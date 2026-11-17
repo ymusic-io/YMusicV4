@@ -15,7 +15,7 @@ use ym_i18n::{Str, t, tf};
 use crate::a11y::{DragRow, FocusList, focusable};
 use crate::account::{AccountController, Accounts};
 use crate::account_view::AccountView;
-use crate::action_icon::{HIT, auto_mirrored, material_action_icon};
+use crate::action_icon::{HIT, action_icon, auto_mirrored};
 use crate::assets::MaterialIcon;
 use crate::download_dialog::{DownloadPicker, DownloadTarget};
 use crate::downloads_view::{DownloadsView, RevealInLibrary};
@@ -1783,7 +1783,7 @@ impl Shell {
             .child(
                 self.chrome_focus.button(
                     CHROME_BACK,
-                    material_action_icon("layer-back", auto_mirrored(MaterialIcon::ArrowBack), t(Str::CdBack))
+                    action_icon("layer-back", auto_mirrored(MaterialIcon::ArrowBack), t(Str::CdBack))
                         .on_click(cx.listener(|shell, _, _, cx| shell.back(cx))),
                     cx,
                 ),
@@ -1795,7 +1795,7 @@ impl Shell {
                 bar.child(
                     self.chrome_focus.button(
                         CHROME_FILTER,
-                        material_action_icon("layer-filter", MaterialIcon::FilterAltOutlined, t(Str::CdFilter))
+                        action_icon("layer-filter", MaterialIcon::FilterAltOutlined, t(Str::CdFilter))
                             .on_click(move |_, window, cx| open_search_filter(&view, window, cx)),
                         cx,
                     ),
@@ -1803,7 +1803,7 @@ impl Shell {
             })
             .child(self.chrome_focus.button(
                 CHROME_LAYER_SEARCH,
-                material_action_icon("layer-search", MaterialIcon::Search, t(Str::CdSearch)).on_click(cx.listener(
+                action_icon("layer-search", MaterialIcon::Search, t(Str::CdSearch)).on_click(cx.listener(
                     move |shell, _, window, cx| match &search {
                         LayerSearch::Edit(view) => {
                             view.update(cx, |view, cx| view.edit(cx));
@@ -1836,7 +1836,7 @@ impl Shell {
             .when(!rail_mode, |bar| {
                 bar.child(self.chrome_focus.button(
                     CHROME_DRAWER,
-                    material_action_icon("open-drawer", MaterialIcon::Menu, t(Str::CdMenu)).on_click(cx.listener(
+                    action_icon("open-drawer", MaterialIcon::Menu, t(Str::CdMenu)).on_click(cx.listener(
                         |shell, _, _, cx| {
                             shell.drawer_open = true;
                             cx.notify();
@@ -1863,7 +1863,7 @@ impl Shell {
                 bar.child(
                     self.chrome_focus.button(
                         CHROME_SEARCH,
-                        material_action_icon("open-search", MaterialIcon::Search, t(Str::CdSearch))
+                        action_icon("open-search", MaterialIcon::Search, t(Str::CdSearch))
                             .on_click(cx.listener(|shell, _, window, cx| shell.section_search(window, cx))),
                         cx,
                     ),
@@ -2062,7 +2062,7 @@ impl Shell {
         let theme = cx.theme().clone();
         let update_waiting = !expanded
             && cx.try_global::<crate::app_update::UpdatesHandle>().is_some_and(|handle| handle.0.read(cx).waiting());
-        let toggle = material_action_icon("rail-toggle", MaterialIcon::Menu, t(Str::CdMenu))
+        let toggle = action_icon("rail-toggle", MaterialIcon::Menu, t(Str::CdMenu))
             .when(update_waiting, |toggle| toggle.tooltip(t(Str::UpdateAvailableTitle)))
             .on_click(cx.listener(move |shell, _, _, cx| shell.toggle_rail(expanded, cx)));
         let toggle = self.chrome_focus.button(CHROME_RAIL_TOGGLE, toggle, cx).when(update_waiting, |toggle| {

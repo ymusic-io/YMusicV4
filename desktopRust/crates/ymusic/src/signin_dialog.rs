@@ -11,7 +11,7 @@ use ym_i18n::{Str, t, tf};
 use ym_signin::{DeviceLinkOffer, LinkError};
 
 use crate::a11y::{FocusList, alert, announced, announced_as, heading, label};
-use crate::action_icon::{auto_mirrored, material_action_icon};
+use crate::action_icon::{action_icon, auto_mirrored};
 use crate::assets::MaterialIcon;
 use crate::cookie_guide::CookieGuide;
 use crate::cookie_lock::{ProtectEvent, ProtectStep};
@@ -432,7 +432,7 @@ impl Render for SignInView {
             .child(
                 self.focus.button(
                     STOP_BACK,
-                    material_action_icon("signin-back", auto_mirrored(MaterialIcon::ArrowBack), t(Str::CdBack))
+                    action_icon("signin-back", auto_mirrored(MaterialIcon::ArrowBack), t(Str::CdBack))
                         .on_click(cx.listener(|view, _, _, cx| view.back(cx))),
                     cx,
                 ),

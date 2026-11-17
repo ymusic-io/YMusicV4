@@ -12,7 +12,7 @@ use ym_i18n::{Str, t};
 use ym_image_loader::ImageSource;
 use ym_image_loader::async_image::async_image;
 
-use crate::action_icon::{auto_mirrored, glyph_action_icon, hit_target};
+use crate::action_icon::{auto_mirrored, hit_target, sized_action_icon};
 use crate::assets::MaterialIcon;
 use crate::desktop::TrayCommand;
 use crate::mini_player::PlayClock;
@@ -248,7 +248,7 @@ impl Render for TrayPopup {
                         },
                     ))
                     .child(
-                        glyph_action_icon(
+                        sized_action_icon(
                             "tray-open-app",
                             auto_mirrored(MaterialIcon::OpenInNew),
                             t(Str::CdOpenApp),
@@ -258,7 +258,7 @@ impl Render for TrayPopup {
                         .on_click(cx.listener(|popup, _, _, _| popup.command(TrayCommand::Open(None)))),
                     )
                     .child(
-                        glyph_action_icon(
+                        sized_action_icon(
                             "tray-dismiss",
                             MaterialIcon::Close,
                             t(Str::CdClose),
@@ -294,7 +294,7 @@ impl Render for TrayPopup {
                     .gap(px(14.))
                     .layout_direction(LayoutDirection::Ltr)
                     .child(
-                        glyph_action_icon(
+                        sized_action_icon(
                             "tray-previous",
                             MaterialIcon::SkipPrevious,
                             t(Str::CdPrevious),
@@ -323,7 +323,7 @@ impl Render for TrayPopup {
                             })),
                     )
                     .child(
-                        glyph_action_icon("tray-next", MaterialIcon::SkipNext, t(Str::CdNext), SKIP_ICON, SKIP_HIT)
+                        sized_action_icon("tray-next", MaterialIcon::SkipNext, t(Str::CdNext), SKIP_ICON, SKIP_HIT)
                             .on_click(cx.listener(|popup, _, _, cx| {
                                 popup.playback.update(cx, |playback, cx| playback.next(cx))
                             })),

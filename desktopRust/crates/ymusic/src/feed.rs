@@ -15,7 +15,7 @@ use ym_i18n::{Str, t, tf};
 use ym_image_loader::async_image::async_image_of;
 
 use crate::a11y::{DragRow, FocusList, alert, announced, announced_as, heading, list_item};
-use crate::action_icon::{HIT, auto_mirrored, glyph_action_icon, material_action_icon};
+use crate::action_icon::{HIT, action_icon, auto_mirrored, sized_action_icon};
 use crate::assets::MaterialIcon;
 use crate::download_dialog::DownloadTarget;
 use crate::graph::{AppGraph, on_core};
@@ -842,7 +842,7 @@ impl FeedView {
             actions = actions.child(if self.header_busy {
                 Spinner::new().into_any_element()
             } else {
-                let save = material_action_icon(
+                let save = action_icon(
                     "playlist-save",
                     auto_mirrored(if saved { MaterialIcon::PlaylistAddCheck } else { MaterialIcon::PlaylistAdd }),
                     label,
@@ -852,7 +852,7 @@ impl FeedView {
                 self.actions.button(ACTION_SAVE, save, cx).into_any_element()
             });
         }
-        let share = material_action_icon("playlist-share", MaterialIcon::ShareOutlined, t(Str::CdShare))
+        let share = action_icon("playlist-share", MaterialIcon::ShareOutlined, t(Str::CdShare))
             .disabled(share.is_none())
             .on_click(move |_, window, cx| {
                 if let Some(link) = share.clone() {
@@ -861,19 +861,17 @@ impl FeedView {
                 }
             });
         actions = actions.child(self.actions.button(ACTION_SHARE, share, cx));
-        let download =
-            material_action_icon("playlist-download", MaterialIcon::FileDownloadOutlined, t(Str::CdDownload))
-                .disabled(!has_videos)
-                .on_click(cx.listener(|view, _, window, cx| {
-                    view.open_playlist_dialog(false, window, cx);
-                }));
+        let download = action_icon("playlist-download", MaterialIcon::FileDownloadOutlined, t(Str::CdDownload))
+            .disabled(!has_videos)
+            .on_click(cx.listener(|view, _, window, cx| {
+                view.open_playlist_dialog(false, window, cx);
+            }));
         actions = actions.child(self.actions.button(ACTION_DOWNLOAD, download, cx));
-        let local =
-            material_action_icon("playlist-local", MaterialIcon::LibraryAddOutlined, t(Str::LocalPlaylistCreate))
-                .disabled(!has_videos)
-                .on_click(cx.listener(|view, _, window, cx| {
-                    view.open_playlist_dialog(true, window, cx);
-                }));
+        let local = action_icon("playlist-local", MaterialIcon::LibraryAddOutlined, t(Str::LocalPlaylistCreate))
+            .disabled(!has_videos)
+            .on_click(cx.listener(|view, _, window, cx| {
+                view.open_playlist_dialog(true, window, cx);
+            }));
         actions = actions.child(self.actions.button(ACTION_LOCAL, local, cx));
         actions = actions.child(div().flex_1()).child(
             self.actions
@@ -1181,11 +1179,8 @@ impl FeedView {
         let channel_id = (item.kind == "channel" && signed_in)
             .then(|| item.channel_id.clone().unwrap_or_else(|| item.id.clone()))
             .filter(|id| !id.is_empty());
-        let more = material_action_icon(
-            key,
-            Icon::new(MaterialIcon::MoreVert).text_color(cx.theme().muted_foreground),
-            t(Str::CdMore),
-        );
+        let more =
+            action_icon(key, Icon::new(MaterialIcon::MoreVert).text_color(cx.theme().muted_foreground), t(Str::CdMore));
         self.focus
             .trailing_button(key.1, 0, more, cx)
             .dropdown_menu_with_anchor(Anchor::TopRight, move |mut menu, _, cx| {
@@ -1565,7 +1560,7 @@ impl FeedView {
                     .when(expanded, |chevron| chevron.rotate(percentage(0.5)))
                     .text_color(theme.muted_foreground);
                 let label = t(if expanded { Str::CdCollapse } else { Str::CdExpand });
-                let button = glyph_action_icon(("collapse", section_index), chevron, label, 20., HIT)
+                let button = sized_action_icon(("collapse", section_index), chevron, label, 20., HIT)
                     .on_click(cx.listener(move |view, _, _, cx| view.toggle_section(section_index, cx)));
                 row.child(self.controls.button(section_index * 3 + 1, button, cx))
             })

@@ -12,7 +12,7 @@ use gpui_kit::*;
 use ym_i18n::{Str, t};
 
 use crate::a11y::{FocusList, label};
-use crate::action_icon::glyph_action_icon;
+use crate::action_icon::sized_action_icon;
 use crate::assets::{GUIDE_CURSOR_ICON, MaterialIcon};
 
 const WINDOW_MAX: f32 = 380.;
@@ -403,7 +403,7 @@ impl Render for CookieGuide {
             .w_full()
             .child(self.window_frame(cx));
         let pause_label = t(if self.paused { Str::CdSigninPastePlay } else { Str::CdSigninPastePause });
-        let pause = glyph_action_icon(
+        let pause = sized_action_icon(
             "signin-paste-pause",
             if self.paused { MaterialIcon::PlayArrow } else { MaterialIcon::Pause },
             pause_label,

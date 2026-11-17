@@ -12,7 +12,7 @@ use ym_i18n::{Str, t, tf};
 use ym_image_loader::async_image::async_image_of;
 
 use crate::a11y::{FocusList, SliderStop};
-use crate::action_icon::{HIT, auto_mirrored, glyph_action_icon, material_action_icon};
+use crate::action_icon::{HIT, action_icon, auto_mirrored, sized_action_icon};
 use crate::assets::MaterialIcon;
 use crate::playback::{Playback, PlaybackState, QueueItem};
 use crate::queue_nav::LoopMode;
@@ -173,7 +173,7 @@ impl MiniPlayer {
         let armed = remaining.is_some() || after_current;
         self.focus.button(
             STOP_SLEEP,
-            material_action_icon("sleep-timer", MaterialIcon::SleepTimer, t(Str::CdSleepTimer))
+            action_icon("sleep-timer", MaterialIcon::SleepTimer, t(Str::CdSleepTimer))
                 .toggled(armed)
                 .when(armed, |button| button.text_color(cx.theme().primary))
                 .tooltip(tooltip)
@@ -393,7 +393,7 @@ impl MiniPlayer {
                     .child(
                         self.focus.button(
                             STOP_SHUFFLE,
-                            glyph_action_icon(
+                            sized_action_icon(
                                 "shuffle",
                                 MaterialIcon::Shuffle,
                                 t(Str::CdShuffle),
@@ -410,17 +410,15 @@ impl MiniPlayer {
                     )
                     .child(self.focus.button(
                         STOP_PREVIOUS,
-                        material_action_icon("previous", MaterialIcon::SkipPrevious, t(Str::CdPrevious)).on_click(
-                            cx.listener(|player, _, _, cx| {
-                                player.playback.update(cx, |playback, cx| playback.previous(cx))
-                            }),
-                        ),
+                        action_icon("previous", MaterialIcon::SkipPrevious, t(Str::CdPrevious)).on_click(cx.listener(
+                            |player, _, _, cx| player.playback.update(cx, |playback, cx| playback.previous(cx)),
+                        )),
                         cx,
                     ))
                     .child(self.play_circle(playing, loading, cx))
                     .child(self.focus.button(
                         STOP_NEXT,
-                        material_action_icon("next", MaterialIcon::SkipNext, t(Str::CdNext)).on_click(
+                        action_icon("next", MaterialIcon::SkipNext, t(Str::CdNext)).on_click(
                             cx.listener(|player, _, _, cx| {
                                 player.playback.update(cx, |playback, cx| playback.next(cx))
                             }),
@@ -430,7 +428,7 @@ impl MiniPlayer {
                     .child(
                         self.focus.button(
                             STOP_REPEAT,
-                            glyph_action_icon(
+                            sized_action_icon(
                                 "repeat",
                                 if loop_mode == LoopMode::One { MaterialIcon::RepeatOne } else { MaterialIcon::Repeat },
                                 repeat_label,
@@ -512,7 +510,7 @@ impl MiniPlayer {
                 .items_center()
                 .child(self.focus.button(
                     STOP_EQUALIZER,
-                    glyph_action_icon("equalizer", MaterialIcon::Tune, t(Str::SoundEq), BAR_SMALL_ICON, HIT).on_click(
+                    sized_action_icon("equalizer", MaterialIcon::Tune, t(Str::SoundEq), BAR_SMALL_ICON, HIT).on_click(
                         cx.listener(|player, _, window, cx| {
                             crate::equalizer::EqualizerDialog::open(player.playback.clone(), window, cx)
                         }),
@@ -522,7 +520,7 @@ impl MiniPlayer {
                 .child(
                     self.focus.button(
                         STOP_SPEED,
-                        glyph_action_icon(
+                        sized_action_icon(
                             "speed-pitch",
                             MaterialIcon::SpeedOutlined,
                             t(Str::MenuSpeedPitch),
@@ -638,7 +636,7 @@ impl MiniPlayer {
                                 self.focus
                                     .button(
                                         STOP_PLAY,
-                                        material_action_icon(
+                                        action_icon(
                                             "play-pause",
                                             if playing { MaterialIcon::Pause } else { MaterialIcon::PlayArrow },
                                             Self::play_label(playing),
@@ -654,11 +652,9 @@ impl MiniPlayer {
                             })
                             .child(self.focus.button(
                                 STOP_NEXT,
-                                material_action_icon("next", MaterialIcon::SkipNext, t(Str::CdNext)).on_click(
-                                    cx.listener(|player, _, _, cx| {
-                                        player.playback.update(cx, |playback, cx| playback.next(cx))
-                                    }),
-                                ),
+                                action_icon("next", MaterialIcon::SkipNext, t(Str::CdNext)).on_click(cx.listener(
+                                    |player, _, _, cx| player.playback.update(cx, |playback, cx| playback.next(cx)),
+                                )),
                                 cx,
                             )),
                     ),

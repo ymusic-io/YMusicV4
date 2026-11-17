@@ -18,7 +18,7 @@ use ym_i18n::{Str, t, tf};
 use ym_image_loader::async_image::async_image_of;
 
 use crate::a11y::{FocusList, SliderStop, alert, announced, heading, list_item};
-use crate::action_icon::{HIT, auto_mirrored, glyph_action_icon};
+use crate::action_icon::{HIT, auto_mirrored, sized_action_icon};
 use crate::assets::MaterialIcon;
 use crate::audio_only::AudioOnlyArt;
 use crate::download_dialog::DownloadTarget;
@@ -730,7 +730,7 @@ impl NowPlaying {
         let scale = overlay_scale(self.video_box.get());
         let (glyph, hit) = (ICON * scale, HIT * scale);
         let transport_icon = |id: &'static str, icon: MaterialIcon, label: &'static str, cx: &App| {
-            on_video(glyph_action_icon(id, icon, label, even(glyph), even(hit)), cx)
+            on_video(sized_action_icon(id, icon, label, even(glyph), even(hit)), cx)
         };
         let transport = h_flex()
             .w_full()
@@ -816,7 +816,7 @@ impl NowPlaying {
             })
             .when(fullscreen, |row| {
                 let fill = self.video_fill;
-                let toggle = glyph_action_icon(
+                let toggle = sized_action_icon(
                     "np-fill",
                     if fill { MaterialIcon::FitScreen } else { MaterialIcon::CropFree },
                     t(if fill { Str::CdFitVideo } else { Str::CdFillVideo }),
@@ -836,7 +836,7 @@ impl NowPlaying {
                 self.overlay_focus.button(
                     OVERLAY_FULLSCREEN,
                     on_video(
-                        glyph_action_icon(
+                        sized_action_icon(
                             "np-fullscreen",
                             if fullscreen { MaterialIcon::FullscreenExit } else { MaterialIcon::Fullscreen },
                             t(if fullscreen { Str::CdExitFullscreen } else { Str::CdFullscreen }),
@@ -944,7 +944,7 @@ impl NowPlaying {
         let target = self.playback.clone();
         let recent_codes = self.recent_translations.clone();
         Some(
-            on_video_menu(glyph_action_icon("np-captions", caption_glyph, label, glyph, hit), cx)
+            on_video_menu(sized_action_icon("np-captions", caption_glyph, label, glyph, hit), cx)
                 .track_focus(&self.caption_focus)
                 .when(visible, |button| button.text_color(cx.theme().primary))
                 .dropdown_menu_with_anchor(Anchor::BottomRight, move |mut menu, window, cx| {
@@ -1216,7 +1216,7 @@ impl NowPlaying {
         let mut actions: Vec<AnyElement> = Vec::new();
         if let Some(video_id) = current.video_id().map(str::to_owned) {
             let details = on_video(
-                glyph_action_icon("np-details", MaterialIcon::InfoOutlined, t(Str::MenuDetailsComments), glyph, hit),
+                sized_action_icon("np-details", MaterialIcon::InfoOutlined, t(Str::MenuDetailsComments), glyph, hit),
                 cx,
             )
             .on_click(cx.listener(move |_, _, _, cx| cx.emit(NowPlayingEvent::Details(video_id.clone()))));
@@ -1228,7 +1228,7 @@ impl NowPlaying {
             Some(value) => format!("{}, {value}", t(Str::MenuSpeedPitch)),
             None => t(Str::MenuSpeedPitch).to_owned(),
         };
-        let speed = on_video(glyph_action_icon("np-speed", MaterialIcon::SpeedOutlined, label, glyph, hit), cx)
+        let speed = on_video(sized_action_icon("np-speed", MaterialIcon::SpeedOutlined, label, glyph, hit), cx)
             .on_click(cx.listener(|_, _, _, cx| cx.emit(NowPlayingEvent::OpenSpeedPitch)));
         actions.push(self.overlay_focus.button(OVERLAY_SPEED, speed, cx).into_any_element());
         if let Some(value) = speed_value {
@@ -1242,7 +1242,7 @@ impl NowPlaying {
             );
         }
         let equalizer = on_video(
-            glyph_action_icon("np-equalizer", MaterialIcon::EqualizerOutlined, t(Str::SoundEq), glyph, hit),
+            sized_action_icon("np-equalizer", MaterialIcon::EqualizerOutlined, t(Str::SoundEq), glyph, hit),
             cx,
         )
         .on_click(cx.listener(|_, _, _, cx| cx.emit(NowPlayingEvent::OpenEqualizer)));
@@ -1260,7 +1260,7 @@ impl NowPlaying {
         actions.push(self.overlay_focus.button(OVERLAY_SLEEP, sleep, cx).into_any_element());
         if let Some(link) = share_link(current) {
             let share =
-                on_video(glyph_action_icon("np-share", MaterialIcon::ShareOutlined, t(Str::CdShare), glyph, hit), cx)
+                on_video(sized_action_icon("np-share", MaterialIcon::ShareOutlined, t(Str::CdShare), glyph, hit), cx)
                     .on_click(move |_, window, cx| copy_share_link(&link, window, cx));
             actions.push(self.overlay_focus.button(OVERLAY_SHARE, share, cx).into_any_element());
         }
@@ -1278,7 +1278,7 @@ impl NowPlaying {
         cx: &mut Context<Self>,
     ) -> Button {
         video_chrome(
-            glyph_action_icon(id, MaterialIcon::FileDownloadOutlined, t(Str::CdDownload), glyph, hit),
+            sized_action_icon(id, MaterialIcon::FileDownloadOutlined, t(Str::CdDownload), glyph, hit),
             over_video,
             cx,
         )
@@ -1304,7 +1304,7 @@ impl NowPlaying {
             cx.theme().primary
         });
         Some(
-            video_chrome(glyph_action_icon(id, mark, t(Str::SettingsSponsorBlock), glyph, hit), over_video, cx)
+            video_chrome(sized_action_icon(id, mark, t(Str::SettingsSponsorBlock), glyph, hit), over_video, cx)
                 .tooltip(state)
                 .on_click(cx.listener(move |view, _, _, cx| {
                     view.sponsor_block.update(cx, |sponsor, cx| sponsor.set_whitelisted(!whitelisted, cx))
@@ -1324,7 +1324,7 @@ impl NowPlaying {
             None => t(Str::CdSleepTimer).to_owned(),
         };
         let accent = cx.theme().primary;
-        video_chrome(glyph_action_icon(id, MaterialIcon::SleepTimer, t(Str::CdSleepTimer), glyph, hit), over_video, cx)
+        video_chrome(sized_action_icon(id, MaterialIcon::SleepTimer, t(Str::CdSleepTimer), glyph, hit), over_video, cx)
             .toggled(sleep_armed)
             .when(sleep_armed, |button| button.text_color(accent))
             .tooltip(sleep_tooltip)
@@ -1356,7 +1356,7 @@ impl NowPlaying {
         .join(" ")
             + " lyrics";
         let queue_playback = self.playback.clone();
-        let more = glyph_action_icon("np-more", MaterialIcon::MoreVert, t(Str::CdMore), ICON, HIT)
+        let more = sized_action_icon("np-more", MaterialIcon::MoreVert, t(Str::CdMore), ICON, HIT)
             .track_focus(&self.bar_focus.handle(STOP_MORE, cx))
             .dropdown_menu_with_anchor(Anchor::TopRight, move |mut menu, window, cx| {
                 let icon = |name: MaterialIcon| Icon::new(name);
@@ -1483,7 +1483,7 @@ impl NowPlaying {
             .child(
                 self.bar_focus.button(
                     STOP_CLOSE,
-                    glyph_action_icon("np-close", MaterialIcon::KeyboardArrowDown, t(Str::CdMinimize), ICON, HIT)
+                    sized_action_icon("np-close", MaterialIcon::KeyboardArrowDown, t(Str::CdMinimize), ICON, HIT)
                         .on_click(cx.listener(|_, _, _, cx| cx.emit(NowPlayingEvent::Close))),
                     cx,
                 ),
@@ -1532,7 +1532,7 @@ impl NowPlaying {
             .child(
                 self.bar_focus.button(
                     STOP_REPEAT,
-                    glyph_action_icon(
+                    sized_action_icon(
                         "np-repeat",
                         if loop_mode == LoopMode::One { MaterialIcon::RepeatOne } else { MaterialIcon::Repeat },
                         t(match loop_mode {
@@ -1554,7 +1554,7 @@ impl NowPlaying {
             .child(
                 self.bar_focus.button(
                     STOP_SHUFFLE,
-                    glyph_action_icon("np-shuffle", MaterialIcon::Shuffle, t(Str::CdShuffle), ICON, HIT)
+                    sized_action_icon("np-shuffle", MaterialIcon::Shuffle, t(Str::CdShuffle), ICON, HIT)
                         .toggled(shuffle)
                         .when(shuffle, |button| button.text_color(accent))
                         .on_click(cx.listener(move |view, _, _, cx| {
@@ -1576,7 +1576,7 @@ impl NowPlaying {
     ) -> impl IntoElement {
         let (playback, view, item) = (self.playback.clone(), cx.entity().downgrade(), item.clone());
         let live_row = item.media_id.is_some_and(|media_id| self.live_row(media_id, cx));
-        let more = glyph_action_icon(("np-queue-more", position), MaterialIcon::MoreVert, t(Str::CdMore), ICON, HIT);
+        let more = sized_action_icon(("np-queue-more", position), MaterialIcon::MoreVert, t(Str::CdMore), ICON, HIT);
         self.queue_focus
             .trailing_button(position, 0, more, cx)
             .text_color(cx.theme().muted_foreground)

@@ -17,12 +17,12 @@ pub fn auto_mirrored(icon: impl Into<Icon>) -> Icon {
 
 /// A ghost button: `icon` at the standard size in the standard hit target, `label` spoken and shown as its
 /// tooltip.
-pub fn material_action_icon(id: impl Into<ElementId>, icon: impl Into<Icon>, label: impl Into<SharedString>) -> Button {
-    glyph_action_icon(id, icon, label, ICON, HIT)
+pub fn action_icon(id: impl Into<ElementId>, icon: impl Into<Icon>, label: impl Into<SharedString>) -> Button {
+    sized_action_icon(id, icon, label, ICON, HIT)
 }
 
-/// [`material_action_icon`] with the glyph at the JVM app's `iconSize` = `glyph_size`, in a `hit_size` circle.
-pub fn glyph_action_icon(
+/// [`action_icon`] with the glyph at the JVM app's `iconSize` = `glyph_size`, in a `hit_size` circle.
+pub fn sized_action_icon(
     id: impl Into<ElementId>,
     icon: impl Into<Icon>,
     label: impl Into<SharedString>,

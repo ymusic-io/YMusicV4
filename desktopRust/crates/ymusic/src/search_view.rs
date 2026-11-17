@@ -12,7 +12,7 @@ use gpui_kit::*;
 use ym_i18n::{Str, t};
 
 use crate::a11y::{FocusList, label, list_item};
-use crate::action_icon::{auto_mirrored, material_action_icon};
+use crate::action_icon::{action_icon, auto_mirrored};
 use crate::assets::MaterialIcon;
 use crate::feed::FeedView;
 use crate::graph::{AppGraph, on_core};
@@ -207,7 +207,7 @@ impl SearchView {
                                 .trailing_button(
                                     index,
                                     0,
-                                    material_action_icon(
+                                    action_icon(
                                         ("remove", index),
                                         Icon::new(MaterialIcon::Close).text_color(theme.muted_foreground),
                                         t(Str::CdRemoveFromHistory),
@@ -222,7 +222,7 @@ impl SearchView {
                             .trailing_button(
                                 index,
                                 1,
-                                material_action_icon(
+                                action_icon(
                                     ("insert", index),
                                     Icon::new(MaterialIcon::NorthWest).text_color(theme.muted_foreground),
                                     t(Str::CdInsertQuery),
@@ -299,7 +299,7 @@ impl Render for SearchView {
             .child(
                 self.bar_focus.button(
                     0,
-                    material_action_icon("search-back", auto_mirrored(MaterialIcon::ArrowBack), t(Str::CdBack))
+                    action_icon("search-back", auto_mirrored(MaterialIcon::ArrowBack), t(Str::CdBack))
                         .on_click(cx.listener(|view, _, _, cx| view.back(cx))),
                     cx,
                 ),

@@ -13,7 +13,7 @@ use ym_i18n::{Str, t, tf};
 use ym_store::{MediaItem, MediaStore, Playlist, PlaylistItemDetail};
 
 use crate::a11y::FocusList;
-use crate::action_icon::{HIT, auto_mirrored, glyph_action_icon};
+use crate::action_icon::{HIT, auto_mirrored, sized_action_icon};
 use crate::assets::MaterialIcon;
 use crate::elevated_dialog::{
     ConfirmDialog, DEFAULT_WIDTH, ROW_HORIZONTAL, ROW_VERTICAL, bar_spinner, button_bar, chrome, message, press,
@@ -812,7 +812,7 @@ impl ArrangePlaylist {
                         .child((index + 1).to_string()),
                 )
             });
-        let top = glyph_action_icon(
+        let top = sized_action_icon(
             ("arrange-top", index),
             MaterialIcon::VerticalAlignTop,
             t(Str::CdMoveToTop),
@@ -821,7 +821,7 @@ impl ArrangePlaylist {
         )
         .disabled(stacked || self.busy)
         .on_click(cx.listener(move |view, _, _, cx| view.move_to_top(index, cx)));
-        let remove = glyph_action_icon(
+        let remove = sized_action_icon(
             ("arrange-remove", index),
             MaterialIcon::RemoveCircleOutlineOutlined,
             t(Str::MenuRemoveFromPlaylist),

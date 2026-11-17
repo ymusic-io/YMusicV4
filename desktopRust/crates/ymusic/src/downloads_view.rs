@@ -17,7 +17,7 @@ use ym_image_loader::async_image::async_image_of;
 
 use crate::a11y::{DragRow, FocusList, announced, announced_as, heading, list_item};
 use crate::account::AccountController;
-use crate::action_icon::material_action_icon;
+use crate::action_icon::action_icon;
 use crate::assets::MaterialIcon;
 use crate::download_dialog::{DownloadPicker, DownloadTarget};
 use crate::downloads::pick_download_folder;
@@ -548,7 +548,7 @@ impl DownloadsView {
     fn menu(&self, row: usize, task: &DownloadTask, cx: &mut Context<Self>) -> impl IntoElement {
         let view = cx.entity().downgrade();
         let task = task.clone();
-        let more = material_action_icon(("download-more", row), MaterialIcon::MoreVert, t(Str::CdMore));
+        let more = action_icon(("download-more", row), MaterialIcon::MoreVert, t(Str::CdMore));
         self.focus.trailing_button(row, 0, more, cx).dropdown_menu_with_anchor(
             Anchor::TopRight,
             move |mut menu, _, _| {

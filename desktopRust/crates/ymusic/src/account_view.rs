@@ -12,7 +12,7 @@ use ym_image_loader::async_image::async_image_of;
 
 use crate::a11y::{DragRow, FocusList, announced_as, heading};
 use crate::account::AccountController;
-use crate::action_icon::material_action_icon;
+use crate::action_icon::action_icon;
 use crate::assets::MaterialIcon;
 use crate::feed::{FeedView, feed_width};
 use crate::settings_view::HOVER_ALPHA;
@@ -287,15 +287,17 @@ impl Render for AccountHeader {
                 None => disc.child(Icon::new(MaterialIcon::Person).size(px(24.))),
             });
         let owner = self.owner.clone();
-        let more = material_action_icon("account-more", MaterialIcon::MoreVert, t(Str::CdMore))
-            .dropdown_menu_with_anchor(Anchor::TopRight, move |menu, _, _| {
+        let more = action_icon("account-more", MaterialIcon::MoreVert, t(Str::CdMore)).dropdown_menu_with_anchor(
+            Anchor::TopRight,
+            move |menu, _, _| {
                 let owner = owner.clone();
                 menu.item(PopupMenuItem::new(t(Str::AccountSignOut)).on_click(move |_, _, cx| {
                     if let Some(owner) = &owner {
                         owner.update(cx, |view, cx| view.sign_out(cx)).ok();
                     }
                 }))
-            });
+            },
+        );
         let card = h_flex()
             .pl_4()
             .pr_2()
