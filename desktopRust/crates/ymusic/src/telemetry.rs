@@ -9,7 +9,7 @@ use ym_common::log::{DeferredSink, Level, LogSink, Logger, StderrSink, TeeSink};
 use ym_logstore::{LogStore, LogStoreSink};
 use ym_remote_config::{RemoteConfig, RemoteConfigData};
 use ym_settings::SettingsStore;
-use ym_telemetry::{FeedbackReport, LogShipper, ReportPolicy, SentrySink, Telemetry, TelemetryConfig};
+use ym_telemetry::{ExitMarker, FeedbackReport, LogShipper, ReportPolicy, SentrySink, Telemetry, TelemetryConfig};
 
 use crate::graph::AppGraph;
 
@@ -201,6 +201,7 @@ pub fn device_id(settings: &dyn SettingsStore) -> String {
 /// switch gates what leaves, live. Error events' log lines go out as Sentry Logs over `http`.
 pub fn start_reporting(
     setup: &LogSetup,
+    data_dir: &Path,
     settings: &dyn SettingsStore,
     tokio: &Handle,
     http: reqwest::Client,
@@ -211,7 +212,8 @@ pub fn start_reporting(
         return reporting;
     }
     device_id(settings);
-    let shipper = LogShipper::start(logs, dsn, crate::graph::APP_VERSION, http, tokio, setup.log.fork("sentry-logs"));
+    let shipper =
+        LogShipper::start(logs.clone(), dsn, crate::graph::APP_VERSION, http, tokio, setup.log.fork("sentry-logs"));
     let Some(telemetry) = Telemetry::init(telemetry_config(dsn, settings), crash_reports_allowed(settings)) else {
         return reporting;
     };
@@ -220,6 +222,7 @@ pub fn start_reporting(
             let policy = Arc::new(RemotePolicy::default());
             let sink = Arc::new(SentrySink { logs: shipper, policy: policy.clone() });
             sink.attach_logs_to_panics();
+            arm_exit_marker(data_dir, &logs.launch, &sink, &setup.log);
             setup.reports.set(sink);
             reporting.policy = Some(policy);
         }
@@ -229,6 +232,45 @@ pub fn start_reporting(
     }
     reporting._guard = Some(telemetry);
     reporting
+}
+
+/// The file that names the running launch until a clean quit ([`ExitMarker`]).
+const RUNNING_MARKER: &str = "running";
+static EXIT_MARKER: OnceLock<Arc<ExitMarker>> = OnceLock::new();
+
+/// Blocking: from here to a clean quit this launch is named running; one that died before its quit
+/// (a native crash, a kill) is reported now, and a panic marks the launch reported.
+fn arm_exit_marker(data_dir: &Path, launch: &str, sink: &SentrySink, log: &Logger) {
+    match ExitMarker::arm(data_dir.join(RUNNING_MARKER), launch) {
+        Ok((marker, previous)) => {
+            let marker = Arc::new(marker);
+            let panicking = marker.clone();
+            let next = std::panic::take_hook();
+            std::panic::set_hook(Box::new(move |info| {
+                panicking.mark_panicked();
+                next(info);
+            }));
+            let _ = EXIT_MARKER.set(marker);
+            if let Some(previous) = previous {
+                sink.report_unclean_exit(&previous);
+            }
+        }
+        Err(error) => {
+            log.warn("R90039 the running-launch marker is unusable: an unclean exit goes unreported", Some(&error))
+        }
+    }
+}
+
+/// Blocking: a clean quit, so the next launch has no unclean exit to report.
+pub fn disarm_exit_marker(log: &Logger) {
+    if let Some(marker) = EXIT_MARKER.get()
+        && let Err(error) = marker.disarm()
+    {
+        log.warn(
+            "R90042 the running-launch marker was not removed at quit: the next launch reports an unclean exit",
+            Some(&error),
+        );
+    }
 }
 
 /// Keeps the events' remote tags equal to the config's `sentryTags`, from the cached config on.

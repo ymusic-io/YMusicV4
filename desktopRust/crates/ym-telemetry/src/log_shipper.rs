@@ -97,6 +97,14 @@ impl LogShipper {
         }
     }
 
+    /// Blocking: claims an earlier launch's newest `limit` unsent lines and wakes the worker to send them.
+    pub fn claim_launch(&self, launch: &str, limit: i64) {
+        match self.store.claim_launch(launch, limit.min(MAX_LINES)) {
+            Ok(_) => self.wake.notify_one(),
+            Err(error) => self.log.warn("R90038 an earlier launch's log lines were not claimed", Some(&error)),
+        }
+    }
+
     async fn run(self: Arc<Self>) {
         let mut retry = RETRY_MIN;
         loop {

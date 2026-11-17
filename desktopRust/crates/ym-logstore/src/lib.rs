@@ -171,6 +171,12 @@ impl LogStore {
         claim(&self.db.lock().unwrap(), &self.launch, limit)
     }
 
+    /// Blocking: claims an earlier launch's unsent lines among its newest `limit`, as
+    /// [`Self::claim_unsent`] does for this launch's.
+    pub fn claim_launch(&self, launch: &str, limit: i64) -> rusqlite::Result<usize> {
+        claim(&self.db.lock().unwrap(), launch, limit)
+    }
+
     /// [`Self::claim_unsent`] for a panic hook, within `wait` in all: `None` when the connection stays
     /// busy that long, as it does when the panicking thread holds it; a poisoned lock still reads.
     pub fn try_claim_unsent(&self, limit: i64, wait: Duration) -> Option<rusqlite::Result<usize>> {

@@ -100,6 +100,7 @@ enum Start {
 /// A launch that cannot boot ends here, its error captured.
 pub fn boot_failed(log: &ym_common::log::Logger, error: &ym_engine::EngineError) -> ! {
     log.capture_error("engine boot failed", error);
+    crate::telemetry::disarm_exit_marker(log);
     ym_common::log::stderr_line(format_args!("{}", crate::feed::error_text(error)));
     std::process::exit(1);
 }
@@ -161,8 +162,13 @@ fn main() {
     let image_loader = crate::images::image_loader(&data_dir, http.following.clone(), tokio.handle().clone(), &log);
     let app_db = graph::open_app_db(&data_dir).unwrap_or_else(|error| boot_failed(&log, &error));
     crate::data_files::import_legacy_files(&app_db, &data_dir, &log);
-    let reporting =
-        crate::telemetry::start_reporting(&log_setup, app_db.as_ref(), tokio.handle(), http.following.clone());
+    let reporting = crate::telemetry::start_reporting(
+        &log_setup,
+        &data_dir,
+        app_db.as_ref(),
+        tokio.handle(),
+        http.following.clone(),
+    );
     let upgrade_notice = crate::app_update::UpgradeNotice::read(&app_db);
     let opened = crate::cookie_session::open(app_db.clone(), &data_dir, &log).unwrap_or_else(|error| {
         boot_failed(&log, &ym_engine::EngineError::site("R98000", format!("cookie store: {error}")))
@@ -218,6 +224,12 @@ fn main() {
         cx.set_global(crate::instance::Inbox(inbox));
         cx.on_app_quit(|_| {
             crate::instance::stop_accepting();
+            async {}
+        })
+        .detach();
+        let quit_log = log.fork("quit");
+        cx.on_app_quit(move |_| {
+            crate::telemetry::disarm_exit_marker(&quit_log);
             async {}
         })
         .detach();

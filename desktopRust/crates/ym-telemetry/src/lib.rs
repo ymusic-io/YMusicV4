@@ -4,9 +4,11 @@
 //! Logs on its trace), panics are reported by the SDK with those lines too, and the user's switch
 //! gates every event live.
 
+mod exit_marker;
 mod feedback;
 mod log_shipper;
 
+pub use exit_marker::{ExitMarker, UncleanExit};
 pub use feedback::{FeedbackError, FeedbackReport, send_feedback};
 pub use log_shipper::LogShipper;
 
@@ -29,6 +31,9 @@ const DEVICE_ID_TAG: &str = "device_id";
 const REPORT_TYPE_TAG: &str = "report_type";
 const ENGINE_VERSION_TAG: &str = "engine.version";
 const PLAYER_VERSION_TAG: &str = "player.version";
+/// The launch an unclean-exit event is about: the event goes on that launch's trace, with its log lines.
+const PREVIOUS_LAUNCH_TAG: &str = "previous_launch";
+const UNCLEAN_EXIT_CODE: &str = "R90037";
 /// Failures that are never defects: the UI already shows their localized category.
 const IGNORED_CATEGORIES: &[&str] = &["network"];
 /// The well-known categories an error's text starts with (`EngineError` shows `<code>: <message>`).
@@ -258,7 +263,8 @@ impl Telemetry {
             event.breadcrumbs.values.sort_by_key(|breadcrumb| breadcrumb.timestamp);
             stamp_tags(&mut event);
             trim_panic_frames(&mut event);
-            if let Some(trace_id) = log_shipper::launch_trace() {
+            let previous_launch = event.tags.get(PREVIOUS_LAUNCH_TAG).and_then(|launch| launch.parse().ok());
+            if let Some(trace_id) = previous_launch.or_else(log_shipper::launch_trace) {
                 link_trace(&mut event, trace_id);
             }
             Some(event)
@@ -293,6 +299,36 @@ impl SentrySink {
             }
             next(info);
         }));
+    }
+}
+
+impl SentrySink {
+    /// Blocking. A launch that died without a clean quit or a reported panic (a native crash, a stack
+    /// overflow, a kill): one fatal event, taking that launch's newest log lines.
+    pub fn report_unclean_exit(&self, previous: &UncleanExit) {
+        if previous.panicked || !reports_allowed() {
+            return;
+        }
+        let lines = self.policy.error_log_lines();
+        if lines > 0 {
+            self.logs.claim_launch(&previous.launch, lines);
+        }
+        sentry::with_scope(
+            |scope| {
+                scope.set_tag(REPORT_TYPE_TAG, "unclean_exit");
+                scope.set_tag(CODE_TAG, UNCLEAN_EXIT_CODE);
+                scope.set_tag(PREVIOUS_LAUNCH_TAG, &previous.launch);
+            },
+            || {
+                let event = Event {
+                    message: Some(format!("{UNCLEAN_EXIT_CODE} the previous launch ended without a clean quit")),
+                    level: SentryLevel::Fatal,
+                    fingerprint: vec![Cow::Borrowed(UNCLEAN_EXIT_CODE)].into(),
+                    ..Default::default()
+                };
+                sentry::capture_event(event);
+            },
+        );
     }
 }
 
