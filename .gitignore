@@ -14,6 +14,10 @@ design
 docs
 scripts
 tools
+# The dev setup scripts are shared; the rest of the root tools/ stays private.
+!/tools/
+/tools/*
+!/tools/dev-slot.sh
 test-cache
 ymusic-android
 # desktopRust ships its packaging scripts and vendored docs; the rules above are for private root folders.
@@ -46,6 +50,9 @@ local.properties
 # build keys and passwords, and the Android keystore: sealed into secrets.enc by ./encrypt.sh
 secrets.properties
 /signing/
+
+# this checkout's dev data slot (tools/dev-slot.sh)
+/.ymusic-dev-slot
 
 # legacy app sources, kept locally for reference only
 /YMusicLegacy
