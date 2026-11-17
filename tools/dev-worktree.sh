@@ -10,7 +10,8 @@
 #       engine bundles, writes .ymusic-dev.env (FFMPEG_BUILD_DIR), then tools/dev-data.sh create (the
 #       checkout's own copy of ~/.ymusic)
 #   tools/dev-worktree.sh run kotlin|rust
-#       the desktop app of this checkout on its data dir
+#       the desktop app of this checkout on its data dir; refuses without one (the Kotlin app's default
+#       is the real ~/.ymusic) unless YMUSIC_DATA_DIR names a dir
 #   tools/dev-worktree.sh remove <path-or-branch> [--keep-data] [--delete-branch]
 #       deletes the worktree's data dir (unless --keep-data), then git worktree remove; the branch stays
 #       unless --delete-branch
@@ -109,8 +110,14 @@ cmd_new() {
 cmd_run() {
     local root
     root=$(checkout_root)
-    [ -f "$root/$DATA_FILE_NAME" ] || echo "no workspace data dir here: the app runs on the default one (tools/dev-worktree.sh setup makes one)"
     case "${1:-}" in
+        kotlin | rust) ;;
+        *) die "usage: tools/dev-worktree.sh run kotlin|rust" ;;
+    esac
+    if [ ! -f "$root/$DATA_FILE_NAME" ] && [ -z "${YMUSIC_DATA_DIR:-}" ]; then
+        die "$root has no workspace data dir, so the app would run on its default one (the Kotlin app's is your real ~/.ymusic): run tools/dev-worktree.sh setup first, or set YMUSIC_DATA_DIR"
+    fi
+    case "$1" in
         kotlin)
             cd "$root"
             exec ./gradlew :desktopApp:run
@@ -127,7 +134,6 @@ cmd_run() {
             # findshlibs overflows its arithmetic on macOS, which panics a debug build.
             exec cargo run -p ymusic --config 'profile.dev.package.findshlibs.overflow-checks=false'
             ;;
-        *) die "usage: tools/dev-worktree.sh run kotlin|rust" ;;
     esac
 }
 
