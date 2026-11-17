@@ -12,7 +12,7 @@ use ym_engine::yt::{YtFeedItem, YtFeedPage};
 use ym_i18n::{Plural, Str, plural, t, tf};
 use ym_image_loader::async_image::async_image_of;
 
-use crate::a11y::FocusList;
+use crate::a11y::{FocusList, LoadMoreFocus};
 use crate::downloads::offline_ids;
 use crate::elevated_dialog::{
     DEFAULT_WIDTH, ROW_HORIZONTAL, bar_spinner, button_bar, chrome, press, scroll_body, text_button, title_bar,
@@ -34,6 +34,7 @@ pub struct LocalPlaylistFromDownloads {
     videos: Vec<YtFeedItem>,
     continuation: Option<String>,
     loading_more: bool,
+    more_focus: LoadMoreFocus,
     offline: Option<HashSet<String>>,
     taken: Vec<String>,
     name: Entity<InputState>,
@@ -63,6 +64,7 @@ impl LocalPlaylistFromDownloads {
                 videos: Vec::new(),
                 continuation: page.continuation.clone(),
                 loading_more: false,
+                more_focus: LoadMoreFocus::new(cx),
                 offline: None,
                 taken: Vec::new(),
                 name,
@@ -130,6 +132,8 @@ impl LocalPlaylistFromDownloads {
             return;
         }
         self.loading_more = true;
+        let loaded = self.downloaded().len();
+        self.more_focus.start(loaded, window, cx);
         let graph = cx.global::<AppGraph>();
         let (engine, history, log) = (graph.engine(), graph.history.clone(), graph.log.fork("local-playlist"));
         let load = on_core(cx, self.source.clone().load(engine, history, Some(continuation), log));
@@ -222,10 +226,19 @@ impl Render for LocalPlaylistFromDownloads {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = cx.theme().clone();
         let downloaded: Vec<YtFeedItem> = self.downloaded().into_iter().cloned().collect();
+        if let Some(settled) = self.more_focus.settle(self.loading_more, downloaded.len(), window) {
+            let control = self.continuation.is_some().then(|| self.focus.handle(STOP_LOAD_MORE, cx));
+            // Downloaded rows are not focusable: a page that adds none of them leaves focus on the name.
+            if let Some(target) = settled.target(|_| None, control, Some(self.name.focus_handle(cx))) {
+                window.focus(&target, cx);
+            }
+        }
         let duplicate = self.duplicate(cx);
         let can_submit = self.can_submit(cx);
         let load_more: AnyElement = if self.loading_more {
-            Spinner::new().small().into_any_element()
+            self.more_focus
+                .indicator("local-load-more-loading", t(Str::A11yLoading), Spinner::new().small(), cx)
+                .into_any_element()
         } else if self.continuation.is_some() {
             self.focus
                 .button(

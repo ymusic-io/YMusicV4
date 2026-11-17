@@ -66,6 +66,7 @@ Every UI change ships accessible; it is not a later pass.
 - **State is exposed, not just drawn.** Selected rail item / tab, toggled shuffle / repeat / sleep, checked menu items: set the component's selected/toggled/checked state, not only a color.
 - **Images are decorative unless they carry information.** Thumbnails beside a title stay unlabeled; an image that is the only content (QR code, album art alone) gets a label (`cd_device_link_qr`).
 - **Keyboard first.** Everything reachable by mouse is reachable by Tab / arrows / Enter / Space / Esc, in visual order; dialogs trap focus and close on Esc; focus returns to the opener.
+- **Loading more keeps focus in place.** Show more, Load more, more replies and their Retry go through `a11y::LoadMoreFocus`, as the JVM app's `LoadMoreFocus`: activating one focuses its spinner (`indicator`, a progress indicator read as "Loading"), and when the page settles focus moves to the first new item, else to the control that is back (Show more again, Retry), else to the last item, never to the window. A collapsed section's Show more (N) focuses the first revealed item; Show less keeps focus on the toggle and scrolls it into view (`FocusList::reveal`).
 - **No meaning by color alone** (errors also say so in text); no motion (the app runs with reduce-motion on) but reorder rows easing to their new slots (`reorder.rs`), dropped when the OS asks for reduced motion (`SystemMotion`).
 
 ### Errors

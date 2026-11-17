@@ -489,6 +489,12 @@ impl FocusList {
         on_menu_key(&slot, div().relative().flex_shrink_0().child(element).child(self.tracker(slot.clone(), None)))
     }
 
+    /// Scrolls the `index`th stop into view on the next paint, as when it gains focus: a toggle
+    /// that keeps focus while the rows above it go away.
+    pub fn reveal(&self, index: usize, cx: &App) {
+        self.slot(index, cx).was_focused.set(false);
+    }
+
     /// Whether one of the list's stops holds focus.
     pub fn has_focus(&self, window: &Window) -> bool {
         self.slots.borrow().iter().any(|slot| slot.handle.is_focused(window))
@@ -696,6 +702,98 @@ impl FocusList {
                 cx.stop_propagation();
             }
         })
+    }
+}
+
+/// Keeps keyboard and screen-reader focus in place across a "load more", as the JVM app's
+/// `LoadMoreFocus`: activating the control ([`Self::start`]) focuses the [`Self::indicator`] shown
+/// while the page loads; once it settles ([`Self::settle`], called from the view's render before its
+/// items) focus moves to the first new item, else to the control that is back (Show more again,
+/// Retry), else to the last item, else to the view's fallback, unless the user moved focus off the
+/// indicator meanwhile.
+pub struct LoadMoreFocus {
+    indicator: FocusHandle,
+    from: Option<usize>,
+}
+
+impl LoadMoreFocus {
+    pub fn new(cx: &App) -> Self {
+        Self { indicator: cx.focus_handle().tab_stop(true), from: None }
+    }
+
+    /// The control was activated with `count` items loaded.
+    pub fn start(&mut self, count: usize, window: &mut Window, cx: &mut App) {
+        self.from = Some(count);
+        window.focus(&self.indicator, cx);
+    }
+
+    /// A load the user started has not settled yet.
+    pub fn pending(&self) -> bool {
+        self.from.is_some()
+    }
+
+    /// The spinner of a load in progress (`content`), read as `label`: focusable while a load the
+    /// user started is pending.
+    pub fn indicator(
+        &self,
+        id: impl Into<ElementId>,
+        label: impl Into<SharedString>,
+        content: impl IntoElement,
+        cx: &App,
+    ) -> Stateful<Div> {
+        let ring = cx.theme().ring;
+        div()
+            .id(id)
+            .role(Role::ProgressIndicator)
+            .aria_label(label.into())
+            .rounded_full()
+            .when(self.from.is_some(), |indicator| {
+                indicator.track_focus(&self.indicator).focus_visible(move |style| {
+                    style.shadow(vec![BoxShadow {
+                        color: ring,
+                        offset: point(px(0.), px(0.)),
+                        blur_radius: px(0.),
+                        spread_radius: px(RING),
+                        inset: true,
+                    }])
+                })
+            })
+            .child(content)
+    }
+
+    /// Takes the pending start once the load is over (`loading` false) with `count` items: `None`
+    /// while it loads, with nothing pending, or once focus has left the indicator.
+    pub fn settle(&mut self, loading: bool, count: usize, window: &Window) -> Option<Settled> {
+        let from = self.from?;
+        if loading {
+            return None;
+        }
+        self.from = None;
+        self.indicator.is_focused(window).then_some(Settled { from, count })
+    }
+}
+
+/// A load [`LoadMoreFocus::settle`] found over, while its indicator held focus.
+pub struct Settled {
+    from: usize,
+    count: usize,
+}
+
+impl Settled {
+    /// The first there is of: the first new item, `control`, the last item, `fallback`. `item` gives
+    /// the focus stop of the item at an index, `None` for an item without one.
+    pub fn target<Stop>(
+        &self,
+        item: impl Fn(usize) -> Option<Stop>,
+        control: Option<Stop>,
+        fallback: Option<Stop>,
+    ) -> Option<Stop> {
+        (self.count > self.from)
+            .then(|| item(self.from))
+            .flatten()
+            .or(control)
+            .or_else(|| self.from.checked_sub(1).and_then(&item))
+            .or(fallback)
     }
 }
 

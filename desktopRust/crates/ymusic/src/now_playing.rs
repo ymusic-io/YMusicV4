@@ -17,7 +17,7 @@ use gpui_kit::*;
 use ym_i18n::{Str, t, tf};
 use ym_image_loader::async_image::async_image_of;
 
-use crate::a11y::{FocusList, SliderStop, alert, announced, heading, list_item};
+use crate::a11y::{FocusList, LoadMoreFocus, SliderStop, alert, announced, heading, list_item};
 use crate::action_icon::{HIT, auto_mirrored, sized_action_icon};
 use crate::assets::MaterialIcon;
 use crate::audio_only::AudioOnlyArt;
@@ -120,6 +120,7 @@ pub struct NowPlaying {
     sponsor_block: Entity<SponsorBlock>,
     queue_scroll: ScrollHandle,
     queue_focus: FocusList,
+    queue_more_focus: LoadMoreFocus,
     /// The top bar's and queue header's buttons, for the arrow keys.
     bar_focus: FocusList,
     reorder: Reorder,
@@ -422,6 +423,7 @@ impl NowPlaying {
             sponsor_block,
             queue_scroll: queue_scroll.clone(),
             queue_focus: FocusList::new(Some(queue_scroll.clone())),
+            queue_more_focus: LoadMoreFocus::new(cx),
             bar_focus: FocusList::new(None),
             reorder: Reorder::new(queue_scroll.clone()),
             queue_rows: LazyRows::new(queue_scroll, QUEUE_ROW_ESTIMATE),
@@ -1893,6 +1895,20 @@ impl NowPlaying {
             .into_any_element()
     }
 
+    /// Where focus goes once a queue page the user asked for settles: see [`LoadMoreFocus`].
+    fn settle_queue_more_focus(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let playback = self.playback.read(cx);
+        let more = playback.more.as_ref();
+        let loading = more.is_some_and(|more| more.loading);
+        let control_back = more.is_some_and(|more| more.error.is_some() || more.has_more);
+        let loaded = playback.queue.len();
+        let Some(settled) = self.queue_more_focus.settle(loading, loaded, window) else { return };
+        let control = control_back.then(|| self.bar_focus.handle(STOP_QUEUE_MORE, cx));
+        if let Some(target) = settled.target(|index| Some(self.queue_focus.handle(index, cx)), control, None) {
+            window.focus(&target, cx);
+        }
+    }
+
     /// The end of a growing queue: Load more, its progress, a failure with Retry, or the list's end
     /// (the JVM QueueMoreRow).
     fn render_queue_more(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
@@ -1901,13 +1917,24 @@ impl NowPlaying {
         let load_more = |id: &'static str, label: &'static str, view: &Self, cx: &mut Context<Self>| {
             view.bar_focus.button(
                 STOP_QUEUE_MORE,
-                Button::new(id).outline().rounded_full().small().label(label).on_click(
-                    cx.listener(|view, _, _, cx| view.playback.update(cx, |playback, cx| playback.load_more(cx))),
-                ),
+                Button::new(id).outline().rounded_full().small().label(label).on_click(cx.listener(
+                    |view, _, window, cx| {
+                        let loaded = view.playback.read(cx).queue.len();
+                        view.queue_more_focus.start(loaded, window, cx);
+                        view.playback.update(cx, |playback, cx| playback.load_more(cx));
+                    },
+                )),
                 cx,
             )
         };
-        let content = if more.loading {
+        let content = if more.loading && self.queue_more_focus.pending() {
+            let row = h_flex()
+                .gap_2()
+                .items_center()
+                .child(Spinner::new())
+                .child(div().text_size(px(13.)).text_color(muted).child(t(Str::QueueLoadingMore)));
+            self.queue_more_focus.indicator("np-queue-loading", t(Str::QueueLoadingMore), row, cx).into_any_element()
+        } else if more.loading {
             h_flex()
                 .gap_2()
                 .items_center()
@@ -1946,6 +1973,7 @@ impl Render for NowPlaying {
             let log = &cx.global::<crate::graph::AppGraph>().log;
             log.warn("video picture could not leave the atlas", Some(error.as_ref()));
         }
+        self.settle_queue_more_focus(window, cx);
         let painted = self.video_box.get();
         if painted.0 > 0 && painted != self.reported_box {
             self.reported_box = painted;
