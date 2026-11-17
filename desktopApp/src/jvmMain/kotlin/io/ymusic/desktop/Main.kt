@@ -71,6 +71,8 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.text
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.LayoutDirection
@@ -497,7 +499,7 @@ fun main(args: Array<String>) {
                 // carries on; an empty queue → quit.
                 if (graph?.player?.queue?.value?.items?.isNotEmpty() == true) windowVisible = false else quit()
             },
-            title = "YMusic",
+            title = DevInstance.appTitle,
             icon = null,
             state = windowState,
             undecorated = true,
@@ -602,11 +604,15 @@ fun main(args: Array<String>) {
                             )
                         }
                         Text(
-                            "YMusic",
+                            DevInstance.appTitle,
                             color = if (darkBar) Color.White else palette.InkStrong,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Medium,
-                            modifier = Modifier.align(Alignment.Center),
+                            textAlign = TextAlign.Center,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            // Clear of the traffic lights and the pin, however long a dev branch name runs.
+                            modifier = Modifier.align(Alignment.Center).fillMaxWidth(0.5f),
                         )
                         var alwaysOnTop by remember { mutableStateOf(window.isAlwaysOnTop) }
                         LaunchedEffect(alwaysOnTop) {
