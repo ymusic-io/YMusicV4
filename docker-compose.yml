@@ -6,7 +6,7 @@
 #   (:quickjs reuses this same image — its linuxX64 static lib builds with the image's cc/ar.)
 #
 # Notes:
-# - platform is pinned to linux/amd64 (libcurl.def's Linux linkerOpts point at x86_64-linux-gnu;
+# - platform is pinned to linux/amd64 (with kmpTargets=host only an amd64 host configures linuxX64;
 #   on Apple Silicon this runs under emulation — slower but works).
 # - :kmpHttp:core runs its own local test-server/ (Node+Fastify, started by :startTestServer) instead of
 #   live hosts; the container still needs network for the one system-default-trust test (a public root).
