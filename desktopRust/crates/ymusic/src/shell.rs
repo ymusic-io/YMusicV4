@@ -43,9 +43,11 @@ mod tray;
 
 const RAIL_COLLAPSED: f32 = 72.;
 const DRAWER_ICON_START: f32 = 20.;
+const DRAWER_ICON: f32 = 23.;
 /// Centres the expanded rail's section icons on the collapsed rail's centre line.
-const RAIL_ICON_START: f32 = RAIL_COLLAPSED / 2. - SECTION_ICON / 2.;
-const SECTION_ICON: f32 = 16.;
+const RAIL_ICON_START: f32 = RAIL_COLLAPSED / 2. - DRAWER_ICON / 2.;
+/// Outside the rail's width (the JVM app's `VerticalDivider`), or it pulls the collapsed icons off the toggle's line.
+const RAIL_DIVIDER: f32 = 1.;
 const RAIL_EXPANDED: f32 = 280.;
 /// The rail's logo, larger than the JVM rail's 24 so the mark reads at a glance.
 const RAIL_LOGO: f32 = 32.;
@@ -2025,7 +2027,7 @@ impl Shell {
                     .pr(px(DRAWER_ICON_START))
                     .py(px(11.))
                     .items_center()
-                    .child(section.icon().size(px(23.)).text_color(tint))
+                    .child(section.icon().size(px(DRAWER_ICON)).text_color(tint))
                     .child(
                         div()
                             .flex_1()
@@ -2109,11 +2111,11 @@ impl Shell {
         v_flex()
             .id("rail")
             .role(Role::Navigation)
-            .w(px(if expanded { RAIL_EXPANDED } else { RAIL_COLLAPSED }))
+            .w(px(if expanded { RAIL_EXPANDED } else { RAIL_COLLAPSED } + RAIL_DIVIDER))
             .h_full()
             .flex_shrink_0()
             .bg(chrome_tone(cx))
-            .border_r_1()
+            .border_r(px(RAIL_DIVIDER))
             .border_color(theme.border)
             .child(div().pt_1().child(header))
             .child(
