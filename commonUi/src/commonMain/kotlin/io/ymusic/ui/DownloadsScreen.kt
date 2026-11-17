@@ -162,6 +162,7 @@ import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringArrayResource
 import org.jetbrains.compose.resources.stringResource
 import projectcommon.error.Playability
+import projectcommon.error.TechnicalException
 import projectcommon.error.errorCode
 import projectcommon.error.playabilityOf
 import projectcommon.log.captureUnlessEnvironmental
@@ -623,7 +624,7 @@ private fun DeleteSelectedDialog(
                                 val code = failure.errorCode()
                                 val log = graph.logger?.fork("downloads", mapOf("taskId" to taskId))
                                 if (code == null) {
-                                    log?.captureError(failure, "delete from storage failed")
+                                    log?.captureError(TechnicalException("E70082", "delete from storage failed", cause = failure))
                                 } else {
                                     log?.log(Logger.Level.WARN, "delete from storage failed", failure)
                                 }
