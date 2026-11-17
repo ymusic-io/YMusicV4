@@ -199,6 +199,28 @@ const TOOL_EMPTY_RESTORE: usize = 6;
 const LAST_LIBRARY_TAB_KEY: &str = "library.lastTab";
 /// Shared with the JVM app: the Folders tab's open bucket id in decimal, empty for the root.
 const OPEN_FOLDER_KEY: &str = "library.folders.open";
+
+/// A value saved off the main thread by one blocking write per change, each storing the newest value
+/// under one lock, so the last to run leaves the latest on disk however the writes are scheduled (the
+/// JVM `StringBackedSettingsStore.commit`).
+#[derive(Default)]
+struct LatestValue {
+    value: std::sync::Mutex<String>,
+    writing: std::sync::Mutex<()>,
+}
+
+impl LatestValue {
+    fn set(&self, value: String) {
+        *self.value.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = value;
+    }
+
+    /// Runs `save` with the newest value, one save at a time. Blocking.
+    fn write<E>(&self, save: impl FnOnce(String) -> Result<(), E>) -> Result<(), E> {
+        let _writing = self.writing.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let value = self.value.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone();
+        save(value)
+    }
+}
 const TOOL_RESCAN: usize = 7;
 const TOOL_SCAN_EMPTY: usize = 8;
 
@@ -337,6 +359,8 @@ pub struct LibraryView {
     path: Vec<Bucket>,
     /// The saved open folder is still loading; opening any folder first drops it.
     folder_restore_pending: bool,
+    /// The open folder [OPEN_FOLDER_KEY] saves.
+    open_folder_saved: Arc<LatestValue>,
     folders: Vec<Bucket>,
     /// Whether a folder has been added, `None` until the store answers: without one the Library is
     /// only its Scan folder prompt, no tabs.
@@ -404,6 +428,7 @@ impl LibraryView {
             open_playlist: None,
             path: Vec::new(),
             folder_restore_pending: false,
+            open_folder_saved: Arc::default(),
             folders: Vec::new(),
             folders_added: None,
             items: Vec::new(),
@@ -862,10 +887,12 @@ impl LibraryView {
         self.folder_restore_pending = false;
         self.path = path;
         let open = self.path.last().map(|bucket| bucket.id.to_string()).unwrap_or_default();
+        self.open_folder_saved.set(open);
         let graph = cx.global::<AppGraph>();
-        let (settings, log) = (graph.settings.clone(), graph.log.fork("settings"));
+        let (settings, log, saved) =
+            (graph.settings.clone(), graph.log.fork("settings"), self.open_folder_saved.clone());
         graph.tokio.spawn_blocking(move || {
-            if let Err(error) = settings.put_raw(OPEN_FOLDER_KEY, open) {
+            if let Err(error) = saved.write(|open| settings.put_raw(OPEN_FOLDER_KEY, open)) {
                 log.warn(&format!("{OPEN_FOLDER_KEY} could not be saved: {error}"), None);
             }
         });
