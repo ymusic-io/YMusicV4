@@ -6,11 +6,10 @@ use std::collections::HashMap;
 
 use futures::FutureExt;
 
-use gpui_kit::assets::IconName as Lucide;
 use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::input::{InputEvent, Textarea, TextareaState};
 use gpui_kit::component::menu::{DropdownMenu, PopupMenuItem};
-use gpui_kit::component::{ActiveTheme, Icon, IconName, Selectable, Sizable, StyledExt, WindowExt, h_flex, v_flex};
+use gpui_kit::component::{ActiveTheme, Icon, Selectable, Sizable, StyledExt, WindowExt, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use ym_engine::EngineError;
@@ -19,7 +18,8 @@ use ym_i18n::{Str, t, tf};
 use ym_image_loader::async_image::async_image_of;
 
 use crate::a11y::{FocusList, alert, announced};
-use crate::action_icon::{HIT, action_icon};
+use crate::action_icon::{HIT, auto_mirrored, material_action_icon};
+use crate::assets::MaterialIcon;
 use crate::elevated_dialog::{ConfirmDialog, button_bar, chrome, press, scroll_body, text_button, title_bar};
 use crate::feed::{FeedSource, Navigate, error_text};
 use crate::graph::{AppGraph, on_core};
@@ -519,7 +519,8 @@ impl VideoDetailsView {
 
     fn avatar(thumbs: &[YtThumb], size: f32, cx: &App) -> Div {
         let frame = div().size(px(size)).flex_shrink_0().rounded_full().overflow_hidden().bg(cx.theme().secondary);
-        let person = Icon::new(Lucide::User).size(px(size / 2.)).text_color(cx.theme().muted_foreground);
+        let person =
+            Icon::new(MaterialIcon::PersonOutlined).size(px(size / 2.)).text_color(cx.theme().muted_foreground);
         match thumb_request_sources(thumbs) {
             Some(request) => frame.child(
                 async_image_of(Some(request))
@@ -540,7 +541,7 @@ impl VideoDetailsView {
     }
 
     /// A segment of a [`Self::pill`]: `icon`, and whatever the caller adds after it.
-    fn pill_button(id: &'static str, icon: Lucide) -> Button {
+    fn pill_button(id: &'static str, icon: MaterialIcon) -> Button {
         Button::new(id).ghost().rounded_full().h(px(PILL_HEIGHT)).px_4().child(Icon::new(icon).size(px(PILL_ICON)))
     }
 
@@ -619,7 +620,7 @@ impl VideoDetailsView {
         let rating = Self::pill(cx)
             .child(
                 self.stop(
-                    Self::pill_button("details-like", Lucide::ThumbsUp)
+                    Self::pill_button("details-like", thumb_up(liked))
                         .when_some(like_count, |button, count| button.child(count))
                         .selected(liked)
                         .accessibility_label(like_label)
@@ -630,7 +631,7 @@ impl VideoDetailsView {
             .child(div().w(px(1.)).h(px(20.)).bg(theme.border))
             .child(
                 self.stop(
-                    Self::pill_button("details-dislike", Lucide::ThumbsDown)
+                    Self::pill_button("details-dislike", thumb_down(disliked))
                         .selected(disliked)
                         .accessibility_label(t(Str::VideoDetailsDislike))
                         .on_click(cx.listener(|view, _, window, cx| view.toggle_rating(DISLIKE, window, cx))),
@@ -638,7 +639,7 @@ impl VideoDetailsView {
                 ),
             );
         let link = crate::feed::youtube_share_link("video", &self.video_id).unwrap_or_default();
-        let share = Self::pill_button("details-share", Lucide::Share2)
+        let share = Self::pill_button("details-share", MaterialIcon::ShareOutlined)
             .accessibility_label(t(Str::CdShare))
             .tooltip(t(Str::CdShare))
             .on_click(move |_, window, cx| {
@@ -702,12 +703,12 @@ impl VideoDetailsView {
                     .child(div().flex_1().child(Textarea::new(input)))
                     .when(draft == Draft::Edit && !busy, |row| {
                         row.child(self.stop(
-                            action_icon("cancel-edit", IconName::Close, t(Str::DialogCancel)).on_click(cx.listener(
-                                |view, _, _, cx| {
+                            material_action_icon("cancel-edit", MaterialIcon::Close, t(Str::DialogCancel)).on_click(
+                                cx.listener(|view, _, _, cx| {
                                     view.editing = None;
                                     cx.notify();
-                                },
-                            )),
+                                }),
+                            ),
                             cx,
                         ))
                     })
@@ -721,7 +722,7 @@ impl VideoDetailsView {
                             .into_any_element()
                     } else {
                         self.stop(
-                            action_icon(id, Lucide::Send, t(Str::VideoDetailsPost))
+                            material_action_icon(id, auto_mirrored(MaterialIcon::Send), t(Str::VideoDetailsPost))
                                 .on_click(cx.listener(move |view, _, window, cx| view.send(draft, window, cx))),
                             cx,
                         )
@@ -746,7 +747,7 @@ impl VideoDetailsView {
                     .items_center()
                     .text_xs()
                     .text_color(theme.muted_foreground)
-                    .child(Icon::new(Lucide::Pin).size(px(12.)))
+                    .child(Icon::new(MaterialIcon::PushPinOutlined).size(px(12.)))
                     .child(pinned.clone()),
             );
         }
@@ -793,7 +794,7 @@ impl VideoDetailsView {
                 row.child(
                     self.focus.wrap(
                         index,
-                        action_icon(more_id, IconName::EllipsisVertical, t(Str::CdMore))
+                        material_action_icon(more_id, MaterialIcon::MoreVert, t(Str::CdMore))
                             .track_focus(&self.focus.handle(index, cx))
                             .dropdown_menu_with_anchor(Anchor::TopRight, move |mut menu, _, _| {
                                 if menu_comment.edit_token.is_some() {
@@ -847,7 +848,7 @@ impl VideoDetailsView {
                     Button::new(SharedString::from(format!("like-{id}")))
                         .ghost()
                         .xsmall()
-                        .icon(Icon::new(Lucide::ThumbsUp))
+                        .icon(Icon::new(thumb_up(liked)))
                         .when_some(count.clone(), |button, count| button.label(count))
                         .selected(liked)
                         .accessibility_label(label)
@@ -856,8 +857,8 @@ impl VideoDetailsView {
                 ),
             );
         } else if let Some(count) = count {
-            row = row
-                .child(h_flex().gap_1().items_center().child(Icon::new(Lucide::ThumbsUp).size(px(14.))).child(count));
+            row =
+                row.child(h_flex().gap_1().items_center().child(Icon::new(thumb_up(liked)).size(px(14.))).child(count));
         }
         if can_dislike {
             let target = comment.clone();
@@ -866,7 +867,7 @@ impl VideoDetailsView {
                     Button::new(SharedString::from(format!("dislike-{id}")))
                         .ghost()
                         .xsmall()
-                        .icon(Icon::new(Lucide::ThumbsDown))
+                        .icon(Icon::new(thumb_down(disliked)))
                         .selected(disliked)
                         .accessibility_label(t(Str::VideoDetailsDislike))
                         .on_click(
@@ -877,7 +878,7 @@ impl VideoDetailsView {
             );
         }
         if comment.hearted {
-            row = row.child(Icon::new(Lucide::Heart).size(px(14.)).text_color(theme.primary));
+            row = row.child(Icon::new(MaterialIcon::Favorite).size(px(14.)).text_color(theme.primary));
         }
         if replyable {
             let target = comment.clone();
@@ -1088,4 +1089,14 @@ impl Render for VideoDetailsView {
             .child(scroll_body("video-details-body", &self.scroll, div().w_full().pb_4().child(body), window, cx))
             .child(button_bar(close, cx))
     }
+}
+
+/// The JVM app's like glyph: filled while the like is the user's.
+fn thumb_up(liked: bool) -> MaterialIcon {
+    if liked { MaterialIcon::ThumbUp } else { MaterialIcon::ThumbUpOutlined }
+}
+
+/// The JVM app's dislike glyph: filled while the dislike is the user's.
+fn thumb_down(disliked: bool) -> MaterialIcon {
+    if disliked { MaterialIcon::ThumbDown } else { MaterialIcon::ThumbDownOutlined }
 }
