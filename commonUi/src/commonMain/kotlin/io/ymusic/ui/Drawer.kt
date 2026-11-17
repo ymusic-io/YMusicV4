@@ -8,8 +8,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -89,13 +91,16 @@ fun AppDrawer(
     websiteUrl: String = AppLinks(null).website,
     /** Whether the drawer is open: each opening lands keyboard focus on the current section's item. */
     open: Boolean = false,
+    /** The window inset the drawer's parent pads at its start: the sheet reaches under it, or a closed drawer leaves only the parent, not the window. */
+    startInset: Dp = 0.dp,
 ) {
     ModalDrawerSheet(
-        modifier = Modifier.width(300.dp),
+        modifier = Modifier.offset(x = -startInset).width(DrawerSheetWidth + startInset),
         drawerContainerColor = DesignColors.Surface,
         drawerShape = RoundedCornerShape(0.dp),
+        windowInsets = WindowInsets(0),
     ) {
-        Column(Modifier.fillMaxHeight()) {
+        Column(Modifier.fillMaxHeight().padding(start = startInset)) {
             val updateStatus = updates?.status?.collectAsState()?.value
             val updateWaiting = updateStatus is AppUpdateStatus.Offered
             DrawerHeader(appVersion, premium, onCheckUpdate, updateWaiting, websiteUrl)
@@ -256,5 +261,6 @@ private fun DrawerRow(
     }
 }
 
+private val DrawerSheetWidth = 300.dp
 internal val DrawerIconSize = 23.dp
 private val DrawerIconStart = 20.dp
