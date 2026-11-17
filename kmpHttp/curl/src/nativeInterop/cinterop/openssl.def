@@ -2,18 +2,7 @@ package = openssl
 headers = openssl/ssl.h openssl/x509_vfy.h openssl/pem.h openssl/bio.h
 headerFilter = openssl/*
 
-# OpenSSL is the TLS backend our libcurl is built against (see `otool -L libcurl`). We bind a small
-# slice of it only to implement CURLOPT_SSL_CTX_FUNCTION: adding custom CA certs to the connection's
-# default trust store (X509_STORE_add_cert) so they're trusted *in addition* to the system defaults,
-# instead of CURLOPT_CAINFO_BLOB which replaces the store. Same host-system-headers, no-vendoring
-# rule as libcurl.def. Must be the SAME OpenSSL that libcurl links, or the SSL_CTX ABI won't match.
-
-# macOS: Homebrew openssl@3 (what brew's curl links). Requires `brew install openssl@3`.
-compilerOpts.osx = -I/usr/local/opt/openssl@3/include
-linkerOpts.osx = -L/usr/local/opt/openssl@3/lib -lssl -lcrypto
-
-# Linux: system OpenSSL. Requires the dev package, e.g. apt `libssl-dev`. On Debian/Ubuntu `ssl.h`
-# lives in `/usr/include/openssl` but the generated `opensslconf.h`/`configuration.h` it includes are
-# multiarch (`/usr/include/x86_64-linux-gnu/openssl/`), so both dirs must be on the include path.
-compilerOpts.linux = -I/usr/include -I/usr/include/x86_64-linux-gnu
-linkerOpts.linux = -L/usr/lib/x86_64-linux-gnu -lssl -lcrypto
+# Binds the slice of libcurl's TLS backend that CURLOPT_SSL_CTX_FUNCTION needs to add custom CAs to
+# the default trust store. Must be the OpenSSL libcurl links, or the SSL_CTX ABI won't match.
+# Paths come from the build host, located per target when the build copies this def
+# (HostNativeLibrary in buildSrc; search order in kmpHttp/ARCHITECTURE.md).

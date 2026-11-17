@@ -2,17 +2,5 @@ package = libcurl
 headers = curl/curl.h
 headerFilter = curl/*
 
-# Headers AND libs come from the system/dev libcurl on the build host — no vendored files. Because
-# the cinterop is generated against the host's own headers, each host only configures its own native
-# targets (kmpTargets=host is the default; see gradle.properties), so macOS never tries to generate
-# the Linux cinterop and vice-versa. Transitive TLS deps (OpenSSL, libnghttp2, ...) resolve at runtime.
-
-# macOS: Homebrew libcurl, keg-only at /usr/local/opt/curl. Requires `brew install curl`.
-compilerOpts.osx = -I/usr/local/opt/curl/include
-linkerOpts.osx = -L/usr/local/opt/curl/lib -lcurl
-
-# Linux: system libcurl. Requires the dev package, e.g. apt `libcurl4-openssl-dev`. On Debian/Ubuntu
-# the headers are multiarch (`/usr/include/x86_64-linux-gnu/curl/curl.h`), so that dir must be on the
-# include path — plain `/usr/include` does not contain `curl/`.
-compilerOpts.linux = -I/usr/include/x86_64-linux-gnu -I/usr/include
-linkerOpts.linux = -L/usr/lib/x86_64-linux-gnu -lcurl
+# Paths come from the build host's libcurl, located per target when the build copies this def
+# (HostNativeLibrary in buildSrc; search order in kmpHttp/ARCHITECTURE.md).

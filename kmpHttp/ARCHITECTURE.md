@@ -73,7 +73,15 @@ Computes registrable domain (eTLD+1) for cookie domain-scoping. **Native** uses 
 A non-recursive, suspending `JsonReader(source: BufferedAsyncSource)` that stream-parses chunked input into kotlinx-serialization `JsonElement`s and can **skip** parts of the document via `JsonStructFilter` (glob path matching). Consumes core's `BufferedAsyncSource`; does not extend the `Request`/`Response` API.
 
 ## `:kmpHttp:curl`
-All code in `desktopMain` (no `commonMain`). Two cinterops (`src/nativeInterop/cinterop/libcurl.def`, `openssl.def`) bind the **host's system/Homebrew libcurl + OpenSSL** — no vendored headers or libs (`.def` `compilerOpts`/`linkerOpts` point at system paths; Ubuntu paths are multiarch). `EasyHandle` wraps a libcurl easy handle driven by `CurlMultiApi` (its own event-loop worker thread, pause/resume backpressure). `CurlExecutor` (in `:core` desktopMain) is the network terminal.
+All code in `desktopMain` (no `commonMain`). Two cinterops (`src/nativeInterop/cinterop/libcurl.def`, `openssl.def`) bind the **build host's libcurl + OpenSSL** — no vendored headers or libs, and no paths in the checked-in defs. Per target, `generate{Libcurl,Openssl}Def<Target>` (`HostNativeLibrary.kt` in buildSrc) locates each library when it runs and writes a def with its `compilerOpts`/`linkerOpts` (cinterop drops DSL `linkerOpts`; only the def's reach the klib and every binary linking it). First hit wins:
+1. the override: `-PcurlPrefix` / `CURL_PREFIX`, `-PopensslPrefix` / `OPENSSL_PREFIX` (a prefix with `include/` and `lib/`; a wrong one fails, no fallback);
+2. OpenSSL on macOS only: the copy the located `libcurl.dylib` links (`otool -L`). It must be the same OpenSSL or the `SSL_CTX` ABI won't match, and pkg-config's linked copy can be another major version (Homebrew `openssl@3` vs `openssl@4`);
+3. `pkg-config libcurl` / `pkg-config openssl` (honours `PKG_CONFIG_PATH`; system dirs are kept, since Kotlin/Native builds against its own sysroot; Debian multiarch include dirs are added). On macOS the OS's own libcurl in `/usr/lib` is skipped: it is not built on OpenSSL;
+4. macOS: `brew --prefix --installed curl` / `openssl`.
+
+Nothing found fails that task with what was searched and how to install (`brew install curl`; `apt install pkg-config libcurl4-openssl-dev libssl-dev`) or override. Windows configures no curl target.
+
+`EasyHandle` wraps a libcurl easy handle driven by `CurlMultiApi` (its own event-loop worker thread, pause/resume backpressure). `CurlExecutor` (in `:core` desktopMain) is the network terminal.
 
 ## TLS / `SslConfig`
 `SslConfig` (custom `trustedCAs`, `trustSystemDefaultCAs`, `pinCertificates`, `clientCerts`) is applied per client. For curl, `CurlSslConfig` pre-digests it into curl's byte forms once per client. Custom CA + `trustSystemDefaultCAs=true` is merged with the system roots via OpenSSL `X509_STORE_add_cert` (`CURLOPT_SSL_CTX_FUNCTION`); `trustSystemDefaultCAs=false` replaces the store (`CURLOPT_CAINFO_BLOB`). curl uses PEM client certs (no PKCS#12). **Known limitation:** NSURLSession mutual-TLS is skipped on a macOS host (`SecPKCS12Import` blocks on the login keychain headlessly) — use `CurlKmpHttpClient` there.

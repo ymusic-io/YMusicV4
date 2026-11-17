@@ -10,6 +10,7 @@
 # so on top of the base we only add:
 #   - libcurl4-openssl-dev: the curl engine links the system libcurl (headers + .so) — no vendored libs
 #   - libssl-dev:           the openssl cinterop (custom-CA merge via X509_STORE_add_cert) binds OpenSSL
+#   - pkg-config:           locates both for the cinterop defs (HostNativeLibrary in buildSrc)
 #   - libunistring-dev:     supplies the libunistring.so dev symlink that curl's link pulls in
 #                           transitively (curl -> libidn2 -> libunistring); only the .so.N ships by default
 #   - openjdk-17-jdk-headless: YMusicLegacy pins a Java toolchain 17; Gradle auto-detects it in /usr/lib/jvm
@@ -21,6 +22,7 @@ FROM ghcr.io/cirruslabs/android-sdk:35
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libcurl4-openssl-dev \
         libssl-dev \
+        pkg-config \
         libunistring-dev \
         openjdk-17-jdk-headless \
         git \
