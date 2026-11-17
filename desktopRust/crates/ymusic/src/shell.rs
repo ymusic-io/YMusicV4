@@ -7,8 +7,7 @@ use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
-use gpui_kit::assets::IconName as Lucide;
-use gpui_kit::component::{ActiveTheme, Icon, IconName, StyledExt, WindowExt, h_flex, v_flex};
+use gpui_kit::component::{ActiveTheme, Icon, StyledExt, WindowExt, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use ym_i18n::{Str, t, tf};
@@ -16,7 +15,7 @@ use ym_i18n::{Str, t, tf};
 use crate::a11y::{DragRow, FocusList, focusable};
 use crate::account::{AccountController, Accounts};
 use crate::account_view::AccountView;
-use crate::action_icon::{HIT, action_icon, material_action_icon};
+use crate::action_icon::{HIT, auto_mirrored, material_action_icon};
 use crate::assets::MaterialIcon;
 use crate::download_dialog::{DownloadPicker, DownloadTarget};
 use crate::downloads_view::{DownloadsView, RevealInLibrary};
@@ -194,14 +193,14 @@ impl Section {
     fn icon(self) -> Icon {
         match self {
             Section::Discover => Icon::new(MaterialIcon::OndemandVideoOutlined),
-            Section::YtMusic => Icon::new(Lucide::CirclePlay),
-            Section::Library => Icon::new(Lucide::LibraryBig),
-            Section::PlayAgain => Icon::new(Lucide::RotateCcwClock),
-            Section::Downloads => Icon::new(Lucide::Download),
-            Section::Settings => Icon::new(Lucide::Settings),
-            Section::Donate => Icon::new(Lucide::Heart),
-            Section::Telegram => Icon::new(Lucide::Send),
-            Section::Feedback => Icon::new(Lucide::MessageCircle),
+            Section::YtMusic => Icon::new(MaterialIcon::PlayCircleOutline),
+            Section::Library => Icon::new(MaterialIcon::LibraryMusicOutlined),
+            Section::PlayAgain => Icon::new(MaterialIcon::HistoryOutlined),
+            Section::Downloads => Icon::new(MaterialIcon::FileDownloadOutlined),
+            Section::Settings => Icon::new(MaterialIcon::SettingsOutlined),
+            Section::Donate => Icon::new(MaterialIcon::FavoriteBorderOutlined),
+            Section::Telegram => Icon::empty().path(crate::assets::TELEGRAM_ICON),
+            Section::Feedback => auto_mirrored(MaterialIcon::ChatOutlined),
         }
     }
 }
@@ -297,13 +296,13 @@ impl DiscoverTab {
         }
     }
 
-    fn icon(self) -> Lucide {
+    fn icon(self) -> Icon {
         match self {
-            DiscoverTab::Home => Lucide::House,
-            DiscoverTab::Trending => Lucide::Music,
-            DiscoverTab::Recommended => Lucide::Star,
-            DiscoverTab::TopTracks => Lucide::TrendingUp,
-            DiscoverTab::Account => Lucide::User,
+            DiscoverTab::Home => Icon::new(MaterialIcon::HomeOutlined),
+            DiscoverTab::Trending => Icon::new(MaterialIcon::MusicNoteOutlined),
+            DiscoverTab::Recommended => Icon::new(MaterialIcon::StarBorder),
+            DiscoverTab::TopTracks => auto_mirrored(MaterialIcon::TrendingUpOutlined),
+            DiscoverTab::Account => Icon::new(MaterialIcon::PersonOutlined),
         }
     }
 
@@ -1784,7 +1783,7 @@ impl Shell {
             .child(
                 self.chrome_focus.button(
                     CHROME_BACK,
-                    action_icon("layer-back", crate::action_icon::auto_mirrored(IconName::ArrowLeft), t(Str::CdBack))
+                    material_action_icon("layer-back", auto_mirrored(MaterialIcon::ArrowBack), t(Str::CdBack))
                         .on_click(cx.listener(|shell, _, _, cx| shell.back(cx))),
                     cx,
                 ),
@@ -1796,7 +1795,7 @@ impl Shell {
                 bar.child(
                     self.chrome_focus.button(
                         CHROME_FILTER,
-                        action_icon("layer-filter", Icon::new(Lucide::Funnel), t(Str::CdFilter))
+                        material_action_icon("layer-filter", MaterialIcon::FilterAltOutlined, t(Str::CdFilter))
                             .on_click(move |_, window, cx| open_search_filter(&view, window, cx)),
                         cx,
                     ),
@@ -1804,7 +1803,7 @@ impl Shell {
             })
             .child(self.chrome_focus.button(
                 CHROME_LAYER_SEARCH,
-                action_icon("layer-search", Icon::new(IconName::Search), t(Str::CdSearch)).on_click(cx.listener(
+                material_action_icon("layer-search", MaterialIcon::Search, t(Str::CdSearch)).on_click(cx.listener(
                     move |shell, _, window, cx| match &search {
                         LayerSearch::Edit(view) => {
                             view.update(cx, |view, cx| view.edit(cx));
@@ -1864,7 +1863,7 @@ impl Shell {
                 bar.child(
                     self.chrome_focus.button(
                         CHROME_SEARCH,
-                        action_icon("open-search", Icon::new(IconName::Search), t(Str::CdSearch))
+                        material_action_icon("open-search", MaterialIcon::Search, t(Str::CdSearch))
                             .on_click(cx.listener(|shell, _, window, cx| shell.section_search(window, cx))),
                         cx,
                     ),
@@ -1897,7 +1896,7 @@ impl Shell {
                 .relative()
                 .cursor_pointer()
                 .hover(|style| style.bg(theme.primary.opacity(HOVER_ALPHA)))
-                .child(Icon::new(tab.icon()).size(px(24.)).text_color(if selected {
+                .child(tab.icon().size(px(24.)).text_color(if selected {
                     theme.primary
                 } else {
                     theme.muted_foreground
