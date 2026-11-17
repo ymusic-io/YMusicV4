@@ -228,6 +228,24 @@ pub fn accent_choice_menu(menu: PopupMenu, cx: &App) -> PopupMenu {
     })
 }
 
+/// A dropdown field's menu (the JVM app's `DropdownField` / `ChoiceMenuItems`): on the page's own
+/// ground, with a smaller check.
+pub fn field_menu(menu: PopupMenu, cx: &App) -> PopupMenu {
+    let ground = cx.theme().background;
+    menu.restyle(|style| {
+        style.background = Some(ground);
+        style.check_size = Some(px(18.));
+    })
+}
+
+/// A sort menu (the JVM app's feed and Library sorts): the current order checked at the start.
+pub fn sort_menu(menu: PopupMenu) -> PopupMenu {
+    menu.restyle(|style| {
+        style.check_side = Some(Side::Left);
+        style.check_size = Some(px(18.));
+    })
+}
+
 /// The JVM app's `SurfaceDim` / `InkMuted`: a card lifted off the page and its secondary text.
 #[derive(Clone, Copy)]
 pub struct CardTones {

@@ -796,25 +796,35 @@ impl VideoDetailsView {
                         index,
                         action_icon(more_id, MaterialIcon::MoreVert, t(Str::CdMore))
                             .track_focus(&self.focus.handle(index, cx))
-                            .dropdown_menu_with_anchor(Anchor::TopRight, move |mut menu, _, _| {
+                            .dropdown_menu_with_anchor(Anchor::TopRight, move |menu, _, cx| {
+                                // Material's own icon size and tint: the JVM menu sets neither.
+                                let tint = cx.theme().muted_foreground;
+                                let mut menu = menu.restyle(|style| {
+                                    style.icon_size = Some(px(24.));
+                                    style.icon_color = Some(tint);
+                                });
                                 if menu_comment.edit_token.is_some() {
                                     let (view, comment) = (view.clone(), menu_comment.clone());
-                                    menu = menu.item(PopupMenuItem::new(t(Str::VideoDetailsEdit)).on_click(
-                                        move |_, window, cx| {
-                                            view.update(cx, |view, cx| view.start_edit(&comment, window, cx)).ok();
-                                        },
-                                    ));
+                                    menu = menu.item(
+                                        PopupMenuItem::new(t(Str::VideoDetailsEdit))
+                                            .icon(Icon::new(MaterialIcon::EditOutlined))
+                                            .on_click(move |_, window, cx| {
+                                                view.update(cx, |view, cx| view.start_edit(&comment, window, cx)).ok();
+                                            }),
+                                    );
                                 }
                                 if menu_comment.delete_token.is_some() {
                                     let (view, comment) = (view.clone(), menu_comment.clone());
-                                    menu = menu.item(PopupMenuItem::new(t(Str::VideoDetailsDelete)).on_click(
-                                        move |_, window, cx| {
-                                            view.update(cx, |view, cx| {
-                                                view.confirm_delete(comment.clone(), window, cx)
-                                            })
-                                            .ok();
-                                        },
-                                    ));
+                                    menu = menu.item(
+                                        PopupMenuItem::new(t(Str::VideoDetailsDelete))
+                                            .icon(Icon::new(MaterialIcon::DeleteOutlined))
+                                            .on_click(move |_, window, cx| {
+                                                view.update(cx, |view, cx| {
+                                                    view.confirm_delete(comment.clone(), window, cx)
+                                                })
+                                                .ok();
+                                            }),
+                                    );
                                 }
                                 menu
                             }),

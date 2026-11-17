@@ -310,7 +310,8 @@ impl PlaylistDownload {
         let view = cx.entity().downgrade();
         let menu = action_icon("check-menu", MaterialIcon::MoreVert, t(Str::CdMore))
             .track_focus(&self.focus.handle(STOP_MENU, cx))
-            .dropdown_menu_with_anchor(Anchor::TopRight, move |mut menu, _, _| {
+            .dropdown_menu_with_anchor(Anchor::TopRight, move |menu, _, cx| {
+                let mut menu = crate::settings_view::field_menu(menu, cx);
                 let entries: [(Str, CheckAction); 4] = [
                     (Str::PlaylistCheckAll, |view| {
                         view.checked = view.pickable().map(|video| video.id.clone()).collect();
@@ -388,8 +389,8 @@ impl PlaylistDownload {
         let view = cx.entity().downgrade();
         let (playlists, target_id) = (self.playlists.clone(), self.target.as_ref().map(|playlist| playlist.id));
         let target = dropdown("target-playlist", t(Str::PlaylistAddTo), target_label, &self.focus, STOP_TARGET, cx)
-            .dropdown_menu(move |mut menu, _, _| {
-                menu = menu.scrollable(true).max_h(px(320.));
+            .dropdown_menu(move |menu, _, cx| {
+                let mut menu = crate::settings_view::field_menu(menu, cx).scrollable(true).max_h(px(320.));
                 let none_view = view.clone();
                 menu = menu.item(PopupMenuItem::new(t(Str::PlaylistTargetNone)).checked(target_id.is_none()).on_click(
                     move |_, _, cx| {

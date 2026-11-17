@@ -776,7 +776,9 @@ impl DownloadPicker {
                     .child(value),
             )
             .track_focus(&self.focus.handle(stop, cx))
-            .dropdown_menu(move |popup, _, _| menu(popup.scrollable(true).max_h(px(360.))));
+            .dropdown_menu(move |popup, _, cx| {
+                menu(crate::settings_view::field_menu(popup, cx).scrollable(true).max_h(px(360.)))
+            });
         self.focus.wrap(stop, field, cx).w_full()
     }
 
@@ -1603,11 +1605,16 @@ impl DownloadPicker {
         cx: &mut Context<Self>,
     ) -> Div {
         let picker = cx.entity().downgrade();
-        let row = self
-            .option_row(id, icon, title, value, stop, cx)
-            .dropdown_menu_with_anchor(Anchor::TopRight, move |menu, _, _| {
-                choice_items(menu.scrollable(true).max_h(px(360.)), &choices, &picker)
-            });
+        let row = self.option_row(id, icon, title, value, stop, cx).dropdown_menu_with_anchor(
+            Anchor::TopRight,
+            move |menu, _, cx| {
+                choice_items(
+                    crate::settings_view::field_menu(menu, cx).scrollable(true).max_h(px(360.)),
+                    &choices,
+                    &picker,
+                )
+            },
+        );
         self.focus.wrap(stop, row, cx).w_full()
     }
 

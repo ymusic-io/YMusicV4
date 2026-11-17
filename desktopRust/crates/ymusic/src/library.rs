@@ -1702,7 +1702,8 @@ impl LibraryView {
             .label(current)
             .accessibility_label(format!("{}, {current}", t(Str::CdSort)))
             .track_focus(&self.tool_focus.handle(TOOL_SORT, cx))
-            .dropdown_menu_with_anchor(Anchor::TopRight, move |mut menu, _, _| {
+            .dropdown_menu_with_anchor(Anchor::TopRight, move |menu, _, _| {
+                let mut menu = crate::settings_view::sort_menu(menu);
                 for (option, label) in context.labels.iter().enumerate() {
                     let view = view.clone();
                     menu = menu.item(

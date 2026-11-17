@@ -1822,7 +1822,8 @@ impl FeedView {
             .busy(busy)
             .accessibility_label(format!("{}, {current}", t(Str::CdSort)))
             .track_focus(&self.chips.handle(CHIPS_SORT, cx))
-            .dropdown_menu_with_anchor(Anchor::TopLeft, move |mut menu, _, _| {
+            .dropdown_menu_with_anchor(Anchor::TopLeft, move |menu, _, _| {
+                let mut menu = crate::settings_view::sort_menu(menu);
                 for (index, option) in options.iter().enumerate() {
                     let (view, token, selected) = (view.clone(), option.token.clone(), option.selected);
                     menu = menu.item(PopupMenuItem::new(option.title.clone()).checked(selected).on_click(
