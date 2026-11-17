@@ -44,12 +44,7 @@ import {
 } from "./captions";
 import { clearPlayerStorage, isBadStoredValue, playerStorageReady } from "./storage";
 import { applyViewport, viewportHeight, viewportWidth } from "./viewport";
-import {
-  onStableVolumeChange,
-  pullStableVolume,
-  stableVolumeOn,
-  writeDrcPref,
-} from "./stable_volume";
+import { onStableVolumeChange, pullStableVolume, writeDrcPref } from "./stable_volume";
 
 const ORIGIN = "https://www.youtube.com";
 
@@ -420,7 +415,8 @@ function enableSharedOwlFlag(): void {
   /* Bl(): server picks SABR itags; field 16/17 stay empty. Client filter instead. */
   flags["html5_enable_server_format_filter"] = false;
   flags["html5_enable_server_format_filter_for_drm"] = false;
-  if (stableVolumeOn()) flags["html5_enable_drc"] = true;
+  /* Builds base.js's DRC module; yt-player-drc-pref alone turns it on or off. */
+  flags["html5_enable_drc"] = true;
   // Player fetch gzips /youtubei/v1/player when this is on; jsonObject() then
   // sees gzip magic (0x1f) instead of `{`.
   flags["wug_networking_gzip_request"] = false;
@@ -856,18 +852,14 @@ class Player {
       throw new JsEngineErrorImpl("missing WEB_PLAYER_CONTEXT_CONFIG_ID_KEVLAR_WATCH", "E20153");
     enableSharedOwlFlag();
     if (typeof ctx["serializedExperimentFlags"] === "string") {
-      const patches: Record<string, string> = {
+      ctx["serializedExperimentFlags"] = patchFlags(ctx["serializedExperimentFlags"] as string, {
         "html5_use_shared_owl_instance": "true",
         "html5_webpo_idle_priority_job": "false",
         "wug_networking_gzip_request": "false",
         "html5_enable_server_format_filter": "false",
         "html5_enable_server_format_filter_for_drm": "false",
-      };
-      if (stableVolumeOn()) patches["html5_enable_drc"] = "true";
-      ctx["serializedExperimentFlags"] = patchFlags(
-        ctx["serializedExperimentFlags"] as string,
-        patches,
-      );
+        "html5_enable_drc": "true",
+      });
     }
     this.createFn = create as (r: unknown, a: unknown, b: unknown) => unknown;
     this.createCtx = ctx;

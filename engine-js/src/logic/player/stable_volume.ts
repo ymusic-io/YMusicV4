@@ -12,11 +12,6 @@ const DRC_PREF_TTL_MS = 31536e6;
 
 let stableVolume = true;
 
-/** The setting as last pulled; on until a pull says otherwise. */
-export function stableVolumeOn(): boolean {
-  return stableVolume;
-}
-
 /** Re-reads the host setting. A host without a settings store answers on (today's behaviour). */
 export async function pullStableVolume(): Promise<boolean> {
   try {
