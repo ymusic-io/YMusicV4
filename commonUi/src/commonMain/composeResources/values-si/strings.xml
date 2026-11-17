@@ -306,8 +306,10 @@
     <string name="cd_exit_fullscreen">සම්පූර්ණ තිරයෙන් ඉවත් වන්න</string>
     <string name="cd_fit_video">වීඩියෝව ගළපන්න</string>
     <string name="cd_fill_video">තිරය පුරවන්න</string>
-    <string name="cd_lock_rotation">භ්‍රමණය අගුළු දමන්න</string>
-    <string name="cd_unlock_rotation">භ්‍රමණය අගුළු හරින්න</string>
+    <string name="cd_screen_rotation">තිරය කරකැවීම</string>
+    <string name="rotation_lock_landscape">තිරස්ව අගුළු දමන්න</string>
+    <string name="rotation_lock_portrait">සිරස්ව අගුළු දමන්න</string>
+    <string name="rotation_free">නිදහස් කරකැවීම</string>
     <string name="cd_rewind10">තත්පර 10 ක් පසුපසට</string>
     <string name="cd_forward10">තත්පර 10 ක් ඉදිරියට</string>
     <string name="cd_repeat_off">පුනරාවර්තනය: අක්‍රිය</string>

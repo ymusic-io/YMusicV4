@@ -314,8 +314,10 @@
     <string name="cd_exit_fullscreen">Zamknij pełny ekran</string>
     <string name="cd_fit_video">Dopasuj film</string>
     <string name="cd_fill_video">Wypełnij ekran</string>
-    <string name="cd_lock_rotation">Zablokuj obracanie</string>
-    <string name="cd_unlock_rotation">Odblokuj obracanie</string>
+    <string name="cd_screen_rotation">Obracanie ekranu</string>
+    <string name="rotation_lock_landscape">Zablokuj w poziomie</string>
+    <string name="rotation_lock_portrait">Zablokuj w pionie</string>
+    <string name="rotation_free">Swobodne obracanie</string>
     <string name="cd_rewind10">Przewiń 10 sekund do tyłu</string>
     <string name="cd_forward10">Przewiń 10 sekund do przodu</string>
     <string name="cd_repeat_off">Powtarzaj: wyłączone</string>

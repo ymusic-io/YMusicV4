@@ -302,8 +302,10 @@
     <string name="cd_exit_fullscreen">全画面表示を終了</string>
     <string name="cd_fit_video">動画を画面に合わせる</string>
     <string name="cd_fill_video">画面いっぱいに表示</string>
-    <string name="cd_lock_rotation">回転をロック</string>
-    <string name="cd_unlock_rotation">回転のロックを解除</string>
+    <string name="cd_screen_rotation">画面の回転</string>
+    <string name="rotation_lock_landscape">横向きに固定</string>
+    <string name="rotation_lock_portrait">縦向きに固定</string>
+    <string name="rotation_free">自由に回転</string>
     <string name="cd_rewind10">10 秒戻す</string>
     <string name="cd_forward10">10 秒進める</string>
     <string name="cd_repeat_off">リピート：オフ</string>

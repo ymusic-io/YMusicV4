@@ -302,8 +302,10 @@
     <string name="cd_exit_fullscreen">전체 화면 종료</string>
     <string name="cd_fit_video">화면에 맞추기</string>
     <string name="cd_fill_video">화면 채우기</string>
-    <string name="cd_lock_rotation">화면 회전 잠금</string>
-    <string name="cd_unlock_rotation">화면 회전 잠금 해제</string>
+    <string name="cd_screen_rotation">화면 회전</string>
+    <string name="rotation_lock_landscape">가로 모드 고정</string>
+    <string name="rotation_lock_portrait">세로 모드 고정</string>
+    <string name="rotation_free">자유 회전</string>
     <string name="cd_rewind10">10초 뒤로</string>
     <string name="cd_forward10">10초 앞으로</string>
     <string name="cd_repeat_off">반복: 끄기</string>

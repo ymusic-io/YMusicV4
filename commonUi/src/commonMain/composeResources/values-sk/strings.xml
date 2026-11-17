@@ -314,8 +314,10 @@
     <string name="cd_exit_fullscreen">Ukončiť celú obrazovku</string>
     <string name="cd_fit_video">Prispôsobiť video</string>
     <string name="cd_fill_video">Vyplniť obrazovku</string>
-    <string name="cd_lock_rotation">Uzamknúť otáčanie</string>
-    <string name="cd_unlock_rotation">Odomknúť otáčanie</string>
+    <string name="cd_screen_rotation">Otáčanie obrazovky</string>
+    <string name="rotation_lock_landscape">Uzamknúť na šírku</string>
+    <string name="rotation_lock_portrait">Uzamknúť na výšku</string>
+    <string name="rotation_free">Voľné otáčanie</string>
     <string name="cd_rewind10">Pretočiť o 10 sekúnd späť</string>
     <string name="cd_forward10">Pretočiť o 10 sekúnd dopredu</string>
     <string name="cd_repeat_off">Opakovať: vypnuté</string>

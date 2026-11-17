@@ -302,8 +302,10 @@
     <string name="cd_exit_fullscreen">Keluar dari skrin penuh</string>
     <string name="cd_fit_video">Muatkan video</string>
     <string name="cd_fill_video">Penuhi skrin</string>
-    <string name="cd_lock_rotation">Kunci putaran</string>
-    <string name="cd_unlock_rotation">Buka kunci putaran</string>
+    <string name="cd_screen_rotation">Putaran skrin</string>
+    <string name="rotation_lock_landscape">Kunci landskap</string>
+    <string name="rotation_lock_portrait">Kunci potret</string>
+    <string name="rotation_free">Putaran bebas</string>
     <string name="cd_rewind10">Undur 10 saat</string>
     <string name="cd_forward10">Maju 10 saat</string>
     <string name="cd_repeat_off">Ulang: mati</string>

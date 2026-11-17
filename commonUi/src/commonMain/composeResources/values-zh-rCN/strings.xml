@@ -302,8 +302,10 @@
     <string name="cd_exit_fullscreen">退出全屏</string>
     <string name="cd_fit_video">适应视频</string>
     <string name="cd_fill_video">填满屏幕</string>
-    <string name="cd_lock_rotation">锁定屏幕旋转</string>
-    <string name="cd_unlock_rotation">解锁屏幕旋转</string>
+    <string name="cd_screen_rotation">屏幕旋转</string>
+    <string name="rotation_lock_landscape">锁定横屏</string>
+    <string name="rotation_lock_portrait">锁定竖屏</string>
+    <string name="rotation_free">自由旋转</string>
     <string name="cd_rewind10">后退 10 秒</string>
     <string name="cd_forward10">前进 10 秒</string>
     <string name="cd_repeat_off">重复播放：关闭</string>

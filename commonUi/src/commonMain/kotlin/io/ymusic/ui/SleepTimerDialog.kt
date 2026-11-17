@@ -24,9 +24,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.ymusic.ui.resources.Res
@@ -71,6 +73,9 @@ internal fun SleepTimerButton(
     sleepMs: Long?,
     afterCurrent: Boolean,
     lastMinutes: Int,
+    offTint: Color = DesignColors.InkMuted,
+    iconSize: Dp = 24.dp,
+    hitSize: Dp = 40.dp,
     onChoose: (SleepChoice) -> Unit,
 ) {
     var open by remember { mutableStateOf(false) }
@@ -83,7 +88,9 @@ internal fun SleepTimerButton(
     ActionIcon(
         painterResource(Res.drawable.ic_sleep_timer),
         listOfNotNull(stringResource(Res.string.cd_sleep_timer), armed).joinToString(", "),
-        tint = if (sleepMs != null || afterCurrent) DesignColors.Accent else DesignColors.InkMuted,
+        iconSize = iconSize,
+        hitSize = hitSize,
+        tint = if (sleepMs != null || afterCurrent) DesignColors.Accent else offTint,
         onClick = { open = true },
     )
     if (open) {

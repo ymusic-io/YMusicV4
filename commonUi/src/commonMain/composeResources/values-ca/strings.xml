@@ -310,8 +310,10 @@
     <string name="cd_exit_fullscreen">Surt de la pantalla completa</string>
     <string name="cd_fit_video">Ajusta el vídeo</string>
     <string name="cd_fill_video">Omple la pantalla</string>
-    <string name="cd_lock_rotation">Bloqueja la rotació</string>
-    <string name="cd_unlock_rotation">Desbloqueja la rotació</string>
+    <string name="cd_screen_rotation">Rotació de la pantalla</string>
+    <string name="rotation_lock_landscape">Bloqueja en horitzontal</string>
+    <string name="rotation_lock_portrait">Bloqueja en vertical</string>
+    <string name="rotation_free">Rotació lliure</string>
     <string name="cd_rewind10">Enrere 10 segons</string>
     <string name="cd_forward10">Endavant 10 segons</string>
     <string name="cd_repeat_off">Repeteix: desactivat</string>

@@ -306,8 +306,10 @@
     <string name="cd_exit_fullscreen">Ka bax shaashadda buuxda</string>
     <string name="cd_fit_video">Ku habee muuqaalka</string>
     <string name="cd_fill_video">Buuxi shaashadda</string>
-    <string name="cd_lock_rotation">Xidh wareegga</string>
-    <string name="cd_unlock_rotation">Fur wareegga</string>
+    <string name="cd_screen_rotation">Wareejinta shaashadda</string>
+    <string name="rotation_lock_landscape">Ku xidh jiif</string>
+    <string name="rotation_lock_portrait">Ku xidh taagan</string>
+    <string name="rotation_free">Wareejin xor ah</string>
     <string name="cd_rewind10">Dib u celi 10 ilbiriqsi</string>
     <string name="cd_forward10">Hore u wad 10 ilbiriqsi</string>
     <string name="cd_repeat_off">Ku celceli: dansan</string>

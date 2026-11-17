@@ -1,7 +1,11 @@
 package io.ymusic.ui
 
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -43,7 +47,7 @@ internal actual fun SyncSystemBars(dark: Boolean) {
 }
 
 @Composable
-internal actual fun SyncSensorRotation(locked: Boolean) {
+internal actual fun SyncSensorRotation(rotation: VideoRotation) {
     // Info.plist already lists portrait and both landscapes.
 }
 
@@ -64,7 +68,11 @@ internal actual fun KeepScreenOn(enabled: Boolean) {
 
 @Composable
 internal actual fun Modifier.keepBelowStatusBar(): Modifier =
-    windowInsetsPadding(WindowInsets.statusBars)
+    windowInsetsPadding(WindowInsets.statusBars.union(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)))
+
+@Composable
+internal actual fun Modifier.fullscreenSidePadding(): Modifier =
+    windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))
 
 @Composable
 internal actual fun Modifier.drawerEdgeGestureExclusion(enabled: Boolean): Modifier = this

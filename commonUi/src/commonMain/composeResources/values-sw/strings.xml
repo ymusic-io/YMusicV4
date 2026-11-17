@@ -306,8 +306,10 @@
     <string name="cd_exit_fullscreen">Ondoka kwenye skrini nzima</string>
     <string name="cd_fit_video">Tosheleza video</string>
     <string name="cd_fill_video">Jaza skrini</string>
-    <string name="cd_lock_rotation">Funga mzunguko</string>
-    <string name="cd_unlock_rotation">Fungua mzunguko</string>
+    <string name="cd_screen_rotation">Kuzungusha skrini</string>
+    <string name="rotation_lock_landscape">Funga kwa mlalo</string>
+    <string name="rotation_lock_portrait">Funga kwa wima</string>
+    <string name="rotation_free">Zungusha kwa uhuru</string>
     <string name="cd_rewind10">Rudisha nyuma sekunde 10</string>
     <string name="cd_forward10">Sogeza mbele sekunde 10</string>
     <string name="cd_repeat_off">Rudia: imezimwa</string>

@@ -306,8 +306,10 @@
     <string name="cd_exit_fullscreen">Έξοδος από πλήρη οθόνη</string>
     <string name="cd_fit_video">Προσαρμογή βίντεο</string>
     <string name="cd_fill_video">Γέμισμα οθόνης</string>
-    <string name="cd_lock_rotation">Κλείδωμα περιστροφής</string>
-    <string name="cd_unlock_rotation">Ξεκλείδωμα περιστροφής</string>
+    <string name="cd_screen_rotation">Περιστροφή οθόνης</string>
+    <string name="rotation_lock_landscape">Κλείδωμα σε οριζόντια</string>
+    <string name="rotation_lock_portrait">Κλείδωμα σε κατακόρυφη</string>
+    <string name="rotation_free">Ελεύθερη περιστροφή</string>
     <string name="cd_rewind10">Πίσω 10 δευτερόλεπτα</string>
     <string name="cd_forward10">Μπροστά 10 δευτερόλεπτα</string>
     <string name="cd_repeat_off">Επανάληψη: ανενεργή</string>

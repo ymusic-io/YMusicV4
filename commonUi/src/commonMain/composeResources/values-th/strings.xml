@@ -302,8 +302,10 @@
     <string name="cd_exit_fullscreen">ออกจากโหมดเต็มหน้าจอ</string>
     <string name="cd_fit_video">ปรับวิดีโอให้พอดี</string>
     <string name="cd_fill_video">เต็มหน้าจอ</string>
-    <string name="cd_lock_rotation">ล็อกการหมุน</string>
-    <string name="cd_unlock_rotation">ปลดล็อกการหมุน</string>
+    <string name="cd_screen_rotation">การหมุนหน้าจอ</string>
+    <string name="rotation_lock_landscape">ล็อกแนวนอน</string>
+    <string name="rotation_lock_portrait">ล็อกแนวตั้ง</string>
+    <string name="rotation_free">หมุนอิสระ</string>
     <string name="cd_rewind10">ย้อนกลับ 10 วินาที</string>
     <string name="cd_forward10">ข้ามไปข้างหน้า 10 วินาที</string>
     <string name="cd_repeat_off">เล่นซ้ำ: ปิด</string>

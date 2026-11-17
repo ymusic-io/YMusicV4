@@ -370,8 +370,10 @@
     <string name="cd_minimize">Згорнути</string>
     <string name="cd_fit_video">Вписати відео</string>
     <string name="cd_fill_video">Заповнити екран</string>
-    <string name="cd_lock_rotation">Заблокувати поворот</string>
-    <string name="cd_unlock_rotation">Розблокувати поворот</string>
+    <string name="cd_screen_rotation">Поворот екрана</string>
+    <string name="rotation_lock_landscape">Зафіксувати горизонтально</string>
+    <string name="rotation_lock_portrait">Зафіксувати вертикально</string>
+    <string name="rotation_free">Вільний поворот</string>
     <string name="cd_rewind10">Назад на 10 секунд</string>
     <string name="cd_forward10">Уперед на 10 секунд</string>
     <string name="cd_repeat_off">Повтор: вимк.</string>

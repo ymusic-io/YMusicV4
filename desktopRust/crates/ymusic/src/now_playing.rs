@@ -55,22 +55,28 @@ const STOP_SHUFFLE: usize = 7;
 const STOP_CHANNEL: usize = 8;
 const STOP_CHANNEL_OVERLAY: usize = 9;
 const STOP_QUEUE_MORE: usize = 10;
-/// The video controls, as arrow stops of their own list.
+/// The video controls, as arrow stops of their own list, in their rows' order: transport, the time row,
+/// the seek bar, full screen's actions row, the failure's actions.
 const OVERLAY_REWIND: usize = 0;
 const OVERLAY_PREVIOUS: usize = 1;
 const OVERLAY_PLAY: usize = 2;
 const OVERLAY_NEXT: usize = 3;
 const OVERLAY_FORWARD: usize = 4;
-const OVERLAY_QUALITY: usize = 5;
-const OVERLAY_DETAILS: usize = 6;
-const OVERLAY_SPEED: usize = 7;
-const OVERLAY_CAPTIONS: usize = 8;
+const OVERLAY_LIVE: usize = 5;
+const OVERLAY_QUALITY: usize = 6;
+const OVERLAY_CAPTIONS: usize = 7;
+const OVERLAY_FILL: usize = 8;
 const OVERLAY_FULLSCREEN: usize = 9;
 const OVERLAY_SEEK: usize = 10;
-const OVERLAY_SIGN_IN: usize = 11;
-const OVERLAY_RETRY: usize = 12;
-const OVERLAY_LIVE: usize = 13;
-const OVERLAY_FILL: usize = 14;
+const OVERLAY_DETAILS: usize = 11;
+const OVERLAY_SPEED: usize = 12;
+const OVERLAY_EQUALIZER: usize = 13;
+const OVERLAY_SPONSOR_BLOCK: usize = 14;
+const OVERLAY_DOWNLOAD: usize = 15;
+const OVERLAY_SLEEP: usize = 16;
+const OVERLAY_SHARE: usize = 17;
+const OVERLAY_SIGN_IN: usize = 18;
+const OVERLAY_RETRY: usize = 19;
 const MENU_CAPTIONS: u8 = 1;
 const MENU_QUALITY: u8 = 2;
 const MENU_MORE: u8 = 4;
@@ -265,8 +271,10 @@ impl CaptionStrip {
         entries
     }
 }
-/// Clears the video controls' bottom strip, at 1× overlay scale.
-const CAPTION_ABOVE_CONTROLS: f32 = 72.;
+/// The video controls' bottom strip at 1× overlay scale; captions and errors stay above it while it shows.
+const CONTROLS_STRIP: f32 = 72.;
+/// Full screen's strip: the time row, the seek bar and its actions row.
+const FULLSCREEN_CONTROLS_STRIP: f32 = CONTROLS_STRIP + HIT;
 /// Two caption rows: 24 line height plus the box's 2 + 2 padding, each.
 const CAPTION_TWO_ROWS: f32 = 56.;
 /// The picture's shape until the stream reports its own.
@@ -303,6 +311,31 @@ fn menu_value_item(label: &'static str, value: String) -> PopupMenuItem {
                 .child(value.clone()),
         )
     })
+}
+
+/// [`on_video`] when `over_video`, else the button as it is.
+fn video_chrome(button: Button, over_video: bool, cx: &App) -> Button {
+    if over_video { on_video(button, cx) } else { button }
+}
+
+/// The current item's download, None unless it is a YouTube video that is not live.
+fn download_target(current: &QueueItem) -> Option<DownloadTarget> {
+    current.downloadable().map(|video_id| DownloadTarget {
+        video_id: video_id.to_owned(),
+        title: current.title.clone(),
+        thumbnail_url: current.thumb(640).map(|url| url.to_string()),
+    })
+}
+
+/// The link Share copies: for any item with a YouTube id, a downloaded file's too.
+fn share_link(current: &QueueItem) -> Option<String> {
+    let video_id = current.video_id().map(str::to_owned).or_else(|| current.youtube_vid.clone())?;
+    crate::feed::youtube_share_link("video", &video_id)
+}
+
+fn copy_share_link(link: &str, window: &mut Window, cx: &mut App) {
+    cx.write_to_clipboard(ClipboardItem::new_string(link.to_owned()));
+    window.push_notification(t(Str::LinkCopied), cx);
 }
 
 /// The quality chip's text, its menu's choices (token, label) and the preferred token.
@@ -672,8 +705,9 @@ impl NowPlaying {
             .into_any_element()
     }
 
-    /// `VideoOverlayControls`: a scrim, the title top left, the transport centered, and the time,
-    /// actions and seek bar along the bottom, all growing with the video box.
+    /// `VideoOverlayControls`: a scrim, the title top left, the transport centered, and along the bottom
+    /// the time row and the seek bar, with full screen's actions row under them, all growing with the
+    /// video box.
     fn render_overlay(
         &self,
         current: &QueueItem,
@@ -727,7 +761,6 @@ impl NowPlaying {
                     cx,
                 ));
 
-        let actions = if fullscreen { self.overlay_player_actions(current, scale, cx) } else { Vec::new() };
         let time_size = px(10. * scale);
         let elapsed = play_clock.elapsed.as_ref().map(|elapsed| format!("{elapsed} / "));
         let total_color = play_clock.total_color(cx.theme().primary, rgb(OVERLAY_INK).into());
@@ -755,12 +788,16 @@ impl NowPlaying {
             .text_color(rgb(OVERLAY_INK))
             .when_some(elapsed, |row, elapsed| row.child(elapsed))
             .child(total);
-        let bottom_row = h_flex()
+        let quality = fullscreen
+            .then(|| self.quality_chip(Some(self.overlay_focus.handle(OVERLAY_QUALITY, cx)), Some(scale), cx))
+            .flatten()
+            .map(|chip| self.overlay_focus.wrap(OVERLAY_QUALITY, chip, cx));
+        let time_row = h_flex()
             .gap(px(4.))
             .items_center()
             .child(time)
             .child(div().flex_1())
-            .children(actions)
+            .children(quality)
             .when_some(self.caption_button(glyph, hit, cx), |row, button| {
                 row.child(self.overlay_focus.wrap_for(OVERLAY_CAPTIONS, &self.caption_focus, button, cx))
             })
@@ -799,6 +836,8 @@ impl NowPlaying {
                     cx,
                 ),
             );
+        let actions_row = fullscreen
+            .then(|| h_flex().gap(px(4.)).items_center().children(self.overlay_player_actions(current, scale, cx)));
         let playback = self.playback.clone();
         let seek_stop = SliderStop {
             value_text: Some(play_clock.spoken.clone().into()),
@@ -865,8 +904,9 @@ impl NowPlaying {
                     .right_0()
                     .px(px(11. * scale))
                     .pb(px(8. * scale))
-                    .child(bottom_row)
-                    .child(seek),
+                    .child(time_row)
+                    .child(seek)
+                    .children(actions_row),
             )
     }
 
@@ -958,7 +998,7 @@ impl NowPlaying {
         let action = |id: &'static str, label: &'static str| {
             Button::new(id).ghost().small().label(label).text_color(accent).font_semibold().block_mouse_except_scroll()
         };
-        let strip = CAPTION_ABOVE_CONTROLS * overlay_scale(self.video_box.get());
+        let strip = self.controls_strip();
         let mut actions = h_flex().gap_1().items_center();
         if failure.needs_sign_in() {
             actions = actions.child(
@@ -1034,7 +1074,7 @@ impl NowPlaying {
             (height * VIDEO_RATIO, height)
         };
         let bar = (height - picture_height) / 2.;
-        let controls_strip = CAPTION_ABOVE_CONTROLS * overlay_scale(self.video_box.get());
+        let controls_strip = self.controls_strip();
         let under_picture = bar >= CAPTION_TWO_ROWS * look.scale + controls_strip + 8.;
         let side = (width - picture_width) / 2. + picture_width * inset;
         let cue_width = (width - side * 2.).max(1.);
@@ -1149,14 +1189,17 @@ impl NowPlaying {
         Some(chip.into_any_element())
     }
 
-    /// Full screen has no top bar, so its quality chip, details and speed come onto the controls.
+    /// The bottom strip the video controls take while they show, at the overlay's scale.
+    fn controls_strip(&self) -> f32 {
+        let strip = if self.fullscreen { FULLSCREEN_CONTROLS_STRIP } else { CONTROLS_STRIP };
+        strip * overlay_scale(self.video_box.get())
+    }
+
+    /// Full screen has no top bar, so its actions come onto the controls' bottom row: details, speed,
+    /// equalizer, SponsorBlock, download, sleep timer and share, opening what the top bar and ⋮ do.
     fn overlay_player_actions(&self, current: &QueueItem, scale: f32, cx: &mut Context<Self>) -> Vec<AnyElement> {
         let (glyph, hit) = (ICON * scale, HIT * scale);
-        let quality = self.quality_chip(Some(self.overlay_focus.handle(OVERLAY_QUALITY, cx)), Some(scale), cx);
-        let mut actions: Vec<AnyElement> = quality
-            .map(|chip| self.overlay_focus.wrap(OVERLAY_QUALITY, chip, cx).into_any_element())
-            .into_iter()
-            .collect();
+        let mut actions: Vec<AnyElement> = Vec::new();
         if let Some(video_id) = current.video_id().map(str::to_owned) {
             let details =
                 on_video(sized_action_icon("np-details", Lucide::Info, t(Str::MenuDetailsComments), glyph, hit), cx)
@@ -1182,39 +1225,95 @@ impl NowPlaying {
                     .into_any_element(),
             );
         }
+        let equalizer =
+            on_video(sized_action_icon("np-equalizer", Lucide::SlidersVertical, t(Str::SoundEq), glyph, hit), cx)
+                .on_click(cx.listener(|_, _, _, cx| cx.emit(NowPlayingEvent::OpenEqualizer)));
+        actions.push(self.overlay_focus.button(OVERLAY_EQUALIZER, equalizer, cx).into_any_element());
+        if let Some(sponsor_block) =
+            self.sponsor_block_button("np-sponsorblock-overlay", glyph, hit, rgb(OVERLAY_INK).into(), true, cx)
+        {
+            actions.push(self.overlay_focus.button(OVERLAY_SPONSOR_BLOCK, sponsor_block, cx).into_any_element());
+        }
+        if let Some(target) = download_target(current) {
+            let download = self.download_button("np-download-overlay", target, glyph, hit, true, cx);
+            actions.push(self.overlay_focus.button(OVERLAY_DOWNLOAD, download, cx).into_any_element());
+        }
+        let sleep = self.sleep_button("np-sleep-overlay", glyph, hit, true, cx);
+        actions.push(self.overlay_focus.button(OVERLAY_SLEEP, sleep, cx).into_any_element());
+        if let Some(link) = share_link(current) {
+            let share = on_video(sized_action_icon("np-share", Lucide::Share2, t(Str::CdShare), glyph, hit), cx)
+                .on_click(move |_, window, cx| copy_share_link(&link, window, cx));
+            actions.push(self.overlay_focus.button(OVERLAY_SHARE, share, cx).into_any_element());
+        }
         actions
     }
 
-    /// Close, then download · SponsorBlock · sleep · quality · ⋮ on the right.
-    fn render_top_bar(&self, current: &QueueItem, cx: &mut Context<Self>) -> AnyElement {
+    /// The download action for `target`.
+    fn download_button(
+        &self,
+        id: &'static str,
+        target: DownloadTarget,
+        glyph: f32,
+        hit: f32,
+        over_video: bool,
+        cx: &mut Context<Self>,
+    ) -> Button {
+        video_chrome(sized_action_icon(id, Lucide::Download, t(Str::CdDownload), glyph, hit), over_video, cx)
+            .on_click(cx.listener(move |_, _, _, cx| cx.emit(NowPlayingEvent::Download(target.clone()))))
+    }
+
+    /// SponsorBlock's toggle for the current video, None while SponsorBlock has nothing for it: the
+    /// mark in the accent while its segments are skipped, in `excluded_ink` while it is whitelisted.
+    fn sponsor_block_button(
+        &self,
+        id: &'static str,
+        glyph: f32,
+        hit: f32,
+        excluded_ink: Hsla,
+        over_video: bool,
+        cx: &mut Context<Self>,
+    ) -> Option<Button> {
+        let whitelisted = self.sponsor_block.read(cx).current.as_ref().map(|(_, whitelisted)| *whitelisted)?;
+        let state = t(if whitelisted { Str::SponsorBlockExcluded } else { Str::SponsorBlockIncluded });
+        let mark = Icon::empty().path(crate::assets::SPONSOR_BLOCK_ICON).text_color(if whitelisted {
+            excluded_ink
+        } else {
+            cx.theme().primary
+        });
+        Some(
+            video_chrome(glyph_action_icon(id, mark, t(Str::SettingsSponsorBlock), glyph, hit), over_video, cx)
+                .tooltip(state)
+                .on_click(cx.listener(move |view, _, _, cx| {
+                    view.sponsor_block.update(cx, |sponsor, cx| sponsor.set_whitelisted(!whitelisted, cx))
+                })),
+        )
+    }
+
+    /// The sleep timer's action, toggled and in the accent while a timer is armed, opening its dialog.
+    fn sleep_button(&self, id: &'static str, glyph: f32, hit: f32, over_video: bool, cx: &mut Context<Self>) -> Button {
         let playback = self.playback.read(cx);
         let sleep_remaining = playback.sleep_remaining();
         let sleep_after_current = playback.sleep_after_current;
         let sleep_armed = sleep_remaining.is_some() || sleep_after_current;
-        let sponsor_whitelisted = self.sponsor_block.read(cx).current.as_ref().map(|(_, whitelisted)| *whitelisted);
-        let target = current.downloadable().map(|video_id| DownloadTarget {
-            video_id: video_id.to_owned(),
-            title: current.title.clone(),
-            thumbnail_url: current.thumb(640).map(|url| url.to_string()),
-        });
-
         let sleep_tooltip = match sleep_remaining {
             Some(left) => tf(Str::SleepPausingIn, &[&clock(left.as_millis() as i64)]),
             None if sleep_after_current => t(Str::SleepPausingAfterTrack).to_owned(),
             None => t(Str::CdSleepTimer).to_owned(),
         };
         let accent = cx.theme().primary;
-        let sleep = self.bar_focus.button(
-            STOP_SLEEP,
-            sized_action_icon("np-sleep", Lucide::Timer, t(Str::CdSleepTimer), ICON, HIT)
-                .toggled(sleep_armed)
-                .when(sleep_armed, |button| button.text_color(accent))
-                .tooltip(sleep_tooltip)
-                .on_click(cx.listener(|view, _, window, cx| {
-                    crate::sleep_timer::SleepTimerDialog::open(view.playback.clone(), window, cx)
-                })),
-            cx,
-        );
+        video_chrome(sized_action_icon(id, Lucide::Timer, t(Str::CdSleepTimer), glyph, hit), over_video, cx)
+            .toggled(sleep_armed)
+            .when(sleep_armed, |button| button.text_color(accent))
+            .tooltip(sleep_tooltip)
+            .on_click(cx.listener(|view, _, window, cx| {
+                crate::sleep_timer::SleepTimerDialog::open(view.playback.clone(), window, cx)
+            }))
+    }
+
+    /// Close, then download · SponsorBlock · sleep · quality · ⋮ on the right.
+    fn render_top_bar(&self, current: &QueueItem, cx: &mut Context<Self>) -> AnyElement {
+        let target = download_target(current);
+        let sleep = self.bar_focus.button(STOP_SLEEP, self.sleep_button("np-sleep", ICON, HIT, false, cx), cx);
 
         let quality = self
             .quality_chip(Some(self.bar_focus.handle(STOP_QUALITY, cx)), None, cx)
@@ -1222,9 +1321,9 @@ impl NowPlaying {
 
         let view = cx.entity().downgrade();
         let more_video_id = current.video_id().map(str::to_owned);
-        // Share for any item with a YouTube id (a downloaded file's too) and lyrics for any item, the
-        // local artist in the query (the JVM ⋮ menu; a YouTube item's artist is its uploader).
-        let share_id = current.video_id().map(str::to_owned).or_else(|| current.youtube_vid.clone());
+        // Lyrics for any item, the local artist in the query (the JVM ⋮ menu; a YouTube item's artist is
+        // its uploader).
+        let share = share_link(current);
         let lyrics_query = match &current.source {
             crate::playback::Source::Local(_) => {
                 [current.artist.clone(), Some(current.title.clone())].into_iter().flatten().collect::<Vec<_>>()
@@ -1252,13 +1351,12 @@ impl NowPlaying {
                             move |_, window, cx| crate::yt_playlist::AddToPlaylist::open(video_id.clone(), window, cx),
                         ));
                 }
-                if let Some(link) = share_id.as_deref().and_then(|id| crate::feed::youtube_share_link("video", id)) {
-                    menu = menu.item(PopupMenuItem::new(t(Str::CdShare)).icon(icon(Lucide::Share2)).on_click(
-                        move |_, window, cx| {
-                            cx.write_to_clipboard(ClipboardItem::new_string(link.clone()));
-                            window.push_notification(t(Str::LinkCopied), cx);
-                        },
-                    ));
+                if let Some(link) = share.clone() {
+                    menu = menu.item(
+                        PopupMenuItem::new(t(Str::CdShare))
+                            .icon(icon(Lucide::Share2))
+                            .on_click(move |_, window, cx| copy_share_link(&link, window, cx)),
+                    );
                 }
                 let queue = queue_playback.clone();
                 menu = menu.item(
@@ -1360,35 +1458,16 @@ impl NowPlaying {
             )
             .child(div().flex_1())
             .when_some(target, |bar, target| {
-                bar.child(
-                    self.bar_focus.button(
-                        STOP_DOWNLOAD,
-                        sized_action_icon("np-download", Lucide::Download, t(Str::CdDownload), ICON, HIT).on_click(
-                            cx.listener(move |_, _, _, cx| cx.emit(NowPlayingEvent::Download(target.clone()))),
-                        ),
-                        cx,
-                    ),
-                )
+                bar.child(self.bar_focus.button(
+                    STOP_DOWNLOAD,
+                    self.download_button("np-download", target, ICON, HIT, false, cx),
+                    cx,
+                ))
             })
-            .when_some(sponsor_whitelisted, |bar, whitelisted| {
-                let state = t(if whitelisted { Str::SponsorBlockExcluded } else { Str::SponsorBlockIncluded });
-                let mark = Icon::empty().path(crate::assets::SPONSOR_BLOCK_ICON).text_color(if whitelisted {
-                    cx.theme().muted_foreground
-                } else {
-                    accent
-                });
-                bar.child(
-                    self.bar_focus.button(
-                        STOP_SPONSOR_BLOCK,
-                        glyph_action_icon("np-sponsorblock", mark, t(Str::SettingsSponsorBlock), ICON, HIT)
-                            .tooltip(state)
-                            .on_click(cx.listener(move |view, _, _, cx| {
-                                view.sponsor_block.update(cx, |sponsor, cx| sponsor.set_whitelisted(!whitelisted, cx))
-                            })),
-                        cx,
-                    ),
-                )
-            })
+            .when_some(
+                self.sponsor_block_button("np-sponsorblock", ICON, HIT, cx.theme().muted_foreground, false, cx),
+                |bar, sponsor_block| bar.child(self.bar_focus.button(STOP_SPONSOR_BLOCK, sponsor_block, cx)),
+            )
             .child(sleep)
             .children(quality)
             .child(self.bar_focus.wrap(STOP_MORE, more, cx))

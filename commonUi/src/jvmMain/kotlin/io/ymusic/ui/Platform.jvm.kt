@@ -48,7 +48,7 @@ internal actual fun SyncSystemBars(dark: Boolean) {
 }
 
 @Composable
-internal actual fun SyncSensorRotation(locked: Boolean) = Unit
+internal actual fun SyncSensorRotation(rotation: VideoRotation) = Unit
 
 internal actual val rotationLockSupported: Boolean = false
 
@@ -60,6 +60,9 @@ internal actual fun KeepScreenOn(enabled: Boolean) = Unit
 
 @Composable
 internal actual fun Modifier.keepBelowStatusBar(): Modifier = this
+
+@Composable
+internal actual fun Modifier.fullscreenSidePadding(): Modifier = this
 
 @Composable
 internal actual fun Modifier.drawerEdgeGestureExclusion(enabled: Boolean): Modifier = this

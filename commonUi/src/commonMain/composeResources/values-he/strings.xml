@@ -310,8 +310,10 @@
     <string name="cd_exit_fullscreen">יציאה ממסך מלא</string>
     <string name="cd_fit_video">התאמת הסרטון</string>
     <string name="cd_fill_video">מילוי המסך</string>
-    <string name="cd_lock_rotation">נעילת סיבוב</string>
-    <string name="cd_unlock_rotation">ביטול נעילת סיבוב</string>
+    <string name="cd_screen_rotation">סיבוב מסך</string>
+    <string name="rotation_lock_landscape">נעילה לרוחב</string>
+    <string name="rotation_lock_portrait">נעילה לאורך</string>
+    <string name="rotation_free">סיבוב חופשי</string>
     <string name="cd_rewind10">10 שניות אחורה</string>
     <string name="cd_forward10">10 שניות קדימה</string>
     <string name="cd_repeat_off">חזרה על השמעה: כבויה</string>
