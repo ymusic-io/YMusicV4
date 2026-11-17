@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -60,8 +59,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.onLongClick
@@ -374,16 +373,22 @@ fun DownloadsScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
                 }
             }
             itemsIndexed(shown, key = { _, task -> task.id }) { index, task ->
-                val rowMinHeight = if (columns > 1) {
-                    val rowStart = index / columns * columns
-                    val rowEnd = minOf(rowStart + columns, shown.size)
-                    (rowStart until rowEnd).maxOf { naturalHeights[shown[it].id] ?: 0 }
-                } else {
-                    0
-                }
                 DownloadCard(
                     task, service,
-                    modifier = Modifier.animateItem().heightIn(min = with(LocalDensity.current) { rowMinHeight.toDp() }),
+                    // Heights are read in the layout phase: a row-mate's height change relayouts, never recomposes.
+                    modifier = Modifier.animateItem().layout { measurable, constraints ->
+                        val rowMinHeight = if (columns > 1) {
+                            val rowStart = index / columns * columns
+                            val rowEnd = minOf(rowStart + columns, shown.size)
+                            (rowStart until rowEnd).maxOf { naturalHeights[shown[it].id] ?: 0 }
+                        } else {
+                            0
+                        }
+                        val placeable = measurable.measure(
+                            constraints.copy(minHeight = rowMinHeight.coerceIn(constraints.minHeight, constraints.maxHeight)),
+                        )
+                        layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+                    },
                     onNaturalHeight = { height -> if (naturalHeights[task.id] != height) naturalHeights[task.id] = height },
                     selecting = selecting,
                     selected = task.id in selection,
