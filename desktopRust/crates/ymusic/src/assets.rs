@@ -378,6 +378,16 @@ fn logo_image(side: u32) -> anyhow::Result<Arc<RenderImage>> {
     Ok(image)
 }
 
+/// The gpui-kit component glyphs the app shows, drawn as the JVM app's Material 3 counterparts draw
+/// them: the checkbox tick and a checked menu item, a submenu's arrow, a dropdown button's caret, and
+/// the clear button of a search field and a toast's close.
+const COMPONENT_ICONS: [(&str, MaterialIcon); 4] = [
+    ("icons/check.svg", MaterialIcon::Check),
+    ("icons/chevron-right.svg", MaterialIcon::KeyboardArrowRight),
+    ("icons/chevron-down.svg", MaterialIcon::KeyboardArrowDown),
+    ("icons/close.svg", MaterialIcon::Close),
+];
+
 pub struct AppAssets;
 
 impl AssetSource for AppAssets {
@@ -392,6 +402,9 @@ impl AssetSource for AppAssets {
             return Ok(Some(Cow::Borrowed(include_bytes!("../assets/guide-cursor.svg"))));
         }
         if let Some(icon) = MaterialIcon::ALL.iter().find(|icon| icon.asset_path() == path) {
+            return Ok(Some(Cow::Borrowed(icon.svg())));
+        }
+        if let Some((_, icon)) = COMPONENT_ICONS.iter().find(|(component_path, _)| *component_path == path) {
             return Ok(Some(Cow::Borrowed(icon.svg())));
         }
         match ShellIcons.load(path) {
