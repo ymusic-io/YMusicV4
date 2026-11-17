@@ -43,7 +43,7 @@ mod tray;
 
 const RAIL_COLLAPSED: f32 = 72.;
 const DRAWER_ICON_START: f32 = 20.;
-const DRAWER_ICON: f32 = 23.;
+const DRAWER_ICON: f32 = 24.;
 /// Centres the expanded rail's section icons on the collapsed rail's centre line.
 const RAIL_ICON_START: f32 = RAIL_COLLAPSED / 2. - DRAWER_ICON / 2.;
 /// Outside the rail's width (the JVM app's `VerticalDivider`), or it pulls the collapsed icons off the toggle's line.
