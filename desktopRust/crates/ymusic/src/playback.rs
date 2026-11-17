@@ -2293,6 +2293,11 @@ impl Playback {
                     Some(Ok(session)) => {
                         playback.commands = Some(start_commands(&session, cx));
                         playback.session = Some(session);
+                        // set_stable_volume drops changes while booting, so the bundle re-pulls before any load.
+                        playback.command(cx, |engine, _| async move {
+                            engine.player_notify_settings_changed();
+                            Ok(())
+                        });
                         playback.apply_volume();
                         playback.apply_youtube_tone();
                         playback.apply_youtube_video_hidden(cx);
