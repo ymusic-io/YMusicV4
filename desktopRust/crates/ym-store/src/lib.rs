@@ -361,6 +361,13 @@ impl MediaStore {
         Ok(db.query_row(&sql, params![uri_of(path)], bucket_from_row).optional()?)
     }
 
+    /// The live bucket `bucket_id`, excluded or not.
+    pub fn find_bucket(&self, bucket_id: i64) -> Result<Option<Bucket>, StoreError> {
+        let db = self.db.lock().unwrap();
+        let sql = format!("SELECT {BUCKET_COLUMNS} FROM bucket WHERE id = ?1 AND deleted = 0");
+        Ok(db.query_row(&sql, params![bucket_id], bucket_from_row).optional()?)
+    }
+
     /// The bucket for `uri`, created (or revived from a tombstone) under `parent_id`. A removed
     /// parent is no parent; `None` keeps an existing row's parent while that parent is live.
     pub fn upsert_bucket(&self, uri: &str, name: &str, parent_id: Option<i64>) -> Result<i64, StoreError> {

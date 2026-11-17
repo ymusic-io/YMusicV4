@@ -297,6 +297,12 @@ struct Loaded {
     ready: bool,
 }
 
+/// The folder chain from a root down to `bucket_id`, `None` when it or any folder above it is gone.
+fn crumb_chain(store: &MediaStore, bucket_id: i64) -> Result<Option<Vec<Bucket>>, ym_store::StoreError> {
+    let chain = store.bucket_chain(bucket_id)?;
+    Ok(chain.first().is_some_and(|root| root.parent_id.is_none()).then_some(chain))
+}
+
 fn by_codes(items: &[MediaItem], codes: &[String]) -> Vec<MediaItem> {
     let by_code: HashMap<String, &MediaItem> = items.iter().map(|item| (item.playlist_code(), item)).collect();
     codes.iter().filter_map(|code| by_code.get(code).map(|item| (*item).clone())).collect()
@@ -459,8 +465,9 @@ impl LibraryView {
         let folder = self.path.last().map(|bucket| bucket.id);
         let load = on_core(cx, async move {
             tokio::task::spawn_blocking(move || match folder {
-                None => Ok((store.root_buckets()?, Vec::new())),
-                Some(id) => Ok::<_, ym_store::StoreError>((store.child_buckets(id)?, store.items_in_bucket(id)?)),
+                None => Ok(Some((store.root_buckets()?, Vec::new()))),
+                Some(id) if store.find_bucket(id)?.is_none() => Ok(None),
+                Some(id) => Ok::<_, ym_store::StoreError>(Some((store.child_buckets(id)?, store.items_in_bucket(id)?))),
             })
             .await
         });
@@ -468,12 +475,19 @@ impl LibraryView {
             let result = load.await;
             this.update(cx, |view, cx| {
                 match result {
-                    Some(Ok(Ok((folders, items)))) => {
+                    Some(Ok(Ok(Some((folders, items))))) => {
                         if folder.is_none() {
                             view.folders_added = Some(!folders.is_empty());
                         }
                         view.folders = folders;
                         view.items = items;
+                    }
+                    Some(Ok(Ok(None))) => {
+                        if view.path.last().map(|bucket| bucket.id) == folder {
+                            view.set_path(Vec::new(), cx);
+                            view.refresh(cx);
+                        }
+                        return;
                     }
                     Some(Ok(Err(error))) => {
                         cx.global::<AppGraph>().log.warn("R90008 library read failed", Some(&error));
@@ -858,7 +872,7 @@ impl LibraryView {
     /// Opens the saved folder, or the root when it or any folder above it is gone.
     fn restore_folder(&mut self, bucket_id: i64, cx: &mut Context<Self>) {
         self.folder_restore_pending = true;
-        let request = library_playlist::store_call(cx, move |store| store.bucket_chain(bucket_id));
+        let request = library_playlist::store_call(cx, move |store| crumb_chain(store, bucket_id));
         cx.spawn(async move |this, cx| {
             let result = request.await;
             this.update(cx, |view, cx| {
@@ -866,11 +880,11 @@ impl LibraryView {
                     return;
                 }
                 match result {
-                    Ok(chain) if chain.first().is_some_and(|root| root.parent_id.is_none()) => {
+                    Ok(Some(chain)) => {
                         view.path = chain;
                         view.folders_added = Some(true);
                     }
-                    Ok(_) => {}
+                    Ok(None) => view.set_path(Vec::new(), cx),
                     Err(error) => cx
                         .global::<AppGraph>()
                         .log
@@ -1155,7 +1169,7 @@ impl LibraryView {
 
     /// Opens the folder holding a file ("Show in folder").
     pub fn reveal_folder(&mut self, bucket_id: i64, cx: &mut Context<Self>) {
-        let request = library_playlist::store_call(cx, move |store| store.bucket_chain(bucket_id));
+        let request = library_playlist::store_call(cx, move |store| crumb_chain(store, bucket_id));
         cx.spawn(async move |this, cx| {
             let result = request.await;
             this.update(cx, |view, cx| match result {
@@ -1163,7 +1177,7 @@ impl LibraryView {
                     view.set_tab(Tab::Folders, cx);
                     view.group = None;
                     view.open_playlist = None;
-                    view.set_path(chain, cx);
+                    view.set_path(chain.unwrap_or_default(), cx);
                     view.scroll.set_offset(point(px(0.), px(0.)));
                     view.refresh(cx);
                     cx.notify();
