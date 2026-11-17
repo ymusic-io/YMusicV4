@@ -118,7 +118,7 @@ fun mseHostLinkerOpts(targetName: String): List<String> {
         }
         listOf(
             "AudioToolbox", "CoreAudio", "VideoToolbox", "CoreMedia", "CoreFoundation", "CoreVideo",
-            "CoreGraphics", "AVFoundation", "QuartzCore",
+            "CoreGraphics", "CoreImage", "AVFoundation", "QuartzCore",
         ).forEach { addAll(listOf("-framework", it)) }
         addAll(listOf("-lz", "-lbz2", "-liconv"))
     }

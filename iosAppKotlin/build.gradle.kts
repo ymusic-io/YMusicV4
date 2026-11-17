@@ -48,6 +48,9 @@ kotlin {
             }
             linkerOpts("-framework", "MediaPlayer")
             linkerOpts("-framework", "LocalAuthentication")
+            // sqliter's Apple cinterop klib carries no -lsqlite3; SQLDelight's linkSqlite adds it only to
+            // binaries of modules applying its plugin, so a framework of a consumer states it.
+            linkerOpts("-lsqlite3")
         }
     }
     // The KMP plugin requires at least one target, and the Compose iOS targets are host-gated OFF
