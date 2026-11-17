@@ -2318,6 +2318,7 @@ impl Shell {
             .on_action(cx.listener(|_, _: &ToggleFullscreen, window, _| window.toggle_fullscreen()))
             .on_action(cx.listener(|shell, _: &Escape, window, cx| shell.escape(window, cx)))
             .on_action(cx.listener(|shell, _: &OpenSignIn, window, cx| shell.open_sign_in(window, cx)))
+            .on_action(cx.listener(|_, _: &Quit, window, cx| Self::quit(window, cx)))
             .on_action(
                 cx.listener(|_, _: &ShowShortcuts, window, cx| crate::shortcuts_help::ShortcutsHelp::open(window, cx)),
             )
