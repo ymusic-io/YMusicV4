@@ -73,6 +73,8 @@ mod sponsor_block;
 mod spring;
 mod tab_row;
 mod telemetry;
+#[cfg(unix)]
+mod termination;
 mod tray_popup;
 mod video_details;
 mod video_layer;
@@ -159,6 +161,12 @@ fn main() {
         }
         Err(error) => instance_log.warn("single-instance setup failed, starting without it", Some(&error)),
     }
+    #[cfg(unix)]
+    let terminated = crate::termination::install(&log.fork("signals"))
+        .inspect_err(|error| {
+            log.warn("R90046 SIGTERM and SIGINT stay fatal: their quit handling did not install", Some(error))
+        })
+        .ok();
     crate::data_files::adopt_jvm_names(&data_dir, &log);
     if !launch.is_empty() {
         let _ = inbox_sender.unbounded_send(launch);
@@ -220,6 +228,8 @@ fn main() {
             shell.update(cx, |shell, cx| shell.show_window(cx));
         }
     });
+    #[cfg(unix)]
+    let quit_inbox = inbox_sender.clone();
     // macOS delivers ymusic:// links and Finder's Open With as open-URL events, a cold launch's
     // included, before the window exists.
     app.on_open_urls(move |urls| {
@@ -229,6 +239,16 @@ fn main() {
         crate::settings_view::apply_layout_direction(cx);
         init(cx);
         cx.set_global(crate::instance::Inbox(inbox));
+        #[cfg(unix)]
+        if let Some(mut terminated) = terminated {
+            cx.spawn(async move |cx| {
+                use futures::StreamExt;
+                if terminated.next().await.is_some() {
+                    cx.update(|cx| crate::termination::quit(&quit_inbox, cx));
+                }
+            })
+            .detach();
+        }
         cx.on_app_quit(|_| {
             QUITTING.store(true, std::sync::atomic::Ordering::Relaxed);
             crate::instance::stop_accepting();
