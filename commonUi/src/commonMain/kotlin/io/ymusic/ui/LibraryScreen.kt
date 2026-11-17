@@ -611,7 +611,7 @@ private fun FoldersTab(
                     val songsPerRow = librarySongColumns(layoutWidth)
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(columns),
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier.fillMaxSize().itemList(),
                         contentPadding = PaddingValues(start = LibraryGridPadding, end = LibraryGridPadding, top = 4.dp, bottom = 4.dp + LocalMiniPlayerInset.current),
                         state = folderGridState,
                     ) {
@@ -642,7 +642,7 @@ private fun FoldersTab(
                         }
                     }
                 } else {
-                    LazyColumn(Modifier.fillMaxSize(), state = folderListState, contentPadding = PaddingValues(bottom = LocalMiniPlayerInset.current)) {
+                    LazyColumn(Modifier.fillMaxSize().itemList(), state = folderListState, contentPadding = PaddingValues(bottom = LocalMiniPlayerInset.current)) {
                         item { header() }
                         items(sortedFolders, key = { "b${it.id}" }) { bucket ->
                             FolderRow(
@@ -835,7 +835,7 @@ private fun FolderRow(bucket: MediaStoreBucket, menu: ItemActions, isDownloadLoc
                 modifier = Modifier.padding(top = 10.dp).size(18.dp).spokenAs(stringResource(Res.string.menu_download_location)),
             )
         }
-        MoreMenu(menu, Modifier.padding(top = 2.dp))
+        MoreMenu(menu, Modifier.padding(top = 2.dp), inFocusableItem = !bucket.excluded)
     }
 }
 
@@ -1146,7 +1146,7 @@ private fun PlaylistsTab(
             if (layoutWidth >= LibraryGridMinWidth) {
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(libraryGridColumns(layoutWidth)),
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.fillMaxSize().itemList(),
                     contentPadding = PaddingValues(start = LibraryGridPadding, end = LibraryGridPadding, top = 4.dp, bottom = 4.dp + LocalMiniPlayerInset.current),
                     state = gridState,
                 ) {
@@ -1171,7 +1171,7 @@ private fun PlaylistsTab(
                     }
                 }
             } else {
-                LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = PaddingValues(bottom = LocalMiniPlayerInset.current)) {
+                LazyColumn(Modifier.fillMaxSize().itemList(), state = listState, contentPadding = PaddingValues(bottom = LocalMiniPlayerInset.current)) {
                     item { header() }
                     if (open == null) {
                         items(entries, key = { it.id }) { entry ->
@@ -1269,7 +1269,7 @@ private fun PlaylistsToolbar(sort: SortState, menu: ItemActions?, onCreate: () -
         LibraryChip(stringResource(Res.string.playlist_new), selected = false, onClick = onCreate)
         Spacer(Modifier.weight(1f))
         SortControl(playlistSortOptions.map { it.label }, sort)
-        if (menu != null) MoreMenu(menu)
+        if (menu != null) MoreMenu(menu, inFocusableItem = false)
     }
 }
 
@@ -1551,7 +1551,7 @@ internal fun SongList(
         if (layoutWidth >= LibraryGridMinWidth) {
             LazyVerticalGrid(
                 columns = GridCells.Fixed(librarySongColumns(layoutWidth)),
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxSize().itemList(),
                 state = gridState,
                 contentPadding = PaddingValues(bottom = LocalMiniPlayerInset.current),
             ) {
@@ -1561,7 +1561,7 @@ internal fun SongList(
                 }
             }
         } else {
-            LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = PaddingValues(bottom = LocalMiniPlayerInset.current)) {
+            LazyColumn(Modifier.fillMaxSize().itemList(), state = listState, contentPadding = PaddingValues(bottom = LocalMiniPlayerInset.current)) {
                 if (header != null) item { header() }
                 itemsIndexed(songs, key = { _, s -> s.id }) { index, song ->
                     SongRow(song, coordinator) { coordinator.playLocal(songs, index) }
@@ -1716,7 +1716,7 @@ private fun GroupedList(
         if (layoutWidth >= LibraryGridMinWidth) {
             LazyVerticalGrid(
                 columns = GridCells.Fixed(libraryGridColumns(layoutWidth)),
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxSize().itemList(),
                 contentPadding = PaddingValues(start = 10.dp, end = 10.dp, top = 4.dp, bottom = 4.dp + LocalMiniPlayerInset.current),
                 state = gridState,
             ) {
@@ -1738,7 +1738,7 @@ private fun GroupedList(
                 }
             }
         } else {
-            LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = PaddingValues(bottom = LocalMiniPlayerInset.current)) {
+            LazyColumn(Modifier.fillMaxSize().itemList(), state = listState, contentPadding = PaddingValues(bottom = LocalMiniPlayerInset.current)) {
                 item { header() }
                 if (selected == null) {
                     items(entries, key = { it.first }) { (name, members) -> GroupRow(icon, name, members) { group = name } }
@@ -1833,7 +1833,7 @@ private fun LibraryGridCard(
                         .spokenAs(stringResource(Res.string.menu_download_location)),
                 )
             }
-            if (menu != null) MoreMenu(menu, Modifier.align(Alignment.TopEnd))
+            if (menu != null) MoreMenu(menu, Modifier.align(Alignment.TopEnd), inFocusableItem = !dimmed)
         }
         Text(
             title,

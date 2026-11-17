@@ -2,6 +2,7 @@ package io.ymusic.ui
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -56,6 +57,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -345,7 +347,7 @@ fun DownloadsScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
         LazyVerticalGrid(
             state = gridState,
             columns = railStableAdaptive(DownloadCardMinWidth),
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().itemList(),
             contentPadding = PaddingValues(
                 start = DesignSpacing.MarginCompact,
                 end = DesignSpacing.MarginCompact,
@@ -492,7 +494,7 @@ private fun DownloadSelectionBar(
         )
         onPause?.let { ActionIcon(Icons.Filled.Pause, stringResource(Res.string.downloads_action_pause), onClick = it) }
         onResume?.let { ActionIcon(Icons.Filled.PlayArrow, stringResource(Res.string.downloads_action_resume), onClick = it) }
-        MoreMenu(ItemActions(listOfNotNull(removeLabel to onRemove, onDelete?.let { deleteLabel to it })))
+        MoreMenu(ItemActions(listOfNotNull(removeLabel to onRemove, onDelete?.let { deleteLabel to it })), inFocusableItem = false)
     }
 }
 
@@ -675,7 +677,7 @@ private fun DownloadCard(
     val selectionGesture = if (selecting) {
         Modifier.toggleable(value = selected, role = Role.Checkbox, onValueChange = { onToggleSelected() })
     } else {
-        Modifier.pointerInput(Unit) {
+        Modifier.focusRing(RoundedCornerShape(MediaCardCorner)).focusable().pointerInput(Unit) {
             detectTapGestures(onLongPress = {
                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                 startSelection()
@@ -754,7 +756,8 @@ private fun DownloadCard(
                             if (!selecting) {
                                 Button(
                                     onClick = onRetry,
-                                    modifier = Modifier.focusRing(RoundedCornerShape(percent = 50)),
+                                    // Retry is on the card's ⋮ too: Tab moves card to card.
+                                    modifier = Modifier.focusProperties { canFocus = false },
                                     shape = RoundedCornerShape(percent = 50),
                                     colors = ButtonDefaults.buttonColors(containerColor = c.accent, contentColor = c.onAccent),
                                     contentPadding = PaddingValues(horizontal = DesignSpacing.Space16, vertical = DesignSpacing.Space4),

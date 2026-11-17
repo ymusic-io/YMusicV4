@@ -119,7 +119,7 @@ fun PlayAgainScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
         list.isEmpty() -> EmptyState(stringResource(Res.string.play_again_empty), onReload = { reloads++ })
         else -> LazyVerticalGrid(
             columns = railStableAdaptive(PlayAgainCardMinWidth),
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().itemList(),
             state = gridState,
             contentPadding = PaddingValues(
                 start = DesignSpacing.Space16,

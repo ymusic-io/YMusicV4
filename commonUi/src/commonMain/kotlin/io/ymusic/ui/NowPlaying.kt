@@ -741,7 +741,7 @@ private fun PortraitNowPlaying(
 
         LazyColumn(
             state = listState,
-            modifier = Modifier.weight(1f).background(DesignColors.Surface),
+            modifier = Modifier.weight(1f).background(DesignColors.Surface).itemList(),
             overscrollEffect = null,
         ) {
             item {
@@ -857,7 +857,7 @@ private fun LandscapeNowPlaying(
                         if (queue.currentIndex >= 0) currentRowFocus.focusListItem(queueListState, queue.currentIndex)
                     }
                 }
-                LazyColumn(state = queueListState, modifier = Modifier.weight(1f).listKeyboardNavigation()) {
+                LazyColumn(state = queueListState, modifier = Modifier.weight(1f).listKeyboardNavigation(items = true)) {
                     itemsIndexed(queue.items) { index, item ->
                         val current = index == queue.currentIndex
                         QueueRow(coordinator, index, item, current = current, dragState, large = largeRows,
@@ -2371,7 +2371,6 @@ private fun QueueRowContent(
     swiping: Boolean,
     focusRequester: FocusRequester? = null,
 ) {
-    var menuOpen by remember { mutableStateOf(false) }
     val sub = listOfNotNull(item.displayDuration, item.displaySubtitle).joinToString(" · ")
     val playLabel = stringResource(Res.string.cd_play)
     val videoId = (item as? PlayableItem.YtMedia)?.videoId
@@ -2449,25 +2448,7 @@ private fun QueueRowContent(
                 )
             }
         }
-        Box {
-            ActionIcon(
-                Icons.Default.MoreVert,
-                stringResource(Res.string.cd_more),
-                tint = DesignColors.IconDots,
-                onClick = { menuOpen = true },
-            )
-            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                queueItemActions(coordinator, index, item, current).entries.forEach { (label, action) ->
-                    DropdownMenuItem(
-                        text = { Text(label) },
-                        onClick = {
-                            menuOpen = false
-                            action()
-                        },
-                    )
-                }
-            }
-        }
+        MoreMenu(queueItemActions(coordinator, index, item, current))
     }
 }
 

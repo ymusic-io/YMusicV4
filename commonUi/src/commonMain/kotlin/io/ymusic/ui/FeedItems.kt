@@ -40,6 +40,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -49,12 +50,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
@@ -289,7 +295,7 @@ fun FeedListItem(
                 Text(sub, style = ListSubStyle, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 4.dp))
             }
         }
-        if (actions.entries.isNotEmpty()) MoreMenu(actions, Modifier.align(Alignment.Top).padding(top = 2.dp))
+        if (actions.entries.isNotEmpty()) MoreMenu(actions, Modifier.align(Alignment.Top).padding(top = 2.dp), inFocusableItem = onClick != null)
     }
 }
 
@@ -356,7 +362,7 @@ fun FeedGridCard(
                     Text(sub, style = GridSubStyle, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 4.dp))
                 }
             }
-            if (actions.entries.isNotEmpty()) MoreMenu(actions, Modifier.padding(top = 1.dp))
+            if (actions.entries.isNotEmpty()) MoreMenu(actions, Modifier.padding(top = 1.dp), inFocusableItem = onClick != null)
         }
     }
 }
@@ -396,7 +402,7 @@ private fun ChannelGridCard(
                 )
             }
         }
-        if (actions.entries.isNotEmpty()) MoreMenu(actions, Modifier.align(Alignment.TopEnd))
+        if (actions.entries.isNotEmpty()) MoreMenu(actions, Modifier.align(Alignment.TopEnd), inFocusableItem = onClick != null)
     }
 }
 
@@ -497,18 +503,48 @@ private fun TagPill(label: String, accent: String?, onClick: () -> Unit) {
     }
 }
 
+/**
+ * A ⋮ menu. In a focusable item ([inFocusableItem]) it is not a focus stop, so Tab moves item to
+ * item: the keyboard opens it with Shift+F10 or the context-menu key on its item (in an [itemList]),
+ * a screen reader through the item's custom action, which merges into the item.
+ */
 @Composable
-internal fun MoreMenu(actions: ItemActions, modifier: Modifier = Modifier) {
+internal fun MoreMenu(actions: ItemActions, modifier: Modifier = Modifier, inFocusableItem: Boolean = true) {
     var open by remember { mutableStateOf(false) }
-    Box(modifier) {
+    var openedByKey by remember { mutableStateOf(false) }
+    val moreLabel = stringResource(Res.string.cd_more)
+    val itemMenu = if (inFocusableItem) {
+        Modifier
+            .itemMenuAnchor {
+                openedByKey = true
+                open = true
+            }
+            .semantics {
+                customActions = listOf(
+                    CustomAccessibilityAction(moreLabel) {
+                        open = true
+                        true
+                    },
+                )
+            }
+    } else {
+        Modifier
+    }
+    Box(modifier.then(itemMenu)) {
         ActionIcon(
             Icons.Default.MoreVert,
-            stringResource(Res.string.cd_more),
+            moreLabel,
+            modifier = Modifier.focusProperties { canFocus = !inFocusableItem },
             tint = DesignColors.IconDots,
             onClick = { open = true },
         )
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            actions.entries.forEach { (label, action) ->
+        val dismiss = {
+            open = false
+            openedByKey = false
+        }
+        DropdownMenu(expanded = open, onDismissRequest = dismiss) {
+            val firstEntry = remember { FocusRequester() }
+            actions.entries.forEachIndexed { index, (label, action) ->
                 DropdownMenuItem(
                     text = { Text(label) },
                     trailingIcon = if (label in actions.checked) {
@@ -516,8 +552,12 @@ internal fun MoreMenu(actions: ItemActions, modifier: Modifier = Modifier) {
                     } else {
                         null
                     },
-                    onClick = { action(); open = false },
+                    onClick = { action(); dismiss() },
+                    modifier = if (index == 0) Modifier.focusRequester(firstEntry) else Modifier,
                 )
+            }
+            if (openedByKey && actions.entries.isNotEmpty()) {
+                LaunchedEffect(Unit) { firstEntry.requestFocus() }
             }
         }
     }
