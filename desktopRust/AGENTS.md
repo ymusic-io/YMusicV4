@@ -66,7 +66,7 @@ Every UI change ships accessible; it is not a later pass.
 - **State is exposed, not just drawn.** Selected rail item / tab, toggled shuffle / repeat / sleep, checked menu items: set the component's selected/toggled/checked state, not only a color.
 - **Images are decorative unless they carry information.** Thumbnails beside a title stay unlabeled; an image that is the only content (QR code, album art alone) gets a label (`cd_device_link_qr`).
 - **Keyboard first.** Everything reachable by mouse is reachable by Tab / arrows / Enter / Space / Esc, in visual order; dialogs trap focus and close on Esc; focus returns to the opener.
-- **No meaning by color alone** (errors also say so in text); no motion (the app runs with reduce-motion on) but reorder rows easing to their new slots (`reorder.rs`), dropped when the OS asks for reduced motion (`SystemMotion`).
+- **No meaning by color alone** (errors also say so in text); no motion (the app runs with reduce-motion on) but reorder rows easing to their new slots (`reorder.rs`) and the rail's width easing as it expands or collapses (`spring.rs`, Compose's default spring), both dropped when the OS asks for reduced motion (`SystemMotion`).
 
 ### Errors
 - Never swallow an error. Propagate it (`?`), return it, or collect it into a result. Only

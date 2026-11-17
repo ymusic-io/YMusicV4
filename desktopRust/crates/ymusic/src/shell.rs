@@ -36,6 +36,7 @@ use crate::settings_view::{LocaleChanged, SettingsView};
 use crate::signin::AccountChanged;
 use crate::signin_dialog::{SignInEvent, SignInView};
 use crate::sponsor_block::SponsorBlock;
+use crate::spring::Spring;
 use crate::tab_row::tab_row;
 
 mod incoming;
@@ -430,6 +431,8 @@ pub struct Shell {
     rail_manual: Option<bool>,
     /// The (rail mode, expanded-by-width) the window last had.
     rail_auto: Option<(bool, bool)>,
+    /// The rail panel's width easing to its state's; none while the rail is not shown.
+    rail_width: Option<Spring>,
     drawer_open: bool,
     /// Holds keyboard focus when nothing else does, so the shortcuts always reach the Shell.
     focus: FocusHandle,
@@ -660,6 +663,7 @@ impl Shell {
             stacks: HashMap::new(),
             rail_manual: None,
             rail_auto: None,
+            rail_width: None,
             drawer_open: false,
             focus,
             nav_focus: FocusList::new(None),
@@ -2075,7 +2079,8 @@ impl Shell {
         list.into_any_element()
     }
 
-    fn render_rail(&self, expanded: bool, cx: &mut Context<Self>) -> AnyElement {
+    /// The rail laid out `expanded` or not, in a panel `width` wide on its way there.
+    fn render_rail(&self, expanded: bool, width: f32, cx: &mut Context<Self>) -> AnyElement {
         let theme = cx.theme().clone();
         let update_waiting = !expanded
             && cx.try_global::<crate::app_update::UpdatesHandle>().is_some_and(|handle| handle.0.read(cx).waiting());
@@ -2108,15 +2113,11 @@ impl Shell {
             .then(|| crate::app_update::check_link("rail-check-update", cx))
             .flatten()
             .map(|link| div().ml(px(RAIL_ICON_START - 4.)).child(link));
-        v_flex()
-            .id("rail")
-            .role(Role::Navigation)
-            .w(px(if expanded { RAIL_EXPANDED } else { RAIL_COLLAPSED } + RAIL_DIVIDER))
+        // Laid out at the final width and clipped by the panel as it eases there: the labels never reflow.
+        let contents = v_flex()
+            .w(px(if expanded { RAIL_EXPANDED } else { RAIL_COLLAPSED }))
             .h_full()
             .flex_shrink_0()
-            .bg(chrome_tone(cx))
-            .border_r(px(RAIL_DIVIDER))
-            .border_color(theme.border)
             .child(div().pt_1().child(header))
             .child(
                 div()
@@ -2129,7 +2130,18 @@ impl Shell {
                     .child(self.section_groups(expanded, RAIL_ICON_START, cx))
                     .children(website)
                     .children(check_update),
-            )
+            );
+        div()
+            .id("rail")
+            .role(Role::Navigation)
+            .w(px(width + RAIL_DIVIDER))
+            .h_full()
+            .flex_shrink_0()
+            .overflow_hidden()
+            .bg(chrome_tone(cx))
+            .border_r(px(RAIL_DIVIDER))
+            .border_color(theme.border)
+            .child(contents)
             .into_any_element()
     }
 
@@ -2405,6 +2417,19 @@ impl Render for Shell {
             self.drawer_open = false;
         }
         let expanded = self.rail_manual.unwrap_or(auto_expanded);
+        let rail_target = if expanded { RAIL_EXPANDED } else { RAIL_COLLAPSED };
+        let rail_width = if rail_mode && !crate::reorder::reduce_motion(cx) {
+            let now = Instant::now();
+            let spring = self.rail_width.get_or_insert_with(|| Spring::at_rest(rail_target, now));
+            spring.retarget(rail_target, now);
+            if !spring.settled(now) {
+                window.request_animation_frame();
+            }
+            spring.value(now)
+        } else {
+            self.rail_width = None;
+            rail_target
+        };
         // Measured as if the rail were expanded, so toggling it never moves the tabs.
         let shell_width = if rail_mode { width - RAIL_EXPANDED } else { width };
         let wide = (shell_width > height && shell_width >= 600.) || shell_width >= 650.;
@@ -2446,7 +2471,7 @@ impl Render for Shell {
             let main = self.render_main(rail_mode, wide, window, cx);
             h_flex()
                 .size_full()
-                .when(rail_mode, |row| row.child(self.render_rail(expanded, cx)))
+                .when(rail_mode, |row| row.child(self.render_rail(expanded, rail_width, cx)))
                 .child(div().flex_1().min_w_0().h_full().child(main))
                 .into_any_element()
         };
