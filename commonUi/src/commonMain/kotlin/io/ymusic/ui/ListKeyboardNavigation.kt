@@ -4,10 +4,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.onFocusedBoundsChanged
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
@@ -27,7 +24,11 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.findRootCoordinates
-import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.modifier.ModifierLocalModifierNode
+import androidx.compose.ui.modifier.modifierLocalMapOf
+import androidx.compose.ui.modifier.modifierLocalOf
+import androidx.compose.ui.node.GlobalPositionAwareModifierNode
+import androidx.compose.ui.node.ModifierNodeElement
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 
@@ -87,7 +88,9 @@ private fun arrowMove(event: KeyEvent, orientation: ListOrientation, focusManage
 @Composable
 internal fun Modifier.itemList(): Modifier {
     val focused = remember { FocusedItem() }
+    val menus = remember { ItemMenus() }
     return onFocusedBoundsChanged { focused.coordinates = it }
+        .then(ItemMenusElement(menus))
         .focusProperties {
             val restore = onEnter
             // focusRestorer also redirects a requestFocus aimed at another item; restore only for Tab.
@@ -100,7 +103,7 @@ internal fun Modifier.itemList(): Modifier {
         .focusRestorer()
         .onKeyEvent { event ->
             event.type == KeyEventType.KeyDown && !event.hasCommandModifier && event.isMenuKey &&
-                focused.coordinates?.let(ItemMenus::openInside) == true
+                focused.coordinates?.let(menus::openInside) == true
         }
 }
 
@@ -111,8 +114,8 @@ private class FocusedItem {
 private val KeyEvent.isMenuKey: Boolean
     get() = (key == Key.F10 && isShiftPressed) || (key == contextMenuKey && !isShiftPressed)
 
-/** The item ⋮ menus on screen, so the context-menu key on a focused item opens the one inside it. */
-internal object ItemMenus {
+/** One [itemList]'s ⋮ menus on screen, so the context-menu key on a focused item opens the one inside it. */
+internal class ItemMenus {
     class Anchor(val open: () -> Unit) {
         var coordinates: LayoutCoordinates? = null
     }
@@ -140,16 +143,59 @@ internal object ItemMenus {
     }
 }
 
-/** Registers this ⋮ with [ItemMenus], opened by [open] when its item holds focus. */
-@Composable
-internal fun Modifier.itemMenuAnchor(open: () -> Unit): Modifier {
-    val currentOpen by rememberUpdatedState(open)
-    val anchor = remember { ItemMenus.Anchor { currentOpen() } }
-    DisposableEffect(anchor) {
-        ItemMenus.add(anchor)
-        onDispose { ItemMenus.remove(anchor) }
+private val ModifierLocalItemMenus = modifierLocalOf<ItemMenus?> { null }
+
+private class ItemMenusElement(val menus: ItemMenus) : ModifierNodeElement<ItemMenusNode>() {
+    override fun create() = ItemMenusNode(menus)
+
+    override fun update(node: ItemMenusNode) {
+        node.provide(ModifierLocalItemMenus, menus)
     }
-    return onGloballyPositioned { anchor.coordinates = it }
+
+    override fun equals(other: Any?) = other is ItemMenusElement && other.menus === menus
+
+    override fun hashCode() = menus.hashCode()
+}
+
+private class ItemMenusNode(menus: ItemMenus) : Modifier.Node(), ModifierLocalModifierNode {
+    override val providedValues = modifierLocalMapOf(ModifierLocalItemMenus to menus)
+}
+
+/** Registers this ⋮ with its [itemList]'s [ItemMenus], opened by [open] when its item holds focus. */
+internal fun Modifier.itemMenuAnchor(open: () -> Unit): Modifier = then(ItemMenuAnchorElement(open))
+
+private class ItemMenuAnchorElement(val open: () -> Unit) : ModifierNodeElement<ItemMenuAnchorNode>() {
+    override fun create() = ItemMenuAnchorNode(open)
+
+    override fun update(node: ItemMenuAnchorNode) {
+        node.open = open
+    }
+
+    override fun equals(other: Any?) = other is ItemMenuAnchorElement && other.open === open
+
+    override fun hashCode() = open.hashCode()
+}
+
+private class ItemMenuAnchorNode(var open: () -> Unit) :
+    Modifier.Node(),
+    ModifierLocalModifierNode,
+    GlobalPositionAwareModifierNode {
+    private val anchor = ItemMenus.Anchor { open() }
+    private var menus: ItemMenus? = null
+
+    override fun onAttach() {
+        menus = ModifierLocalItemMenus.current?.also { it.add(anchor) }
+    }
+
+    override fun onDetach() {
+        menus?.remove(anchor)
+        menus = null
+        anchor.coordinates = null
+    }
+
+    override fun onGloballyPositioned(coordinates: LayoutCoordinates) {
+        anchor.coordinates = coordinates
+    }
 }
 
 /**
