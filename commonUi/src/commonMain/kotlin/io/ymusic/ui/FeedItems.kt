@@ -507,7 +507,8 @@ private fun TagPill(label: String, accent: String?, modifier: Modifier, onClick:
 /**
  * A ⋮ menu. In a focusable item ([inFocusableItem]) it is not a focus stop, so Tab moves item to
  * item: the keyboard opens it with Shift+F10 or the context-menu key on its item (in an [itemList]),
- * a screen reader through the item's custom action, which merges into the item.
+ * a screen reader through the item's custom action, which merges into the item. A TV remote has
+ * neither key nor Tab, so there it stays focusable, entered from its item (see [itemList]).
  */
 @Composable
 internal fun MoreMenu(actions: ItemActions, modifier: Modifier = Modifier, inFocusableItem: Boolean = true) {
@@ -535,7 +536,11 @@ internal fun MoreMenu(actions: ItemActions, modifier: Modifier = Modifier, inFoc
         ActionIcon(
             Icons.Default.MoreVert,
             moreLabel,
-            modifier = Modifier.focusProperties { canFocus = !inFocusableItem },
+            modifier = if (inFocusableItem) {
+                Modifier.focusProperties { canFocus = platformIsTelevision }.tvExitSideways()
+            } else {
+                Modifier
+            },
             tint = DesignColors.IconDots,
             onClick = { open = true },
         )

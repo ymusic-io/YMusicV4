@@ -756,8 +756,8 @@ private fun DownloadCard(
                             if (!selecting) {
                                 Button(
                                     onClick = onRetry,
-                                    // Retry is on the card's ⋮ too: Tab moves card to card.
-                                    modifier = Modifier.focusProperties { canFocus = false },
+                                    // Retry is on the card's ⋮ too: Tab moves card to card. A remote enters the card for it.
+                                    modifier = Modifier.focusProperties { canFocus = platformIsTelevision }.tvExitSideways(),
                                     shape = RoundedCornerShape(percent = 50),
                                     colors = ButtonDefaults.buttonColors(containerColor = c.accent, contentColor = c.onAccent),
                                     contentPadding = PaddingValues(horizontal = DesignSpacing.Space16, vertical = DesignSpacing.Space4),

@@ -83,13 +83,14 @@ private fun arrowMove(event: KeyEvent, orientation: ListOrientation, focusManage
  * [MoreMenu]) and leaves past the last; focus coming back in, by Tab or Shift+Tab, lands on the item
  * focused last; Shift+F10 or the context-menu key opens the focused item's ⋮. Only on a lazy list or
  * grid: [focusRestorer] restores into the list's own focus group, whose children are the items.
+ * On a TV it adds [tvItemKeys].
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun Modifier.itemList(): Modifier {
     val focused = remember { FocusedItem() }
     val menus = remember { ItemMenus() }
-    return onFocusedBoundsChanged { focused.coordinates = it }
+    val list = onFocusedBoundsChanged { focused.coordinates = it }
         .then(ItemMenusElement(menus))
         .focusProperties {
             val restore = onEnter
@@ -105,6 +106,67 @@ internal fun Modifier.itemList(): Modifier {
             event.type == KeyEventType.KeyDown && !event.hasCommandModifier && event.isMenuKey &&
                 focused.coordinates?.let(menus::openInside) == true
         }
+    return if (platformIsTelevision) list.tvItemKeys(focused, menus) else list
+}
+
+/**
+ * A remote's keys on an [itemList]: holding OK opens the focused item's ⋮, and Left or Right with
+ * nowhere to go enters the item (its ⋮). Compose's D-pad search moves among an item's siblings only,
+ * never into it, and remotes have no Tab.
+ */
+@Composable
+private fun Modifier.tvItemKeys(focused: FocusedItem, menus: ItemMenus): Modifier {
+    val focusManager = LocalFocusManager.current
+    val hold = remember { OkHold() }
+    return onPreviewKeyEvent { event ->
+        if (event.key != Key.DirectionCenter && event.key != Key.Enter && event.key != Key.NumPadEnter) {
+            return@onPreviewKeyEvent false
+        }
+        when (event.type) {
+            KeyEventType.KeyDown -> when {
+                !event.isKeyRepeat -> {
+                    hold.openedMenu = false
+                    false
+                }
+                hold.openedMenu -> true
+                event.isLongPress -> {
+                    hold.openedMenu = focused.coordinates?.let(menus::openInside) == true
+                    hold.openedMenu
+                }
+                else -> false
+            }
+            // The item's click must not follow the menu: its key-up arrives (cancelled) after the menu opened.
+            KeyEventType.KeyUp -> hold.openedMenu.also { hold.openedMenu = false }
+            else -> false
+        }
+    }.onKeyEvent { event ->
+        val direction = event.sidewaysDirection() ?: return@onKeyEvent false
+        focusManager.moveFocus(direction) || focusManager.moveFocus(FocusDirection.Enter)
+    }
+}
+
+/** On a TV, Left or Right with nowhere to go leaves a control inside an item for the item, as [tvItemKeys] entered it. */
+@Composable
+internal fun Modifier.tvExitSideways(): Modifier {
+    if (!platformIsTelevision) return this
+    val focusManager = LocalFocusManager.current
+    return onKeyEvent { event ->
+        val direction = event.sidewaysDirection() ?: return@onKeyEvent false
+        focusManager.moveFocus(direction) || focusManager.moveFocus(FocusDirection.Exit)
+    }
+}
+
+private fun KeyEvent.sidewaysDirection(): FocusDirection? {
+    if (type != KeyEventType.KeyDown || hasCommandModifier) return null
+    return when (key) {
+        Key.DirectionRight -> FocusDirection.Right
+        Key.DirectionLeft -> FocusDirection.Left
+        else -> null
+    }
+}
+
+private class OkHold {
+    var openedMenu = false
 }
 
 private class FocusedItem {
