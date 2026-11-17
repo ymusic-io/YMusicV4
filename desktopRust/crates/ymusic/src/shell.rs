@@ -16,7 +16,8 @@ use ym_i18n::{Str, t, tf};
 use crate::a11y::{DragRow, FocusList, focusable};
 use crate::account::{AccountController, Accounts};
 use crate::account_view::AccountView;
-use crate::action_icon::{HIT, action_icon};
+use crate::action_icon::{HIT, action_icon, material_action_icon};
+use crate::assets::MaterialIcon;
 use crate::download_dialog::{DownloadPicker, DownloadTarget};
 use crate::downloads_view::{DownloadsView, RevealInLibrary};
 use crate::feed::{FeedAction, FeedSource, FeedView, ItemAction, Navigate, Play, RequestSearch};
@@ -190,17 +191,17 @@ impl Section {
         })
     }
 
-    fn icon(self) -> Lucide {
+    fn icon(self) -> Icon {
         match self {
-            Section::Discover => Lucide::MonitorPlay,
-            Section::YtMusic => Lucide::CirclePlay,
-            Section::Library => Lucide::LibraryBig,
-            Section::PlayAgain => Lucide::RotateCcwClock,
-            Section::Downloads => Lucide::Download,
-            Section::Settings => Lucide::Settings,
-            Section::Donate => Lucide::Heart,
-            Section::Telegram => Lucide::Send,
-            Section::Feedback => Lucide::MessageCircle,
+            Section::Discover => Icon::new(MaterialIcon::OndemandVideo),
+            Section::YtMusic => Icon::new(Lucide::CirclePlay),
+            Section::Library => Icon::new(Lucide::LibraryBig),
+            Section::PlayAgain => Icon::new(Lucide::RotateCcwClock),
+            Section::Downloads => Icon::new(Lucide::Download),
+            Section::Settings => Icon::new(Lucide::Settings),
+            Section::Donate => Icon::new(Lucide::Heart),
+            Section::Telegram => Icon::new(Lucide::Send),
+            Section::Feedback => Icon::new(Lucide::MessageCircle),
         }
     }
 }
@@ -1836,7 +1837,7 @@ impl Shell {
             .when(!rail_mode, |bar| {
                 bar.child(self.chrome_focus.button(
                     CHROME_DRAWER,
-                    action_icon("open-drawer", Icon::new(Lucide::Menu), t(Str::CdMenu)).on_click(cx.listener(
+                    material_action_icon("open-drawer", MaterialIcon::Menu, t(Str::CdMenu)).on_click(cx.listener(
                         |shell, _, _, cx| {
                             shell.drawer_open = true;
                             cx.notify();
@@ -1998,7 +1999,7 @@ impl Shell {
                 .flex()
                 .items_center()
                 .justify_center()
-                .child(Icon::new(section.icon()).size(px(24.)).text_color(tint))
+                .child(section.icon().size(px(24.)).text_color(tint))
                 .into_any_element();
         }
         entry
@@ -2010,7 +2011,7 @@ impl Shell {
                     .pr(px(DRAWER_ICON_START))
                     .py(px(11.))
                     .items_center()
-                    .child(Icon::new(section.icon()).size(px(23.)).text_color(tint))
+                    .child(section.icon().size(px(23.)).text_color(tint))
                     .child(
                         div()
                             .flex_1()
@@ -2062,7 +2063,7 @@ impl Shell {
         let theme = cx.theme().clone();
         let update_waiting = !expanded
             && cx.try_global::<crate::app_update::UpdatesHandle>().is_some_and(|handle| handle.0.read(cx).waiting());
-        let toggle = action_icon("rail-toggle", Icon::new(Lucide::Menu), t(Str::CdMenu))
+        let toggle = material_action_icon("rail-toggle", MaterialIcon::Menu, t(Str::CdMenu))
             .when(update_waiting, |toggle| toggle.tooltip(t(Str::UpdateAvailableTitle)))
             .on_click(cx.listener(move |shell, _, _, cx| shell.toggle_rail(expanded, cx)));
         let toggle = self.chrome_focus.button(CHROME_RAIL_TOGGLE, toggle, cx).when(update_waiting, |toggle| {

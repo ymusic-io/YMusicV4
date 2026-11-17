@@ -1,14 +1,15 @@
-//! The default component assets, the extra Lucide icons the shell uses, and the app logo.
+//! The default component assets, the extra Lucide icons the shell uses, the JVM app's Material glyphs
+//! drawn where Lucide's differ, and the app logo.
 
 use std::borrow::Cow;
 use std::sync::{Arc, Mutex};
 
+use gpui_kit::component::IconNamed;
 use gpui_kit::{App, AssetSource, Img, RenderImage, Result, SharedString, img};
 
 gpui_kit::assets::icon_assets!(
     ShellIcons,
     [
-        MonitorPlay,
         Inbox,
         Rewind,
         FastForward,
@@ -41,7 +42,6 @@ gpui_kit::assets::icon_assets!(
         House,
         TrendingUp,
         Star,
-        Menu,
         ArrowUpLeft,
         ArrowLeft,
         Search,
@@ -89,6 +89,40 @@ gpui_kit::assets::icon_assets!(
 
 /// SponsorBlock's mark (the JVM app's ic_sponsor_block), a monochrome icon tinted by its text color.
 pub const SPONSOR_BLOCK_ICON: &str = "brand/sponsor-block.svg";
+
+/// The JVM app's Material Icons glyphs (Apache-2.0) where Lucide's ink fills the 24 box differently,
+/// monochrome and tinted by their text color. Drawn at the JVM app's size as is, not `lucide_size`.
+#[derive(Clone, Copy)]
+pub enum MaterialIcon {
+    /// `Icons.Default.Menu`.
+    Menu,
+    /// `Icons.Outlined.OndemandVideo`.
+    OndemandVideo,
+}
+
+impl MaterialIcon {
+    const ALL: [MaterialIcon; 2] = [MaterialIcon::Menu, MaterialIcon::OndemandVideo];
+
+    fn asset_path(self) -> &'static str {
+        match self {
+            MaterialIcon::Menu => "material/menu.svg",
+            MaterialIcon::OndemandVideo => "material/ondemand_video.svg",
+        }
+    }
+
+    fn svg(self) -> &'static [u8] {
+        match self {
+            MaterialIcon::Menu => include_bytes!("../assets/material/menu.svg"),
+            MaterialIcon::OndemandVideo => include_bytes!("../assets/material/ondemand_video.svg"),
+        }
+    }
+}
+
+impl IconNamed for MaterialIcon {
+    fn path(self) -> SharedString {
+        self.asset_path().into()
+    }
+}
 
 pub const LOGO_SVG: &str = include_str!("../assets/ymusic-logo.svg");
 
@@ -139,6 +173,9 @@ impl AssetSource for AppAssets {
     fn load(&self, path: &str) -> Result<Option<Cow<'static, [u8]>>> {
         if path == SPONSOR_BLOCK_ICON {
             return Ok(Some(Cow::Borrowed(include_bytes!("../assets/sponsor-block.svg"))));
+        }
+        if let Some(icon) = MaterialIcon::ALL.into_iter().find(|icon| icon.asset_path() == path) {
+            return Ok(Some(Cow::Borrowed(icon.svg())));
         }
         match ShellIcons.load(path) {
             Ok(Some(bytes)) => Ok(Some(bytes)),

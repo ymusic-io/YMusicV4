@@ -28,6 +28,15 @@ pub fn action_icon(id: impl Into<ElementId>, icon: impl Into<Icon>, label: impl 
     sized_action_icon(id, icon, label, ICON, HIT)
 }
 
+/// [`action_icon`] with the JVM app's own Material glyph at the standard size.
+pub fn material_action_icon(
+    id: impl Into<ElementId>,
+    icon: crate::assets::MaterialIcon,
+    label: impl Into<SharedString>,
+) -> Button {
+    glyph_action_icon(id, icon, label, ICON, HIT)
+}
+
 /// [`action_icon`] with a Lucide glyph matching the JVM app's `iconSize` = `icon_size`, in a `hit_size`
 /// circle.
 pub fn sized_action_icon(
