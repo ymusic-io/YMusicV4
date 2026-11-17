@@ -402,6 +402,12 @@ impl MediaStore {
         Ok(db.last_insert_rowid())
     }
 
+    /// Blocking: the next scan of each live item's folder probes it again, whatever its size and mtime.
+    pub fn invalidate_probes(&self) -> Result<usize, StoreError> {
+        let db = self.db.lock().unwrap();
+        Ok(db.execute("UPDATE mediaItem SET lastModified = -1 WHERE deleted = 0", [])?)
+    }
+
     pub fn root_buckets(&self) -> Result<Vec<Bucket>, StoreError> {
         self.buckets("SELECT {} FROM bucket WHERE parentId IS NULL AND deleted = 0 ORDER BY name COLLATE NOCASE", [])
     }

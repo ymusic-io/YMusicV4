@@ -37,6 +37,7 @@ mod launch;
 mod lazy_rows;
 mod library;
 mod library_playlist;
+mod library_rescan;
 mod library_search;
 mod local_art;
 mod local_captions;
