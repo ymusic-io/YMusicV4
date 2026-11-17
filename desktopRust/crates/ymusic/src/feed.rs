@@ -1182,7 +1182,7 @@ impl FeedView {
         let more =
             action_icon(key, Icon::new(MaterialIcon::MoreVert).text_color(cx.theme().muted_foreground), t(Str::CdMore));
         self.focus
-            .trailing_button(key.1, 0, more, cx)
+            .menu_button(key.1, more, cx)
             .dropdown_menu_with_anchor(Anchor::TopRight, move |mut menu, _, cx| {
                 let video = target.kind == "video";
                 let mut actions: Vec<(Str, MenuAction)> = Vec::new();

@@ -1578,7 +1578,7 @@ impl NowPlaying {
         let live_row = item.media_id.is_some_and(|media_id| self.live_row(media_id, cx));
         let more = sized_action_icon(("np-queue-more", position), MaterialIcon::MoreVert, t(Str::CdMore), ICON, HIT);
         self.queue_focus
-            .trailing_button(position, 0, more, cx)
+            .menu_button(position, more, cx)
             .text_color(cx.theme().muted_foreground)
             .dropdown_menu_with_anchor(Anchor::TopRight, move |mut menu, _, _| {
                 let video_id = item.video_id().map(str::to_owned);

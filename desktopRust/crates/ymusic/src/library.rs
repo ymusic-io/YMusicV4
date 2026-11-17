@@ -1441,9 +1441,8 @@ pub fn song_cell<V: SongMenuHost>(
     let view = cx.entity().downgrade();
     let song = item.clone();
     let more = action_icon(("song-more", index), MaterialIcon::MoreVert, t(Str::CdMore));
-    let more = focus.trailing_button(index, 0, more, cx).dropdown_menu_with_anchor(
-        Anchor::TopRight,
-        move |menu_list, _, _| {
+    let more =
+        focus.menu_button(index, more, cx).dropdown_menu_with_anchor(Anchor::TopRight, move |menu_list, _, _| {
             let local = QueueItem::from_local(&song);
             let path = PathBuf::from(&song.uri);
             let act = {
@@ -1522,8 +1521,7 @@ pub fn song_cell<V: SongMenuHost>(
                         cx,
                     );
                 }))
-        },
-    );
+        });
     focus
         .item(index, list_item(h_flex().id(("local-item", index)), index).aria_label(label), cx)
         .pl_4()
@@ -1950,7 +1948,7 @@ impl LibraryView {
         let marked = !bucket.excluded && self.download_folder.as_deref() == Some(path.as_path());
         let view = cx.entity().downgrade();
         let menu_bucket = bucket.clone();
-        let more = self.card_focus.trailing_button(index, 0, more_button(("folder-more", index)), cx);
+        let more = self.card_focus.menu_button(index, more_button(("folder-more", index)), cx);
         let more = more.dropdown_menu_with_anchor(Anchor::TopRight, move |menu, _, _| {
             let bucket = menu_bucket.clone();
             let path = path.clone();
@@ -2030,7 +2028,7 @@ impl LibraryView {
         let subtitle = ym_i18n::plural(ym_i18n::Plural::NSongs, count as i64, &[&count]);
         let view = cx.entity().downgrade();
         let menu_playlist = playlist.clone();
-        let more = self.card_focus.trailing_button(index, 0, more_button(("playlist-more", position)), cx);
+        let more = self.card_focus.menu_button(index, more_button(("playlist-more", position)), cx);
         let more = more.dropdown_menu_with_anchor(Anchor::TopRight, move |menu, _, _| {
             let (rename_view, delete_view) = (view.clone(), view.clone());
             let (renamed, deleted) = (menu_playlist.clone(), menu_playlist.clone());
