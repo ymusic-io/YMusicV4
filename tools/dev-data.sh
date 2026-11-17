@@ -72,7 +72,7 @@ release_key_hex() {
     case "$(uname -s)" in
         Darwin)
             local out
-            echo "  macOS may ask to let 'security' read the YMusic sign-in key: Allow is enough (Always Allow lets it read without asking from then on)" >&2
+            echo "  macOS may ask to let 'security' read the YMusic sign-in key: click Allow, NOT Always Allow (that adds 'security' to the key's access list for good, so any process could then read the key through it)" >&2
             local keychain=()
             if [ -n "$KEYCHAIN" ]; then keychain=("$KEYCHAIN"); fi
             out=$(security find-generic-password -s "$KEY_SERVICE" -a "$RELEASE_KEY_ACCOUNT" -w ${keychain[@]+"${keychain[@]}"} 2>/dev/null) || return 0
