@@ -6,14 +6,13 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 use std::rc::Rc;
 
-use gpui_kit::assets::IconName as Lucide;
 use gpui_kit::base::actions::Confirm;
 use gpui_kit::component::button::Button;
 use gpui_kit::component::checkbox::Checkbox;
 use gpui_kit::component::input::{Input, InputEvent, InputState};
 use gpui_kit::component::menu::{DropdownMenu, PopupMenuItem};
 use gpui_kit::component::switch::Switch;
-use gpui_kit::component::{ActiveTheme, Disableable, Icon, IconName, Sizable, StyledExt, WindowExt, h_flex, v_flex};
+use gpui_kit::component::{ActiveTheme, Disableable, Icon, Sizable, StyledExt, WindowExt, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use ym_engine::yt::{YtFeedItem, YtFeedPage, YtLocaleOption};
@@ -23,6 +22,7 @@ use ym_store::Playlist;
 
 use crate::a11y::FocusList;
 use crate::action_icon::action_icon;
+use crate::assets::MaterialIcon;
 use crate::download_dialog::DownloadTarget;
 use crate::downloads::{download_folder, offline_ids, pick_download_folder, usable_download_folder};
 use crate::elevated_dialog::{
@@ -308,7 +308,7 @@ impl PlaylistDownload {
         };
         let _ = window;
         let view = cx.entity().downgrade();
-        let menu = action_icon("check-menu", IconName::EllipsisVertical, t(Str::CdMore))
+        let menu = action_icon("check-menu", MaterialIcon::MoreVert, t(Str::CdMore))
             .track_focus(&self.focus.handle(STOP_MENU, cx))
             .dropdown_menu_with_anchor(Anchor::TopRight, move |mut menu, _, _| {
                 let entries: [(Str, CheckAction); 4] = [
@@ -379,7 +379,7 @@ impl PlaylistDownload {
             .small()
             .outline()
             .w_full()
-            .icon(Icon::new(Lucide::Folder))
+            .icon(Icon::new(MaterialIcon::FolderOutlined))
             .label(folder_label.clone())
             .accessibility_label(format!("{}, {folder_label}", t(Str::DownloadSaveTo)))
             .on_click(cx.listener(|view, _, window, cx| view.choose_folder(window, cx)));
@@ -550,14 +550,9 @@ impl PlaylistDownload {
                     })
                     .when(downloaded, |frame| {
                         frame.child(
-                            div()
-                                .absolute()
-                                .top_0()
-                                .left_0()
-                                .p(px(2.))
-                                .rounded_br(px(6.))
-                                .bg(theme.primary)
-                                .child(Icon::new(Lucide::Check).size(px(12.)).text_color(theme.primary_foreground)),
+                            div().absolute().top_0().left_0().p(px(2.)).rounded_br(px(6.)).bg(theme.primary).child(
+                                Icon::new(MaterialIcon::Check).size(px(12.)).text_color(theme.primary_foreground),
+                            ),
                         )
                     }),
             )

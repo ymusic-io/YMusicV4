@@ -7,11 +7,10 @@ use std::time::Duration;
 
 use futures::StreamExt;
 use futures::channel::mpsc;
-use gpui_kit::assets::IconName as Lucide;
 use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::menu::{DropdownMenu, PopupMenuItem};
 use gpui_kit::component::progress::Progress;
-use gpui_kit::component::{ActiveTheme, Icon, IconName, Selectable, Sizable, StyledExt, WindowExt, h_flex, v_flex};
+use gpui_kit::component::{ActiveTheme, Icon, Selectable, Sizable, StyledExt, WindowExt, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use ym_download::{DownloadChange, DownloadFormat, DownloadService, DownloadState, DownloadTask, TaskError};
@@ -21,6 +20,7 @@ use ym_image_loader::async_image::async_image_of;
 use crate::a11y::{DragRow, FocusList, announced, announced_as, heading, list_item};
 use crate::account::AccountController;
 use crate::action_icon::{HIT, action_icon, hit_target};
+use crate::assets::MaterialIcon;
 use crate::download_dialog::{DownloadPicker, DownloadTarget};
 use crate::downloads::pick_download_folder;
 use crate::elevated_dialog::{
@@ -876,23 +876,23 @@ impl DownloadsView {
         let count = selected.len() as i64;
         let all_selected = self.all_shown_selected();
         let accent = cx.theme().primary;
-        let close = action_icon("selection-close", Icon::new(Lucide::X), t(Str::CdClose))
+        let close = action_icon("selection-close", MaterialIcon::Close, t(Str::CdClose))
             .on_click(cx.listener(|view, _, _, cx| view.clear_selection(cx)));
-        let select_all = action_icon("selection-all", Icon::new(Lucide::ListChecks), t(Str::SelectAll))
+        let select_all = action_icon("selection-all", MaterialIcon::SelectAll, t(Str::SelectAll))
             .toggled(all_selected)
             .when(all_selected, |button| button.text_color(accent))
             .on_click(cx.listener(|view, _, _, cx| view.toggle_select_all(cx)));
         let pause = selected.iter().any(|task| can_pause(task)).then(|| {
-            action_icon("selection-pause", Icon::new(Lucide::Pause), t(Str::DownloadsActionPause))
+            action_icon("selection-pause", MaterialIcon::Pause, t(Str::DownloadsActionPause))
                 .on_click(cx.listener(|view, _, _, cx| view.pause_selected(cx)))
         });
         let resume = selected.iter().any(|task| can_resume(task, cx)).then(|| {
-            action_icon("selection-resume", Icon::new(Lucide::Play), t(Str::DownloadsActionResume))
+            action_icon("selection-resume", MaterialIcon::PlayArrow, t(Str::DownloadsActionResume))
                 .on_click(cx.listener(|view, _, _, cx| view.resume_selected(cx)))
         });
         let view = cx.entity().downgrade();
         let can_delete = !self.deletable.is_empty();
-        let more = action_icon("selection-more", IconName::EllipsisVertical, t(Str::CdMore))
+        let more = action_icon("selection-more", MaterialIcon::MoreVert, t(Str::CdMore))
             .track_focus(&self.bar_focus.handle(SELECTION_MORE, cx))
             .dropdown_menu_with_anchor(Anchor::TopRight, move |menu, _, _| {
                 let (remove_view, delete_view) = (view.clone(), view.clone());
@@ -936,7 +936,7 @@ impl DownloadsView {
             .border_2()
             .border_color(if checked { primary } else { border })
             .when(checked, |mark| {
-                mark.bg(primary).child(Icon::new(IconName::Check).size(px(14.)).text_color(on_primary))
+                mark.bg(primary).child(Icon::new(MaterialIcon::Check).size(px(14.)).text_color(on_primary))
             });
         let button = hit_target(("download-check", row), HIT)
             .role(Role::CheckBox)
@@ -950,7 +950,7 @@ impl DownloadsView {
     fn menu(&self, row: usize, task: &DownloadTask, cx: &mut Context<Self>) -> impl IntoElement {
         let view = cx.entity().downgrade();
         let task = task.clone();
-        let more = action_icon(("download-more", row), IconName::EllipsisVertical, t(Str::CdMore));
+        let more = action_icon(("download-more", row), MaterialIcon::MoreVert, t(Str::CdMore));
         let menu = self.focus.trailing_button(row, 0, more, cx).dropdown_menu_with_anchor(
             Anchor::TopRight,
             move |mut menu, _, _| {
@@ -1295,7 +1295,7 @@ impl Render for DownloadsView {
                 .items_center()
                 .justify_center()
                 .gap_2()
-                .child(Icon::new(Lucide::Download).size(px(56.)).text_color(theme.muted_foreground))
+                .child(Icon::new(MaterialIcon::FileDownloadOutlined).size(px(56.)).text_color(theme.muted_foreground))
                 .child(heading("downloads-none-title", 2, t(Str::DownloadsNoneTitle)).text_lg())
                 .child(
                     announced_as(
@@ -1372,9 +1372,9 @@ impl Render for DownloadsView {
         let fab = if selecting {
             None
         } else if any_active {
-            Some((t(Str::DownloadsPauseAll), Lucide::Pause, true))
+            Some((t(Str::DownloadsPauseAll), MaterialIcon::Pause, true))
         } else if any_paused {
-            Some((t(Str::DownloadsResumeAll), Lucide::Play, false))
+            Some((t(Str::DownloadsResumeAll), MaterialIcon::PlayArrow, false))
         } else {
             None
         };

@@ -285,8 +285,10 @@ impl PlaylistTransfer {
         }
         let transfer = self.clone();
         let pick = source.is_none().then(|| {
-            let dialog =
-                rfd::AsyncFileDialog::new().set_title(t(Str::PlaylistMenuRestore)).add_filter("JSON", &["json"]).pick_file();
+            let dialog = rfd::AsyncFileDialog::new()
+                .set_title(t(Str::PlaylistMenuRestore))
+                .add_filter("JSON", &["json"])
+                .pick_file();
             crate::desktop::file_dialog(dialog, cx)
         });
         window

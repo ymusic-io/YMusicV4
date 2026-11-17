@@ -68,6 +68,7 @@ mod sleep_timer;
 mod speed_pitch;
 mod spinner;
 mod sponsor_block;
+mod spring;
 mod tab_row;
 mod telemetry;
 mod tray_popup;

@@ -4,7 +4,6 @@
 
 use std::time::Duration;
 
-use gpui_kit::assets::IconName as Lucide;
 use gpui_kit::base::slider::{SliderEvent, SliderState};
 use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::slider::Slider;
@@ -14,6 +13,7 @@ use gpui_kit::*;
 use ym_i18n::{Str, t, tf};
 
 use crate::a11y::{FocusList, SliderStop};
+use crate::assets::MaterialIcon;
 use crate::elevated_dialog::{DEFAULT_WIDTH, ROW_HORIZONTAL, button_bar, chrome, press, text_button, title_bar};
 use crate::graph::AppGraph;
 use crate::mini_player::clock;
@@ -25,6 +25,7 @@ const DEFAULT_MINUTES: i32 = 30;
 const MIN_MINUTES: u64 = 5;
 const MAX_MINUTES: u64 = 180;
 const STEP_MINUTES: u64 = 5;
+const ARMED_ICON: f32 = 20.;
 const EXTEND_MINUTES: u64 = 5;
 const PRESET_MINUTES: [u64; 5] = [15, 30, 45, 60, 90];
 
@@ -200,9 +201,20 @@ impl SleepTimerDialog {
             .pr_1()
             .pt_4()
             .pb_1()
-            .child(h_flex().gap_2().items_center().child(Icon::new(Lucide::Timer).text_color(theme.primary)).child(
-                div().id("sleep-armed").role(Role::Status).aria_label(headline.clone()).font_semibold().child(headline),
-            ))
+            .child(
+                h_flex()
+                    .gap_2()
+                    .items_center()
+                    .child(Icon::new(MaterialIcon::SleepTimer).size(px(ARMED_ICON)).text_color(theme.primary))
+                    .child(
+                        div()
+                            .id("sleep-armed")
+                            .role(Role::Status)
+                            .aria_label(headline.clone())
+                            .font_semibold()
+                            .child(headline),
+                    ),
+            )
             .when_some(remaining, |card, left| {
                 card.child(div().pl(px(24.)).text_xs().child(tf(Str::SleepStopsAt, &[&time_of_day(left)])))
             })

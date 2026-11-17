@@ -4,17 +4,17 @@
 
 use std::rc::Rc;
 
-use gpui_kit::assets::IconName as Lucide;
 use gpui_kit::component::button::Button;
 use gpui_kit::component::input::{Input, InputEvent, InputState};
-use gpui_kit::component::{ActiveTheme, Disableable, Icon, IconName, Sizable, WindowExt, h_flex, v_flex};
+use gpui_kit::component::{ActiveTheme, Disableable, Icon, Sizable, WindowExt, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use ym_i18n::{Str, t, tf};
 use ym_store::{MediaItem, MediaStore, Playlist, PlaylistItemDetail};
 
 use crate::a11y::FocusList;
-use crate::action_icon::{HIT, sized_action_icon};
+use crate::action_icon::{HIT, auto_mirrored, sized_action_icon};
+use crate::assets::MaterialIcon;
 use crate::elevated_dialog::{
     ConfirmDialog, DEFAULT_WIDTH, ROW_HORIZONTAL, ROW_VERTICAL, bar_spinner, button_bar, chrome, message, press,
     scroll_body, text_button, title_bar, title_bar_with,
@@ -210,7 +210,7 @@ impl Render for AddToLocalPlaylist {
                 }
                 let new_row = pick_row(
                     "new-local-playlist",
-                    Icon::new(IconName::Plus),
+                    Icon::new(MaterialIcon::Add),
                     t(Str::AddToPlaylistNew).to_owned(),
                     true,
                     cx,
@@ -221,7 +221,7 @@ impl Render for AddToLocalPlaylist {
                     let playlist = &playlists[index];
                     let row = pick_row(
                         ("local-playlist", index),
-                        Icon::new(Lucide::ListMusic),
+                        auto_mirrored(MaterialIcon::PlaylistPlay),
                         playlist.name.clone(),
                         false,
                         cx,
@@ -765,7 +765,7 @@ impl ArrangePlaylist {
             .justify_center()
             .cursor_grab()
             .tooltip(|window, cx| gpui_kit::component::tooltip::Tooltip::new(t(Str::CdDragToReorder)).build(window, cx))
-            .child(Icon::new(Lucide::GripVertical).size(px(20.)).text_color(theme.muted_foreground))
+            .child(Icon::new(MaterialIcon::DragHandle).size(px(20.)).text_color(theme.muted_foreground))
             .on_mouse_down(
                 MouseButton::Left,
                 cx.listener(move |view, event: &MouseDownEvent, window, cx| {
@@ -787,7 +787,7 @@ impl ArrangePlaylist {
                     .items_center()
                     .justify_center()
                     .child(crate::library::art_or_icon(
-                        Lucide::Music,
+                        Icon::new(MaterialIcon::MusicNote),
                         crate::local_art::local_art_url(song).map(SharedString::from),
                         px(18.),
                         6.,
@@ -812,13 +812,18 @@ impl ArrangePlaylist {
                         .child((index + 1).to_string()),
                 )
             });
-        let top =
-            sized_action_icon(("arrange-top", index), Lucide::ArrowUpToLine, t(Str::CdMoveToTop), ARRANGE_ICON, HIT)
-                .disabled(stacked || self.busy)
-                .on_click(cx.listener(move |view, _, _, cx| view.move_to_top(index, cx)));
+        let top = sized_action_icon(
+            ("arrange-top", index),
+            MaterialIcon::VerticalAlignTop,
+            t(Str::CdMoveToTop),
+            ARRANGE_ICON,
+            HIT,
+        )
+        .disabled(stacked || self.busy)
+        .on_click(cx.listener(move |view, _, _, cx| view.move_to_top(index, cx)));
         let remove = sized_action_icon(
             ("arrange-remove", index),
-            Lucide::CircleMinus,
+            MaterialIcon::RemoveCircleOutlineOutlined,
             t(Str::MenuRemoveFromPlaylist),
             ARRANGE_ICON,
             HIT,
@@ -885,7 +890,7 @@ impl Render for ArrangePlaylist {
                 .outline()
                 .rounded_full()
                 .label(label.clone())
-                .icon(IconName::Close)
+                .icon(MaterialIcon::Close)
                 .accessibility_label(format!("{label}, {}", t(Str::CdResetStacking)))
                 .tooltip(t(Str::CdResetStacking))
                 .on_click(cx.listener(|view, _, _, cx| view.edit(cx, |state| state.stack = 0)));

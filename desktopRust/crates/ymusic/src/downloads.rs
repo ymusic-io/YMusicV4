@@ -236,7 +236,8 @@ pub fn assign_download_folder(folder: PathBuf, cx: &App) -> impl Future<Output =
 /// The OS folder picker; a pick that can hold downloads becomes the download location (and a
 /// Library folder). None when canceled or refused, the reason shown in `window`.
 pub fn pick_download_folder(window: &mut Window, cx: &mut App) -> impl Future<Output = Option<PathBuf>> + use<> {
-    let pick = crate::desktop::file_dialog(rfd::AsyncFileDialog::new().set_title(t(Str::FolderPickerTitle)).pick_folder(), cx);
+    let pick =
+        crate::desktop::file_dialog(rfd::AsyncFileDialog::new().set_title(t(Str::FolderPickerTitle)).pick_folder(), cx);
     let (handle, mut async_cx) = (window.window_handle(), cx.to_async());
     async move {
         let folder = pick.await?.path().to_path_buf();

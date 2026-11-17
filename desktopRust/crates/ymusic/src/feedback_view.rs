@@ -3,7 +3,6 @@
 
 use std::rc::Rc;
 
-use gpui_kit::assets::IconName as Lucide;
 use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::input::{InputEvent, Textarea, TextareaState};
 use gpui_kit::component::{ActiveTheme, Icon, Sizable, StyledExt, WindowExt, h_flex, v_flex};
@@ -12,6 +11,7 @@ use gpui_kit::*;
 use ym_i18n::{Str, t, tf};
 
 use crate::a11y::{FocusList, KeyboardFocusable};
+use crate::assets::MaterialIcon;
 use crate::elevated_dialog::{
     ConfirmDialog, DEFAULT_WIDTH, ROW_HORIZONTAL, button_bar, chrome, press, text_button, title_bar,
 };
@@ -286,7 +286,7 @@ impl Render for FeedbackView {
                 .child(div().w(px(96.)).flex_shrink_0().text_sm().text_color(theme.muted_foreground).child(label))
                 .child(div().flex_1().min_w_0().text_sm().child(value))
         };
-        let contact = |id: &'static str, icon: Lucide, title: String, hint: &'static str, url: String| {
+        let contact = |id: &'static str, icon: MaterialIcon, title: String, hint: &'static str, url: String| {
             h_flex()
                 .id(id)
                 .role(Role::Link)
@@ -319,7 +319,11 @@ impl Render for FeedbackView {
                         .child(div().text_sm().font_medium().child(title))
                         .child(div().pt(px(2.)).text_xs().text_color(theme.muted_foreground).child(hint)),
                 )
-                .child(Icon::new(Lucide::ExternalLink).size(px(18.)).text_color(theme.muted_foreground))
+                .child(
+                    crate::action_icon::auto_mirrored(MaterialIcon::OpenInNewOutlined)
+                        .size(px(18.))
+                        .text_color(theme.muted_foreground),
+                )
                 .on_click(move |_, _, cx| cx.open_url(&url))
         };
         let lines = info.lines();
@@ -362,14 +366,14 @@ impl Render for FeedbackView {
             .child(info_card)
             .child(contact(
                 "github",
-                Lucide::MessageCircle,
+                MaterialIcon::PublicOutlined,
                 t(Str::FeedbackGithubTitle).to_owned(),
                 t(Str::FeedbackGithubHint),
                 github_url,
             ))
             .child(contact(
                 "email",
-                Lucide::Send,
+                MaterialIcon::EmailOutlined,
                 tf(Str::FeedbackEmailTitle, &[&email]),
                 t(Str::FeedbackEmailHint),
                 mailto,

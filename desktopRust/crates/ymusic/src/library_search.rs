@@ -4,15 +4,15 @@
 
 use std::sync::Arc;
 
-use gpui_kit::assets::IconName as Lucide;
 use gpui_kit::component::input::{Input, InputEvent, InputState};
-use gpui_kit::component::{ActiveTheme, IconName, StyledExt, h_flex, v_flex};
+use gpui_kit::component::{ActiveTheme, Icon, StyledExt, h_flex, v_flex};
 use gpui_kit::*;
 use ym_i18n::{Str, t, tf};
 use ym_store::{MediaItem, MediaStore};
 
 use crate::a11y::{FocusList, heading, list_item};
-use crate::action_icon::action_icon;
+use crate::action_icon::{action_icon, auto_mirrored};
+use crate::assets::MaterialIcon;
 use crate::graph::{AppGraph, on_core};
 use crate::lazy_rows::LazyRows;
 use crate::library::{
@@ -155,7 +155,7 @@ impl LibrarySearchView {
         &self,
         index: usize,
         position: usize,
-        icon: Lucide,
+        icon: MaterialIcon,
         name: &str,
         members: &[MediaItem],
         cx: &mut Context<Self>,
@@ -177,7 +177,7 @@ impl LibrarySearchView {
             .cursor_pointer()
             .rounded(px(10.))
             .hover(|style| style.bg(theme.primary.opacity(HOVER_ALPHA)))
-            .child(LibraryView::thumb(icon, art, None, cx))
+            .child(LibraryView::thumb(Icon::new(icon), art, None, cx))
             .child(
                 v_flex()
                     .flex_1()
@@ -232,22 +232,17 @@ impl Render for LibrarySearchView {
             .pb(px(3.))
             .border_b_1()
             .border_color(theme.border)
-            .child(
-                self.bar_focus.button(
-                    0,
-                    action_icon(
-                        "library-search-back",
-                        crate::action_icon::auto_mirrored(IconName::ArrowLeft),
-                        t(Str::CdBack),
-                    )
-                    .on_click(cx.listener(|view, _, _, cx| {
+            .child(self.bar_focus.button(
+                0,
+                action_icon("library-search-back", auto_mirrored(MaterialIcon::ArrowBack), t(Str::CdBack)).on_click(
+                    cx.listener(|view, _, _, cx| {
                         if !view.back(cx) {
                             cx.emit(LibrarySearchEvent::Back);
                         }
-                    })),
-                    cx,
+                    }),
                 ),
-            )
+                cx,
+            ))
             .child(
                 self.bar_focus
                     .field(1, &self.input.focus_handle(cx), Input::new(&self.input).cleanable(true), cx)
@@ -295,10 +290,12 @@ impl Render for LibrarySearchView {
                     .child(Self::section_header(t(Str::LibraryTabSongs), self.songs.len(), cx))
                     .child(self.song_block(t(Str::LibraryTabSongs), columns, window, cx));
             }
-            for (section, (title, icon, groups)) in
-                [(t(Str::LibraryTabArtists), Lucide::User, &artists), (t(Str::LibraryTabAlbums), Lucide::Disc, &albums)]
-                    .into_iter()
-                    .enumerate()
+            for (section, (title, icon, groups)) in [
+                (t(Str::LibraryTabArtists), MaterialIcon::Person, &artists),
+                (t(Str::LibraryTabAlbums), MaterialIcon::Album, &albums),
+            ]
+            .into_iter()
+            .enumerate()
             {
                 if groups.is_empty() {
                     continue;

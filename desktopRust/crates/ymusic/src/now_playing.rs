@@ -7,19 +7,19 @@ use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 use std::time::{Duration, Instant};
 
-use gpui_kit::assets::IconName as Lucide;
 use gpui_kit::base::slider::{SliderEvent, SliderState};
 use gpui_kit::component::button::{Button, ButtonCustomVariant, ButtonVariants};
 use gpui_kit::component::menu::{DropdownMenu, PopupMenuItem};
 use gpui_kit::component::slider::Slider;
-use gpui_kit::component::{ActiveTheme, Icon, IconName, Sizable, StyledExt, WindowExt, h_flex, v_flex};
+use gpui_kit::component::{ActiveTheme, Icon, Sizable, StyledExt, WindowExt, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use ym_i18n::{Str, t, tf};
 use ym_image_loader::async_image::async_image_of;
 
 use crate::a11y::{FocusList, SliderStop, alert, announced, heading, list_item};
-use crate::action_icon::{HIT, glyph_action_icon, lucide_size, sized_action_icon};
+use crate::action_icon::{HIT, auto_mirrored, sized_action_icon};
+use crate::assets::MaterialIcon;
 use crate::audio_only::AudioOnlyArt;
 use crate::download_dialog::DownloadTarget;
 use crate::graph::{AppGraph, on_core};
@@ -87,6 +87,7 @@ const OVERLAY_ARTIST: u32 = 0xDADADA;
 const ICON: f32 = 24.;
 const PLAY_BUTTON: f32 = 58.;
 const PLAY_ICON: f32 = 26.;
+const QUEUE_HANDLE_ICON: f32 = 18.;
 /// Fixed: the top bar is a cached view, laid out without measuring its content.
 const TOP_BAR: f32 = 40.;
 
@@ -636,8 +637,8 @@ impl NowPlaying {
             .text_color(white())
             .opacity(if buffering { 0.6 } else { 1. })
             .child(
-                Icon::new(if playing { Lucide::Pause } else { Lucide::Play })
-                    .with_size(px(lucide_size(PLAY_ICON * scale))),
+                Icon::new(if playing { MaterialIcon::Pause } else { MaterialIcon::PlayArrow })
+                    .with_size(px(even(PLAY_ICON * scale))),
             )
             .on_click(cx.listener(|view, _, _, cx| view.playback.update(cx, |playback, cx| playback.toggle(cx))))
     }
@@ -728,47 +729,50 @@ impl NowPlaying {
         let fullscreen = self.fullscreen;
         let scale = overlay_scale(self.video_box.get());
         let (glyph, hit) = (ICON * scale, HIT * scale);
-        let transport_icon = |id: &'static str, icon: Lucide, label: &'static str, cx: &App| {
-            on_video(sized_action_icon(id, icon, label, glyph, even(hit)), cx)
+        let transport_icon = |id: &'static str, icon: MaterialIcon, label: &'static str, cx: &App| {
+            on_video(sized_action_icon(id, icon, label, even(glyph), even(hit)), cx)
         };
-        let transport =
-            h_flex()
-                .w_full()
-                .layout_direction(LayoutDirection::Ltr)
-                .max_w(px(480. * scale))
-                .px(px(20.))
-                .py(px(14.))
-                .justify_evenly()
-                .items_center()
-                .child(self.overlay_focus.button(
-                    OVERLAY_REWIND,
-                    transport_icon("np-rewind", Lucide::Rewind, t(Str::CdRewind10), cx).on_click(cx.listener(
-                        |view, _, _, cx| view.playback.update(cx, |playback, cx| playback.seek_by(-SKIP_MS, cx)),
-                    )),
-                    cx,
-                ))
-                .child(self.overlay_focus.button(
-                    OVERLAY_PREVIOUS,
-                    transport_icon("np-previous", Lucide::SkipBack, t(Str::CdPrevious), cx).on_click(
-                        cx.listener(|view, _, _, cx| view.playback.update(cx, |playback, cx| playback.previous(cx))),
-                    ),
-                    cx,
-                ))
-                .child(self.render_play_button(playing, buffering, scale, cx))
-                .child(self.overlay_focus.button(
+        let transport = h_flex()
+            .w_full()
+            .layout_direction(LayoutDirection::Ltr)
+            .max_w(px(480. * scale))
+            .px(px(20.))
+            .py(px(14.))
+            .justify_evenly()
+            .items_center()
+            .child(self.overlay_focus.button(
+                OVERLAY_REWIND,
+                transport_icon("np-rewind", MaterialIcon::FastRewind, t(Str::CdRewind10), cx).on_click(cx.listener(
+                    |view, _, _, cx| view.playback.update(cx, |playback, cx| playback.seek_by(-SKIP_MS, cx)),
+                )),
+                cx,
+            ))
+            .child(self.overlay_focus.button(
+                OVERLAY_PREVIOUS,
+                transport_icon("np-previous", MaterialIcon::SkipPrevious, t(Str::CdPrevious), cx).on_click(
+                    cx.listener(|view, _, _, cx| view.playback.update(cx, |playback, cx| playback.previous(cx))),
+                ),
+                cx,
+            ))
+            .child(self.render_play_button(playing, buffering, scale, cx))
+            .child(
+                self.overlay_focus.button(
                     OVERLAY_NEXT,
-                    transport_icon("np-next", Lucide::SkipForward, t(Str::CdNext), cx).on_click(
+                    transport_icon("np-next", MaterialIcon::SkipNext, t(Str::CdNext), cx).on_click(
                         cx.listener(|view, _, _, cx| view.playback.update(cx, |playback, cx| playback.next(cx))),
                     ),
                     cx,
-                ))
-                .child(self.overlay_focus.button(
-                    OVERLAY_FORWARD,
-                    transport_icon("np-forward", Lucide::FastForward, t(Str::CdForward10), cx).on_click(cx.listener(
-                        |view, _, _, cx| view.playback.update(cx, |playback, cx| playback.seek_by(SKIP_MS, cx)),
-                    )),
-                    cx,
-                ));
+                ),
+            )
+            .child(self.overlay_focus.button(
+                OVERLAY_FORWARD,
+                transport_icon("np-forward", MaterialIcon::FastForward, t(Str::CdForward10), cx).on_click(
+                    cx.listener(|view, _, _, cx| {
+                        view.playback.update(cx, |playback, cx| playback.seek_by(SKIP_MS, cx))
+                    }),
+                ),
+                cx,
+            ));
 
         let time_size = px(10. * scale);
         let elapsed = play_clock.elapsed.as_ref().map(|elapsed| format!("{elapsed} / "));
@@ -814,7 +818,7 @@ impl NowPlaying {
                 let fill = self.video_fill;
                 let toggle = sized_action_icon(
                     "np-fill",
-                    if fill { Lucide::Shrink } else { Lucide::Scan },
+                    if fill { MaterialIcon::FitScreen } else { MaterialIcon::CropFree },
                     t(if fill { Str::CdFitVideo } else { Str::CdFillVideo }),
                     glyph,
                     hit,
@@ -834,7 +838,7 @@ impl NowPlaying {
                     on_video(
                         sized_action_icon(
                             "np-fullscreen",
-                            if fullscreen { Lucide::Minimize } else { Lucide::Maximize },
+                            if fullscreen { MaterialIcon::FullscreenExit } else { MaterialIcon::Fullscreen },
                             t(if fullscreen { Str::CdExitFullscreen } else { Str::CdFullscreen }),
                             glyph,
                             hit,
@@ -936,10 +940,11 @@ impl NowPlaying {
             tracks.iter().chain(&translations).find(|track| is_on(track)).map(|track| track.display_name.clone());
         let state = on_track.unwrap_or_else(|| t(Str::CaptionsOff).to_owned());
         let label = format!("{}, {state}", t(Str::CdCaptions));
+        let caption_glyph = if visible { MaterialIcon::ClosedCaption } else { MaterialIcon::ClosedCaptionOffOutlined };
         let target = self.playback.clone();
         let recent_codes = self.recent_translations.clone();
         Some(
-            on_video_menu(sized_action_icon("np-captions", Lucide::Captions, label, glyph, hit), cx)
+            on_video_menu(sized_action_icon("np-captions", caption_glyph, label, glyph, hit), cx)
                 .track_focus(&self.caption_focus)
                 .when(visible, |button| button.text_color(cx.theme().primary))
                 .dropdown_menu_with_anchor(Anchor::BottomRight, move |mut menu, window, cx| {
@@ -1210,9 +1215,11 @@ impl NowPlaying {
         let (glyph, hit) = (ICON * scale, HIT * scale);
         let mut actions: Vec<AnyElement> = Vec::new();
         if let Some(video_id) = current.video_id().map(str::to_owned) {
-            let details =
-                on_video(sized_action_icon("np-details", Lucide::Info, t(Str::MenuDetailsComments), glyph, hit), cx)
-                    .on_click(cx.listener(move |_, _, _, cx| cx.emit(NowPlayingEvent::Details(video_id.clone()))));
+            let details = on_video(
+                sized_action_icon("np-details", MaterialIcon::InfoOutlined, t(Str::MenuDetailsComments), glyph, hit),
+                cx,
+            )
+            .on_click(cx.listener(move |_, _, _, cx| cx.emit(NowPlayingEvent::Details(video_id.clone()))));
             actions.push(self.overlay_focus.button(OVERLAY_DETAILS, details, cx).into_any_element());
         }
         let speed = self.playback.read(cx).effects.speed;
@@ -1221,7 +1228,7 @@ impl NowPlaying {
             Some(value) => format!("{}, {value}", t(Str::MenuSpeedPitch)),
             None => t(Str::MenuSpeedPitch).to_owned(),
         };
-        let speed = on_video(sized_action_icon("np-speed", Lucide::Gauge, label, glyph, hit), cx)
+        let speed = on_video(sized_action_icon("np-speed", MaterialIcon::SpeedOutlined, label, glyph, hit), cx)
             .on_click(cx.listener(|_, _, _, cx| cx.emit(NowPlayingEvent::OpenSpeedPitch)));
         actions.push(self.overlay_focus.button(OVERLAY_SPEED, speed, cx).into_any_element());
         if let Some(value) = speed_value {
@@ -1234,9 +1241,11 @@ impl NowPlaying {
                     .into_any_element(),
             );
         }
-        let equalizer =
-            on_video(sized_action_icon("np-equalizer", Lucide::SlidersVertical, t(Str::SoundEq), glyph, hit), cx)
-                .on_click(cx.listener(|_, _, _, cx| cx.emit(NowPlayingEvent::OpenEqualizer)));
+        let equalizer = on_video(
+            sized_action_icon("np-equalizer", MaterialIcon::EqualizerOutlined, t(Str::SoundEq), glyph, hit),
+            cx,
+        )
+        .on_click(cx.listener(|_, _, _, cx| cx.emit(NowPlayingEvent::OpenEqualizer)));
         actions.push(self.overlay_focus.button(OVERLAY_EQUALIZER, equalizer, cx).into_any_element());
         if let Some(sponsor_block) =
             self.sponsor_block_button("np-sponsorblock-overlay", glyph, hit, rgb(OVERLAY_INK).into(), true, cx)
@@ -1250,8 +1259,9 @@ impl NowPlaying {
         let sleep = self.sleep_button("np-sleep-overlay", glyph, hit, true, cx);
         actions.push(self.overlay_focus.button(OVERLAY_SLEEP, sleep, cx).into_any_element());
         if let Some(link) = share_link(current) {
-            let share = on_video(sized_action_icon("np-share", Lucide::Share2, t(Str::CdShare), glyph, hit), cx)
-                .on_click(move |_, window, cx| copy_share_link(&link, window, cx));
+            let share =
+                on_video(sized_action_icon("np-share", MaterialIcon::ShareOutlined, t(Str::CdShare), glyph, hit), cx)
+                    .on_click(move |_, window, cx| copy_share_link(&link, window, cx));
             actions.push(self.overlay_focus.button(OVERLAY_SHARE, share, cx).into_any_element());
         }
         actions
@@ -1267,8 +1277,12 @@ impl NowPlaying {
         over_video: bool,
         cx: &mut Context<Self>,
     ) -> Button {
-        video_chrome(sized_action_icon(id, Lucide::Download, t(Str::CdDownload), glyph, hit), over_video, cx)
-            .on_click(cx.listener(move |_, _, _, cx| cx.emit(NowPlayingEvent::Download(target.clone()))))
+        video_chrome(
+            sized_action_icon(id, MaterialIcon::FileDownloadOutlined, t(Str::CdDownload), glyph, hit),
+            over_video,
+            cx,
+        )
+        .on_click(cx.listener(move |_, _, _, cx| cx.emit(NowPlayingEvent::Download(target.clone()))))
     }
 
     /// SponsorBlock's toggle for the current video, None while SponsorBlock has nothing for it: the
@@ -1290,7 +1304,7 @@ impl NowPlaying {
             cx.theme().primary
         });
         Some(
-            video_chrome(glyph_action_icon(id, mark, t(Str::SettingsSponsorBlock), glyph, hit), over_video, cx)
+            video_chrome(sized_action_icon(id, mark, t(Str::SettingsSponsorBlock), glyph, hit), over_video, cx)
                 .tooltip(state)
                 .on_click(cx.listener(move |view, _, _, cx| {
                     view.sponsor_block.update(cx, |sponsor, cx| sponsor.set_whitelisted(!whitelisted, cx))
@@ -1310,7 +1324,7 @@ impl NowPlaying {
             None => t(Str::CdSleepTimer).to_owned(),
         };
         let accent = cx.theme().primary;
-        video_chrome(sized_action_icon(id, Lucide::Timer, t(Str::CdSleepTimer), glyph, hit), over_video, cx)
+        video_chrome(sized_action_icon(id, MaterialIcon::SleepTimer, t(Str::CdSleepTimer), glyph, hit), over_video, cx)
             .toggled(sleep_armed)
             .when(sleep_armed, |button| button.text_color(accent))
             .tooltip(sleep_tooltip)
@@ -1342,35 +1356,40 @@ impl NowPlaying {
         .join(" ")
             + " lyrics";
         let queue_playback = self.playback.clone();
-        let more = sized_action_icon("np-more", IconName::EllipsisVertical, t(Str::CdMore), ICON, HIT)
+        let more = sized_action_icon("np-more", MaterialIcon::MoreVert, t(Str::CdMore), ICON, HIT)
             .track_focus(&self.bar_focus.handle(STOP_MORE, cx))
             .dropdown_menu_with_anchor(Anchor::TopRight, move |mut menu, window, cx| {
-                let icon = |name: Lucide| Icon::new(name);
+                let icon = |name: MaterialIcon| Icon::new(name);
                 if let Some(more_video_id) = &more_video_id {
                     let (details, video_id) = (view.clone(), more_video_id.clone());
-                    menu =
-                        menu.item(PopupMenuItem::new(t(Str::MenuDetailsComments)).icon(icon(Lucide::Info)).on_click(
-                            move |_, _, cx| {
+                    menu = menu.item(
+                        PopupMenuItem::new(t(Str::MenuDetailsComments))
+                            .icon(icon(MaterialIcon::InfoOutlined))
+                            .on_click(move |_, _, cx| {
                                 details.update(cx, |_, cx| cx.emit(NowPlayingEvent::Details(video_id.clone()))).ok();
-                            },
-                        ));
+                            }),
+                    );
                     let video_id = more_video_id.clone();
-                    menu =
-                        menu.item(PopupMenuItem::new(t(Str::CdAddToPlaylist)).icon(icon(Lucide::ListPlus)).on_click(
-                            move |_, window, cx| crate::yt_playlist::AddToPlaylist::open(video_id.clone(), window, cx),
-                        ));
+                    menu = menu.item(
+                        PopupMenuItem::new(t(Str::CdAddToPlaylist))
+                            .icon(auto_mirrored(MaterialIcon::PlaylistAddOutlined))
+                            .on_click(move |_, window, cx| {
+                                crate::yt_playlist::AddToPlaylist::open(video_id.clone(), window, cx)
+                            }),
+                    );
                 }
                 if let Some(link) = share.clone() {
                     menu = menu.item(
                         PopupMenuItem::new(t(Str::CdShare))
-                            .icon(icon(Lucide::Share2))
+                            .icon(icon(MaterialIcon::ShareOutlined))
                             .on_click(move |_, window, cx| copy_share_link(&link, window, cx)),
                     );
                 }
                 let queue = queue_playback.clone();
                 menu = menu.item(
-                    PopupMenuItem::new(t(Str::QueueSaveAsYtPlaylist)).icon(icon(Lucide::ListMusic)).on_click(
-                        move |_, window, cx| {
+                    PopupMenuItem::new(t(Str::QueueSaveAsYtPlaylist))
+                        .icon(auto_mirrored(MaterialIcon::QueueMusicOutlined))
+                        .on_click(move |_, window, cx| {
                             let video_ids: Vec<String> = queue
                                 .read(cx)
                                 .queue
@@ -1382,33 +1401,37 @@ impl NowPlaying {
                             } else {
                                 crate::yt_playlist::CreatePlaylist::open(video_ids, true, window, cx);
                             }
+                        }),
+                );
+                let query = lyrics_query.clone();
+                menu = menu.item(
+                    PopupMenuItem::new(t(Str::MenuSearchLyrics)).icon(icon(MaterialIcon::LyricsOutlined)).on_click(
+                        move |_, _, cx| {
+                            let encoded: String = url::form_urlencoded::byte_serialize(query.as_bytes()).collect();
+                            cx.open_url(&format!("https://www.google.com/search?q={encoded}"));
                         },
                     ),
                 );
-                let query = lyrics_query.clone();
-                menu = menu.item(PopupMenuItem::new(t(Str::MenuSearchLyrics)).icon(icon(Lucide::MicVocal)).on_click(
-                    move |_, _, cx| {
-                        let encoded: String = url::form_urlencoded::byte_serialize(query.as_bytes()).collect();
-                        cx.open_url(&format!("https://www.google.com/search?q={encoded}"));
-                    },
-                ));
                 menu = menu.item(crate::settings_view::menu_divider());
                 let effects = queue_playback.read(cx).effects;
                 let speed = format!("{}×", crate::speed_pitch::trimmed(effects.speed));
                 let speed_pitch = view.clone();
-                menu = menu.item(menu_value_item(t(Str::MenuSpeedPitch), speed).icon(icon(Lucide::Gauge)).on_click(
-                    move |_, _, cx| {
-                        speed_pitch.update(cx, |_, cx| cx.emit(NowPlayingEvent::OpenSpeedPitch)).ok();
-                    },
-                ));
+                menu = menu.item(
+                    menu_value_item(t(Str::MenuSpeedPitch), speed).icon(icon(MaterialIcon::SpeedOutlined)).on_click(
+                        move |_, _, cx| {
+                            speed_pitch.update(cx, |_, cx| cx.emit(NowPlayingEvent::OpenSpeedPitch)).ok();
+                        },
+                    ),
+                );
                 let preset = crate::audio_effects::preset_name(&effects.tone.eq_db).to_owned();
                 let equalizer = view.clone();
-                menu =
-                    menu.item(menu_value_item(t(Str::SoundEq), preset).icon(icon(Lucide::SlidersVertical)).on_click(
+                menu = menu.item(
+                    menu_value_item(t(Str::SoundEq), preset).icon(icon(MaterialIcon::EqualizerOutlined)).on_click(
                         move |_, _, cx| {
                             equalizer.update(cx, |_, cx| cx.emit(NowPlayingEvent::OpenEqualizer)).ok();
                         },
-                    ));
+                    ),
+                );
                 let audio = queue_playback.read(cx).audio_tracks();
                 if audio.tracks.len() > 1 {
                     let current = audio
@@ -1422,7 +1445,7 @@ impl NowPlaying {
                     };
                     let (tracks, selected, target) = (audio.tracks, audio.selected, queue_playback.clone());
                     menu = menu.submenu_with_icon(
-                        Some(icon(Lucide::AudioLines)),
+                        Some(icon(MaterialIcon::GraphicEqOutlined)),
                         title,
                         window,
                         cx,
@@ -1445,7 +1468,7 @@ impl NowPlaying {
                 let reload = queue_playback.clone();
                 menu.item(crate::settings_view::menu_divider()).item(
                     PopupMenuItem::new(t(Str::MenuReloadPlayer))
-                        .icon(icon(Lucide::RefreshCw))
+                        .icon(icon(MaterialIcon::RefreshOutlined))
                         .on_click(move |_, _, cx| reload.update(cx, |playback, cx| playback.reload(cx))),
                 )
             })
@@ -1460,7 +1483,7 @@ impl NowPlaying {
             .child(
                 self.bar_focus.button(
                     STOP_CLOSE,
-                    sized_action_icon("np-close", IconName::ChevronDown, t(Str::CdMinimize), ICON, HIT)
+                    sized_action_icon("np-close", MaterialIcon::KeyboardArrowDown, t(Str::CdMinimize), ICON, HIT)
                         .on_click(cx.listener(|_, _, _, cx| cx.emit(NowPlayingEvent::Close))),
                     cx,
                 ),
@@ -1511,7 +1534,7 @@ impl NowPlaying {
                     STOP_REPEAT,
                     sized_action_icon(
                         "np-repeat",
-                        if loop_mode == LoopMode::One { Lucide::Repeat1 } else { Lucide::Repeat },
+                        if loop_mode == LoopMode::One { MaterialIcon::RepeatOne } else { MaterialIcon::Repeat },
                         t(match loop_mode {
                             LoopMode::None => Str::CdRepeatOff,
                             LoopMode::All => Str::CdRepeatAll,
@@ -1531,7 +1554,7 @@ impl NowPlaying {
             .child(
                 self.bar_focus.button(
                     STOP_SHUFFLE,
-                    sized_action_icon("np-shuffle", Lucide::Shuffle, t(Str::CdShuffle), ICON, HIT)
+                    sized_action_icon("np-shuffle", MaterialIcon::Shuffle, t(Str::CdShuffle), ICON, HIT)
                         .toggled(shuffle)
                         .when(shuffle, |button| button.text_color(accent))
                         .on_click(cx.listener(move |view, _, _, cx| {
@@ -1553,8 +1576,7 @@ impl NowPlaying {
     ) -> impl IntoElement {
         let (playback, view, item) = (self.playback.clone(), cx.entity().downgrade(), item.clone());
         let live_row = item.media_id.is_some_and(|media_id| self.live_row(media_id, cx));
-        let more =
-            sized_action_icon(("np-queue-more", position), IconName::EllipsisVertical, t(Str::CdMore), ICON, HIT);
+        let more = sized_action_icon(("np-queue-more", position), MaterialIcon::MoreVert, t(Str::CdMore), ICON, HIT);
         self.queue_focus
             .trailing_button(position, 0, more, cx)
             .text_color(cx.theme().muted_foreground)
@@ -1764,7 +1786,7 @@ impl NowPlaying {
                 .flex_shrink_0()
                 .cursor_grab()
                 .text_color(if active { theme.primary } else { theme.input })
-                .child(Icon::new(Lucide::GripVertical).small())
+                .child(Icon::new(MaterialIcon::DragHandle).with_size(px(QUEUE_HANDLE_ICON)))
                 .on_mouse_down(
                     MouseButton::Left,
                     cx.listener(move |view, event: &MouseDownEvent, window, cx| {

@@ -2,9 +2,8 @@
 //! account library feed under a header (account card, then My channel / history / Watch later /
 //! Liked / Subscriptions as chips from 600 wide, rows below) that scrolls away with it.
 
-use gpui_kit::assets::IconName as Lucide;
 use gpui_kit::component::menu::{DropdownMenu, PopupMenuItem};
-use gpui_kit::component::{ActiveTheme, Icon, IconName, StyledExt, h_flex, v_flex};
+use gpui_kit::component::{ActiveTheme, Icon, StyledExt, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use ym_engine::yt::YtAccountInfo;
@@ -14,6 +13,7 @@ use ym_image_loader::async_image::async_image_of;
 use crate::a11y::{DragRow, FocusList, announced_as, heading};
 use crate::account::AccountController;
 use crate::action_icon::action_icon;
+use crate::assets::MaterialIcon;
 use crate::feed::{FeedView, feed_width};
 use crate::settings_view::HOVER_ALPHA;
 use crate::spinner::Spinner;
@@ -136,7 +136,7 @@ impl AccountView {
                             .flex()
                             .items_center()
                             .justify_center()
-                            .child(Icon::new(Lucide::Play).size(px(30.)).text_color(white())),
+                            .child(Icon::new(MaterialIcon::PlayArrow).size(px(34.)).text_color(white())),
                     )
                     .child(
                         v_flex()
@@ -223,7 +223,7 @@ pub struct AccountHeader {
 }
 
 struct NavTarget {
-    icon: Lucide,
+    icon: MaterialIcon,
     label: &'static str,
     link: String,
     title: SharedString,
@@ -245,17 +245,17 @@ impl AccountHeader {
         if let Some(channel) = &self.account.channel_id {
             let title = self.account.name.clone().unwrap_or_else(|| t(Str::AccountMyChannel).to_owned());
             targets.push(NavTarget {
-                icon: Lucide::CircleUser,
+                icon: MaterialIcon::AccountCircleOutlined,
                 label: t(Str::AccountMyChannel),
                 link: format!("/channel/{channel}"),
                 title: title.into(),
             });
         }
         for (icon, label, link) in [
-            (Lucide::RotateCcwClock, Str::AccountWatchHistory, "/feed/history"),
-            (Lucide::Clock, Str::AccountWatchLater, "/playlist?list=WL"),
-            (Lucide::ThumbsUp, Str::AccountLikedVideos, "/playlist?list=LL"),
-            (Lucide::SquarePlay, Str::AccountSubscriptions, "/feed/subscriptions"),
+            (MaterialIcon::HistoryOutlined, Str::AccountWatchHistory, "/feed/history"),
+            (MaterialIcon::ScheduleOutlined, Str::AccountWatchLater, "/playlist?list=WL"),
+            (MaterialIcon::ThumbUpOutlined, Str::AccountLikedVideos, "/playlist?list=LL"),
+            (MaterialIcon::SubscriptionsOutlined, Str::AccountSubscriptions, "/feed/subscriptions"),
         ] {
             targets.push(NavTarget { icon, label: t(label), link: link.to_owned(), title: t(label).into() });
         }
@@ -284,10 +284,10 @@ impl Render for AccountHeader {
             .font_bold()
             .map(|disc| match initial {
                 Some(letter) => disc.child(letter),
-                None => disc.child(Icon::new(Lucide::User)),
+                None => disc.child(Icon::new(MaterialIcon::Person).size(px(24.))),
             });
         let owner = self.owner.clone();
-        let more = action_icon("account-more", IconName::EllipsisVertical, t(Str::CdMore)).dropdown_menu_with_anchor(
+        let more = action_icon("account-more", MaterialIcon::MoreVert, t(Str::CdMore)).dropdown_menu_with_anchor(
             Anchor::TopRight,
             move |menu, _, _| {
                 let owner = owner.clone();
@@ -369,7 +369,7 @@ impl Render for AccountHeader {
                         entry.gap(px(18.)).px(px(18.)).py(px(15.))
                     }
                 })
-                .child(Icon::new(target.icon).text_color(theme.muted_foreground))
+                .child(Icon::new(target.icon).size(px(24.)).text_color(theme.muted_foreground))
                 .child(div().text_sm().font_medium().child(target.label))
                 .on_click(move |_, _, cx| {
                     feed.update(cx, |feed, cx| feed.open_link(&link, Some(title.clone()), cx)).ok();

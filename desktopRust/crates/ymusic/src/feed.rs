@@ -3,12 +3,9 @@
 
 use std::sync::Arc;
 
-use gpui_kit::assets::IconName as Lucide;
 use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::menu::{DropdownMenu, PopupMenuItem};
-use gpui_kit::component::{
-    ActiveTheme, Disableable, Icon, IconName, Selectable, Sizable, StyledExt, WindowExt, h_flex, v_flex,
-};
+use gpui_kit::component::{ActiveTheme, Disableable, Icon, Selectable, Sizable, StyledExt, WindowExt, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use ym_common::log::Logger;
@@ -18,7 +15,8 @@ use ym_i18n::{Str, t, tf};
 use ym_image_loader::async_image::async_image_of;
 
 use crate::a11y::{DragRow, FocusList, alert, announced, announced_as, heading, list_item};
-use crate::action_icon::{HIT, action_icon, sized_action_icon};
+use crate::action_icon::{HIT, action_icon, auto_mirrored, sized_action_icon};
+use crate::assets::MaterialIcon;
 use crate::download_dialog::DownloadTarget;
 use crate::graph::{AppGraph, on_core};
 use crate::lazy_rows::LazyRows;
@@ -846,7 +844,7 @@ impl FeedView {
             } else {
                 let save = action_icon(
                     "playlist-save",
-                    Icon::new(if saved { Lucide::ListCheck } else { Lucide::ListPlus }),
+                    auto_mirrored(if saved { MaterialIcon::PlaylistAddCheck } else { MaterialIcon::PlaylistAdd }),
                     label,
                 )
                 .selected(saved)
@@ -854,7 +852,7 @@ impl FeedView {
                 self.actions.button(ACTION_SAVE, save, cx).into_any_element()
             });
         }
-        let share = action_icon("playlist-share", Icon::new(Lucide::Share2), t(Str::CdShare))
+        let share = action_icon("playlist-share", MaterialIcon::ShareOutlined, t(Str::CdShare))
             .disabled(share.is_none())
             .on_click(move |_, window, cx| {
                 if let Some(link) = share.clone() {
@@ -863,13 +861,13 @@ impl FeedView {
                 }
             });
         actions = actions.child(self.actions.button(ACTION_SHARE, share, cx));
-        let download = action_icon("playlist-download", Icon::new(Lucide::Download), t(Str::CdDownload))
+        let download = action_icon("playlist-download", MaterialIcon::FileDownloadOutlined, t(Str::CdDownload))
             .disabled(!has_videos)
             .on_click(cx.listener(|view, _, window, cx| {
                 view.open_playlist_dialog(false, window, cx);
             }));
         actions = actions.child(self.actions.button(ACTION_DOWNLOAD, download, cx));
-        let local = action_icon("playlist-local", Icon::new(Lucide::LibraryBig), t(Str::LocalPlaylistCreate))
+        let local = action_icon("playlist-local", MaterialIcon::LibraryAddOutlined, t(Str::LocalPlaylistCreate))
             .disabled(!has_videos)
             .on_click(cx.listener(|view, _, window, cx| {
                 view.open_playlist_dialog(true, window, cx);
@@ -892,7 +890,7 @@ impl FeedView {
                 .text_color(theme.primary_foreground)
                 .when(has_videos, |circle| circle.cursor_pointer())
                 .when(!has_videos, |circle| circle.opacity(0.5))
-                .child(Icon::new(Lucide::Shuffle))
+                .child(Icon::new(MaterialIcon::Shuffle).size(px(20.)))
                 .on_click(cx.listener(|view, _, _, cx| view.play_all(true, cx))),
         );
         v_flex()
@@ -993,7 +991,7 @@ impl FeedView {
                     Button::new("play-all")
                         .primary()
                         .rounded_full()
-                        .icon(Lucide::Play)
+                        .icon(MaterialIcon::PlayArrow)
                         .label(t(Str::PlayAll))
                         .on_click(cx.listener(|view, _, _, cx| view.play_all(false, cx))),
                     cx,
@@ -1005,7 +1003,7 @@ impl FeedView {
                     Button::new("shuffle-all")
                         .outline()
                         .rounded_full()
-                        .icon(Lucide::Shuffle)
+                        .icon(MaterialIcon::Shuffle)
                         .label(t(Str::ShuffleAll))
                         .on_click(cx.listener(|view, _, _, cx| view.play_all(true, cx))),
                     cx,
@@ -1181,11 +1179,8 @@ impl FeedView {
         let channel_id = (item.kind == "channel" && signed_in)
             .then(|| item.channel_id.clone().unwrap_or_else(|| item.id.clone()))
             .filter(|id| !id.is_empty());
-        let more = action_icon(
-            key,
-            Icon::new(IconName::EllipsisVertical).text_color(cx.theme().muted_foreground),
-            t(Str::CdMore),
-        );
+        let more =
+            action_icon(key, Icon::new(MaterialIcon::MoreVert).text_color(cx.theme().muted_foreground), t(Str::CdMore));
         self.focus
             .trailing_button(key.1, 0, more, cx)
             .dropdown_menu_with_anchor(Anchor::TopRight, move |mut menu, _, cx| {
@@ -1556,12 +1551,13 @@ impl FeedView {
                     .ghost()
                     .small()
                     .label(label)
-                    .icon(crate::action_icon::auto_mirrored(IconName::ChevronRight))
+                    .icon(auto_mirrored(MaterialIcon::KeyboardArrowRight))
                     .on_click(cx.listener(move |view, _, _, cx| view.open_link(&link, title.clone(), cx)));
                 row.child(self.controls.button(section_index * 3, button, cx))
             })
             .when(collapsible, |row| {
-                let chevron = Icon::new(if expanded { IconName::ChevronUp } else { IconName::ChevronDown })
+                let chevron = Icon::new(MaterialIcon::KeyboardArrowDown)
+                    .when(expanded, |chevron| chevron.rotate(percentage(0.5)))
                     .text_color(theme.muted_foreground);
                 let label = t(if expanded { Str::CdCollapse } else { Str::CdExpand });
                 let button = sized_action_icon(("collapse", section_index), chevron, label, 20., HIT)
@@ -1743,7 +1739,10 @@ impl FeedView {
                 .rounded_full()
                 .w_full()
                 .label(label)
-                .icon(Icon::new(if expanded { IconName::ChevronUp } else { IconName::ChevronDown }))
+                .icon(
+                    Icon::new(MaterialIcon::KeyboardArrowDown)
+                        .when(expanded, |chevron| chevron.rotate(percentage(0.5))),
+                )
                 .on_click(cx.listener(move |view, _, _, cx| view.toggle_section(section_index, cx)));
             block = block.child(
                 div().px(px(bands.margin)).child(self.controls.button(section_index * 3 + 2, more, cx).w_full()),
@@ -1771,7 +1770,7 @@ impl FeedView {
                 .on_click(cx.listener(|_, _, _, cx| cx.emit(RequestSearch)));
             h_flex()
                 .gap_2()
-                .child(self.actions.button(ACTION_RELOAD, reload.outline().icon(Lucide::RefreshCw), cx))
+                .child(self.actions.button(ACTION_RELOAD, reload.outline().icon(MaterialIcon::Refresh), cx))
                 .child(self.actions.button(ACTION_SEARCH, search, cx))
         } else {
             h_flex().child(self.actions.button(ACTION_RELOAD, reload.primary(), cx))
@@ -1786,7 +1785,7 @@ impl FeedView {
                 v_flex()
                     .items_center()
                     .gap_2()
-                    .child(div().pb_1().child(Icon::new(Lucide::Inbox).size(px(52.)).text_color(muted)))
+                    .child(div().pb_1().child(Icon::new(MaterialIcon::InboxOutlined).size(px(52.)).text_color(muted)))
                     .when_some(self.page.empty_title.clone(), |empty, title| {
                         empty.child(
                             heading("empty-title", 2, title).text_base().font_semibold().text_color(ink).text_center(),
@@ -1818,7 +1817,7 @@ impl FeedView {
             .outline()
             .small()
             .rounded_full()
-            .when(!busy, |button| button.icon(Lucide::ArrowUpDown))
+            .when(!busy, |button| button.icon(auto_mirrored(MaterialIcon::Sort)))
             .label(current.clone())
             .busy(busy)
             .accessibility_label(format!("{}, {current}", t(Str::CdSort)))

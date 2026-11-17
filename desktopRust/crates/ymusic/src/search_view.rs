@@ -4,16 +4,16 @@
 
 use std::time::Duration;
 
-use gpui_kit::assets::IconName as Lucide;
 use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::input::{Input, InputEvent, InputState};
-use gpui_kit::component::{ActiveTheme, Icon, IconName, Sizable, h_flex, v_flex};
+use gpui_kit::component::{ActiveTheme, Icon, Sizable, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use ym_i18n::{Str, t};
 
 use crate::a11y::{FocusList, label, list_item};
-use crate::action_icon::action_icon;
+use crate::action_icon::{action_icon, auto_mirrored};
+use crate::assets::MaterialIcon;
 use crate::feed::FeedView;
 use crate::graph::{AppGraph, on_core};
 use crate::lazy_rows::LazyRows;
@@ -188,7 +188,7 @@ impl SearchView {
     fn query_row(&self, index: usize, text: &str, history: bool, cx: &mut Context<Self>) -> Stateful<Div> {
         let theme = cx.theme().clone();
         let (submitted, inserted, removed) = (text.to_owned(), text.to_owned(), text.to_owned());
-        let icon = if history { Icon::new(Lucide::Clock) } else { Icon::new(IconName::Search) };
+        let icon = Icon::new(if history { MaterialIcon::ScheduleOutlined } else { MaterialIcon::Search }).size(px(24.));
         self.focus
             .item(index, list_item(h_flex().id(("query", index)), index).aria_label(text.to_owned()), cx)
             .gap_4()
@@ -209,7 +209,7 @@ impl SearchView {
                                     0,
                                     action_icon(
                                         ("remove", index),
-                                        Icon::new(IconName::Close).text_color(theme.muted_foreground),
+                                        Icon::new(MaterialIcon::Close).text_color(theme.muted_foreground),
                                         t(Str::CdRemoveFromHistory),
                                     ),
                                     cx,
@@ -224,7 +224,7 @@ impl SearchView {
                                 1,
                                 action_icon(
                                     ("insert", index),
-                                    Icon::new(Lucide::ArrowUpLeft).text_color(theme.muted_foreground),
+                                    Icon::new(MaterialIcon::NorthWest).text_color(theme.muted_foreground),
                                     t(Str::CdInsertQuery),
                                 ),
                                 cx,
@@ -299,7 +299,7 @@ impl Render for SearchView {
             .child(
                 self.bar_focus.button(
                     0,
-                    action_icon("search-back", crate::action_icon::auto_mirrored(IconName::ArrowLeft), t(Str::CdBack))
+                    action_icon("search-back", auto_mirrored(MaterialIcon::ArrowBack), t(Str::CdBack))
                         .on_click(cx.listener(|view, _, _, cx| view.back(cx))),
                     cx,
                 ),
@@ -349,7 +349,7 @@ impl Render for SearchView {
             let clear = Button::new("clear-history")
                 .ghost()
                 .small()
-                .icon(Icon::new(Lucide::Trash))
+                .icon(Icon::new(MaterialIcon::DeleteOutlined))
                 .label(t(Str::SearchClearHistory))
                 .on_click(cx.listener(|view, _, _, cx| view.save_history(Vec::new(), cx)));
             rows = rows.child(h_flex().justify_center().py_2().child(self.focus.button(count, clear, cx)));

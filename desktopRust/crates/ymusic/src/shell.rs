@@ -7,8 +7,7 @@ use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
-use gpui_kit::assets::IconName as Lucide;
-use gpui_kit::component::{ActiveTheme, Icon, IconName, StyledExt, WindowExt, h_flex, v_flex};
+use gpui_kit::component::{ActiveTheme, Icon, StyledExt, WindowExt, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use ym_i18n::{Str, t, tf};
@@ -16,7 +15,8 @@ use ym_i18n::{Str, t, tf};
 use crate::a11y::{DragRow, FocusList, focusable};
 use crate::account::{AccountController, Accounts};
 use crate::account_view::AccountView;
-use crate::action_icon::{HIT, action_icon};
+use crate::action_icon::{HIT, action_icon, auto_mirrored};
+use crate::assets::MaterialIcon;
 use crate::download_dialog::{DownloadPicker, DownloadTarget};
 use crate::downloads_view::{DownloadsView, RevealInLibrary, SelectionModeChanged};
 use crate::feed::{FeedAction, FeedSource, FeedView, ItemAction, Navigate, Play, RequestSearch};
@@ -36,6 +36,7 @@ use crate::settings_view::{LocaleChanged, SettingsView};
 use crate::signin::AccountChanged;
 use crate::signin_dialog::{SignInEvent, SignInView};
 use crate::sponsor_block::SponsorBlock;
+use crate::spring::Spring;
 use crate::tab_row::tab_row;
 
 mod incoming;
@@ -43,9 +44,11 @@ mod tray;
 
 const RAIL_COLLAPSED: f32 = 72.;
 const DRAWER_ICON_START: f32 = 20.;
+const DRAWER_ICON: f32 = 24.;
 /// Centres the expanded rail's section icons on the collapsed rail's centre line.
-const RAIL_ICON_START: f32 = RAIL_COLLAPSED / 2. - SECTION_ICON / 2.;
-const SECTION_ICON: f32 = 16.;
+const RAIL_ICON_START: f32 = RAIL_COLLAPSED / 2. - DRAWER_ICON / 2.;
+/// Outside the rail's width (the JVM app's `VerticalDivider`), or it pulls the collapsed icons off the toggle's line.
+const RAIL_DIVIDER: f32 = 1.;
 const RAIL_EXPANDED: f32 = 280.;
 /// The rail's logo, larger than the JVM rail's 24 so the mark reads at a glance.
 const RAIL_LOGO: f32 = 32.;
@@ -203,17 +206,17 @@ impl Section {
         })
     }
 
-    fn icon(self) -> Lucide {
+    fn icon(self) -> Icon {
         match self {
-            Section::Discover => Lucide::MonitorPlay,
-            Section::YtMusic => Lucide::CirclePlay,
-            Section::Library => Lucide::LibraryBig,
-            Section::PlayAgain => Lucide::RotateCcwClock,
-            Section::Downloads => Lucide::Download,
-            Section::Settings => Lucide::Settings,
-            Section::Donate => Lucide::Heart,
-            Section::Telegram => Lucide::Send,
-            Section::Feedback => Lucide::MessageCircle,
+            Section::Discover => Icon::new(MaterialIcon::OndemandVideoOutlined),
+            Section::YtMusic => Icon::new(MaterialIcon::PlayCircleOutline),
+            Section::Library => Icon::new(MaterialIcon::LibraryMusicOutlined),
+            Section::PlayAgain => Icon::new(MaterialIcon::HistoryOutlined),
+            Section::Downloads => Icon::new(MaterialIcon::FileDownloadOutlined),
+            Section::Settings => Icon::new(MaterialIcon::SettingsOutlined),
+            Section::Donate => Icon::new(MaterialIcon::FavoriteBorderOutlined),
+            Section::Telegram => Icon::empty().path(crate::assets::TELEGRAM_ICON),
+            Section::Feedback => auto_mirrored(MaterialIcon::ChatOutlined),
         }
     }
 }
@@ -309,13 +312,13 @@ impl DiscoverTab {
         }
     }
 
-    fn icon(self) -> Lucide {
+    fn icon(self) -> Icon {
         match self {
-            DiscoverTab::Home => Lucide::House,
-            DiscoverTab::Trending => Lucide::Music,
-            DiscoverTab::Recommended => Lucide::Star,
-            DiscoverTab::TopTracks => Lucide::TrendingUp,
-            DiscoverTab::Account => Lucide::User,
+            DiscoverTab::Home => Icon::new(MaterialIcon::HomeOutlined),
+            DiscoverTab::Trending => Icon::new(MaterialIcon::MusicNoteOutlined),
+            DiscoverTab::Recommended => Icon::new(MaterialIcon::StarBorder),
+            DiscoverTab::TopTracks => auto_mirrored(MaterialIcon::TrendingUpOutlined),
+            DiscoverTab::Account => Icon::new(MaterialIcon::PersonOutlined),
         }
     }
 
@@ -428,6 +431,8 @@ pub struct Shell {
     rail_manual: Option<bool>,
     /// The (rail mode, expanded-by-width) the window last had.
     rail_auto: Option<(bool, bool)>,
+    /// The rail panel's width easing to its state's; none while the rail is not shown.
+    rail_width: Option<Spring>,
     drawer_open: bool,
     /// Holds keyboard focus when nothing else does, so the shortcuts always reach the Shell.
     focus: FocusHandle,
@@ -658,6 +663,7 @@ impl Shell {
             stacks: HashMap::new(),
             rail_manual: None,
             rail_auto: None,
+            rail_width: None,
             drawer_open: false,
             focus,
             nav_focus: FocusList::new(None),
@@ -1806,7 +1812,7 @@ impl Shell {
             .child(
                 self.chrome_focus.button(
                     CHROME_BACK,
-                    action_icon("layer-back", crate::action_icon::auto_mirrored(IconName::ArrowLeft), t(Str::CdBack))
+                    action_icon("layer-back", auto_mirrored(MaterialIcon::ArrowBack), t(Str::CdBack))
                         .on_click(cx.listener(|shell, _, _, cx| shell.back(cx))),
                     cx,
                 ),
@@ -1818,7 +1824,7 @@ impl Shell {
                 bar.child(
                     self.chrome_focus.button(
                         CHROME_FILTER,
-                        action_icon("layer-filter", Icon::new(Lucide::Funnel), t(Str::CdFilter))
+                        action_icon("layer-filter", MaterialIcon::FilterAltOutlined, t(Str::CdFilter))
                             .on_click(move |_, window, cx| open_search_filter(&view, window, cx)),
                         cx,
                     ),
@@ -1826,7 +1832,7 @@ impl Shell {
             })
             .child(self.chrome_focus.button(
                 CHROME_LAYER_SEARCH,
-                action_icon("layer-search", Icon::new(IconName::Search), t(Str::CdSearch)).on_click(cx.listener(
+                action_icon("layer-search", MaterialIcon::Search, t(Str::CdSearch)).on_click(cx.listener(
                     move |shell, _, window, cx| match &search {
                         LayerSearch::Edit(view) => {
                             view.update(cx, |view, cx| view.edit(cx));
@@ -1851,7 +1857,7 @@ impl Shell {
             .when(!rail_mode, |bar| {
                 bar.child(self.chrome_focus.button(
                     CHROME_DRAWER,
-                    action_icon("open-drawer", Icon::new(Lucide::Menu), t(Str::CdMenu)).on_click(cx.listener(
+                    action_icon("open-drawer", MaterialIcon::Menu, t(Str::CdMenu)).on_click(cx.listener(
                         |shell, _, _, cx| {
                             shell.drawer_open = true;
                             cx.notify();
@@ -1878,7 +1884,7 @@ impl Shell {
                 bar.child(
                     self.chrome_focus.button(
                         CHROME_SEARCH,
-                        action_icon("open-search", Icon::new(IconName::Search), t(Str::CdSearch))
+                        action_icon("open-search", MaterialIcon::Search, t(Str::CdSearch))
                             .on_click(cx.listener(|shell, _, window, cx| shell.section_search(window, cx))),
                         cx,
                     ),
@@ -1911,7 +1917,7 @@ impl Shell {
                 .relative()
                 .cursor_pointer()
                 .hover(|style| style.bg(theme.primary.opacity(HOVER_ALPHA)))
-                .child(Icon::new(tab.icon()).size(px(24.)).text_color(if selected {
+                .child(tab.icon().size(px(24.)).text_color(if selected {
                     theme.primary
                 } else {
                     theme.muted_foreground
@@ -2013,7 +2019,7 @@ impl Shell {
                 .flex()
                 .items_center()
                 .justify_center()
-                .child(Icon::new(section.icon()).size(px(24.)).text_color(tint))
+                .child(section.icon().size(px(24.)).text_color(tint))
                 .into_any_element();
         }
         entry
@@ -2025,7 +2031,7 @@ impl Shell {
                     .pr(px(DRAWER_ICON_START))
                     .py(px(11.))
                     .items_center()
-                    .child(Icon::new(section.icon()).size(px(23.)).text_color(tint))
+                    .child(section.icon().size(px(DRAWER_ICON)).text_color(tint))
                     .child(
                         div()
                             .flex_1()
@@ -2073,11 +2079,12 @@ impl Shell {
         list.into_any_element()
     }
 
-    fn render_rail(&self, expanded: bool, cx: &mut Context<Self>) -> AnyElement {
+    /// The rail laid out `expanded` or not, in a panel `width` wide on its way there.
+    fn render_rail(&self, expanded: bool, width: f32, cx: &mut Context<Self>) -> AnyElement {
         let theme = cx.theme().clone();
         let update_waiting = !expanded
             && cx.try_global::<crate::app_update::UpdatesHandle>().is_some_and(|handle| handle.0.read(cx).waiting());
-        let toggle = action_icon("rail-toggle", Icon::new(Lucide::Menu), t(Str::CdMenu))
+        let toggle = action_icon("rail-toggle", MaterialIcon::Menu, t(Str::CdMenu))
             .when(update_waiting, |toggle| toggle.tooltip(t(Str::UpdateAvailableTitle)))
             .on_click(cx.listener(move |shell, _, _, cx| shell.toggle_rail(expanded, cx)));
         let toggle = self.chrome_focus.button(CHROME_RAIL_TOGGLE, toggle, cx).when(update_waiting, |toggle| {
@@ -2106,15 +2113,11 @@ impl Shell {
             .then(|| crate::app_update::check_link("rail-check-update", cx))
             .flatten()
             .map(|link| div().ml(px(RAIL_ICON_START - 4.)).child(link));
-        v_flex()
-            .id("rail")
-            .role(Role::Navigation)
+        // Laid out at the final width and clipped by the panel as it eases there: the labels never reflow.
+        let contents = v_flex()
             .w(px(if expanded { RAIL_EXPANDED } else { RAIL_COLLAPSED }))
             .h_full()
             .flex_shrink_0()
-            .bg(chrome_tone(cx))
-            .border_r_1()
-            .border_color(theme.border)
             .child(div().pt_1().child(header))
             .child(
                 div()
@@ -2127,7 +2130,18 @@ impl Shell {
                     .child(self.section_groups(expanded, RAIL_ICON_START, cx))
                     .children(website)
                     .children(check_update),
-            )
+            );
+        div()
+            .id("rail")
+            .role(Role::Navigation)
+            .w(px(width + RAIL_DIVIDER))
+            .h_full()
+            .flex_shrink_0()
+            .overflow_hidden()
+            .bg(chrome_tone(cx))
+            .border_r(px(RAIL_DIVIDER))
+            .border_color(theme.border)
+            .child(contents)
             .into_any_element()
     }
 
@@ -2403,6 +2417,19 @@ impl Render for Shell {
             self.drawer_open = false;
         }
         let expanded = self.rail_manual.unwrap_or(auto_expanded);
+        let rail_target = if expanded { RAIL_EXPANDED } else { RAIL_COLLAPSED };
+        let rail_width = if rail_mode && !crate::reorder::reduce_motion(cx) {
+            let now = Instant::now();
+            let spring = self.rail_width.get_or_insert_with(|| Spring::at_rest(rail_target, now));
+            spring.retarget(rail_target, now);
+            if !spring.settled(now) {
+                window.request_animation_frame();
+            }
+            spring.value(now)
+        } else {
+            self.rail_width = None;
+            rail_target
+        };
         // Measured as if the rail were expanded, so toggling it never moves the tabs.
         let shell_width = if rail_mode { width - RAIL_EXPANDED } else { width };
         let wide = (shell_width > height && shell_width >= 600.) || shell_width >= 650.;
@@ -2444,7 +2471,7 @@ impl Render for Shell {
             let main = self.render_main(rail_mode, wide, window, cx);
             h_flex()
                 .size_full()
-                .when(rail_mode, |row| row.child(self.render_rail(expanded, cx)))
+                .when(rail_mode, |row| row.child(self.render_rail(expanded, rail_width, cx)))
                 .child(div().flex_1().min_w_0().h_full().child(main))
                 .into_any_element()
         };
