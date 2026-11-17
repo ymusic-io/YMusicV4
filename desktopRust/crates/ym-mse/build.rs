@@ -93,11 +93,6 @@ fn main() {
         println!("cargo:rustc-link-lib=dylib={name}");
     }
     println!("cargo:ffmpeg_lib={}", lib.display());
-    // The packed ffmpeg executable (rpath to its own libav) the download mux runs.
-    let packed = ffmpeg.join("pack").join(if windows { "ffmpeg.exe" } else { "ffmpeg" });
-    if packed.is_file() {
-        println!("cargo:ffmpeg_bin={}", packed.display());
-    }
     // Windows has no rpath: the executable's build copies these DLLs beside itself.
     if windows {
         println!("cargo:ffmpeg_dlls={}", ffmpeg.join("pack").display());

@@ -34,6 +34,7 @@ ym-logstore = { path = "../ym-logstore" }
 ym-signin = { path = "../ym-signin" }
 ym-telemetry = { path = "../ym-telemetry" }
 ym-download = { path = "../ym-download" }
+ym-ffmpeg = { path = "../ym-ffmpeg" }
 ym-ytmedia = { path = "../ym-ytmedia" }
 ym-history = { path = "../ym-history" }
 ym-update = { path = "../ym-update" }

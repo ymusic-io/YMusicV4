@@ -87,7 +87,7 @@ pub fn open(inputs: DownloadInputs) -> Result<DownloadService, String> {
     if let Err(error) = index.cleanup() {
         log.warn("old download segments could not be pruned", Some(&error));
     }
-    let ffmpeg = ffmpeg_binary();
+    let ffmpeg = ym_ffmpeg::find_binary();
     if ffmpeg.is_none() {
         log.warn("no ffmpeg binary: downloads offer M4A only", None);
     }
@@ -341,16 +341,4 @@ fn add_to_library(media: &MediaStore, settings: &dyn SettingsStore, file: &Path,
         }
         Err(error) => log.capture_error("registering a finished download in the library failed", &error),
     }
-}
-
-/// `YMUSIC_FFMPEG`, else next to the executable (packaged), else the dev build's.
-fn ffmpeg_binary() -> Option<PathBuf> {
-    let candidates = [
-        std::env::var_os("YMUSIC_FFMPEG").map(PathBuf::from),
-        std::env::current_exe()
-            .ok()
-            .and_then(|exe| exe.parent().map(|dir| dir.join(format!("ffmpeg{}", std::env::consts::EXE_SUFFIX)))),
-        option_env!("YM_FFMPEG_BIN").map(PathBuf::from),
-    ];
-    candidates.into_iter().flatten().find(|path| path.is_file())
 }

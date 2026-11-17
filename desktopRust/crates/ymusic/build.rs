@@ -14,9 +14,6 @@ fn main() {
     if windows {
         embed_windows_resources();
     }
-    if let Ok(binary) = std::env::var("DEP_MSEHOST_FFMPEG_BIN") {
-        println!("cargo:rustc-env=YM_FFMPEG_BIN={binary}");
-    }
     // The embedded bundles' revisions: YMusicV4's Versions.engineJsVersion / playerJsVersion.
     let v4 = PathBuf::from(std::env::var("YMUSIC_V4_DIR").expect("YMUSIC_V4_DIR (set in .cargo/config.toml)"));
     let versions = v4.join("buildSrc/src/main/kotlin/Dependencies.kt");
