@@ -81,7 +81,9 @@ gpui_kit::assets::icon_assets!(
         AudioLines,
         Image,
         Scan,
-        Shrink
+        Shrink,
+        SlidersVertical,
+        MicVocal
     ]
 );
 
