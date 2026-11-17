@@ -1,91 +1,10 @@
-//! The default component assets, the extra Lucide icons the shell uses, the JVM app's Material glyphs
-//! and drawables, and the app logo.
+//! The default component assets, the JVM app's Material glyphs and drawables, and the app logo.
 
 use std::borrow::Cow;
 use std::sync::{Arc, Mutex};
 
 use gpui_kit::component::IconNamed;
 use gpui_kit::{App, AssetSource, Img, RenderImage, Result, SharedString, img};
-
-gpui_kit::assets::icon_assets!(
-    ShellIcons,
-    [
-        Inbox,
-        Rewind,
-        FastForward,
-        CirclePlay,
-        LibraryBig,
-        RotateCcwClock,
-        Download,
-        Settings,
-        Heart,
-        Send,
-        MessageCircle,
-        Play,
-        Pause,
-        SkipBack,
-        SkipForward,
-        Volume2,
-        Repeat,
-        Repeat1,
-        Shuffle,
-        Timer,
-        GripVertical,
-        FolderOpen,
-        X,
-        SlidersHorizontal,
-        User,
-        Disc,
-        Music,
-        Film,
-        Folder,
-        House,
-        TrendingUp,
-        Star,
-        ArrowUpLeft,
-        ArrowLeft,
-        Search,
-        Captions,
-        Maximize,
-        Minimize,
-        ShieldCheck,
-        ShieldOff,
-        ListPlus,
-        ListCheck,
-        Share2,
-        RefreshCw,
-        ArrowUpDown,
-        Tag,
-        ExternalLink,
-        Gauge,
-        Volume1,
-        VolumeX,
-        CircleUser,
-        Clock,
-        ThumbsUp,
-        SquarePlay,
-        Trash,
-        ThumbsDown,
-        Pin,
-        ListMusic,
-        ArrowUpToLine,
-        CircleMinus,
-        Flame,
-        SquarePen,
-        Funnel,
-        MousePointer2,
-        File,
-        Rows2,
-        Headphones,
-        Video,
-        AudioLines,
-        Image,
-        Scan,
-        Shrink,
-        SlidersVertical,
-        MicVocal
-    ]
-);
 
 /// SponsorBlock's mark (the JVM app's ic_sponsor_block), a monochrome icon tinted by its text color.
 pub const SPONSOR_BLOCK_ICON: &str = "brand/sponsor-block.svg";
@@ -407,15 +326,10 @@ impl AssetSource for AppAssets {
         if let Some((_, icon)) = COMPONENT_ICONS.iter().find(|(component_path, _)| *component_path == path) {
             return Ok(Some(Cow::Borrowed(icon.svg())));
         }
-        match ShellIcons.load(path) {
-            Ok(Some(bytes)) => Ok(Some(bytes)),
-            _ => gpui_kit::assets::Assets.load(path),
-        }
+        gpui_kit::assets::Assets.load(path)
     }
 
     fn list(&self, path: &str) -> Result<Vec<SharedString>> {
-        let mut names = ShellIcons.list(path).unwrap_or_default();
-        names.extend(gpui_kit::assets::Assets.list(path)?);
-        Ok(names)
+        gpui_kit::assets::Assets.list(path)
     }
 }
