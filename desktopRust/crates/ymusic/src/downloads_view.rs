@@ -1491,8 +1491,10 @@ impl DeleteSelectedDialog {
                             Err(error) => {
                                 let mut props = serde_json::Map::new();
                                 props.insert("taskId".into(), target.task_id.clone().into());
-                                log.fork_with("downloads", props)
-                                    .capture_error("delete from storage failed", error.as_ref());
+                                log.fork_with("downloads", props).capture_error(
+                                    &format!("{DELETE_SELECTED_FAILED} delete from storage failed"),
+                                    error.as_ref(),
+                                );
                                 true
                             }
                         }
@@ -1512,7 +1514,7 @@ impl DeleteSelectedDialog {
                         .global::<AppGraph>()
                         .log
                         .fork("downloads")
-                        .capture_error("delete from storage failed", &error),
+                        .capture_error(&format!("{DELETE_SELECTED_FAILED} delete from storage failed"), &error),
                     None => {}
                 }
                 if view.remaining.is_empty() {
