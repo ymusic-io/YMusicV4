@@ -1,8 +1,9 @@
 //! The local Library, laid out like the JVM app: pinned text tabs (Folders, Playlists, Songs,
 //! Artists, Albums, Genres), then per tab a 40-tall toolbar (folders: Add folder, rescan,
-//! breadcrumb; playlists: New playlist; songs: Shuffle all; all: the sort control, remembered under
-//! the JVM's `library.sort.<list>` keys) over a grid of folder/playlist/group cards (at most 176
-//! wide) and song cells (at least 360 wide); a list below 480.
+//! breadcrumb, its open folder remembered under the JVM's `library.folders.open` key; playlists:
+//! New playlist; songs: Shuffle all; all: the sort control, remembered under the JVM's
+//! `library.sort.<list>` keys) over a grid of folder/playlist/group cards (at most 176 wide) and
+//! song cells (at least 360 wide); a list below 480.
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -194,6 +195,8 @@ const TOOL_PLAYLIST_MENU: usize = 5;
 const TOOL_EMPTY_RESTORE: usize = 6;
 /// Shared with the JVM app: the Library tab a restart resumes, by [Tab::key].
 const LAST_LIBRARY_TAB_KEY: &str = "library.lastTab";
+/// Shared with the JVM app: the Folders tab's open bucket id in decimal, empty for the root.
+const OPEN_FOLDER_KEY: &str = "library.folders.open";
 const TOOL_RESCAN: usize = 7;
 const TOOL_SCAN_EMPTY: usize = 8;
 
@@ -324,6 +327,8 @@ pub struct LibraryView {
     open_playlist: Option<OpenPlaylist>,
     /// The open folder chain; empty is the root.
     path: Vec<Bucket>,
+    /// The saved open folder is still loading; opening any folder first drops it.
+    folder_restore_pending: bool,
     folders: Vec<Bucket>,
     /// Whether a folder has been added, `None` until the store answers: without one the Library is
     /// only its Scan folder prompt, no tabs.
@@ -379,6 +384,7 @@ impl LibraryView {
             .as_deref()
             .and_then(Tab::from_key)
             .unwrap_or(Tab::Folders);
+        let saved_folder = settings.get_raw(OPEN_FOLDER_KEY).ok().flatten().and_then(|raw| raw.parse::<i64>().ok());
         let scroll = ScrollHandle::new();
         let mut view = Self {
             store,
@@ -389,6 +395,7 @@ impl LibraryView {
             tab_groups: HashMap::new(),
             open_playlist: None,
             path: Vec::new(),
+            folder_restore_pending: false,
             folders: Vec::new(),
             folders_added: None,
             items: Vec::new(),
@@ -413,7 +420,10 @@ impl LibraryView {
             location_offer: None,
             transfer: PlaylistTransfer::default(),
         };
-        view.refresh(cx);
+        match saved_folder {
+            Some(bucket_id) => view.restore_folder(bucket_id, cx),
+            None => view.refresh(cx),
+        }
         if view.tab != Tab::Folders {
             view.refresh_all(cx);
         }
@@ -825,8 +835,52 @@ impl LibraryView {
         if bucket.excluded {
             return;
         }
-        self.path.push(bucket);
+        let mut path = self.path.clone();
+        path.push(bucket);
+        self.set_path(path, cx);
         self.refresh(cx);
+    }
+
+    /// Opens `path`, saved under [OPEN_FOLDER_KEY] for the next visit.
+    fn set_path(&mut self, path: Vec<Bucket>, cx: &mut Context<Self>) {
+        self.folder_restore_pending = false;
+        self.path = path;
+        let open = self.path.last().map(|bucket| bucket.id.to_string()).unwrap_or_default();
+        let graph = cx.global::<AppGraph>();
+        let (settings, log) = (graph.settings.clone(), graph.log.fork("settings"));
+        graph.tokio.spawn_blocking(move || {
+            if let Err(error) = settings.put_raw(OPEN_FOLDER_KEY, open) {
+                log.warn(&format!("{OPEN_FOLDER_KEY} could not be saved: {error}"), None);
+            }
+        });
+    }
+
+    /// Opens the saved folder, or the root when it or any folder above it is gone.
+    fn restore_folder(&mut self, bucket_id: i64, cx: &mut Context<Self>) {
+        self.folder_restore_pending = true;
+        let request = library_playlist::store_call(cx, move |store| store.bucket_chain(bucket_id));
+        cx.spawn(async move |this, cx| {
+            let result = request.await;
+            this.update(cx, |view, cx| {
+                if !std::mem::take(&mut view.folder_restore_pending) {
+                    return;
+                }
+                match result {
+                    Ok(chain) if chain.first().is_some_and(|root| root.parent_id.is_none()) => {
+                        view.path = chain;
+                        view.folders_added = Some(true);
+                    }
+                    Ok(_) => {}
+                    Err(error) => cx
+                        .global::<AppGraph>()
+                        .log
+                        .warn(&format!("{OPEN_FOLDER_KEY} could not be restored: {error}"), None),
+                }
+                view.refresh(cx);
+            })
+            .ok();
+        })
+        .detach();
     }
 
     /// The Folders tab at the deepest Library folder holding `file`; the root when none does.
@@ -849,7 +903,7 @@ impl LibraryView {
             this.update(cx, |view, cx| {
                 view.select_tab(Tab::Folders, cx);
                 match result {
-                    Some(Ok(Ok(chain))) => view.path = chain,
+                    Some(Ok(Ok(chain))) => view.set_path(chain, cx),
                     Some(Ok(Err(error))) => cx
                         .global::<AppGraph>()
                         .log
@@ -868,7 +922,9 @@ impl LibraryView {
     }
 
     fn open_crumb(&mut self, depth: usize, cx: &mut Context<Self>) {
-        self.path.truncate(depth);
+        let mut path = self.path.clone();
+        path.truncate(depth);
+        self.set_path(path, cx);
         self.refresh(cx);
     }
 
@@ -1071,7 +1127,7 @@ impl LibraryView {
         cx.spawn(async move |this, cx| {
             if let Some(Ok(Ok((Some(root), items)))) = load.await {
                 this.update(cx, |view, cx| {
-                    view.path = vec![root];
+                    view.set_path(vec![root], cx);
                     view.items = items;
                     view.play(0, cx);
                     view.refresh(cx);
@@ -1107,7 +1163,7 @@ impl LibraryView {
                     view.set_tab(Tab::Folders, cx);
                     view.group = None;
                     view.open_playlist = None;
-                    view.path = chain;
+                    view.set_path(chain, cx);
                     view.scroll.set_offset(point(px(0.), px(0.)));
                     view.refresh(cx);
                     cx.notify();
