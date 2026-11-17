@@ -747,6 +747,15 @@ impl Shell {
         }
     }
 
+    /// F8, K, or Space in Now Playing: play/pause, and an open Now Playing shows its controls with
+    /// Play focused.
+    fn toggle_play_from_key(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.playback.update(cx, |playback, cx| playback.toggle(cx));
+        if self.now_playing_open {
+            self.now_playing.update(cx, |now_playing, cx| now_playing.take_focus(window, cx));
+        }
+    }
+
     fn quit(window: &Window, cx: &mut App) {
         let log = cx.global::<AppGraph>().log.fork("window");
         crate::desktop::save_bounds(window, log, cx);
@@ -2278,7 +2287,20 @@ impl Shell {
         use crate::shortcuts::*;
         crate::a11y::root_arrows(root.track_focus(&self.focus), self.focus.clone())
             .key_context(CONTEXT)
-            .on_action(cx.listener(|shell, _: &TogglePlay, _, cx| shell.playback.update(cx, |p, cx| p.toggle(cx))))
+            .on_action(cx.listener(|shell, _: &TogglePlay, window, cx| shell.toggle_play_from_key(window, cx)))
+            .on_key_down(cx.listener(|shell, event: &KeyDownEvent, window, cx| {
+                let keystroke = &event.keystroke;
+                let nothing_focused = shell.focus.is_focused(window) || window.focused(cx).is_none();
+                if keystroke.key == "space"
+                    && !keystroke.modifiers.modified()
+                    && !event.is_held
+                    && shell.now_playing_open
+                    && nothing_focused
+                {
+                    shell.toggle_play_from_key(window, cx);
+                    cx.stop_propagation();
+                }
+            }))
             .on_action(cx.listener(|shell, _: &SeekBackward, _, cx| {
                 shell.playback.update(cx, |p, cx| p.seek_by(-SEEK_STEP_MS, cx))
             }))
