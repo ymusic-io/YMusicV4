@@ -775,4 +775,18 @@
     <string name="native_blocked_help">Trên máy tính cơ quan hoặc trường học, hãy nhờ quản trị viên cho phép YMusic. Trên máy tính của bạn, hãy kiểm tra Smart App Control trong Bảo mật Windows.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Đang làm mới</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">Chọn tất cả</string>
+    <string name="downloads_action_select">Chọn</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="other">Đã chọn %1$d</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="other">Gỡ %1$d mục tải xuống khỏi danh sách?</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">Các tệp đã tải xong vẫn được giữ trên thiết bị này.</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="other">Xóa %1$d tệp?</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">Không thể khôi phục tệp đã xóa.</string>
 </resources>

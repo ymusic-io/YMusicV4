@@ -670,4 +670,24 @@
     <string name="native_blocked_help">Su un PC di lavoro o scolastico, chiedi all'amministratore di consentire YMusic. Sul tuo PC, controlla Controllo intelligente delle app in Sicurezza di Windows.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Aggiornamento</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">Seleziona tutto</string>
+    <string name="downloads_action_select">Seleziona</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="one">%1$d selezionato</item>
+        <item quantity="many">%1$d selezionati</item>
+        <item quantity="other">%1$d selezionati</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="one">Rimuovere %1$d download dall'elenco?</item>
+        <item quantity="many">Rimuovere %1$d download dall'elenco?</item>
+        <item quantity="other">Rimuovere %1$d download dall'elenco?</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">I file completati restano su questo dispositivo.</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="one">Eliminare %1$d file?</item>
+        <item quantity="many">Eliminare %1$d file?</item>
+        <item quantity="other">Eliminare %1$d file?</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">I file eliminati non possono essere recuperati.</string>
 </resources>

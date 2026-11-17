@@ -670,4 +670,24 @@
     <string name="native_blocked_help">Na poslovnom ili školskom računalu zamolite administratora da dopusti YMusic. Na vlastitom računalu provjerite Smart App Control u Sigurnosti sustava Windows.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Osvježavanje</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">Odaberi sve</string>
+    <string name="downloads_action_select">Odaberi</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="one">Odabrano: %1$d</item>
+        <item quantity="few">Odabrano: %1$d</item>
+        <item quantity="other">Odabrano: %1$d</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="one">Ukloniti %1$d preuzimanje s popisa?</item>
+        <item quantity="few">Ukloniti %1$d preuzimanja s popisa?</item>
+        <item quantity="other">Ukloniti %1$d preuzimanja s popisa?</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">Dovršene datoteke ostaju na ovom uređaju.</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="one">Izbrisati %1$d datoteku?</item>
+        <item quantity="few">Izbrisati %1$d datoteke?</item>
+        <item quantity="other">Izbrisati %1$d datoteka?</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">Izbrisane datoteke ne mogu se vratiti.</string>
 </resources>

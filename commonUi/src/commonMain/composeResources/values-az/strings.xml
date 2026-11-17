@@ -662,4 +662,21 @@
     <string name="native_blocked_help">İş və ya məktəb kompüterində administratordan YMusic-ə icazə verməsini xahiş edin. Öz kompüterinizdə Windows Security bölməsində Smart App Control-u yoxlayın.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Yenilənir</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">Hamısını seç</string>
+    <string name="downloads_action_select">Seç</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="one">%1$d seçildi</item>
+        <item quantity="other">%1$d seçildi</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="one">%1$d yükləmə siyahıdan silinsin?</item>
+        <item quantity="other">%1$d yükləmə siyahıdan silinsin?</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">Tamamlanmış fayllar bu cihazda qalır.</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="one">%1$d fayl silinsin?</item>
+        <item quantity="other">%1$d fayl silinsin?</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">Silinmiş faylları bərpa etmək mümkün deyil.</string>
 </resources>

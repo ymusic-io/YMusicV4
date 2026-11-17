@@ -662,4 +662,21 @@
     <string name="native_blocked_help">Vraag op een werk- of school-pc je beheerder om YMusic toe te staan. Controleer op je eigen pc Smart App Control in Windows-beveiliging.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Vernieuwen</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">Alles selecteren</string>
+    <string name="downloads_action_select">Selecteren</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="one">%1$d geselecteerd</item>
+        <item quantity="other">%1$d geselecteerd</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="one">%1$d download uit de lijst verwijderen?</item>
+        <item quantity="other">%1$d downloads uit de lijst verwijderen?</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">Voltooide bestanden blijven op dit apparaat staan.</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="one">%1$d bestand verwijderen?</item>
+        <item quantity="other">%1$d bestanden verwijderen?</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">Verwijderde bestanden kunnen niet worden hersteld.</string>
 </resources>

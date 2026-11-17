@@ -662,4 +662,21 @@
     <string name="native_blocked_help">Sa PC sa trabaho o paaralan, hilingin sa administrator na payagan ang YMusic. Sa sarili mong PC, tingnan ang Smart App Control sa Windows Security.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Nire-refresh</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">Piliin lahat</string>
+    <string name="downloads_action_select">Piliin</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="one">%1$d ang napili</item>
+        <item quantity="other">%1$d ang napili</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="one">Alisin sa listahan ang %1$d download?</item>
+        <item quantity="other">Alisin sa listahan ang %1$d download?</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">Mananatili sa device na ito ang mga natapos na file.</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="one">I-delete ang %1$d file?</item>
+        <item quantity="other">I-delete ang %1$d file?</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">Hindi na maibabalik ang mga na-delete na file.</string>
 </resources>

@@ -670,4 +670,24 @@
     <string name="native_blocked_help">На пословном или школском рачунару замолите администратора да дозволи YMusic. На свом рачунару проверите Smart App Control у оквиру Windows Security.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Освежавање</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">Изабери све</string>
+    <string name="downloads_action_select">Изабери</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="one">Изабрано: %1$d</item>
+        <item quantity="few">Изабрано: %1$d</item>
+        <item quantity="other">Изабрано: %1$d</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="one">Уклонити %1$d преузимање са листе?</item>
+        <item quantity="few">Уклонити %1$d преузимања са листе?</item>
+        <item quantity="other">Уклонити %1$d преузимања са листе?</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">Завршене датотеке остају на овом уређају.</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="one">Избрисати %1$d датотеку?</item>
+        <item quantity="few">Избрисати %1$d датотеке?</item>
+        <item quantity="other">Избрисати %1$d датотека?</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">Избрисане датотеке се не могу вратити.</string>
 </resources>

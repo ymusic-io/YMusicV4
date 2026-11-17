@@ -662,4 +662,21 @@
     <string name="native_blocked_help">На служебен или училищен компютър помолете администратора да разреши YMusic. На собствения си компютър проверете Smart App Control в „Защита на Windows“.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Опресняване</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">Избери всички</string>
+    <string name="downloads_action_select">Избери</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="one">%1$d избран</item>
+        <item quantity="other">%1$d избрани</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="one">Да се премахне ли %1$d изтегляне от списъка?</item>
+        <item quantity="other">Да се премахнат ли %1$d изтегляния от списъка?</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">Завършените файлове остават на това устройство.</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="one">Да се изтрие ли %1$d файл?</item>
+        <item quantity="other">Да се изтрият ли %1$d файла?</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">Изтритите файлове не могат да бъдат възстановени.</string>
 </resources>

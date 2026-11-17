@@ -662,4 +662,21 @@
     <string name="native_blocked_help">ऑफ़िस या स्कूल के PC पर, अपने एडमिनिस्ट्रेटर से YMusic को अनुमति देने को कहें। अपने PC पर, Windows Security में Smart App Control जाँचें।</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">रीफ़्रेश हो रहा है</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">सभी चुनें</string>
+    <string name="downloads_action_select">चुनें</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="one">%1$d चुने गए</item>
+        <item quantity="other">%1$d चुने गए</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="one">सूची से %1$d डाउनलोड हटाएं?</item>
+        <item quantity="other">सूची से %1$d डाउनलोड हटाएं?</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">पूरी हो चुकी फ़ाइलें इस डिवाइस पर रहेंगी।</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="one">%1$d फ़ाइल मिटाएं?</item>
+        <item quantity="other">%1$d फ़ाइलें मिटाएं?</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">मिटाई गई फ़ाइलें वापस नहीं लाई जा सकतीं।</string>
 </resources>

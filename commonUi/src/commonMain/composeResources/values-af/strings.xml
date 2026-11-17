@@ -662,4 +662,21 @@
     <string name="native_blocked_help">Op 'n werk- of skoolrekenaar, vra jou administrateur om YMusic toe te laat. Op jou eie rekenaar, gaan Smart App Control in Windows Security na.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Verfris tans</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">Kies alles</string>
+    <string name="downloads_action_select">Kies</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="one">%1$d gekies</item>
+        <item quantity="other">%1$d gekies</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="one">Verwyder %1$d aflaai van die lys?</item>
+        <item quantity="other">Verwyder %1$d aflaaie van die lys?</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">Voltooide lêers bly op hierdie toestel.</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="one">Skrap %1$d lêer?</item>
+        <item quantity="other">Skrap %1$d lêers?</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">Geskrapte lêers kan nie herstel word nie.</string>
 </resources>
