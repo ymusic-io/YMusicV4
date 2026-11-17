@@ -1,22 +1,21 @@
 #!/usr/bin/env bash
-# Build + bundle the native iOS player-lab .app and run it in the iOS Simulator (iosX64).
+# Build + bundle the native iOS player-lab .app and run it in the iOS Simulator (iosSimulatorArm64).
 #   ./build.sh              build, install, and launch (streams the app log for ~25s, then detaches)
 #   ./build.sh --no-run     build + bundle only
-# Requires Xcode + an available iPhone simulator. This host is Intel, so the runnable iOS target is
-# iosX64 (Intel simulator) — the one target Compose drops but :player still ships.
+# Requires an Apple Silicon Mac, Xcode, and an available iPhone simulator; there is no iosX64 target.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
 BUILD="$HERE/build"
-FW_DIR="$ROOT/player/build/bin/iosX64/debugFramework"
+FW_DIR="$ROOT/player/build/bin/iosSimulatorArm64/debugFramework"
 APP="$BUILD/PlayerLab.app"
 BUNDLE_ID="com.ymusic.iosplayerlab"
-TARGET="x86_64-apple-ios15.0-simulator"
+TARGET="arm64-apple-ios15.0-simulator"
 SDK="$(xcrun --sdk iphonesimulator --show-sdk-path)"
 
-echo "==> Building Player.framework (iosX64)..."
-(cd "$ROOT" && ./gradlew :player:linkDebugFrameworkIosX64 --console=plain -q)
+echo "==> Building Player.framework (iosSimulatorArm64)..."
+(cd "$ROOT" && ./gradlew :player:linkDebugFrameworkIosSimulatorArm64 --console=plain -q)
 [ -d "$FW_DIR/Player.framework" ] || { echo "framework not found at $FW_DIR"; exit 1; }
 
 # The WKWebView (YouTube) tab injects the built webview-js bundle; build it if missing.

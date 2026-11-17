@@ -32,9 +32,9 @@ Undefined symbols for architecture arm64:
 
 ## Simulator
 
-Compose MP 1.11.1 has **no `iosX64`**. The Intel iOS Simulator is x86_64, so this app **cannot run
-in Simulator on this Mac**. Apple Silicon hosts use `iosSimulatorArm64` (Xcode destination → any
-iPhone/iPad sim). On Intel, skip the sim and use a plugged-in device.
+The project has **no `iosX64`** target (neither Compose MP 1.11.1 nor the static iOS ffmpeg exists for
+x86_64), so this app **cannot run in an Intel Mac's Simulator**. Apple Silicon hosts use
+`iosSimulatorArm64` (Xcode destination → any iPhone/iPad sim). On Intel, use a plugged-in device.
 
 ## Run on a device (Xcode 16.2, today)
 

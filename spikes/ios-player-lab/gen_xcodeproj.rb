@@ -51,9 +51,9 @@ target.build_configurations.each do |config|
   s["ENABLE_USER_SCRIPT_SANDBOXING"] = "NO" # let the gradle build phase touch the repo
   s["ONLY_ACTIVE_ARCH"] = "YES"
   s["ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOLS"] = "NO"
-  # The Kotlin framework lives where Gradle links it, per SDK (arm64 device / x64 simulator on Intel).
+  # The Kotlin framework lives where Gradle links it, per SDK (arm64 device / arm64 simulator).
   s["FRAMEWORK_SEARCH_PATHS[sdk=iphoneos*]"] = "$(SRCROOT)/../../player/build/bin/iosArm64/debugFramework"
-  s["FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]"] = "$(SRCROOT)/../../player/build/bin/iosX64/debugFramework"
+  s["FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]"] = "$(SRCROOT)/../../player/build/bin/iosSimulatorArm64/debugFramework"
   s["OTHER_LDFLAGS"] = "-framework Player"
 end
 

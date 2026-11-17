@@ -20,10 +20,6 @@ fun mseSdkPath(sdk: String): String =
 fun mseClangArch(targetName: String): List<String> = when (targetName) {
     "macosX64" -> listOf("-arch", "x86_64")
     "macosArm64" -> listOf("-arch", "arm64")
-    "iosX64" -> listOf(
-        "-arch", "x86_64", "-isysroot", mseSdkPath("iphonesimulator"),
-        "-mios-simulator-version-min=12.0",
-    )
     "iosSimulatorArm64" -> listOf(
         "-arch", "arm64", "-isysroot", mseSdkPath("iphonesimulator"),
         "-mios-simulator-version-min=12.0",

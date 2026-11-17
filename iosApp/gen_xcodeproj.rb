@@ -86,7 +86,7 @@ target.build_configurations.each do |config|
   s["ONLY_ACTIVE_ARCH"] = "YES"
   s["ASSETCATALOG_COMPILER_APPICON_NAME"] = "AppIcon"
   s["ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOLS"] = "NO"
-  # Compose MP has no iosX64, so the simulator path is arm64-only (Apple-Silicon hosts).
+  # No iosX64 target: the simulator path is arm64-only (Apple-Silicon hosts).
   s["FRAMEWORK_SEARCH_PATHS[sdk=iphoneos*]"] = "$(SRCROOT)/../commonUi/build/bin/iosArm64/debugFramework"
   s["FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]"] = "$(SRCROOT)/../commonUi/build/bin/iosSimulatorArm64/debugFramework"
   s["OTHER_LDFLAGS"] = "-framework YMusicApp"
