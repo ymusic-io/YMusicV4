@@ -71,8 +71,8 @@ internal actual fun Modifier.keepBelowStatusBar(): Modifier =
     windowInsetsPadding(WindowInsets.statusBars.union(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)))
 
 @Composable
-internal actual fun Modifier.keepAboveNavigationBar(): Modifier =
-    windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
+internal actual fun Modifier.fullscreenSidePadding(): Modifier =
+    windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))
 
 @Composable
 internal actual fun Modifier.drawerEdgeGestureExclusion(enabled: Boolean): Modifier = this

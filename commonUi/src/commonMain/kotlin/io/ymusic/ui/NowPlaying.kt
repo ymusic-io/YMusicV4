@@ -1070,8 +1070,8 @@ private fun BoxScope.FullscreenVideoControls(
         Modifier.align(Alignment.BottomCenter)
             .fillMaxWidth()
             .onSizeChanged { onStripHeight(with(density) { it.height.toDp() }) }
-            .keepAboveNavigationBar()
-            .padding(start = DesignSpacing.Space8 * scale, end = DesignSpacing.Space8 * scale, bottom = DesignSpacing.Space8 * scale),
+            .fullscreenSidePadding()
+            .padding(start = DesignSpacing.Space8 * scale, end = DesignSpacing.Space8 * scale, bottom = DesignSpacing.Space8),
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             OverlayTimeLabel(player, progress, scrubMs, Modifier.weight(1f).padding(start = DesignSpacing.Space8 * scale))

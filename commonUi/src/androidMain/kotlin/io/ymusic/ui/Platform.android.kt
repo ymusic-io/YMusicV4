@@ -10,11 +10,9 @@ import android.os.Build
 import android.view.accessibility.AccessibilityManager
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.mandatorySystemGestures
 import androidx.compose.foundation.layout.navigationBarsIgnoringVisibility
-import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
 import androidx.compose.foundation.layout.systemGestures
@@ -175,13 +173,7 @@ internal actual fun Modifier.keepBelowStatusBar(): Modifier =
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal actual fun Modifier.keepAboveNavigationBar(): Modifier =
-    windowInsetsPadding(
-        WindowInsets.navigationBarsIgnoringVisibility
-            .union(WindowInsets.mandatorySystemGestures)
-            .union(WindowInsets.displayCutout)
-            .only(WindowInsetsSides.Bottom),
-    ).padding(horizontal = fullscreenSideInset())
+internal actual fun Modifier.fullscreenSidePadding(): Modifier = padding(horizontal = fullscreenSideInset())
 
 /** The wider of the two side insets, for both sides: a cutout or side nav bar on one edge keeps the chrome symmetric. */
 @OptIn(ExperimentalLayoutApi::class)
