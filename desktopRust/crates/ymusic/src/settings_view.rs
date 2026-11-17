@@ -21,6 +21,7 @@ use crate::caption_style::{CaptionLook, CaptionStyleDialog};
 use crate::downloads::download_folder;
 use crate::feedback_view::link;
 use crate::graph::{AppGraph, on_core};
+use crate::playback::STABLE_VOLUME_KEY;
 use crate::settings_lists::{Licenses, RegionPicker};
 use crate::spinner::BusyButton;
 use crate::sponsor_block::SPONSOR_BLOCK_KEY;
@@ -247,6 +248,12 @@ fn linux_ui_font(cx: &App) -> Option<SharedString> {
 
 /// Writes a setting off the UI thread, then redraws every window so its readers see it.
 pub fn save_setting(key: &'static str, value: String, cx: &mut App) {
+    save_setting_then(key, value, cx, |_| {});
+}
+
+/// [`save_setting`], then `saved` once the store holds the value (readers that pull it, like the
+/// player bundle, see the new one).
+fn save_setting_then(key: &'static str, value: String, cx: &mut App, saved: impl FnOnce(&mut App) + 'static) {
     if key == crate::telemetry::CRASH_REPORTS_KEY {
         crate::telemetry::crash_reports_changed(&value);
     }
@@ -263,6 +270,7 @@ pub fn save_setting(key: &'static str, value: String, cx: &mut App) {
             if key == SPONSOR_BLOCK_KEY {
                 crate::sponsor_block::setting_changed(cx);
             }
+            saved(cx);
             cx.refresh_windows();
         });
     })
@@ -506,7 +514,14 @@ impl SettingsView {
     }
 
     fn put(&self, key: &'static str, value: String, cx: &mut Context<Self>) {
-        save_setting(key, value, cx);
+        if key == STABLE_VOLUME_KEY {
+            let (playback, enabled) = (self.playback.clone(), value != "false");
+            save_setting_then(key, value, cx, move |cx| {
+                playback.update(cx, |playback, cx| playback.set_stable_volume(enabled, cx));
+            });
+        } else {
+            save_setting(key, value, cx);
+        }
         cx.notify();
     }
 
@@ -855,6 +870,7 @@ impl Render for SettingsView {
             self.wide(self.focus.row_button(next(), equalizer_row, cx)),
             self.wide(self.focus.row_button(next(), caption_row, cx)),
             self.toggle(next(), SPONSOR_BLOCK_KEY, t(Str::SettingsSponsorBlock), t(Str::SettingsSponsorBlockHint), cx),
+            self.toggle(next(), STABLE_VOLUME_KEY, t(Str::SettingsStableVolume), t(Str::SettingsStableVolumeHint), cx),
         ];
         if let Some(saved) = cache_saved {
             let summary = if cache_max_mb > 0 {
