@@ -84,8 +84,7 @@ gpui_kit::assets::icon_assets!(
         Shrink,
         SlidersVertical,
         MicVocal,
-        ListChecks,
-        ListX
+        ListChecks
     ]
 );
 

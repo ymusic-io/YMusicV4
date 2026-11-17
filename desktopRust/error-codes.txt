@@ -142,6 +142,7 @@ R90034 D downloads: the download list could not be read from downloads.db; the s
 R90035 D Linux dock menu: the quicklist could not be served on the session bus (logged; the dock shows only its own entries)
 R90036 D Linux dock menu: a quicklist update could not be published (LayoutUpdated or the LauncherEntry Update signal; logged)
 R90040 D Linux file dialog: the Tokio task driving the portal dialog failed (logged; treated as canceled)
+R90041 - downloads: Remove from disk on the selection bar could not delete a selected file or its Library row; the dialog keeps it and shows the code (the JVM E70082, captured)
 R90200 D data dir: a database this app's earlier builds named differently could not take the JVM app's name (logged; retried next launch)
 R90201 D data dir: the window bounds kept in app.db could not move to window.properties (logged)
 R90202 D data dir: the old window.bounds setting could not be removed from app.db (logged)
