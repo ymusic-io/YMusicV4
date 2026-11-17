@@ -21,7 +21,7 @@ pub const IMAGE_TIMEOUT: Duration = Duration::from_secs(15);
 /// video's run takes 1.7 GB. Same argv as kmpFfmpeg's `extractThumbnail`.
 const THUMBNAIL_INPUT_OPTIONS: [&str; 4] = ["-threads", "1", "-skip_frame", "nokey"];
 const THUMBNAIL_FILTER: &str =
-    "scale=w=640:h=640:force_original_aspect_ratio=decrease:force_divisible_by=2:flags=fast_bilinear,thumbnail";
+    "scale=w='min(1280,iw)':h='min(1280,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2:flags=fast_bilinear,thumbnail";
 
 /// A failed ffmpeg run, with its site code.
 #[derive(Debug, thiserror::Error)]
