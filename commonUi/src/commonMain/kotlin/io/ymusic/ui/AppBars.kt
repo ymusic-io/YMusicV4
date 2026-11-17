@@ -35,6 +35,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -365,10 +366,15 @@ internal fun TabLabel(text: String, active: Boolean) {
  *  the glyphs keep the mockups' 16dp margins; vertical paddings are the mockup values unshaved
  *  (5/7dp, top +1 standing in for the under-status-bar margin) because the title and the search
  *  pill carry no inset — shaving the bottom made non-icon content sit visibly low in the bar. */
+
+/** [ActionIcon]'s default hit box: the height of an app bar row's content. */
+private val AppBarIconHitSize = 40.dp
+
 @Composable
 internal fun AppBarRow(content: @Composable RowScope.() -> Unit) {
     Row(
-        Modifier.fillMaxWidth().padding(start = 8.dp, end = 8.dp, top = 6.dp, bottom = 7.dp),
+        // A bar without icon buttons (Settings, Downloads in rail mode) keeps their height.
+        Modifier.fillMaxWidth().padding(start = 8.dp, end = 8.dp, top = 6.dp, bottom = 7.dp).heightIn(min = AppBarIconHitSize),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
         content = content,
