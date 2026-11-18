@@ -30,6 +30,7 @@ import io.ymusic.player.VideoSize
 import io.ymusic.player.WatchNextSeen
 import io.ymusic.player.YtEngine
 import io.ymusic.player.requireMainThread
+import io.ymusic.player.softenedLoudnessGain
 import io.ymusic.quickjs.QuickJsRuntime
 import io.ymusic.settings.SettingsStore
 import io.ymusic.ytmedia.proxy.LocalMediaProxy
@@ -166,11 +167,11 @@ class MsePlayer internal constructor(
     /** Latest config from the caller. */
     private var config = PlaybackConfig()
 
-    /** base.js's loudness gain for the presenting format; scales [config]'s volume at the host under [PlaybackConfig.stableVolume]. */
+    /** base.js's loudness gain for the presenting format; scales [config]'s volume at the host, softened, under [PlaybackConfig.stableVolume]. */
     private var loudnessGain = 1f
 
     private fun hostVolume(config: PlaybackConfig): Float =
-        config.volume.coerceIn(0f, 1f) * (if (config.stableVolume) loudnessGain else 1f)
+        config.volume.coerceIn(0f, 1f) * (if (config.stableVolume) softenedLoudnessGain(loudnessGain) else 1f)
 
     private var loadingVideoId: String? = null
     private var loadedVideoId: String? = null
