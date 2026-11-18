@@ -108,6 +108,9 @@ object AppSettings {
     /** The main section (Discover / Library / YtMusic) the app reopens on: an AppSection key, blank = none yet. */
     val lastSection = StringSetting("nav.lastSection", "")
 
+    /** The rail's state as the user last toggled it, `true` = expanded; blank = never toggled, the window width decides. */
+    val railExpanded = StringSetting("nav.railExpanded", "")
+
     /** The Discover tab the app reopens on: a DiscoverTab key, blank = none yet. */
     val lastDiscoverTab = StringSetting("discover.lastTab", "")
 
