@@ -47,12 +47,10 @@ import io.ymusic.player.Player
 import io.ymusic.player.PlayerError
 import io.ymusic.player.isPlaying
 import io.ymusic.player.media3.Media3PlayerAdapter
-import io.ymusic.settings.AppSettings
-import io.ymusic.settings.flow
 import io.ymusic.ui.AppGraph
 import io.ymusic.ui.FALLBACK_ART_URL
 import io.ymusic.ui.SearchFocus
-import io.ymusic.ui.accentColorOf
+import io.ymusic.ui.fallbackArtKey
 import io.ymusic.ui.playFromSearch
 import io.ymusic.ui.playerErrorMessage
 import io.ymusic.ui.playhistory.PlayAgainStore
@@ -192,7 +190,6 @@ class PlaybackService : MediaLibraryService() {
                 serviceScope,
                 artworkAuthority(this@PlaybackService),
                 sessionArtworkLimit(),
-                accent = { accentColorOf(graph.settings.flow(AppSettings.themeAccent).value) },
                 logger = log,
             )
         }
@@ -987,7 +984,10 @@ private fun PlayableItem.toMediaMetadata(context: android.content.Context): Medi
         is PlayableItem.YtMedia -> youtubeThumbUrl(videoId)
         else -> displayThumbnailUrl
     }
-    builder.setArtworkUri(artworkContentUri(context, target ?: FALLBACK_ART_URL))
+    val artwork = artworkContentUri(context, target ?: FALLBACK_ART_URL).buildUpon()
+        .appendQueryParameter(FALLBACK_ART_KEY_PARAM, fallbackArtKey())
+        .build()
+    builder.setArtworkUri(artwork)
     return builder.build()
 }
 

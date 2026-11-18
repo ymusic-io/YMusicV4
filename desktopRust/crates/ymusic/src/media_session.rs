@@ -20,13 +20,12 @@ use std::time::Instant;
 
 use futures::StreamExt;
 use futures::channel::mpsc;
-use gpui_kit::component::ActiveTheme;
 use gpui_kit::*;
 use ym_common::log::Logger;
 use ym_image_loader::async_image::GlobalImageLoader;
 use ym_image_loader::{ImageRequest, ImageScale};
 
-use crate::fallback_art::fallback_art_file;
+use crate::fallback_art::{fallback_art_file, item_fallback_colors};
 use crate::graph::AppGraph;
 use crate::playback::Playback;
 use crate::youtube_thumbnails::youtube_thumb_url;
@@ -198,7 +197,7 @@ impl MediaSession {
         }
         let loader = cx.try_global::<GlobalImageLoader>().map(|global| global.0.clone());
         let (log, playback) = (self.log.clone(), playback.clone());
-        let (accent, executor) = (cx.theme().primary, cx.background_executor().clone());
+        let (colors, executor) = (item_fallback_colors(item), cx.background_executor().clone());
         self.local_artwork_task = Some(cx.spawn(async move |this, cx| {
             let loaded = match (url, loader) {
                 (Some(url), Some(loader)) => {
@@ -222,7 +221,7 @@ impl MediaSession {
                 None => {
                     let rendered = executor
                         .spawn(async move {
-                            fallback_art_file(accent, ARTWORK_PX, &std::env::temp_dir().join(FALLBACK_ART_DIR))
+                            fallback_art_file(colors, ARTWORK_PX, &std::env::temp_dir().join(FALLBACK_ART_DIR))
                         })
                         .await;
                     match rendered {
