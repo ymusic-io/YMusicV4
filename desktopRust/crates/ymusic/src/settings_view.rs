@@ -373,7 +373,8 @@ fn save_setting_then(key: &'static str, value: String, cx: &mut App, saved: impl
     }
     let graph = cx.global::<AppGraph>();
     let (settings, log) = (graph.settings.clone(), graph.log.fork("settings"));
-    let write = graph.tokio.spawn_blocking(move || settings.put_raw(key, value));
+    settings.stage_raw(key, value);
+    let write = graph.tokio.spawn_blocking(move || settings.commit(key));
     cx.spawn(async move |cx| {
         match write.await {
             Ok(Ok(())) => {}
@@ -657,7 +658,8 @@ impl SettingsView {
         // Saved before the notify: the engine re-reads the language from settings.
         let graph = cx.global::<AppGraph>();
         let (settings, log) = (graph.settings.clone(), graph.log.fork("settings"));
-        let write = graph.tokio.spawn_blocking(move || settings.put_raw(LANGUAGE_KEY, tag));
+        settings.stage_raw(LANGUAGE_KEY, tag);
+        let write = graph.tokio.spawn_blocking(move || settings.commit(LANGUAGE_KEY));
         let handle = window.window_handle();
         cx.spawn(async move |this, cx| {
             match write.await {

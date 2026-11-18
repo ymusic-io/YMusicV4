@@ -44,7 +44,8 @@ pub(crate) fn install(runtime: &QuickJsRuntime, store: Arc<dyn SettingsStore>, p
             serve(pipe, parked, "settings/set", SETTINGS, &["key"], async |request: &Request<'_>| {
                 let key = request.string("key")?;
                 let value = typed(request, "value")?;
-                tokio::task::spawn_blocking(move || store.put(&key, value)).await?.map_err(ServeError::Failure)
+                store.stage_raw(&key, value.to_raw());
+                tokio::task::spawn_blocking(move || store.commit(&key)).await?.map_err(ServeError::Failure)
             })
             .await
         }

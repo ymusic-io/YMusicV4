@@ -99,9 +99,21 @@ impl AppDb {
 
     /// Blocking.
     pub fn delete_setting(&self, key: &str) -> rusqlite::Result<()> {
-        self.db.lock().unwrap().execute("DELETE FROM setting WHERE key = ?1", params![key])?;
         self.settings.lock().unwrap().remove(key);
-        Ok(())
+        self.write_current(key)
+    }
+
+    /// Stores `key`'s cached value, or deletes its row once it has none, under the database lock.
+    fn write_current(&self, key: &str) -> rusqlite::Result<()> {
+        let db = self.db.lock().unwrap();
+        let current = self.settings.lock().unwrap().get(key).cloned();
+        match current {
+            Some(value) => {
+                db.execute("INSERT OR REPLACE INTO setting(key, value) VALUES (?1, ?2)", params![key, value])
+            }
+            None => db.execute("DELETE FROM setting WHERE key = ?1", params![key]),
+        }
+        .map(drop)
     }
 
     /// Blocking.
@@ -116,13 +128,12 @@ impl SettingsStore for AppDb {
         Ok(self.settings.lock().unwrap().get(key).cloned())
     }
 
-    fn put_raw(&self, key: &str, value: String) -> Result<(), SettingsError> {
-        self.db
-            .lock()
-            .unwrap()
-            .execute("INSERT OR REPLACE INTO setting(key, value) VALUES (?1, ?2)", params![key, value])?;
+    fn stage_raw(&self, key: &str, value: String) {
         self.settings.lock().unwrap().insert(key.to_owned(), value);
-        Ok(())
+    }
+
+    fn commit(&self, key: &str) -> Result<(), SettingsError> {
+        Ok(self.write_current(key)?)
     }
 }
 

@@ -34,10 +34,22 @@ pub fn kotlin_float(value: f32) -> String {
     if text.contains(['.', 'e', 'N', 'i']) { text } else { format!("{text}.0") }
 }
 
-/// Reads answer from memory; writes may block on disk, so call `put` off the UI and engine threads.
+/// Reads answer from memory; writes may block on disk, so call `put` and `commit` off the UI and
+/// engine threads.
 pub trait SettingsStore: Send + Sync {
     fn get_raw(&self, key: &str) -> Result<Option<String>, SettingsError>;
-    fn put_raw(&self, key: &str, value: String) -> Result<(), SettingsError>;
+
+    /// Sets what readers see now, without touching disk; `commit(key)` stores it.
+    fn stage_raw(&self, key: &str, value: String);
+
+    /// Stores `key`'s value as it is when the write runs, one write at a time: a key staged twice
+    /// and committed in either order ends on disk with the value staged last. Blocking.
+    fn commit(&self, key: &str) -> Result<(), SettingsError>;
+
+    fn put_raw(&self, key: &str, value: String) -> Result<(), SettingsError> {
+        self.stage_raw(key, value);
+        self.commit(key)
+    }
 
     fn put(&self, key: &str, value: SettingValue) -> Result<(), SettingsError> {
         self.put_raw(key, value.to_raw())
@@ -67,8 +79,11 @@ impl SettingsStore for MemorySettings {
         Ok(self.values.lock().unwrap().get(key).cloned())
     }
 
-    fn put_raw(&self, key: &str, value: String) -> Result<(), SettingsError> {
+    fn stage_raw(&self, key: &str, value: String) {
         self.values.lock().unwrap().insert(key.to_owned(), value);
+    }
+
+    fn commit(&self, _key: &str) -> Result<(), SettingsError> {
         Ok(())
     }
 }

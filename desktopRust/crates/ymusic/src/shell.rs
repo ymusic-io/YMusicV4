@@ -2542,12 +2542,14 @@ fn page<V: Render>(view: Entity<V>, window: &Window) -> AnyElement {
     crate::a11y::cached_view(view, style, window)
 }
 
-/// Writes a setting off the UI thread; a failed write is logged, the UI state stands.
+/// Writes a setting off the UI thread, the last call's value winning; a failed write is logged, the
+/// UI state stands.
 pub(crate) fn persist_setting(cx: &App, key: &'static str, value: String) {
     let graph = cx.global::<AppGraph>();
     let (settings, log) = (graph.settings.clone(), graph.log.clone());
+    settings.stage_raw(key, value);
     graph.tokio.spawn_blocking(move || {
-        if let Err(error) = settings.put_raw(key, value) {
+        if let Err(error) = settings.commit(key) {
             log.warn(&format!("R90006 setting {key} not saved"), Some(error.as_ref()));
         }
     });

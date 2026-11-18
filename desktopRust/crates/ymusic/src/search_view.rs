@@ -172,8 +172,9 @@ impl SearchView {
         cx.notify();
         let graph = cx.global::<AppGraph>();
         let (settings, log) = (graph.settings.clone(), graph.log.fork("search"));
+        settings.stage_raw(HISTORY_KEY, raw);
         graph.tokio.spawn_blocking(move || {
-            if let Err(error) = settings.put_raw(HISTORY_KEY, raw) {
+            if let Err(error) = settings.commit(HISTORY_KEY) {
                 log.warn(&format!("search history could not be saved: {error}"), None);
             }
         });
