@@ -483,6 +483,7 @@ fun main(args: Array<String>) {
         }
         LaunchedEffect(windowVisible, windowState.isMinimized) {
             videoUnderlay.shown = windowVisible && !windowState.isMinimized
+            QuickJsRuntime.timersInBackground = !windowVisible || windowState.isMinimized
         }
         // Out of sight, video plays as audio only; the quality comes back with the window.
         LaunchedEffect(graph, windowVisible, windowState.isMinimized) {

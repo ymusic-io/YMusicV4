@@ -158,6 +158,12 @@ impl WeakRuntime {
 }
 
 impl QuickJsRuntime {
+    /// True while no window shows the app: every runtime's `setInterval` then ticks at most once a
+    /// second, all on one shared grid, as Chrome runs a hidden page's.
+    pub fn set_timers_in_background(background: bool) {
+        crate::timers::set_in_background(background);
+    }
+
     /// Starts the engine thread and creates a bare engine (no script yet). Register handlers with
     /// [`Self::on_accept`], then boot the bundle with [`Self::eval_engine`]: the bundle's
     /// top-level code may already open host commands.

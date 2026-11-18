@@ -51,6 +51,7 @@ import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
 import io.ymusic.player.PlayableItem
 import io.ymusic.player.VideoSize
+import io.ymusic.quickjs.QuickJsRuntime
 import io.ymusic.settings.AppSettings
 import io.ymusic.settings.flow
 import io.ymusic.ui.AndroidInputMode
@@ -703,8 +704,14 @@ class MainActivity : FragmentActivity() {
         }
     }
 
+    override fun onStart() {
+        super.onStart()
+        QuickJsRuntime.timersInBackground = false
+    }
+
     override fun onStop() {
         super.onStop()
+        QuickJsRuntime.timersInBackground = true
         val g = appGraph ?: return
         val inPip = Build.VERSION.SDK_INT >= 26 && isInPictureInPictureMode
         if (inPip) return

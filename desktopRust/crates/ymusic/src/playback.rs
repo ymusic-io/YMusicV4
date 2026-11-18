@@ -1595,6 +1595,7 @@ impl Playback {
 
     /// Out of sight, video plays as audio only; it comes back with the window.
     pub fn set_window_hidden(&mut self, hidden: bool, cx: &mut Context<Self>) {
+        ym_quickjs::QuickJsRuntime::set_timers_in_background(hidden);
         if hidden && self.video {
             self.set_video(false, cx);
             self.demoted = true;

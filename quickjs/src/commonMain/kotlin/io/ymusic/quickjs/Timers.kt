@@ -7,6 +7,7 @@ import kotlinx.coroutines.selects.onTimeout
 import kotlinx.coroutines.selects.select
 import okio.Buffer
 import okio.EOFException
+import kotlin.time.TimeSource
 
 /**
  * `setTimeout` / `setInterval` (+ their `clear*`), **scheduled on the host**. QuickJS core ships no
@@ -32,6 +33,17 @@ private const val TICK = 1
  *  delay coerces to 0 upstream — from hot-looping the single engine thread with back-to-back ticks. */
 private const val MIN_INTERVAL_MS = 4L
 
+private const val BACKGROUND_INTERVAL_MS = 1_000L
+
+private val gridOrigin = TimeSource.Monotonic.markNow()
+
+/** In the background an interval under a second waits for the next line of a shared 1 s grid, so
+ *  every runtime's intervals fire together in one wake-up a second. */
+private fun intervalWait(ms: Long): Long {
+    if (!QuickJsRuntime.timersInBackground || ms >= BACKGROUND_INTERVAL_MS) return ms
+    return BACKGROUND_INTERVAL_MS - gridOrigin.elapsedNow().inWholeMilliseconds % BACKGROUND_INTERVAL_MS
+}
+
 /**
  * Read the delay, then fire after it — racing each wait against the pipe's close so a cleared timer
  * stops promptly and its `delay` is cancelled (no coroutine left sleeping). `setInterval` loops;
@@ -46,7 +58,7 @@ private suspend fun runTimer(pipe: Pipe, repeat: Boolean) {
             do {
                 val stopped = select {
                     cleared.onAwait { true }   // cleared before the next tick → stop
-                    onTimeout(ms) { false }    // elapsed → fire
+                    onTimeout(if (repeat) intervalWait(ms) else ms) { false } // elapsed → fire
                 }
                 if (stopped) break
                 pipe.sink.send(Buffer().writeByte(TICK), 1L)

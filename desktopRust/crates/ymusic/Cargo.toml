@@ -9,6 +9,7 @@ publish.workspace = true
 gpui-kit.workspace = true
 ym-common = { path = "../ym-common" }
 ym-engine = { path = "../ym-engine" }
+ym-quickjs = { path = "../ym-quickjs" }
 ym-i18n = { path = "../ym-i18n" }
 ym-settings = { path = "../ym-settings" }
 ym-mse = { path = "../ym-mse" }
