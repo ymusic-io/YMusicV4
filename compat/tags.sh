@@ -1,12 +1,15 @@
 #!/bin/bash
 # Shipped tags whose host today's bundles must still run on: release-v* / hotfix-v* at or above
-# compat/floor.txt. --json prints a JSON array (the CI matrix). COMPAT_SPREAD=N (N >= 2) keeps N of
-# them spread evenly by index: always the floor and the newest, deduplicated; all of them when there
-# are N or fewer.
+# compat/floor.txt, minus the tag a CI run is building (GITHUB_REF_TYPE=tag), which has not shipped.
+# --json prints a JSON array (the CI matrix). COMPAT_SPREAD=N (N >= 2) keeps N of them spread evenly
+# by index: always the floor and the newest, deduplicated; all of them when there are N or fewer.
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 floor=$(tr -d '[:space:]' < "$here/floor.txt")
+building=""
+[ "${GITHUB_REF_TYPE:-}" = tag ] && building=$GITHUB_REF_NAME
 tags=$(git -C "$here" tag --list 'release-v*' 'hotfix-v*' | while read -r tag; do
+    [ "$tag" = "$building" ] && continue
     version=${tag#*-v}
     lowest=$(printf '%s\n%s\n' "$floor" "$version" | sort -V | head -n1)
     [ "$lowest" = "$floor" ] && printf '%s %s\n' "$version" "$tag"

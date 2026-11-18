@@ -5,7 +5,8 @@ yesterday's host (its Kotlin decoders, QuickJS/`:mse` natives, host protocols). 
 **the host built at each shipped tag + the bundle built from today's tree.**
 
 - `floor.txt` — the oldest shipped version still checked. Raise it with the support floor.
-- `tags.sh` — `release-v*` / `hotfix-v*` tags at or above the floor (`--json` = the CI matrix).
+- `tags.sh` — `release-v*` / `hotfix-v*` tags at or above the floor (`--json` = the CI matrix), except, on a
+  CI run building a tag, that tag: it has not shipped, so the newest host checked is the release before it.
   `COMPAT_SPREAD=N` keeps N of them spread evenly by index: always the floor and the newest, deduplicated
   (all of them when there are N or fewer).
 - `BundleCompatTest.kt` — lives only here. `overlay.sh` copies it, along with today's `YtFixtures.kt`

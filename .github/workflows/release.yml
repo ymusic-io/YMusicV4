@@ -1179,7 +1179,7 @@ jobs:
 
   # Today's engine.js / player.js (the engine-js job's) on the host of shipped tags from
   # compat/floor.txt on, one concurrent job per tag (compat/README.md): five of them spread evenly by
-  # index, always the floor and the newest.
+  # index, always the floor and the newest shipped one (on a tag run, the release before it).
   compat-tags:
     runs-on: ubuntu-24.04
     outputs:
