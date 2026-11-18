@@ -57,6 +57,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -350,11 +351,7 @@ fun FeedGridCard(
                 if (isAvailableOffline(item)) AvailableOfflineMark(Modifier.align(Alignment.TopStart))
             }
         }
-        Row(
-            Modifier.fillMaxWidth().padding(top = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.Top,
-        ) {
+        Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.Top) {
             Column(Modifier.weight(1f).clearAndSetSemantics {}) {
                 Text(item.title, style = GridTitleStyle, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 val sub = listOfNotNull(item.subtitleLine1, item.subtitleLine2).joinToString(" · ")
@@ -362,8 +359,23 @@ fun FeedGridCard(
                     Text(sub, style = GridSubStyle, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 4.dp))
                 }
             }
-            if (actions.entries.isNotEmpty()) MoreMenu(actions, Modifier.padding(top = 1.dp), inFocusableItem = onClick != null)
+            if (actions.entries.isNotEmpty()) {
+                MoreMenu(
+                    actions,
+                    Modifier.overhangEnd(inset).padding(top = 5.dp),
+                    inFocusableItem = onClick != null,
+                    hitSize = GRID_MENU_HIT,
+                )
+            }
         }
+    }
+}
+
+/** Lays the element out [overhang] narrower than it measures, its end spilling past its slot. */
+private fun Modifier.overhangEnd(overhang: Dp): Modifier = layout { measurable, constraints ->
+    val placeable = measurable.measure(constraints.copy(minWidth = 0))
+    layout((placeable.width - overhang.roundToPx()).coerceAtLeast(0), placeable.height) {
+        placeable.placeRelative(0, 0)
     }
 }
 
@@ -511,7 +523,12 @@ private fun TagPill(label: String, accent: String?, modifier: Modifier, onClick:
  * neither key nor Tab, so there it stays focusable, entered from its item (see [itemList]).
  */
 @Composable
-internal fun MoreMenu(actions: ItemActions, modifier: Modifier = Modifier, inFocusableItem: Boolean = true) {
+internal fun MoreMenu(
+    actions: ItemActions,
+    modifier: Modifier = Modifier,
+    inFocusableItem: Boolean = true,
+    hitSize: Dp = 40.dp,
+) {
     var open by remember { mutableStateOf(false) }
     var openedByKey by remember { mutableStateOf(false) }
     val moreLabel = stringResource(Res.string.cd_more)
@@ -541,6 +558,7 @@ internal fun MoreMenu(actions: ItemActions, modifier: Modifier = Modifier, inFoc
             } else {
                 Modifier
             },
+            hitSize = hitSize,
             tint = DesignColors.IconDots,
             onClick = { open = true },
         )
@@ -641,6 +659,9 @@ val GRID_CARD_MIN_WIDTH = 270.dp
 
 /** The hover/ripple's breathing room inside a grid card; grid gaps subtract it (2× between cards). */
 val GRID_CARD_INSET = 8.dp
+
+/** A grid card ⋮'s hit circle; its end overhangs into the card inset to bring the glyph to the edge. */
+val GRID_MENU_HIT = 32.dp
 
 /** YouTube's watch-progress bar along the thumbnail's bottom edge; nothing when unwatched. */
 @Composable

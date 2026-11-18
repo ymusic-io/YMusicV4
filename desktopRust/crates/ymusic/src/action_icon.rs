@@ -5,7 +5,7 @@ use gpui_kit::component::{Icon, Sizable};
 use gpui_kit::*;
 
 /// The standard glyph, with 8 around it in the standard hit target.
-const ICON: f32 = 24.;
+pub const ICON: f32 = 24.;
 pub const HIT: f32 = 40.;
 
 /// `icon` flipped in a right-to-left UI, for a glyph that points along the reading direction (back,

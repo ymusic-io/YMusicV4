@@ -15,7 +15,7 @@ use ym_i18n::{Str, t, tf};
 use ym_image_loader::async_image::async_image_of;
 
 use crate::a11y::{DragRow, FocusList, LoadMoreFocus, alert, announced, announced_as, heading, list_item};
-use crate::action_icon::{HIT, action_icon, auto_mirrored, sized_action_icon};
+use crate::action_icon::{HIT, ICON, action_icon, auto_mirrored, sized_action_icon};
 use crate::assets::MaterialIcon;
 use crate::download_dialog::DownloadTarget;
 use crate::graph::{AppGraph, on_core};
@@ -1125,6 +1125,8 @@ const ACTION_SEARCH: usize = 9;
 const ACTION_RETRY_MORE: usize = 10;
 /// The page's Show more, after any chip.
 const CHIPS_SHOW_MORE: usize = 64;
+/// A grid card ⋮'s hit circle; its end overhangs into the card inset to bring the glyph to the edge.
+const GRID_MENU_HIT: f32 = 32.;
 const ROW_GAP: f32 = 16.;
 const FEED_ROW_ESTIMATE: f32 = 112.;
 const CAROUSEL_CELL: f32 = 80.;
@@ -1220,7 +1222,7 @@ impl FeedView {
         item.kind == "video" && self.offline.read(cx).contains(&item.id)
     }
 
-    fn more_menu(&self, item: &YtFeedItem, key: (&'static str, usize), cx: &mut Context<Self>) -> AnyElement {
+    fn more_menu(&self, item: &YtFeedItem, key: (&'static str, usize), hit: f32, cx: &mut Context<Self>) -> AnyElement {
         let view = cx.entity().downgrade();
         let target = item.clone();
         let top_tracks = matches!(self.source, FeedSource::TopTracks);
@@ -1229,8 +1231,8 @@ impl FeedView {
         let channel_id = (item.kind == "channel" && signed_in)
             .then(|| item.channel_id.clone().unwrap_or_else(|| item.id.clone()))
             .filter(|id| !id.is_empty());
-        let more =
-            action_icon(key, Icon::new(MaterialIcon::MoreVert).text_color(cx.theme().muted_foreground), t(Str::CdMore));
+        let glyph = Icon::new(MaterialIcon::MoreVert).text_color(cx.theme().muted_foreground);
+        let more = sized_action_icon(key, glyph, t(Str::CdMore), ICON, hit);
         self.focus
             .menu_button(key.1, more, cx)
             .dropdown_menu_with_anchor(Anchor::TopRight, move |mut menu, _, cx| {
@@ -1390,7 +1392,8 @@ impl FeedView {
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let theme = cx.theme().clone();
-        let more = self.more_menu(item, ("card-more", index), cx);
+        let hit = if item.kind == "channel" { HIT } else { GRID_MENU_HIT };
+        let more = self.more_menu(item, ("card-more", index), hit, cx);
         let card = self
             .clickable(("feed-card", index), position, item, queue, None, cx)
             .flex_1()
@@ -1460,7 +1463,6 @@ impl FeedView {
         .child(
             h_flex()
                 .pt_2()
-                .gap_2()
                 .items_start()
                 .child(
                     v_flex()
@@ -1472,7 +1474,10 @@ impl FeedView {
                             column.child(div().text_xs().text_color(theme.muted_foreground).truncate().child(line))
                         }),
                 )
-                .child(more),
+                .child({
+                    let menu = div().mt(px(5.)).child(more);
+                    if ym_i18n::is_rtl() { menu.ml(px(-bands.inset())) } else { menu.mr(px(-bands.inset())) }
+                }),
         )
         .into_any_element()
     }
@@ -1488,7 +1493,7 @@ impl FeedView {
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let theme = cx.theme().clone();
-        let more = self.more_menu(item, ("row-more", index), cx);
+        let more = self.more_menu(item, ("row-more", index), HIT, cx);
         let (width, height, round) = match item.kind.as_str() {
             "channel" => (74., 74., true),
             _ if bands.square => (92., 92., false),
