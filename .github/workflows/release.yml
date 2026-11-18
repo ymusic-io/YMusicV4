@@ -5,27 +5,32 @@ name: release
 # compat check as well as the builds.
 # A prerelease-v* tag is a test build: the same full set of artifacts in a draft prerelease, no
 # CHANGELOG section in its notes, and Sentry environment "beta".
-# A push to a ci/* branch runs every build and test with Sentry environment "beta" and makes no release.
+# A push to master or a ci/* branch runs every build and test with Sentry environment "beta" and
+# releases nothing: no secrets.enc, no signing or notarizing, no Sentry upload, no draft release. The
+# release job only collects and checksums the files there, which checks every artifact's name.
 on:
   push:
     tags: ['release-*', 'prerelease-*']
-    branches: ['ci/**']
+    branches: [master, 'ci/**']
 
 permissions:
   contents: read
 
+# A master run is never cancelled: a newer push queues behind it, so every master run saves its caches.
 concurrency:
   group: build-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
 
 env:
+  # Every step that signs, uploads, publishes or reads a release secret runs on a tag only.
+  IS_TAG: ${{ startsWith(github.ref, 'refs/tags/') }}
   # Read by every Gradle run as -PsentryEnvironment.
   ORG_GRADLE_PROJECT_sentryEnvironment: ${{ startsWith(github.ref, 'refs/tags/release-') && 'production' || 'beta' }}
   # The same for the Rust desktop app's cargo builds (desktopRust reads it at compile time).
   YMUSIC_SENTRY_ENVIRONMENT: ${{ startsWith(github.ref, 'refs/tags/release-') && 'production' || 'beta' }}
-  # The Rust desktop build fails without its release keys (update key, Sentry DSN, config service):
-  # a build without the update key could never update itself again.
-  YMUSIC_REQUIRE_SECRETS: '1'
+  # On a tag the Rust desktop build fails without its release keys (update key, Sentry DSN, config
+  # service): a build without the update key could never update itself again.
+  YMUSIC_REQUIRE_SECRETS: ${{ startsWith(github.ref, 'refs/tags/') && '1' || '0' }}
   # The ffmpeg-build commit the apps link against. Bumping it rebuilds every ffmpeg pack once;
   # otherwise each pack comes from the cache keyed on this ref.
   FFMPEG_BUILD_REPO: ymusic-io/ffmpeg-build
@@ -262,8 +267,9 @@ jobs:
     needs: ffmpeg-android
     runs-on: ubuntu-24.04
     env:
-      # Only whether secrets.enc can be opened: the passphrase itself goes to the Restore secrets step alone.
-      HAS_SECRETS: ${{ secrets.SECRETS_PASSPHRASE != '' }}
+      # Whether to open secrets.enc (a tag, and the repo has its passphrase); the passphrase itself goes to
+      # the Restore secrets step alone.
+      HAS_SECRETS: ${{ startsWith(github.ref, 'refs/tags/') && secrets.SECRETS_PASSPHRASE != '' }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -308,8 +314,8 @@ jobs:
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$NDK_VERSION" > /dev/null
           echo "ANDROID_NDK_ROOT=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
 
-      # secrets.enc → secrets.properties + signing/. Without SECRETS_PASSPHRASE the build runs on
-      # defaults: unsigned, no Sentry upload, no remote config.
+      # secrets.enc → secrets.properties + signing/. Off a tag, or without SECRETS_PASSPHRASE, the build
+      # runs on defaults: debug-signed, no Sentry upload, no remote config.
       - name: Restore secrets
         if: env.HAS_SECRETS == 'true'
         working-directory: YMusicV4
@@ -386,16 +392,18 @@ jobs:
   # development only). It builds against this checkout (YMUSIC_V4_DIR: C sources, strings, icons,
   # the version line) and ../ffmpeg-build, as on a developer machine.
   #
-  # The DMG: the shipped bundle (--release: the JVM app's bundle id, which its updater and Keychain
-  # item follow, the Developer ID from MACOS_CERT_P12, hardened runtime, notarized with secrets.enc's
-  # mac.notarization.*). Any of them missing fails the job.
+  # The DMG: on a tag the shipped bundle (--release: the JVM app's bundle id, which its updater and
+  # Keychain item follow, the Developer ID from MACOS_CERT_P12, hardened runtime, notarized with
+  # secrets.enc's mac.notarization.*); any of them missing fails the job. Off a tag, the same release
+  # build in an ad-hoc signed DMG under the dev bundle id (--dmg), which needs no secret.
   macos:
     name: macos ${{ matrix.slug }}
     needs: [engine-js, ffmpeg-macos]
     runs-on: ${{ matrix.runner }}
     env:
-      # Only whether secrets.enc can be opened: the passphrase itself goes to the Restore secrets step alone.
-      HAS_SECRETS: ${{ secrets.SECRETS_PASSPHRASE != '' }}
+      # Whether to open secrets.enc (a tag, and the repo has its passphrase); the passphrase itself goes to
+      # the Restore secrets step alone.
+      HAS_SECRETS: ${{ startsWith(github.ref, 'refs/tags/') && secrets.SECRETS_PASSPHRASE != '' }}
     strategy:
       fail-fast: false
       matrix:
@@ -430,7 +438,7 @@ jobs:
           restore-keys: cargo-${{ matrix.slug }}-
 
       # secrets.enc → secrets.properties + signing/; the Rust build reads its keys from
-      # secrets.properties and fails without them (YMUSIC_REQUIRE_SECRETS).
+      # secrets.properties and, on a tag, fails without them (YMUSIC_REQUIRE_SECRETS).
       - name: Restore secrets
         if: env.HAS_SECRETS == 'true'
         working-directory: YMusicV4
@@ -445,6 +453,7 @@ jobs:
       # The identity goes into a throwaway keychain, and its name becomes CODESIGN_IDENTITY for the
       # bundle script.
       - name: Import signing identity
+        if: env.IS_TAG == 'true'
         env:
           MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
           MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
@@ -508,6 +517,10 @@ jobs:
           set -euo pipefail
           export YMUSIC_V4_DIR="$GITHUB_WORKSPACE/YMusicV4"
           export FFMPEG_BUILD_DIR="$GITHUB_WORKSPACE/ffmpeg-build"
+          if [ "$IS_TAG" != true ]; then
+            tools/bundle-macos.sh --dmg --out "$GITHUB_WORKSPACE/dist"
+            exit 0
+          fi
           property() { sed -n "s/^$1=//p" "$YMUSIC_V4_DIR/secrets.properties" 2>/dev/null | head -n 1; }
           YMUSIC_MAC_APPLE_ID="$(property mac.notarization.appleId)" \
           YMUSIC_MAC_APPLE_PASSWORD="$(property mac.notarization.password)" \
@@ -539,8 +552,9 @@ jobs:
     needs: [engine-js, ffmpeg-windows]
     runs-on: ${{ matrix.runner }}
     env:
-      # Only whether secrets.enc can be opened: the passphrase itself goes to the Restore secrets step alone.
-      HAS_SECRETS: ${{ secrets.SECRETS_PASSPHRASE != '' }}
+      # Whether to open secrets.enc (a tag, and the repo has its passphrase); the passphrase itself goes to
+      # the Restore secrets step alone.
+      HAS_SECRETS: ${{ startsWith(github.ref, 'refs/tags/') && secrets.SECRETS_PASSPHRASE != '' }}
     strategy:
       fail-fast: false
       matrix:
@@ -780,8 +794,9 @@ jobs:
     runs-on: ${{ matrix.runner }}
     container: ubuntu:22.04
     env:
-      # Only whether secrets.enc can be opened: the passphrase itself goes to the Restore secrets step alone.
-      HAS_SECRETS: ${{ secrets.SECRETS_PASSPHRASE != '' }}
+      # Whether to open secrets.enc (a tag, and the repo has its passphrase); the passphrase itself goes to
+      # the Restore secrets step alone.
+      HAS_SECRETS: ${{ startsWith(github.ref, 'refs/tags/') && secrets.SECRETS_PASSPHRASE != '' }}
     strategy:
       fail-fast: false
       matrix:
@@ -995,14 +1010,15 @@ jobs:
           path: host/dynamic-engine/build/reports/tests/jvmTest
 
   # A DRAFT GitHub Release for the tag with every artifact attached: nothing is public until it is
-  # reviewed and published by hand.
+  # reviewed and published by hand. Off a tag it stops after collecting the files: a dry run of the
+  # asset names.
   release:
     needs: [android, macos, windows-setup, linux, test, compat]
-    if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-24.04
     env:
-      # Only whether secrets.enc can be opened: the passphrase itself goes to the Restore secrets step alone.
-      HAS_SECRETS: ${{ secrets.SECRETS_PASSPHRASE != '' }}
+      # Whether to open secrets.enc (a tag, and the repo has its passphrase); the passphrase itself goes to
+      # the Restore secrets step alone.
+      HAS_SECRETS: ${{ startsWith(github.ref, 'refs/tags/') && secrets.SECRETS_PASSPHRASE != '' }}
     permissions:
       contents: write
     steps:
@@ -1054,6 +1070,7 @@ jobs:
       # The Rust desktop app's macOS dSYMs and unstripped Linux binaries (its packaging scripts'
       # <out>/debug), so its panic frames symbolicate with file:line. Windows has none yet.
       - name: Upload the desktop debug files to Sentry
+        if: env.IS_TAG == 'true'
         env:
           SENTRY_ORG: na-6d
           SENTRY_PROJECT: ymusic-kmp
@@ -1070,6 +1087,7 @@ jobs:
             artifacts/macos-arm64-debug artifacts/macos-x86_64-debug artifacts/linux-x86_64-debug artifacts/linux-arm64-debug
 
       - name: Build the update config
+        if: env.IS_TAG == 'true'
         env:
           TAG: ${{ github.ref_name }}
         run: |
@@ -1108,7 +1126,8 @@ jobs:
         working-directory: YMusicV4
         run: rm -rf secrets.properties signing
 
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - if: env.IS_TAG == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: update-config
           path: release/update-config.json
@@ -1118,6 +1137,7 @@ jobs:
       # version's section of CHANGELOG.md (the tag's "## <version>", e.g. release-v4.0.5 → "## 4.0.5"),
       # then a Downloads table linking every platform's assets; a prerelease carries no CHANGELOG section.
       - name: Build the release notes
+        if: env.IS_TAG == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
@@ -1171,6 +1191,7 @@ jobs:
           cat "$notes" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Create the draft release
+        if: env.IS_TAG == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
