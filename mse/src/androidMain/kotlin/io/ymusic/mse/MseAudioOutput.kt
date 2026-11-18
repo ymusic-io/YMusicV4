@@ -187,16 +187,16 @@ internal class MseAudioOutput(private val host: Long) {
         report()
         when {
             n > 0 && !full -> handler.post(step)
-            full -> handler.postDelayed(step, fullWaitMs())
+            full || running -> handler.postDelayed(step, playingWaitMs())
             else -> handler.postDelayed(step, IDLE_MS)
         }
     }
 
-    /** A full track takes a third of its buffer before it has room again. */
-    private fun fullWaitMs(): Long {
+    /** A playing track lives off its buffer between steps: a step every third of it keeps it fed. */
+    private fun playingWaitMs(): Long {
         val bufferUs = sink.audioTrackBufferSizeUs
         if (bufferUs == C.TIME_UNSET) return IDLE_MS
-        return (bufferUs / 3_000).coerceIn(IDLE_MS, FULL_WAIT_MAX_MS)
+        return (bufferUs / 3_000).coerceIn(IDLE_MS, PLAYING_WAIT_MAX_MS)
     }
 
     private fun report() {
@@ -332,7 +332,7 @@ internal class MseAudioOutput(private val host: Long) {
         const val IDLE_MS = 10L
 
         /** Under the host clock's 50 ms run past the last report (DAC_EXTRAPOLATE_S): each step reports. */
-        const val FULL_WAIT_MAX_MS = 40L
+        const val PLAYING_WAIT_MAX_MS = 40L
         const val RETRY_MS = 100L
         const val PAUSED_WAIT_MS = 200
         const val START_STARVED_MS = 100L
