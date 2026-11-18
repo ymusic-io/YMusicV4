@@ -97,7 +97,7 @@ class ImageLoader(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Throwable) {
-            logger?.log(Logger.Level.WARN, "load failed: ${request.key}", e)
+            logger?.log(loadFailureLevel(e), "load failed: ${request.key}", e)
             null
         }
 
@@ -291,6 +291,10 @@ class ImageLoader(
 }
 
 private const val SCALED_CACHE_VERSION = 3
+
+/** A failure the fetcher already logged when it first happened repeats at DEBUG, not WARN. */
+internal fun loadFailureLevel(error: Throwable): Logger.Level =
+    if ((error as? ImageLoadException)?.reason == ImageLoadException.Reason.RecentlyFailed) Logger.Level.DEBUG else Logger.Level.WARN
 
 private val NOT_FOUND_TTL = 10.minutes
 

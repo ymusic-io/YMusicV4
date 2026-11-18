@@ -172,7 +172,7 @@ impl<B: Bitmap> ImageLoader<B> {
         match self.load(request, true).await {
             Ok(bitmap) => Some(bitmap),
             Err(error) => {
-                self.inner.log.warn(&format!("load failed: {}", request.key), Some(&error));
+                crate::request::log_load_failure(&self.inner.log, &request.key, &error);
                 None
             }
         }

@@ -82,6 +82,18 @@ pub enum Reason {
     Undecodable,
     /// No fetcher handles the url's scheme.
     Unsupported,
+    /// The source failed this way recently and is not retried yet; that first failure was logged.
+    RecentlyFailed,
+}
+
+/// The JVM `loadFailureLevel`: a failure the fetcher already logged when it first happened repeats at
+/// debug, not warn.
+pub(crate) fn log_load_failure(log: &ym_common::log::Logger, key: &str, error: &ImageLoadError) {
+    if error.reason == Reason::RecentlyFailed {
+        log.debug(|| format!("load failed: {key}: {error}"));
+    } else {
+        log.warn(&format!("load failed: {key}"), Some(error));
+    }
 }
 
 /// The JVM `ImageLoadException`: a failed load, classified so callers can tell a missing image from

@@ -18,7 +18,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.IntSize
-import kmpcommon.log.Logger
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 
@@ -129,7 +128,7 @@ fun AsyncImage(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Throwable) {
-                loader.logger?.log(Logger.Level.WARN, "load failed: $key", e)
+                loader.logger?.log(loadFailureLevel(e), "load failed: $key", e)
                 // A failed sharper re-decode keeps the bitmap already showing.
                 failed = loaded == null
             }
