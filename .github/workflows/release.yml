@@ -1187,9 +1187,10 @@ jobs:
           path: YMusicV4/**/build/reports/tests/
           if-no-files-found: ignore
 
-  # Today's engine.js / player.js on the host of every shipped tag from compat/floor.txt on, one
-  # concurrent job per tag (compat/README.md).
-  compat-bundles:
+  # Today's engine.js / player.js (the engine-js job's) on the host of shipped tags from
+  # compat/floor.txt on, one concurrent job per tag (compat/README.md): five of them spread evenly by
+  # index, always the floor and the newest.
+  compat-tags:
     runs-on: ubuntu-24.04
     outputs:
       tags: ${{ steps.tags.outputs.tags }}
@@ -1197,37 +1198,20 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0 # the tags
-      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
-        with:
-          distribution: temurin
-          java-version: 21
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: 22
-      # Gradle User Home (wrapper, dependencies, the build cache), saved by master only.
-      - uses: gradle/actions/setup-gradle@0b6dd653ba04f4f93bf581ec31e66cbd7dcb644d # v4
-        with:
-          cache-read-only: ${{ env.SAVE_CACHE != 'true' }}
-      - run: ./gradlew -Pproduction=true :engine-js:closureJs :engine-js:closurePlayerJs
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: bundles
-          path: |
-            engine-js/build/dist/engine.js
-            engine-js/build/dist/player.js
-          if-no-files-found: error
       - id: tags
+        env:
+          COMPAT_SPREAD: 5
         run: echo "tags=$(compat/tags.sh --json)" >> "$GITHUB_OUTPUT"
 
   compat:
-    needs: compat-bundles
-    if: needs.compat-bundles.outputs.tags != '[]'
+    needs: [engine-js, compat-tags]
+    if: needs.compat-tags.outputs.tags != '[]'
     name: compat ${{ matrix.tag }}
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
-        tag: ${{ fromJson(needs.compat-bundles.outputs.tags) }}
+        tag: ${{ fromJson(needs.compat-tags.outputs.tags) }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -1238,7 +1222,7 @@ jobs:
           path: host
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          name: bundles
+          name: engine-js
           path: bundles
       - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
         with:
@@ -1248,8 +1232,8 @@ jobs:
         with:
           node-version: 22
       # Restore-only on every ref: each shipped tag's host resolves its own dependency set, and an entry
-      # per tag would cost ~0.5 GB of the 10 GB cache budget each. It restores the newest Linux entry
-      # (master's android job), which holds most of what an old host needs.
+      # per tag would cost ~0.5 GB of the 10 GB cache budget each. It restores master's android job's
+      # entry (the only Linux one), which holds most of what an old host needs.
       - uses: gradle/actions/setup-gradle@0b6dd653ba04f4f93bf581ec31e66cbd7dcb644d # v4
         with:
           cache-read-only: true
