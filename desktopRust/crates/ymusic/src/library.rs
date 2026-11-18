@@ -1465,11 +1465,12 @@ impl LibraryView {
             })
     }
 
-    /// Once confirmed, drops the selected entries from the opened playlist (their files stay) and ends
-    /// the selection; Cancel keeps it.
+    /// Once confirmed, drops the selected entries from the opened playlist (their files stay); the
+    /// selection ends as their rows leave the list, so focus never returns to one of them. Cancel or a
+    /// failure keeps it.
     fn remove_selected_from_playlist(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let codes: Vec<String> = self.selected_songs().iter().map(MediaItem::playlist_code).collect();
-        let count = codes.len() as i64;
+        let ids: Vec<i64> = self.selected_songs().iter().map(|item| item.id).collect();
+        let count = ids.len() as i64;
         let view = cx.entity().downgrade();
         ConfirmDialog::new(
             ym_i18n::plural(ym_i18n::Plural::PlaylistRemoveSelectedTitle, count, &[&count]),
@@ -1478,21 +1479,22 @@ impl LibraryView {
         )
         .destructive()
         .open(window, cx, move |window, cx| {
-            let codes = codes.clone();
-            view.update(cx, |view, cx| {
-                view.clear_selection(cx);
-                view.remove_from_open_playlist(codes, window, cx);
-            })
-            .ok();
+            let ids = ids.clone();
+            view.update(cx, |view, cx| view.remove_from_open_playlist(&ids, window, cx)).ok();
         });
     }
 
-    fn remove_from_open_playlist(&mut self, codes: Vec<String>, window: &mut Window, cx: &mut Context<Self>) {
-        let Some(OpenPlaylist::User(playlist)) = &self.open_playlist else { return };
+    /// Drops the rows listing `item_ids` by the rows' own codes: a file's current code moves once a
+    /// rescan tags it with a video id.
+    fn remove_from_open_playlist(&mut self, item_ids: &[i64], window: &mut Window, cx: &mut Context<Self>) {
+        let Some((playlist, details)) = self.open_user_playlist() else { return };
         let id = playlist.id;
-        let request = library_playlist::store_call(cx, move |store| {
-            codes.iter().try_for_each(|code| store.remove_from_playlist(id, code))
-        });
+        let codes: Vec<String> = details
+            .iter()
+            .filter(|detail| item_ids.contains(&detail.item.id))
+            .map(|detail| detail.code.clone())
+            .collect();
+        let request = library_playlist::store_call(cx, move |store| store.remove_codes_from_playlist(id, &codes));
         cx.spawn_in(window, async move |this, cx| {
             let result = request.await;
             this.update_in(cx, |view, window, cx| match result {
@@ -1647,9 +1649,7 @@ impl SongMenuHost for LibraryView {
         match action {
             SongAction::GoTo(kind, name) => self.reveal_group(kind, name, cx),
             SongAction::ShowInFolder(bucket_id) => self.reveal_folder(bucket_id, cx),
-            SongAction::RemoveFromPlaylist(item) => {
-                self.remove_from_open_playlist(vec![item.playlist_code()], window, cx)
-            }
+            SongAction::RemoveFromPlaylist(item) => self.remove_from_open_playlist(&[item.id], window, cx),
             SongAction::RemoveFromHistory(item) => {
                 let (history, code) = (self.history.clone(), item.playlist_code());
                 let request =

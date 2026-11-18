@@ -110,7 +110,9 @@ interface BetterMediaStore {
     /** Append by raw [MediaStoreItem.playlistCode]s — a YouTube video id joins before its file exists and
      *  resolves (shows up) once a Library item carries that id. */
     suspend fun addCodesToPlaylist(playlistId: Long, codes: List<String>)
-    suspend fun removeFromPlaylist(playlistId: Long, code: String)
+
+    /** Drops the rows of [codes] in one transaction (one [playlistChanges] emission). */
+    suspend fun removeCodesFromPlaylist(playlistId: Long, codes: Collection<String>)
 
     /** Replace the playlist's order with [orderedCodes] (the codes already in it, in the new order). */
     suspend fun reorderPlaylist(playlistId: Long, orderedCodes: List<String>)
