@@ -687,4 +687,5 @@
         <item quantity="other">Törölsz %1$d fájlt?</item>
     </plurals>
     <string name="downloads_delete_selected_message">A törölt fájlok nem állíthatók vissza.</string>
+    <string name="data_dir_unusable">A YMusic nem tudja megnyitni az adatmappáját (%1$s). Győződj meg róla, hogy olyan mappa, amelybe írhatsz, majd nyisd meg újra a YMusicot. (%2$s)</string>
 </resources>

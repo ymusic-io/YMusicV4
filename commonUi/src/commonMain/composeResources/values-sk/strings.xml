@@ -711,4 +711,5 @@
         <item quantity="other">Odstrániť %1$d súborov?</item>
     </plurals>
     <string name="downloads_delete_selected_message">Odstránené súbory sa nedajú obnoviť.</string>
+    <string name="data_dir_unusable">YMusic nemôže otvoriť svoj priečinok s údajmi, %1$s. Uistite sa, že je to priečinok, do ktorého môžete zapisovať, a potom YMusic otvorte znova. (%2$s)</string>
 </resources>

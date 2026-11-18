@@ -687,4 +687,5 @@
         <item quantity="other">Да се изтрият ли %1$d файла?</item>
     </plurals>
     <string name="downloads_delete_selected_message">Изтритите файлове не могат да бъдат възстановени.</string>
+    <string name="data_dir_unusable">YMusic не може да отвори папката си с данни, %1$s. Уверете се, че е папка, в която можете да записвате, след което отворете YMusic отново. (%2$s)</string>
 </resources>

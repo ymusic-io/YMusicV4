@@ -699,4 +699,5 @@
         <item quantity="other">Supprimer %1$d fichiers ?</item>
     </plurals>
     <string name="downloads_delete_selected_message">Les fichiers supprimés ne peuvent pas être récupérés.</string>
+    <string name="data_dir_unusable">YMusic ne peut pas ouvrir son dossier de données, %1$s. Vérifiez qu'il s'agit d'un dossier dans lequel vous pouvez écrire, puis rouvrez YMusic. (%2$s)</string>
 </resources>

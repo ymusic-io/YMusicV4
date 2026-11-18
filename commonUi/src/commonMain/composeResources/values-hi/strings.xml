@@ -687,4 +687,5 @@
         <item quantity="other">%1$d फ़ाइलें मिटाएं?</item>
     </plurals>
     <string name="downloads_delete_selected_message">मिटाई गई फ़ाइलें वापस नहीं लाई जा सकतीं।</string>
+    <string name="data_dir_unusable">YMusic अपना डेटा फ़ोल्डर, %1$s, नहीं खोल पा रहा है। पक्का करें कि यह ऐसा फ़ोल्डर है जिसमें आप लिख सकते हैं, फिर YMusic को फिर से खोलें। (%2$s)</string>
 </resources>

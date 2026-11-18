@@ -687,4 +687,5 @@
         <item quantity="other">I-delete ang %1$d file?</item>
     </plurals>
     <string name="downloads_delete_selected_message">Hindi na maibabalik ang mga na-delete na file.</string>
+    <string name="data_dir_unusable">Hindi mabuksan ng YMusic ang data folder nito, %1$s. Tiyaking folder ito na kaya mong sulatan, pagkatapos ay buksan muli ang YMusic. (%2$s)</string>
 </resources>

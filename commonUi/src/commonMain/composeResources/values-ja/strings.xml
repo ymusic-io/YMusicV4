@@ -675,4 +675,5 @@
         <item quantity="other">%1$d 個のファイルを削除しますか？</item>
     </plurals>
     <string name="downloads_delete_selected_message">削除したファイルは元に戻せません。</string>
+    <string name="data_dir_unusable">YMusic はデータフォルダ（%1$s）を開けません。書き込み可能なフォルダであることを確認してから、YMusic をもう一度開いてください。(%2$s)</string>
 </resources>

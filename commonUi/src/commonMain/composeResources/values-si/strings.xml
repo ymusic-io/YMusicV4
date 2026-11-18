@@ -687,4 +687,5 @@
         <item quantity="other">ගොනු %1$dක් මකන්නද?</item>
     </plurals>
     <string name="downloads_delete_selected_message">මකා දැමූ ගොනු නැවත ලබා ගත නොහැක.</string>
+    <string name="data_dir_unusable">YMusic හට එහි දත්ත ෆෝල්ඩරය, %1$s, විවෘත කළ නොහැක. එය ඔබට ලිවිය හැකි ෆෝල්ඩරයක් බව තහවුරු කර, පසුව YMusic නැවත විවෘත කරන්න. (%2$s)</string>
 </resources>

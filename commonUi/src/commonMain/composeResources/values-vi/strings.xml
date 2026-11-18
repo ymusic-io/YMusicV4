@@ -796,4 +796,5 @@
         <item quantity="other">Xóa %1$d tệp?</item>
     </plurals>
     <string name="downloads_delete_selected_message">Không thể khôi phục tệp đã xóa.</string>
+    <string name="data_dir_unusable">YMusic không thể mở thư mục dữ liệu của ứng dụng, %1$s. Hãy đảm bảo đó là thư mục bạn có thể ghi vào, rồi mở lại YMusic. (%2$s)</string>
 </resources>

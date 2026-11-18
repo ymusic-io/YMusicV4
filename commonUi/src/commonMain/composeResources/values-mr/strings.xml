@@ -687,4 +687,5 @@
         <item quantity="other">%1$d फाइल हटवायच्या?</item>
     </plurals>
     <string name="downloads_delete_selected_message">हटवलेल्या फाइल परत मिळवता येत नाहीत.</string>
+    <string name="data_dir_unusable">YMusic त्याचे डेटा फोल्डर, %1$s, उघडू शकत नाही. हे असे फोल्डर आहे ज्यात तुम्ही लिहू शकता याची खात्री करा, नंतर YMusic पुन्हा उघडा. (%2$s)</string>
 </resources>

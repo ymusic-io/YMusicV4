@@ -699,4 +699,5 @@
         <item quantity="other">Избрисати %1$d датотека?</item>
     </plurals>
     <string name="downloads_delete_selected_message">Избрисане датотеке се не могу вратити.</string>
+    <string name="data_dir_unusable">YMusic не може да отвори своју фасциклу са подацима, %1$s. Проверите да ли је то фасцикла у коју можете да уписујете, па поново отворите YMusic. (%2$s)</string>
 </resources>

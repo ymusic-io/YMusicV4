@@ -687,4 +687,5 @@
         <item quantity="other">%1$dটি ফাইল মুছবেন?</item>
     </plurals>
     <string name="downloads_delete_selected_message">মুছে ফেলা ফাইল আর ফিরিয়ে আনা যাবে না।</string>
+    <string name="data_dir_unusable">YMusic তার ডেটা ফোল্ডার, %1$s, খুলতে পারছে না। নিশ্চিত করুন যে এটি এমন একটি ফোল্ডার যেখানে আপনি লিখতে পারেন, তারপর আবার YMusic খুলুন। (%2$s)</string>
 </resources>

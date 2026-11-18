@@ -675,4 +675,5 @@
         <item quantity="other">Hapus %1$d file?</item>
     </plurals>
     <string name="downloads_delete_selected_message">File yang dihapus tidak dapat dipulihkan.</string>
+    <string name="data_dir_unusable">YMusic tidak dapat membuka folder datanya, %1$s. Pastikan itu folder yang dapat Anda tulisi, lalu buka YMusic lagi. (%2$s)</string>
 </resources>

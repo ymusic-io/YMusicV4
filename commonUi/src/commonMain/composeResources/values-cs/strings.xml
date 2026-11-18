@@ -711,4 +711,5 @@
         <item quantity="other">Smazat %1$d souborů?</item>
     </plurals>
     <string name="downloads_delete_selected_message">Smazané soubory nelze obnovit.</string>
+    <string name="data_dir_unusable">YMusic nemůže otevřít svou složku s daty, %1$s. Ujistěte se, že je to složka, do které můžete zapisovat, a pak YMusic otevřete znovu. (%2$s)</string>
 </resources>

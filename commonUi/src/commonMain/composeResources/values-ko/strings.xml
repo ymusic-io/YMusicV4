@@ -675,4 +675,5 @@
         <item quantity="other">파일 %1$d개를 삭제할까요?</item>
     </plurals>
     <string name="downloads_delete_selected_message">삭제한 파일은 복구할 수 없습니다.</string>
+    <string name="data_dir_unusable">YMusic이 데이터 폴더(%1$s)를 열 수 없습니다. 쓰기 가능한 폴더인지 확인한 후 YMusic을 다시 여세요. (%2$s)</string>
 </resources>

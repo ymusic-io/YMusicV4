@@ -687,4 +687,5 @@
         <item quantity="other">Ջնջե՞լ %1$d ֆայլ</item>
     </plurals>
     <string name="downloads_delete_selected_message">Ջնջված ֆայլերը հնարավոր չէ վերականգնել։</string>
+    <string name="data_dir_unusable">YMusic-ը չի կարող բացել իր տվյալների պանակը՝ %1$s։ Համոզվեք, որ այն պանակ է, որտեղ կարող եք գրել, ապա նորից բացեք YMusic-ը։ (%2$s)</string>
 </resources>

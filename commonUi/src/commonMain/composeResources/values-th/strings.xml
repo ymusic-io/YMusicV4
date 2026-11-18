@@ -675,4 +675,5 @@
         <item quantity="other">ลบ %1$d ไฟล์ไหม</item>
     </plurals>
     <string name="downloads_delete_selected_message">ไฟล์ที่ลบแล้วจะกู้คืนไม่ได้</string>
+    <string name="data_dir_unusable">YMusic เปิดโฟลเดอร์ข้อมูลของแอป %1$s ไม่ได้ ตรวจสอบว่าเป็นโฟลเดอร์ที่คุณเขียนได้ แล้วเปิด YMusic อีกครั้ง (%2$s)</string>
 </resources>

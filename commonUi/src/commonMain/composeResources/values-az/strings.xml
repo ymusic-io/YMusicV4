@@ -687,4 +687,5 @@
         <item quantity="other">%1$d fayl silinsin?</item>
     </plurals>
     <string name="downloads_delete_selected_message">Silinmiş faylları bərpa etmək mümkün deyil.</string>
+    <string name="data_dir_unusable">YMusic məlumat qovluğunu (%1$s) aça bilmir. Bunun yaza biləcəyiniz qovluq olduğuna əmin olun, sonra YMusic-i yenidən açın. (%2$s)</string>
 </resources>

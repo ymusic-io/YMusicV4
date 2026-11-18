@@ -711,4 +711,5 @@
         <item quantity="other">Usunąć %1$d pliku?</item>
     </plurals>
     <string name="downloads_delete_selected_message">Usuniętych plików nie można odzyskać.</string>
+    <string name="data_dir_unusable">YMusic nie może otworzyć swojego folderu danych, %1$s. Upewnij się, że to folder, w którym możesz zapisywać, a następnie ponownie otwórz YMusic. (%2$s)</string>
 </resources>

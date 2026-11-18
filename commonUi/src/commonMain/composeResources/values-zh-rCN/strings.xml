@@ -675,4 +675,5 @@
         <item quantity="other">要删除 %1$d 个文件吗？</item>
     </plurals>
     <string name="downloads_delete_selected_message">已删除的文件无法恢复。</string>
+    <string name="data_dir_unusable">YMusic 无法打开其数据文件夹 %1$s。请确认这是你可以写入的文件夹，然后重新打开 YMusic。(%2$s)</string>
 </resources>

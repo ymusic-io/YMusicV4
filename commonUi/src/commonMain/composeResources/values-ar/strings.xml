@@ -867,4 +867,5 @@
         <item quantity="other">حذف %1$d ملف؟</item>
     </plurals>
     <string name="downloads_delete_selected_message">لا يمكن استعادة الملفات المحذوفة.</string>
+    <string name="data_dir_unusable">لا يمكن لـ YMusic فتح مجلد البيانات الخاص به، %1$s. تأكد من أنه مجلد يمكنك الكتابة فيه، ثم افتح YMusic مرة أخرى. (%2$s)</string>
 </resources>

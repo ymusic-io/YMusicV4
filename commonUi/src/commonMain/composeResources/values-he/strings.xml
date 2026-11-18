@@ -699,4 +699,5 @@
         <item quantity="other">למחוק %1$d קבצים?</item>
     </plurals>
     <string name="downloads_delete_selected_message">אי אפשר לשחזר קבצים שנמחקו.</string>
+    <string name="data_dir_unusable">YMusic לא יכולה לפתוח את תיקיית הנתונים שלה, %1$s. ודא שזו תיקייה שאפשר לכתוב בה, ואז פתח שוב את YMusic. (%2$s)</string>
 </resources>

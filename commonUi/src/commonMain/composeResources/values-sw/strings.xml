@@ -687,4 +687,5 @@
         <item quantity="other">Ungependa kufuta faili %1$d?</item>
     </plurals>
     <string name="downloads_delete_selected_message">Faili zilizofutwa haziwezi kurejeshwa.</string>
+    <string name="data_dir_unusable">YMusic haiwezi kufungua folda yake ya data, %1$s. Hakikisha ni folda unayoweza kuandika ndani yake, kisha ufungue YMusic tena. (%2$s)</string>
 </resources>

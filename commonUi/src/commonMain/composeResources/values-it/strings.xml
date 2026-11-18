@@ -699,4 +699,5 @@
         <item quantity="other">Eliminare %1$d file?</item>
     </plurals>
     <string name="downloads_delete_selected_message">I file eliminati non possono essere recuperati.</string>
+    <string name="data_dir_unusable">YMusic non riesce ad aprire la sua cartella dei dati, %1$s. Assicurati che sia una cartella in cui puoi scrivere, poi riapri YMusic. (%2$s)</string>
 </resources>
