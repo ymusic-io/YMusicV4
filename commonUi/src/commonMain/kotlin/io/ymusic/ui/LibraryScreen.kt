@@ -308,13 +308,13 @@ fun LibraryScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
                 songSelection.retain(sortedSongIds.toSet())
                 songSelection.forgetSelectAll()
             }
-            LaunchedEffect(tab) { if (tab != LibraryTab.Songs) songSelection.end() }
+            LaunchedEffect(tab) { if (tab != LibraryTab.Songs) songSelection.abandon() }
             val selectingSongs = tab == LibraryTab.Songs && songSelection.active
             val tabRowReplacement = tabRowSlot.replacement
             val holdingTab = selectingSongs || tabRowReplacement != null
             val selectTab: (LibraryTab) -> Unit = { if (!holdingTab) tab = it }
             val revealTab: (LibraryTab) -> Unit = {
-                songSelection.end()
+                songSelection.abandon()
                 tab = it
             }
             val currentSelectTab by rememberUpdatedState(selectTab)

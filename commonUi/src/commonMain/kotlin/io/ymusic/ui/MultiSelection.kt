@@ -96,6 +96,12 @@ internal class MultiSelection<K> {
 
     fun end() = set(emptySet())
 
+    /** Ends the mode because its list is going away (a tab switch, a reveal elsewhere): focus does not come back later. */
+    fun abandon() {
+        origin = null
+        end()
+    }
+
     fun allSelected(listed: Collection<K>): Boolean = listed.isNotEmpty() && selected.containsAll(listed)
 
     /** Adds every [listed] item, or, once all are, restores the selection from before (without one, deselects them). */
