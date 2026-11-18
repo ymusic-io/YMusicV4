@@ -196,6 +196,8 @@ fn menu_style(palette: &Palette, accent: Hsla) -> PopupMenuStyle {
         check_size: Some(px(24.)),
         check_color: Some(accent),
         check_visible: None,
+        // Compose's DropdownMenu opens at its top whatever is selected.
+        scroll_to_checked: Some(false),
         checked_color: None,
         checked_weight: None,
         submenu_icon_size: Some(px(18.)),
