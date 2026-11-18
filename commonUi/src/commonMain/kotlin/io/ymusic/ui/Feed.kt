@@ -1046,22 +1046,26 @@ internal fun rankMusicFirst(items: List<YtFeedItem>): List<YtFeedItem> {
 /** The three feed layout bands a surface width falls into. */
 internal enum class FeedLayout { SquareList, WideList, Grid }
 
-/** The ONE place the feed breakpoints live: square list under 320dp, 16:9 list to 469dp, then the
- *  grid ([gridColumnsFor] columns). */
+/** Where the grid starts: two [GRID_CARD_MIN_WIDTH] cards fit at the compact margin and gutter. */
+internal val FEED_GRID_MIN_WIDTH: androidx.compose.ui.unit.Dp =
+    GRID_CARD_MIN_WIDTH * 2 + DesignSpacing.Space8 + DesignSpacing.MarginCompact * 2
+
+/** The ONE place the feed breakpoints live: square list under 320dp, 16:9 list below
+ *  [FEED_GRID_MIN_WIDTH], then the grid ([gridColumnsFor] columns). */
 internal fun feedLayoutFor(width: androidx.compose.ui.unit.Dp): FeedLayout = when {
     width < 320.dp -> FeedLayout.SquareList
-    width < 470.dp -> FeedLayout.WideList
+    width < FEED_GRID_MIN_WIDTH -> FeedLayout.WideList
     else -> FeedLayout.Grid
 }
 
 /** Feed list rows under 380dp use [ListTitleCompactStyle]. */
 internal fun feedCompactTitleFor(width: androidx.compose.ui.unit.Dp): Boolean = width < 380.dp
 
-/** Max-item-width model: the FEWEST columns (≥2) keeping every card ≤ [GRID_CARD_MAX_WIDTH], with
- *  the gutter between columns counted. Cards shrink toward the next column, never past the max. */
+/** Min-item-width model: the MOST columns (≥2) keeping every card ≥ [GRID_CARD_MIN_WIDTH], with
+ *  the gutter between columns counted. Cards grow toward the next column, never below the min. */
 internal fun gridColumnsFor(width: androidx.compose.ui.unit.Dp): Int {
     val metrics = gridMetricsFor(width)
-    return kotlin.math.ceil((width - metrics.margin * 2 + metrics.gutter) / (GRID_CARD_MAX_WIDTH + metrics.gutter))
+    return kotlin.math.floor((width - metrics.margin * 2 + metrics.gutter) / (GRID_CARD_MIN_WIDTH + metrics.gutter))
         .toInt()
         .coerceAtLeast(2)
 }

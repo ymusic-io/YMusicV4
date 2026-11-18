@@ -1098,11 +1098,16 @@ struct Bands {
     columns: usize,
     margin: f32,
     gutter: f32,
-    /// List thumbnails: square below 320 wide, 16:9 below 470.
+    /// List thumbnails: square below 320 wide, 16:9 below [`GRID_MIN`].
     square: bool,
 }
 
-const CARD_MAX: f32 = 324.;
+/// The narrowest a grid card may render; the column count is however many of these fit.
+const CARD_MIN: f32 = 270.;
+const COMPACT_MARGIN: f32 = 16.;
+const COMPACT_GUTTER: f32 = 8.;
+/// Where the grid starts: two [`CARD_MIN`] cards fit at the compact margin and gutter.
+const GRID_MIN: f32 = 2. * CARD_MIN + COMPACT_GUTTER + 2. * COMPACT_MARGIN;
 /// The sort menu, after any chip.
 const CHIPS_SORT: usize = 63;
 /// The page header's buttons, the empty state's and the failed Show more's text and buttons, as
@@ -1126,11 +1131,11 @@ const CAROUSEL_CELL: f32 = 80.;
 
 impl Bands {
     fn for_width(width: f32) -> Self {
-        let (margin, gutter) = if width >= 840. { (24., 16.) } else { (16., 8.) };
-        let columns = if width < 470. {
+        let (margin, gutter) = if width >= 840. { (24., 16.) } else { (COMPACT_MARGIN, COMPACT_GUTTER) };
+        let columns = if width < GRID_MIN {
             1
         } else {
-            (((width - 2. * margin + gutter) / (CARD_MAX + gutter)).ceil() as usize).max(2)
+            (((width - 2. * margin + gutter) / (CARD_MIN + gutter)).floor() as usize).max(2)
         };
         Self { columns, margin, gutter, square: width < 320. }
     }

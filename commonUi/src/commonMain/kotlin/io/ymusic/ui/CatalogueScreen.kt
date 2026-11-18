@@ -67,10 +67,11 @@ fun CatalogueScreen(modifier: Modifier = Modifier) {
     BoxWithConstraints(modifier.fillMaxSize()) {
         val width = maxWidth
         val height = maxHeight
+        val gridFrom = FEED_GRID_MIN_WIDTH.value.toInt()
         val windowClass = when (feedLayoutFor(width)) {
             FeedLayout.SquareList -> "square list (<320)"
-            FeedLayout.WideList -> "16:9 list (320–469)"
-            FeedLayout.Grid -> "grid (≥470)"
+            FeedLayout.WideList -> "16:9 list (320–${gridFrom - 1})"
+            FeedLayout.Grid -> "grid (≥$gridFrom)"
         }
         Column(Modifier.fillMaxSize()) {
             Text(
