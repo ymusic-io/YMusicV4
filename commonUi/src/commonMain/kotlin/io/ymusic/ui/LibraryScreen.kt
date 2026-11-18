@@ -1668,9 +1668,11 @@ internal fun SongRow(
         Modifier.clickable(onClick = onPlay)
     } else {
         val shape = RoundedCornerShape(SongRowCorner)
+        // Inset so the fill and the focus ring sit inside the list's edges; [contentPadding] keeps the content in place.
         Modifier
+            .padding(start = DesignSpacing.Space8, end = DesignSpacing.Space4, top = DesignSpacing.Space2, bottom = DesignSpacing.Space2)
             .clip(shape)
-            .then(if (selected) Modifier.border(1.dp, DesignColors.Accent, shape) else Modifier)
+            .then(if (selected) Modifier.background(selectedItemFill()) else Modifier)
             .multiSelectGesture(
                 selecting = selecting,
                 selected = selected,
@@ -1682,12 +1684,17 @@ internal fun SongRow(
                 onClick = onPlay,
             )
     }
+    val contentPadding = if (selection == null) {
+        Modifier.padding(start = 16.dp, end = 4.dp, top = 8.dp, bottom = 8.dp)
+    } else {
+        Modifier.padding(start = DesignSpacing.Space8, top = SelectableSongRowVertical, bottom = SelectableSongRowVertical)
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .then(gesture)
             .a11yRowLabel(listOfNotNull(song.title, length, sub.ifEmpty { null }).joinToString(", "))
-            .padding(start = 16.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
+            .then(contentPadding),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalAlignment = Alignment.Top,
     ) {
@@ -1714,6 +1721,7 @@ internal fun SongRow(
 }
 
 private val SongRowCorner = 10.dp
+private val SelectableSongRowVertical = 6.dp // 8dp less the 2dp inset: the same row height as elsewhere
 
 /** A selection action waiting on its dialog, over the songs it was opened for. */
 private sealed interface SongSelectionDialog {

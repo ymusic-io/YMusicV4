@@ -30,6 +30,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.InputMode
@@ -193,8 +194,14 @@ internal fun Modifier.multiSelectGesture(
         )
         else -> Modifier.focusable().pointerInput(Unit) { detectTapGestures(onLongPress = { startWithHaptics() }) }
     }
-    return focusRequester(focusRequester).focusRing(shape).then(gesture)
+    return focusRequester(focusRequester).keyboardFocusRing(shape).then(gesture)
 }
+
+/** A selected item's fill: what a hovered item shows, the accent ripple at Material 3's hover state-layer opacity. */
+@Composable
+internal fun selectedItemFill(): Color = DesignColors.Accent.copy(alpha = HoverStateLayerAlpha)
+
+private const val HoverStateLayerAlpha = 0.08f
 
 /** The checkbox in an item's ⋮ slot while selecting; the item's own toggle acts and speaks for it. */
 @Composable

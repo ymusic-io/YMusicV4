@@ -51,6 +51,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.semantics.onLongClick
@@ -567,8 +568,8 @@ private fun DownloadCard(
     )
     Surface(
         shape = RoundedCornerShape(MediaCardCorner),
-        color = if (failed) c.dangerSoft else c.surface,
-        border = BorderStroke(1.dp, if (selected) c.accent else if (failed) c.danger.copy(alpha = 0.4f) else c.border),
+        color = (if (failed) c.dangerSoft else c.surface).let { base -> if (selected) selectedItemFill().compositeOver(base) else base },
+        border = BorderStroke(1.dp, if (failed) c.danger.copy(alpha = 0.4f) else c.border),
         modifier = modifier.fillMaxWidth(),
     ) {
         // wrapContentHeight drops the row's min height, so the reported height is the content's own; the gesture

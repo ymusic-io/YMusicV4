@@ -15,7 +15,11 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -133,6 +137,32 @@ internal fun Modifier.focusRing(shape: Shape): Modifier {
     var focused by remember { mutableStateOf(false) }
     return onFocusChanged { focused = it.isFocused }
         .then(if (focused) Modifier.border(FocusRingWidth, DesignColors.InkStrong, shape) else Modifier)
+}
+
+/**
+ * [focusRing] for an item a mouse click also focuses (desktop focuses on click): the ring shows for focus that
+ * the keyboard or a remote moved or acted on, not after a pointer press, until the next key.
+ */
+@Composable
+internal fun Modifier.keyboardFocusRing(shape: Shape): Modifier {
+    var focused by remember { mutableStateOf(false) }
+    var pressed by remember { mutableStateOf(false) }
+    return pointerInput(Unit) {
+        awaitPointerEventScope {
+            while (true) {
+                if (awaitPointerEvent(PointerEventPass.Initial).type == PointerEventType.Press) pressed = true
+            }
+        }
+    }
+        .onPreviewKeyEvent {
+            pressed = false
+            false
+        }
+        .onFocusChanged {
+            focused = it.isFocused
+            if (!it.isFocused) pressed = false
+        }
+        .then(if (focused && !pressed) Modifier.border(FocusRingWidth, DesignColors.InkStrong, shape) else Modifier)
 }
 
 private val FocusRingWidth = DesignSpacing.Space2 + DesignSpacing.Space2 / 2
