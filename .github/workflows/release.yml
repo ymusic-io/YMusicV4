@@ -88,11 +88,30 @@ jobs:
           submodules: recursive
           fetch-depth: 1
 
+      # The NDK from the cache the android job saves; sdkmanager, retried, when that misses.
+      - if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          # ANDROID_HOME of the ubuntu-24.04 image (a with: input cannot read the runner's env).
+          path: /usr/local/lib/android/sdk/ndk/${{ env.NDK_VERSION }}
+          key: ndk-${{ env.NDK_VERSION }}-${{ runner.os }}-${{ runner.arch }}
       - if: steps.cache.outputs.cache-hit != 'true'
         name: Install NDK
         run: |
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$NDK_VERSION" > /dev/null
-          echo "ANDROID_NDK_ROOT=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
+          ndk="$ANDROID_HOME/ndk/$NDK_VERSION"
+          [ "$ANDROID_HOME" = /usr/local/lib/android/sdk ] ||
+            echo "::warning::ANDROID_HOME is $ANDROID_HOME: the NDK cache path no longer matches it"
+          for attempt in 1 2 3; do
+            [ -f "$ndk/source.properties" ] && break
+            rm -rf "$ndk"
+            if [ "$attempt" -gt 1 ]; then
+              echo "::warning::sdkmanager could not install ndk;$NDK_VERSION, retrying in $((attempt * 30)) s"
+              sleep $((attempt * 30))
+            fi
+            yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$NDK_VERSION" > /dev/null || true
+          done
+          [ -f "$ndk/source.properties" ] || { echo "::error::sdkmanager could not install ndk;$NDK_VERSION" >&2; exit 1; }
+          echo "ANDROID_NDK_ROOT=$ndk" >> "$GITHUB_ENV"
 
       - if: steps.cache.outputs.cache-hit != 'true'
         working-directory: ffmpeg-build
@@ -405,11 +424,35 @@ jobs:
         with:
           path: ~/.npm
           key: ${{ steps.npx.outputs.key }}
-      # The ffmpeg packs' NDK, for :quickjs and :mse's CMake builds (they honor ANDROID_NDK_ROOT).
+      # The ffmpeg packs' NDK, for :quickjs and :mse's CMake builds (they honor ANDROID_NDK_ROOT). Cached
+      # (saved by master), so a release does not depend on Google's download, which flakes.
+      - id: ndk
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          # ANDROID_HOME of the ubuntu-24.04 image (a with: input cannot read the runner's env).
+          path: /usr/local/lib/android/sdk/ndk/${{ env.NDK_VERSION }}
+          key: ndk-${{ env.NDK_VERSION }}-${{ runner.os }}-${{ runner.arch }}
       - name: Install NDK
         run: |
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$NDK_VERSION" > /dev/null
-          echo "ANDROID_NDK_ROOT=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
+          ndk="$ANDROID_HOME/ndk/$NDK_VERSION"
+          [ "$ANDROID_HOME" = /usr/local/lib/android/sdk ] ||
+            echo "::warning::ANDROID_HOME is $ANDROID_HOME: the NDK cache path no longer matches it"
+          for attempt in 1 2 3; do
+            [ -f "$ndk/source.properties" ] && break
+            rm -rf "$ndk"
+            if [ "$attempt" -gt 1 ]; then
+              echo "::warning::sdkmanager could not install ndk;$NDK_VERSION, retrying in $((attempt * 30)) s"
+              sleep $((attempt * 30))
+            fi
+            yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$NDK_VERSION" > /dev/null || true
+          done
+          [ -f "$ndk/source.properties" ] || { echo "::error::sdkmanager could not install ndk;$NDK_VERSION" >&2; exit 1; }
+          echo "ANDROID_NDK_ROOT=$ndk" >> "$GITHUB_ENV"
+      - if: steps.ndk.outputs.cache-hit != 'true' && env.SAVE_CACHE == 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: /usr/local/lib/android/sdk/ndk/${{ env.NDK_VERSION }}
+          key: ${{ steps.ndk.outputs.cache-primary-key }}
 
       # secrets.enc → secrets.properties + signing/. Off a tag, or without SECRETS_PASSPHRASE, the build
       # runs on defaults: debug-signed, no Sentry upload, no remote config.
