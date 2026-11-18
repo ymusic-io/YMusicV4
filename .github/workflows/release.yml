@@ -943,9 +943,9 @@ jobs:
         shell: bash
         working-directory: YMusicV4/desktopRust
         env:
-          CERTUM_EMAIL: ${{ secrets.CERTUM_EMAIL }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          CERTUM_EMAIL: ${{ env.SIGN == 'true' && secrets.CERTUM_EMAIL || '' }}
+          TELEGRAM_BOT_TOKEN: ${{ env.SIGN == 'true' && secrets.TELEGRAM_BOT_TOKEN || '' }}
+          TELEGRAM_CHAT_ID: ${{ env.SIGN == 'true' && secrets.TELEGRAM_CHAT_ID || '' }}
           SIGN_LABEL: ${{ github.ref_name }}
         run: |
           set -euo pipefail
