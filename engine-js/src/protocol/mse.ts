@@ -975,11 +975,11 @@ let loopAtEnd: (() => void) | null = null;
 export function onLoopAtEnd(fn: (() => void) | null): void {
   loopAtEnd = fn;
 }
-let mediaTick: ReturnType<typeof setTimeout> | null = null;
+let mediaTick: ReturnType<typeof setInterval> | null = null;
 
 function stopMediaTick(): void {
   if (mediaTick != null) {
-    clearTimeout(mediaTick);
+    clearInterval(mediaTick);
     mediaTick = null;
   }
 }
@@ -1022,16 +1022,18 @@ onEvent("mse_ended", function () {
   if (el) maybeFireEnded(el);
 });
 
+// An interval, not a timeout chain: hosts run a hidden app's intervals at most once a second.
 function startMediaTick(el: HTMLMediaElement): void {
   stopMediaTick();
-  function pulse(): void {
-    if (el["paused"] || el["ended"]) return;
+  mediaTick = setInterval(function () {
+    if (el["paused"] || el["ended"]) {
+      stopMediaTick();
+      return;
+    }
     if (maybeFireEnded(el)) return;
     fire(el, "timeupdate");
     syncReadyState(el);
-    mediaTick = setTimeout(pulse, 250);
-  }
-  mediaTick = setTimeout(pulse, 250);
+  }, 250);
 }
 
 function emptyTrackList(): Record<string, unknown> {
