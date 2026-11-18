@@ -185,9 +185,9 @@ internal fun TrackScroll(scrolled: () -> Boolean) {
 }
 
 /**
- * The shell app bar's stand-in: while a section screen holds a mode of its own (Downloads' selection), it
- * draws its bar here through [ReplaceAppBar] and the shell shows that instead of its own. Owned and provided
- * by the app shell.
+ * A bar's stand-in: while a screen holds a mode of its own (Downloads' selection), it draws its bar here through
+ * [ReplaceAppBar] and the bar's owner shows that instead of its own. The app shell owns the one for its app bar
+ * ([LocalAppBarSlot]); the Library owns one for its tab row.
  */
 @Stable
 internal class AppBarSlot {
@@ -206,10 +206,10 @@ internal class AppBarSlot {
 /** The app shell's [AppBarSlot]; null outside the shell. */
 internal val LocalAppBarSlot = staticCompositionLocalOf<AppBarSlot?> { null }
 
-/** Shows [bar] in place of the shell's app bar while [enabled] and this call stays composed. */
+/** Shows [bar] in [slot]'s place (by default the shell's app bar) while [enabled] and this call stays composed. */
 @Composable
-internal fun ReplaceAppBar(enabled: Boolean, bar: @Composable () -> Unit) {
-    val slot = LocalAppBarSlot.current ?: return
+internal fun ReplaceAppBar(enabled: Boolean, slot: AppBarSlot? = LocalAppBarSlot.current, bar: @Composable () -> Unit) {
+    slot ?: return
     val latest by rememberUpdatedState(bar)
     DisposableEffect(slot, enabled) {
         if (!enabled) return@DisposableEffect onDispose {}

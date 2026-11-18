@@ -44,6 +44,7 @@ import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PlaylistRemove
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.Whatshot
@@ -72,6 +73,7 @@ import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -228,6 +230,9 @@ internal val LocalPlaylistRemove = compositionLocalOf<((MediaStoreItem) -> Unit)
 /** A song's "Remove" action on Library Top tracks — drops the local watch-time row. Null elsewhere. */
 internal val LocalRemoveFromPlayHistory = compositionLocalOf<((MediaStoreItem) -> Unit)?> { null }
 
+/** The Library tab row's [AppBarSlot]: a tab's selection bar takes the tab row's place, and holds the Library on that tab. */
+private val LocalLibraryTabRowSlot = staticCompositionLocalOf<AppBarSlot?> { null }
+
 /** The local library over [AppGraph.mediaStore]: an empty state with the scan action until the first
  *  scan lands, then the Folders/Playlists/Songs/Artists/Albums/Genres tabs. Styled with
  *  design/final/library.html's chips + section-header + list-row language (the account half of that
@@ -289,8 +294,9 @@ fun LibraryScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
                 mutableStateOf(LibraryTab.entries.firstOrNull { it.key == saved } ?: LibraryTab.Folders)
             }
             LaunchedEffect(tab) { graph.settings.put(AppSettings.lastLibraryTab, tab.key) }
-            // The Songs tab's multi-select holds the Library on that tab until it ends.
+            // A multi-select (the Songs tab's, an opened playlist's) holds the Library on its tab until it ends.
             val songSelection = rememberMultiSelection<Long>()
+            val tabRowSlot = remember { AppBarSlot() }
             val songsSort = rememberSortState("songs", graph.settings)
             val sortedSongs by remember(loaded.songs, songsSort) { derivedStateOf { songsSort.sort(loaded.songs, songSortOptions) } }
             val sortedSongIds = sortedSongs.map { it.id }
@@ -300,17 +306,19 @@ fun LibraryScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
             }
             LaunchedEffect(tab) { if (tab != LibraryTab.Songs) songSelection.end() }
             val selectingSongs = tab == LibraryTab.Songs && songSelection.active
-            val selectTab: (LibraryTab) -> Unit = { if (!selectingSongs) tab = it }
+            val tabRowReplacement = tabRowSlot.replacement
+            val holdingTab = selectingSongs || tabRowReplacement != null
+            val selectTab: (LibraryTab) -> Unit = { if (!holdingTab) tab = it }
             val revealTab: (LibraryTab) -> Unit = {
                 songSelection.end()
                 tab = it
             }
             val currentSelectTab by rememberUpdatedState(selectTab)
-            val currentSelectingSongs by rememberUpdatedState(selectingSongs)
+            val currentHoldingTab by rememberUpdatedState(holdingTab)
             DisposableEffect(Unit) {
                 val entries = LibraryTab.entries
                 val remove = GlobalShortcutActions.pushTabHandler { i ->
-                    if (currentSelectingSongs) return@pushTabHandler false
+                    if (currentHoldingTab) return@pushTabHandler false
                     entries.getOrNull(i - 1)?.let { currentSelectTab(it); true } ?: false
                 }
                 onDispose { remove() }
@@ -320,11 +328,11 @@ fun LibraryScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
                 val dismiss = { songSelectionDialog = null }
                 val finish = {
                     songSelectionDialog = null
-                    songSelection.end()
+                    dialog.onDone()
                 }
                 when (dialog) {
                     is SongSelectionDialog.AddToPlaylist ->
-                        AddToPlaylistDialog(store, dialog.songs, onDismiss = dismiss, onAdded = { songSelection.end() })
+                        AddToPlaylistDialog(store, dialog.songs, onDismiss = dismiss, onAdded = dialog.onDone)
                     is SongSelectionDialog.Delete -> DeleteSelectedFilesDialog(
                         graph,
                         dialog.targets,
@@ -380,13 +388,17 @@ fun LibraryScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
                             songSelection,
                             sortedSongs,
                             coordinator,
-                            onAddToPlaylist = { selected -> songSelectionDialog = SongSelectionDialog.AddToPlaylist(selected) },
+                            onAddToPlaylist = { selected ->
+                                songSelectionDialog = SongSelectionDialog.AddToPlaylist(selected, songSelection::end)
+                            },
                             onDelete = if (canDelete) {
-                                { selected -> songSelectionDialog = SongSelectionDialog.Delete(selected.associateBy { it.id }) }
+                                { selected -> songSelectionDialog = SongSelectionDialog.Delete(selected.associateBy { it.id }, songSelection::end) }
                             } else {
                                 null
                             },
                         )
+                    } else if (tabRowReplacement != null) {
+                        tabRowReplacement()
                     } else {
                         LibraryTabRow(tab, tabDrag, onSelect = selectTab)
                     }
@@ -402,7 +414,7 @@ fun LibraryScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
                             onDragProgress = { tabDrag = it },
                             leadingEdgeReserve = NavDrawerEdgeReserve,
                             onLeadingEdgeSwipe = openDrawer,
-                            swipeEnabled = !selectingSongs,
+                            swipeEnabled = !holdingTab,
                         ) { current ->
                             tabStateHolder.SaveableStateProvider(current.name) {
                                 when (current) {
@@ -422,7 +434,9 @@ fun LibraryScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
                                             settings = graph.settings,
                                         )
                                     }
-                                    LibraryTab.Playlists -> PlaylistsTab(store, graph, loaded, coordinator, graph.playHistory)
+                                    LibraryTab.Playlists -> CompositionLocalProvider(LocalLibraryTabRowSlot provides tabRowSlot) {
+                                        PlaylistsTab(store, graph, loaded, coordinator, graph.playHistory) { songSelectionDialog = it }
+                                    }
                                     LibraryTab.Songs -> if (loaded.songs.isEmpty()) {
                                         EmptyState(stringResource(Res.string.library_no_songs), onReload = null)
                                     } else {
@@ -1042,11 +1056,13 @@ private fun PlaylistsTab(
     content: LibraryContent,
     coordinator: PlaybackCoordinator,
     playHistory: PlayHistoryStore?,
+    openSelectionDialog: (SongSelectionDialog) -> Unit,
 ) {
     // (id, name) — saveable, so the opened playlist survives the tab leaving composition. Negative ids
     // are the system playlists; the name is the resolved display title.
     var selected by rememberSaveable(stateSaver = OpenPlaylistSaver) { mutableStateOf<Pair<Long, String>?>(null) }
     NestedBackHandler(enabled = selected != null) { selected = null }
+    val playlistSelection = remember(selected?.first) { MultiSelection<Long>() }
     var userLists by remember { mutableStateOf<List<Pair<Playlist, Int>>?>(null) }
     // Each user playlist's thumbnail: the art of its most recently added song that has artwork.
     var userArt by remember { mutableStateOf<Map<Long, String?>>(emptyMap()) }
@@ -1186,9 +1202,37 @@ private fun PlaylistsTab(
     }
     // A user playlist offers "Remove from playlist" on each song row; Top tracks offers "Remove"
     // (drops the watch-time row). Other system lists and the playlist index have neither.
-    val removeFromPlaylist: ((MediaStoreItem) -> Unit)? = remember(open?.first) {
+    val removeFromPlaylist: ((List<MediaStoreItem>) -> Unit)? = remember(open?.first) {
         val id = open?.first
-        if (id != null && id > 0) ({ song: MediaStoreItem -> scope.launch { store.removeFromPlaylist(id, song.playlistCode) }; Unit }) else null
+        if (id != null && id > 0) {
+            { songs: List<MediaStoreItem> -> scope.launch { songs.forEach { store.removeFromPlaylist(id, it.playlistCode) } }; Unit }
+        } else {
+            null
+        }
+    }
+    val removeSongFromPlaylist: ((MediaStoreItem) -> Unit)? = remember(removeFromPlaylist) {
+        removeFromPlaylist?.let { remove -> { song: MediaStoreItem -> remove(listOf(song)) } }
+    }
+    val songIds = songs.map { it.id }
+    LaunchedEffect(songIds) {
+        playlistSelection.retain(songIds.toSet())
+        playlistSelection.forgetSelectAll()
+    }
+    val selection = playlistSelection.takeIf { isUser }
+    val canDelete = LocalSongActions.current?.canDelete == true
+    ReplaceAppBar(enabled = selection?.active == true, slot = LocalLibraryTabRowSlot.current) {
+        PlaylistSelectionBar(
+            playlistSelection,
+            songs,
+            coordinator,
+            onRemoveFromPlaylist = { selected -> removeFromPlaylist?.invoke(selected) },
+            onDelete = if (canDelete) {
+                { selected -> openSelectionDialog(SongSelectionDialog.Delete(selected.associateBy { it.id }, playlistSelection::end)) }
+            } else {
+                null
+            },
+            onAddToPlaylist = { selected -> openSelectionDialog(SongSelectionDialog.AddToPlaylist(selected, playlistSelection::end)) },
+        )
     }
     val removeFromPlayHistory: ((MediaStoreItem) -> Unit)? = remember(open?.first, playHistory) {
         val history = playHistory
@@ -1201,12 +1245,23 @@ private fun PlaylistsTab(
 
     TrackScroll { listState.canScrollBackward || gridState.canScrollBackward }
     CompositionLocalProvider(
-        LocalPlaylistRemove provides removeFromPlaylist,
+        LocalPlaylistRemove provides removeSongFromPlaylist,
         LocalRemoveFromPlayHistory provides removeFromPlayHistory,
     ) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val layoutWidth = railStableWidth(maxWidth)
-            if (layoutWidth >= LibraryGridMinWidth) {
+            val asGrid = layoutWidth >= LibraryGridMinWidth
+            if (selection != null) {
+                MultiSelectionEffects(selection, songIds) { index ->
+                    if (asGrid) {
+                        val item = index / librarySongColumns(layoutWidth) + 1
+                        if (gridState.layoutInfo.visibleItemsInfo.none { it.index == item }) gridState.scrollToItem(item)
+                    } else if (listState.layoutInfo.visibleItemsInfo.none { it.index == index + 1 }) {
+                        listState.scrollToItem(index + 1)
+                    }
+                }
+            }
+            if (asGrid) {
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(libraryGridColumns(layoutWidth)),
                     modifier = Modifier.fillMaxSize().itemList(),
@@ -1227,7 +1282,7 @@ private fun PlaylistsTab(
                             span = { GridItemSpan(maxLineSpan) },
                         ) { group ->
                             Row(Modifier.bleedGridPadding()) {
-                                group.forEach { i -> Box(Modifier.weight(1f)) { SongRow(songs[i], coordinator) { coordinator.playLocal(songs, i) } } }
+                                group.forEach { i -> Box(Modifier.weight(1f)) { SongRow(songs[i], coordinator, selection) { coordinator.playLocal(songs, i) } } }
                                 repeat(perRow - group.size) { Spacer(Modifier.weight(1f)) }
                             }
                         }
@@ -1243,7 +1298,7 @@ private fun PlaylistsTab(
                         if (showEmptyHint) item("empty") { NoPlaylistsHint(transfer) }
                     } else {
                         itemsIndexed(songs, key = { _, s -> s.id }) { i, song ->
-                            SongRow(song, coordinator) { coordinator.playLocal(songs, i) }
+                            SongRow(song, coordinator, selection) { coordinator.playLocal(songs, i) }
                         }
                     }
                 }
@@ -1723,10 +1778,12 @@ internal fun SongRow(
 private val SongRowCorner = 10.dp
 private val SelectableSongRowVertical = 6.dp // 8dp less the 2dp inset: the same row height as elsewhere
 
-/** A selection action waiting on its dialog, over the songs it was opened for. */
+/** A selection action waiting on its dialog, over the songs it was opened for; [onDone] ends that selection. */
 private sealed interface SongSelectionDialog {
-    class AddToPlaylist(val songs: List<MediaStoreItem>) : SongSelectionDialog
-    class Delete(val targets: Map<Long, MediaStoreItem>) : SongSelectionDialog
+    val onDone: () -> Unit
+
+    class AddToPlaylist(val songs: List<MediaStoreItem>, override val onDone: () -> Unit) : SongSelectionDialog
+    class Delete(val targets: Map<Long, MediaStoreItem>, override val onDone: () -> Unit) : SongSelectionDialog
 }
 
 /**
@@ -1743,34 +1800,69 @@ private fun SongSelectionBar(
 ) {
     val selected = songs.filter { it.id in selection.selected }
     val ids = songs.map { it.id }
-    val play = stringResource(Res.string.menu_play)
-    val next = stringResource(Res.string.queue_next)
-    val last = stringResource(Res.string.queue_last)
     SelectionBar(selected.size, selection.allSelected(ids), selection::end, { selection.toggleAll(ids) }) {
         ActionIcon(Icons.AutoMirrored.Filled.PlaylistAdd, stringResource(Res.string.cd_add_to_playlist)) { onAddToPlaylist(selected) }
         onDelete?.let { delete ->
             ActionIcon(Icons.Outlined.Delete, stringResource(Res.string.menu_remove_from_disk)) { delete(selected) }
         }
-        MoreMenu(
-            ItemActions(
-                listOf(
-                    play to {
-                        coordinator.playLocal(selected, 0)
-                        selection.end()
-                    },
-                    next to {
-                        coordinator.queueLocalNext(selected)
-                        selection.end()
-                    },
-                    last to {
-                        coordinator.queueLocalLast(selected)
-                        selection.end()
-                    },
-                ),
-            ),
-            inFocusableItem = false,
-        )
+        SelectionPlayMenu(selection, selected, coordinator)
     }
+}
+
+/**
+ * An opened playlist's selection bar, in the tab row's place: close · "N selected" · Select all · Remove from
+ * playlist · Remove from disk · Add to playlist · ⋮ (Play, Queue next, Queue last). Each acts on the selected
+ * [songs] in their listed order.
+ */
+@Composable
+private fun PlaylistSelectionBar(
+    selection: MultiSelection<Long>,
+    songs: List<MediaStoreItem>,
+    coordinator: PlaybackCoordinator,
+    onRemoveFromPlaylist: (List<MediaStoreItem>) -> Unit,
+    onDelete: ((List<MediaStoreItem>) -> Unit)?,
+    onAddToPlaylist: (List<MediaStoreItem>) -> Unit,
+) {
+    val selected = songs.filter { it.id in selection.selected }
+    val ids = songs.map { it.id }
+    SelectionBar(selected.size, selection.allSelected(ids), selection::end, { selection.toggleAll(ids) }) {
+        ActionIcon(Icons.Default.PlaylistRemove, stringResource(Res.string.menu_remove_from_playlist)) {
+            onRemoveFromPlaylist(selected)
+            selection.end()
+        }
+        onDelete?.let { delete ->
+            ActionIcon(Icons.Outlined.Delete, stringResource(Res.string.menu_remove_from_disk)) { delete(selected) }
+        }
+        ActionIcon(Icons.AutoMirrored.Filled.PlaylistAdd, stringResource(Res.string.cd_add_to_playlist)) { onAddToPlaylist(selected) }
+        SelectionPlayMenu(selection, selected, coordinator)
+    }
+}
+
+/** A selection bar's ⋮: Play, Queue next, Queue last over [selected], each ending [selection]. */
+@Composable
+private fun SelectionPlayMenu(selection: MultiSelection<Long>, selected: List<MediaStoreItem>, coordinator: PlaybackCoordinator) {
+    val play = stringResource(Res.string.menu_play)
+    val next = stringResource(Res.string.queue_next)
+    val last = stringResource(Res.string.queue_last)
+    MoreMenu(
+        ItemActions(
+            listOf(
+                play to {
+                    coordinator.playLocal(selected, 0)
+                    selection.end()
+                },
+                next to {
+                    coordinator.queueLocalNext(selected)
+                    selection.end()
+                },
+                last to {
+                    coordinator.queueLocalLast(selected)
+                    selection.end()
+                },
+            ),
+        ),
+        inFocusableItem = false,
+    )
 }
 
 /** The local song overflow menu (the legacy app's song menu): play, queue, playlist, go to artist /
