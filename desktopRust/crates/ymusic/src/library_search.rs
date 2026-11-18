@@ -198,7 +198,7 @@ impl LibrarySearchView {
         let kept: Vec<usize> = stops.kept().into_iter().map(|position| position / columns).collect();
         let list = self.song_rows.render(count.div_ceil(columns), 0., kept, window, |line| {
             let cells: Vec<AnyElement> = (line * columns..((line + 1) * columns).min(count))
-                .map(|index| song_cell(&self.song_focus, index, &self.songs[index], Self::play, menu, cx))
+                .map(|index| song_cell(&self.song_focus, index, &self.songs[index], Self::play, menu, None, cx))
                 .collect();
             let row = if columns > 1 { grid_rows(cells, columns).into_iter().next() } else { cells.into_iter().next() };
             row.unwrap_or_else(|| div().into_any_element())
