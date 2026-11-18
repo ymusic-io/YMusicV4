@@ -87,6 +87,12 @@ internal class MultiSelection<K> {
         set(setOf(id))
     }
 
+    /** [start], then in keyboard mode focus [id]'s item: the ⋮ that held focus gives way to a non-focusable checkbox. */
+    fun startKeepingFocus(id: K, keyboardMode: Boolean) {
+        start(id)
+        if (keyboardMode) focusTarget = id
+    }
+
     fun toggle(id: K) {
         origin = id
         set(if (id in selected) selected - id else selected + id)

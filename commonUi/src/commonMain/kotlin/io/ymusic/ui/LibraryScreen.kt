@@ -81,7 +81,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.InputMode
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalInputModeManager
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
@@ -1816,7 +1818,8 @@ internal fun SongRow(
         if (selecting) {
             Box(Modifier.padding(top = 2.dp)) { SelectionCheck(selected) }
         } else if (coordinator != null) {
-            val onSelect = selection?.let { { it.start(song.id) } }
+            val keyboardMode = LocalInputModeManager.current.inputMode == InputMode.Keyboard
+            val onSelect = selection?.let { { it.startKeepingFocus(song.id, keyboardMode) } }
             MoreMenu(songActions(song, coordinator, onSelect), Modifier.padding(top = 2.dp))
         }
     }
