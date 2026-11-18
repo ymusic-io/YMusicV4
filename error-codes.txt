@@ -6,7 +6,7 @@
 # NOTHING is deployed yet, so every row below is `-` (free).
 # Ranges: E1xxxx :quickjs | E2xxxx :dynamic-engine + engine-js | E3xxxx :kmpHttp
 #         E4xxxx :kmpFfmpeg | E5xxxx :media-store / :media-scanner | E6xxxx :player | E7xxxx :download
-#         E8xxxx :mse | E91xxx app updater (desktopApp / androidApp)
+#         E8xxxx :mse | E91xxx app updater (desktopApp / androidApp) | E92xxx data dir (desktopApp)
 
 E10001 - (example) kmpCommon CodedErrorTest fixture
 E10002 D quickjsjni or another boot library refused by an App Control policy: known state, one event per version, full-screen message (desktopApp)
@@ -194,3 +194,8 @@ E91014 D android update APK download failed: the device doesn't trust the host's
 E91015 D android update install refused by the device: SD-card install it can't move, policy/FRP restriction, or no installer session (AndroidAppUpdates.installAndRestart)
 E91016 D android update install failed after the hand-off: PackageInstaller reported a failure, or no screen could confirm it (AndroidAppUpdates.onInstallEnded)
 E91017 D android update APK download refused: the server answered a non-2xx HTTP status (AndroidAppUpdates.download)
+E92001 - data dir: the data dir is a symlink to a folder that was gone; the folder was made again where the link points, empty (desktopApp prepareDataDir, logged; Rust R90405)
+E92002 - data dir: a database SQLite reports corrupt or not a database was moved aside as <name>.corrupt-<time> and a new one started (desktopApp openDatabase, captured; Rust R90406)
+E92003 - data dir: an unreadable database could not be moved aside; its store fails to open as before (desktopApp openDatabase, logged; Rust R90407)
+E92004 - data dir: the data dir cannot be used (a file in the way, not writable, a link into a folder that is gone); the launch shows the code and quits (desktopApp dataDirUnusable, captured; Rust R90408)
+E92005 - app log: logs.db did not open; the app log stays in memory for this launch (desktopApp openLogStore, logged; Rust R90409)
