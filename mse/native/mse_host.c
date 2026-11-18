@@ -169,6 +169,8 @@ struct MseHost {
     int dac_cp_n;
     /* Set by every ring flush: the first PCM written after it puts seek_base at its own pts. */
     int pcm_anchor;
+    /* Media time the last chunk written to the ring ends at; -1 after a flush. mu. */
+    double pulled_end;
     /* The audio stream ended (endOfStream, all of it played) while the media runs on: the clock
        continues on wall time instead of freezing at the last sample. */
     int audio_out;
@@ -650,6 +652,7 @@ static int ring_read(MseHost *h, uint8_t *p, int n, int color)
 /* h->mu held. Drops queued PCM; the DAC must drop what it holds of the old generation too. */
 static void ring_flush(MseHost *h)
 {
+    h->pulled_end = -1;
     h->ring_r = h->ring_w = h->ring_n = 0;
     h->ring_gen++;
     h->flush_ns = now_ns();
@@ -1071,26 +1074,36 @@ static void aq_watchdog(MseHost *h)
 #ifdef MSE_DAC
 #define FILL_GAP_LOG_MS 150.0
 #define FILL_GAP_LOW_RING_MS 100
-/* Between passes the loop sleeps until the ring has drained to FILL_LOW_MS, at most FILL_WAIT_MAX_MS
-   (the watchdog, the ended check and the clock's trims run once a pass). Below that mark it polls:
-   briefly while pulls still land, slower while it waits for media (an append wakes it at once). */
-#define FILL_LOW_MS 150
+/* A pass pulls up to `until` (the clock plus the lead, which counts the device's buffer too, so the
+   ring alone says little). Between passes the loop sleeps until FILL_BATCH_S more can be pulled, at
+   most FILL_WAIT_MAX_MS (the watchdog, the ended check and the clock's trims run once a pass). Short
+   of `until` it polls: briefly while pulls still land, slower while it waits for media (an append
+   wakes it at once). */
+#define FILL_RING_FULL_MS 400
+#define FILL_BATCH_S 0.1
 #define FILL_WAIT_MAX_MS 100
 #define FILL_POLL_MS 5
 #define FILL_STARVED_MS 20
 #define FILL_PULLS_MAX 8
 
-/* h->mu held. `filled` is the pass's pull count. */
-static int fill_wait_ms(MseHost *h, int filled)
+/* h->mu held. `filled` is the pass's pull count, `until` how far it could pull. */
+static int fill_wait_ms(MseHost *h, int filled, double until)
 {
     int ring = ring_ms(h);
+    double wait_s;
+    int ms;
     if (h->ended_sent)
         return FILL_WAIT_MAX_MS;
-    if (ring > FILL_LOW_MS)
-        return ring - FILL_LOW_MS < FILL_WAIT_MAX_MS ? ring - FILL_LOW_MS : FILL_WAIT_MAX_MS;
     if (filled >= FILL_PULLS_MAX)
         return 1;
-    return filled > 0 ? FILL_POLL_MS : FILL_STARVED_MS;
+    if (ring >= FILL_RING_FULL_MS)
+        wait_s = ring / 1000.0 - (FILL_RING_FULL_MS / 1000.0 - FILL_BATCH_S);
+    else if (h->pulled_end >= 0 && h->pulled_end >= until - FILL_BATCH_S)
+        wait_s = (h->pulled_end + FILL_BATCH_S - until) / play_speed(h);
+    else
+        return filled > 0 ? FILL_POLL_MS : FILL_STARVED_MS;
+    ms = (int)(wait_s * 1000.0);
+    return ms < FILL_POLL_MS ? FILL_POLL_MS : ms > FILL_WAIT_MAX_MS ? FILL_WAIT_MAX_MS : ms;
 }
 
 /* At a pass end. Passes run at most FILL_WAIT_MAX_MS apart, so a long gap that left the ring nearly
@@ -1121,6 +1134,7 @@ static void *dec_loop(void *arg)
 #ifdef MSE_DAC
         int filled;
         int ring_at_wake;
+        double pass_until;
         double span_first = 0, span_last = 0;
         int span_have, span_video;
 #ifdef MSE_AQ
@@ -1154,9 +1168,11 @@ static void *dec_loop(void *arg)
         span_video = mse_av_has_video(h->av);
         /* Own thread: a late 4K GOP must not starve AudioQueue. */
         filled = 0;
+        pass_until = clock;
         while (filled < FILL_PULLS_MAX) {
             int want;
             int dac = 0;
+            int in_frames;
             unsigned gen;
             double lead = 0.35;
             double until;
@@ -1165,7 +1181,7 @@ static void *dec_loop(void *arg)
             int vhave = mse_av_video_end(h->av, &vend);
             int starve, device_runs;
             pthread_mutex_lock(&h->mu);
-            want = ring_ms(h) < 400;
+            want = ring_ms(h) < FILL_RING_FULL_MS;
             gen = h->ring_gen;
             /* The lead is output time: the device queue sits on top of it, and at 2x it covers
                twice the media. */
@@ -1215,12 +1231,14 @@ static void *dec_loop(void *arg)
             else if (starve == STARVE_END)
                 mse_critf(MSE_LOG_INFO, "mse-v starve over after %.0f ms: video buffered to %.3f clock=%.3f",
                           starved_ms, vend, clock);
+            pass_until = until;
             /* Not even up to `until`: a pull takes packets up to 80 ms past it, and that creeps the clock. */
             if (!want || until <= clock)
                 break;
             pcm = NULL;
             if (mse_av_pull_audio(h->av, from, until, &pcm, &frames, &rate, &ch, &pts) <= 0 || !pcm)
                 break;
+            in_frames = frames;
             host_stretch(h, &pcm, &frames, ch, rate);
             if (frames <= 0) {
                 pcm = NULL;
@@ -1268,6 +1286,8 @@ static void *dec_loop(void *arg)
                         h->pcm_anchor = 0;
                     }
                     ring_write(h, (const uint8_t *)pcm, nbytes);
+                    if (rate > 0)
+                        h->pulled_end = pts + (double)in_frames / rate;
                 }
                 if (dac && !h->aq_started && ring_ms(h) >= DAC_START_MS) {
                     h->aq_started = 1;
@@ -1328,7 +1348,7 @@ static void *dec_loop(void *arg)
            first, so a seek waiting for this loop does not sit out the wait. */
         pthread_mutex_lock(&h->mu);
 #ifdef MSE_DAC
-        wait_ms = fill_wait_ms(h, filled);
+        wait_ms = fill_wait_ms(h, filled, pass_until);
 #endif
         h->busy = 0;
         pthread_cond_broadcast(&h->idle_cv);
@@ -1374,6 +1394,9 @@ MseHost *mse_host_create(void)
     h->speed = 1.f;
     h->playing = 0;
     h->vpts = -1;
+#ifdef MSE_DAC
+    h->pulled_end = -1;
+#endif
     if (!h->av) {
         free(h);
         return NULL;
