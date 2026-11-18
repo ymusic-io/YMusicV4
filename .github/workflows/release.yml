@@ -24,6 +24,11 @@ concurrency:
 env:
   # Every step that signs, uploads, publishes or reads a release secret runs on a tag only.
   IS_TAG: ${{ startsWith(github.ref, 'refs/tags/') }}
+  # Only master saves caches. A cache belongs to the ref that saved it, and a run reads its own ref's
+  # and master's: a tag's entries could never be read again, so tags and ci/** only restore. Every key
+  # is built from the cache's real inputs (pins, lockfiles, OS/arch), never the ref or commit, so a tag
+  # restores exactly what master saved.
+  SAVE_CACHE: ${{ github.ref == 'refs/heads/master' }}
   # Read by every Gradle run as -PsentryEnvironment.
   ORG_GRADLE_PROJECT_sentryEnvironment: ${{ startsWith(github.ref, 'refs/tags/release-') && 'production' || 'beta' }}
   # The same for the Rust desktop app's cargo builds (desktopRust reads it at compile time).
@@ -31,8 +36,8 @@ env:
   # On a tag the Rust desktop build fails without its release keys (update key, Sentry DSN, config
   # service): a build without the update key could never update itself again.
   YMUSIC_REQUIRE_SECRETS: ${{ startsWith(github.ref, 'refs/tags/') && '1' || '0' }}
-  # The ffmpeg-build commit the apps link against. Bumping it rebuilds every ffmpeg pack once;
-  # otherwise each pack comes from the cache keyed on this ref.
+  # The ffmpeg-build commit the apps link against. Bumping it rebuilds every ffmpeg pack once (on the
+  # next master run, which saves it); otherwise each pack comes from the cache keyed on this ref.
   FFMPEG_BUILD_REPO: ymusic-io/ffmpeg-build
   FFMPEG_BUILD_REF: 4d2dc9ae0c73dc5f01733f18af070412013a6a93
   # The NDK (r28c) for the Android ffmpeg packs and the app's own native code, installed with the
@@ -68,7 +73,7 @@ jobs:
           - { slug: android-x86_64, runner: ubuntu-24.04 }
     steps:
       - id: cache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ffmpeg-build/out/${{ matrix.slug }}
           # Android packs also key on the NDK: a pack must not outlive the toolchain it was built with.
@@ -103,6 +108,25 @@ jobs:
         env:
           SLUG: ${{ matrix.slug }}
 
+      - if: steps.cache.outputs.cache-hit != 'true' && env.SAVE_CACHE == 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ffmpeg-build/out/${{ matrix.slug }}
+          key: ${{ steps.cache.outputs.cache-primary-key }}
+
+      # The builds take the pack from this job, not from the cache: a tag's miss is never saved. tar keeps
+      # the executable bits and symlinks an artifact would drop.
+      - name: Hand the pack on
+        run: tar -cf "ffmpeg-$SLUG.tar" -C ffmpeg-build/out "$SLUG"
+        env:
+          SLUG: ${{ matrix.slug }}
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ffmpeg-${{ matrix.slug }}
+          path: ffmpeg-${{ matrix.slug }}.tar
+          retention-days: 7
+          if-no-files-found: error
+
   ffmpeg-macos:
     name: ffmpeg ${{ matrix.slug }}
     runs-on: ${{ matrix.runner }}
@@ -114,7 +138,7 @@ jobs:
           - { slug: macos-x86_64, runner: macos-15-intel }
     steps:
       - id: cache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ffmpeg-build/out/${{ matrix.slug }}
           key: ffmpeg-${{ matrix.slug }}-${{ env.FFMPEG_BUILD_REF }}
@@ -134,6 +158,25 @@ jobs:
           brew install nasm automake autoconf libtool pkg-config meson ninja
           scripts/build-desktop.sh
 
+      - if: steps.cache.outputs.cache-hit != 'true' && env.SAVE_CACHE == 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ffmpeg-build/out/${{ matrix.slug }}
+          key: ${{ steps.cache.outputs.cache-primary-key }}
+
+      # The builds take the pack from this job, not from the cache: a tag's miss is never saved. tar keeps
+      # the executable bits and symlinks an artifact would drop.
+      - name: Hand the pack on
+        run: tar -cf "ffmpeg-$SLUG.tar" -C ffmpeg-build/out "$SLUG"
+        env:
+          SLUG: ${{ matrix.slug }}
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ffmpeg-${{ matrix.slug }}
+          path: ffmpeg-${{ matrix.slug }}.tar
+          retention-days: 7
+          if-no-files-found: error
+
   # In the desktop packages' ubuntu:22.04 container, so the libav it builds needs glibc 2.35 too.
   ffmpeg-linux:
     name: ffmpeg ${{ matrix.slug }}
@@ -146,16 +189,21 @@ jobs:
           - { slug: linux-x86_64, runner: ubuntu-24.04 }
           - { slug: linux-arm64, runner: ubuntu-24.04-arm }
     steps:
+      # zstd before the restore: the entries are zstd tarballs, and without it the cache misses.
       - run: |
           apt-get update
-          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends git ca-certificates curl zstd \
-            build-essential nasm automake autoconf libtool pkg-config meson ninja-build python3 patchelf zlib1g-dev
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends zstd
       - id: cache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ffmpeg-build/out/${{ matrix.slug }}
           key: ffmpeg-${{ matrix.slug }}-ubuntu22.04-${{ env.FFMPEG_BUILD_REF }}
 
+      # git before the checkout: without it actions/checkout falls back to a tarball, which has no submodules.
+      - if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends git ca-certificates curl \
+            build-essential nasm automake autoconf libtool pkg-config meson ninja-build python3 patchelf zlib1g-dev
       - if: steps.cache.outputs.cache-hit != 'true'
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -175,6 +223,25 @@ jobs:
             done
             exit 1
           }
+
+      - if: steps.cache.outputs.cache-hit != 'true' && env.SAVE_CACHE == 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ffmpeg-build/out/${{ matrix.slug }}
+          key: ${{ steps.cache.outputs.cache-primary-key }}
+
+      # The builds take the pack from this job, not from the cache: a tag's miss is never saved. tar keeps
+      # the executable bits and symlinks an artifact would drop.
+      - name: Hand the pack on
+        run: tar -cf "ffmpeg-$SLUG.tar" -C ffmpeg-build/out "$SLUG"
+        env:
+          SLUG: ${{ matrix.slug }}
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ffmpeg-${{ matrix.slug }}
+          path: ffmpeg-${{ matrix.slug }}.tar
+          retention-days: 7
+          if-no-files-found: error
 
   ffmpeg-windows:
     name: ffmpeg ${{ matrix.slug }}
@@ -205,7 +272,7 @@ jobs:
       - run: git config --global core.autocrlf false
 
       - id: cache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ffmpeg-build/out/${{ matrix.slug }}
           key: ffmpeg-${{ matrix.slug }}-${{ env.FFMPEG_BUILD_REF }}
@@ -219,6 +286,11 @@ jobs:
           submodules: recursive
           fetch-depth: 1
 
+      - if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: msys2-installer
+          key: msys2-installer-${{ env.MSYS2_INSTALLER_DATE }}-${{ env.MSYS2_INSTALLER_SHA256 }}
       - name: Seed MSYS2 installer
         if: steps.cache.outputs.cache-hit != 'true'
         shell: bash
@@ -227,17 +299,18 @@ jobs:
           day="${MSYS2_INSTALLER_DATE//-/}"
           file="msys2-base-x86_64-$day.sfx.exe"
           dir="$(cygpath -u "$RUNNER_TOOL_CACHE")/msys2-installer/0.0.$day/x64"
-          mkdir -p "$dir"
+          cached=msys2-installer/base.exe
+          mkdir -p "$dir" msys2-installer
+          verified() { echo "$MSYS2_INSTALLER_SHA256  $cached" | sha256sum -c --status; }
+          seed() { cp "$cached" "$dir/base.exe"; touch "$dir.complete"; echo "MSYS2 installer from $1"; exit 0; }
+          if [ -f "$cached" ] && verified; then seed "the cache"; fi
           for url in \
             "https://github.com/msys2/msys2-installer/releases/download/$MSYS2_INSTALLER_DATE/$file" \
             "https://repo.msys2.org/distrib/x86_64/$file" \
             "https://mirror.msys2.org/distrib/x86_64/$file" \
             "https://mirrors.tuna.tsinghua.edu.cn/msys2/distrib/x86_64/$file"; do
-            if curl -fsSL --retry 3 --retry-all-errors --connect-timeout 20 -o "$dir/base.exe" "$url" &&
-              echo "$MSYS2_INSTALLER_SHA256  $dir/base.exe" | sha256sum -c --status; then
-              touch "$dir.complete"
-              echo "MSYS2 installer from $url"
-              exit 0
+            if curl -fsSL --retry 3 --retry-all-errors --connect-timeout 20 -o "$cached" "$url" && verified; then
+              seed "$url"
             fi
             echo "::warning::MSYS2 installer download failed: $url"
           done
@@ -249,6 +322,8 @@ jobs:
           msystem: ${{ matrix.msystem }}
           update: true
           install: git make diffutils autoconf automake libtool patch ${{ matrix.packages }}
+          # Runs only when ffmpeg rebuilds: a package cache would expire unused between rebuilds.
+          cache: false
 
       - if: steps.cache.outputs.cache-hit != 'true'
         shell: msys2 {0}
@@ -263,6 +338,26 @@ jobs:
             exit 1
           }
 
+      - if: steps.cache.outputs.cache-hit != 'true' && env.SAVE_CACHE == 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ffmpeg-build/out/${{ matrix.slug }}
+          key: ${{ steps.cache.outputs.cache-primary-key }}
+
+      # The builds take the pack from this job, not from the cache: a tag's miss is never saved. tar keeps
+      # the executable bits and symlinks an artifact would drop.
+      - name: Hand the pack on
+        shell: bash
+        run: tar -cf "ffmpeg-$SLUG.tar" -C ffmpeg-build/out "$SLUG"
+        env:
+          SLUG: ${{ matrix.slug }}
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ffmpeg-${{ matrix.slug }}
+          path: ffmpeg-${{ matrix.slug }}.tar
+          retention-days: 7
+          if-no-files-found: error
+
   android:
     needs: ffmpeg-android
     runs-on: ubuntu-24.04
@@ -275,30 +370,17 @@ jobs:
         with:
           path: YMusicV4
 
-      - name: Restore ffmpeg android-armeabi-v7a
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          path: ffmpeg-build/out/android-armeabi-v7a
-          key: ffmpeg-android-armeabi-v7a-${{ env.FFMPEG_BUILD_REF }}-ndk${{ env.NDK_VERSION }}
-          fail-on-cache-miss: true
-      - name: Restore ffmpeg android-arm64-v8a
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        with:
-          path: ffmpeg-build/out/android-arm64-v8a
-          key: ffmpeg-android-arm64-v8a-${{ env.FFMPEG_BUILD_REF }}-ndk${{ env.NDK_VERSION }}
-          fail-on-cache-miss: true
-      - name: Restore ffmpeg android-x86
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        with:
-          path: ffmpeg-build/out/android-x86
-          key: ffmpeg-android-x86-${{ env.FFMPEG_BUILD_REF }}-ndk${{ env.NDK_VERSION }}
-          fail-on-cache-miss: true
-      - name: Restore ffmpeg android-x86_64
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        with:
-          path: ffmpeg-build/out/android-x86_64
-          key: ffmpeg-android-x86_64-${{ env.FFMPEG_BUILD_REF }}-ndk${{ env.NDK_VERSION }}
-          fail-on-cache-miss: true
+          pattern: ffmpeg-android-*
+          path: ffmpeg-packs
+          merge-multiple: true
+      - name: Unpack the ffmpeg packs
+        run: |
+          mkdir -p ffmpeg-build/out
+          for abi in armeabi-v7a arm64-v8a x86 x86_64; do
+            tar -xf "ffmpeg-packs/ffmpeg-android-$abi.tar" -C ffmpeg-build/out
+          done
 
       - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
         with:
@@ -307,7 +389,22 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
+      # Gradle User Home (wrapper, dependencies, the build cache), saved by master only.
       - uses: gradle/actions/setup-gradle@0b6dd653ba04f4f93bf581ec31e66cbd7dcb644d # v4
+        with:
+          cache-read-only: ${{ env.SAVE_CACHE != 'true' }}
+      # The npm cache npx installs esbuild and typescript from, keyed on their pins.
+      - id: npx
+        working-directory: YMusicV4
+        shell: bash
+        run: |
+          version() { sed -n "s/.*const val $1 = \"\([^\"]*\)\".*/\1/p" buildSrc/src/main/kotlin/Dependencies.kt; }
+          echo "key=npx-$RUNNER_OS-$RUNNER_ARCH-esbuild$(version esbuild)-typescript$(version typescript)" >> "$GITHUB_OUTPUT"
+      - id: npx-cache
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.npm
+          key: ${{ steps.npx.outputs.key }}
       # The ffmpeg packs' NDK, for :quickjs and :mse's CMake builds (they honor ANDROID_NDK_ROOT).
       - name: Install NDK
         run: |
@@ -328,6 +425,11 @@ jobs:
       - name: Assemble release APKs
         working-directory: YMusicV4
         run: ./gradlew -Pproduction=true :androidApp:assembleRelease :engine-js:closureJs :engine-js:closurePlayerJs
+      - if: steps.npx-cache.outputs.cache-hit != 'true' && env.SAVE_CACHE == 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.npm
+          key: ${{ steps.npx.outputs.key }}
 
       - name: Discard secrets
         if: always()
@@ -377,9 +479,29 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
+      # Gradle User Home (wrapper, dependencies, the build cache), saved by master only.
       - uses: gradle/actions/setup-gradle@0b6dd653ba04f4f93bf581ec31e66cbd7dcb644d # v4
+        with:
+          cache-read-only: ${{ env.SAVE_CACHE != 'true' }}
+      # The npm cache npx installs esbuild and typescript from, keyed on their pins.
+      - id: npx
+        working-directory: YMusicV4
+        shell: bash
+        run: |
+          version() { sed -n "s/.*const val $1 = \"\([^\"]*\)\".*/\1/p" buildSrc/src/main/kotlin/Dependencies.kt; }
+          echo "key=npx-$RUNNER_OS-$RUNNER_ARCH-esbuild$(version esbuild)-typescript$(version typescript)" >> "$GITHUB_OUTPUT"
+      - id: npx-cache
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.npm
+          key: ${{ steps.npx.outputs.key }}
       - working-directory: YMusicV4
         run: ./gradlew -Pproduction=true :engine-js:closureJs :engine-js:closurePlayerJs
+      - if: steps.npx-cache.outputs.cache-hit != 'true' && env.SAVE_CACHE == 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.npm
+          key: ${{ steps.npx.outputs.key }}
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: engine-js
@@ -418,24 +540,31 @@ jobs:
         with:
           name: engine-js
           path: YMusicV4/engine-js/build/dist
-      - uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          path: ffmpeg-build/out/${{ matrix.slug }}
-          key: ffmpeg-${{ matrix.slug }}-${{ env.FFMPEG_BUILD_REF }}
-          fail-on-cache-miss: true
+          name: ffmpeg-${{ matrix.slug }}
+          path: ffmpeg-packs
+      - name: Unpack the ffmpeg pack
+        run: mkdir -p ffmpeg-build/out && tar -xf "ffmpeg-packs/ffmpeg-${{ matrix.slug }}.tar" -C ffmpeg-build/out
 
       - name: Install Rust
         run: |
           rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal
           rustup default "$RUST_TOOLCHAIN"
-      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      # Cargo judges a path crate (the vendored gpui patches) by its files' mtimes, and a checkout makes
+      # them all new: pinned to one old mtime, the restored build of them counts as fresh. Safe only
+      # because the cache key carries vendor/'s hash, so a changed vendor/ never restores an old build.
+      - name: Pin the vendored crates' mtimes
+        working-directory: YMusicV4/desktopRust
+        run: find vendor -type f -exec touch -t 200001010000 {} +
+      # The registry plus target/ trimmed to the dependencies (the workspace crates are dropped before the
+      # save), keyed on the toolchain and Cargo.lock; a new lockfile restores the newest same-target entry.
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
-          path: |
-            ~/.cargo/registry/index
-            ~/.cargo/registry/cache
-            ~/.cargo/git/db
-          key: cargo-${{ matrix.slug }}-${{ hashFiles('YMusicV4/desktopRust/Cargo.lock') }}
-          restore-keys: cargo-${{ matrix.slug }}-
+          workspaces: YMusicV4/desktopRust -> target
+          key: ${{ matrix.slug }}-vendor-${{ hashFiles('YMusicV4/desktopRust/vendor/**') }}
+          cache-bin: false
+          save-if: ${{ env.SAVE_CACHE == 'true' }}
 
       # secrets.enc → secrets.properties + signing/; the Rust build reads its keys from
       # secrets.properties and, on a tag, fails without them (YMUSIC_REQUIRE_SECRETS).
@@ -573,13 +702,20 @@ jobs:
         with:
           name: engine-js
           path: YMusicV4/engine-js/build/dist
-      - uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          path: ffmpeg-build/out/${{ matrix.slug }}
-          key: ffmpeg-${{ matrix.slug }}-${{ env.FFMPEG_BUILD_REF }}
-          fail-on-cache-miss: true
+          name: ffmpeg-${{ matrix.slug }}
+          path: ffmpeg-packs
+      - name: Unpack the ffmpeg pack
+        shell: bash
+        run: mkdir -p ffmpeg-build/out && tar -xf "ffmpeg-packs/ffmpeg-${{ matrix.slug }}.tar" -C ffmpeg-build/out
 
       # The MinGW toolchain for the C sources (GCC/Clang-only C; MSVC rejects it).
+      - id: msys2-installer
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: msys2-installer
+          key: msys2-installer-${{ env.MSYS2_INSTALLER_DATE }}-${{ env.MSYS2_INSTALLER_SHA256 }}
       - name: Seed MSYS2 installer
         shell: bash
         run: |
@@ -587,22 +723,30 @@ jobs:
           day="${MSYS2_INSTALLER_DATE//-/}"
           file="msys2-base-x86_64-$day.sfx.exe"
           dir="$(cygpath -u "$RUNNER_TOOL_CACHE")/msys2-installer/0.0.$day/x64"
-          mkdir -p "$dir"
+          cached=msys2-installer/base.exe
+          mkdir -p "$dir" msys2-installer
+          verified() { echo "$MSYS2_INSTALLER_SHA256  $cached" | sha256sum -c --status; }
+          seed() { cp "$cached" "$dir/base.exe"; touch "$dir.complete"; echo "MSYS2 installer from $1"; exit 0; }
+          if [ -f "$cached" ] && verified; then seed "the cache"; fi
           for url in \
             "https://github.com/msys2/msys2-installer/releases/download/$MSYS2_INSTALLER_DATE/$file" \
             "https://repo.msys2.org/distrib/x86_64/$file" \
             "https://mirror.msys2.org/distrib/x86_64/$file" \
             "https://mirrors.tuna.tsinghua.edu.cn/msys2/distrib/x86_64/$file"; do
-            if curl -fsSL --retry 3 --retry-all-errors --connect-timeout 20 -o "$dir/base.exe" "$url" &&
-              echo "$MSYS2_INSTALLER_SHA256  $dir/base.exe" | sha256sum -c --status; then
-              touch "$dir.complete"
-              echo "MSYS2 installer from $url"
-              exit 0
+            if curl -fsSL --retry 3 --retry-all-errors --connect-timeout 20 -o "$cached" "$url" && verified; then
+              seed "$url"
             fi
             echo "::warning::MSYS2 installer download failed: $url"
           done
           echo "::error::MSYS2 installer: every source failed"
           exit 1
+      - if: steps.msys2-installer.outputs.cache-hit != 'true' && env.SAVE_CACHE == 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: msys2-installer
+          key: ${{ steps.msys2-installer.outputs.cache-primary-key }}
+      # Its package cache needs no gating: a tag restores master's entry, and with the installer pinned
+      # and no update the packages match it, so the action skips the save ("Cache unchanged").
       - id: msys2
         uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2.33.0
         with:
@@ -627,14 +771,21 @@ jobs:
           rustup toolchain install "$RUST_TOOLCHAIN-${{ matrix.host }}" --profile minimal
           rustup default "$RUST_TOOLCHAIN-${{ matrix.host }}"
           rustc -vV
-      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      # Cargo judges a path crate (the vendored gpui patches) by its files' mtimes, and a checkout makes
+      # them all new: pinned to one old mtime, the restored build of them counts as fresh. Safe only
+      # because the cache key carries vendor/'s hash, so a changed vendor/ never restores an old build.
+      - name: Pin the vendored crates' mtimes
+        shell: bash
+        working-directory: YMusicV4/desktopRust
+        run: find vendor -type f -exec touch -t 200001010000 {} +
+      # The registry plus target/ trimmed to the dependencies (the workspace crates are dropped before the
+      # save), keyed on the toolchain and Cargo.lock; a new lockfile restores the newest same-target entry.
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
-          path: |
-            ~/.cargo/registry/index
-            ~/.cargo/registry/cache
-            ~/.cargo/git/db
-          key: cargo-${{ matrix.slug }}-${{ hashFiles('YMusicV4/desktopRust/Cargo.lock') }}
-          restore-keys: cargo-${{ matrix.slug }}-
+          workspaces: YMusicV4/desktopRust -> target
+          key: ${{ matrix.slug }}-vendor-${{ hashFiles('YMusicV4/desktopRust/vendor/**') }}
+          cache-bin: false
+          save-if: ${{ env.SAVE_CACHE == 'true' }}
 
       - name: Restore secrets
         if: env.HAS_SECRETS == 'true'
@@ -728,17 +879,23 @@ jobs:
           echo "using $iscc"
           echo "ISCC=$iscc" >> "$GITHUB_ENV"
 
-      - if: env.SIGN == 'true'
+      # Master builds ssign on a miss and saves it, so a tag's signing only restores it.
+      - if: env.SIGN == 'true' || env.SAVE_CACHE == 'true'
         id: ssign-cache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ssign
           key: ssign-${{ env.SSIGN_REV }}
       # The image's stable MSVC toolchain, as ssign's own CI builds it; --locked takes its Cargo.lock.
       - name: Build ssign
-        if: env.SIGN == 'true' && steps.ssign-cache.outputs.cache-hit != 'true'
+        if: (env.SIGN == 'true' || env.SAVE_CACHE == 'true') && steps.ssign-cache.outputs.cache-hit != 'true'
         shell: bash
         run: cargo install --locked --git https://github.com/Le-Syl21/ssign --rev "$SSIGN_REV" --root ssign ssign
+      - if: env.SAVE_CACHE == 'true' && steps.ssign-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ssign
+          key: ${{ steps.ssign-cache.outputs.cache-primary-key }}
 
       - name: Package the installers
         shell: bash
@@ -822,34 +979,51 @@ jobs:
         with:
           name: engine-js
           path: YMusicV4/engine-js/build/dist
-      - uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          path: ffmpeg-build/out/${{ matrix.slug }}
-          key: ffmpeg-${{ matrix.slug }}-ubuntu22.04-${{ env.FFMPEG_BUILD_REF }}
-          fail-on-cache-miss: true
+          name: ffmpeg-${{ matrix.slug }}
+          path: ffmpeg-packs
+      - name: Unpack the ffmpeg pack
+        run: mkdir -p ffmpeg-build/out && tar -xf "ffmpeg-packs/ffmpeg-${{ matrix.slug }}.tar" -C ffmpeg-build/out
 
       - name: Install Rust
         run: |
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs |
             sh -s -- -y --profile minimal --default-toolchain "$RUST_TOOLCHAIN"
           echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
-      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      # Cargo judges a path crate (the vendored gpui patches) by its files' mtimes, and a checkout makes
+      # them all new: pinned to one old mtime, the restored build of them counts as fresh. Safe only
+      # because the cache key carries vendor/'s hash, so a changed vendor/ never restores an old build.
+      - name: Pin the vendored crates' mtimes
+        working-directory: YMusicV4/desktopRust
+        run: find vendor -type f -exec touch -t 200001010000 {} +
+      # The registry plus target/ trimmed to the dependencies (the workspace crates are dropped before the
+      # save), keyed on the toolchain and Cargo.lock; a new lockfile restores the newest same-target entry.
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
-          path: |
-            ~/.cargo/registry/index
-            ~/.cargo/registry/cache
-            ~/.cargo/git/db
-          key: cargo-${{ matrix.slug }}-${{ hashFiles('YMusicV4/desktopRust/Cargo.lock') }}
-          restore-keys: cargo-${{ matrix.slug }}-
+          workspaces: YMusicV4/desktopRust -> target
+          key: ${{ matrix.slug }}-vendor-${{ hashFiles('YMusicV4/desktopRust/vendor/**') }}
+          cache-bin: false
+          save-if: ${{ env.SAVE_CACHE == 'true' }}
 
+      - id: appimage-tools
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: appimage-tools
+          key: appimage-tools-${{ matrix.appimage }}-${{ env.APPIMAGETOOL_VERSION }}-${{ env.APPIMAGE_RUNTIME_VERSION }}
       - name: Fetch the AppImage tooling
         run: |
-          mkdir -p "$RUNNER_TEMP/appimage"
-          cd "$RUNNER_TEMP/appimage"
-          curl -fsSL -o appimagetool "https://github.com/AppImage/appimagetool/releases/download/$APPIMAGETOOL_VERSION/appimagetool-${{ matrix.appimage }}.AppImage"
-          curl -fsSL -o runtime "https://github.com/AppImage/type2-runtime/releases/download/$APPIMAGE_RUNTIME_VERSION/runtime-${{ matrix.appimage }}"
+          mkdir -p appimage-tools
+          cd appimage-tools
+          [ -f appimagetool ] || curl -fsSL -o appimagetool "https://github.com/AppImage/appimagetool/releases/download/$APPIMAGETOOL_VERSION/appimagetool-${{ matrix.appimage }}.AppImage"
+          [ -f runtime ] || curl -fsSL -o runtime "https://github.com/AppImage/type2-runtime/releases/download/$APPIMAGE_RUNTIME_VERSION/runtime-${{ matrix.appimage }}"
           printf '%s  appimagetool\n%s  runtime\n' "${{ matrix.appimagetool_sha256 }}" "${{ matrix.runtime_sha256 }}" | sha256sum -c -
           chmod +x appimagetool
+      - if: steps.appimage-tools.outputs.cache-hit != 'true' && env.SAVE_CACHE == 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: appimage-tools
+          key: ${{ steps.appimage-tools.outputs.cache-primary-key }}
 
       - name: Restore secrets
         if: env.HAS_SECRETS == 'true'
@@ -873,7 +1047,7 @@ jobs:
         run: |
           export YMUSIC_V4_DIR="$GITHUB_WORKSPACE/YMusicV4"
           export FFMPEG_BUILD_DIR="$GITHUB_WORKSPACE/ffmpeg-build"
-          APPIMAGETOOL="$RUNNER_TEMP/appimage/appimagetool" APPIMAGE_RUNTIME="$RUNNER_TEMP/appimage/runtime" \
+          APPIMAGETOOL="$GITHUB_WORKSPACE/appimage-tools/appimagetool" APPIMAGE_RUNTIME="$GITHUB_WORKSPACE/appimage-tools/runtime" \
             tools/package-linux.sh --deb --appimage --out "$GITHUB_WORKSPACE/dist"
 
       - name: Discard secrets
@@ -901,11 +1075,12 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           path: YMusicV4
-      - uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          path: ffmpeg-build/out/macos-arm64
-          key: ffmpeg-macos-arm64-${{ env.FFMPEG_BUILD_REF }}
-          fail-on-cache-miss: true
+          name: ffmpeg-macos-arm64
+          path: ffmpeg-packs
+      - name: Unpack the ffmpeg pack
+        run: mkdir -p ffmpeg-build/out && tar -xf "ffmpeg-packs/ffmpeg-macos-arm64.tar" -C ffmpeg-build/out
       - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
         with:
           distribution: temurin
@@ -913,7 +1088,22 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
+      # Gradle User Home (wrapper, dependencies, the build cache), saved by master only.
       - uses: gradle/actions/setup-gradle@0b6dd653ba04f4f93bf581ec31e66cbd7dcb644d # v4
+        with:
+          cache-read-only: ${{ env.SAVE_CACHE != 'true' }}
+      # The npm cache npx installs esbuild and typescript from, keyed on their pins.
+      - id: npx
+        working-directory: YMusicV4
+        shell: bash
+        run: |
+          version() { sed -n "s/.*const val $1 = \"\([^\"]*\)\".*/\1/p" buildSrc/src/main/kotlin/Dependencies.kt; }
+          echo "key=npx-$RUNNER_OS-$RUNNER_ARCH-esbuild$(version esbuild)-typescript$(version typescript)" >> "$GITHUB_OUTPUT"
+      - id: npx-cache
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.npm
+          key: ${{ steps.npx.outputs.key }}
       - working-directory: YMusicV4
         run: >-
           ./gradlew --continue -Pci=true
@@ -935,6 +1125,12 @@ jobs:
           :settings:jvmTest
           :telemetry:jvmTest
           :yt-media:jvmTest
+      # Saved even when a test fails: the downloads are the same either way.
+      - if: always() && steps.npx-cache.outputs.cache-hit != 'true' && env.SAVE_CACHE == 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.npm
+          key: ${{ steps.npx.outputs.key }}
       - if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -959,7 +1155,10 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
+      # Gradle User Home (wrapper, dependencies, the build cache), saved by master only.
       - uses: gradle/actions/setup-gradle@0b6dd653ba04f4f93bf581ec31e66cbd7dcb644d # v4
+        with:
+          cache-read-only: ${{ env.SAVE_CACHE != 'true' }}
       - run: ./gradlew -Pproduction=true :engine-js:closureJs :engine-js:closurePlayerJs
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -999,7 +1198,12 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
+      # Restore-only on every ref: each shipped tag's host resolves its own dependency set, and an entry
+      # per tag would cost ~0.5 GB of the 10 GB cache budget each. It restores the newest Linux entry
+      # (master's android job), which holds most of what an old host needs.
       - uses: gradle/actions/setup-gradle@0b6dd653ba04f4f93bf581ec31e66cbd7dcb644d # v4
+        with:
+          cache-read-only: true
       - run: head/compat/overlay.sh host bundles
       - working-directory: host
         run: ./gradlew :dynamic-engine:jvmTest --tests 'io.ymusic.dynamicengine.compat.*' --rerun
@@ -1067,6 +1271,26 @@ jobs:
           SECRETS_PASSPHRASE: ${{ secrets.SECRETS_PASSPHRASE }}
         run: ./decrypt.sh
 
+      # Fetched on every ref, so master saves it for the tags.
+      - id: sentry-cli
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: sentry-cli
+          key: sentry-cli-Linux-x86_64-${{ env.SENTRY_CLI_VERSION }}
+      - name: Fetch sentry-cli
+        run: |
+          set -euo pipefail
+          cli=sentry-cli/sentry-cli
+          mkdir -p sentry-cli
+          [ -f "$cli" ] || curl -fsSL --retry 3 -o "$cli" "https://github.com/getsentry/sentry-cli/releases/download/$SENTRY_CLI_VERSION/sentry-cli-Linux-x86_64"
+          echo "$SENTRY_CLI_SHA256  $cli" | sha256sum -c -
+          chmod +x "$cli"
+      - if: steps.sentry-cli.outputs.cache-hit != 'true' && env.SAVE_CACHE == 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: sentry-cli
+          key: ${{ steps.sentry-cli.outputs.cache-primary-key }}
+
       # The Rust desktop app's macOS dSYMs and unstripped Linux binaries (its packaging scripts'
       # <out>/debug), so its panic frames symbolicate with file:line. Windows has none yet.
       - name: Upload the desktop debug files to Sentry
@@ -1079,11 +1303,7 @@ jobs:
           token="$(sed -n 's/^sentry\.auth\.token=//p' YMusicV4/secrets.properties 2>/dev/null | head -n 1)"
           [ -n "$token" ] || { echo "no sentry.auth.token in secrets.properties" >&2; exit 1; }
           echo "::add-mask::$token"
-          cli="$RUNNER_TEMP/sentry-cli"
-          curl -fsSL --retry 3 -o "$cli" "https://github.com/getsentry/sentry-cli/releases/download/$SENTRY_CLI_VERSION/sentry-cli-Linux-x86_64"
-          echo "$SENTRY_CLI_SHA256  $cli" | sha256sum -c -
-          chmod +x "$cli"
-          SENTRY_AUTH_TOKEN="$token" "$cli" debug-files upload --type dsym --type elf \
+          SENTRY_AUTH_TOKEN="$token" sentry-cli/sentry-cli debug-files upload --type dsym --type elf \
             artifacts/macos-arm64-debug artifacts/macos-x86_64-debug artifacts/linux-x86_64-debug artifacts/linux-arm64-debug
 
       - name: Build the update config
