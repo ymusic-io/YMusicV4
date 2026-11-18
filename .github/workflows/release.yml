@@ -8,10 +8,16 @@ name: release
 # A push to master or a ci/* branch runs every build and test with Sentry environment "beta" and
 # releases nothing: no secrets.enc, no signing or notarizing, no Sentry upload, no draft release. The
 # release job only collects and checksums the files there, which checks every artifact's name.
+# The schedule runs the master build twice a week (a release can be weeks away): GitHub evicts a cache
+# entry 7 days after its last use, and each run restores every entry, ffmpeg's and the NDK first.
+# workflow_dispatch runs it by hand; dispatched on a tag it is that tag's release build.
 on:
   push:
     tags: ['release-*', 'prerelease-*']
     branches: [master, 'ci/**']
+  schedule:
+    - cron: '17 4 * * 1,4'
+  workflow_dispatch:
 
 permissions:
   contents: read
