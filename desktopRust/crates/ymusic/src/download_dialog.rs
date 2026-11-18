@@ -750,7 +750,7 @@ impl DownloadPicker {
         for caption in self.ordered_captions(cx) {
             let key = caption.key();
             let selected = Some(&key) == self.caption.as_ref();
-            let recent_caption = caption.is_translated.then(|| caption.language_code.clone());
+            let recent_caption = Some(caption.language_code.clone());
             let mut entry = choice(caption_label(&caption), selected, move |picker| picker.caption = Some(key.clone()));
             entry.recent_caption = recent_caption;
             choices.push(entry);
@@ -758,16 +758,34 @@ impl DownloadPicker {
         choices
     }
 
-    /// The selected track, the auto-translations in the recent caption languages, then the rest in
-    /// their order. Picking an auto-translation records its language, as Now Playing does.
+    /// The selected track, the tracks in the recent caption languages (the video's own, uploaded
+    /// before auto-generated, else its auto-translation), then the rest in their order. Picking a
+    /// track records its language, as Now Playing does.
     fn ordered_captions(&self, cx: &App) -> Vec<CaptionOption> {
         let captions = self.options().map(|options| options.captions.clone()).unwrap_or_default();
+        let mut own: Vec<usize> = (0..captions.len()).filter(|index| !captions[*index].is_translated).collect();
+        own.sort_by_key(|index| captions[*index].is_asr);
         let translated: Vec<usize> = (0..captions.len()).filter(|index| captions[*index].is_translated).collect();
-        let languages: Vec<&str> = translated.iter().map(|index| captions[*index].language_code.as_str()).collect();
-        let recent = in_recent_languages(&languages, &recent_caption_languages(cx), |language| language);
+        let own_languages: Vec<&str> = own.iter().map(|index| captions[*index].language_code.as_str()).collect();
+        let translated_languages: Vec<&str> =
+            translated.iter().map(|index| captions[*index].language_code.as_str()).collect();
+        let recent: Vec<usize> = recent_caption_languages(cx)
+            .iter()
+            .filter_map(|code| {
+                let code = std::slice::from_ref(code);
+                in_recent_languages(&own_languages, code, |language| language)
+                    .first()
+                    .map(|position| own[*position])
+                    .or_else(|| {
+                        in_recent_languages(&translated_languages, code, |language| language)
+                            .first()
+                            .map(|position| translated[*position])
+                    })
+            })
+            .collect();
         let selected = captions.iter().position(|caption| Some(caption.key()) == self.caption);
         let mut order: Vec<usize> = selected.into_iter().collect();
-        for index in recent.into_iter().map(|position| translated[position]).chain(0..captions.len()) {
+        for index in recent.into_iter().chain(0..captions.len()) {
             if !order.contains(&index) {
                 order.push(index);
             }

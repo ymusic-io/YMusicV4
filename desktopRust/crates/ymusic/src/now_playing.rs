@@ -946,13 +946,11 @@ impl NowPlaying {
                     );
                     let pick = |track: &CaptionTrack| {
                         let (playback, id) = (target.clone(), track.vss_id.clone());
-                        let translation = (track.kind == AUTO_TRANSLATE_KIND).then(|| track.language_code.clone());
+                        let code = track.language_code.clone();
                         PopupMenuItem::new(track.display_name.clone()).checked(is_on(track)).on_click(
                             move |_, _, cx| {
                                 playback.update(cx, |playback, cx| playback.select_caption(id.clone(), cx));
-                                if let Some(code) = &translation {
-                                    record_caption_language(code.clone(), cx);
-                                }
+                                record_caption_language(code.clone(), cx);
                             },
                         )
                     };

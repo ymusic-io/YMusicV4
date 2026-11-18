@@ -1,5 +1,5 @@
-//! The caption languages last picked, most recent first: one list shared by Now Playing's
-//! auto-translations and the download pickers, the JVM app's `captions.recentTranslateLanguages`.
+//! The caption languages last picked, most recent first: one list shared by Now Playing's caption
+//! menu and the download pickers (every pick but Off), the JVM app's `captions.recentTranslateLanguages`.
 
 use gpui_kit::{App, Global};
 
