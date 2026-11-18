@@ -202,6 +202,12 @@
     <string name="menu_remove_from_playlist">Rimuovi dalla playlist</string>
     <string name="playlist_delete_title">Eliminare la playlist?</string>
     <string name="playlist_delete_message">“%1$s” verrà rimossa. I brani restano nella tua libreria.</string>
+    <plurals name="playlist_remove_selected_title">
+        <item quantity="one">Rimuovere %1$d brano dalla playlist?</item>
+        <item quantity="many">Rimuovere %1$d brani dalla playlist?</item>
+        <item quantity="other">Rimuovere %1$d brani dalla playlist?</item>
+    </plurals>
+    <string name="playlist_remove_selected_message">I brani restano nella tua libreria.</string>
     <string name="add_to_playlist_new">Nuova playlist…</string>
     <string name="playlist_recent_play">Ascoltati di recente</string>
     <string name="playlist_top_tracks">Top brani</string>

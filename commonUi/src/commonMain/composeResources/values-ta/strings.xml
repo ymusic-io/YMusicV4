@@ -199,6 +199,11 @@
     <string name="menu_remove_from_playlist">பிளேலிஸ்ட்டிலிருந்து அகற்று</string>
     <string name="playlist_delete_title">பிளேலிஸ்ட்டை நீக்கவா?</string>
     <string name="playlist_delete_message">“%1$s” அகற்றப்படும். பாடல்கள் உங்கள் லைப்ரரியில் இருக்கும்.</string>
+    <plurals name="playlist_remove_selected_title">
+        <item quantity="one">பிளேலிஸ்ட்டிலிருந்து %1$d பாடலை அகற்றவா?</item>
+        <item quantity="other">பிளேலிஸ்ட்டிலிருந்து %1$d பாடல்களை அகற்றவா?</item>
+    </plurals>
+    <string name="playlist_remove_selected_message">பாடல்கள் உங்கள் லைப்ரரியில் இருக்கும்.</string>
     <string name="add_to_playlist_new">புதிய பிளேலிஸ்ட்…</string>
     <string name="playlist_recent_play">சமீபத்திய இயக்கம்</string>
     <string name="playlist_top_tracks">சிறந்த பாடல்கள்</string>

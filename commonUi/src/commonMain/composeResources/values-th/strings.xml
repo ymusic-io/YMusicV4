@@ -196,6 +196,10 @@
     <string name="menu_remove_from_playlist">นำออกจากเพลย์ลิสต์</string>
     <string name="playlist_delete_title">ลบเพลย์ลิสต์ไหม</string>
     <string name="playlist_delete_message">“%1$s” จะถูกลบ เพลงต่างๆ จะยังอยู่ในคลังเพลงของคุณ</string>
+    <plurals name="playlist_remove_selected_title">
+        <item quantity="other">นำ %1$d เพลงออกจากเพลย์ลิสต์ไหม</item>
+    </plurals>
+    <string name="playlist_remove_selected_message">เพลงต่างๆ จะยังอยู่ในคลังเพลงของคุณ</string>
     <string name="add_to_playlist_new">เพลย์ลิสต์ใหม่…</string>
     <string name="playlist_recent_play">เล่นล่าสุด</string>
     <string name="playlist_top_tracks">เพลงยอดนิยม</string>

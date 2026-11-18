@@ -199,6 +199,11 @@
     <string name="menu_remove_from_playlist">Verwijderen uit afspeellijst</string>
     <string name="playlist_delete_title">Afspeellijst verwijderen?</string>
     <string name="playlist_delete_message">'%1$s' wordt verwijderd. De nummers blijven in je bibliotheek.</string>
+    <plurals name="playlist_remove_selected_title">
+        <item quantity="one">%1$d nummer uit afspeellijst verwijderen?</item>
+        <item quantity="other">%1$d nummers uit afspeellijst verwijderen?</item>
+    </plurals>
+    <string name="playlist_remove_selected_message">De nummers blijven in je bibliotheek.</string>
     <string name="add_to_playlist_new">Nieuwe afspeellijst…</string>
     <string name="playlist_recent_play">Recent afgespeeld</string>
     <string name="playlist_top_tracks">Toptracks</string>

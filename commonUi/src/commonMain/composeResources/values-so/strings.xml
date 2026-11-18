@@ -199,6 +199,11 @@
     <string name="menu_remove_from_playlist">Ka saar xulka</string>
     <string name="playlist_delete_title">Tirtir xulka?</string>
     <string name="playlist_delete_message">“%1$s” waa la saari doonaa. Heesuhu Gudaha way ku sii jiri doonaan.</string>
+    <plurals name="playlist_remove_selected_title">
+        <item quantity="one">Ka saar %1$d hees xulka?</item>
+        <item quantity="other">Ka saar %1$d hees xulka?</item>
+    </plurals>
+    <string name="playlist_remove_selected_message">Heesuhu waxay ku sii jiri doonaan maktabaddaada.</string>
     <string name="add_to_playlist_new">Xul cusub…</string>
     <string name="playlist_recent_play">Dhowaan la daaray</string>
     <string name="playlist_top_tracks">Ugu shiddan</string>

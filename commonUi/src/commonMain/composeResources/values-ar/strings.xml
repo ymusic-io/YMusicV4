@@ -243,6 +243,15 @@
     <string name="menu_remove_from_playlist">إزالة من قائمة التشغيل</string>
     <string name="playlist_delete_title">حذف قائمة التشغيل؟</string>
     <string name="playlist_delete_message">ستتم إزالة “%1$s”. تبقى الأغاني في مكتبتك.</string>
+    <plurals name="playlist_remove_selected_title">
+        <item quantity="zero">إزالة %1$d أغنية من قائمة التشغيل؟</item>
+        <item quantity="one">إزالة أغنية واحدة من قائمة التشغيل؟</item>
+        <item quantity="two">إزالة أغنيتين من قائمة التشغيل؟</item>
+        <item quantity="few">إزالة %1$d أغانٍ من قائمة التشغيل؟</item>
+        <item quantity="many">إزالة %1$d أغنية من قائمة التشغيل؟</item>
+        <item quantity="other">إزالة %1$d أغنية من قائمة التشغيل؟</item>
+    </plurals>
+    <string name="playlist_remove_selected_message">تبقى الأغاني في مكتبتك.</string>
     <string name="add_to_playlist_new">قائمة تشغيل جديدة…</string>
     <string name="playlist_recent_play">المشغَّلة مؤخرًا</string>
     <string name="playlist_top_tracks">أفضل المقاطع</string>

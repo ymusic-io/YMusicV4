@@ -228,6 +228,10 @@
     <string name="menu_remove_from_playlist">Xóa khỏi danh sách phát</string>
     <string name="playlist_delete_title">Xóa danh sách phát?</string>
     <string name="playlist_delete_message">“%1$s” sẽ bị xóa. Các bài hát vẫn còn trong thư viện của bạn.</string>
+    <plurals name="playlist_remove_selected_title">
+        <item quantity="other">Xóa %1$d bài hát khỏi danh sách phát?</item>
+    </plurals>
+    <string name="playlist_remove_selected_message">Các bài hát vẫn còn trong thư viện của bạn.</string>
     <string name="add_to_playlist_new">Danh sách phát mới…</string>
     <string name="playlist_recent_play">Nghe gần đây</string>
     <string name="playlist_top_tracks">Bài hát nổi bật</string>

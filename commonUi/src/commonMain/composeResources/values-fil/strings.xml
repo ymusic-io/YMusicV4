@@ -199,6 +199,11 @@
     <string name="menu_remove_from_playlist">Alisin sa playlist</string>
     <string name="playlist_delete_title">I-delete ang playlist?</string>
     <string name="playlist_delete_message">Aalisin ang “%1$s”. Mananatili ang mga kanta sa iyong library.</string>
+    <plurals name="playlist_remove_selected_title">
+        <item quantity="one">Alisin ang %1$d kanta sa playlist?</item>
+        <item quantity="other">Alisin ang %1$d kanta sa playlist?</item>
+    </plurals>
+    <string name="playlist_remove_selected_message">Mananatili ang mga kanta sa iyong library.</string>
     <string name="add_to_playlist_new">Bagong playlist…</string>
     <string name="playlist_recent_play">Kamakailang pinatugtog</string>
     <string name="playlist_top_tracks">Mga nangungunang track</string>

@@ -202,6 +202,12 @@
     <string name="menu_remove_from_playlist">Ukloni s popisa za reprodukciju</string>
     <string name="playlist_delete_title">Izbrisati popis?</string>
     <string name="playlist_delete_message">„%1$s” bit će uklonjen. Pjesme ostaju u vašoj zbirci.</string>
+    <plurals name="playlist_remove_selected_title">
+        <item quantity="one">Ukloniti %1$d pjesmu s popisa za reprodukciju?</item>
+        <item quantity="few">Ukloniti %1$d pjesme s popisa za reprodukciju?</item>
+        <item quantity="other">Ukloniti %1$d pjesama s popisa za reprodukciju?</item>
+    </plurals>
+    <string name="playlist_remove_selected_message">Pjesme ostaju u vašoj zbirci.</string>
     <string name="add_to_playlist_new">Novi popis…</string>
     <string name="playlist_recent_play">Nedavno reproducirano</string>
     <string name="playlist_top_tracks">Najbolje pjesme</string>

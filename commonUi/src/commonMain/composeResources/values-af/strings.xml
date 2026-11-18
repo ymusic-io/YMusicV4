@@ -199,6 +199,11 @@
     <string name="menu_remove_from_playlist">Verwyder uit snitlys</string>
     <string name="playlist_delete_title">Skrap snitlys?</string>
     <string name="playlist_delete_message">“%1$s” sal verwyder word. Die liedjies bly in jou biblioteek.</string>
+    <plurals name="playlist_remove_selected_title">
+        <item quantity="one">Verwyder %1$d liedjie uit snitlys?</item>
+        <item quantity="other">Verwyder %1$d liedjies uit snitlys?</item>
+    </plurals>
+    <string name="playlist_remove_selected_message">Die liedjies bly in jou biblioteek.</string>
     <string name="add_to_playlist_new">Nuwe snitlys…</string>
     <string name="playlist_recent_play">Onlangs gespeel</string>
     <string name="playlist_top_tracks">Topsnitte</string>

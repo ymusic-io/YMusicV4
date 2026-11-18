@@ -199,6 +199,11 @@
     <string name="menu_remove_from_playlist">Eltávolítás a lejátszási listáról</string>
     <string name="playlist_delete_title">Törlöd a lejátszási listát?</string>
     <string name="playlist_delete_message">A(z) „%1$s” törlődik. A dalok a könyvtáradban maradnak.</string>
+    <plurals name="playlist_remove_selected_title">
+        <item quantity="one">Eltávolítasz %1$d dalt a lejátszási listáról?</item>
+        <item quantity="other">Eltávolítasz %1$d dalt a lejátszási listáról?</item>
+    </plurals>
+    <string name="playlist_remove_selected_message">A dalok a könyvtáradban maradnak.</string>
     <string name="add_to_playlist_new">Új lejátszási lista…</string>
     <string name="playlist_recent_play">Legutóbb játszott</string>
     <string name="playlist_top_tracks">Legjobb számok</string>

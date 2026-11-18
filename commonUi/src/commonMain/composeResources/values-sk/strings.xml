@@ -205,6 +205,13 @@
     <string name="menu_remove_from_playlist">Odstrániť z playlistu</string>
     <string name="playlist_delete_title">Odstrániť playlist?</string>
     <string name="playlist_delete_message">„%1$s“ sa odstráni. Skladby zostanú vo vašej knižnici.</string>
+    <plurals name="playlist_remove_selected_title">
+        <item quantity="one">Odstrániť %1$d skladbu z playlistu?</item>
+        <item quantity="few">Odstrániť %1$d skladby z playlistu?</item>
+        <item quantity="many">Odstrániť %1$d skladby z playlistu?</item>
+        <item quantity="other">Odstrániť %1$d skladieb z playlistu?</item>
+    </plurals>
+    <string name="playlist_remove_selected_message">Skladby zostanú vo vašej knižnici.</string>
     <string name="add_to_playlist_new">Nový playlist…</string>
     <string name="playlist_recent_play">Nedávno prehrané</string>
     <string name="playlist_top_tracks">Najprehrávanejšie skladby</string>

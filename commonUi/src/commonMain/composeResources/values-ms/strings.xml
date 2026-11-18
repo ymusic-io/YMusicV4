@@ -196,6 +196,10 @@
     <string name="menu_remove_from_playlist">Alih keluar daripada senarai main</string>
     <string name="playlist_delete_title">Padam senarai main?</string>
     <string name="playlist_delete_message">“%1$s” akan dialih keluar. Lagu-lagunya kekal dalam pustaka anda.</string>
+    <plurals name="playlist_remove_selected_title">
+        <item quantity="other">Alih keluar %1$d lagu daripada senarai main?</item>
+    </plurals>
+    <string name="playlist_remove_selected_message">Lagu-lagunya kekal dalam pustaka anda.</string>
     <string name="add_to_playlist_new">Senarai main baharu…</string>
     <string name="playlist_recent_play">Main terkini</string>
     <string name="playlist_top_tracks">Lagu teratas</string>

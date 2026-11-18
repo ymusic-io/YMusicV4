@@ -199,6 +199,11 @@
     <string name="menu_remove_from_playlist">Aus Playlist entfernen</string>
     <string name="playlist_delete_title">Playlist löschen?</string>
     <string name="playlist_delete_message">„%1$s“ wird entfernt. Die Songs bleiben in deiner Mediathek.</string>
+    <plurals name="playlist_remove_selected_title">
+        <item quantity="one">%1$d Song aus Playlist entfernen?</item>
+        <item quantity="other">%1$d Songs aus Playlist entfernen?</item>
+    </plurals>
+    <string name="playlist_remove_selected_message">Die Songs bleiben in deiner Mediathek.</string>
     <string name="add_to_playlist_new">Neue Playlist…</string>
     <string name="playlist_recent_play">Zuletzt gespielt</string>
     <string name="playlist_top_tracks">Top-Titel</string>

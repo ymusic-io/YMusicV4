@@ -199,6 +199,11 @@
     <string name="menu_remove_from_playlist">Αφαίρεση από τη λίστα αναπαραγωγής</string>
     <string name="playlist_delete_title">Διαγραφή λίστας αναπαραγωγής;</string>
     <string name="playlist_delete_message">Η λίστα «%1$s» θα αφαιρεθεί. Τα τραγούδια παραμένουν στη βιβλιοθήκη σας.</string>
+    <plurals name="playlist_remove_selected_title">
+        <item quantity="one">Αφαίρεση %1$d τραγουδιού από τη λίστα αναπαραγωγής;</item>
+        <item quantity="other">Αφαίρεση %1$d τραγουδιών από τη λίστα αναπαραγωγής;</item>
+    </plurals>
+    <string name="playlist_remove_selected_message">Τα τραγούδια παραμένουν στη βιβλιοθήκη σας.</string>
     <string name="add_to_playlist_new">Νέα λίστα αναπαραγωγής…</string>
     <string name="playlist_recent_play">Πρόσφατα</string>
     <string name="playlist_top_tracks">Κορυφαία κομμάτια</string>

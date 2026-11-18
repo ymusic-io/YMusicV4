@@ -199,6 +199,11 @@
     <string name="menu_remove_from_playlist">প্লেলিস্ট থেকে সরান</string>
     <string name="playlist_delete_title">প্লেলিস্ট মুছবেন?</string>
     <string name="playlist_delete_message">“%1$s” সরানো হবে। গানগুলো আপনার লাইব্রেরিতে থাকবে।</string>
+    <plurals name="playlist_remove_selected_title">
+        <item quantity="one">প্লেলিস্ট থেকে %1$dটি গান সরাবেন?</item>
+        <item quantity="other">প্লেলিস্ট থেকে %1$dটি গান সরাবেন?</item>
+    </plurals>
+    <string name="playlist_remove_selected_message">গানগুলো আপনার লাইব্রেরিতে থাকবে।</string>
     <string name="add_to_playlist_new">নতুন প্লেলিস্ট…</string>
     <string name="playlist_recent_play">সাম্প্রতিক চালানো</string>
     <string name="playlist_top_tracks">শীর্ষ ট্র্যাক</string>
