@@ -350,15 +350,20 @@ internal fun <T : Any> UnderlineTabRow(
 /** A text tab label for [UnderlineTabRow] — accent + semibold when active, faint otherwise. */
 @Composable
 internal fun TabLabel(text: String, active: Boolean) {
+    // Both weights are always laid out, one hidden, so selecting a tab never changes its width.
+    Box(Modifier.padding(horizontal = 8.dp, vertical = 7.dp), contentAlignment = Alignment.Center) {
+        TabLabelText(text, FontWeight.Medium, DesignColors.InkFaint, shown = !active)
+        TabLabelText(text, FontWeight.SemiBold, DesignColors.Accent, shown = active)
+    }
+}
+
+@Composable
+private fun TabLabelText(text: String, weight: FontWeight, color: Color, shown: Boolean) {
     Text(
         text,
-        style = TextStyle(
-            fontSize = 13.sp,
-            fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium,
-            color = if (active) DesignColors.Accent else DesignColors.InkFaint,
-        ),
+        style = TextStyle(fontSize = 13.sp, fontWeight = weight, color = color),
         maxLines = 1,
-        modifier = Modifier.padding(horizontal = 8.dp, vertical = 7.dp),
+        modifier = if (shown) Modifier else Modifier.alpha(0f).clearAndSetSemantics {},
     )
 }
 
