@@ -911,14 +911,19 @@ impl Playback {
         });
     }
 
-    /// Plays `item` right after the current one; starts it when nothing is queued.
-    pub fn queue_next(&mut self, item: QueueItem, cx: &mut Context<Self>) {
-        if self.queue.is_empty() {
-            self.play_queue(vec![item], 0, None, cx);
+    /// Plays `items`, in order, right after the current one; starts them when nothing is queued.
+    pub fn queue_next(&mut self, items: Vec<QueueItem>, cx: &mut Context<Self>) {
+        if items.is_empty() {
             return;
         }
-        let at = self.nav.add_next(self.index);
-        self.queue.insert(at, item);
+        if self.queue.is_empty() {
+            self.play_queue(items, 0, None, cx);
+            return;
+        }
+        for item in items {
+            let at = self.nav.add_next(self.index);
+            self.queue.insert(at, item);
+        }
         self.queue_revision += 1;
         self.publish_queue(true, cx);
         cx.notify();
@@ -940,13 +945,16 @@ impl Playback {
         cx.notify();
     }
 
-    /// Adds `item` at the end of the queue; starts it when nothing is queued.
-    pub fn queue_last(&mut self, item: QueueItem, cx: &mut Context<Self>) {
-        if self.queue.is_empty() {
-            self.play_queue(vec![item], 0, None, cx);
+    /// Adds `items`, in order, at the end of the queue; starts them when nothing is queued.
+    pub fn queue_last(&mut self, items: Vec<QueueItem>, cx: &mut Context<Self>) {
+        if items.is_empty() {
             return;
         }
-        self.queue.push(item);
+        if self.queue.is_empty() {
+            self.play_queue(items, 0, None, cx);
+            return;
+        }
+        self.queue.extend(items);
         self.queue_revision += 1;
         self.publish_queue(true, cx);
         cx.notify();

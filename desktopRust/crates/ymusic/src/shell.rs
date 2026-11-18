@@ -531,7 +531,10 @@ impl Shell {
                             let kind = if album { GroupKind::Album } else { GroupKind::Artist };
                             library.reveal_group(kind, name, cx)
                         }
-                        None => library.select_tab_index(if album { 4 } else { 3 }, cx),
+                        None => {
+                            library.clear_selection(cx);
+                            library.select_tab_index(if album { 4 } else { 3 }, cx)
+                        }
                     });
                 }
                 NowPlayingEvent::SignIn => {
@@ -1142,13 +1145,12 @@ impl Shell {
             let (items, index, shuffle) = (event.items.clone(), event.index, event.shuffle);
             shell.playback.update(cx, |playback, cx| playback.play_queue(items, index, shuffle, cx));
         });
-        let queue =
-            cx.subscribe(&view, |shell, _, event: &QueueLocal, cx| {
-                let (item, next) = (event.item.clone(), event.next);
-                shell.playback.update(cx, |playback, cx| {
-                    if next { playback.queue_next(item, cx) } else { playback.queue_last(item, cx) }
-                });
+        let queue = cx.subscribe(&view, |shell, _, event: &QueueLocal, cx| {
+            let (items, next) = (event.items.clone(), event.next);
+            shell.playback.update(cx, |playback, cx| {
+                if next { playback.queue_next(items, cx) } else { playback.queue_last(items, cx) }
             });
+        });
         self._subscriptions.extend([play, queue]);
         self.library = Some(view.clone());
         view
@@ -1412,10 +1414,10 @@ impl Shell {
             let item = event.item.clone();
             match event.action {
                 FeedAction::QueueNext => {
-                    shell.playback.update(cx, |playback, cx| playback.queue_next(QueueItem::from_feed(&item), cx))
+                    shell.playback.update(cx, |playback, cx| playback.queue_next(vec![QueueItem::from_feed(&item)], cx))
                 }
                 FeedAction::QueueLast => {
-                    shell.playback.update(cx, |playback, cx| playback.queue_last(QueueItem::from_feed(&item), cx))
+                    shell.playback.update(cx, |playback, cx| playback.queue_last(vec![QueueItem::from_feed(&item)], cx))
                 }
                 FeedAction::Radio => shell.playback.update(cx, |playback, cx| playback.play_feed(item, None, cx)),
                 FeedAction::Download => {
@@ -1462,6 +1464,11 @@ impl Shell {
 
     fn push_layer(&mut self, layer: Layer, cx: &mut Context<Self>) {
         self.now_playing_open = false;
+        if self.section == Section::Library
+            && let Some(view) = &self.library
+        {
+            view.update(cx, |view, cx| view.clear_selection(cx));
+        }
         self.stacks.entry(self.section).or_default().pushed.push(layer);
         cx.notify();
     }
@@ -1645,13 +1652,12 @@ impl Shell {
             let (items, index, shuffle) = (event.items.clone(), event.index, event.shuffle);
             shell.playback.update(cx, |playback, cx| playback.play_queue(items, index, shuffle, cx));
         });
-        let queue =
-            cx.subscribe(&view, |shell, _, event: &QueueLocal, cx| {
-                let (item, next) = (event.item.clone(), event.next);
-                shell.playback.update(cx, |playback, cx| {
-                    if next { playback.queue_next(item, cx) } else { playback.queue_last(item, cx) }
-                });
+        let queue = cx.subscribe(&view, |shell, _, event: &QueueLocal, cx| {
+            let (items, next) = (event.items.clone(), event.next);
+            shell.playback.update(cx, |playback, cx| {
+                if next { playback.queue_next(items, cx) } else { playback.queue_last(items, cx) }
             });
+        });
         self._subscriptions.extend([events, play, queue]);
         self.push_layer(Layer::LibrarySearch(view), cx);
     }
@@ -1714,6 +1720,12 @@ impl Shell {
         if previous == Section::Downloads
             && section != Section::Downloads
             && let Some(view) = &self.downloads
+        {
+            view.update(cx, |view, cx| view.clear_selection(cx));
+        }
+        if previous == Section::Library
+            && section != Section::Library
+            && let Some(view) = &self.library
         {
             view.update(cx, |view, cx| view.clear_selection(cx));
         }
@@ -2276,8 +2288,8 @@ impl Shell {
         cx.notify();
     }
 
-    /// Peels back full screen, Now Playing, the drawer, then the downloads selection; with none
-    /// open, a second Esc within the double-click window goes back.
+    /// Peels back full screen, Now Playing, the drawer, then the downloads or Library songs
+    /// selection; with none open, a second Esc within the double-click window goes back.
     fn escape(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if window.is_fullscreen() {
             window.toggle_fullscreen();
@@ -2287,6 +2299,10 @@ impl Shell {
             self.drawer_open = false;
         } else if self.section == Section::Downloads
             && let Some(view) = self.downloads.clone().filter(|view| view.read(cx).selecting())
+        {
+            view.update(cx, |view, cx| view.clear_selection(cx));
+        } else if self.section == Section::Library
+            && let Some(view) = self.library.clone().filter(|view| view.read(cx).selecting())
         {
             view.update(cx, |view, cx| view.clear_selection(cx));
         } else if let Some(Layer::SignIn(view)) = self.stacks.get(&self.section).and_then(|stack| stack.pushed.last()) {
