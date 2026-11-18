@@ -110,6 +110,15 @@ impl<K: Eq + Hash + Clone + 'static> Selection<K> {
         self.change(HashSet::clear)
     }
 
+    /// Ends the mode because its list is going away (a section or tab switch, a reveal elsewhere):
+    /// focus does not come back later.
+    pub fn abandon(&mut self) -> bool {
+        self.origin = None;
+        let toggled = self.clear();
+        self.refocus = false;
+        toggled
+    }
+
     pub fn all_selected(&self, listed: &[K]) -> bool {
         !listed.is_empty() && listed.iter().all(|id| self.selected.contains(id))
     }

@@ -266,6 +266,12 @@ impl DownloadsView {
         self.selection_changed(toggled, cx);
     }
 
+    /// Ends a selection because the section is navigated away from: focus does not come back later.
+    pub fn abandon_selection(&mut self, cx: &mut Context<Self>) {
+        let toggled = self.selection.abandon();
+        self.selection_changed(toggled, cx);
+    }
+
     /// After a selection change; `toggled`: the mode began or ended.
     fn selection_changed(&mut self, toggled: bool, cx: &mut Context<Self>) {
         if toggled {

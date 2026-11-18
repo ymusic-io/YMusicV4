@@ -665,7 +665,7 @@ impl LibraryView {
         if self.tab == tab {
             return;
         }
-        self.song_selection.clear();
+        self.song_selection.abandon();
         self.playlist_selection = Selection::default();
         self.tab = tab;
         crate::shell::persist_setting(cx, LAST_LIBRARY_TAB_KEY, tab.key().to_owned());
@@ -998,7 +998,7 @@ impl LibraryView {
         cx.spawn(async move |this, cx| {
             let result = load.await;
             this.update(cx, |view, cx| {
-                view.end_selections();
+                view.abandon_selections();
                 view.select_tab(Tab::Folders, cx);
                 match result {
                     Some(Ok(Ok(chain))) => view.set_path(chain, cx),
@@ -1305,6 +1305,17 @@ impl LibraryView {
         cx.notify();
     }
 
+    fn abandon_selections(&mut self) {
+        self.song_selection.abandon();
+        self.playlist_selection.abandon();
+    }
+
+    /// Ends a selection because the Library is navigated away from: focus does not come back later.
+    pub fn abandon_selection(&mut self, cx: &mut Context<Self>) {
+        self.abandon_selections();
+        cx.notify();
+    }
+
     /// The listed songs in their order while the list on screen can select; else empty.
     fn song_ids(&self) -> Vec<i64> {
         if self.list_selection().is_none() {
@@ -1508,7 +1519,7 @@ impl LibraryView {
 
     /// Opens the artist's or album's songs in its tab ("Go to artist / album").
     pub fn reveal_group(&mut self, kind: GroupKind, name: String, cx: &mut Context<Self>) {
-        self.end_selections();
+        self.abandon_selections();
         self.set_tab(if kind == GroupKind::Artist { Tab::Artists } else { Tab::Albums }, cx);
         self.set_open_playlist(None);
         self.group = Some(if name.trim().is_empty() { self.tab.unknown_group().to_owned() } else { name });
@@ -1524,7 +1535,7 @@ impl LibraryView {
             let result = request.await;
             this.update(cx, |view, cx| match result {
                 Ok(chain) => {
-                    view.end_selections();
+                    view.abandon_selections();
                     view.set_tab(Tab::Folders, cx);
                     view.group = None;
                     view.set_open_playlist(None);
