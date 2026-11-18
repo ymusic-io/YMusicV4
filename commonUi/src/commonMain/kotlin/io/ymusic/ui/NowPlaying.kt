@@ -148,6 +148,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.ymusic.dynamicengine.yt.YtFeedItem
 import io.ymusic.mediastore.model.MediaStoreItem
 import io.ymusic.player.LoopMode
@@ -296,7 +297,7 @@ fun MiniPlayer(
     modifier: Modifier = Modifier,
 ) {
     val status by coordinator.player.status.collectAsState()
-    val progress by coordinator.player.progress.collectAsState()
+    val progress by coordinator.player.progress.collectAsStateWithLifecycle()
     val queue by coordinator.player.queue.collectAsState()
     val item = queue.currentItem ?: return
 
@@ -607,7 +608,7 @@ private fun ArtistLine(current: PlayableItem?, status: PlaybackStatus, style: Te
 private fun FullscreenVideo(graph: AppGraph, coordinator: PlaybackCoordinator, onExit: () -> Unit) {
     val player = coordinator.player
     val status by player.status.collectAsState()
-    val progress by player.progress.collectAsState()
+    val progress by player.progress.collectAsStateWithLifecycle()
     val queue by player.queue.collectAsState()
     val current = queue.currentItem
 
@@ -664,7 +665,7 @@ private fun PortraitNowPlaying(
 ) {
     val player = coordinator.player
     val status by player.status.collectAsState()
-    val progress by player.progress.collectAsState()
+    val progress by player.progress.collectAsStateWithLifecycle()
     val queue by player.queue.collectAsState()
     val sleepMs by player.sleepTimerMs.collectAsState()
     val current = queue.currentItem
@@ -811,7 +812,7 @@ private fun LandscapeNowPlaying(
 ) {
     val player = coordinator.player
     val status by player.status.collectAsState()
-    val progress by player.progress.collectAsState()
+    val progress by player.progress.collectAsStateWithLifecycle()
     val queue by player.queue.collectAsState()
     val sleepMs by player.sleepTimerMs.collectAsState()
     val current = queue.currentItem

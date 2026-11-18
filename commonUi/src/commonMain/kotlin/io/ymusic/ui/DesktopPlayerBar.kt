@@ -49,6 +49,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.ymusic.player.LoopMode
 import io.ymusic.player.PlayableItem
 import io.ymusic.player.PlaybackStatus
@@ -173,7 +174,7 @@ private fun BarNowPlaying(
 private fun BarTransport(coordinator: PlaybackCoordinator, modifier: Modifier) {
     val player = coordinator.player
     val status by player.status.collectAsState()
-    val progress by player.progress.collectAsState()
+    val progress by player.progress.collectAsStateWithLifecycle()
     val queue by player.queue.collectAsState()
     var scrubMs by remember { mutableStateOf<Long?>(null) }
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {

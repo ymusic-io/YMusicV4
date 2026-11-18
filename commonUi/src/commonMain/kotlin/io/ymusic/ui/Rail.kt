@@ -76,6 +76,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.ymusic.player.PlayableItem
 import io.ymusic.ui.resources.Res
 import io.ymusic.ui.resources.app_name
@@ -397,7 +398,7 @@ private fun ColumnScope.RailMiniCollapsed(
     onExpand: () -> Unit,
 ) {
     val status by coordinator.player.status.collectAsState()
-    val progress by coordinator.player.progress.collectAsState()
+    val progress by coordinator.player.progress.collectAsStateWithLifecycle()
     val title = item.displayTitle
     Column(
         Modifier.align(Alignment.CenterHorizontally).width(RailCollapsedTile)
@@ -426,7 +427,7 @@ private fun RailMiniExpanded(
     focusRequester: FocusRequester,
 ) {
     val status by coordinator.player.status.collectAsState()
-    val progress by coordinator.player.progress.collectAsState()
+    val progress by coordinator.player.progress.collectAsStateWithLifecycle()
     Column(Modifier.fillMaxWidth()) {
         Column(Modifier.fillMaxWidth().clickable(onClick = onExpand)) {
             Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RailThumbnailShape)) {
