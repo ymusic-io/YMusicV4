@@ -9,11 +9,12 @@ import io.ymusic.settings.SettingsStore
 import io.ymusic.settings.flow
 import io.ymusic.settings.put
 
-private const val RECENT_CAPTION_LANGUAGES = 3
+/** Generous, as a local file's codes ("eng", "und", a stream index) are recorded too and must not push real languages out. */
+private const val RECENT_CAPTION_CODES = 20
 
 /**
- * The caption languages last picked, most recent first ([AppSettings.recentTranslateLanguages]): one list
- * shared by Now Playing's caption menu and the download pickers; every caption pick but Off records its language.
+ * The caption language codes last picked, most recent first ([AppSettings.recentTranslateLanguages]): one list
+ * shared by Now Playing's caption menu and the download pickers; every caption pick but Off records its code.
  */
 @Composable
 internal fun rememberRecentCaptionLanguages(settings: SettingsStore): List<String> {
@@ -22,13 +23,14 @@ internal fun rememberRecentCaptionLanguages(settings: SettingsStore): List<Strin
 }
 
 internal suspend fun SettingsStore.recordRecentCaptionLanguage(code: String) {
-    val recent = (listOf(code) + flow(AppSettings.recentTranslateLanguages).value).distinct().take(RECENT_CAPTION_LANGUAGES)
+    if (code.isBlank()) return
+    val recent = (listOf(code) + flow(AppSettings.recentTranslateLanguages).value).distinct().take(RECENT_CAPTION_CODES)
     put(AppSettings.recentTranslateLanguages, recent.toSet())
 }
 
 /**
- * The entries in the [recent] languages, in that order, each once: an entry matches a code when its
- * language is the code, the code's base language ("en-GB" → "en"), or, for a bare code, has it as base.
+ * The entries in the [recent] languages, in that order, each once; a code no entry matches is skipped. An
+ * entry matches a code when its language is the code, the code's base language ("en-GB" → "en"), or, for a bare code, has it as base.
  * Languages with different scripts or regions ("zh-Hans", "zh-CN") never match each other.
  */
 internal fun <T> List<T>.inRecentCaptionLanguages(recent: List<String>, languageOf: (T) -> String): List<T> =

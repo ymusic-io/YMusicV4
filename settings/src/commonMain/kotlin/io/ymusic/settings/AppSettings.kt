@@ -117,7 +117,7 @@ object AppSettings {
     /** Keys no build reads any more; the app deletes them at start. */
     val retiredKeys = listOf("app.lastSection", "app.lastDiscoverTab", "app.lastLibraryTab", "app.lastYtMusicTab")
 
-    /** Auto-translate caption languages last picked, most recent first: language codes. */
+    /** The codes of the caption tracks last picked anywhere (Now Playing, download pickers), most recent first. */
     val recentTranslateLanguages = StringSetSetting("captions.recentTranslateLanguages")
 
     /** The YT Music tab the app reopens on: a YtMusicTab key, blank = none yet. */
