@@ -45,6 +45,7 @@ import io.ymusic.player.PlayableItem
 import io.ymusic.player.PlaybackState
 import io.ymusic.player.Player
 import io.ymusic.player.PlayerError
+import io.ymusic.player.isEnded
 import io.ymusic.player.isPlaying
 import io.ymusic.player.media3.Media3PlayerAdapter
 import io.ymusic.ui.AppGraph
@@ -915,7 +916,9 @@ class PlaybackService : MediaLibraryService() {
             combine(player.status, player.queue) { status, queue ->
                 // The wifi lock is only worth its battery cost when something in the queue streams;
                 // pure-local playback keeps just the partial wake lock (legacy useWifi gating).
-                isPlaying(status, queue) to queue.items.any { it is PlayableItem.YtMedia }
+                // The play intent outlives a failed load and the queue's end, where nothing plays.
+                val active = isPlaying(status, queue) && status.state !is PlaybackState.Error && !status.state.isEnded()
+                active to queue.items.any { it is PlayableItem.YtMedia }
             }.distinctUntilChanged().collectLatest { (playing, online) ->
                 if (playing) {
                     @Suppress("WakelockTimeout")
