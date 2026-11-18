@@ -528,10 +528,11 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
-      # Gradle User Home (wrapper, dependencies, the build cache), saved by master only.
+      # Restore-only: master's android job's entry (the only Linux one) holds all this build needs, and
+      # a second set of Linux dependency entries would only take cache budget.
       - uses: gradle/actions/setup-gradle@0b6dd653ba04f4f93bf581ec31e66cbd7dcb644d # v4
         with:
-          cache-read-only: ${{ env.SAVE_CACHE != 'true' }}
+          cache-read-only: true
       # The npm cache npx installs esbuild and typescript from, keyed on their pins.
       - id: npx
         working-directory: YMusicV4
