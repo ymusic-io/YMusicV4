@@ -5,7 +5,6 @@ use std::path::PathBuf;
 
 use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::menu::{DropdownMenu, PopupMenu, PopupMenuItem, PopupMenuStyle};
-use gpui_kit::component::switch::Switch;
 use gpui_kit::component::{
     ActiveTheme, Colorize, FocusableExt, Icon, Side, StyledExt, Theme, ThemeMode, WindowExt, h_flex, v_flex,
 };
@@ -237,6 +236,36 @@ pub fn field_menu(menu: PopupMenu, cx: &App) -> PopupMenu {
         style.background = Some(ground);
         style.check_size = Some(px(18.));
     })
+}
+
+/// The JVM app's `CompactSwitch`: Material 3's switch drawn at 0.8 scale in its full 52 × 32 slot.
+/// It only draws the state; the row around it is the control.
+pub fn compact_switch(checked: bool, cx: &App) -> Div {
+    const SCALE: f32 = 0.8;
+    let theme = cx.theme();
+    let (track_width, track_height) = (52. * SCALE, 32. * SCALE);
+    let outline = 2. * SCALE;
+    let handle = if checked { 24. } else { 16. } * SCALE;
+    let handle_center = if checked { track_width - 16. * SCALE } else { 16. * SCALE };
+    let (track, border, handle_color) = if checked {
+        (theme.primary, theme.primary, theme.primary_foreground)
+    } else {
+        (theme.muted, theme.input, theme.input)
+    };
+    div().w(px(52.)).h(px(32.)).flex_shrink_0().flex().items_center().justify_center().child(
+        div()
+            .w(px(track_width))
+            .h(px(track_height))
+            .flex()
+            .items_center()
+            .rounded_full()
+            .bg(track)
+            .border(px(outline))
+            .border_color(border)
+            .child(
+                div().ml(px(handle_center - handle / 2. - outline)).size(px(handle)).rounded_full().bg(handle_color),
+            ),
+    )
 }
 
 /// A sort menu (the JVM app's feed and Library sorts): the current order checked at the start.
@@ -791,19 +820,14 @@ impl SettingsView {
         checked: bool,
         cx: &mut Context<Self>,
     ) -> AnyElement {
-        let body = row_body(
-            title,
-            Some(hint.to_owned()),
-            Switch::new(key).checked(checked).tab_stop(false).accessibility_label(title),
-            cx,
-        )
-        .id(SharedString::from(format!("{key}-row")))
-        .role(Role::Switch)
-        .aria_label(title)
-        .aria_description(hint)
-        .aria_toggled(if checked { Toggled::True } else { Toggled::False })
-        .cursor_pointer()
-        .on_click(cx.listener(move |view, _, _, cx| view.put(key, (!checked).to_string(), cx)));
+        let body = row_body(title, Some(hint.to_owned()), compact_switch(checked, cx), cx)
+            .id(SharedString::from(format!("{key}-row")))
+            .role(Role::Switch)
+            .aria_label(title)
+            .aria_description(hint)
+            .aria_toggled(if checked { Toggled::True } else { Toggled::False })
+            .cursor_pointer()
+            .on_click(cx.listener(move |view, _, _, cx| view.put(key, (!checked).to_string(), cx)));
         self.focus.item(index, body, cx).into_any_element()
     }
 }
