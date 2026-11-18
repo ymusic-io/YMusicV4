@@ -1465,8 +1465,9 @@ impl LibraryView {
             })
     }
 
-    /// Once confirmed, drops the selected entries from the opened playlist (their files stay) and ends
-    /// the selection; Cancel keeps it.
+    /// Once confirmed, drops the selected entries from the opened playlist (their files stay); the
+    /// selection ends as their rows leave the list, so focus never returns to one of them. Cancel or a
+    /// failure keeps it.
     fn remove_selected_from_playlist(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let ids: Vec<i64> = self.selected_songs().iter().map(|item| item.id).collect();
         let count = ids.len() as i64;
@@ -1479,11 +1480,7 @@ impl LibraryView {
         .destructive()
         .open(window, cx, move |window, cx| {
             let ids = ids.clone();
-            view.update(cx, |view, cx| {
-                view.clear_selection(cx);
-                view.remove_from_open_playlist(&ids, window, cx);
-            })
-            .ok();
+            view.update(cx, |view, cx| view.remove_from_open_playlist(&ids, window, cx)).ok();
         });
     }
 
