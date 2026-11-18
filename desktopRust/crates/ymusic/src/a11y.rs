@@ -860,6 +860,89 @@ pub fn list_item(element: Stateful<Div>, position: usize) -> Stateful<Div> {
     element.role(Role::ListItem).aria_position_in_set(position)
 }
 
+/// `element` read as dimmed while `disabled`, as gpui-base marks a disabled control's node: gpui's
+/// div has no disabled setter. It adds no layout or accessibility node, and leaves focus and
+/// listeners as they are.
+pub fn disabled<E: Element>(element: E, disabled: bool) -> A11yDisabled<E> {
+    A11yDisabled { inner: element, disabled }
+}
+
+pub struct A11yDisabled<E> {
+    inner: E,
+    disabled: bool,
+}
+
+impl<E: Element> IntoElement for A11yDisabled<E> {
+    type Element = Self;
+
+    fn into_element(self) -> Self {
+        self
+    }
+}
+
+impl<E: Element> Element for A11yDisabled<E> {
+    type RequestLayoutState = E::RequestLayoutState;
+    type PrepaintState = E::PrepaintState;
+
+    fn id(&self) -> Option<ElementId> {
+        self.inner.id()
+    }
+
+    fn source_location(&self) -> Option<&'static std::panic::Location<'static>> {
+        self.inner.source_location()
+    }
+
+    fn request_layout(
+        &mut self,
+        id: Option<&GlobalElementId>,
+        inspector: Option<&InspectorElementId>,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> (LayoutId, Self::RequestLayoutState) {
+        self.inner.request_layout(id, inspector, window, cx)
+    }
+
+    fn prepaint(
+        &mut self,
+        id: Option<&GlobalElementId>,
+        inspector: Option<&InspectorElementId>,
+        bounds: Bounds<Pixels>,
+        layout: &mut Self::RequestLayoutState,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> Self::PrepaintState {
+        self.inner.prepaint(id, inspector, bounds, layout, window, cx)
+    }
+
+    fn paint(
+        &mut self,
+        id: Option<&GlobalElementId>,
+        inspector: Option<&InspectorElementId>,
+        bounds: Bounds<Pixels>,
+        layout: &mut Self::RequestLayoutState,
+        prepaint: &mut Self::PrepaintState,
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        self.inner.paint(id, inspector, bounds, layout, prepaint, window, cx)
+    }
+
+    fn a11y_role(&self) -> Option<Role> {
+        self.inner.a11y_role()
+    }
+
+    fn write_a11y_info(&self, node: &mut accesskit::Node) {
+        self.inner.write_a11y_info(node);
+        if self.disabled {
+            node.set_disabled();
+        }
+    }
+
+    fn a11y_synthetic_children(&mut self, prepaint: &mut Self::PrepaintState, builder: &mut A11ySubtreeBuilder) {
+        self.inner.a11y_synthetic_children(prepaint, builder);
+    }
+}
+
 /// A heading named by `text`, at `level`: 1 is the page's title, 2 a section of it. A string child
 /// has no accessibility node of its own, so the name is set as well.
 pub fn heading(id: impl Into<ElementId>, level: usize, text: impl Into<SharedString>) -> Stateful<Div> {
