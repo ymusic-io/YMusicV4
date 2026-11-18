@@ -18,12 +18,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -51,9 +51,7 @@ import io.ymusic.ui.resources.downloads_selected_count
 import io.ymusic.ui.resources.select_all
 import kmpcommon.log.Logger
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import org.jetbrains.compose.resources.stringResource
 import projectcommon.error.TechnicalException
 import projectcommon.error.errorCode
@@ -242,7 +240,8 @@ internal fun SelectionBar(
 
 /**
  * Deletes each target's file and Library row, then runs [afterDelete] for it. A failed one stays, counted in the
- * title, with its code shown; [fallbackCode] is the code of a failure that carries none.
+ * title, with its code shown (in a snackbar once the dialog is gone); [fallbackCode] is the code of a failure that
+ * carries none. The batch runs on the process scope: leaving the screen mid-batch must not skip the rest.
  */
 @Composable
 internal fun <K> DeleteSelectedFilesDialog(
@@ -254,7 +253,9 @@ internal fun <K> DeleteSelectedFilesDialog(
     onDismiss: () -> Unit,
     onDone: () -> Unit,
 ) {
-    val scope = rememberCoroutineScope()
+    val snackbar = LocalSnackbar.current
+    var shown by remember { mutableStateOf(true) }
+    DisposableEffect(Unit) { onDispose { shown = false } }
     var remaining by remember(targets) { mutableStateOf(targets) }
     var busy by remember { mutableStateOf(false) }
     var errorCode by remember { mutableStateOf<String?>(null) }
@@ -274,16 +275,13 @@ internal fun <K> DeleteSelectedFilesDialog(
                     if (deleteFile == null || store == null) return@TextButton
                     busy = true
                     errorCode = null
-                    scope.launch {
+                    graph.processScope.launch {
                         var firstError: String? = null
                         for ((key, item) in remaining) {
                             try {
-                                // A started delete finishes its bookkeeping: a gone file must not leave its row behind.
-                                withContext(NonCancellable) {
-                                    deleteFile(item)
-                                    store.deleteItem(item.id, hard = true)
-                                    afterDelete(key)
-                                }
+                                deleteFile(item)
+                                store.deleteItem(item.id, hard = true)
+                                afterDelete(key)
                                 remaining = remaining - key
                             } catch (cancel: CancellationException) {
                                 throw cancel
@@ -299,7 +297,10 @@ internal fun <K> DeleteSelectedFilesDialog(
                         }
                         busy = false
                         errorCode = firstError
-                        if (firstError == null) onDone()
+                        when {
+                            firstError == null -> onDone()
+                            !shown -> snackbar(errorText(firstError).load())
+                        }
                     }
                 },
             ) { Text(stringResource(Res.string.delete_from_disk_confirm), color = MaterialTheme.colorScheme.error) }
