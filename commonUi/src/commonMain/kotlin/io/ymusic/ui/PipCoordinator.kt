@@ -45,9 +45,10 @@ class PipCoordinator(
         return playingVideo()
     }
 
+    /** Paused too: a resume from the notification must not stream video nobody sees. */
     fun onLeaveWithoutPip() {
         if (inPip.value) return
-        if (playingVideo()) demoteToAudioOnly()
+        demoteToAudioOnly()
     }
 
     /** Desktop: the window is minimized or hidden, playing or not. [onEnterForeground] restores the quality. */
