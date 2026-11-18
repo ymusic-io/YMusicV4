@@ -29,7 +29,7 @@ The shared Compose Multiplatform app UI (jvm + android; iOS later).
   tab replaces its tab row instead (X · "N selected" · Select all · Add to playlist · Remove from disk · ⋮ Play /
   Queue next / Queue last) and holds the Library on that tab: no swipe, no tab switch until it ends. An opened user
   playlist does the same through the Library's tab-row `AppBarSlot` (X · "N selected" · Select all · Remove from
-  playlist · Remove from disk · Add to playlist · ⋮ Play / Queue next / Queue last); its dialogs are the Songs tab's.
+  playlist · Remove from disk · Add to playlist · ⋮ Play / Queue next / Queue last); Remove from playlist asks first ("Remove N songs from playlist?"), the rest reuse the Songs tab's dialogs.
 
 - **SponsorBlock seam** — `ymusic.ui.sponsorblock`: `SponsorBlockApi` + `MockSponsorBlockApi` +
   SQLite cache/whitelist (`SponsorBlockStore`) + `SponsorBlockService` + `SponsorBlockCoordinator`

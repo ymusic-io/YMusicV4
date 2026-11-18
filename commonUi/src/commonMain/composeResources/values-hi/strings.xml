@@ -199,6 +199,11 @@
     <string name="menu_remove_from_playlist">प्लेलिस्ट से हटाएं</string>
     <string name="playlist_delete_title">प्लेलिस्ट मिटाएं?</string>
     <string name="playlist_delete_message">“%1$s” हटा दी जाएगी। गाने आपकी लाइब्रेरी में रहेंगे।</string>
+    <plurals name="playlist_remove_selected_title">
+        <item quantity="one">प्लेलिस्ट से %1$d गाना हटाएं?</item>
+        <item quantity="other">प्लेलिस्ट से %1$d गाने हटाएं?</item>
+    </plurals>
+    <string name="playlist_remove_selected_message">गाने आपकी लाइब्रेरी में रहेंगे।</string>
     <string name="add_to_playlist_new">नई प्लेलिस्ट…</string>
     <string name="playlist_recent_play">हाल में चलाए गए</string>
     <string name="playlist_top_tracks">टॉप ट्रैक</string>

@@ -202,6 +202,12 @@
     <string name="menu_remove_from_playlist">Treu de la llista</string>
     <string name="playlist_delete_title">Vols suprimir la llista?</string>
     <string name="playlist_delete_message">Se suprimirà «%1$s». Les cançons es queden a la teva biblioteca.</string>
+    <plurals name="playlist_remove_selected_title">
+        <item quantity="one">Vols treure %1$d cançó de la llista?</item>
+        <item quantity="many">Vols treure %1$d cançons de la llista?</item>
+        <item quantity="other">Vols treure %1$d cançons de la llista?</item>
+    </plurals>
+    <string name="playlist_remove_selected_message">Les cançons es queden a la teva biblioteca.</string>
     <string name="add_to_playlist_new">Llista nova…</string>
     <string name="playlist_recent_play">Reproduït recentment</string>
     <string name="playlist_top_tracks">Cançons més escoltades</string>

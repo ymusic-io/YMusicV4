@@ -196,6 +196,10 @@
     <string name="menu_remove_from_playlist">Hapus dari daftar putar</string>
     <string name="playlist_delete_title">Hapus daftar putar?</string>
     <string name="playlist_delete_message">“%1$s” akan dihapus. Lagu-lagunya tetap ada di perpustakaan Anda.</string>
+    <plurals name="playlist_remove_selected_title">
+        <item quantity="other">Hapus %1$d lagu dari daftar putar?</item>
+    </plurals>
+    <string name="playlist_remove_selected_message">Lagu-lagunya tetap ada di perpustakaan Anda.</string>
     <string name="add_to_playlist_new">Daftar putar baru…</string>
     <string name="playlist_recent_play">Baru diputar</string>
     <string name="playlist_top_tracks">Lagu teratas</string>

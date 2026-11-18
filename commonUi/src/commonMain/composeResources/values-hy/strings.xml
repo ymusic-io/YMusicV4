@@ -199,6 +199,11 @@
     <string name="menu_remove_from_playlist">Հեռացնել երգացանկից</string>
     <string name="playlist_delete_title">Ջնջե՞լ երգացանկը</string>
     <string name="playlist_delete_message">«%1$s»-ը կհեռացվի։ Երգերը կմնան ձեր գրադարանում։</string>
+    <plurals name="playlist_remove_selected_title">
+        <item quantity="one">Հեռացնե՞լ %1$d երգ երգացանկից</item>
+        <item quantity="other">Հեռացնե՞լ %1$d երգ երգացանկից</item>
+    </plurals>
+    <string name="playlist_remove_selected_message">Երգերը կմնան ձեր գրադարանում։</string>
     <string name="add_to_playlist_new">Նոր երգացանկ…</string>
     <string name="playlist_recent_play">Վերջերս նվագարկված</string>
     <string name="playlist_top_tracks">Լավագույն երգեր</string>

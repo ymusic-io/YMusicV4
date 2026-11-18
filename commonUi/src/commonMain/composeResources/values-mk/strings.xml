@@ -199,6 +199,11 @@
     <string name="menu_remove_from_playlist">Отстрани од плејлистата</string>
     <string name="playlist_delete_title">Да се избрише плејлистата?</string>
     <string name="playlist_delete_message">„%1$s“ ќе биде отстранета. Песните остануваат во вашата библиотека.</string>
+    <plurals name="playlist_remove_selected_title">
+        <item quantity="one">Да се отстрани %1$d песна од плејлистата?</item>
+        <item quantity="other">Да се отстранат %1$d песни од плејлистата?</item>
+    </plurals>
+    <string name="playlist_remove_selected_message">Песните остануваат во вашата библиотека.</string>
     <string name="add_to_playlist_new">Нова плејлиста…</string>
     <string name="playlist_recent_play">Неодамна пуштени</string>
     <string name="playlist_top_tracks">Топ песни</string>

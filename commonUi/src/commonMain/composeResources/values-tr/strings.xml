@@ -199,6 +199,11 @@
     <string name="menu_remove_from_playlist">Oynatma listesinden kaldır</string>
     <string name="playlist_delete_title">Oynatma listesi silinsin mi?</string>
     <string name="playlist_delete_message">“%1$s” kaldırılacak. Şarkılar kitaplığınızda kalır.</string>
+    <plurals name="playlist_remove_selected_title">
+        <item quantity="one">%1$d şarkı oynatma listesinden kaldırılsın mı?</item>
+        <item quantity="other">%1$d şarkı oynatma listesinden kaldırılsın mı?</item>
+    </plurals>
+    <string name="playlist_remove_selected_message">Şarkılar kitaplığınızda kalır.</string>
     <string name="add_to_playlist_new">Yeni oynatma listesi…</string>
     <string name="playlist_recent_play">Son çalınanlar</string>
     <string name="playlist_top_tracks">Hit parçalar</string>

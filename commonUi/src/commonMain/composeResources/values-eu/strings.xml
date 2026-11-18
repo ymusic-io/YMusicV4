@@ -199,6 +199,11 @@
     <string name="menu_remove_from_playlist">Kendu zerrendatik</string>
     <string name="playlist_delete_title">Zerrenda ezabatu nahi duzu?</string>
     <string name="playlist_delete_message">"%1$s" kendu egingo da. Abestiak zure liburutegian geratuko dira.</string>
+    <plurals name="playlist_remove_selected_title">
+        <item quantity="one">%1$d abesti zerrendatik kendu nahi duzu?</item>
+        <item quantity="other">%1$d abesti zerrendatik kendu nahi dituzu?</item>
+    </plurals>
+    <string name="playlist_remove_selected_message">Abestiak zure liburutegian geratuko dira.</string>
     <string name="add_to_playlist_new">Zerrenda berria…</string>
     <string name="playlist_recent_play">Azken erreprodukzioak</string>
     <string name="playlist_top_tracks">Abesti entzunenak</string>

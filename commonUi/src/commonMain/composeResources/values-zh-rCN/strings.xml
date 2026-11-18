@@ -196,6 +196,10 @@
     <string name="menu_remove_from_playlist">从播放列表中移除</string>
     <string name="playlist_delete_title">删除播放列表？</string>
     <string name="playlist_delete_message">“%1$s”将被删除。歌曲仍会保留在你的音乐库中。</string>
+    <plurals name="playlist_remove_selected_title">
+        <item quantity="other">要从播放列表中移除 %1$d 首歌曲吗？</item>
+    </plurals>
+    <string name="playlist_remove_selected_message">歌曲仍会保留在你的音乐库中。</string>
     <string name="add_to_playlist_new">新建播放列表…</string>
     <string name="playlist_recent_play">最近播放</string>
     <string name="playlist_top_tracks">最常播放</string>

@@ -202,6 +202,12 @@
     <string name="menu_remove_from_playlist">הסר מרשימת ההשמעה</string>
     <string name="playlist_delete_title">למחוק את רשימת ההשמעה?</string>
     <string name="playlist_delete_message">“%1$s” תוסר. השירים יישארו בספרייה שלך.</string>
+    <plurals name="playlist_remove_selected_title">
+        <item quantity="one">להסיר שיר אחד מרשימת ההשמעה?</item>
+        <item quantity="two">להסיר שני שירים מרשימת ההשמעה?</item>
+        <item quantity="other">להסיר %1$d שירים מרשימת ההשמעה?</item>
+    </plurals>
+    <string name="playlist_remove_selected_message">השירים יישארו בספרייה שלך.</string>
     <string name="add_to_playlist_new">רשימת השמעה חדשה…</string>
     <string name="playlist_recent_play">הושמעו לאחרונה</string>
     <string name="playlist_top_tracks">השירים המובילים</string>

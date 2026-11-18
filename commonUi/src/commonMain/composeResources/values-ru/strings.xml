@@ -205,6 +205,13 @@
     <string name="menu_remove_from_playlist">Удалить из плейлиста</string>
     <string name="playlist_delete_title">Удалить плейлист?</string>
     <string name="playlist_delete_message">«%1$s» будет удалён. Песни останутся в библиотеке.</string>
+    <plurals name="playlist_remove_selected_title">
+        <item quantity="one">Удалить %1$d песню из плейлиста?</item>
+        <item quantity="few">Удалить %1$d песни из плейлиста?</item>
+        <item quantity="many">Удалить %1$d песен из плейлиста?</item>
+        <item quantity="other">Удалить %1$d песни из плейлиста?</item>
+    </plurals>
+    <string name="playlist_remove_selected_message">Песни останутся в библиотеке.</string>
     <string name="add_to_playlist_new">Новый плейлист…</string>
     <string name="playlist_recent_play">Недавно прослушанные</string>
     <string name="playlist_top_tracks">Топ треков</string>

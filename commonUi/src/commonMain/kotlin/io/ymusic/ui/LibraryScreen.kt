@@ -155,6 +155,8 @@ import io.ymusic.ui.resources.playlist_name_hint
 import io.ymusic.ui.resources.playlist_new
 import io.ymusic.ui.resources.playlist_recent_play
 import io.ymusic.ui.resources.playlist_recent_play_desc
+import io.ymusic.ui.resources.playlist_remove_selected_message
+import io.ymusic.ui.resources.playlist_remove_selected_title
 import io.ymusic.ui.resources.playlist_rename_confirm
 import io.ymusic.ui.resources.playlist_rename_title
 import io.ymusic.ui.resources.playlist_top_tracks
@@ -1220,12 +1222,24 @@ private fun PlaylistsTab(
     }
     val selection = playlistSelection.takeIf { isUser }
     val canDelete = LocalSongActions.current?.canDelete == true
+    var confirmingRemove by remember(playlistSelection) { mutableStateOf<List<MediaStoreItem>?>(null) }
+    confirmingRemove?.let { doomed ->
+        RemoveFromPlaylistDialog(
+            doomed.size,
+            onDismiss = { confirmingRemove = null },
+            onConfirm = {
+                confirmingRemove = null
+                removeFromPlaylist?.invoke(doomed)
+                playlistSelection.end()
+            },
+        )
+    }
     ReplaceAppBar(enabled = selection?.active == true, slot = LocalLibraryTabRowSlot.current) {
         PlaylistSelectionBar(
             playlistSelection,
             songs,
             coordinator,
-            onRemoveFromPlaylist = { selected -> removeFromPlaylist?.invoke(selected) },
+            onRemoveFromPlaylist = { selected -> confirmingRemove = selected },
             onDelete = if (canDelete) {
                 { selected -> openSelectionDialog(SongSelectionDialog.Delete(selected.associateBy { it.id }, playlistSelection::end)) }
             } else {
@@ -1826,15 +1840,34 @@ private fun PlaylistSelectionBar(
     val selected = songs.filter { it.id in selection.selected }
     val ids = songs.map { it.id }
     SelectionBar(selected.size, selection.allSelected(ids), selection::end, { selection.toggleAll(ids) }) {
-        ActionIcon(Icons.Default.PlaylistRemove, stringResource(Res.string.menu_remove_from_playlist)) {
-            onRemoveFromPlaylist(selected)
-            selection.end()
-        }
+        ActionIcon(Icons.Default.PlaylistRemove, stringResource(Res.string.menu_remove_from_playlist)) { onRemoveFromPlaylist(selected) }
         onDelete?.let { delete ->
             ActionIcon(Icons.Outlined.Delete, stringResource(Res.string.menu_remove_from_disk)) { delete(selected) }
         }
         ActionIcon(Icons.AutoMirrored.Filled.PlaylistAdd, stringResource(Res.string.cd_add_to_playlist)) { onAddToPlaylist(selected) }
         SelectionPlayMenu(selection, selected, coordinator)
+    }
+}
+
+/** Confirms removing [count] selected songs from the opened playlist; their files stay. */
+@Composable
+private fun RemoveFromPlaylistDialog(count: Int, onDismiss: () -> Unit, onConfirm: () -> Unit) {
+    ElevatedBarDialog(
+        title = pluralText(Res.plurals.playlist_remove_selected_title, count, count),
+        onDismiss = onDismiss,
+        canScrollBackward = false,
+        canScrollForward = false,
+        buttons = {
+            DialogSecondaryButton(stringResource(Res.string.dialog_cancel), onClick = onDismiss)
+            TextButton(onClick = onConfirm) { Text(stringResource(Res.string.menu_remove), color = MaterialTheme.colorScheme.error) }
+        },
+    ) {
+        Text(
+            stringResource(Res.string.playlist_remove_selected_message),
+            style = MaterialTheme.typography.bodyMedium,
+            color = DesignColors.Ink,
+            modifier = Modifier.padding(horizontal = DesignSpacing.Space24, vertical = DesignSpacing.Space16),
+        )
     }
 }
 

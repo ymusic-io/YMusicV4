@@ -199,6 +199,11 @@
     <string name="menu_remove_from_playlist">ධාවන ලැයිස්තුවෙන් ඉවත් කරන්න</string>
     <string name="playlist_delete_title">ධාවන ලැයිස්තුව මකන්නද?</string>
     <string name="playlist_delete_message">“%1$s” ඉවත් කෙරේ. ගීත ඔබගේ පුස්තකාලයේ පවතී.</string>
+    <plurals name="playlist_remove_selected_title">
+        <item quantity="one">ධාවන ලැයිස්තුවෙන් ගීත %1$dක් ඉවත් කරන්නද?</item>
+        <item quantity="other">ධාවන ලැයිස්තුවෙන් ගීත %1$dක් ඉවත් කරන්නද?</item>
+    </plurals>
+    <string name="playlist_remove_selected_message">ගීත ඔබගේ පුස්තකාලයේ පවතී.</string>
     <string name="add_to_playlist_new">නව ධාවන ලැයිස්තුව…</string>
     <string name="playlist_recent_play">මෑත වාදන</string>
     <string name="playlist_top_tracks">ජනප්‍රිය ගීත</string>

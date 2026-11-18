@@ -202,6 +202,12 @@
     <string name="menu_remove_from_playlist">Elimină din playlist</string>
     <string name="playlist_delete_title">Ștergi playlistul?</string>
     <string name="playlist_delete_message">„%1$s” va fi eliminat. Melodiile rămân în biblioteca ta.</string>
+    <plurals name="playlist_remove_selected_title">
+        <item quantity="one">Elimini %1$d melodie din playlist?</item>
+        <item quantity="few">Elimini %1$d melodii din playlist?</item>
+        <item quantity="other">Elimini %1$d de melodii din playlist?</item>
+    </plurals>
+    <string name="playlist_remove_selected_message">Melodiile rămân în biblioteca ta.</string>
     <string name="add_to_playlist_new">Playlist nou…</string>
     <string name="playlist_recent_play">Redate recent</string>
     <string name="playlist_top_tracks">Piese de top</string>

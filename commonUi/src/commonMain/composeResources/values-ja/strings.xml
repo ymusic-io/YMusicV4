@@ -196,6 +196,10 @@
     <string name="menu_remove_from_playlist">プレイリストから削除</string>
     <string name="playlist_delete_title">プレイリストを削除しますか？</string>
     <string name="playlist_delete_message">「%1$s」を削除します。曲はライブラリに残ります。</string>
+    <plurals name="playlist_remove_selected_title">
+        <item quantity="other">%1$d 曲をプレイリストから削除しますか？</item>
+    </plurals>
+    <string name="playlist_remove_selected_message">曲はライブラリに残ります。</string>
     <string name="add_to_playlist_new">新しいプレイリスト…</string>
     <string name="playlist_recent_play">最近の再生</string>
     <string name="playlist_top_tracks">トップトラック</string>

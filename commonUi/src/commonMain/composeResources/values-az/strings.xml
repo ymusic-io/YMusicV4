@@ -199,6 +199,11 @@
     <string name="menu_remove_from_playlist">Pleylistdən sil</string>
     <string name="playlist_delete_title">Pleylist silinsin?</string>
     <string name="playlist_delete_message">“%1$s” silinəcək. Mahnılar kitabxananızda qalacaq.</string>
+    <plurals name="playlist_remove_selected_title">
+        <item quantity="one">%1$d mahnı pleylistdən silinsin?</item>
+        <item quantity="other">%1$d mahnı pleylistdən silinsin?</item>
+    </plurals>
+    <string name="playlist_remove_selected_message">Mahnılar kitabxananızda qalacaq.</string>
     <string name="add_to_playlist_new">Yeni pleylist…</string>
     <string name="playlist_recent_play">Son oxudulanlar</string>
     <string name="playlist_top_tracks">Top mahnılar</string>

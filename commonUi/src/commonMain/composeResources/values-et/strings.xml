@@ -199,6 +199,11 @@
     <string name="menu_remove_from_playlist">Eemalda esitusloendist</string>
     <string name="playlist_delete_title">Kas kustutada esitusloend?</string>
     <string name="playlist_delete_message">„%1$s” eemaldatakse. Lood jäävad sinu kogusse.</string>
+    <plurals name="playlist_remove_selected_title">
+        <item quantity="one">Kas eemaldada %1$d lugu esitusloendist?</item>
+        <item quantity="other">Kas eemaldada %1$d lugu esitusloendist?</item>
+    </plurals>
+    <string name="playlist_remove_selected_message">Lood jäävad sinu kogusse.</string>
     <string name="add_to_playlist_new">Uus esitusloend…</string>
     <string name="playlist_recent_play">Hiljuti esitatud</string>
     <string name="playlist_top_tracks">Parimad palad</string>
