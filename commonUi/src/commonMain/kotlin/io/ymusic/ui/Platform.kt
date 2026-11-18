@@ -2,6 +2,8 @@ package io.ymusic.ui
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEvent
 
 /** True where the primary pointer is a finger (Android/iOS). Mouse-driven platforms disable
  *  touch idioms like edge-swipe — Compose's mouse drag slop is ~0.1dp, so a whole-screen drag
@@ -13,6 +15,15 @@ internal expect val platformIsTelevision: Boolean
 
 /** Desktop Compose UI uses a transparent window with a layout hole over a video-only Frame. */
 internal expect val desktopLayoutHole: Boolean
+
+/** The keyboard's context-menu key (the Menu / Application key; Macs have none). */
+internal expect val contextMenuKey: Key
+
+/** A key-down the system repeats while the key is held; false where repeats are not reported. */
+internal expect val KeyEvent.isKeyRepeat: Boolean
+
+/** The repeat that marks a key held past the long-press timeout (Android's `FLAG_LONG_PRESS`); false elsewhere. */
+internal expect val KeyEvent.isLongPress: Boolean
 
 /** The system back gesture/button (Android's BackHandler): while [enabled], [onBack] intercepts
  *  it instead of finishing the app. No-op on platforms without a system back concept. */
@@ -32,20 +43,29 @@ internal expect fun SyncSystemBars(dark: Boolean)
 @Composable
 internal expect fun SyncImmersiveSystemBars(immersive: Boolean)
 
-/** Fullscreen video: follow the phone's rotation, or hold the current orientation while [locked]. */
-@Composable
-internal expect fun SyncSensorRotation(locked: Boolean)
+/** How full-screen video follows the phone: rotating freely, or held in landscape or portrait. */
+enum class VideoRotation { Free, Landscape, Portrait }
 
-/** Whether [SyncSensorRotation] can hold an orientation against the sensor and the system lock. */
+/** Fullscreen video: follow the phone's rotation, or hold landscape or portrait (either way up). */
+@Composable
+internal expect fun SyncSensorRotation(rotation: VideoRotation)
+
+/** Whether [SyncSensorRotation] can hold an orientation against the system lock. */
 internal expect val rotationLockSupported: Boolean
 
 /** Holds the display awake (no idle dim/lock) while [enabled]. No-op on desktop. */
 @Composable
 internal expect fun KeepScreenOn(enabled: Boolean)
 
-/** Status-bar height even while bars are hidden (fullscreen overlay title). No-op on desktop. */
+/** Fullscreen overlay title: below the status bar even while bars are hidden, sides as [fullscreenSidePadding]. No-op on desktop. */
 @Composable
 internal expect fun Modifier.keepBelowStatusBar(): Modifier
+
+/** Fullscreen chrome sides: clear of a side nav bar and the display cutout, equal on both sides so a one-sided
+ *  cutout leaves the chrome symmetric. The bottom stays free: taps reach the app over the gesture strip, and the
+ *  seek bar sits a button row above it. No-op on desktop. */
+@Composable
+internal expect fun Modifier.fullscreenSidePadding(): Modifier
 
 /** Android gesture nav: claims a vertically centred slice of the start-edge back-gesture strip (the
  *  OS-maximum 200dp) so a swipe there opens the nav drawer instead of going back. No-op elsewhere. */

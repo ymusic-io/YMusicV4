@@ -1,11 +1,10 @@
 //! The viewer's YouTube playlists: add a video to one (or a new one), and create a playlist from
 //! videos, which is also how the queue is saved. Signed out, each says it needs sign-in.
 
-use gpui_kit::assets::IconName as Lucide;
 use gpui_kit::base::actions::Confirm;
 use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::input::{Input, InputEvent, InputState};
-use gpui_kit::component::{ActiveTheme, Icon, IconName, Selectable, WindowExt, h_flex, v_flex};
+use gpui_kit::component::{ActiveTheme, Icon, Selectable, WindowExt, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use ym_engine::EngineError;
@@ -13,6 +12,7 @@ use ym_engine::yt::YtPlaylistTarget;
 use ym_i18n::{Str, t, tf};
 
 use crate::a11y::FocusList;
+use crate::assets::MaterialIcon;
 use crate::elevated_dialog::{
     DEFAULT_WIDTH, ROW_HORIZONTAL, ROW_VERTICAL, bar_spinner, button_bar, chrome, message, press, scroll_body,
     text_button, title_bar,
@@ -162,7 +162,7 @@ impl Render for AddToPlaylist {
                     let first = self.focus.handle(0, cx);
                     window.defer(cx, move |window, cx| window.focus(&first, cx));
                 }
-                let new_icon = Icon::new(IconName::Plus).text_color(theme.primary);
+                let new_icon = Icon::new(MaterialIcon::Add).text_color(theme.primary);
                 let new_row =
                     Self::row("new-playlist", new_icon, t(Str::AddToPlaylistNew).to_owned(), false, false, cx)
                         .on_click(cx.listener(|view, _, window, cx| view.create_new(window, cx)))
@@ -170,8 +170,11 @@ impl Render for AddToPlaylist {
                 let kept = self.focus.kept_stops(1..targets.len() + 1, window);
                 let rows = self.rows.render(targets.len(), 0., kept, window, |index| {
                     let target = targets[index].clone();
-                    let icon =
-                        if target.contains_video { Icon::new(IconName::Check) } else { Icon::new(Lucide::ListPlus) };
+                    let icon = if target.contains_video {
+                        Icon::new(MaterialIcon::Check)
+                    } else {
+                        crate::action_icon::auto_mirrored(MaterialIcon::PlaylistPlay)
+                    };
                     let busy = self.adding.as_ref() == Some(&target.playlist_id);
                     let (label, faint, enter_target) = (target.title.clone(), target.contains_video, target.clone());
                     let row =

@@ -22,7 +22,7 @@ const LIFTED_PRIORITY: usize = gpui_kit::base::POPUP_PRIORITY - 1;
 const GLIDE: Duration = Duration::from_millis(180);
 
 /// The operating system's reduced-motion preference. The app turns gpui's own flag on for every
-/// widget; the reorder glide is the one motion it keeps, and only while the system allows it.
+/// widget; the reorder glide and the rail's width are the motion it keeps, and only while the system allows it.
 pub struct SystemMotion {
     pub reduce: bool,
 }
@@ -67,7 +67,7 @@ async fn follow_portal(cx: &mut AsyncApp) -> Result<(), ashpd::Error> {
     Ok(())
 }
 
-fn reduce_motion(cx: &App) -> bool {
+pub(crate) fn reduce_motion(cx: &App) -> bool {
     cx.try_global::<SystemMotion>().is_some_and(|motion| motion.reduce)
 }
 

@@ -302,8 +302,10 @@
     <string name="cd_exit_fullscreen">結束全螢幕</string>
     <string name="cd_fit_video">符合影片大小</string>
     <string name="cd_fill_video">填滿螢幕</string>
-    <string name="cd_lock_rotation">鎖定螢幕旋轉</string>
-    <string name="cd_unlock_rotation">解鎖螢幕旋轉</string>
+    <string name="cd_screen_rotation">螢幕旋轉</string>
+    <string name="rotation_lock_landscape">鎖定橫向</string>
+    <string name="rotation_lock_portrait">鎖定直向</string>
+    <string name="rotation_free">自由旋轉</string>
     <string name="cd_rewind10">倒轉 10 秒</string>
     <string name="cd_forward10">快轉 10 秒</string>
     <string name="cd_repeat_off">重複播放：關閉</string>
@@ -412,6 +414,8 @@
     <string name="settings_audio_focus_apps">其他應用程式播放聲音時暫停</string>
     <string name="settings_sponsor_block">SponsorBlock</string>
     <string name="settings_sponsor_block_hint">自動略過 YouTube 影片中的贊助片段。可在「現正播放」中針對單一影片關閉。</string>
+    <string name="settings_stable_volume">穩定音量</string>
+    <string name="settings_stable_volume_hint">平衡大聲與輕柔的段落，讓每首歌的音量相近。</string>
     <string name="sponsor_block_included">已為這部影片啟用 SponsorBlock</string>
     <string name="sponsor_block_excluded">已為這部影片停用 SponsorBlock</string>
     <string name="settings_sound">音效</string>
@@ -652,4 +656,19 @@
     <string name="native_blocked_help">若是公司或學校的電腦，請向系統管理員要求允許 YMusic。若是個人電腦，請到 Windows 安全性查看智慧型應用程式控制。</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">正在重新整理</string>
+    <string name="a11y_loading">載入中</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">全選</string>
+    <string name="downloads_action_select">選取</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="other">已選取 %1$d 項</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="other">要從清單中移除 %1$d 個下載項目嗎？</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">已完成的檔案會保留在這部裝置上。</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="other">要刪除 %1$d 個檔案嗎？</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">刪除的檔案無法復原。</string>
 </resources>

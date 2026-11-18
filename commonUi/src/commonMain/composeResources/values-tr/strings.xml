@@ -306,8 +306,10 @@
     <string name="cd_exit_fullscreen">Tam ekrandan çık</string>
     <string name="cd_fit_video">Videoyu sığdır</string>
     <string name="cd_fill_video">Ekranı doldur</string>
-    <string name="cd_lock_rotation">Döndürmeyi kilitle</string>
-    <string name="cd_unlock_rotation">Döndürme kilidini aç</string>
+    <string name="cd_screen_rotation">Ekran döndürme</string>
+    <string name="rotation_lock_landscape">Yatay kilitle</string>
+    <string name="rotation_lock_portrait">Dikey kilitle</string>
+    <string name="rotation_free">Serbest döndürme</string>
     <string name="cd_rewind10">10 saniye geri sar</string>
     <string name="cd_forward10">10 saniye ileri sar</string>
     <string name="cd_repeat_off">Tekrarla: kapalı</string>
@@ -416,6 +418,8 @@
     <string name="settings_audio_focus_apps">Diğer uygulamalar ses çaldığında duraklat</string>
     <string name="settings_sponsor_block">SponsorBlock</string>
     <string name="settings_sponsor_block_hint">YouTube videolarındaki sponsorlu bölümleri otomatik atlar. Bir video için Şimdi Çalıyor'dan kapatabilirsiniz.</string>
+    <string name="settings_stable_volume">Sabit ses seviyesi</string>
+    <string name="settings_stable_volume_hint">Yüksek ve alçak bölümleri dengeler, her şarkıyı benzer ses seviyesinde çalar.</string>
     <string name="sponsor_block_included">Bu video için SponsorBlock etkin</string>
     <string name="sponsor_block_excluded">Bu video için SponsorBlock devre dışı</string>
     <string name="settings_sound">Ses</string>
@@ -660,4 +664,22 @@
     <string name="native_blocked_help">İş veya okul bilgisayarında yöneticinizden YMusic'e izin vermesini isteyin. Kendi bilgisayarınızda Windows Güvenliği'ndeki Akıllı Uygulama Denetimi'ni kontrol edin.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Yenileniyor</string>
+    <string name="a11y_loading">Yükleniyor</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">Tümünü seç</string>
+    <string name="downloads_action_select">Seç</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="one">%1$d seçildi</item>
+        <item quantity="other">%1$d seçildi</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="one">%1$d indirme listeden kaldırılsın mı?</item>
+        <item quantity="other">%1$d indirme listeden kaldırılsın mı?</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">Tamamlanan dosyalar bu cihazda kalır.</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="one">%1$d dosya silinsin mi?</item>
+        <item quantity="other">%1$d dosya silinsin mi?</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">Silinen dosyalar kurtarılamaz.</string>
 </resources>

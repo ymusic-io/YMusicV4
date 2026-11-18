@@ -7,8 +7,7 @@ use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
-use gpui_kit::assets::IconName as Lucide;
-use gpui_kit::component::{ActiveTheme, Icon, IconName, StyledExt, WindowExt, h_flex, v_flex};
+use gpui_kit::component::{ActiveTheme, Icon, StyledExt, WindowExt, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use ym_i18n::{Str, t, tf};
@@ -16,9 +15,10 @@ use ym_i18n::{Str, t, tf};
 use crate::a11y::{DragRow, FocusList, focusable};
 use crate::account::{AccountController, Accounts};
 use crate::account_view::AccountView;
-use crate::action_icon::{HIT, action_icon};
+use crate::action_icon::{HIT, action_icon, auto_mirrored};
+use crate::assets::MaterialIcon;
 use crate::download_dialog::{DownloadPicker, DownloadTarget};
-use crate::downloads_view::{DownloadsView, RevealInLibrary};
+use crate::downloads_view::{DownloadsView, RevealInLibrary, SelectionModeChanged};
 use crate::feed::{FeedAction, FeedSource, FeedView, ItemAction, Navigate, Play, RequestSearch};
 use crate::feedback_view::FeedbackView;
 use crate::graph::{AppGraph, on_core};
@@ -36,6 +36,7 @@ use crate::settings_view::{LocaleChanged, SettingsView};
 use crate::signin::AccountChanged;
 use crate::signin_dialog::{SignInEvent, SignInView};
 use crate::sponsor_block::SponsorBlock;
+use crate::spring::Spring;
 use crate::tab_row::tab_row;
 
 mod incoming;
@@ -43,9 +44,11 @@ mod tray;
 
 const RAIL_COLLAPSED: f32 = 72.;
 const DRAWER_ICON_START: f32 = 20.;
+const DRAWER_ICON: f32 = 24.;
 /// Centres the expanded rail's section icons on the collapsed rail's centre line.
-const RAIL_ICON_START: f32 = RAIL_COLLAPSED / 2. - SECTION_ICON / 2.;
-const SECTION_ICON: f32 = 16.;
+const RAIL_ICON_START: f32 = RAIL_COLLAPSED / 2. - DRAWER_ICON / 2.;
+/// Outside the rail's width (the JVM app's `VerticalDivider`), or it pulls the collapsed icons off the toggle's line.
+const RAIL_DIVIDER: f32 = 1.;
 const RAIL_EXPANDED: f32 = 280.;
 /// The rail's logo, larger than the JVM rail's 24 so the mark reads at a glance.
 const RAIL_LOGO: f32 = 32.;
@@ -78,6 +81,19 @@ pub fn track_scroll(scroll: &ScrollHandle, cx: &App) {
 pub fn chrome_tone(cx: &App) -> Hsla {
     let tones = cx.global::<crate::settings_view::ChromeTones>();
     if cx.global::<ScrollHost>().lifted.get() { tones.lifted } else { tones.flat }
+}
+
+/// A section's top bar: icon buttons and the page title in a row on the chrome tone.
+pub fn top_bar(cx: &App) -> Div {
+    h_flex()
+        .gap_2()
+        .px_2()
+        .pt(px(BAR_PAD_TOP))
+        .pb(px(BAR_PAD_BOTTOM))
+        // A bar without icon buttons (Settings in rail mode) keeps their height.
+        .min_h(px(BAR_PAD_TOP + HIT + BAR_PAD_BOTTOM))
+        .items_center()
+        .bg(chrome_tone(cx))
 }
 
 /// The shadow a lifted bar casts on the page below it, laid over the page's top edge.
@@ -190,17 +206,17 @@ impl Section {
         })
     }
 
-    fn icon(self) -> Lucide {
+    fn icon(self) -> Icon {
         match self {
-            Section::Discover => Lucide::MonitorPlay,
-            Section::YtMusic => Lucide::CirclePlay,
-            Section::Library => Lucide::LibraryBig,
-            Section::PlayAgain => Lucide::RotateCcwClock,
-            Section::Downloads => Lucide::Download,
-            Section::Settings => Lucide::Settings,
-            Section::Donate => Lucide::Heart,
-            Section::Telegram => Lucide::Send,
-            Section::Feedback => Lucide::MessageCircle,
+            Section::Discover => Icon::new(MaterialIcon::OndemandVideoOutlined),
+            Section::YtMusic => Icon::new(MaterialIcon::PlayCircleOutline),
+            Section::Library => Icon::new(MaterialIcon::LibraryMusicOutlined),
+            Section::PlayAgain => Icon::new(MaterialIcon::HistoryOutlined),
+            Section::Downloads => Icon::new(MaterialIcon::FileDownloadOutlined),
+            Section::Settings => Icon::new(MaterialIcon::SettingsOutlined),
+            Section::Donate => Icon::new(MaterialIcon::FavoriteBorderOutlined),
+            Section::Telegram => Icon::empty().path(crate::assets::TELEGRAM_ICON),
+            Section::Feedback => auto_mirrored(MaterialIcon::ChatOutlined),
         }
     }
 }
@@ -296,13 +312,13 @@ impl DiscoverTab {
         }
     }
 
-    fn icon(self) -> Lucide {
+    fn icon(self) -> Icon {
         match self {
-            DiscoverTab::Home => Lucide::House,
-            DiscoverTab::Trending => Lucide::Music,
-            DiscoverTab::Recommended => Lucide::Star,
-            DiscoverTab::TopTracks => Lucide::TrendingUp,
-            DiscoverTab::Account => Lucide::User,
+            DiscoverTab::Home => Icon::new(MaterialIcon::HomeOutlined),
+            DiscoverTab::Trending => Icon::new(MaterialIcon::MusicNoteOutlined),
+            DiscoverTab::Recommended => Icon::new(MaterialIcon::StarBorder),
+            DiscoverTab::TopTracks => auto_mirrored(MaterialIcon::TrendingUpOutlined),
+            DiscoverTab::Account => Icon::new(MaterialIcon::PersonOutlined),
         }
     }
 
@@ -415,6 +431,8 @@ pub struct Shell {
     rail_manual: Option<bool>,
     /// The (rail mode, expanded-by-width) the window last had.
     rail_auto: Option<(bool, bool)>,
+    /// The rail panel's width easing to its state's; none while the rail is not shown.
+    rail_width: Option<Spring>,
     drawer_open: bool,
     /// Holds keyboard focus when nothing else does, so the shortcuts always reach the Shell.
     focus: FocusHandle,
@@ -645,6 +663,7 @@ impl Shell {
             stacks: HashMap::new(),
             rail_manual: None,
             rail_auto: None,
+            rail_width: None,
             drawer_open: false,
             focus,
             nav_focus: FocusList::new(None),
@@ -744,6 +763,15 @@ impl Shell {
         let Some(tray) = self.tray.as_mut() else { return };
         if let Err(error) = tray.update(has_queue, playing, self.hidden_to_tray) {
             cx.global::<AppGraph>().log.warn("tray icon could not be updated", Some(error.as_ref()));
+        }
+    }
+
+    /// F8, K, or Space in Now Playing: play/pause, and an open Now Playing shows its controls with
+    /// Play focused.
+    fn toggle_play_from_key(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.playback.update(cx, |playback, cx| playback.toggle(cx));
+        if self.now_playing_open {
+            self.now_playing.update(cx, |now_playing, cx| now_playing.take_focus(window, cx));
         }
     }
 
@@ -1070,12 +1098,7 @@ impl Shell {
         let view = cx.new(|cx| DownloadsView::new(service, cx));
         let play = cx.subscribe(&view, |shell, _, event: &PlayLocal, cx| {
             let (items, index, shuffle) = (event.items.clone(), event.index, event.shuffle);
-            shell.playback.update(cx, |playback, cx| {
-                if let Some(shuffle) = shuffle {
-                    playback.set_shuffle(shuffle, cx);
-                }
-                playback.play_queue(items, index, cx)
-            });
+            shell.playback.update(cx, |playback, cx| playback.play_queue(items, index, shuffle, cx));
         });
         let reveal = cx.subscribe(&view, |shell, _, event: &RevealInLibrary, cx| {
             shell.stacks.entry(Section::Library).or_default().pushed.clear();
@@ -1084,7 +1107,8 @@ impl Shell {
             let file = event.file.clone();
             library.update(cx, |library, cx| library.reveal_file(file, cx));
         });
-        self._subscriptions.extend([play, reveal]);
+        let selection = cx.subscribe(&view, |_, _, _: &SelectionModeChanged, cx| cx.notify());
+        self._subscriptions.extend([play, reveal, selection]);
         self.downloads = Some(view.clone());
         view
     }
@@ -1116,12 +1140,7 @@ impl Shell {
         let view = cx.new(|cx| LibraryView::new(store, cx));
         let play = cx.subscribe(&view, |shell, _, event: &PlayLocal, cx| {
             let (items, index, shuffle) = (event.items.clone(), event.index, event.shuffle);
-            shell.playback.update(cx, |playback, cx| {
-                if let Some(shuffle) = shuffle {
-                    playback.set_shuffle(shuffle, cx);
-                }
-                playback.play_queue(items, index, cx)
-            });
+            shell.playback.update(cx, |playback, cx| playback.play_queue(items, index, shuffle, cx));
         });
         let queue =
             cx.subscribe(&view, |shell, _, event: &QueueLocal, cx| {
@@ -1248,6 +1267,7 @@ impl Shell {
         let graph = cx.global::<AppGraph>();
         let (downloads, settings, media, log) =
             (graph.downloads.clone(), graph.settings.clone(), graph.media.clone(), graph.log.fork("dev-download"));
+        let history = graph.history.clone();
         let (format, video_id) = spec.split_once(':').unwrap_or(("M4A", spec));
         let Some(format) = ym_download::DownloadFormat::from_name(format) else {
             log.warn(&format!("unknown download format {format}"), None);
@@ -1264,11 +1284,11 @@ impl Shell {
                 log.warn(&format!("the dev download folder could not be saved: {error}"), None);
             }
             if let Some(dir) = std::env::var_os("YMUSIC_DEV_DOWNLOAD_DIR").map(std::path::PathBuf::from) {
-                let (media, register_log) = (media.clone(), log.clone());
+                let (media, history, register_log) = (media.clone(), history.clone(), log.clone());
                 let registered =
                     tokio::task::spawn_blocking(move || {
                         match crate::downloads::register_download_folder(&media, &dir) {
-                            Ok(()) => crate::downloads::scan_download_folder(&media, &dir, &register_log),
+                            Ok(()) => crate::downloads::scan_download_folder(&media, &history, &dir, &register_log),
                             Err(error) => register_log
                                 .warn("the dev download folder could not be added to the Library", Some(&error)),
                         }
@@ -1623,12 +1643,7 @@ impl Shell {
         });
         let play = cx.subscribe(&view, |shell, _, event: &PlayLocal, cx| {
             let (items, index, shuffle) = (event.items.clone(), event.index, event.shuffle);
-            shell.playback.update(cx, |playback, cx| {
-                if let Some(shuffle) = shuffle {
-                    playback.set_shuffle(shuffle, cx);
-                }
-                playback.play_queue(items, index, cx)
-            });
+            shell.playback.update(cx, |playback, cx| playback.play_queue(items, index, shuffle, cx));
         });
         let queue =
             cx.subscribe(&view, |shell, _, event: &QueueLocal, cx| {
@@ -1696,6 +1711,12 @@ impl Shell {
         if previous != section {
             self.rebuild_local_discover(cx);
         }
+        if previous == Section::Downloads
+            && section != Section::Downloads
+            && let Some(view) = &self.downloads
+        {
+            view.update(cx, |view, cx| view.clear_selection(cx));
+        }
         cx.notify();
     }
 
@@ -1756,16 +1777,19 @@ impl Shell {
             None => {}
         }
         let content = self.root_content(window, cx);
+        // Selecting downloads, their selection bar stands in for this bar and casts the shadow.
+        let downloads_selecting =
+            self.section == Section::Downloads && self.downloads.as_ref().is_some_and(|view| view.read(cx).selecting());
         let tab_row = match self.section {
             Section::Discover if !wide => Some(self.discover_tabs(false, cx)),
             Section::YtMusic => Some(self.music_tabs(cx)),
             _ => None,
         };
         // Library's own tab row, under this bar, casts the shadow.
-        let shadow = (self.section != Section::Library).then(|| bar_shadow(cx)).flatten();
+        let shadow = (self.section != Section::Library && !downloads_selecting).then(|| bar_shadow(cx)).flatten();
         v_flex()
             .size_full()
-            .child(self.root_bar(rail_mode, wide, cx))
+            .when(!downloads_selecting, |main| main.child(self.root_bar(rail_mode, wide, cx)))
             .children(tab_row)
             .child(div().flex_1().min_h_0().relative().child(content).children(shadow))
             .into_any_element()
@@ -1789,7 +1813,7 @@ impl Shell {
             .child(
                 self.chrome_focus.button(
                     CHROME_BACK,
-                    action_icon("layer-back", crate::action_icon::auto_mirrored(IconName::ArrowLeft), t(Str::CdBack))
+                    action_icon("layer-back", auto_mirrored(MaterialIcon::ArrowBack), t(Str::CdBack))
                         .on_click(cx.listener(|shell, _, _, cx| shell.back(cx))),
                     cx,
                 ),
@@ -1801,7 +1825,7 @@ impl Shell {
                 bar.child(
                     self.chrome_focus.button(
                         CHROME_FILTER,
-                        action_icon("layer-filter", Icon::new(Lucide::Funnel), t(Str::CdFilter))
+                        action_icon("layer-filter", MaterialIcon::FilterAltOutlined, t(Str::CdFilter))
                             .on_click(move |_, window, cx| open_search_filter(&view, window, cx)),
                         cx,
                     ),
@@ -1809,7 +1833,7 @@ impl Shell {
             })
             .child(self.chrome_focus.button(
                 CHROME_LAYER_SEARCH,
-                action_icon("layer-search", Icon::new(IconName::Search), t(Str::CdSearch)).on_click(cx.listener(
+                action_icon("layer-search", MaterialIcon::Search, t(Str::CdSearch)).on_click(cx.listener(
                     move |shell, _, window, cx| match &search {
                         LayerSearch::Edit(view) => {
                             view.update(cx, |view, cx| view.edit(cx));
@@ -1830,19 +1854,11 @@ impl Shell {
         let searchable = matches!(self.section, Section::Discover | Section::YtMusic | Section::Library);
         // The title slot keeps the widest tab label's room, so the inline tabs never shift.
         let reserve = DiscoverTab::ALL.iter().map(|tab| tab.label().chars().count()).max().unwrap_or(0) as f32 * 9.5;
-        h_flex()
-            .gap_2()
-            .px_2()
-            .pt(px(BAR_PAD_TOP))
-            .pb(px(BAR_PAD_BOTTOM))
-            // A bar without icon buttons (Settings in rail mode) keeps their height.
-            .min_h(px(BAR_PAD_TOP + HIT + BAR_PAD_BOTTOM))
-            .items_center()
-            .bg(chrome_tone(cx))
+        top_bar(cx)
             .when(!rail_mode, |bar| {
                 bar.child(self.chrome_focus.button(
                     CHROME_DRAWER,
-                    action_icon("open-drawer", Icon::new(Lucide::Menu), t(Str::CdMenu)).on_click(cx.listener(
+                    action_icon("open-drawer", MaterialIcon::Menu, t(Str::CdMenu)).on_click(cx.listener(
                         |shell, _, _, cx| {
                             shell.drawer_open = true;
                             cx.notify();
@@ -1869,7 +1885,7 @@ impl Shell {
                 bar.child(
                     self.chrome_focus.button(
                         CHROME_SEARCH,
-                        action_icon("open-search", Icon::new(IconName::Search), t(Str::CdSearch))
+                        action_icon("open-search", MaterialIcon::Search, t(Str::CdSearch))
                             .on_click(cx.listener(|shell, _, window, cx| shell.section_search(window, cx))),
                         cx,
                     ),
@@ -1902,7 +1918,7 @@ impl Shell {
                 .relative()
                 .cursor_pointer()
                 .hover(|style| style.bg(theme.primary.opacity(HOVER_ALPHA)))
-                .child(Icon::new(tab.icon()).size(px(24.)).text_color(if selected {
+                .child(tab.icon().size(px(24.)).text_color(if selected {
                     theme.primary
                 } else {
                     theme.muted_foreground
@@ -2004,7 +2020,7 @@ impl Shell {
                 .flex()
                 .items_center()
                 .justify_center()
-                .child(Icon::new(section.icon()).size(px(24.)).text_color(tint))
+                .child(section.icon().size(px(24.)).text_color(tint))
                 .into_any_element();
         }
         entry
@@ -2016,7 +2032,7 @@ impl Shell {
                     .pr(px(DRAWER_ICON_START))
                     .py(px(11.))
                     .items_center()
-                    .child(Icon::new(section.icon()).size(px(23.)).text_color(tint))
+                    .child(section.icon().size(px(DRAWER_ICON)).text_color(tint))
                     .child(
                         div()
                             .flex_1()
@@ -2064,11 +2080,12 @@ impl Shell {
         list.into_any_element()
     }
 
-    fn render_rail(&self, expanded: bool, cx: &mut Context<Self>) -> AnyElement {
+    /// The rail laid out `expanded` or not, in a panel `width` wide on its way there.
+    fn render_rail(&self, expanded: bool, width: f32, cx: &mut Context<Self>) -> AnyElement {
         let theme = cx.theme().clone();
         let update_waiting = !expanded
             && cx.try_global::<crate::app_update::UpdatesHandle>().is_some_and(|handle| handle.0.read(cx).waiting());
-        let toggle = action_icon("rail-toggle", Icon::new(Lucide::Menu), t(Str::CdMenu))
+        let toggle = action_icon("rail-toggle", MaterialIcon::Menu, t(Str::CdMenu))
             .when(update_waiting, |toggle| toggle.tooltip(t(Str::UpdateAvailableTitle)))
             .on_click(cx.listener(move |shell, _, _, cx| shell.toggle_rail(expanded, cx)));
         let toggle = self.chrome_focus.button(CHROME_RAIL_TOGGLE, toggle, cx).when(update_waiting, |toggle| {
@@ -2097,15 +2114,11 @@ impl Shell {
             .then(|| crate::app_update::check_link("rail-check-update", cx))
             .flatten()
             .map(|link| div().ml(px(RAIL_ICON_START - 4.)).child(link));
-        v_flex()
-            .id("rail")
-            .role(Role::Navigation)
+        // Laid out at the final width and clipped by the panel as it eases there: the labels never reflow.
+        let contents = v_flex()
             .w(px(if expanded { RAIL_EXPANDED } else { RAIL_COLLAPSED }))
             .h_full()
             .flex_shrink_0()
-            .bg(chrome_tone(cx))
-            .border_r_1()
-            .border_color(theme.border)
             .child(div().pt_1().child(header))
             .child(
                 div()
@@ -2118,7 +2131,18 @@ impl Shell {
                     .child(self.section_groups(expanded, RAIL_ICON_START, cx))
                     .children(website)
                     .children(check_update),
-            )
+            );
+        div()
+            .id("rail")
+            .role(Role::Navigation)
+            .w(px(width + RAIL_DIVIDER))
+            .h_full()
+            .flex_shrink_0()
+            .overflow_hidden()
+            .bg(chrome_tone(cx))
+            .border_r(px(RAIL_DIVIDER))
+            .border_color(theme.border)
+            .child(contents)
             .into_any_element()
     }
 
@@ -2252,8 +2276,8 @@ impl Shell {
         cx.notify();
     }
 
-    /// Peels back full screen, Now Playing, then the drawer; with none open, a second Esc within
-    /// the double-click window goes back.
+    /// Peels back full screen, Now Playing, the drawer, then the downloads selection; with none
+    /// open, a second Esc within the double-click window goes back.
     fn escape(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if window.is_fullscreen() {
             window.toggle_fullscreen();
@@ -2261,6 +2285,10 @@ impl Shell {
             self.now_playing_open = false;
         } else if self.drawer_open {
             self.drawer_open = false;
+        } else if self.section == Section::Downloads
+            && let Some(view) = self.downloads.clone().filter(|view| view.read(cx).selecting())
+        {
+            view.update(cx, |view, cx| view.clear_selection(cx));
         } else if let Some(Layer::SignIn(view)) = self.stacks.get(&self.section).and_then(|stack| stack.pushed.last()) {
             view.clone().update(cx, |view, cx| view.back(cx));
             return;
@@ -2278,7 +2306,20 @@ impl Shell {
         use crate::shortcuts::*;
         crate::a11y::root_arrows(root.track_focus(&self.focus), self.focus.clone())
             .key_context(CONTEXT)
-            .on_action(cx.listener(|shell, _: &TogglePlay, _, cx| shell.playback.update(cx, |p, cx| p.toggle(cx))))
+            .on_action(cx.listener(|shell, _: &TogglePlay, window, cx| shell.toggle_play_from_key(window, cx)))
+            .on_key_down(cx.listener(|shell, event: &KeyDownEvent, window, cx| {
+                let keystroke = &event.keystroke;
+                let nothing_focused = shell.focus.is_focused(window) || window.focused(cx).is_none();
+                if keystroke.key == "space"
+                    && !keystroke.modifiers.modified()
+                    && !event.is_held
+                    && shell.now_playing_open
+                    && nothing_focused
+                {
+                    shell.toggle_play_from_key(window, cx);
+                    cx.stop_propagation();
+                }
+            }))
             .on_action(cx.listener(|shell, _: &SeekBackward, _, cx| {
                 shell.playback.update(cx, |p, cx| p.seek_by(-SEEK_STEP_MS, cx))
             }))
@@ -2318,6 +2359,7 @@ impl Shell {
             .on_action(cx.listener(|_, _: &ToggleFullscreen, window, _| window.toggle_fullscreen()))
             .on_action(cx.listener(|shell, _: &Escape, window, cx| shell.escape(window, cx)))
             .on_action(cx.listener(|shell, _: &OpenSignIn, window, cx| shell.open_sign_in(window, cx)))
+            .on_action(cx.listener(|_, _: &Quit, window, cx| Self::quit(window, cx)))
             .on_action(
                 cx.listener(|_, _: &ShowShortcuts, window, cx| crate::shortcuts_help::ShortcutsHelp::open(window, cx)),
             )
@@ -2376,6 +2418,19 @@ impl Render for Shell {
             self.drawer_open = false;
         }
         let expanded = self.rail_manual.unwrap_or(auto_expanded);
+        let rail_target = if expanded { RAIL_EXPANDED } else { RAIL_COLLAPSED };
+        let rail_width = if rail_mode && !crate::reorder::reduce_motion(cx) {
+            let now = Instant::now();
+            let spring = self.rail_width.get_or_insert_with(|| Spring::at_rest(rail_target, now));
+            spring.retarget(rail_target, now);
+            if !spring.settled(now) {
+                window.request_animation_frame();
+            }
+            spring.value(now)
+        } else {
+            self.rail_width = None;
+            rail_target
+        };
         // Measured as if the rail were expanded, so toggling it never moves the tabs.
         let shell_width = if rail_mode { width - RAIL_EXPANDED } else { width };
         let wide = (shell_width > height && shell_width >= 600.) || shell_width >= 650.;
@@ -2417,7 +2472,7 @@ impl Render for Shell {
             let main = self.render_main(rail_mode, wide, window, cx);
             h_flex()
                 .size_full()
-                .when(rail_mode, |row| row.child(self.render_rail(expanded, cx)))
+                .when(rail_mode, |row| row.child(self.render_rail(expanded, rail_width, cx)))
                 .child(div().flex_1().min_w_0().h_full().child(main))
                 .into_any_element()
         };

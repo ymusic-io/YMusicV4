@@ -42,6 +42,15 @@ R30003 D remote config: fetching /v1/config failed (logged; the held config stay
 R30004 D js bundle: the cached remote bundle failed its signature and was deleted (logged; embedded used)
 R31801 D remote config: /v1/config refused this build (a 4xx other than 403 or 429; captured, the held config stays)
 R31802 D remote config: /v1/config answered a config this build cannot read (captured, the held config stays)
+R40001 D ffmpeg: no ffmpeg binary found (YMUSIC_FFMPEG, beside the executable, the dev build)
+R40002 D ffmpeg: the ffmpeg binary could not be started
+R40003 D ffmpeg: a metadata or image run passed its timeout and was killed
+R40004 D ffmpeg: reading the child's stdout/stderr failed
+R40005 D ffmpeg: waiting for the child failed
+R40006 D ffmpeg: an image run wrote more than the byte cap (killed)
+R40007 D ffmpeg metadata: the `ffmpeg -i` dump has no `Input #` block (not openable as media; stderr tail in the message)
+R40008 D ffmpeg: no attached picture written (the file has no cover)
+R40009 D ffmpeg: no thumbnail frame written (no decodable video)
 R90001 D app boot: the engine cache store could not be opened (data dir I/O, index)
 R90002 D playback: the native MSE host could not be created
 R90003 D playback: the player reported an error state without a code of its own
@@ -141,7 +150,17 @@ R90033 D player session: player/init was not done within 30 s; the boot fails an
 R90034 D downloads: the download list could not be read from downloads.db; the screen shows the code with Retry (the JVM E70081, logged)
 R90035 D Linux dock menu: the quicklist could not be served on the session bus (logged; the dock shows only its own entries)
 R90036 D Linux dock menu: a quicklist update could not be published (LayoutUpdated or the LauncherEntry Update signal; logged)
+R90037 D telemetry: the previous launch ended without a clean quit or a reported panic (a native crash, a stack overflow, a kill); one fatal event at the next launch, with that launch's log lines (captured). Not for a launch the OS booted after (a shutdown or restart ended it)
+R90038 D telemetry: an earlier launch's log lines could not be claimed for its unclean-exit event (logged; the event goes without them)
+R90039 D telemetry: the running-launch marker could not be read or written at launch; an unclean exit of this launch goes unreported (logged)
 R90040 D Linux file dialog: the Tokio task driving the portal dialog failed (logged; treated as canceled)
+R90041 D downloads: Remove from disk on the selection bar could not delete a selected file or its Library row; the dialog keeps it and shows the code (the JVM E70082, captured)
+R90042 D telemetry: the running-launch marker could not be removed at quit; the next launch reports an unclean exit (logged)
+R90043 D library: the one-time Library rescan after the probe moved to the ffmpeg binary failed (flag unsaved or a store error); fire and forget, resumed at the next launch (logged)
+R90044 D library: the one-time Library rescan did not start because its flag could not be read from the settings (logged; tried again at the next launch)
+R90045 D library: the one-time Library rescan could not index some files of a Library folder (a probe failure, e.g. a missing or quarantined ffmpeg); their items stay marked for a probe by a later scan (logged, with the count and the first error)
+R90046 D signals: the SIGTERM/SIGINT handling (pipe, thread or sigaction) did not install on macOS or Linux; those signals end the process without the quit hooks (logged)
+R90047 D library: play history did not follow a file whose playlist code a re-probe moved (local_play_history rekey failed); that file's watch-time rank stays under the old code (logged)
 R90200 D data dir: a database this app's earlier builds named differently could not take the JVM app's name (logged; retried next launch)
 R90201 D data dir: the window bounds kept in app.db could not move to window.properties (logged)
 R90202 D data dir: the old window.bounds setting could not be removed from app.db (logged)
@@ -180,6 +199,7 @@ R95000 D now playing: a local queue item could not be looked up in the library t
 R96000 D single instance: another process holds the data dir's instance lock but took no request
 R96001 D single instance: the lock, loopback listener or port file could not be set up
 R96002 D open with: none of the files the OS asked the app to open could be read
+R96010 - debug workspace: the worktree's .ymusic-dev-data is unreadable or lacks name= / an absolute root= (logged; the default dev data dir is used)
 R98000 D cookies: the cookie store (app.db secret) could not be read at launch
 R98001 D cookies: sealing the saved sign-in under a password failed
 R98002 D cookies: the unlock screen's unlock, guest or sign-out failed for a reason other than a wrong password

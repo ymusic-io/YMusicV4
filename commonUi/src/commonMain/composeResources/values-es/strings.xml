@@ -310,8 +310,10 @@
     <string name="cd_exit_fullscreen">Salir de pantalla completa</string>
     <string name="cd_fit_video">Ajustar vídeo</string>
     <string name="cd_fill_video">Llenar pantalla</string>
-    <string name="cd_lock_rotation">Bloquear rotación</string>
-    <string name="cd_unlock_rotation">Desbloquear rotación</string>
+    <string name="cd_screen_rotation">Rotación de pantalla</string>
+    <string name="rotation_lock_landscape">Bloquear en horizontal</string>
+    <string name="rotation_lock_portrait">Bloquear en vertical</string>
+    <string name="rotation_free">Rotación libre</string>
     <string name="cd_rewind10">Retroceder 10 segundos</string>
     <string name="cd_forward10">Avanzar 10 segundos</string>
     <string name="cd_repeat_off">Repetir: desactivado</string>
@@ -420,6 +422,8 @@
     <string name="settings_audio_focus_apps">Pausar cuando otras apps reproduzcan sonido</string>
     <string name="settings_sponsor_block">SponsorBlock</string>
     <string name="settings_sponsor_block_hint">Omite automáticamente los segmentos patrocinados en los vídeos de YouTube. Puedes desactivarlo para un vídeo desde la pantalla de reproducción.</string>
+    <string name="settings_stable_volume">Volumen estable</string>
+    <string name="settings_stable_volume_hint">Iguala las partes fuertes y suaves y reproduce cada canción a un volumen parecido.</string>
     <string name="sponsor_block_included">SponsorBlock activado para este vídeo</string>
     <string name="sponsor_block_excluded">SponsorBlock desactivado para este vídeo</string>
     <string name="settings_sound">Sonido</string>
@@ -668,4 +672,25 @@
     <string name="native_blocked_help">En un PC del trabajo o de la escuela, pide a tu administrador que permita YMusic. En tu propio PC, revisa Control inteligente de aplicaciones en Seguridad de Windows.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Actualizando</string>
+    <string name="a11y_loading">Cargando</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">Seleccionar todo</string>
+    <string name="downloads_action_select">Seleccionar</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="one">%1$d seleccionado</item>
+        <item quantity="many">%1$d seleccionados</item>
+        <item quantity="other">%1$d seleccionados</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="one">¿Quitar %1$d descarga de la lista?</item>
+        <item quantity="many">¿Quitar %1$d descargas de la lista?</item>
+        <item quantity="other">¿Quitar %1$d descargas de la lista?</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">Los archivos terminados se quedan en este dispositivo.</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="one">¿Eliminar %1$d archivo?</item>
+        <item quantity="many">¿Eliminar %1$d archivos?</item>
+        <item quantity="other">¿Eliminar %1$d archivos?</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">Los archivos eliminados no se pueden recuperar.</string>
 </resources>

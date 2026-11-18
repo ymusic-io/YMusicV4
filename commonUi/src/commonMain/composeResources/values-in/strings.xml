@@ -302,8 +302,10 @@
     <string name="cd_exit_fullscreen">Keluar dari layar penuh</string>
     <string name="cd_fit_video">Sesuaikan video</string>
     <string name="cd_fill_video">Penuhi layar</string>
-    <string name="cd_lock_rotation">Kunci rotasi</string>
-    <string name="cd_unlock_rotation">Buka kunci rotasi</string>
+    <string name="cd_screen_rotation">Rotasi layar</string>
+    <string name="rotation_lock_landscape">Kunci lanskap</string>
+    <string name="rotation_lock_portrait">Kunci potret</string>
+    <string name="rotation_free">Putar bebas</string>
     <string name="cd_rewind10">Mundur 10 detik</string>
     <string name="cd_forward10">Maju 10 detik</string>
     <string name="cd_repeat_off">Ulangi: nonaktif</string>
@@ -412,6 +414,8 @@
     <string name="settings_audio_focus_apps">Jeda saat aplikasi lain memutar suara</string>
     <string name="settings_sponsor_block">SponsorBlock</string>
     <string name="settings_sponsor_block_hint">Lewati segmen sponsor di video YouTube secara otomatis. Nonaktifkan untuk video tertentu dari layar Sedang diputar.</string>
+    <string name="settings_stable_volume">Volume stabil</string>
+    <string name="settings_stable_volume_hint">Menyeimbangkan bagian keras dan pelan serta memutar setiap lagu dengan kenyaringan yang serupa.</string>
     <string name="sponsor_block_included">SponsorBlock diaktifkan untuk video ini</string>
     <string name="sponsor_block_excluded">SponsorBlock dinonaktifkan untuk video ini</string>
     <string name="settings_sound">Suara</string>
@@ -652,4 +656,19 @@
     <string name="native_blocked_help">Di PC kantor atau sekolah, minta administrator untuk mengizinkan YMusic. Di PC Anda sendiri, periksa Smart App Control di Keamanan Windows.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Memuat ulang</string>
+    <string name="a11y_loading">Memuat</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">Pilih semua</string>
+    <string name="downloads_action_select">Pilih</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="other">%1$d dipilih</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="other">Hapus %1$d unduhan dari daftar?</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">File yang sudah selesai tetap ada di perangkat ini.</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="other">Hapus %1$d file?</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">File yang dihapus tidak dapat dipulihkan.</string>
 </resources>

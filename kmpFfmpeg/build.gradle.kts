@@ -215,7 +215,7 @@ kotlin {
             // (macOS is Apple too but gets the real posixMain impl above, so this can't live in appleMain.)
             val appleNoProcessMain = create("appleNoProcessMain") { dependsOn(nativeMain) }
             listOf(
-                "iosArm64Main", "iosSimulatorArm64Main", "iosX64Main",
+                "iosArm64Main", "iosSimulatorArm64Main",
                 "tvosArm64Main", "tvosSimulatorArm64Main", "tvosX64Main",
                 "watchosArm64Main", "watchosDeviceArm64Main", "watchosSimulatorArm64Main", "watchosX64Main",
             ).forEach { name -> findByName(name)?.dependsOn(appleNoProcessMain) }

@@ -87,6 +87,24 @@ if (ffmpegForDev != null) {
         }
 }
 
+// Dev runs live in the checkout's workspace data dir (tools/dev-data.sh) and name its branch in the
+// window title. An explicit YMUSIC_DATA_DIR other than the workspace's own jvm/ keeps its one folder,
+// with no workspace. Run tasks only: a packaged launcher never carries these.
+val devRunWorkspace: DevWorkspace? by lazy {
+    val explicitDir = providers.environmentVariable("YMUSIC_DATA_DIR").orNull?.takeIf { it.isNotBlank() }
+    devWorkspace()?.takeIf { workspace ->
+        explicitDir == null || File(explicitDir).absoluteFile == File(workspace.root, "jvm").absoluteFile
+    }
+}
+val devRunBranch: String? by lazy { devBranch() }
+tasks.withType<JavaExec>().matching { !it.name.contains("Distributable") }.configureEach {
+    devRunWorkspace?.let { workspace ->
+        environment("YMUSIC_DATA_DIR", File(workspace.root, "jvm").path)
+        systemProperty("ymusic.devWorkspace", workspace.name)
+    }
+    devRunBranch?.let { systemProperty("ymusic.devBranch", it) }
+}
+
 // Host ffmpeg pack (CLI + libav DSOs) plus the MSE JNI that links the same libav, into compose
 // app-resources — the one copy of each library a package carries (:mse's jar copy is stripped
 // below). Each library ships once, under the soname the CLI and libav itself link against: the

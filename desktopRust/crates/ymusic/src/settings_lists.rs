@@ -148,6 +148,7 @@ const COMPONENTS: &[Component] = &[
     component("gpui (Zed Industries)", "Apache-2.0", "https://github.com/zed-industries/zed"),
     component("gpui-kit", "Apache-2.0", "https://github.com/longbridge/gpui-kit"),
     component("Lucide icons", "ISC", "https://lucide.dev"),
+    component("Material Icons (Google)", "Apache-2.0", "https://github.com/google/material-design-icons"),
     component("Tokio", "MIT", "https://github.com/tokio-rs/tokio"),
     component("reqwest", "MIT / Apache-2.0", "https://github.com/seanmonstar/reqwest"),
     component("rustls", "Apache-2.0 / ISC / MIT", "https://github.com/rustls/rustls"),

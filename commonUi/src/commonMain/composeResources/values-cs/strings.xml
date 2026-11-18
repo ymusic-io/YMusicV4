@@ -314,8 +314,10 @@
     <string name="cd_exit_fullscreen">Ukončit celou obrazovku</string>
     <string name="cd_fit_video">Přizpůsobit video</string>
     <string name="cd_fill_video">Vyplnit obrazovku</string>
-    <string name="cd_lock_rotation">Uzamknout otáčení</string>
-    <string name="cd_unlock_rotation">Odemknout otáčení</string>
+    <string name="cd_screen_rotation">Otáčení obrazovky</string>
+    <string name="rotation_lock_landscape">Zamknout na šířku</string>
+    <string name="rotation_lock_portrait">Zamknout na výšku</string>
+    <string name="rotation_free">Volné otáčení</string>
     <string name="cd_rewind10">Přetočit o 10 sekund zpět</string>
     <string name="cd_forward10">Přetočit o 10 sekund vpřed</string>
     <string name="cd_repeat_off">Opakovat: vypnuto</string>
@@ -424,6 +426,8 @@
     <string name="settings_audio_focus_apps">Pozastavit, když jiné aplikace přehrávají zvuk</string>
     <string name="settings_sponsor_block">SponsorBlock</string>
     <string name="settings_sponsor_block_hint">Automaticky přeskakovat sponzorované úseky ve videích YouTube. Pro konkrétní video to lze vypnout v Právě hraje.</string>
+    <string name="settings_stable_volume">Stabilní hlasitost</string>
+    <string name="settings_stable_volume_hint">Vyrovnává hlasité a tiché pasáže a přehrává každou skladbu s podobnou hlasitostí.</string>
     <string name="sponsor_block_included">SponsorBlock je pro toto video zapnutý</string>
     <string name="sponsor_block_excluded">SponsorBlock je pro toto video vypnutý</string>
     <string name="settings_sound">Zvuk</string>
@@ -676,4 +680,28 @@
     <string name="native_blocked_help">Na pracovním nebo školním počítači požádejte správce, aby YMusic povolil. Na vlastním počítači zkontrolujte Smart App Control v Zabezpečení Windows.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Obnovování</string>
+    <string name="a11y_loading">Načítání</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">Vybrat vše</string>
+    <string name="downloads_action_select">Vybrat</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="one">Vybráno: %1$d</item>
+        <item quantity="few">Vybráno: %1$d</item>
+        <item quantity="many">Vybráno: %1$d</item>
+        <item quantity="other">Vybráno: %1$d</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="one">Odebrat ze seznamu %1$d stahování?</item>
+        <item quantity="few">Odebrat ze seznamu %1$d stahování?</item>
+        <item quantity="many">Odebrat ze seznamu %1$d stahování?</item>
+        <item quantity="other">Odebrat ze seznamu %1$d stahování?</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">Dokončené soubory zůstanou v tomto zařízení.</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="one">Smazat %1$d soubor?</item>
+        <item quantity="few">Smazat %1$d soubory?</item>
+        <item quantity="many">Smazat %1$d souboru?</item>
+        <item quantity="other">Smazat %1$d souborů?</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">Smazané soubory nelze obnovit.</string>
 </resources>

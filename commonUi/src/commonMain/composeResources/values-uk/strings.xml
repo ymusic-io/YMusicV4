@@ -370,8 +370,10 @@
     <string name="cd_minimize">Згорнути</string>
     <string name="cd_fit_video">Вписати відео</string>
     <string name="cd_fill_video">Заповнити екран</string>
-    <string name="cd_lock_rotation">Заблокувати поворот</string>
-    <string name="cd_unlock_rotation">Розблокувати поворот</string>
+    <string name="cd_screen_rotation">Поворот екрана</string>
+    <string name="rotation_lock_landscape">Зафіксувати горизонтально</string>
+    <string name="rotation_lock_portrait">Зафіксувати вертикально</string>
+    <string name="rotation_free">Вільний поворот</string>
     <string name="cd_rewind10">Назад на 10 секунд</string>
     <string name="cd_forward10">Уперед на 10 секунд</string>
     <string name="cd_repeat_off">Повтор: вимк.</string>
@@ -485,6 +487,8 @@
     <string name="settings_audio_focus_apps">Пауза, коли інші застосунки відтворюють звук</string>
     <string name="settings_sponsor_block">SponsorBlock</string>
     <string name="settings_sponsor_block_hint">Автоматично пропускати спонсорські вставки у відео YouTube. Для окремого відео можна вимкнути на екрані відтворення.</string>
+    <string name="settings_stable_volume">Стабільна гучність</string>
+    <string name="settings_stable_volume_hint">Вирівнює гучні й тихі фрагменти та відтворює кожен трек зі схожою гучністю.</string>
     <string name="sponsor_block_included">SponsorBlock увімкнено для цього відео</string>
     <string name="sponsor_block_excluded">SponsorBlock вимкнено для цього відео</string>
     <string name="settings_sound">Звук</string>
@@ -832,4 +836,28 @@
     <string name="native_blocked_help">На робочому чи навчальному комп’ютері попросіть адміністратора дозволити YMusic. На власному комп’ютері перевірте Smart App Control у розділі «Безпека Windows».</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Оновлення</string>
+    <string name="a11y_loading">Завантаження</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">Вибрати все</string>
+    <string name="downloads_action_select">Вибрати</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="one">Вибрано: %1$d</item>
+        <item quantity="few">Вибрано: %1$d</item>
+        <item quantity="many">Вибрано: %1$d</item>
+        <item quantity="other">Вибрано: %1$d</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="one">Прибрати %1$d завантаження зі списку?</item>
+        <item quantity="few">Прибрати %1$d завантаження зі списку?</item>
+        <item quantity="many">Прибрати %1$d завантажень зі списку?</item>
+        <item quantity="other">Прибрати %1$d завантаження зі списку?</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">Готові файли залишаться на цьому пристрої.</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="one">Видалити %1$d файл?</item>
+        <item quantity="few">Видалити %1$d файли?</item>
+        <item quantity="many">Видалити %1$d файлів?</item>
+        <item quantity="other">Видалити %1$d файлу?</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">Видалені файли не можна відновити.</string>
 </resources>

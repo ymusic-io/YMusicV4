@@ -306,8 +306,10 @@
     <string name="cd_exit_fullscreen">Välju täisekraanist</string>
     <string name="cd_fit_video">Sobita video</string>
     <string name="cd_fill_video">Täida ekraan</string>
-    <string name="cd_lock_rotation">Lukusta pööramine</string>
-    <string name="cd_unlock_rotation">Ava pööramise lukk</string>
+    <string name="cd_screen_rotation">Ekraani pööramine</string>
+    <string name="rotation_lock_landscape">Lukusta rõhtpaigutus</string>
+    <string name="rotation_lock_portrait">Lukusta püstpaigutus</string>
+    <string name="rotation_free">Vaba pööramine</string>
     <string name="cd_rewind10">10 sekundit tagasi</string>
     <string name="cd_forward10">10 sekundit edasi</string>
     <string name="cd_repeat_off">Korda: väljas</string>
@@ -416,6 +418,8 @@
     <string name="settings_audio_focus_apps">Peata, kui teised rakendused heli esitavad</string>
     <string name="settings_sponsor_block">SponsorBlock</string>
     <string name="settings_sponsor_block_hint">Jäta YouTube'i videotes sponsitud lõigud automaatselt vahele. Üksiku video jaoks lülita välja vaates Praegu mängib.</string>
+    <string name="settings_stable_volume">Stabiilne helitugevus</string>
+    <string name="settings_stable_volume_hint">Ühtlustab valjud ja vaiksed kohad ning esitab iga loo sarnase valjusega.</string>
     <string name="sponsor_block_included">SponsorBlock on selle video jaoks sees</string>
     <string name="sponsor_block_excluded">SponsorBlock on selle video jaoks väljas</string>
     <string name="settings_sound">Heli</string>
@@ -660,4 +664,22 @@
     <string name="native_blocked_help">Töö- või koolisarvutis paluge administraatoril YMusic lubada. Oma arvutis kontrollige Smart App Controli jaotises Windowsi turve.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Värskendamine</string>
+    <string name="a11y_loading">Laadimine</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">Vali kõik</string>
+    <string name="downloads_action_select">Vali</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="one">%1$d valitud</item>
+        <item quantity="other">%1$d valitud</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="one">Kas eemaldada loendist %1$d allalaadimine?</item>
+        <item quantity="other">Kas eemaldada loendist %1$d allalaadimist?</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">Valmis failid jäävad sellesse seadmesse.</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="one">Kas kustutada %1$d fail?</item>
+        <item quantity="other">Kas kustutada %1$d faili?</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">Kustutatud faile ei saa taastada.</string>
 </resources>

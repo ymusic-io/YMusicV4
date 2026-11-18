@@ -306,8 +306,10 @@
     <string name="cd_exit_fullscreen">ಪೂರ್ಣ ಪರದೆಯಿಂದ ನಿರ್ಗಮಿಸಿ</string>
     <string name="cd_fit_video">ವೀಡಿಯೊ ಹೊಂದಿಸಿ</string>
     <string name="cd_fill_video">ಪರದೆ ತುಂಬಿಸಿ</string>
-    <string name="cd_lock_rotation">ತಿರುಗುವಿಕೆ ಲಾಕ್ ಮಾಡಿ</string>
-    <string name="cd_unlock_rotation">ತಿರುಗುವಿಕೆ ಅನ್‌ಲಾಕ್ ಮಾಡಿ</string>
+    <string name="cd_screen_rotation">ಪರದೆ ತಿರುಗುವಿಕೆ</string>
+    <string name="rotation_lock_landscape">ಲ್ಯಾಂಡ್‌ಸ್ಕೇಪ್‌ನಲ್ಲಿ ಲಾಕ್ ಮಾಡಿ</string>
+    <string name="rotation_lock_portrait">ಪೋರ್ಟ್ರೇಟ್‌ನಲ್ಲಿ ಲಾಕ್ ಮಾಡಿ</string>
+    <string name="rotation_free">ಮುಕ್ತ ತಿರುಗುವಿಕೆ</string>
     <string name="cd_rewind10">10 ಸೆಕೆಂಡ್ ಹಿಂದಕ್ಕೆ</string>
     <string name="cd_forward10">10 ಸೆಕೆಂಡ್ ಮುಂದಕ್ಕೆ</string>
     <string name="cd_repeat_off">ಪುನರಾವರ್ತಿಸಿ: ಆಫ್</string>
@@ -416,6 +418,8 @@
     <string name="settings_audio_focus_apps">ಇತರ ಆ್ಯಪ್‌ಗಳು ಧ್ವನಿ ಪ್ಲೇ ಮಾಡಿದಾಗ ವಿರಾಮ</string>
     <string name="settings_sponsor_block">SponsorBlock</string>
     <string name="settings_sponsor_block_hint">YouTube ವೀಡಿಯೊಗಳಲ್ಲಿನ ಪ್ರಾಯೋಜಿತ ಭಾಗಗಳನ್ನು ಸ್ವಯಂಚಾಲಿತವಾಗಿ ಸ್ಕಿಪ್ ಮಾಡಿ. Now Playing ನಿಂದ ಒಂದು ವೀಡಿಯೊಗೆ ಆಫ್ ಮಾಡಿ.</string>
+    <string name="settings_stable_volume">ಸ್ಥಿರ ವಾಲ್ಯೂಮ್</string>
+    <string name="settings_stable_volume_hint">ಜೋರಾದ ಮತ್ತು ಮೆಲ್ಲಗಿನ ಭಾಗಗಳನ್ನು ಸಮಗೊಳಿಸಿ ಪ್ರತಿ ಹಾಡನ್ನು ಸುಮಾರು ಒಂದೇ ಧ್ವನಿಯಲ್ಲಿ ಪ್ಲೇ ಮಾಡುತ್ತದೆ.</string>
     <string name="sponsor_block_included">ಈ ವೀಡಿಯೊಗೆ SponsorBlock ಸಕ್ರಿಯವಾಗಿದೆ</string>
     <string name="sponsor_block_excluded">ಈ ವೀಡಿಯೊಗೆ SponsorBlock ನಿಷ್ಕ್ರಿಯವಾಗಿದೆ</string>
     <string name="settings_sound">ಧ್ವನಿ</string>
@@ -660,4 +664,22 @@
     <string name="native_blocked_help">ಕೆಲಸದ ಅಥವಾ ಶಾಲೆಯ PC ಯಲ್ಲಿ, YMusic ಗೆ ಅನುಮತಿ ನೀಡಲು ನಿಮ್ಮ ನಿರ್ವಾಹಕರನ್ನು ಕೇಳಿ. ನಿಮ್ಮ ಸ್ವಂತ PC ಯಲ್ಲಿ, Windows Security ಯಲ್ಲಿ Smart App Control ಪರಿಶೀಲಿಸಿ.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">ರಿಫ್ರೆಶ್ ಆಗುತ್ತಿದೆ</string>
+    <string name="a11y_loading">ಲೋಡ್ ಆಗುತ್ತಿದೆ</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">ಎಲ್ಲವನ್ನೂ ಆಯ್ಕೆಮಾಡಿ</string>
+    <string name="downloads_action_select">ಆಯ್ಕೆಮಾಡಿ</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="one">%1$d ಆಯ್ಕೆಮಾಡಲಾಗಿದೆ</item>
+        <item quantity="other">%1$d ಆಯ್ಕೆಮಾಡಲಾಗಿದೆ</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="one">ಪಟ್ಟಿಯಿಂದ %1$d ಡೌನ್‌ಲೋಡ್ ತೆಗೆದುಹಾಕಬೇಕೇ?</item>
+        <item quantity="other">ಪಟ್ಟಿಯಿಂದ %1$d ಡೌನ್‌ಲೋಡ್ ತೆಗೆದುಹಾಕಬೇಕೇ?</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">ಪೂರ್ಣಗೊಂಡ ಫೈಲ್‌ಗಳು ಈ ಸಾಧನದಲ್ಲೇ ಉಳಿಯುತ್ತವೆ.</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="one">%1$d ಫೈಲ್ ಅಳಿಸಬೇಕೇ?</item>
+        <item quantity="other">%1$d ಫೈಲ್‌ಗಳನ್ನು ಅಳಿಸಬೇಕೇ?</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">ಅಳಿಸಿದ ಫೈಲ್‌ಗಳನ್ನು ಮರುಪಡೆಯಲು ಸಾಧ್ಯವಿಲ್ಲ.</string>
 </resources>

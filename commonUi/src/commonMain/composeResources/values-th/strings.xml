@@ -302,8 +302,10 @@
     <string name="cd_exit_fullscreen">ออกจากโหมดเต็มหน้าจอ</string>
     <string name="cd_fit_video">ปรับวิดีโอให้พอดี</string>
     <string name="cd_fill_video">เต็มหน้าจอ</string>
-    <string name="cd_lock_rotation">ล็อกการหมุน</string>
-    <string name="cd_unlock_rotation">ปลดล็อกการหมุน</string>
+    <string name="cd_screen_rotation">การหมุนหน้าจอ</string>
+    <string name="rotation_lock_landscape">ล็อกแนวนอน</string>
+    <string name="rotation_lock_portrait">ล็อกแนวตั้ง</string>
+    <string name="rotation_free">หมุนอิสระ</string>
     <string name="cd_rewind10">ย้อนกลับ 10 วินาที</string>
     <string name="cd_forward10">ข้ามไปข้างหน้า 10 วินาที</string>
     <string name="cd_repeat_off">เล่นซ้ำ: ปิด</string>
@@ -412,6 +414,8 @@
     <string name="settings_audio_focus_apps">หยุดชั่วคราวเมื่อแอปอื่นเล่นเสียง</string>
     <string name="settings_sponsor_block">SponsorBlock</string>
     <string name="settings_sponsor_block_hint">ข้ามช่วงผู้สนับสนุนในวิดีโอ YouTube โดยอัตโนมัติ ปิดสำหรับวิดีโอใดก็ได้จากหน้ากำลังเล่น</string>
+    <string name="settings_stable_volume">ระดับเสียงคงที่</string>
+    <string name="settings_stable_volume_hint">ปรับช่วงที่ดังและเบาให้สม่ำเสมอ และเล่นทุกเพลงด้วยระดับเสียงใกล้เคียงกัน</string>
     <string name="sponsor_block_included">เปิด SponsorBlock สำหรับวิดีโอนี้แล้ว</string>
     <string name="sponsor_block_excluded">ปิด SponsorBlock สำหรับวิดีโอนี้แล้ว</string>
     <string name="settings_sound">เสียง</string>
@@ -652,4 +656,19 @@
     <string name="native_blocked_help">หากเป็นพีซีของที่ทำงานหรือโรงเรียน โปรดขอให้ผู้ดูแลระบบอนุญาต YMusic หากเป็นพีซีส่วนตัว โปรดตรวจสอบ Smart App Control ในความปลอดภัยของ Windows</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">กำลังรีเฟรช</string>
+    <string name="a11y_loading">กำลังโหลด</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">เลือกทั้งหมด</string>
+    <string name="downloads_action_select">เลือก</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="other">เลือกแล้ว %1$d รายการ</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="other">นำการดาวน์โหลด %1$d รายการออกจากรายการไหม</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">ไฟล์ที่ดาวน์โหลดเสร็จแล้วจะยังอยู่ในอุปกรณ์นี้</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="other">ลบ %1$d ไฟล์ไหม</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">ไฟล์ที่ลบแล้วจะกู้คืนไม่ได้</string>
 </resources>

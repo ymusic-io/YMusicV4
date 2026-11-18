@@ -89,7 +89,7 @@ fn title_bar(window: &mut Window, cx: &mut App) -> GrayscaleText {
                 .font_family("Segoe UI")
                 .text_size(px(TITLE_SIZE))
                 .text_color(ink.rest)
-                .child(t(Str::AppName)),
+                .child(crate::dev_instance::window_title()),
         );
     let pin = Button::new("always-on-top")
         .custom(

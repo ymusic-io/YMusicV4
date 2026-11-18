@@ -21,22 +21,22 @@ Undefined symbols for architecture arm64:
   "_OBJC_CLASS_$_UIViewLayoutRegion", referenced from: … ui-uikit … CMPLayoutRegion.o
 ```
 
-- **Clean build: Xcode 26 (iOS 26 SDK).** That needs macOS 15/26 — newer than this host's macOS 14.8,
-  so it's a macOS upgrade or a CI runner with Xcode 26.
-- **Works today on Xcode 16.2 (this Mac) via a guarded workaround:** `-PiosAllowUndefined=true` (baked
-  into the Gradle build phase) links with `-undefined dynamic_lookup`, allowing the iOS 26 symbol to
-  stay unresolved. Compose `@available`-guards its use, so on a sub-iOS-26 device (e.g. the iPad on iOS
-  17.5) it is never referenced. **Verified: a complete arm64 `.app` builds** (arm64 binary + embedded
-  `YMusicApp.framework` + `compose-resources`). Runtime on-device is still to be confirmed; this is a
-  dev/test build, **not** App-Store-shippable (dynamic_lookup) — drop the flag on Xcode 26.
+- **Xcode 26 (iOS 26 SDK): a clean link**, every symbol resolved (the Mac mini, Xcode 26.6). That
+  needs macOS 15/26.
+- **Xcode < 26 (the Intel Mac on macOS 14.8 / Xcode 16.2): an escape hatch.** The Gradle build phase
+  checks `XCODE_VERSION_MAJOR` and only below 2600 passes `-PiosAllowUndefined=true`, which links with
+  `-undefined dynamic_lookup` and prints a build warning. Compose `@available`-guards its use of the
+  iOS 26 class, so a sub-iOS-26 device never references it, but the flag hides **every** undefined
+  symbol: a library missing from the link becomes a launch crash. A dev/test build only, **not**
+  App-Store-shippable.
 
 ## Simulator
 
-Compose MP 1.11.1 has **no `iosX64`**. The Intel iOS Simulator is x86_64, so this app **cannot run
-in Simulator on this Mac**. Apple Silicon hosts use `iosSimulatorArm64` (Xcode destination → any
-iPhone/iPad sim). On Intel, skip the sim and use a plugged-in device.
+The project has **no `iosX64`** target (neither Compose MP 1.11.1 nor the static iOS ffmpeg exists for
+x86_64), so this app **cannot run in an Intel Mac's Simulator**. Apple Silicon hosts use
+`iosSimulatorArm64` (Xcode destination → any iPhone/iPad sim). On Intel, use a plugged-in device.
 
-## Run on a device (Xcode 16.2, today)
+## Run on a device
 
 1. `ruby gen_xcodeproj.rb` (regenerates `iosApp.xcodeproj`; needs the `xcodeproj` gem)
 2. `open iosApp.xcodeproj`
@@ -45,8 +45,8 @@ iPhone/iPad sim). On Intel, skip the sim and use a plugged-in device.
 4. Plug in + unlock + **Trust** the device; select it as the run destination.
 5. **Run** (⌘R). First launch: **Settings → General → VPN & Device Management** → trust the profile.
 
-The Gradle build phase runs `:iosAppKotlin:embedAndSignAppleFrameworkForXcode -PkmpTargets=all
--PiosAllowUndefined=true` to build + embed + sign `YMusicApp.framework`. `-PkmpTargets=all` configures
+The Gradle build phase runs `:iosAppKotlin:embedAndSignAppleFrameworkForXcode -PkmpTargets=all`
+(plus `-PiosAllowUndefined=true` on Xcode < 26, see above) to build + embed + sign `YMusicApp.framework`. `-PkmpTargets=all` configures
 `iosArm64` on this Intel host; `JAVA_HOME` is set to `$HOME/.sdkman/candidates/java/current`.
 
 Signing is the only manual step — this environment can't enter your Apple ID; Xcode does it locally.

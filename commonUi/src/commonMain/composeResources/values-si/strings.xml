@@ -306,8 +306,10 @@
     <string name="cd_exit_fullscreen">සම්පූර්ණ තිරයෙන් ඉවත් වන්න</string>
     <string name="cd_fit_video">වීඩියෝව ගළපන්න</string>
     <string name="cd_fill_video">තිරය පුරවන්න</string>
-    <string name="cd_lock_rotation">භ්‍රමණය අගුළු දමන්න</string>
-    <string name="cd_unlock_rotation">භ්‍රමණය අගුළු හරින්න</string>
+    <string name="cd_screen_rotation">තිරය කරකැවීම</string>
+    <string name="rotation_lock_landscape">තිරස්ව අගුළු දමන්න</string>
+    <string name="rotation_lock_portrait">සිරස්ව අගුළු දමන්න</string>
+    <string name="rotation_free">නිදහස් කරකැවීම</string>
     <string name="cd_rewind10">තත්පර 10 ක් පසුපසට</string>
     <string name="cd_forward10">තත්පර 10 ක් ඉදිරියට</string>
     <string name="cd_repeat_off">පුනරාවර්තනය: අක්‍රිය</string>
@@ -416,6 +418,8 @@
     <string name="settings_audio_focus_apps">වෙනත් යෙදුම් ශබ්ද වාදනය කරන විට විරාම කරන්න</string>
     <string name="settings_sponsor_block">SponsorBlock</string>
     <string name="settings_sponsor_block_hint">YouTube වීඩියෝවල අනුග්‍රාහක කොටස් ස්වයංක්‍රීයව මඟ හරින්න. දැන් වාදනය වන තිරයෙන් වීඩියෝවකට අක්‍රිය කරන්න.</string>
+    <string name="settings_stable_volume">ස්ථාවර ශබ්දය</string>
+    <string name="settings_stable_volume_hint">හඬ වැඩි සහ අඩු කොටස් සමාන කර සෑම ගීතයක්ම සමාන ශබ්දයකින් වාදනය කරයි.</string>
     <string name="sponsor_block_included">මෙම වීඩියෝව සඳහා SponsorBlock සක්‍රියයි</string>
     <string name="sponsor_block_excluded">මෙම වීඩියෝව සඳහා SponsorBlock අක්‍රියයි</string>
     <string name="settings_sound">ශබ්දය</string>
@@ -660,4 +664,22 @@
     <string name="native_blocked_help">කාර්යාල හෝ පාසල් PC එකක, YMusic ට ඉඩ දෙන ලෙස ඔබේ පරිපාලකගෙන් ඉල්ලන්න. ඔබේම PC එකේ, Windows Security හි Smart App Control පරීක්ෂා කරන්න.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">නැවුම් කරමින්</string>
+    <string name="a11y_loading">පූරණය වෙමින්</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">සියල්ල තෝරන්න</string>
+    <string name="downloads_action_select">තෝරන්න</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="one">%1$dක් තෝරා ඇත</item>
+        <item quantity="other">%1$dක් තෝරා ඇත</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="one">ලැයිස්තුවෙන් බාගැනීම් %1$dක් ඉවත් කරන්නද?</item>
+        <item quantity="other">ලැයිස්තුවෙන් බාගැනීම් %1$dක් ඉවත් කරන්නද?</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">සම්පූර්ණ වූ ගොනු මෙම උපාංගයේ ඉතිරි වේ.</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="one">ගොනු %1$dක් මකන්නද?</item>
+        <item quantity="other">ගොනු %1$dක් මකන්නද?</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">මකා දැමූ ගොනු නැවත ලබා ගත නොහැක.</string>
 </resources>

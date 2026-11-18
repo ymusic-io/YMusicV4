@@ -25,6 +25,7 @@ use crate::youtube_session::YoutubeSession;
 
 /// The JVM app's keys.
 const VOLUME_KEY: &str = "player.volume";
+pub const STABLE_VOLUME_KEY: &str = "playback.stableVolume";
 /// `"1"` audio only, `"0"` video.
 const AUDIO_ONLY_KEY: &str = "player.audioOnly";
 const LOOP_MODE_KEY: &str = "player.loopMode";
@@ -148,6 +149,28 @@ impl PlaybackFailure {
 pub enum Source {
     YouTube(String),
     Local(PathBuf),
+}
+
+/// What a play tap asked for, compared by value to spot a repeat tap (the JVM QueueRequest).
+#[derive(Debug, Clone, PartialEq)]
+struct QueueRequest {
+    origin: &'static str,
+    sources: Vec<Source>,
+    index: usize,
+    source: Option<String>,
+    shuffle: Option<bool>,
+}
+
+impl QueueRequest {
+    fn new(
+        origin: &'static str,
+        items: &[QueueItem],
+        index: usize,
+        source: Option<String>,
+        shuffle: Option<bool>,
+    ) -> Self {
+        Self { origin, sources: items.iter().map(|item| item.source.clone()).collect(), index, source, shuffle }
+    }
 }
 
 /// One entry of the play queue, whatever plays it.
@@ -406,6 +429,9 @@ pub struct Playback {
     pub index: usize,
     /// Names the queue the last play started: Play again saves it under this.
     pub queue_id: String,
+    /// The last play tap and the queue it made, to spot a repeat tap ([`Self::start_once`]).
+    last_request: Option<QueueRequest>,
+    last_request_queue_id: String,
     /// Bumped whenever the queue's items change.
     pub queue_revision: u64,
     /// Where the next load starts, once.
@@ -459,6 +485,8 @@ pub struct Playback {
     gain: f32,
     /// The local item's attenuate-only loudness gain.
     local_gain: f32,
+    /// Both loudness gains apply (the JVM `PlaybackConfig.stableVolume`).
+    stable_volume: bool,
     pub volume: f32,
     pub effects: AudioEffects,
     pub nav: QueueNav,
@@ -522,6 +550,8 @@ impl Playback {
             queue: Vec::new(),
             index: 0,
             queue_id: String::new(),
+            last_request: None,
+            last_request_queue_id: String::new(),
             queue_revision: 0,
             start_position_ms: 0,
             skip_segments: None,
@@ -559,6 +589,13 @@ impl Playback {
                 .unwrap_or_else(|| QUALITY_AUTO.to_owned()),
             gain: 1.0,
             local_gain: 1.0,
+            stable_volume: cx
+                .global::<AppGraph>()
+                .settings
+                .get_raw(STABLE_VOLUME_KEY)
+                .ok()
+                .flatten()
+                .is_none_or(|value| value != "false"),
             volume: if muted { 0.0 } else { saved_volume.unwrap_or(1.0).clamp(0.0, 1.0) },
             effects: AudioEffects::load(cx.global::<AppGraph>().settings.as_ref()),
             nav: {
@@ -777,28 +814,33 @@ impl Playback {
         if videos.is_empty() {
             return;
         }
-        let source = NextQueueSource::playlist(url, &videos, total_count, queue_source_log(cx));
-        self.index = videos.iter().position(|candidate| candidate.id == item.id).unwrap_or(0);
-        self.queue = videos.iter().map(QueueItem::from_feed).collect();
-        self.start_queue(source, cx);
+        let index = videos.iter().position(|candidate| candidate.id == item.id).unwrap_or(0);
+        let items: Vec<QueueItem> = videos.iter().map(QueueItem::from_feed).collect();
+        let request = QueueRequest::new("playlist", &items, index, Some("playlist".to_owned()), None);
+        self.start_once(request, cx, move |playback, cx| {
+            let source = NextQueueSource::playlist(url, &videos, total_count, queue_source_log(cx));
+            playback.index = index;
+            playback.queue = items;
+            playback.start_queue(source, cx);
+        });
     }
 
     /// Plays a feed video. A `section` queue plays in order; without one the engine's radio for
     /// the video becomes the queue.
     pub fn play_feed(&mut self, item: YtFeedItem, section: Option<Vec<YtFeedItem>>, cx: &mut Context<Self>) {
-        let source = match section {
-            Some(items) => {
-                self.index = items.iter().position(|candidate| candidate.id == item.id).unwrap_or(0);
-                self.queue = items.iter().map(QueueItem::from_feed).collect();
-                None
+        match section {
+            Some(section) => {
+                let index = section.iter().position(|candidate| candidate.id == item.id).unwrap_or(0);
+                let items: Vec<QueueItem> = section.iter().map(QueueItem::from_feed).collect();
+                let request = QueueRequest::new("playlist", &items, index, None, None);
+                self.start_once(request, cx, move |playback, cx| {
+                    playback.index = index;
+                    playback.queue = items;
+                    playback.start_queue(None, cx);
+                });
             }
-            None => {
-                self.queue = vec![QueueItem::from_feed(&item)];
-                self.index = 0;
-                Some(NextQueueSource::radio(&item.id, queue_source_log(cx)))
-            }
-        };
-        self.start_queue(source, cx);
+            None => self.start_radio(QueueItem::from_feed(&item), cx),
+        }
     }
 
     /// Plays a linked video from `start_ms`: the link's playlist continues after it, else its radio.
@@ -850,23 +892,29 @@ impl Playback {
         if items.is_empty() {
             return;
         }
-        let source = source_token.and_then(|token| NextQueueSource::resume(&token, &items, queue_source_log(cx)));
-        self.attach_source(source);
-        self.index = index.min(items.len() - 1);
-        self.queue = items;
-        self.queue_id = queue_id;
-        self.queue_revision += 1;
-        self.nav.reset(self.index);
-        self.start_position_ms = start_ms.max(0);
-        self.play_when_ready = true;
-        self.publish_queue(false, cx);
-        self.load_current(cx);
+        let index = index.min(items.len() - 1);
+        let from_beginning = start_ms <= 0;
+        let request =
+            QueueRequest::new("resume", &items, index, Some(format!("resume:{queue_id}:{from_beginning}")), None);
+        self.start_once(request, cx, move |playback, cx| {
+            let source = source_token.and_then(|token| NextQueueSource::resume(&token, &items, queue_source_log(cx)));
+            playback.attach_source(source);
+            playback.index = index;
+            playback.queue = items;
+            playback.queue_id = queue_id;
+            playback.queue_revision += 1;
+            playback.nav.reset(playback.index);
+            playback.start_position_ms = start_ms.max(0);
+            playback.play_when_ready = true;
+            playback.publish_queue(false, cx);
+            playback.load_current(cx);
+        });
     }
 
     /// Plays `item` right after the current one; starts it when nothing is queued.
     pub fn queue_next(&mut self, item: QueueItem, cx: &mut Context<Self>) {
         if self.queue.is_empty() {
-            self.play_queue(vec![item], 0, cx);
+            self.play_queue(vec![item], 0, None, cx);
             return;
         }
         let at = self.nav.add_next(self.index);
@@ -895,7 +943,7 @@ impl Playback {
     /// Adds `item` at the end of the queue; starts it when nothing is queued.
     pub fn queue_last(&mut self, item: QueueItem, cx: &mut Context<Self>) {
         if self.queue.is_empty() {
-            self.play_queue(vec![item], 0, cx);
+            self.play_queue(vec![item], 0, None, cx);
             return;
         }
         self.queue.push(item);
@@ -921,9 +969,13 @@ impl Playback {
     /// Replaces the queue with `item` and its radio.
     pub fn start_radio(&mut self, item: QueueItem, cx: &mut Context<Self>) {
         let Some(video_id) = item.video_id().map(str::to_owned) else { return };
-        self.queue = vec![item];
-        self.index = 0;
-        self.start_queue(Some(NextQueueSource::radio(&video_id, queue_source_log(cx))), cx);
+        let items = vec![item];
+        let request = QueueRequest::new("radio", &items, 0, Some(format!("radio:{video_id}")), None);
+        self.start_once(request, cx, move |playback, cx| {
+            playback.queue = items;
+            playback.index = 0;
+            playback.start_queue(Some(NextQueueSource::radio(&video_id, queue_source_log(cx))), cx);
+        });
     }
 
     /// Stops the current item's engine and loads the item again where it was, playing: recovers a
@@ -1160,10 +1212,45 @@ impl Playback {
     }
 
     /// Plays `items` in order from `index`.
-    pub fn play_queue(&mut self, items: Vec<QueueItem>, index: usize, cx: &mut Context<Self>) {
-        self.index = index.min(items.len().saturating_sub(1));
-        self.queue = items;
-        self.start_queue(None, cx);
+    /// Plays `items` from `index`; `shuffle` sets the mode first, `None` keeps it (the JVM playLocal).
+    pub fn play_queue(&mut self, items: Vec<QueueItem>, index: usize, shuffle: Option<bool>, cx: &mut Context<Self>) {
+        let index = index.min(items.len().saturating_sub(1));
+        let request = QueueRequest::new("library", &items, index, None, shuffle);
+        self.start_once(request, cx, move |playback, cx| {
+            if let Some(shuffle) = shuffle {
+                playback.set_shuffle(shuffle, cx);
+            }
+            playback.index = index;
+            playback.queue = items;
+            playback.start_queue(None, cx);
+        });
+    }
+
+    /// Child-proofing (the JVM PlaybackCoordinator.startOnce): runs `start` unless `request` repeats
+    /// the last one while the queue it made is still on its item. A repeat tap then reloads nothing;
+    /// a paused item resumes. An ended or failed item, a different item or a queue replaced since all
+    /// start again.
+    fn start_once(
+        &mut self,
+        request: QueueRequest,
+        cx: &mut Context<Self>,
+        start: impl FnOnce(&mut Self, &mut Context<Self>),
+    ) {
+        let repeat = self.last_request.as_ref() == Some(&request)
+            && !self.queue_id.is_empty()
+            && self.queue_id == self.last_request_queue_id
+            && self.current().map(|item| &item.source) == request.sources.get(request.index)
+            && !self.state.is_ended()
+            && !matches!(self.state, PlaybackState::Error(_));
+        if repeat {
+            if !self.play_when_ready {
+                self.play(cx);
+            }
+            return;
+        }
+        start(self, cx);
+        self.last_request = Some(request);
+        self.last_request_queue_id = self.queue_id.clone();
     }
 
     /// Nothing queued: a no-op, as the YouTube engine keeps a stopped video that play would revive unseen.
@@ -1374,7 +1461,19 @@ impl Playback {
         });
     }
 
+    /// The JVM PlayerImpl.playAt: the current item is reloaded only when it failed or ended; otherwise
+    /// it plays on, resumes when paused, or keeps loading (a repeat tap).
     pub fn jump_to(&mut self, index: usize, cx: &mut Context<Self>) {
+        if index == self.index
+            && self.current().is_some()
+            && !self.state.is_ended()
+            && !matches!(self.state, PlaybackState::Error(_))
+        {
+            if !self.play_when_ready {
+                self.play(cx);
+            }
+            return;
+        }
         if index < self.queue.len() {
             self.nav.jump(index, self.queue.len());
             self.index = index;
@@ -1542,11 +1641,26 @@ impl Playback {
         session.host.set_tone(&self.effects.tone);
     }
 
-    fn apply_volume(&self) {
-        if let Some(session) = &self.session {
-            session.host.set_volume(self.volume * self.gain);
+    /// The Stable volume switch: the gains change at once, the bundle's track choice through a
+    /// fresh pull of the setting it reads.
+    pub fn set_stable_volume(&mut self, enabled: bool, cx: &mut Context<Self>) {
+        if self.stable_volume == enabled {
+            return;
         }
-        self.send_local(LocalCommand::Volume(self.volume * self.local_gain));
+        self.stable_volume = enabled;
+        self.apply_volume();
+        self.command(cx, |engine, _| async move {
+            engine.player_notify_settings_changed();
+            Ok(())
+        });
+    }
+
+    fn apply_volume(&self) {
+        let (gain, local_gain) = if self.stable_volume { (self.gain, self.local_gain) } else { (1.0, 1.0) };
+        if let Some(session) = &self.session {
+            session.host.set_volume(self.volume * gain);
+        }
+        self.send_local(LocalCommand::Volume(self.volume * local_gain));
     }
 
     fn send_local(&self, command: LocalCommand) {
@@ -2179,6 +2293,11 @@ impl Playback {
                     Some(Ok(session)) => {
                         playback.commands = Some(start_commands(&session, cx));
                         playback.session = Some(session);
+                        // set_stable_volume drops changes while booting, so the bundle re-pulls before any load.
+                        playback.command(cx, |engine, _| async move {
+                            engine.player_notify_settings_changed();
+                            Ok(())
+                        });
                         playback.apply_volume();
                         playback.apply_youtube_tone();
                         playback.apply_youtube_video_hidden(cx);

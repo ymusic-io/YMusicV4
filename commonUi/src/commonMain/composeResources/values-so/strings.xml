@@ -306,8 +306,10 @@
     <string name="cd_exit_fullscreen">Ka bax shaashadda buuxda</string>
     <string name="cd_fit_video">Ku habee muuqaalka</string>
     <string name="cd_fill_video">Buuxi shaashadda</string>
-    <string name="cd_lock_rotation">Xidh wareegga</string>
-    <string name="cd_unlock_rotation">Fur wareegga</string>
+    <string name="cd_screen_rotation">Wareejinta shaashadda</string>
+    <string name="rotation_lock_landscape">Ku xidh jiif</string>
+    <string name="rotation_lock_portrait">Ku xidh taagan</string>
+    <string name="rotation_free">Wareejin xor ah</string>
     <string name="cd_rewind10">Dib u celi 10 ilbiriqsi</string>
     <string name="cd_forward10">Hore u wad 10 ilbiriqsi</string>
     <string name="cd_repeat_off">Ku celceli: dansan</string>
@@ -416,6 +418,8 @@
     <string name="settings_audio_focus_apps">Jooji marka apps kale ay cod daaraan</string>
     <string name="settings_sponsor_block">SponsorBlock</string>
     <string name="settings_sponsor_block_hint">Si iskeed ah uga bood qaybaha la maalgashaday ee muuqaalada YouTube. Muuqaal gaar ah ka xidh La daarayo.</string>
+    <string name="settings_stable_volume">Cod deggan</string>
+    <string name="settings_stable_volume_hint">Isle ekeysiiya qaybaha dhawaaqa sare iyo kuwa hoose, hees kastana ku shida cod isku mid ah.</string>
     <string name="sponsor_block_included">Muuqaalkan waa loo furay SponsorBlock</string>
     <string name="sponsor_block_excluded">Muuqaalkan waa looga xidhay SponsorBlock</string>
     <string name="settings_sound">Codka</string>
@@ -660,4 +664,22 @@
     <string name="native_blocked_help">Kombiyuutarka shaqada ama dugsiga, ka codso maamulahaaga inuu oggolaado YMusic. Kombiyuutarkaaga, hubi Smart App Control oo ku jira Windows Security.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Cusboonaysiinaya</string>
+    <string name="a11y_loading">Waa la soo rarayaa</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">Dooro dhammaan</string>
+    <string name="downloads_action_select">Dooro</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="one">%1$d la doortay</item>
+        <item quantity="other">%1$d la doortay</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="one">Ka saar %1$d dajin liiska?</item>
+        <item quantity="other">Ka saar %1$d dajin liiska?</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">Faylasha dhammaystiran waxay ku hadhayaan qalabkan.</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="one">Tirtir %1$d fayl?</item>
+        <item quantity="other">Tirtir %1$d fayl?</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">Faylasha la tirtiray dib looma soo celin karo.</string>
 </resources>

@@ -314,8 +314,10 @@
     <string name="cd_exit_fullscreen">Zamknij pełny ekran</string>
     <string name="cd_fit_video">Dopasuj film</string>
     <string name="cd_fill_video">Wypełnij ekran</string>
-    <string name="cd_lock_rotation">Zablokuj obracanie</string>
-    <string name="cd_unlock_rotation">Odblokuj obracanie</string>
+    <string name="cd_screen_rotation">Obracanie ekranu</string>
+    <string name="rotation_lock_landscape">Zablokuj w poziomie</string>
+    <string name="rotation_lock_portrait">Zablokuj w pionie</string>
+    <string name="rotation_free">Swobodne obracanie</string>
     <string name="cd_rewind10">Przewiń 10 sekund do tyłu</string>
     <string name="cd_forward10">Przewiń 10 sekund do przodu</string>
     <string name="cd_repeat_off">Powtarzaj: wyłączone</string>
@@ -424,6 +426,8 @@
     <string name="settings_audio_focus_apps">Wstrzymuj, gdy inne aplikacje odtwarzają dźwięk</string>
     <string name="settings_sponsor_block">SponsorBlock</string>
     <string name="settings_sponsor_block_hint">Automatycznie pomijaj sponsorowane fragmenty w filmach YouTube. Możesz to wyłączyć dla filmu w Teraz odtwarzane.</string>
+    <string name="settings_stable_volume">Stabilna głośność</string>
+    <string name="settings_stable_volume_hint">Wyrównuje głośne i ciche fragmenty i odtwarza każdy utwór z podobną głośnością.</string>
     <string name="sponsor_block_included">SponsorBlock włączony dla tego filmu</string>
     <string name="sponsor_block_excluded">SponsorBlock wyłączony dla tego filmu</string>
     <string name="settings_sound">Dźwięk</string>
@@ -676,4 +680,28 @@
     <string name="native_blocked_help">Na komputerze służbowym lub szkolnym poproś administratora o zezwolenie na YMusic. Na własnym komputerze sprawdź Smart App Control w Zabezpieczeniach Windows.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Odświeżanie</string>
+    <string name="a11y_loading">Ładowanie</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">Zaznacz wszystko</string>
+    <string name="downloads_action_select">Zaznacz</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="one">Zaznaczono: %1$d</item>
+        <item quantity="few">Zaznaczono: %1$d</item>
+        <item quantity="many">Zaznaczono: %1$d</item>
+        <item quantity="other">Zaznaczono: %1$d</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="one">Usunąć %1$d pobieranie z listy?</item>
+        <item quantity="few">Usunąć %1$d pobierania z listy?</item>
+        <item quantity="many">Usunąć %1$d pobierań z listy?</item>
+        <item quantity="other">Usunąć %1$d pobierania z listy?</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">Ukończone pliki pozostaną na tym urządzeniu.</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="one">Usunąć %1$d plik?</item>
+        <item quantity="few">Usunąć %1$d pliki?</item>
+        <item quantity="many">Usunąć %1$d plików?</item>
+        <item quantity="other">Usunąć %1$d pliku?</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">Usuniętych plików nie można odzyskać.</string>
 </resources>

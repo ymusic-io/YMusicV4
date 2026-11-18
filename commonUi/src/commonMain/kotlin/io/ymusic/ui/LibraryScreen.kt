@@ -482,29 +482,39 @@ private fun FoldersTab(
     // (id, displayName) instead of the bucket itself so the browse position survives the section
     // leaving composition (saveable): coming back from Discover reopens the same folder.
     var path by rememberSaveable(stateSaver = CrumbPathSaver) { mutableStateOf(listOf<Pair<Long, String>>()) }
+    // Until seeded from the setting or a reveal, nothing loads or writes back: root would overwrite the saved folder.
+    var pathRestored by rememberSaveable { mutableStateOf(false) }
     NestedBackHandler(enabled = path.isNotEmpty()) { path = path.dropLast(1) }
     var folders by remember { mutableStateOf<List<MediaStoreBucket>?>(null) }
     var items by remember { mutableStateOf<List<MediaStoreItem>>(emptyList()) }
     val folderListState = rememberLazyListState()
     val folderGridState = rememberLazyGridState()
 
-    // "Show in folder": open the requested bucket by walking its ancestor chain up to a root.
+    // "Show in folder" opens the requested bucket and wins over the saved folder.
     LaunchedEffect(revealBucket) {
-        val target = revealBucket ?: return@LaunchedEffect
-        val byId = store.allBuckets().associateBy { it.id }
-        val chain = mutableListOf<Pair<Long, String>>()
-        var id: Long? = target
-        while (id != null) {
-            val bucket = byId[id] ?: break
-            chain.add(0, bucket.id to bucket.displayName)
-            id = bucket.parentId
+        val target = revealBucket
+        if (target != null) {
+            path = crumbChain(store, target).orEmpty()
+            pathRestored = true
+            onRevealHandled()
+        } else if (!pathRestored) {
+            val savedId = settings.flow(AppSettings.libraryFoldersOpen).value.toLongOrNull()
+            path = savedId?.let { crumbChain(store, it) }.orEmpty()
+            pathRestored = true
         }
-        path = chain
-        onRevealHandled()
     }
 
-    LaunchedEffect(path, content) {
+    LaunchedEffect(path, pathRestored) {
+        if (pathRestored) settings.put(AppSettings.libraryFoldersOpen, path.lastOrNull()?.first?.toString().orEmpty())
+    }
+
+    LaunchedEffect(path, content, pathRestored) {
+        if (!pathRestored) return@LaunchedEffect
         val currentId = path.lastOrNull()?.first
+        if (currentId != null && store.findBucket(currentId) == null) {
+            path = emptyList()
+            return@LaunchedEffect
+        }
         folders = store.childBuckets(currentId)
         items = store.itemsInBucket(currentId)
     }
@@ -601,7 +611,7 @@ private fun FoldersTab(
                     val songsPerRow = librarySongColumns(layoutWidth)
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(columns),
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier.fillMaxSize().itemList(),
                         contentPadding = PaddingValues(start = LibraryGridPadding, end = LibraryGridPadding, top = 4.dp, bottom = 4.dp + LocalMiniPlayerInset.current),
                         state = folderGridState,
                     ) {
@@ -632,7 +642,7 @@ private fun FoldersTab(
                         }
                     }
                 } else {
-                    LazyColumn(Modifier.fillMaxSize(), state = folderListState, contentPadding = PaddingValues(bottom = LocalMiniPlayerInset.current)) {
+                    LazyColumn(Modifier.fillMaxSize().itemList(), state = folderListState, contentPadding = PaddingValues(bottom = LocalMiniPlayerInset.current)) {
                         item { header() }
                         items(sortedFolders, key = { "b${it.id}" }) { bucket ->
                             FolderRow(
@@ -736,6 +746,18 @@ private val groupSortOptions = listOf(
     SortOption(Res.string.sort_date_created, compareBy { it.second.minOfOrNull { m -> m.createdAt } ?: 0L }),
 )
 
+/** The crumb path from a root down to [bucketId], or null when it or any ancestor is gone. */
+private suspend fun crumbChain(store: BetterMediaStore, bucketId: Long): List<Pair<Long, String>>? {
+    val chain = mutableListOf<Pair<Long, String>>()
+    var id: Long? = bucketId
+    while (id != null) {
+        val bucket = store.findBucket(id) ?: return null
+        chain.add(0, bucket.id to bucket.displayName)
+        id = bucket.parentId
+    }
+    return chain
+}
+
 /** Saves the folder browse path as a flat [id, name, id, name, …] list. */
 private val CrumbPathSaver = listSaver<List<Pair<Long, String>>, Any>(
     save = { path -> path.flatMap { (id, name) -> listOf(id, name) } },
@@ -813,7 +835,7 @@ private fun FolderRow(bucket: MediaStoreBucket, menu: ItemActions, isDownloadLoc
                 modifier = Modifier.padding(top = 10.dp).size(18.dp).spokenAs(stringResource(Res.string.menu_download_location)),
             )
         }
-        MoreMenu(menu, Modifier.padding(top = 2.dp))
+        MoreMenu(menu, Modifier.padding(top = 2.dp), inFocusableItem = !bucket.excluded)
     }
 }
 
@@ -1124,7 +1146,7 @@ private fun PlaylistsTab(
             if (layoutWidth >= LibraryGridMinWidth) {
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(libraryGridColumns(layoutWidth)),
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.fillMaxSize().itemList(),
                     contentPadding = PaddingValues(start = LibraryGridPadding, end = LibraryGridPadding, top = 4.dp, bottom = 4.dp + LocalMiniPlayerInset.current),
                     state = gridState,
                 ) {
@@ -1149,7 +1171,7 @@ private fun PlaylistsTab(
                     }
                 }
             } else {
-                LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = PaddingValues(bottom = LocalMiniPlayerInset.current)) {
+                LazyColumn(Modifier.fillMaxSize().itemList(), state = listState, contentPadding = PaddingValues(bottom = LocalMiniPlayerInset.current)) {
                     item { header() }
                     if (open == null) {
                         items(entries, key = { it.id }) { entry ->
@@ -1247,7 +1269,7 @@ private fun PlaylistsToolbar(sort: SortState, menu: ItemActions?, onCreate: () -
         LibraryChip(stringResource(Res.string.playlist_new), selected = false, onClick = onCreate)
         Spacer(Modifier.weight(1f))
         SortControl(playlistSortOptions.map { it.label }, sort)
-        if (menu != null) MoreMenu(menu)
+        if (menu != null) MoreMenu(menu, inFocusableItem = false)
     }
 }
 
@@ -1529,7 +1551,7 @@ internal fun SongList(
         if (layoutWidth >= LibraryGridMinWidth) {
             LazyVerticalGrid(
                 columns = GridCells.Fixed(librarySongColumns(layoutWidth)),
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxSize().itemList(),
                 state = gridState,
                 contentPadding = PaddingValues(bottom = LocalMiniPlayerInset.current),
             ) {
@@ -1539,7 +1561,7 @@ internal fun SongList(
                 }
             }
         } else {
-            LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = PaddingValues(bottom = LocalMiniPlayerInset.current)) {
+            LazyColumn(Modifier.fillMaxSize().itemList(), state = listState, contentPadding = PaddingValues(bottom = LocalMiniPlayerInset.current)) {
                 if (header != null) item { header() }
                 itemsIndexed(songs, key = { _, s -> s.id }) { index, song ->
                     SongRow(song, coordinator) { coordinator.playLocal(songs, index) }
@@ -1694,7 +1716,7 @@ private fun GroupedList(
         if (layoutWidth >= LibraryGridMinWidth) {
             LazyVerticalGrid(
                 columns = GridCells.Fixed(libraryGridColumns(layoutWidth)),
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxSize().itemList(),
                 contentPadding = PaddingValues(start = 10.dp, end = 10.dp, top = 4.dp, bottom = 4.dp + LocalMiniPlayerInset.current),
                 state = gridState,
             ) {
@@ -1716,7 +1738,7 @@ private fun GroupedList(
                 }
             }
         } else {
-            LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = PaddingValues(bottom = LocalMiniPlayerInset.current)) {
+            LazyColumn(Modifier.fillMaxSize().itemList(), state = listState, contentPadding = PaddingValues(bottom = LocalMiniPlayerInset.current)) {
                 item { header() }
                 if (selected == null) {
                     items(entries, key = { it.first }) { (name, members) -> GroupRow(icon, name, members) { group = name } }
@@ -1811,7 +1833,7 @@ private fun LibraryGridCard(
                         .spokenAs(stringResource(Res.string.menu_download_location)),
                 )
             }
-            if (menu != null) MoreMenu(menu, Modifier.align(Alignment.TopEnd))
+            if (menu != null) MoreMenu(menu, Modifier.align(Alignment.TopEnd), inFocusableItem = !dimmed)
         }
         Text(
             title,

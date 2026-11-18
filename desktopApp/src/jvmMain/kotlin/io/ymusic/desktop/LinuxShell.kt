@@ -21,7 +21,23 @@ import javax.imageio.ImageIO
 internal val isLinux = "linux" in System.getProperty("os.name").orEmpty().lowercase()
 
 /** WM_CLASS of every AWT window: XToolkit derives it from the main class name. */
-private const val LINUX_WM_CLASS = "io-ymusic-desktop-MainKt"
+private const val RELEASE_WM_CLASS = "io-ymusic-desktop-MainKt"
+
+/** A dev workspace's run gets its own, so the shell keeps it apart from the other runs. */
+private val linuxWmClass: String = DevInstance.workspaceTag?.let { "$RELEASE_WM_CLASS-dev$it" } ?: RELEASE_WM_CLASS
+
+/** The hidden .desktop entry's id, which MPRIS names as the player's DesktopEntry too. */
+internal val linuxDesktopEntryId: String = DevInstance.workspaceTag?.let { "io.ymusic.desktop.dev$it" } ?: "io.ymusic.desktop"
+
+/**
+ * Hack: XToolkit takes WM_CLASS from the main class name and offers no API to set it. Before the
+ * first window, which reads it when its peer is made.
+ */
+internal fun applyLinuxWmClass() {
+    if (linuxWmClass == RELEASE_WM_CLASS) return
+    val toolkit = java.awt.Toolkit.getDefaultToolkit()
+    toolkit.javaClass.getDeclaredField("awtAppClassName").apply { isAccessible = true }.set(null, linuxWmClass)
+}
 
 /**
  * A [px]-square raster of the painter drawn at [scale] × [px], centered (overflow cropped).
@@ -105,7 +121,7 @@ internal fun syncLinuxDesktopEntry(icon: BufferedImage?) {
     val iconFile = File(ymusicDataDir(), "ymusic.png")
     val dataHome = System.getenv("XDG_DATA_HOME")?.takeIf { it.isNotBlank() }?.let(::File)
         ?: File(System.getProperty("user.home"), ".local/share")
-    val entryFile = File(File(dataHome, "applications"), "io.ymusic.desktop.desktop")
+    val entryFile = File(File(dataHome, "applications"), "$linuxDesktopEntryId.desktop")
     if (icon == null) {
         entryFile.delete()
         iconFile.delete()
@@ -121,10 +137,10 @@ internal fun syncLinuxDesktopEntry(icon: BufferedImage?) {
     val entry = """
         |[Desktop Entry]
         |Type=Application
-        |Name=YMusic
+        |Name=${DevInstance.desktopEntryName}
         |Exec="$exec"
         |Icon=${iconFile.absolutePath}
-        |StartupWMClass=$LINUX_WM_CLASS
+        |StartupWMClass=$linuxWmClass
         |NoDisplay=true
         |
     """.trimMargin()

@@ -306,8 +306,10 @@
     <string name="cd_exit_fullscreen">पूर्ण स्क्रीनमधून बाहेर पडा</string>
     <string name="cd_fit_video">व्हिडिओ फिट करा</string>
     <string name="cd_fill_video">स्क्रीन भरा</string>
-    <string name="cd_lock_rotation">फिरवणे लॉक करा</string>
-    <string name="cd_unlock_rotation">फिरवणे अनलॉक करा</string>
+    <string name="cd_screen_rotation">स्क्रीन फिरवणे</string>
+    <string name="rotation_lock_landscape">लँडस्केपमध्ये लॉक करा</string>
+    <string name="rotation_lock_portrait">पोर्ट्रेटमध्ये लॉक करा</string>
+    <string name="rotation_free">मुक्तपणे फिरवा</string>
     <string name="cd_rewind10">10 सेकंद मागे</string>
     <string name="cd_forward10">10 सेकंद पुढे</string>
     <string name="cd_repeat_off">पुन्हा करा: बंद</string>
@@ -416,6 +418,8 @@
     <string name="settings_audio_focus_apps">इतर अ‍ॅप्स आवाज वाजवतात तेव्हा थांबवा</string>
     <string name="settings_sponsor_block">SponsorBlock</string>
     <string name="settings_sponsor_block_hint">YouTube व्हिडिओमधील प्रायोजित भाग आपोआप वगळा. एखाद्या व्हिडिओसाठी प्लेअर स्क्रीनवरून बंद करा.</string>
+    <string name="settings_stable_volume">स्थिर व्हॉल्यूम</string>
+    <string name="settings_stable_volume_hint">मोठे आणि हळू भाग समान करते आणि प्रत्येक गाणे साधारण सारख्या आवाजात वाजवते.</string>
     <string name="sponsor_block_included">या व्हिडिओसाठी SponsorBlock सुरू केले</string>
     <string name="sponsor_block_excluded">या व्हिडिओसाठी SponsorBlock बंद केले</string>
     <string name="settings_sound">आवाज</string>
@@ -660,4 +664,22 @@
     <string name="native_blocked_help">कार्यालयीन किंवा शाळेच्या PC वर, तुमच्या अ‍ॅडमिनिस्ट्रेटरला YMusic ला परवानगी देण्यास सांगा. तुमच्या स्वतःच्या PC वर, Windows Security मध्ये Smart App Control तपासा.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">रिफ्रेश होत आहे</string>
+    <string name="a11y_loading">लोड होत आहे</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">सर्व निवडा</string>
+    <string name="downloads_action_select">निवडा</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="one">%1$d निवडले</item>
+        <item quantity="other">%1$d निवडले</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="one">यादीतून %1$d डाउनलोड काढायचे?</item>
+        <item quantity="other">यादीतून %1$d डाउनलोड काढायचे?</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">पूर्ण झालेल्या फाइल या डिव्हाइसवर राहतील.</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="one">%1$d फाइल हटवायची?</item>
+        <item quantity="other">%1$d फाइल हटवायच्या?</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">हटवलेल्या फाइल परत मिळवता येत नाहीत.</string>
 </resources>

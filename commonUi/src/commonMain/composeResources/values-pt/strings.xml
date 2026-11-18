@@ -310,8 +310,10 @@
     <string name="cd_exit_fullscreen">Sair da tela cheia</string>
     <string name="cd_fit_video">Ajustar vídeo</string>
     <string name="cd_fill_video">Preencher tela</string>
-    <string name="cd_lock_rotation">Bloquear rotação</string>
-    <string name="cd_unlock_rotation">Desbloquear rotação</string>
+    <string name="cd_screen_rotation">Rotação da tela</string>
+    <string name="rotation_lock_landscape">Bloquear na horizontal</string>
+    <string name="rotation_lock_portrait">Bloquear na vertical</string>
+    <string name="rotation_free">Rotação livre</string>
     <string name="cd_rewind10">Voltar 10 segundos</string>
     <string name="cd_forward10">Avançar 10 segundos</string>
     <string name="cd_repeat_off">Repetir: desativado</string>
@@ -420,6 +422,8 @@
     <string name="settings_audio_focus_apps">Pausar quando outros apps reproduzirem som</string>
     <string name="settings_sponsor_block">SponsorBlock</string>
     <string name="settings_sponsor_block_hint">Pula automaticamente trechos patrocinados em vídeos do YouTube. Desative para um vídeo na tela de reprodução.</string>
+    <string name="settings_stable_volume">Volume estável</string>
+    <string name="settings_stable_volume_hint">Equilibra as partes altas e baixas e toca cada música com um volume parecido.</string>
     <string name="sponsor_block_included">SponsorBlock ativado para este vídeo</string>
     <string name="sponsor_block_excluded">SponsorBlock desativado para este vídeo</string>
     <string name="settings_sound">Som</string>
@@ -668,4 +672,25 @@
     <string name="native_blocked_help">Em um PC de trabalho ou escola, peça ao administrador para permitir o YMusic. No seu PC, verifique o Controle Inteligente de Aplicativos na Segurança do Windows.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Atualizando</string>
+    <string name="a11y_loading">Carregando</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">Selecionar tudo</string>
+    <string name="downloads_action_select">Selecionar</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="one">%1$d selecionado</item>
+        <item quantity="many">%1$d selecionados</item>
+        <item quantity="other">%1$d selecionados</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="one">Remover %1$d download da lista?</item>
+        <item quantity="many">Remover %1$d downloads da lista?</item>
+        <item quantity="other">Remover %1$d downloads da lista?</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">Os arquivos concluídos continuam neste dispositivo.</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="one">Excluir %1$d arquivo?</item>
+        <item quantity="many">Excluir %1$d arquivos?</item>
+        <item quantity="other">Excluir %1$d arquivos?</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">Arquivos excluídos não podem ser recuperados.</string>
 </resources>

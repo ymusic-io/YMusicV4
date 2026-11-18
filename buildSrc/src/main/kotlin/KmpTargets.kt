@@ -9,6 +9,13 @@ val hostOs: org.gradle.internal.os.OperatingSystem =
     org.gradle.internal.os.OperatingSystem.current()
 val hostIsArm64 = System.getProperty("os.arch").let { it == "aarch64" || it == "arm64" }
 
+/** The desktop Kotlin/Native target the build host itself runs; null off macOS and Linux. */
+val hostDesktopTargetName: String? = when {
+    hostOs.isMacOsX -> if (hostIsArm64) "macosArm64" else "macosX64"
+    hostOs.isLinux -> if (hostIsArm64) "linuxArm64" else "linuxX64"
+    else -> null
+}
+
 fun KotlinMultiplatformExtension.withAppleTargets(
     configure: KotlinNativeTarget.() -> Unit = {}
 ) {
@@ -30,7 +37,6 @@ fun KotlinMultiplatformExtension.withAppleTargets(
 
     if (hostOs.isMacOsX && !hostIsArm64 || !isHostCompatibleMode) {
         listOf(
-            iosX64(),
             macosX64(),
             tvosX64(),
             watchosX64(),
@@ -51,9 +57,9 @@ fun KotlinMultiplatformExtension.withLinuxTargets(
 }
 
 /**
- * iOS-only native targets (host-gated): device + simulator, no tvOS/watchOS. For modules whose
- * native dependency publishes iOS but not tvOS/watchOS (e.g. :dynamic-engine over quickjs-kt).
- * Compose with [withMacosTargets] / [withLinuxTargets] to cover the rest of that dependency's matrix.
+ * iOS-only native targets: device + arm64 simulator, no tvOS/watchOS. There is no `iosX64`: the app's
+ * iOS build links static ffmpeg, which exists only for arm64. An Intel host configures them only in
+ * all-targets mode (`-PkmpTargets=all`, cross-compiling).
  */
 fun KotlinMultiplatformExtension.withIosTargets(
     configure: KotlinNativeTarget.() -> Unit = {}
@@ -61,26 +67,12 @@ fun KotlinMultiplatformExtension.withIosTargets(
     if (hostOs.isMacOsX && hostIsArm64 || !isHostCompatibleMode) {
         listOf(iosArm64(), iosSimulatorArm64()).forEach(configure)
     }
-    if (hostOs.isMacOsX && !hostIsArm64 || !isHostCompatibleMode) {
-        iosX64().configure()
-    }
 }
 
-/**
- * iOS targets for a **Compose Multiplatform** module: `iosArm64` + `iosSimulatorArm64` only, never
- * `iosX64`. Compose MP 1.11.1 dropped all x86_64-Apple targets, so a Compose module can't take the
- * Intel-host iosX64 path the non-Compose helpers use — on an Intel host it builds iOS **only** in
- * all-targets mode (`-PkmpTargets=all`, cross-compiling arm64 for a real device), never in the
- * default host mode. On Apple Silicon it configures them normally. Keeps the targets in sync with
- * both Compose (arm64-only) and the host-gated backend modules' all-mode matrix.
- */
+/** iOS targets for a Compose Multiplatform module; the same set as [withIosTargets]. */
 fun KotlinMultiplatformExtension.withComposeIosTargets(
     configure: KotlinNativeTarget.() -> Unit = {}
-) {
-    if (hostOs.isMacOsX && hostIsArm64 || !isHostCompatibleMode) {
-        listOf(iosArm64(), iosSimulatorArm64()).forEach(configure)
-    }
-}
+) = withIosTargets(configure)
 
 /**
  * macOS-only native targets (host-gated). For modules that only need to run/build on macOS, e.g.

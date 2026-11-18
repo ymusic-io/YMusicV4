@@ -4,10 +4,10 @@ use std::cell::Cell;
 use std::path::PathBuf;
 
 use gpui_kit::component::button::{Button, ButtonVariants};
-use gpui_kit::component::menu::{DropdownMenu, PopupMenuItem};
+use gpui_kit::component::menu::{DropdownMenu, PopupMenu, PopupMenuItem, PopupMenuStyle};
 use gpui_kit::component::switch::Switch;
 use gpui_kit::component::{
-    ActiveTheme, Colorize, FocusableExt, Icon, IconName, StyledExt, Theme, ThemeMode, WindowExt, h_flex, v_flex,
+    ActiveTheme, Colorize, FocusableExt, Icon, Side, StyledExt, Theme, ThemeMode, WindowExt, h_flex, v_flex,
 };
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
@@ -21,6 +21,7 @@ use crate::caption_style::{CaptionLook, CaptionStyleDialog};
 use crate::downloads::download_folder;
 use crate::feedback_view::link;
 use crate::graph::{AppGraph, on_core};
+use crate::playback::STABLE_VOLUME_KEY;
 use crate::settings_lists::{Licenses, RegionPicker};
 use crate::spinner::BusyButton;
 use crate::sponsor_block::SPONSOR_BLOCK_KEY;
@@ -63,6 +64,7 @@ fn apply_theme(choice: &str, accent: &str, cx: &mut App) {
     let mut stack = StackTones { near: black(), far: black(), tab: black() };
     let mut container = AccentTones { ground: black(), ink: black() };
     let mut card = CardTones { ground: black(), ink: black() };
+    let mut menu = PopupMenuStyle::default();
     Theme::update(cx, |theme| {
         if let Some(font) = ui_font {
             theme.font_family = font;
@@ -114,6 +116,7 @@ fn apply_theme(choice: &str, accent: &str, cx: &mut App) {
         tones = ChromeTones { flat: palette.surface, lifted: palette.surface_elevated, dialog };
         stack = StackTones { near: palette.stack_near, far: palette.stack_far, tab: palette.stack_tab };
         card = CardTones { ground: palette.surface_dim, ink: palette.ink_muted };
+        menu = menu_style(&palette, accent);
         container = if theme.mode.is_dark() {
             AccentTones { ground: oklab_lerp(palette.surface, accent, 0.3), ink: oklab_lerp(accent, white(), 0.35) }
         } else {
@@ -124,6 +127,7 @@ fn apply_theme(choice: &str, accent: &str, cx: &mut App) {
     cx.set_global(stack);
     cx.set_global(container);
     cx.set_global(card);
+    cx.set_global(menu);
 }
 
 /// The JVM app's `primaryContainer` / `onPrimaryContainer`: a selected rail or drawer entry, the
@@ -158,9 +162,89 @@ pub struct StackTones {
 
 impl Global for StackTones {}
 
-/// Every menu's divider: the stock separator draws theme.border, which barely shows on the dark menu.
-pub fn menu_divider() -> PopupMenuItem {
-    PopupMenuItem::element(|_, cx| div().w_full().h(px(1.)).bg(cx.global::<StackTones>().near)).disabled(true)
+/// Every menu as the JVM app draws Material 3's `DropdownMenu` (androidx material3 1.4 `Menu.kt`,
+/// `MenuTokens`, `ListTokens`) with its theme and `MoreMenuItem` / `MoreMenuDivider`.
+fn menu_style(palette: &Palette, accent: Hsla) -> PopupMenuStyle {
+    PopupMenuStyle {
+        background: Some(palette.surface_dim),
+        radius: Some(px(4.)),
+        // Elevation level 2 (3dp), as Material's own CSS spells it; gpui's blur is CSS's halved.
+        shadow: Some(vec![
+            BoxShadow::new(px(0.), px(1.), black().opacity(0.3)).blur_radius(px(1.)),
+            BoxShadow::new(px(0.), px(2.), black().opacity(0.15)).blur_radius(px(3.)).spread_radius(px(2.)),
+        ]),
+        offset: Some(px(0.)),
+        padding_x: Some(px(0.)),
+        padding_y: Some(px(8.)),
+        item_gap: Some(px(0.)),
+        min_width: Some(px(112.)),
+        max_width: Some(px(280.)),
+        item_height: Some(px(48.)),
+        item_padding_x: Some(px(12.)),
+        item_radius: Some(px(0.)),
+        highlight: Some(accent.opacity(HOVER_ALPHA)),
+        text_size: Some(px(14.)),
+        line_height: Some(px(20.)),
+        font_weight: Some(FontWeight::MEDIUM),
+        disabled_color: Some(palette.ink.opacity(0.38)),
+        icon_size: Some(px(20.)),
+        icon_color: Some(palette.ink_muted),
+        icon_slot: Some(px(24.)),
+        icon_gap: Some(px(12.)),
+        trailing_gap: Some(px(12.)),
+        trailing_slot: Some(px(24.)),
+        check_side: Some(Side::Right),
+        check_size: Some(px(24.)),
+        check_color: Some(accent),
+        check_visible: None,
+        checked_color: None,
+        checked_weight: None,
+        submenu_icon_size: Some(px(18.)),
+        submenu_icon_color: Some(palette.ink_secondary),
+        detail_text_size: Some(px(13.)),
+        detail_weight: Some(FontWeight::NORMAL),
+        detail_color: Some(palette.ink_secondary),
+        detail_max_width: Some(px(96.)),
+        separator_color: Some(palette.stack_near),
+        separator_thickness: Some(px(1.)),
+        separator_margin_y: Some(px(4.)),
+        // `MenuGroupLabel`.
+        label_text_size: Some(px(11.)),
+        label_line_height: Some(px(13.)),
+        label_weight: Some(FontWeight::SEMIBOLD),
+        label_color: Some(palette.ink_secondary),
+        label_padding_x: Some(px(16.)),
+        label_padding_y: Some(px(8.)),
+    }
+}
+
+/// A picker's menu whose current choice reads in the accent, the others in regular weight (the JVM
+/// app's quality, rotation and audio-track menus).
+pub fn accent_choice_menu(menu: PopupMenu, cx: &App) -> PopupMenu {
+    let accent = cx.theme().primary;
+    menu.restyle(|style| {
+        style.font_weight = Some(FontWeight::NORMAL);
+        style.checked_color = Some(accent);
+        style.checked_weight = Some(FontWeight::SEMIBOLD);
+    })
+}
+
+/// A dropdown field's menu (the JVM app's `DropdownField` / `ChoiceMenuItems`): on the page's own
+/// ground, with a smaller check.
+pub fn field_menu(menu: PopupMenu, cx: &App) -> PopupMenu {
+    let ground = cx.theme().background;
+    menu.restyle(|style| {
+        style.background = Some(ground);
+        style.check_size = Some(px(18.));
+    })
+}
+
+/// A sort menu (the JVM app's feed and Library sorts): the current order checked at the start.
+pub fn sort_menu(menu: PopupMenu) -> PopupMenu {
+    menu.restyle(|style| {
+        style.check_side = Some(Side::Left);
+        style.check_size = Some(px(18.));
+    })
 }
 
 /// The JVM app's `SurfaceDim` / `InkMuted`: a card lifted off the page and its secondary text.
@@ -247,6 +331,12 @@ fn linux_ui_font(cx: &App) -> Option<SharedString> {
 
 /// Writes a setting off the UI thread, then redraws every window so its readers see it.
 pub fn save_setting(key: &'static str, value: String, cx: &mut App) {
+    save_setting_then(key, value, cx, |_| {});
+}
+
+/// [`save_setting`], then `saved` once the store holds the value (readers that pull it, like the
+/// player bundle, see the new one).
+fn save_setting_then(key: &'static str, value: String, cx: &mut App, saved: impl FnOnce(&mut App) + 'static) {
     if key == crate::telemetry::CRASH_REPORTS_KEY {
         crate::telemetry::crash_reports_changed(&value);
     }
@@ -263,6 +353,7 @@ pub fn save_setting(key: &'static str, value: String, cx: &mut App) {
             if key == SPONSOR_BLOCK_KEY {
                 crate::sponsor_block::setting_changed(cx);
             }
+            saved(cx);
             cx.refresh_windows();
         });
     })
@@ -506,7 +597,14 @@ impl SettingsView {
     }
 
     fn put(&self, key: &'static str, value: String, cx: &mut Context<Self>) {
-        save_setting(key, value, cx);
+        if key == STABLE_VOLUME_KEY {
+            let (playback, enabled) = (self.playback.clone(), value != "false");
+            save_setting_then(key, value, cx, move |cx| {
+                playback.update(cx, |playback, cx| playback.set_stable_volume(enabled, cx));
+            });
+        } else {
+            save_setting(key, value, cx);
+        }
         cx.notify();
     }
 
@@ -611,7 +709,8 @@ fn button_row(
 
 /// The end of a row that opens a panel or a page.
 fn chevron(cx: &App) -> Icon {
-    crate::action_icon::auto_mirrored(IconName::ChevronRight).text_color(cx.theme().muted_foreground)
+    crate::action_icon::auto_mirrored(crate::assets::MaterialIcon::KeyboardArrowRight)
+        .text_color(cx.theme().muted_foreground)
 }
 
 /// A control's spoken name: the row's title, then the value it shows.
@@ -657,7 +756,8 @@ pub(crate) fn language_name(tag: &str) -> String {
 
 impl SettingsView {
     fn link_row(&self, index: usize, id: &'static str, title: &'static str, url: String, cx: &App) -> AnyElement {
-        let link = Icon::new(IconName::ExternalLink).text_color(cx.theme().muted_foreground);
+        let link = crate::action_icon::auto_mirrored(crate::assets::MaterialIcon::OpenInNewOutlined)
+            .text_color(cx.theme().muted_foreground);
         let button = button_row(id, title, None, link, cx)
             .accessibility_label(title)
             .tooltip(url.clone())
@@ -853,6 +953,7 @@ impl Render for SettingsView {
             self.wide(self.focus.row_button(next(), equalizer_row, cx)),
             self.wide(self.focus.row_button(next(), caption_row, cx)),
             self.toggle(next(), SPONSOR_BLOCK_KEY, t(Str::SettingsSponsorBlock), t(Str::SettingsSponsorBlockHint), cx),
+            self.toggle(next(), STABLE_VOLUME_KEY, t(Str::SettingsStableVolume), t(Str::SettingsStableVolumeHint), cx),
         ];
         if let Some(saved) = cache_saved {
             let summary = if cache_max_mb > 0 {

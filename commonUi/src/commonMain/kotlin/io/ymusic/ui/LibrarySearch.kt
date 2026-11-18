@@ -144,7 +144,7 @@ private fun LibrarySearchContent(
                     val columns = if (layoutWidth >= LibraryGridMinWidth) librarySongColumns(layoutWidth) else 1
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(columns),
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier.fillMaxSize().itemList(),
                         contentPadding = PaddingValues(bottom = LocalMiniPlayerInset.current),
                     ) {
                         item(span = { GridItemSpan(maxLineSpan) }) {

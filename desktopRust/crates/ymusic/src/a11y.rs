@@ -1,15 +1,17 @@
 //! Keyboard reach the way the JVM app's Compose focus works: every list item, card, tab and chip is
 //! a real focus stop (Enter or Space activates it, the screen reader announces it), and an arrow key
 //! moves focus geometrically, to the nearest stop on screen in that direction, preferring one that
-//! lines up (Android's FocusFinder rule), so focus enters and leaves lists in screen order. A list
-//! ([`FocusList::list_stops`]) is one Tab stop, its item focused last; any other stop is its own. The
-//! focused stop is ringed and scrolled into view.
+//! lines up (Android's FocusFinder rule), so focus enters and leaves lists in screen order. Tab enters
+//! a list ([`FocusList::list_stops`]) on its item focused last, then steps item by item, and leaves it
+//! past the last; any other stop is its own. An item's ⋮ is not a Tab stop: Shift+F10 or the Menu key
+//! opens it ([`FocusList::menu_button`]). The focused stop is ringed and scrolled into view.
 
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::ops::Range;
 use std::rc::{Rc, Weak};
 
+use gpui_kit::base::actions::Confirm;
 use gpui_kit::base::slider::SliderState;
 use gpui_kit::component::ActiveTheme;
 use gpui_kit::component::button::Button;
@@ -35,9 +37,19 @@ struct Slot {
     painted: Cell<u64>,
     /// The visible part of the list's scroll container then, which clips what the stop shows.
     viewport: Cell<Option<Bounds<Pixels>>>,
+    /// The item's ⋮, which Shift+F10 and the Menu key open, kept across frames for its dropdown state.
+    menu: RefCell<Option<FocusHandle>>,
+    /// Set by this build's [`FocusList::menu_button`], taken by the item's: a later item at this position
+    /// without a ⋮ must not expose the old one.
+    menu_armed: Cell<bool>,
 }
 
 impl Slot {
+    /// The ⋮ this build's item has, consuming [`Self::menu_armed`].
+    fn take_menu(&self) -> Option<FocusHandle> {
+        if self.menu_armed.replace(false) { self.menu.borrow().clone() } else { None }
+    }
+
     /// What shows of the stop, `None` when it is scrolled out of its list's viewport.
     fn visible(&self) -> Option<Bounds<Pixels>> {
         let bounds = self.bounds.get();
@@ -241,6 +253,32 @@ fn arrows<E: InteractiveElement>(element: E, sideways: bool) -> E {
     })
 }
 
+/// [`on_arrows`], and Shift+F10 or the Menu key while `slot` itself holds focus opens its item's ⋮, `menu`.
+fn on_menu_key<E: InteractiveElement>(slot: &Rc<Slot>, menu: Option<FocusHandle>, element: E) -> E {
+    let slot = slot.clone();
+    on_arrows(element).on_key_down(move |event: &KeyDownEvent, window, cx| {
+        let modifiers = &event.keystroke.modifiers;
+        let pressed = match event.keystroke.key.as_str() {
+            "f10" => modifiers.shift,
+            "menu" => !modifiers.shift,
+            _ => false,
+        };
+        if !pressed || modifiers.platform || modifiers.control || modifiers.alt || !slot.handle.is_focused(window) {
+            return;
+        }
+        if let Some(menu) = &menu {
+            open_menu(menu, window, cx);
+            cx.stop_propagation();
+        }
+    })
+}
+
+/// Opens the dropdown menu of the button tracking `menu`, as Enter on it would, leaving focus where it
+/// is so that closing the menu returns it there.
+fn open_menu(menu: &FocusHandle, window: &mut Window, cx: &mut App) {
+    menu.dispatch_action(&Confirm { secondary: false }, window, cx);
+}
+
 /// Arrow keys while `root` itself holds focus (nothing on screen does) move it to the first stop on
 /// screen, or the last for Up and Left.
 pub fn root_arrows<E: InteractiveElement>(element: E, root: FocusHandle) -> E {
@@ -276,8 +314,8 @@ pub fn root_arrows<E: InteractiveElement>(element: E, root: FocusHandle) -> E {
 /// The focus handles of one list's items, kept across frames by item position.
 pub struct FocusList {
     slots: RefCell<Vec<Rc<Slot>>>,
-    /// The controls inside each item (a row's ⋮), by item.
-    trailing: RefCell<HashMap<usize, Vec<FocusHandle>>>,
+    /// The controls inside each item, by item, each with whether it is a Tab stop.
+    trailing: RefCell<HashMap<usize, Vec<(FocusHandle, bool)>>>,
     /// The item focused last in each list, by the list's first item.
     tab_items: RefCell<HashMap<usize, Rc<Cell<Option<usize>>>>>,
     scroll: Option<ScrollHandle>,
@@ -320,6 +358,8 @@ impl FocusList {
                 bounds: Cell::new(Bounds::default()),
                 painted: Cell::new(0),
                 viewport: Cell::new(None),
+                menu: RefCell::default(),
+                menu_armed: Cell::new(false),
             });
             RovingItems::register(cx, &slot);
             slots.push(slot);
@@ -341,6 +381,8 @@ impl FocusList {
             bounds: Cell::new(Bounds::default()),
             painted: Cell::new(0),
             viewport: Cell::new(None),
+            menu: RefCell::default(),
+            menu_armed: Cell::new(false),
         });
         RovingItems::register(cx, &slot);
         self.slots.borrow_mut()[index] = slot.clone();
@@ -400,7 +442,13 @@ impl FocusList {
 
     fn ringed(&self, slot: Rc<Slot>, element: Stateful<Div>, row: Option<ScrollHandle>, cx: &App) -> Stateful<Div> {
         let ring = cx.theme().ring;
-        on_arrows(
+        let menu = slot.take_menu();
+        let element = element.when_some(menu.clone(), |element, menu| {
+            element.on_a11y_action(AccessibleAction::ShowContextMenu, move |_, window, cx| open_menu(&menu, window, cx))
+        });
+        on_menu_key(
+            &slot,
+            menu,
             element
                 .track_focus(&slot.handle)
                 .relative()
@@ -413,7 +461,7 @@ impl FocusList {
                         inset: true,
                     }])
                 })
-                .child(self.tracker(slot, row)),
+                .child(self.tracker(slot.clone(), row)),
         )
     }
 
@@ -442,13 +490,29 @@ impl FocusList {
     /// Makes `element`, already tracking [`Self::handle`]`(index)`, the list's `index`th stop.
     pub fn wrap(&self, index: usize, element: impl IntoElement, cx: &App) -> Div {
         let slot = self.slot(index, cx);
-        on_arrows(div().relative().flex_shrink_0().child(element).child(self.tracker(slot, None)))
+        let menu = slot.take_menu();
+        on_menu_key(
+            &slot,
+            menu,
+            div().relative().flex_shrink_0().child(element).child(self.tracker(slot.clone(), None)),
+        )
     }
 
     /// [`Self::wrap`] for `element` already tracking `handle`, one the view holds to focus it by.
     pub fn wrap_for(&self, index: usize, handle: &FocusHandle, element: impl IntoElement, cx: &App) -> Div {
         let slot = self.slot_for(index, handle, cx);
-        on_arrows(div().relative().flex_shrink_0().child(element).child(self.tracker(slot, None)))
+        let menu = slot.take_menu();
+        on_menu_key(
+            &slot,
+            menu,
+            div().relative().flex_shrink_0().child(element).child(self.tracker(slot.clone(), None)),
+        )
+    }
+
+    /// Scrolls the `index`th stop into view on the next paint, as when it gains focus: a toggle
+    /// that keeps focus while the rows above it go away.
+    pub fn reveal(&self, index: usize, cx: &App) {
+        self.slot(index, cx).was_focused.set(false);
     }
 
     /// Whether one of the list's stops holds focus.
@@ -486,7 +550,12 @@ impl FocusList {
         .top_0()
         .left_0()
         .size_full();
-        on_arrows(div().relative().w_full().child(element).child(self.tracker(slot, None)).child(ring))
+        let menu = slot.take_menu();
+        on_menu_key(
+            &slot,
+            menu,
+            div().relative().w_full().child(element).child(self.tracker(slot.clone(), None)).child(ring),
+        )
     }
 
     /// [`Self::row`] for a row that is one button.
@@ -571,33 +640,57 @@ impl FocusList {
         self.ringed(slot, element, None, cx)
     }
 
-    /// Makes `button` the `control`th control inside the `index`th item (its ⋮): in the Tab order with
-    /// its item when the item is in a [`Self::list_stops`] list, its own stop otherwise.
+    /// Makes `button` the `index`th item's ⋮: not a Tab stop; Shift+F10 or the Menu key on the item
+    /// opens it, and so does the screen reader's show-menu action. `button` carries the dropdown menu.
+    /// Call it before the item's own builder ([`Self::item`], [`Self::wrap`], [`Self::row`]) in every build.
+    pub fn menu_button(&self, index: usize, button: Button, cx: &App) -> Button {
+        let slot = self.slot(index, cx);
+        let handle = slot.menu.borrow_mut().get_or_insert_with(|| cx.focus_handle()).clone();
+        slot.menu_armed.set(true);
+        button.tab_stop(false).track_focus(&handle)
+    }
+
+    /// Makes `button` the `control`th control inside the `index`th item, one whose action the item or
+    /// its ⋮ also offers: not a Tab stop.
     pub fn trailing_button(&self, index: usize, control: usize, button: Button, cx: &App) -> Button {
-        let handle = self.trailing(index, control, cx);
+        let handle = self.trailing(index, control, false, cx);
+        button.tab_stop(false).track_focus(&handle)
+    }
+
+    /// Makes `button` the `control`th control inside the `index`th item, one nothing else reaches by
+    /// keyboard: in the Tab order right after its item, and while focus is outside a
+    /// [`Self::list_stops`] list only with the item holding its stop.
+    pub fn trailing_stop(&self, index: usize, control: usize, button: Button, cx: &App) -> Button {
+        let handle = self.trailing(index, control, true, cx);
         button.tab_stop(handle.tab_stop).track_focus(&handle)
     }
 
-    fn trailing(&self, index: usize, control: usize, cx: &App) -> FocusHandle {
-        let item_stop = self.slots.borrow().get(index).is_none_or(|slot| slot.handle.clone().tab_stop);
+    fn trailing(&self, index: usize, control: usize, stop: bool, cx: &App) -> FocusHandle {
+        let item_stop = stop && self.slots.borrow().get(index).is_none_or(|slot| slot.handle.clone().tab_stop);
         let mut trailing = self.trailing.borrow_mut();
         let controls = trailing.entry(index).or_default();
         while controls.len() <= control {
-            controls.push(cx.focus_handle().tab_stop(item_stop));
+            controls.push((cx.focus_handle().tab_stop(item_stop), stop));
         }
-        controls[control].clone()
+        controls[control].0.clone()
     }
 
-    /// The stops in `items` as one list: a single Tab stop, the item focused last (until then the
-    /// [`Self::set_entry`] one, else the first) with its [`Self::trailing_button`]s, the arrows
-    /// within. Call it before rendering the items, whose focus handles copy the Tab order then;
+    /// The stops in `items` as one list. While focus is outside it, Tab and Shift+Tab enter on one
+    /// item, the one focused last (until then the [`Self::set_entry`] one, else the first); while it
+    /// holds focus every item (and its [`Self::trailing_stop`]s) is a Tab stop in index order, so Tab
+    /// past the last item or Shift+Tab before the first leaves the list.
+    /// Call it before rendering the items, whose focus handles copy the Tab order then;
     /// [`ListStops::wrap`] makes their container the list.
     pub fn list_stops(&self, items: Range<usize>, window: &Window, cx: &App) -> ListStops<'_> {
         let held = self.tab_items.borrow_mut().entry(items.start).or_default().clone();
         let trailing = self.trailing.borrow();
         let controls = |index: usize| trailing.get(&index).into_iter().flatten();
         let focused = items.clone().position(|index| {
-            self.handle(index, cx).is_focused(window) || controls(index).any(|handle| handle.is_focused(window))
+            let slot = self.slot(index, cx);
+            let menu_focused = slot.menu.borrow().as_ref().is_some_and(|menu| menu.is_focused(window));
+            slot.handle.is_focused(window)
+                || menu_focused
+                || controls(index).any(|(handle, _)| handle.is_focused(window))
         });
         if focused.is_some() {
             held.set(focused);
@@ -606,10 +699,11 @@ impl FocusList {
         let entry = entry.and_then(|entry| items.clone().position(|index| self.handle(index, cx) == entry));
         let active = held.get().or(entry).unwrap_or(0).min(items.len().saturating_sub(1));
         for (position, index) in items.clone().enumerate() {
+            let stop = focused.is_some() || position == active;
             // Sets the shared flag, which each element's copy of the handle reads.
-            self.handle(index, cx).tab_stop(position == active);
-            for handle in controls(index) {
-                handle.clone().tab_stop(position == active);
+            self.handle(index, cx).tab_stop(stop);
+            for (handle, _) in controls(index).filter(|(_, tab_stop)| *tab_stop) {
+                handle.clone().tab_stop(stop);
             }
         }
         ListStops { list: self, items, active, focused: focused.is_some() }
@@ -638,7 +732,99 @@ impl FocusList {
     }
 }
 
-/// A list's items, one Tab stop, from [`FocusList::list_stops`].
+/// Keeps keyboard and screen-reader focus in place across a "load more", as the JVM app's
+/// `LoadMoreFocus`: activating the control ([`Self::start`]) focuses the [`Self::indicator`] shown
+/// while the page loads; once it settles ([`Self::settle`], called from the view's render before its
+/// items) focus moves to the first new item, else to the control that is back (Show more again,
+/// Retry), else to the last item, else to the view's fallback, unless the user moved focus off the
+/// indicator meanwhile.
+pub struct LoadMoreFocus {
+    indicator: FocusHandle,
+    from: Option<usize>,
+}
+
+impl LoadMoreFocus {
+    pub fn new(cx: &App) -> Self {
+        Self { indicator: cx.focus_handle().tab_stop(true), from: None }
+    }
+
+    /// The control was activated with `count` items loaded.
+    pub fn start(&mut self, count: usize, window: &mut Window, cx: &mut App) {
+        self.from = Some(count);
+        window.focus(&self.indicator, cx);
+    }
+
+    /// A load the user started has not settled yet.
+    pub fn pending(&self) -> bool {
+        self.from.is_some()
+    }
+
+    /// The spinner of a load in progress (`content`), read as `label`: focusable while a load the
+    /// user started is pending.
+    pub fn indicator(
+        &self,
+        id: impl Into<ElementId>,
+        label: impl Into<SharedString>,
+        content: impl IntoElement,
+        cx: &App,
+    ) -> Stateful<Div> {
+        let ring = cx.theme().ring;
+        div()
+            .id(id)
+            .role(Role::ProgressIndicator)
+            .aria_label(label.into())
+            .rounded_full()
+            .when(self.from.is_some(), |indicator| {
+                indicator.track_focus(&self.indicator).focus_visible(move |style| {
+                    style.shadow(vec![BoxShadow {
+                        color: ring,
+                        offset: point(px(0.), px(0.)),
+                        blur_radius: px(0.),
+                        spread_radius: px(RING),
+                        inset: true,
+                    }])
+                })
+            })
+            .child(content)
+    }
+
+    /// Takes the pending start once the load is over (`loading` false) with `count` items: `None`
+    /// while it loads, with nothing pending, or once focus has left the indicator.
+    pub fn settle(&mut self, loading: bool, count: usize, window: &Window) -> Option<Settled> {
+        let from = self.from?;
+        if loading {
+            return None;
+        }
+        self.from = None;
+        self.indicator.is_focused(window).then_some(Settled { from, count })
+    }
+}
+
+/// A load [`LoadMoreFocus::settle`] found over, while its indicator held focus.
+pub struct Settled {
+    from: usize,
+    count: usize,
+}
+
+impl Settled {
+    /// The first there is of: the first new item, `control`, the last item, `fallback`. `item` gives
+    /// the focus stop of the item at an index, `None` for an item without one.
+    pub fn target<Stop>(
+        &self,
+        item: impl Fn(usize) -> Option<Stop>,
+        control: Option<Stop>,
+        fallback: Option<Stop>,
+    ) -> Option<Stop> {
+        (self.count > self.from)
+            .then(|| item(self.from))
+            .flatten()
+            .or(control)
+            .or_else(|| self.from.checked_sub(1).and_then(&item))
+            .or(fallback)
+    }
+}
+
+/// A list's items from [`FocusList::list_stops`].
 pub struct ListStops<'a> {
     list: &'a FocusList,
     items: Range<usize>,
@@ -647,8 +833,8 @@ pub struct ListStops<'a> {
 }
 
 impl ListStops<'_> {
-    /// The positions a lazy list keeps built wherever it is scrolled: the item holding the Tab
-    /// stop, and while the list holds focus its first and last, for Home and End.
+    /// The positions a lazy list keeps built wherever it is scrolled: the item Tab enters on, and
+    /// while the list holds focus its first and last, for Home and End and for Tab to leave past them.
     pub fn kept(&self) -> Vec<usize> {
         let mut kept = vec![self.active];
         if self.focused && !self.items.is_empty() {

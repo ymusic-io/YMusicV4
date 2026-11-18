@@ -306,8 +306,10 @@
     <string name="cd_exit_fullscreen">Ondoka kwenye skrini nzima</string>
     <string name="cd_fit_video">Tosheleza video</string>
     <string name="cd_fill_video">Jaza skrini</string>
-    <string name="cd_lock_rotation">Funga mzunguko</string>
-    <string name="cd_unlock_rotation">Fungua mzunguko</string>
+    <string name="cd_screen_rotation">Kuzungusha skrini</string>
+    <string name="rotation_lock_landscape">Funga kwa mlalo</string>
+    <string name="rotation_lock_portrait">Funga kwa wima</string>
+    <string name="rotation_free">Zungusha kwa uhuru</string>
     <string name="cd_rewind10">Rudisha nyuma sekunde 10</string>
     <string name="cd_forward10">Sogeza mbele sekunde 10</string>
     <string name="cd_repeat_off">Rudia: imezimwa</string>
@@ -416,6 +418,8 @@
     <string name="settings_audio_focus_apps">Sitisha programu nyingine zinapocheza sauti</string>
     <string name="settings_sponsor_block">SponsorBlock</string>
     <string name="settings_sponsor_block_hint">Ruka kiotomatiki sehemu zilizofadhiliwa kwenye video za YouTube. Zima kwa video moja kutoka kwenye Inayocheza Sasa.</string>
+    <string name="settings_stable_volume">Sauti thabiti</string>
+    <string name="settings_stable_volume_hint">Husawazisha sehemu za sauti kubwa na ndogo na kucheza kila wimbo kwa sauti inayokaribiana.</string>
     <string name="sponsor_block_included">SponsorBlock imewashwa kwa video hii</string>
     <string name="sponsor_block_excluded">SponsorBlock imezimwa kwa video hii</string>
     <string name="settings_sound">Sauti</string>
@@ -660,4 +664,22 @@
     <string name="native_blocked_help">Kwenye kompyuta ya kazini au shuleni, muombe msimamizi wako aruhusu YMusic. Kwenye kompyuta yako, angalia Smart App Control katika Windows Security.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Inaonyesha upya</string>
+    <string name="a11y_loading">Inapakia</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">Chagua zote</string>
+    <string name="downloads_action_select">Chagua</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="one">%1$d imechaguliwa</item>
+        <item quantity="other">%1$d zimechaguliwa</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="one">Ungependa kuondoa kipakuliwa %1$d kwenye orodha?</item>
+        <item quantity="other">Ungependa kuondoa vipakuliwa %1$d kwenye orodha?</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">Faili zilizokamilika zitabaki kwenye kifaa hiki.</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="one">Ungependa kufuta faili %1$d?</item>
+        <item quantity="other">Ungependa kufuta faili %1$d?</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">Faili zilizofutwa haziwezi kurejeshwa.</string>
 </resources>

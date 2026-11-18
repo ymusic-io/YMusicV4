@@ -1,19 +1,18 @@
 //! The local Library, laid out like the JVM app: pinned text tabs (Folders, Playlists, Songs,
 //! Artists, Albums, Genres), then per tab a 40-tall toolbar (folders: Add folder, rescan,
-//! breadcrumb; playlists: New playlist; songs: Shuffle all; all: the sort control, remembered under
-//! the JVM's `library.sort.<list>` keys) over a grid of folder/playlist/group cards (at most 176
-//! wide) and song cells (at least 360 wide); a list below 480.
+//! breadcrumb, its open folder remembered under the JVM's `library.folders.open` key; playlists:
+//! New playlist; songs: Shuffle all; all: the sort control, remembered under the JVM's
+//! `library.sort.<list>` keys) over a grid of folder/playlist/group cards (at most 176 wide) and
+//! song cells (at least 360 wide); a list below 480.
 
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
-use std::sync::atomic::AtomicBool;
 
-use gpui_kit::assets::IconName as Lucide;
 use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::menu::{DropdownMenu, PopupMenuItem};
-use gpui_kit::component::{ActiveTheme, Disableable, Icon, IconName, Sizable, StyledExt, WindowExt, h_flex, v_flex};
+use gpui_kit::component::{ActiveTheme, Disableable, Icon, Sizable, StyledExt, WindowExt, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use ym_i18n::{Str, t, tf};
@@ -21,7 +20,8 @@ use ym_image_loader::async_image::async_image_of;
 use ym_store::{Bucket, MediaItem, MediaStore, Playlist, PlaylistItemDetail};
 
 use crate::a11y::{DragRow, FocusList, announced, heading, label, list_item};
-use crate::action_icon::action_icon;
+use crate::action_icon::{action_icon, auto_mirrored};
+use crate::assets::MaterialIcon;
 use crate::graph::{AppGraph, on_core};
 use crate::lazy_rows::LazyRows;
 use crate::library_playlist::{self, AddToLocalPlaylist, ArrangePlaylist, Changed, NameMode, PlaylistNameDialog};
@@ -159,12 +159,14 @@ const CARD_MAX: f32 = 176.;
 const SONG_MIN: f32 = 360.;
 const GRID_PADDING: f32 = 10.;
 const THUMB: f32 = 56.;
+const THUMB_ICON: f32 = 21.;
+const GRID_CARD_ICON: f32 = 28.;
 pub const SONG_ROW_ESTIMATE: f32 = 72.;
 const CARD_ROW_ESTIMATE: f32 = 72.;
 /// The Playlists tab's first cards, ahead of the user's playlists.
-const SYSTEM_PLAYLISTS: [(OpenPlaylist, Lucide, Str); 2] = [
-    (OpenPlaylist::Recent, Lucide::RotateCcwClock, Str::PlaylistRecentPlayDesc),
-    (OpenPlaylist::Top, Lucide::Flame, Str::PlaylistTopTracksDesc),
+const SYSTEM_PLAYLISTS: [(OpenPlaylist, MaterialIcon, Str); 2] = [
+    (OpenPlaylist::Recent, MaterialIcon::History, Str::PlaylistRecentPlayDesc),
+    (OpenPlaylist::Top, MaterialIcon::Whatshot, Str::PlaylistTopTracksDesc),
 ];
 
 /// The cards a Library tab lists: its folders, playlists or artist / album / genre groups.
@@ -194,6 +196,30 @@ const TOOL_PLAYLIST_MENU: usize = 5;
 const TOOL_EMPTY_RESTORE: usize = 6;
 /// Shared with the JVM app: the Library tab a restart resumes, by [Tab::key].
 const LAST_LIBRARY_TAB_KEY: &str = "library.lastTab";
+/// Shared with the JVM app: the Folders tab's open bucket id in decimal, empty for the root.
+const OPEN_FOLDER_KEY: &str = "library.folders.open";
+
+/// A value saved off the main thread by one blocking write per change, each storing the newest value
+/// under one lock, so the last to run leaves the latest on disk however the writes are scheduled (the
+/// JVM `StringBackedSettingsStore.commit`).
+#[derive(Default)]
+struct LatestValue {
+    value: std::sync::Mutex<String>,
+    writing: std::sync::Mutex<()>,
+}
+
+impl LatestValue {
+    fn set(&self, value: String) {
+        *self.value.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = value;
+    }
+
+    /// Runs `save` with the newest value, one save at a time. Blocking.
+    fn write<E>(&self, save: impl FnOnce(String) -> Result<(), E>) -> Result<(), E> {
+        let _writing = self.writing.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let value = self.value.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone();
+        save(value)
+    }
+}
 const TOOL_RESCAN: usize = 7;
 const TOOL_SCAN_EMPTY: usize = 8;
 
@@ -294,6 +320,12 @@ struct Loaded {
     ready: bool,
 }
 
+/// The folder chain from a root down to `bucket_id`, `None` when it or any folder above it is gone.
+fn crumb_chain(store: &MediaStore, bucket_id: i64) -> Result<Option<Vec<Bucket>>, ym_store::StoreError> {
+    let chain = store.bucket_chain(bucket_id)?;
+    Ok(chain.first().is_some_and(|root| root.parent_id.is_none()).then_some(chain))
+}
+
 fn by_codes(items: &[MediaItem], codes: &[String]) -> Vec<MediaItem> {
     let by_code: HashMap<String, &MediaItem> = items.iter().map(|item| (item.playlist_code(), item)).collect();
     codes.iter().filter_map(|code| by_code.get(code).map(|item| (*item).clone())).collect()
@@ -324,6 +356,10 @@ pub struct LibraryView {
     open_playlist: Option<OpenPlaylist>,
     /// The open folder chain; empty is the root.
     path: Vec<Bucket>,
+    /// The saved open folder is still loading; opening any folder first drops it.
+    folder_restore_pending: bool,
+    /// The open folder [OPEN_FOLDER_KEY] saves.
+    open_folder_saved: Arc<LatestValue>,
     folders: Vec<Bucket>,
     /// Whether a folder has been added, `None` until the store answers: without one the Library is
     /// only its Scan folder prompt, no tabs.
@@ -379,6 +415,7 @@ impl LibraryView {
             .as_deref()
             .and_then(Tab::from_key)
             .unwrap_or(Tab::Folders);
+        let saved_folder = settings.get_raw(OPEN_FOLDER_KEY).ok().flatten().and_then(|raw| raw.parse::<i64>().ok());
         let scroll = ScrollHandle::new();
         let mut view = Self {
             store,
@@ -389,6 +426,8 @@ impl LibraryView {
             tab_groups: HashMap::new(),
             open_playlist: None,
             path: Vec::new(),
+            folder_restore_pending: false,
+            open_folder_saved: Arc::default(),
             folders: Vec::new(),
             folders_added: None,
             items: Vec::new(),
@@ -413,7 +452,10 @@ impl LibraryView {
             location_offer: None,
             transfer: PlaylistTransfer::default(),
         };
-        view.refresh(cx);
+        match saved_folder {
+            Some(bucket_id) => view.restore_folder(bucket_id, cx),
+            None => view.refresh(cx),
+        }
         if view.tab != Tab::Folders {
             view.refresh_all(cx);
         }
@@ -449,8 +491,9 @@ impl LibraryView {
         let folder = self.path.last().map(|bucket| bucket.id);
         let load = on_core(cx, async move {
             tokio::task::spawn_blocking(move || match folder {
-                None => Ok((store.root_buckets()?, Vec::new())),
-                Some(id) => Ok::<_, ym_store::StoreError>((store.child_buckets(id)?, store.items_in_bucket(id)?)),
+                None => Ok(Some((store.root_buckets()?, Vec::new()))),
+                Some(id) if store.find_bucket(id)?.is_none() => Ok(None),
+                Some(id) => Ok::<_, ym_store::StoreError>(Some((store.child_buckets(id)?, store.items_in_bucket(id)?))),
             })
             .await
         });
@@ -458,12 +501,19 @@ impl LibraryView {
             let result = load.await;
             this.update(cx, |view, cx| {
                 match result {
-                    Some(Ok(Ok((folders, items)))) => {
+                    Some(Ok(Ok(Some((folders, items))))) => {
                         if folder.is_none() {
                             view.folders_added = Some(!folders.is_empty());
                         }
                         view.folders = folders;
                         view.items = items;
+                    }
+                    Some(Ok(Ok(None))) => {
+                        if view.path.last().map(|bucket| bucket.id) == folder {
+                            view.set_path(Vec::new(), cx);
+                            view.refresh(cx);
+                        }
+                        return;
                     }
                     Some(Ok(Err(error))) => {
                         cx.global::<AppGraph>().log.warn("R90008 library read failed", Some(&error));
@@ -825,8 +875,54 @@ impl LibraryView {
         if bucket.excluded {
             return;
         }
-        self.path.push(bucket);
+        let mut path = self.path.clone();
+        path.push(bucket);
+        self.set_path(path, cx);
         self.refresh(cx);
+    }
+
+    /// Opens `path`, saved under [OPEN_FOLDER_KEY] for the next visit.
+    fn set_path(&mut self, path: Vec<Bucket>, cx: &mut Context<Self>) {
+        self.folder_restore_pending = false;
+        self.path = path;
+        let open = self.path.last().map(|bucket| bucket.id.to_string()).unwrap_or_default();
+        self.open_folder_saved.set(open);
+        let graph = cx.global::<AppGraph>();
+        let (settings, log, saved) =
+            (graph.settings.clone(), graph.log.fork("settings"), self.open_folder_saved.clone());
+        graph.tokio.spawn_blocking(move || {
+            if let Err(error) = saved.write(|open| settings.put_raw(OPEN_FOLDER_KEY, open)) {
+                log.warn(&format!("{OPEN_FOLDER_KEY} could not be saved: {error}"), None);
+            }
+        });
+    }
+
+    /// Opens the saved folder, or the root when it or any folder above it is gone.
+    fn restore_folder(&mut self, bucket_id: i64, cx: &mut Context<Self>) {
+        self.folder_restore_pending = true;
+        let request = library_playlist::store_call(cx, move |store| crumb_chain(store, bucket_id));
+        cx.spawn(async move |this, cx| {
+            let result = request.await;
+            this.update(cx, |view, cx| {
+                if !std::mem::take(&mut view.folder_restore_pending) {
+                    return;
+                }
+                match result {
+                    Ok(Some(chain)) => {
+                        view.path = chain;
+                        view.folders_added = Some(true);
+                    }
+                    Ok(None) => view.set_path(Vec::new(), cx),
+                    Err(error) => cx
+                        .global::<AppGraph>()
+                        .log
+                        .warn(&format!("{OPEN_FOLDER_KEY} could not be restored: {error}"), None),
+                }
+                view.refresh(cx);
+            })
+            .ok();
+        })
+        .detach();
     }
 
     /// The Folders tab at the deepest Library folder holding `file`; the root when none does.
@@ -849,7 +945,7 @@ impl LibraryView {
             this.update(cx, |view, cx| {
                 view.select_tab(Tab::Folders, cx);
                 match result {
-                    Some(Ok(Ok(chain))) => view.path = chain,
+                    Some(Ok(Ok(chain))) => view.set_path(chain, cx),
                     Some(Ok(Err(error))) => cx
                         .global::<AppGraph>()
                         .log
@@ -868,7 +964,9 @@ impl LibraryView {
     }
 
     fn open_crumb(&mut self, depth: usize, cx: &mut Context<Self>) {
-        self.path.truncate(depth);
+        let mut path = self.path.clone();
+        path.truncate(depth);
+        self.set_path(path, cx);
         self.refresh(cx);
     }
 
@@ -985,19 +1083,25 @@ impl LibraryView {
                 return;
             }
             let scan = cx.update(|cx| {
-                let log = cx.global::<AppGraph>().log.fork("download-location");
+                let graph = cx.global::<AppGraph>();
+                let (log, history) = (graph.log.fork("download-location"), graph.history.clone());
                 on_core(cx, async move {
                     tokio::task::spawn_blocking(move || {
                         let first_folder = store.root_buckets()?.is_empty();
-                        let cancel = AtomicBool::new(false);
                         let mut total = ym_store::ScanReport::default();
                         for root in &roots {
-                            let report = ym_store::scan_folder(&store, root, &cancel)?;
+                            let report = ym_store::scan_folder(
+                                &store,
+                                ym_ffmpeg::FfmpegMetadataGetter::shared(),
+                                root,
+                                &crate::QUITTING,
+                            )?;
                             total.added += report.added;
                             total.updated += report.updated;
                             total.unchanged += report.unchanged;
                             total.removed += report.removed;
                             total.errors.extend(report.errors);
+                            follow_recoded(&history, &report.recoded, &log);
                         }
                         let offer = if first_folder { crate::downloads::location_offer(&store, &log)? } else { None };
                         Ok::<_, ym_store::StoreError>((total, offer))
@@ -1071,7 +1175,7 @@ impl LibraryView {
         cx.spawn(async move |this, cx| {
             if let Some(Ok(Ok((Some(root), items)))) = load.await {
                 this.update(cx, |view, cx| {
-                    view.path = vec![root];
+                    view.set_path(vec![root], cx);
                     view.items = items;
                     view.play(0, cx);
                     view.refresh(cx);
@@ -1099,7 +1203,7 @@ impl LibraryView {
 
     /// Opens the folder holding a file ("Show in folder").
     pub fn reveal_folder(&mut self, bucket_id: i64, cx: &mut Context<Self>) {
-        let request = library_playlist::store_call(cx, move |store| store.bucket_chain(bucket_id));
+        let request = library_playlist::store_call(cx, move |store| crumb_chain(store, bucket_id));
         cx.spawn(async move |this, cx| {
             let result = request.await;
             this.update(cx, |view, cx| match result {
@@ -1107,7 +1211,7 @@ impl LibraryView {
                     view.set_tab(Tab::Folders, cx);
                     view.group = None;
                     view.open_playlist = None;
-                    view.path = chain;
+                    view.set_path(chain.unwrap_or_default(), cx);
                     view.scroll.set_offset(point(px(0.), px(0.)));
                     view.refresh(cx);
                     cx.notify();
@@ -1307,13 +1411,13 @@ fn wheel_scrolls_row(row: ScrollHandle) -> impl Fn(&ScrollEvent, &mut Window, &m
 /// The artwork filling its frame with `corner_radius` corners, the icon while it loads or when there
 /// is none.
 pub fn art_or_icon(
-    icon: Lucide,
+    icon: Icon,
     art: Option<SharedString>,
     icon_size: Pixels,
     corner_radius: f32,
     cx: &App,
 ) -> AnyElement {
-    let placeholder = Icon::new(icon).size(icon_size).text_color(cx.theme().muted_foreground);
+    let placeholder = icon.size(icon_size).text_color(cx.theme().muted_foreground);
     match art {
         Some(url) => async_image_of(Some(art_request_sources(&url)))
             .size_full()
@@ -1368,10 +1472,9 @@ pub fn song_cell<V: SongMenuHost>(
         .join(", ");
     let view = cx.entity().downgrade();
     let song = item.clone();
-    let more = action_icon(("song-more", index), IconName::EllipsisVertical, t(Str::CdMore));
-    let more = focus.trailing_button(index, 0, more, cx).dropdown_menu_with_anchor(
-        Anchor::TopRight,
-        move |menu_list, _, _| {
+    let more = action_icon(("song-more", index), MaterialIcon::MoreVert, t(Str::CdMore));
+    let more =
+        focus.menu_button(index, more, cx).dropdown_menu_with_anchor(Anchor::TopRight, move |menu_list, _, _| {
             let local = QueueItem::from_local(&song);
             let path = PathBuf::from(&song.uri);
             let act = {
@@ -1440,7 +1543,7 @@ pub fn song_cell<V: SongMenuHost>(
                 );
             }
             menu_list
-                .item(crate::settings_view::menu_divider())
+                .separator()
                 .item(PopupMenuItem::new(reveal_label()).on_click(move |_, _, cx| cx.reveal_path(&path)))
                 .item(PopupMenuItem::new(t(Str::MenuRemoveFromDisk)).on_click(move |_, window, cx| {
                     library_playlist::confirm_delete_from_disk(
@@ -1450,8 +1553,7 @@ pub fn song_cell<V: SongMenuHost>(
                         cx,
                     );
                 }))
-        },
-    );
+        });
     focus
         .item(index, list_item(h_flex().id(("local-item", index)), index).aria_label(label), cx)
         .pl_4()
@@ -1463,7 +1565,7 @@ pub fn song_cell<V: SongMenuHost>(
         .rounded(px(10.))
         .hover(|style| style.bg(theme.primary.opacity(crate::settings_view::HOVER_ALPHA)))
         .child(LibraryView::thumb(
-            if item.video_codec.is_some() { Lucide::Film } else { Lucide::Music },
+            Icon::new(MaterialIcon::MusicNote),
             crate::local_art::local_art_url(item).map(SharedString::from),
             item.duration_ms,
             cx,
@@ -1482,12 +1584,12 @@ pub fn song_cell<V: SongMenuHost>(
 }
 
 fn more_button(id: impl Into<ElementId>) -> Button {
-    action_icon(id, IconName::EllipsisVertical, t(Str::CdMore))
+    action_icon(id, MaterialIcon::MoreVert, t(Str::CdMore))
 }
 
 impl LibraryView {
     /// A 56 thumbnail: the art, else the file kind's icon, with the duration badged at the bottom-end.
-    pub fn thumb(icon: Lucide, art: Option<SharedString>, duration_ms: Option<i64>, cx: &App) -> Div {
+    pub fn thumb(icon: Icon, art: Option<SharedString>, duration_ms: Option<i64>, cx: &App) -> Div {
         let theme = cx.theme();
         div()
             .relative()
@@ -1499,7 +1601,7 @@ impl LibraryView {
             .flex()
             .items_center()
             .justify_center()
-            .child(art_or_icon(icon, art, px(20.), 10., cx))
+            .child(art_or_icon(icon, art, px(THUMB_ICON), 10., cx))
             .when_some(duration_ms, |thumb, duration| {
                 thumb.child(
                     div()
@@ -1533,7 +1635,7 @@ impl LibraryView {
     fn card(
         id: ElementId,
         position: usize,
-        icon: Lucide,
+        icon: Icon,
         art: Option<SharedString>,
         title: String,
         subtitle: Option<String>,
@@ -1572,14 +1674,14 @@ impl LibraryView {
                         .flex()
                         .items_center()
                         .justify_center()
-                        .child(art_or_icon(icon, art, px(40.), 10., cx))
+                        .child(art_or_icon(icon, art, px(GRID_CARD_ICON), 10., cx))
                         .when(marked, |tile| {
                             tile.child(
                                 div()
                                     .absolute()
                                     .top(px(6.))
                                     .left(px(6.))
-                                    .child(Icon::new(Lucide::Download).size(px(18.)).text_color(theme.primary)),
+                                    .child(Icon::new(MaterialIcon::Download).size(px(18.)).text_color(theme.primary)),
                             )
                         }),
                 )
@@ -1592,7 +1694,7 @@ impl LibraryView {
                         .gap_1()
                         .items_center()
                         .min_w_0()
-                        .child(Icon::new(Lucide::Download).size(px(14.)).text_color(theme.primary))
+                        .child(Icon::new(MaterialIcon::Download).size(px(14.)).text_color(theme.primary))
                         .child(
                             div()
                                 .text_xs()
@@ -1626,11 +1728,12 @@ impl LibraryView {
             .outline()
             .small()
             .rounded_full()
-            .icon(Lucide::ArrowUpDown)
+            .icon(auto_mirrored(MaterialIcon::Sort))
             .label(current)
             .accessibility_label(format!("{}, {current}", t(Str::CdSort)))
             .track_focus(&self.tool_focus.handle(TOOL_SORT, cx))
-            .dropdown_menu_with_anchor(Anchor::TopRight, move |mut menu, _, _| {
+            .dropdown_menu_with_anchor(Anchor::TopRight, move |menu, _, _| {
+                let mut menu = crate::settings_view::sort_menu(menu);
                 for (option, label) in context.labels.iter().enumerate() {
                     let view = view.clone();
                     menu = menu.item(
@@ -1644,13 +1747,13 @@ impl LibraryView {
                 menu
             });
         let toggle = if manual {
-            action_icon("sort-direction", Lucide::SquarePen, t(Str::ArrangeSongs))
+            action_icon("sort-direction", MaterialIcon::EditOutlined, t(Str::ArrangeSongs))
                 .on_click(cx.listener(|view, _, window, cx| view.arrange(window, cx)))
         } else {
             let direction = if state.descending { Str::CdSortDescending } else { Str::CdSortAscending };
             action_icon(
                 "sort-direction",
-                if state.descending { IconName::ArrowDown } else { IconName::ArrowUp },
+                if state.descending { MaterialIcon::ArrowDownward } else { MaterialIcon::ArrowUpward },
                 t(direction),
             )
             .on_click(cx.listener(move |view, _, _, cx| {
@@ -1670,7 +1773,7 @@ impl LibraryView {
         self.tool_focus
             .button(
                 TOOL_RESCAN,
-                action_icon("rescan", Lucide::RefreshCw, t(Str::LibraryRescan))
+                action_icon("rescan", MaterialIcon::Refresh, t(Str::LibraryRescan))
                     .disabled(self.scanning)
                     .on_click(cx.listener(|view, _, _, cx| view.rescan(cx))),
                 cx,
@@ -1704,11 +1807,7 @@ impl LibraryView {
             },
         ));
         bar.child(self.crumb_focus.item(0, link, cx))
-            .child(
-                crate::action_icon::auto_mirrored(IconName::ChevronRight)
-                    .size(px(16.))
-                    .text_color(theme.muted_foreground),
-            )
+            .child(auto_mirrored(MaterialIcon::KeyboardArrowRight).size(px(16.)).text_color(theme.muted_foreground))
             .child(div().text_sm().font_semibold().truncate().child(title))
             .when(has_songs, |bar| bar.child(self.shuffle_chip(cx)))
     }
@@ -1757,7 +1856,7 @@ impl LibraryView {
                 for (depth, bucket) in self.path.iter().enumerate() {
                     let name = bucket.display_name().to_owned();
                     crumbs = crumbs.child(
-                        crate::action_icon::auto_mirrored(IconName::ChevronRight)
+                        auto_mirrored(MaterialIcon::KeyboardArrowRight)
                             .size(px(16.))
                             .text_color(theme.muted_foreground),
                     );
@@ -1852,7 +1951,7 @@ impl LibraryView {
             .outline()
             .small()
             .rounded_full()
-            .icon(Lucide::Shuffle)
+            .icon(MaterialIcon::Shuffle)
             .label(t(Str::ShuffleAll))
             .on_click(cx.listener(|view, _, _, cx| view.shuffle_all(cx)));
         self.tool_focus.button(TOOL_SHUFFLE, chip, cx)
@@ -1882,7 +1981,7 @@ impl LibraryView {
         let marked = !bucket.excluded && self.download_folder.as_deref() == Some(path.as_path());
         let view = cx.entity().downgrade();
         let menu_bucket = bucket.clone();
-        let more = self.card_focus.trailing_button(index, 0, more_button(("folder-more", index)), cx);
+        let more = self.card_focus.menu_button(index, more_button(("folder-more", index)), cx);
         let more = more.dropdown_menu_with_anchor(Anchor::TopRight, move |menu, _, _| {
             let bucket = menu_bucket.clone();
             let path = path.clone();
@@ -1912,7 +2011,7 @@ impl LibraryView {
         let card = Self::card(
             ("folder", index).into(),
             index,
-            Lucide::Folder,
+            Icon::new(MaterialIcon::Folder),
             None,
             bucket.display_name().to_owned(),
             (!grid).then(|| t(Str::LibraryFolder).to_owned()),
@@ -1940,7 +2039,7 @@ impl LibraryView {
             let card = Self::card(
                 ("system-playlist", index).into(),
                 index,
-                icon,
+                Icon::new(icon),
                 None,
                 open.title(),
                 Some(t(description).to_owned()),
@@ -1962,7 +2061,7 @@ impl LibraryView {
         let subtitle = ym_i18n::plural(ym_i18n::Plural::NSongs, count as i64, &[&count]);
         let view = cx.entity().downgrade();
         let menu_playlist = playlist.clone();
-        let more = self.card_focus.trailing_button(index, 0, more_button(("playlist-more", position)), cx);
+        let more = self.card_focus.menu_button(index, more_button(("playlist-more", position)), cx);
         let more = more.dropdown_menu_with_anchor(Anchor::TopRight, move |menu, _, _| {
             let (rename_view, delete_view) = (view.clone(), view.clone());
             let (renamed, deleted) = (menu_playlist.clone(), menu_playlist.clone());
@@ -1976,7 +2075,7 @@ impl LibraryView {
         let card = Self::card(
             ("user-playlist", position).into(),
             index,
-            Lucide::ListMusic,
+            auto_mirrored(MaterialIcon::PlaylistPlay),
             art,
             playlist.name.clone(),
             Some(subtitle),
@@ -2002,11 +2101,11 @@ impl LibraryView {
         grid: bool,
         cx: &mut Context<Self>,
     ) -> AnyElement {
-        let icon = match self.tab {
-            Tab::Artists => Lucide::User,
-            Tab::Albums => Lucide::Disc,
-            _ => Lucide::Tag,
-        };
+        let icon = Icon::new(match self.tab {
+            Tab::Artists => MaterialIcon::Person,
+            Tab::Albums => MaterialIcon::Album,
+            _ => MaterialIcon::Category,
+        });
         let (name, count, art_item) = group.clone();
         let art = art_item.and_then(|item| crate::local_art::local_art_url(&item).map(SharedString::from));
         let subtitle = ym_i18n::plural(ym_i18n::Plural::NSongs, count as i64, &[&count]);
@@ -2193,5 +2292,18 @@ impl Render for LibraryView {
                     }),
             )
             .into_any_element()
+    }
+}
+
+/// Play history follows the playlist codes a scan moved ([`ym_store::ScanReport::recoded`]); a
+/// failure costs only that file's watch-time rank.
+pub fn follow_recoded(history: &ym_history::PlayHistory, recoded: &[(String, String)], log: &ym_common::log::Logger) {
+    for (old_code, new_code) in recoded {
+        if let Err(error) = history.rekey_local(old_code, new_code) {
+            log.warn(
+                &format!("R90047 play history did not follow a recoded file ({old_code} -> {new_code})"),
+                Some(&error),
+            );
+        }
     }
 }

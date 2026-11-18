@@ -159,14 +159,22 @@ pub fn set_dock_icon(_log: &Logger) {}
 /// The app's AppUserModelID, which the installer's shortcuts carry too: the taskbar and the media
 /// flyout find the name and icon through the Start menu shortcut carrying it, and a pin merges with
 /// the running window only when they match. Debug builds take their own, so they never touch the
-/// installed app's taskbar button.
+/// installed app's taskbar button, and a debug workspace its own, so each instance keeps its button
+/// and Jump List.
 #[cfg(target_os = "windows")]
-const APP_USER_MODEL_ID: &str = if cfg!(debug_assertions) { "io.ymusic.windows.dev" } else { "io.ymusic.windows" };
+fn app_user_model_id() -> &'static str {
+    static ID: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    ID.get_or_init(|| match (cfg!(debug_assertions), crate::dev_instance::workspace()) {
+        (false, _) => "io.ymusic.windows".to_owned(),
+        (true, None) => "io.ymusic.windows.dev".to_owned(),
+        (true, Some(workspace)) => format!("io.ymusic.windows.dev.{}", workspace.id),
+    })
+}
 
 #[cfg(target_os = "windows")]
 pub fn claim_app_user_model_id(log: &Logger) {
     use windows::Win32::UI::Shell::SetCurrentProcessExplicitAppUserModelID;
-    let id = windows::core::HSTRING::from(APP_USER_MODEL_ID);
+    let id = windows::core::HSTRING::from(app_user_model_id());
     // SAFETY: a NUL-terminated UTF-16 string that outlives the call.
     if let Err(error) = unsafe { SetCurrentProcessExplicitAppUserModelID(&id) } {
         log.warn("SetCurrentProcessExplicitAppUserModelID failed", Some(&error));
@@ -220,7 +228,7 @@ fn write_dev_start_menu_entry(exe: &Path, arguments: &str) -> anyhow::Result<()>
         let programs = SHGetKnownFolderPath(&FOLDERID_Programs, KF_FLAG_DEFAULT, None)?;
         let folder = programs.to_string();
         CoTaskMemFree(Some(programs.0 as *const _));
-        let file = HSTRING::from(PathBuf::from(folder?).join("YMusic Dev.lnk").as_os_str());
+        let file = HSTRING::from(PathBuf::from(folder?).join(dev_start_menu_entry_name()).as_os_str());
         let saved: IShellLinkW = CoCreateInstance(&ShellLink, None, CLSCTX_INPROC_SERVER)?;
         if saved.cast::<IPersistFile>()?.Load(&file, STGM_READ).is_ok() {
             let mut target = [0u16; 2048];
@@ -231,7 +239,7 @@ fn write_dev_start_menu_entry(exe: &Path, arguments: &str) -> anyhow::Result<()>
                 String::from_utf16_lossy(&buffer[..buffer.iter().position(|&unit| unit == 0).unwrap_or(buffer.len())])
             };
             let id = saved.cast::<IPropertyStore>()?.GetValue(&PKEY_APP_USER_MODEL_ID)?.to_string();
-            if Path::new(&text(&target)) == exe && text(&saved_arguments) == arguments && id == APP_USER_MODEL_ID {
+            if Path::new(&text(&target)) == exe && text(&saved_arguments) == arguments && id == app_user_model_id() {
                 return Ok(());
             }
         }
@@ -239,25 +247,46 @@ fn write_dev_start_menu_entry(exe: &Path, arguments: &str) -> anyhow::Result<()>
         link.SetPath(&HSTRING::from(exe.as_os_str()))?;
         link.SetArguments(&HSTRING::from(arguments))?;
         let store: IPropertyStore = link.cast()?;
-        store.SetValue(&PKEY_APP_USER_MODEL_ID, &PROPVARIANT::from(APP_USER_MODEL_ID))?;
+        store.SetValue(&PKEY_APP_USER_MODEL_ID, &PROPVARIANT::from(app_user_model_id()))?;
         store.Commit()?;
         link.cast::<IPersistFile>()?.Save(&file, true)?;
         Ok(())
     }
 }
 
+/// The entry's name, which the media flyout shows: a debug workspace's carries the workspace name,
+/// with what a file name cannot hold replaced.
+#[cfg(all(target_os = "windows", debug_assertions))]
+fn dev_start_menu_entry_name() -> String {
+    let Some(workspace) = crate::dev_instance::workspace() else { return "YMusic Dev.lnk".to_owned() };
+    let name: String = workspace
+        .name
+        .chars()
+        .map(|character| if character.is_control() || r#"<>:"/\|?*"#.contains(character) { '-' } else { character })
+        .collect();
+    format!("YMusic Dev ({}).lnk", name.trim_end_matches(['.', ' ']))
+}
+
+const APP_ID: &str = "io.ymusic.YMusic";
+
 /// The Wayland app_id and X11 WM_CLASS of the window; GNOME takes its icon from the desktop entry
-/// of the same name.
-pub const APP_ID: &str = "io.ymusic.YMusic";
+/// of the same name. A debug workspace has its own, so the dock keeps each instance apart.
+pub fn app_id() -> &'static str {
+    static ID: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    ID.get_or_init(|| match crate::dev_instance::workspace() {
+        Some(workspace) => format!("{APP_ID}.dev{}", workspace.id),
+        None => APP_ID.to_owned(),
+    })
+}
 
 /// The JVM app's `.deb` names its desktop entry after the package; this one keeps that name.
 #[cfg(target_os = "linux")]
 const DEB_DESKTOP_ENTRY: &str = "ymusic-YMusic";
 
-/// The installed desktop entry's name, without `.desktop`: the `.deb`'s under `/opt`, else [`APP_ID`].
+/// The installed desktop entry's name, without `.desktop`: the `.deb`'s under `/opt`, else [`app_id`].
 #[cfg(target_os = "linux")]
 pub fn desktop_entry() -> &'static str {
-    if std::env::current_exe().is_ok_and(|exe| exe.starts_with("/opt")) { DEB_DESKTOP_ENTRY } else { APP_ID }
+    if std::env::current_exe().is_ok_and(|exe| exe.starts_with("/opt")) { DEB_DESKTOP_ENTRY } else { app_id() }
 }
 
 /// The logo as the X11 `_NET_WM_ICON` (Wayland has no window icon: the desktop entry gives it).
@@ -291,7 +320,8 @@ pub fn sync_desktop_entry() -> anyhow::Result<()> {
         .map(PathBuf::from)
         .or_else(|| dirs::home_dir().map(|home| home.join(".local/share")))
         .ok_or_else(|| anyhow::anyhow!("no home directory"))?;
-    let entry_file = data_home.join("applications").join(format!("{APP_ID}.desktop"));
+    let app_id = app_id();
+    let entry_file = data_home.join("applications").join(format!("{app_id}.desktop"));
     let icon_file = data_home.join("icons/hicolor/512x512/apps").join(format!("{APP_ID}.png"));
     // An AppImage runs from a temporary mount; `APPIMAGE` names the image file that launches it.
     let exe = match std::env::var_os("APPIMAGE").filter(|image| !image.is_empty()) {
@@ -309,8 +339,8 @@ pub fn sync_desktop_entry() -> anyhow::Result<()> {
     }
     write_if_changed(&icon_file, LOGO_PNG)?;
     let entry = format!(
-        "[Desktop Entry]\nType=Application\nName={}\nExec={}\nIcon={}\nStartupWMClass={APP_ID}\nSingleMainWindow=true\nNoDisplay=true\n",
-        t(Str::AppName),
+        "[Desktop Entry]\nType=Application\nName={}\nExec={}\nIcon={}\nStartupWMClass={app_id}\nSingleMainWindow=true\nNoDisplay=true\n",
+        crate::dev_instance::desktop_entry_name(),
         desktop_exec_quoted(&exe.to_string_lossy()),
         icon_file.display(),
     );
@@ -1019,7 +1049,7 @@ impl Tray {
         ])?;
         let tray = TrayIconBuilder::new()
             .with_icon(icon)
-            .with_tooltip(t(Str::AppName))
+            .with_tooltip(crate::dev_instance::window_title())
             .with_menu(Box::new(menu))
             .with_menu_on_left_click(false)
             .build()?;
@@ -1127,7 +1157,7 @@ impl Tray {
             }
         }
         // Hack: tray-icon fits its click target to the button again only in its own setters.
-        self.icon.set_tooltip(Some(t(Str::AppName)))?;
+        self.icon.set_tooltip(Some(crate::dev_instance::window_title()))?;
         Ok(())
     }
 }
@@ -1266,7 +1296,7 @@ impl ksni::Tray for SniTray {
     }
 
     fn title(&self) -> String {
-        t(Str::AppName).into()
+        crate::dev_instance::window_title()
     }
 
     fn status(&self) -> ksni::Status {
@@ -1279,7 +1309,7 @@ impl ksni::Tray for SniTray {
     }
 
     fn tool_tip(&self) -> ksni::ToolTip {
-        ksni::ToolTip { title: t(Str::AppName).into(), ..Default::default() }
+        ksni::ToolTip { title: crate::dev_instance::window_title(), ..Default::default() }
     }
 
     fn menu(&self) -> Vec<ksni::MenuItem<Self>> {
@@ -1410,11 +1440,10 @@ impl Tray {
 }
 
 /// GNOME on Wayland leaves decorations to the app: a client-decorated window draws its own title
-/// bar, border and resize edges. No drop shadow: its blur does not fade out on every GPU (a hard
-/// dark band around the window on the NVIDIA box), and the margin it needs is dead space.
+/// bar here; its border and resize edges are Root's frame.
 #[cfg(target_os = "linux")]
 pub fn frame(content: AnyElement, window: &mut Window, cx: &mut App) -> AnyElement {
-    use gpui_kit::component::{TitleBar, v_flex, window_border};
+    use gpui_kit::component::{TitleBar, v_flex};
     if !matches!(window.window_decorations(), Decorations::Client { .. }) {
         return content;
     }
@@ -1427,14 +1456,18 @@ pub fn frame(content: AnyElement, window: &mut Window, cx: &mut App) -> AnyEleme
         .pl(px(90.))
         .text_sm()
         .font_weight(FontWeight::BOLD)
-        .child(t(Str::AppName));
+        .child(crate::dev_instance::window_title());
     let bar = TitleBar::new()
         .bg(theme.title_bar)
         .border_color(theme.border)
         .on_close_window(|_, window, cx| close_from_title_bar(window, cx))
         .child(title);
-    let content = v_flex().size_full().bg(theme.background).child(bar).child(div().flex_1().min_h_0().child(content));
-    window_border().shadow_size(px(0.)).child(content).into_any_element()
+    v_flex()
+        .size_full()
+        .bg(theme.background)
+        .child(bar)
+        .child(div().flex_1().min_h_0().child(content))
+        .into_any_element()
 }
 
 #[cfg(target_os = "windows")]

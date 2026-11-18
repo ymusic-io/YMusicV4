@@ -123,6 +123,9 @@ object AppSettings {
     /** The Library tab the app reopens on: a LibraryTab key, blank = none yet. */
     val lastLibraryTab = StringSetting("library.lastTab", "")
 
+    /** The folder the Folders tab reopens on: its bucket id in decimal, blank = the root. */
+    val libraryFoldersOpen = StringSetting("library.folders.open", "")
+
     /** A Library list's sort choice, `"<option index>,<1 = descending>"`; blank = the list's default. */
     fun librarySort(id: String) = StringSetting("library.sort.$id", "")
 
@@ -210,6 +213,13 @@ object AppSettings {
      * excludes individual videos.
      */
     val sponsorBlockEnabled = BoolSetting("playback.sponsorBlock", true)
+
+    /**
+     * YouTube's Stable volume: playback applies the loudness gain (streams, and files whose measured gain
+     * was stored) and picks YouTube's dynamic-range-compressed track. Downloads and scans store the gain
+     * either way. player.js reads this key over the settings protocol.
+     */
+    val stableVolume = BoolSetting("playback.stableVolume", true)
 
     /**
      * Overlay pictures-per-second on the Now Playing / fullscreen video hole.

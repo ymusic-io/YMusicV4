@@ -3,7 +3,7 @@ import AVFoundation
 import UIKit
 import Player
 
-// Native iOS player lab — drives :player through Player.framework in the iOS Simulator (iosX64), no
+// Native iOS player lab — drives :player through Player.framework in the iOS Simulator (arm64), no
 // Compose. AVFoundation LocalPlayer (bundled sample.mp4). Muted by default (config volume 0) —
 // unmute with the slider. Prints player state to stdout so a headless `simctl launch --console`
 // run is verifiable.

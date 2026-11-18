@@ -69,9 +69,14 @@ impl Backend {
     }
 }
 
-/// The JVM app's name, else one of this process's own when another player holds it.
+/// The JVM app's name (a debug workspace's own), else one of this process's own when another player
+/// holds it.
 fn request_name(connection: &Connection) -> Result<(), String> {
-    let candidates = [BUS_NAME.to_owned(), format!("{BUS_NAME}.instance{}", std::process::id())];
+    let preferred = match crate::dev_instance::workspace() {
+        Some(workspace) => format!("{BUS_NAME}.dev{}", workspace.id),
+        None => BUS_NAME.to_owned(),
+    };
+    let candidates = [preferred, format!("{BUS_NAME}.instance{}", std::process::id())];
     for name in &candidates {
         let reply = connection
             .request_name_with_flags(name.as_str(), RequestNameFlags::DoNotQueue.into())

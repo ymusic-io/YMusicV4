@@ -93,6 +93,9 @@ class DynamicEnginePlayer private constructor(
         ) { it.readObject() }
     }
 
+    /** A setting player.js reads over the settings protocol changed: it pulls it again. Older bundles ignore it. */
+    fun notifySettingsChanged() = engine.fire("settings_changed")
+
     /** Display hole size in CSS pixels. YouTube ABR uses this as the viewport. Default 640×360. */
     suspend fun setViewport(width: Int, height: Int, logger: Logger? = null) {
         engine.jsonCommand(

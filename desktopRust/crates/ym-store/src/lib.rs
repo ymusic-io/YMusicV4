@@ -361,6 +361,13 @@ impl MediaStore {
         Ok(db.query_row(&sql, params![uri_of(path)], bucket_from_row).optional()?)
     }
 
+    /// The live bucket `bucket_id`, excluded or not.
+    pub fn find_bucket(&self, bucket_id: i64) -> Result<Option<Bucket>, StoreError> {
+        let db = self.db.lock().unwrap();
+        let sql = format!("SELECT {BUCKET_COLUMNS} FROM bucket WHERE id = ?1 AND deleted = 0");
+        Ok(db.query_row(&sql, params![bucket_id], bucket_from_row).optional()?)
+    }
+
     /// The bucket for `uri`, created (or revived from a tombstone) under `parent_id`. A removed
     /// parent is no parent; `None` keeps an existing row's parent while that parent is live.
     pub fn upsert_bucket(&self, uri: &str, name: &str, parent_id: Option<i64>) -> Result<i64, StoreError> {
@@ -393,6 +400,12 @@ impl MediaStore {
         )?;
         self.changed();
         Ok(db.last_insert_rowid())
+    }
+
+    /// Blocking: the next scan of each live item's folder probes it again, whatever its size and mtime.
+    pub fn invalidate_probes(&self) -> Result<usize, StoreError> {
+        let db = self.db.lock().unwrap();
+        Ok(db.execute("UPDATE mediaItem SET lastModified = -1 WHERE deleted = 0", [])?)
     }
 
     pub fn root_buckets(&self) -> Result<Vec<Bucket>, StoreError> {
@@ -441,75 +454,30 @@ impl MediaStore {
 
     /// Inserts `item` (its `id` ignored) or rewrites the row with its `uri`, reviving it.
     pub fn save_item(&self, item: &MediaItem) -> Result<i64, StoreError> {
-        let uri = uri_of(&item.uri);
-        let db = self.db.lock().unwrap();
-        let now = now_millis();
-        let changed = db.execute(
-            "UPDATE mediaItem SET bucketId = ?1, title = ?2, mimeType = ?3, artist = ?4, album = ?5, genre = ?6, \
-             trackNumber = ?7, year = ?8, durationMs = ?9, audioCodec = ?10, videoCodec = ?11, subtitleCodec = ?12, \
-             bitrate = ?13, width = ?14, height = ?15, thumbnailStreamIndex = ?16, fileSize = ?17, \
-             lastModified = ?18, youtubeVid = ?21, loudnessGainDb = ?22, deleted = 0, updatedAt = ?19 WHERE uri = ?20",
-            params![
-                item.bucket_id,
-                item.title,
-                item.mime_type,
-                item.artist,
-                item.album,
-                item.genre,
-                item.track_number,
-                item.year,
-                item.duration_ms,
-                item.audio_codec,
-                item.video_codec,
-                item.subtitle_codec,
-                item.bitrate,
-                item.width,
-                item.height,
-                item.thumbnail_stream_index,
-                item.file_size,
-                item.last_modified,
-                now,
-                uri,
-                item.youtube_vid,
-                item.loudness_gain_db
-            ],
-        )?;
-        if changed > 0 {
-            self.changed();
-            return Ok(db.query_row("SELECT id FROM mediaItem WHERE uri = ?1", params![uri], |row| row.get(0))?);
-        }
-        db.execute(
-            "INSERT INTO mediaItem(bucketId, uri, title, mimeType, artist, album, genre, trackNumber, year, \
-             durationMs, audioCodec, videoCodec, subtitleCodec, bitrate, width, height, thumbnailStreamIndex, \
-             fileSize, lastModified, createdAt, updatedAt, youtubeVid, loudnessGainDb) \
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?20, ?21, ?22)",
-            params![
-                item.bucket_id,
-                uri,
-                item.title,
-                item.mime_type,
-                item.artist,
-                item.album,
-                item.genre,
-                item.track_number,
-                item.year,
-                item.duration_ms,
-                item.audio_codec,
-                item.video_codec,
-                item.subtitle_codec,
-                item.bitrate,
-                item.width,
-                item.height,
-                item.thumbnail_stream_index,
-                item.file_size,
-                item.last_modified,
-                now,
-                item.youtube_vid,
-                item.loudness_gain_db
-            ],
-        )?;
+        let id = write_item(&self.db.lock().unwrap(), item)?;
         self.changed();
-        Ok(db.last_insert_rowid())
+        Ok(id)
+    }
+
+    /// [`Self::save_item`], and in the same transaction the playlist memberships keyed by
+    /// `old_code` move to the item's code, unless another live item still has `old_code`. True when
+    /// they moved, so other stores keyed by the code (play history) follow.
+    pub fn save_item_recoded(&self, item: &MediaItem, old_code: &str) -> Result<(i64, bool), StoreError> {
+        let new_code = item.playlist_code();
+        let mut db = self.db.lock().unwrap();
+        let transaction = db.transaction()?;
+        let id = write_item(&transaction, item)?;
+        let moved = old_code != new_code && !code_held_by_other(&transaction, old_code, id)?;
+        if moved {
+            transaction
+                .execute("UPDATE OR IGNORE playlistItem SET code = ?2 WHERE code = ?1", params![old_code, new_code])?;
+            // A playlist that holds both codes keeps the one row it already has under the new code.
+            transaction.execute("DELETE FROM playlistItem WHERE code = ?1", params![old_code])?;
+        }
+        transaction.commit()?;
+        drop(db);
+        self.changed();
+        Ok((id, moved))
     }
 
     /// Soft-deletes the bucket's items whose uri is not in `present`. Returns how many.
@@ -834,6 +802,95 @@ impl MediaStore {
         }
         Ok(details)
     }
+}
+
+/// Inserts `item` (its `id` ignored) or rewrites the row with its `uri`, reviving it.
+fn write_item(db: &Connection, item: &MediaItem) -> rusqlite::Result<i64> {
+    let uri = uri_of(&item.uri);
+    let now = now_millis();
+    let changed = db.execute(
+        "UPDATE mediaItem SET bucketId = ?1, title = ?2, mimeType = ?3, artist = ?4, album = ?5, genre = ?6, \
+         trackNumber = ?7, year = ?8, durationMs = ?9, audioCodec = ?10, videoCodec = ?11, subtitleCodec = ?12, \
+         bitrate = ?13, width = ?14, height = ?15, thumbnailStreamIndex = ?16, fileSize = ?17, \
+         lastModified = ?18, youtubeVid = ?21, loudnessGainDb = ?22, deleted = 0, updatedAt = ?19 WHERE uri = ?20",
+        params![
+            item.bucket_id,
+            item.title,
+            item.mime_type,
+            item.artist,
+            item.album,
+            item.genre,
+            item.track_number,
+            item.year,
+            item.duration_ms,
+            item.audio_codec,
+            item.video_codec,
+            item.subtitle_codec,
+            item.bitrate,
+            item.width,
+            item.height,
+            item.thumbnail_stream_index,
+            item.file_size,
+            item.last_modified,
+            now,
+            uri,
+            item.youtube_vid,
+            item.loudness_gain_db
+        ],
+    )?;
+    if changed > 0 {
+        return db.query_row("SELECT id FROM mediaItem WHERE uri = ?1", params![uri], |row| row.get(0));
+    }
+    db.execute(
+        "INSERT INTO mediaItem(bucketId, uri, title, mimeType, artist, album, genre, trackNumber, year, \
+         durationMs, audioCodec, videoCodec, subtitleCodec, bitrate, width, height, thumbnailStreamIndex, \
+         fileSize, lastModified, createdAt, updatedAt, youtubeVid, loudnessGainDb) \
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?20, ?21, ?22)",
+        params![
+            item.bucket_id,
+            uri,
+            item.title,
+            item.mime_type,
+            item.artist,
+            item.album,
+            item.genre,
+            item.track_number,
+            item.year,
+            item.duration_ms,
+            item.audio_codec,
+            item.video_codec,
+            item.subtitle_codec,
+            item.bitrate,
+            item.width,
+            item.height,
+            item.thumbnail_stream_index,
+            item.file_size,
+            item.last_modified,
+            now,
+            item.youtube_vid,
+            item.loudness_gain_db
+        ],
+    )?;
+    Ok(db.last_insert_rowid())
+}
+
+/// Whether a live item other than `except_id` resolves `code` (as [`resolve_code`] matches it).
+fn code_held_by_other(db: &Connection, code: &str, except_id: i64) -> rusqlite::Result<bool> {
+    if let Some(fingerprint) = code.strip_prefix('@') {
+        let Some((size, seconds)) = fingerprint.split_once(':') else { return Ok(false) };
+        let (Ok(size), Ok(seconds)) = (size.parse::<i64>(), seconds.parse::<i64>()) else { return Ok(false) };
+        return db.query_row(
+            "SELECT EXISTS(SELECT 1 FROM mediaItem WHERE fileSize = ?1 AND COALESCE(durationMs, 0) / 1000 = ?2 \
+             AND deleted = 0 AND id != ?3)",
+            params![size, seconds, except_id],
+            |row| row.get(0),
+        );
+    }
+    db.query_row(
+        "SELECT EXISTS(SELECT 1 FROM mediaItem WHERE youtubeVid = ?1 AND deleted = 0 AND id != ?2)",
+        params![code, except_id],
+        |row| row.get(0),
+    )
 }
 
 /// The inverse of [`MediaItem::playlist_code`]; on a fingerprint collision the first match wins.

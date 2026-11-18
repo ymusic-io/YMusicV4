@@ -290,7 +290,7 @@ fun SearchScreen(
                 s.field.text.isBlank() && history.isEmpty() -> CenteredBox {
                     Text(stringResource(Res.string.search_type_to_search), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                s.field.text.isBlank() -> LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = LocalMiniPlayerInset.current)) {
+                s.field.text.isBlank() -> LazyColumn(Modifier.fillMaxSize().itemList(), contentPadding = PaddingValues(bottom = LocalMiniPlayerInset.current)) {
                     historyRows(history) { entry -> AnnotatedString(entry) }
                     item { ClearHistoryRow { saveHistory(emptyList()) } }
                 }
@@ -300,7 +300,7 @@ fun SearchScreen(
                     val newSuggestions = suggestions.filter { suggestion ->
                         historyMatches.none { it.equals(suggestion, ignoreCase = true) }
                     }
-                    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = LocalMiniPlayerInset.current)) {
+                    LazyColumn(Modifier.fillMaxSize().itemList(), contentPadding = PaddingValues(bottom = LocalMiniPlayerInset.current)) {
                         historyRows(historyMatches) { entry -> suggestionText(entry, typed) }
                         items(newSuggestions) { sug ->
                             QueryRow(

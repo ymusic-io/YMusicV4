@@ -57,6 +57,7 @@ private val DIALOG_MIN_WINDOW_HEIGHT = 600.dp
 internal fun DownloadDialogHost(graph: AppGraph, pending: YtFeedItem?, onDismiss: () -> Unit) {
     val downloads = graph.downloads ?: return
     val video = pending ?: return
+    HoldVideoOverlay(true)
     val snackbar = LocalSnackbar.current
     val scans = LocalScanController.current
 

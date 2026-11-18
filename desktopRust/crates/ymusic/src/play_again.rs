@@ -2,10 +2,9 @@
 
 use std::sync::Arc;
 
-use gpui_kit::assets::IconName as Lucide;
 use gpui_kit::component::button::Button;
 use gpui_kit::component::menu::{DropdownMenu, PopupMenuItem};
-use gpui_kit::component::{ActiveTheme, Icon, IconName, StyledExt, h_flex, v_flex};
+use gpui_kit::component::{ActiveTheme, Icon, StyledExt, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use ym_history::{PlayAgainSession, PlayHistory};
@@ -14,6 +13,7 @@ use ym_image_loader::async_image::async_image_of;
 
 use crate::a11y::{FocusList, alert, announced, list_item};
 use crate::action_icon::action_icon;
+use crate::assets::MaterialIcon;
 use crate::graph::{AppGraph, on_core};
 use crate::lazy_rows::LazyRows;
 use crate::mini_player::clock;
@@ -224,8 +224,8 @@ impl PlayAgainView {
         let detail = detail.join(" · ");
         let view = cx.entity().downgrade();
         let (from_start, removed) = (session.clone(), session.queue_id.clone());
-        let more = action_icon(("play-again-more", position), IconName::EllipsisVertical, t(Str::CdMore));
-        let more = self.focus.trailing_button(position, 0, more, cx).dropdown_menu_with_anchor(
+        let more = action_icon(("play-again-more", position), MaterialIcon::MoreVert, t(Str::CdMore));
+        let more = self.focus.menu_button(position, more, cx).dropdown_menu_with_anchor(
             Anchor::TopRight,
             move |menu, _, _| {
                 let (restart, remove) = (view.clone(), view.clone());
@@ -290,7 +290,7 @@ impl PlayAgainView {
                     Button::new(("resume", position))
                         .outline()
                         .rounded_full()
-                        .icon(Lucide::Play)
+                        .icon(MaterialIcon::PlayArrow)
                         .label(t(Str::PlayAgainResume))
                         .on_click(cx.listener(move |view, _, _, cx| view.resume(target.clone(), false, cx))),
                 ),
@@ -324,7 +324,11 @@ impl Render for PlayAgainView {
                 .justify_center()
                 .gap_2()
                 .p_6()
-                .child(Icon::new(Lucide::RotateCcwClock).size(px(56.)).text_color(theme.muted_foreground))
+                .child(
+                    div()
+                        .pb_1()
+                        .child(Icon::new(MaterialIcon::InboxOutlined).size(px(52.)).text_color(theme.muted_foreground)),
+                )
                 .child(
                     div().max_w(px(420.)).child(
                         announced("play-again-empty", t(Str::PlayAgainEmpty))

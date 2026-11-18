@@ -1,10 +1,12 @@
-//! The JVM desktop app's keyboard shortcuts, bound in the Shell's key context so a focused text
-//! field or an open dialog gets keys first.
+//! The keyboard shortcuts (the JVM desktop app's, plus K/J/L and Cmd/Ctrl+Q), bound in the Shell's
+//! key context so a focused text field or an open dialog gets keys first.
 
 use gpui_kit::{App, KeyBinding, actions};
 use ym_i18n::Str;
 
 pub const CONTEXT: &str = "Shell";
+/// Plain letter keys: off while any text input in the focus chain would take the letter.
+const CONTEXT_NOT_TYPING: &str = "Shell && !Input";
 
 actions!(
     ymusic,
@@ -35,6 +37,7 @@ actions!(
         Refresh,
         /// Open the sign-in screen (dispatched by the sign-in buttons, no key).
         OpenSignIn,
+        Quit,
     ]
 );
 
@@ -66,11 +69,11 @@ const fn row(keys: &'static [&'static str], label: Str) -> HelpRow {
 
 /// The bindings below, as the shortcuts help lists them.
 pub const HELP: &[HelpRow] = &[
-    row(&["f8"], Str::ShortcutsPlayPause),
+    row(&["f8", "k"], Str::ShortcutsPlayPause),
     row(&[secondary!("left")], Str::CdPrevious),
     row(&[secondary!("right")], Str::CdNext),
-    row(&[secondary!("shift-left"), "f7"], Str::CdRewind10),
-    row(&[secondary!("shift-right"), "f9"], Str::CdForward10),
+    row(&[secondary!("shift-left"), "f7", "j"], Str::CdRewind10),
+    row(&[secondary!("shift-right"), "f9", "l"], Str::CdForward10),
     row(&[secondary!("up")], Str::ShortcutsVolumeUp),
     row(&[secondary!("down")], Str::ShortcutsVolumeDown),
     #[cfg(target_os = "macos")]
@@ -84,6 +87,7 @@ pub const HELP: &[HelpRow] = &[
     row(&["escape"], Str::ShortcutsEscape),
     row(&["escape escape"], Str::CdBack),
     row(&["f1"], Str::ShortcutsHelp),
+    row(&[secondary!("q")], Str::TrayQuit),
 ];
 
 pub fn bind(cx: &mut App) {
@@ -92,6 +96,10 @@ pub fn bind(cx: &mut App) {
         KeyBinding::new("f8", TogglePlay, context),
         KeyBinding::new("f7", SeekBackward, context),
         KeyBinding::new("f9", SeekForward, context),
+        KeyBinding::new("k", TogglePlay, Some(CONTEXT_NOT_TYPING)),
+        KeyBinding::new("j", SeekBackward, Some(CONTEXT_NOT_TYPING)),
+        KeyBinding::new("l", SeekForward, Some(CONTEXT_NOT_TYPING)),
+        KeyBinding::new(secondary!("q"), Quit, context),
         KeyBinding::new("f11", ToggleFullscreen, context),
         KeyBinding::new("f1", ShowShortcuts, context),
         KeyBinding::new("f5", Refresh, context),

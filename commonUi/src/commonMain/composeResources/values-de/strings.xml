@@ -306,8 +306,10 @@
     <string name="cd_exit_fullscreen">Vollbild beenden</string>
     <string name="cd_fit_video">Video einpassen</string>
     <string name="cd_fill_video">Bildschirm füllen</string>
-    <string name="cd_lock_rotation">Drehung sperren</string>
-    <string name="cd_unlock_rotation">Drehung entsperren</string>
+    <string name="cd_screen_rotation">Bildschirmdrehung</string>
+    <string name="rotation_lock_landscape">Querformat sperren</string>
+    <string name="rotation_lock_portrait">Hochformat sperren</string>
+    <string name="rotation_free">Freie Drehung</string>
     <string name="cd_rewind10">10 Sekunden zurück</string>
     <string name="cd_forward10">10 Sekunden vor</string>
     <string name="cd_repeat_off">Wiederholen: aus</string>
@@ -416,6 +418,8 @@
     <string name="settings_audio_focus_apps">Pausieren, wenn andere Apps Ton abspielen</string>
     <string name="settings_sponsor_block">SponsorBlock</string>
     <string name="settings_sponsor_block_hint">Gesponserte Abschnitte in YouTube-Videos automatisch überspringen. In „Aktuelle Wiedergabe“ für einzelne Videos abschaltbar.</string>
+    <string name="settings_stable_volume">Stabile Lautstärke</string>
+    <string name="settings_stable_volume_hint">Gleicht laute und leise Passagen aus und spielt jeden Titel ähnlich laut ab.</string>
     <string name="sponsor_block_included">SponsorBlock für dieses Video aktiviert</string>
     <string name="sponsor_block_excluded">SponsorBlock für dieses Video deaktiviert</string>
     <string name="settings_sound">Sound</string>
@@ -660,4 +664,22 @@
     <string name="native_blocked_help">Bitte an einem Arbeits- oder Schul-PC deinen Administrator, YMusic zuzulassen. Prüfe auf deinem eigenen PC die intelligente App-Steuerung in der Windows-Sicherheit.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Wird aktualisiert</string>
+    <string name="a11y_loading">Wird geladen</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">Alle auswählen</string>
+    <string name="downloads_action_select">Auswählen</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="one">%1$d ausgewählt</item>
+        <item quantity="other">%1$d ausgewählt</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="one">%1$d Download aus der Liste entfernen?</item>
+        <item quantity="other">%1$d Downloads aus der Liste entfernen?</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">Fertige Dateien bleiben auf diesem Gerät.</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="one">%1$d Datei löschen?</item>
+        <item quantity="other">%1$d Dateien löschen?</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">Gelöschte Dateien können nicht wiederhergestellt werden.</string>
 </resources>

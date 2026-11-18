@@ -3463,7 +3463,12 @@
   /* Chrome: iframe.contentWindow !== window, own Array/eval, own document.
    * YouTube Trusted Types: iframe.eval(string) throws EvalError. */
   function makeIframeWindow() {
-    var inner = {};
+    var innerProto = {};
+    ["addEventListener", "removeEventListener", "dispatchEvent"].forEach(function (k) {
+      hide(innerProto, k, globalThis[k]);
+    });
+    Object.defineProperty(innerProto, Symbol.toStringTag, { value: "Window", configurable: true });
+    var inner = Object.create(innerProto);
     var innerDoc;
     inner.window = inner;
     inner.self = inner;
@@ -3571,9 +3576,6 @@
         }
       }.call(g);
     });
-    inner.addEventListener = globalThis.addEventListener;
-    inner.removeEventListener = globalThis.removeEventListener;
-    inner.dispatchEvent = globalThis.dispatchEvent;
     innerDoc = {
       nodeType: 9,
       readyState: "complete",
@@ -3601,7 +3603,28 @@
     ["JSON", "Math", "Intl", "Atomics", "Reflect", "CSS", "WebAssembly"].forEach(function (n) {
       if (globalThis[n] != null) inner[n] = ownNamespace(n);
     });
+    orderLikeChrome(inner);
     return inner;
+  }
+
+  /* BotGuard packs the name at a random index of the iframe window's own names, so the list must
+   * be Chrome's, in Chrome's order. Names Chrome lacks go last. */
+  var iframeNameOrder = null;
+  function orderLikeChrome(win) {
+    if (!iframeNameOrder) return;
+    var own = Object.create(null);
+    Object.getOwnPropertyNames(win).forEach(function (n) {
+      own[n] = Object.getOwnPropertyDescriptor(win, n);
+    });
+    function move(n) {
+      var d = own[n];
+      if (!d || !d.configurable) return;
+      delete own[n];
+      delete win[n];
+      Object.defineProperty(win, n, d);
+    }
+    iframeNameOrder.forEach(move);
+    Object.keys(own).forEach(move);
   }
 
   var ELEMENT_INTERFACES = {
@@ -4303,13 +4326,19 @@
         webdriver: false,
       });
       iframeGlobalNames = Object.getOwnPropertyNames(globalThis).filter(function (n) {
-        return !/^(__|\d|versions$|ymix$|yt$|ytcfg$|CLOSURE_FLAGS$|webkitAudioContext$|on(copy|cut|paste)$)/.test(
+        return !/^(__|\d|versions$|ymix$|yt$|ytcfg$|CLOSURE_FLAGS$|webkitAudioContext$|on(copy|cut|paste)$|defaultStatus$|addEventListener$|removeEventListener$|dispatchEvent$)/.test(
           n,
         );
       });
     },
+    setIframeNameOrder: function (names) {
+      iframeNameOrder = names;
+    },
     endLayoutProbes: function () {
       layoutProbes = false;
+    },
+    startLayoutProbes: function () {
+      layoutProbes = true;
     },
   };
 })();

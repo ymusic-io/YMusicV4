@@ -302,8 +302,10 @@
     <string name="cd_exit_fullscreen">전체 화면 종료</string>
     <string name="cd_fit_video">화면에 맞추기</string>
     <string name="cd_fill_video">화면 채우기</string>
-    <string name="cd_lock_rotation">화면 회전 잠금</string>
-    <string name="cd_unlock_rotation">화면 회전 잠금 해제</string>
+    <string name="cd_screen_rotation">화면 회전</string>
+    <string name="rotation_lock_landscape">가로 모드 고정</string>
+    <string name="rotation_lock_portrait">세로 모드 고정</string>
+    <string name="rotation_free">자유 회전</string>
     <string name="cd_rewind10">10초 뒤로</string>
     <string name="cd_forward10">10초 앞으로</string>
     <string name="cd_repeat_off">반복: 끄기</string>
@@ -412,6 +414,8 @@
     <string name="settings_audio_focus_apps">다른 앱에서 소리가 재생되면 일시정지</string>
     <string name="settings_sponsor_block">SponsorBlock</string>
     <string name="settings_sponsor_block_hint">YouTube 동영상의 스폰서 구간을 자동으로 건너뜁니다. 재생 화면에서 동영상별로 끌 수 있습니다.</string>
+    <string name="settings_stable_volume">안정적인 볼륨</string>
+    <string name="settings_stable_volume_hint">큰 소리와 작은 소리의 차이를 줄이고 모든 곡을 비슷한 음량으로 재생합니다.</string>
     <string name="sponsor_block_included">이 동영상에 SponsorBlock 사용</string>
     <string name="sponsor_block_excluded">이 동영상에 SponsorBlock 사용 안 함</string>
     <string name="settings_sound">사운드</string>
@@ -652,4 +656,19 @@
     <string name="native_blocked_help">회사 또는 학교 PC에서는 관리자에게 YMusic 허용을 요청하세요. 개인 PC에서는 Windows 보안의 스마트 앱 컨트롤을 확인하세요.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">새로고침 중</string>
+    <string name="a11y_loading">로드 중</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">모두 선택</string>
+    <string name="downloads_action_select">선택</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="other">%1$d개 선택됨</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="other">다운로드 %1$d개를 목록에서 삭제할까요?</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">완료된 파일은 이 기기에 남아 있습니다.</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="other">파일 %1$d개를 삭제할까요?</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">삭제한 파일은 복구할 수 없습니다.</string>
 </resources>

@@ -18,6 +18,11 @@ The shared Compose Multiplatform app UI (jvm + android; iOS later).
   open on desktop windows from 1200dp; touch windows start collapsed. A TV expands it while it holds focus. Now Playing and Search are the same screens on every size.
   Width-based layout reads `railStableWidth`, so expanding resizes cards without changing a column count.
 
+- **Screen-owned app bar** — a section screen with a mode of its own swaps the shell's app bar through
+  `ReplaceAppBar` (`AppBarSlot` in `AppBars.kt`); the shell draws the replacement in the same elevated bar and
+  restores its own when the call leaves composition. First user: the Download manager's multi-select (long press
+  or ⋮ → Select; X · "N selected" · Select all · Pause · Resume · ⋮ Remove from list / Remove from disk).
+
 - **SponsorBlock seam** — `ymusic.ui.sponsorblock`: `SponsorBlockApi` + `MockSponsorBlockApi` +
   SQLite cache/whitelist (`SponsorBlockStore`) + `SponsorBlockService` + `SponsorBlockCoordinator`
   (queue videoId → `Player.setSkipSegments`). The mock returns a 0–10s intro and a 60–75s mid-roll;
@@ -59,6 +64,11 @@ The shared Compose Multiplatform app UI (jvm + android; iOS later).
   by name), Back up (`createDocument` → a `ymusic.playlists` v1 JSON of every user playlist's codes) and Restore
   (`openDocument` → Merge by name or Replace all, via `BetterMediaStore.restorePlaylists`). Smart playlists are
   never included. Each action hides when its `AppGraph` seam is null.
+
+- **Loading more** — every Show more / Load more / more replies and its Retry goes through `LoadMoreFocus`
+  (`LoadMoreFocus.kt`): activating it focuses the spinner (`LoadingMoreIndicator`, read as "Loading"), and when the
+  page settles focus moves to the first new item, else to the control that is back, else to the last item. A collapsed
+  section's Show more (N) focuses the first revealed item; Show less keeps focus on the (keyed) toggle.
 
 - **Thumbnails** — render through `:image-loader` (`LocalImageLoader` provided from `AppGraph.imageLoader`; null
   keeps placeholder boxes).

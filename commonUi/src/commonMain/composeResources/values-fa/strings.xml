@@ -306,8 +306,10 @@
     <string name="cd_exit_fullscreen">خروج از تمام‌صفحه</string>
     <string name="cd_fit_video">متناسب با ویدیو</string>
     <string name="cd_fill_video">پر کردن صفحه</string>
-    <string name="cd_lock_rotation">قفل چرخش</string>
-    <string name="cd_unlock_rotation">باز کردن قفل چرخش</string>
+    <string name="cd_screen_rotation">چرخش صفحه</string>
+    <string name="rotation_lock_landscape">قفل در حالت افقی</string>
+    <string name="rotation_lock_portrait">قفل در حالت عمودی</string>
+    <string name="rotation_free">چرخش آزاد</string>
     <string name="cd_rewind10">10 ثانیه عقب</string>
     <string name="cd_forward10">10 ثانیه جلو</string>
     <string name="cd_repeat_off">تکرار: خاموش</string>
@@ -416,6 +418,8 @@
     <string name="settings_audio_focus_apps">توقف هنگام پخش صدا توسط برنامه‌های دیگر</string>
     <string name="settings_sponsor_block">SponsorBlock</string>
     <string name="settings_sponsor_block_hint">رد کردن خودکار بخش‌های تبلیغاتی اسپانسر در ویدیوهای YouTube. برای هر ویدیو از صفحه پخش قابل خاموش کردن است.</string>
+    <string name="settings_stable_volume">صدای پایدار</string>
+    <string name="settings_stable_volume_hint">بخش‌های بلند و آرام را هم‌سطح می‌کند و هر آهنگ را با بلندی صدای مشابهی پخش می‌کند.</string>
     <string name="sponsor_block_included">SponsorBlock برای این ویدیو فعال شد</string>
     <string name="sponsor_block_excluded">SponsorBlock برای این ویدیو غیرفعال شد</string>
     <string name="settings_sound">صدا</string>
@@ -660,4 +664,22 @@
     <string name="native_blocked_help">در رایانهٔ محل کار یا مدرسه، از سرپرست سیستم بخواهید YMusic را مجاز کند. در رایانهٔ شخصی خود، Smart App Control را در Windows Security بررسی کنید.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">در حال تازه‌سازی</string>
+    <string name="a11y_loading">در حال بارگیری</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">انتخاب همه</string>
+    <string name="downloads_action_select">انتخاب</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="one">%1$d مورد انتخاب شد</item>
+        <item quantity="other">%1$d مورد انتخاب شد</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="one">%1$d دانلود از لیست حذف شود؟</item>
+        <item quantity="other">%1$d دانلود از لیست حذف شود؟</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">فایل‌های تکمیل‌شده روی این دستگاه می‌مانند.</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="one">%1$d فایل حذف شود؟</item>
+        <item quantity="other">%1$d فایل حذف شود؟</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">فایل‌های حذف‌شده قابل بازیابی نیستند.</string>
 </resources>

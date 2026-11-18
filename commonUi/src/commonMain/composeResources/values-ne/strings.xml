@@ -306,8 +306,10 @@
     <string name="cd_exit_fullscreen">पूर्ण स्क्रिनबाट बाहिर निस्कनुहोस्</string>
     <string name="cd_fit_video">भिडियो मिलाउनुहोस्</string>
     <string name="cd_fill_video">स्क्रिन भर्नुहोस्</string>
-    <string name="cd_lock_rotation">घुमाउने लक गर्नुहोस्</string>
-    <string name="cd_unlock_rotation">घुमाउने अनलक गर्नुहोस्</string>
+    <string name="cd_screen_rotation">स्क्रिन घुमाउने</string>
+    <string name="rotation_lock_landscape">ल्यान्डस्केपमा लक गर्नुहोस्</string>
+    <string name="rotation_lock_portrait">पोर्ट्रेटमा लक गर्नुहोस्</string>
+    <string name="rotation_free">स्वतन्त्र रूपमा घुमाउने</string>
     <string name="cd_rewind10">10 सेकेन्ड पछाडि</string>
     <string name="cd_forward10">10 सेकेन्ड अगाडि</string>
     <string name="cd_repeat_off">दोहोर्याउनुहोस्: बन्द</string>
@@ -416,6 +418,8 @@
     <string name="settings_audio_focus_apps">अरू एपले आवाज बजाउँदा रोक्नुहोस्</string>
     <string name="settings_sponsor_block">SponsorBlock</string>
     <string name="settings_sponsor_block_hint">YouTube भिडियोका प्रायोजित भागहरू स्वतः छोड्नुहोस्। कुनै भिडियोका लागि प्लेयर स्क्रिनबाट बन्द गर्नुहोस्।</string>
+    <string name="settings_stable_volume">स्थिर भोल्युम</string>
+    <string name="settings_stable_volume_hint">चर्को र मधुरा भागहरू बराबर गर्छ र हरेक गीत उस्तै आवाजमा बजाउँछ।</string>
     <string name="sponsor_block_included">यो भिडियोका लागि SponsorBlock सक्षम गरियो</string>
     <string name="sponsor_block_excluded">यो भिडियोका लागि SponsorBlock असक्षम गरियो</string>
     <string name="settings_sound">ध्वनि</string>
@@ -660,4 +664,22 @@
     <string name="native_blocked_help">कार्यालय वा विद्यालयको PC मा, आफ्नो प्रशासकलाई YMusic अनुमति दिन भन्नुहोस्। आफ्नै PC मा, Windows Security मा Smart App Control जाँच गर्नुहोस्।</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">रिफ्रेस हुँदैछ</string>
+    <string name="a11y_loading">लोड हुँदैछ</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">सबै चयन गर्नुहोस्</string>
+    <string name="downloads_action_select">चयन गर्नुहोस्</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="one">%1$d चयन गरियो</item>
+        <item quantity="other">%1$d चयन गरियो</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="one">सूचीबाट %1$d डाउनलोड हटाउने हो?</item>
+        <item quantity="other">सूचीबाट %1$d डाउनलोड हटाउने हो?</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">पूरा भएका फाइलहरू यही डिभाइसमा रहन्छन्।</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="one">%1$d फाइल मेटाउने हो?</item>
+        <item quantity="other">%1$d फाइल मेटाउने हो?</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">मेटाइएका फाइलहरू फिर्ता ल्याउन सकिँदैन।</string>
 </resources>

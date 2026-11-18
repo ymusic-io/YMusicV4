@@ -370,6 +370,11 @@ settings/set  JS→K: {"key":"…","type":"string|boolean|int","value":…}
 infers it from the value. Numbers must be integers. Missing/invalid fields RESET with `E20060`; a
 store failure RESETs with `E20061` (or preserves the store's own `CodedError`).
 
+There is no change stream: after the user changes a setting a bundle reads, the host fires the
+`"settings_changed"` event (§3.7) once the store holds the new value, and the bundle pulls what it
+needs again. player.js reads `playback.stableVolume` (boolean, default true) at `player/init` and
+on that event.
+
 ---
 
 ## 3.5.1 Remote config features (`command = "remote-config/get"`) — *implemented in `:dynamic-engine`*
@@ -417,7 +422,8 @@ Opposite of the usual JS-opens direction (same as `listen/player/status`). C or 
 `MseJsEventBridge.fire(name)` / `DynamicEngine.fire(name)` (any thread). The runtime hops onto the
 engine dispatcher, opens `"event"`, writes the UTF-8 name, END. JS `ymix.onAccept("event")` reads
 to EOF and dispatches `ymix.onEvent(name)`. Player create wires
-`MseJsEventBridge.setJsEventBridge { engine.fire(it) }`. Native MSE uses the name `"mse_ended"`.
+`MseJsEventBridge.setJsEventBridge { engine.fire(it) }`. Native MSE uses the name `"mse_ended"`;
+the player host fires `"settings_changed"` (§3.5). A name no handler listens for is dropped.
 
 ---
 

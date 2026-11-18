@@ -71,6 +71,8 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.text
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.LayoutDirection
@@ -295,8 +297,9 @@ fun main(args: Array<String>) {
     // The log moved to logs.db: the text log files of older builds go.
     File(ymusicDataDir(), "logs").listFiles { file -> file.name.startsWith("ymusic.log") }?.forEach { it.delete() }
     val launchFiles = launchFileUris(args.toList())
-    // macOS LaunchServices already keeps one app process; Windows and Linux start one per launch.
-    val instance = if (isWindows || isLinux) {
+    // macOS LaunchServices already keeps one app process; Windows and Linux start one per launch, and
+    // so does a dev workspace's `gradlew run` on any OS.
+    val instance = if (isWindows || isLinux || DevInstance.workspace != null) {
         val command = InstanceCommand.of(args.toList())
         val log = rootLogger.fork("instance")
         val claim = try {
@@ -385,6 +388,11 @@ fun main(args: Array<String>) {
     val mediaFailure = MseLibrary.loadFailure
     val mediaProblem = mediaFailure?.let {
         classifyNativeLoadFailure(it, NativeComponent.Media, windowsPolicyMessages(rootLogger.fork("native-libs")))
+    }
+
+    if (isLinux) {
+        runCatching { applyLinuxWmClass() }
+            .onFailure { rootLogger.fork("wm-class").log(Logger.Level.WARN, "dev workspace WM_CLASS not set", it) }
     }
 
     application {
@@ -497,7 +505,7 @@ fun main(args: Array<String>) {
                 // carries on; an empty queue → quit.
                 if (graph?.player?.queue?.value?.items?.isNotEmpty() == true) windowVisible = false else quit()
             },
-            title = "YMusic",
+            title = DevInstance.appTitle,
             icon = null,
             state = windowState,
             undecorated = true,
@@ -602,11 +610,15 @@ fun main(args: Array<String>) {
                             )
                         }
                         Text(
-                            "YMusic",
+                            DevInstance.appTitle,
                             color = if (darkBar) Color.White else palette.InkStrong,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Medium,
-                            modifier = Modifier.align(Alignment.Center),
+                            textAlign = TextAlign.Center,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            // Clear of the traffic lights and the pin, however long a dev branch name runs.
+                            modifier = Modifier.align(Alignment.Center).fillMaxWidth(0.5f),
                         )
                         var alwaysOnTop by remember { mutableStateOf(window.isAlwaysOnTop) }
                         LaunchedEffect(alwaysOnTop) {
@@ -1054,9 +1066,14 @@ private suspend fun buildGraph(
     }
 
     // OS media surface + media keys (macOS Now Playing, Linux MPRIS, Windows SMTC). Commands come
-    // back on the Main dispatcher, where the player is driven.
-    connectMediaSession(player, CoroutineScope(Dispatchers.Main), imageLoader, rootLogger.fork("now-playing")) {
-        showWindowRequests.tryEmit(Unit)
+    // back on the Main dispatcher, where the player is driven. A dev workspace's run leaves the media
+    // keys to the other apps unless YMUSIC_DEV_MEDIA_SESSION=1.
+    if (DevInstance.usesMediaSession) {
+        connectMediaSession(player, CoroutineScope(Dispatchers.Main), imageLoader, rootLogger.fork("now-playing")) {
+            showWindowRequests.tryEmit(Unit)
+        }
+    } else {
+        rootLogger.fork("now-playing").log(Logger.Level.INFO, "dev workspace: no OS media session (YMUSIC_DEV_MEDIA_SESSION=1 opens one)")
     }
 
     // Offline downloads: SABR stack over ffmpeg. Spec comes from the MSE engine's cached
@@ -1644,7 +1661,8 @@ private fun saveWindowPrefs(size: DpSize, position: WindowPosition) {
 /** Sends the app logs as one anonymous Sentry report for the Feedback screen. */
 private val captureFeedbackReportAction: suspend (String, String?) -> Unit = { subject, message ->
     withContext(Dispatchers.IO) {
-        val export = File(System.getProperty("java.io.tmpdir"), FEEDBACK_LOG_NAME)
+        val exportName = DevInstance.workspaceTag?.let { "dev$it-$FEEDBACK_LOG_NAME" } ?: FEEDBACK_LOG_NAME
+        val export = File(System.getProperty("java.io.tmpdir"), exportName)
         // The report still goes without the log when the export fails or the log store is stuck.
         val attachments = try {
             withTimeoutOrNull(FEEDBACK_EXPORT_TIMEOUT_MS) { logStore.exportGzip(FileSystem.SYSTEM, export.absolutePath.toPath()) }

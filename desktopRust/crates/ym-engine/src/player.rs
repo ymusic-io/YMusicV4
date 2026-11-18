@@ -133,6 +133,12 @@ impl DynamicEngine {
         self.player_ack("player/seek", json!({ "positionMs": position_ms }), log).await
     }
 
+    /// A setting the bundle reads over the settings protocol changed: it pulls it again. Older
+    /// bundles ignore it.
+    pub fn player_notify_settings_changed(&self) {
+        self.runtime().fire_event("settings_changed");
+    }
+
     /// The display hole in CSS pixels; YouTube's ABR uses it as the viewport.
     pub async fn player_set_viewport(&self, width: i32, height: i32, log: &Logger) -> Result<(), EngineError> {
         self.player_ack("player/setViewport", json!({ "width": width, "height": height }), log).await

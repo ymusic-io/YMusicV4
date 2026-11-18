@@ -29,6 +29,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
@@ -90,6 +92,10 @@ internal fun LocalPlaylistFromDownloadsDialog(store: BetterMediaStore, title: St
         Unit
     }
     val listState = rememberLazyListState()
+    val loadFocus = remember(pager) { LoadMoreFocus() }
+    val nameFocus = remember { FocusRequester() }
+    // Downloaded rows are not focusable: a page that adds none of them leaves focus on the name.
+    loadFocus.Settle(ready?.loadingMore == true, videos.size, controlShown = ready?.continuation != null, fallback = nameFocus)
     ElevatedBarDialog(
         title = stringResource(Res.string.local_playlist_create),
         onDismiss = dismiss,
@@ -120,7 +126,7 @@ internal fun LocalPlaylistFromDownloadsDialog(store: BetterMediaStore, title: St
                     supportingText = if (duplicate) stringResource(Res.string.playlist_name_exists) else null,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                     keyboardActions = KeyboardActions(onDone = { submit() }),
-                    modifier = Modifier.padding(horizontal = DesignSpacing.Space24, vertical = DesignSpacing.Space8),
+                    modifier = Modifier.padding(horizontal = DesignSpacing.Space24, vertical = DesignSpacing.Space8).focusRequester(nameFocus),
                 )
             }
             item {
@@ -131,8 +137,15 @@ internal fun LocalPlaylistFromDownloadsDialog(store: BetterMediaStore, title: St
                 ) {
                     FeedChip(pluralText(Res.plurals.local_playlist_downloaded, videos.size, videos.size), selected = false, onClick = null)
                     when {
-                        ready?.loadingMore == true -> CircularProgressIndicator(Modifier.size(18.dp), color = DesignColors.Accent, strokeWidth = 2.dp)
-                        ready?.continuation != null -> FeedChip(stringResource(Res.string.playlist_load_more), selected = true, choice = false) { pager.loadMore() }
+                        ready?.loadingMore == true -> LoadingMoreIndicator(loadFocus) {
+                            CircularProgressIndicator(Modifier.size(18.dp), color = DesignColors.Accent, strokeWidth = 2.dp)
+                        }
+                        ready?.continuation != null -> Box(loadFocus.control) {
+                            FeedChip(stringResource(Res.string.playlist_load_more), selected = true, choice = false) {
+                                loadFocus.start(videos.size)
+                                pager.loadMore()
+                            }
+                        }
                     }
                 }
             }

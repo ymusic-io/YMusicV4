@@ -310,8 +310,10 @@
     <string name="cd_exit_fullscreen">Izađi iz cijelog zaslona</string>
     <string name="cd_fit_video">Prilagodi videozapis</string>
     <string name="cd_fill_video">Ispuni zaslon</string>
-    <string name="cd_lock_rotation">Zaključaj rotaciju</string>
-    <string name="cd_unlock_rotation">Otključaj rotaciju</string>
+    <string name="cd_screen_rotation">Zakretanje zaslona</string>
+    <string name="rotation_lock_landscape">Zaključaj vodoravno</string>
+    <string name="rotation_lock_portrait">Zaključaj okomito</string>
+    <string name="rotation_free">Slobodno zakretanje</string>
     <string name="cd_rewind10">Premotaj 10 sekundi unatrag</string>
     <string name="cd_forward10">Premotaj 10 sekundi unaprijed</string>
     <string name="cd_repeat_off">Ponavljanje: isključeno</string>
@@ -420,6 +422,8 @@
     <string name="settings_audio_focus_apps">Pauziraj kada druge aplikacije reproduciraju zvuk</string>
     <string name="settings_sponsor_block">SponsorBlock</string>
     <string name="settings_sponsor_block_hint">Automatski preskače sponzorirane dijelove u YouTube videozapisima. Za pojedini videozapis isključite na zaslonu Sada svira.</string>
+    <string name="settings_stable_volume">Stabilna glasnoća</string>
+    <string name="settings_stable_volume_hint">Ujednačuje glasne i tihe dijelove i reproducira svaku pjesmu sličnom glasnoćom.</string>
     <string name="sponsor_block_included">SponsorBlock uključen za ovaj videozapis</string>
     <string name="sponsor_block_excluded">SponsorBlock isključen za ovaj videozapis</string>
     <string name="settings_sound">Zvuk</string>
@@ -668,4 +672,25 @@
     <string name="native_blocked_help">Na poslovnom ili školskom računalu zamolite administratora da dopusti YMusic. Na vlastitom računalu provjerite Smart App Control u Sigurnosti sustava Windows.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Osvježavanje</string>
+    <string name="a11y_loading">Učitavanje</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">Odaberi sve</string>
+    <string name="downloads_action_select">Odaberi</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="one">Odabrano: %1$d</item>
+        <item quantity="few">Odabrano: %1$d</item>
+        <item quantity="other">Odabrano: %1$d</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="one">Ukloniti %1$d preuzimanje s popisa?</item>
+        <item quantity="few">Ukloniti %1$d preuzimanja s popisa?</item>
+        <item quantity="other">Ukloniti %1$d preuzimanja s popisa?</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">Dovršene datoteke ostaju na ovom uređaju.</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="one">Izbrisati %1$d datoteku?</item>
+        <item quantity="few">Izbrisati %1$d datoteke?</item>
+        <item quantity="other">Izbrisati %1$d datoteka?</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">Izbrisane datoteke ne mogu se vratiti.</string>
 </resources>

@@ -6,6 +6,8 @@ yesterday's host (its Kotlin decoders, QuickJS/`:mse` natives, host protocols). 
 
 - `floor.txt` — the oldest shipped version still checked. Raise it with the support floor.
 - `tags.sh` — `release-v*` / `hotfix-v*` tags at or above the floor (`--json` = the CI matrix).
+  `COMPAT_SPREAD=N` keeps N of them spread evenly by index: always the floor and the newest, deduplicated
+  (all of them when there are N or fewer).
 - `BundleCompatTest.kt` — lives only here. `overlay.sh` copies it, along with today's `YtFixtures.kt`
   (today's YouTube shapes), into a tag checkout's `:dynamic-engine` jvmTest. It stages today's prod bundles and
   the tag's own versionCodes (Android, desktop, iOS) into `dynamic-engine/build/compat/`. It drives the old
@@ -13,8 +15,10 @@ yesterday's host (its Kotlin decoders, QuickJS/`:mse` natives, host protocols). 
 - `run.sh [tag…]` — local: builds `-Pproduction` bundles from the working tree (uncommitted edits included),
   then runs every tag (or the named ones) in a reused worktree under `$COMPAT_DIR`
   (default `$TMPDIR/ymusic-compat`).
-- CI: the release build (`.github/workflows/release.yml`, on a `release-*` tag) builds the bundles once, then
-  runs one concurrent job per tag; the draft release waits for all of them.
+- CI: the release build (`.github/workflows/release.yml`, on every master push and `release-*` tag) builds the
+  bundles once, then runs one concurrent job per tag for five tags (`COMPAT_SPREAD=5`); the draft release
+  waits for all of them. `COMPAT_SPREAD=5 compat/run.sh` checks the same five locally; plain `run.sh` checks
+  every tag.
 
 **The test must compile at every tag from the floor on.** It only uses API that every one of those tags
 has. When a newer host changes that API, keep the test on the old shape until the floor passes it.

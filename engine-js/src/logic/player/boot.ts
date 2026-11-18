@@ -11,9 +11,15 @@ import {
   onLoopAtEnd,
   resetDrainCounts,
 } from "../../protocol/mse";
-import { applyChromeShapes, applyNavigatorLanguages, endLayoutProbes, installOrigEnv } from "./env";
+import {
+  applyChromeShapes,
+  applyNavigatorLanguages,
+  endLayoutProbes,
+  installOrigEnv,
+  startLayoutProbes,
+} from "./env";
 import { installMediaCapabilities } from "./media_caps";
-import { applyHostScreen } from "./device";
+import { applyHostScreen, withEnvScreen } from "./device";
 import { installXhr } from "../yt/xhr";
 import { installFetch } from "../yt/fetch";
 import { executeWithCookies } from "../yt/cookies";
@@ -38,6 +44,7 @@ import {
 } from "./captions";
 import { clearPlayerStorage, isBadStoredValue, playerStorageReady } from "./storage";
 import { applyViewport, viewportHeight, viewportWidth } from "./viewport";
+import { onStableVolumeChange, pullStableVolume, writeDrcPref } from "./stable_volume";
 
 const ORIGIN = "https://www.youtube.com";
 
@@ -94,6 +101,7 @@ type MoviePlayer = {
   "setAudioTrack"?(track: unknown): unknown;
   "loadVideoById"(id: string | Record<string, unknown>): unknown;
   "getVideoData"(): Record<string, unknown>;
+  "setDrcUserPreference"?(pref: number): void;
   "preloadVideoByPlayerVars"(
     vars: Record<string, unknown>,
     unused?: unknown,
@@ -407,6 +415,7 @@ function enableSharedOwlFlag(): void {
   /* Bl(): server picks SABR itags; field 16/17 stay empty. Client filter instead. */
   flags["html5_enable_server_format_filter"] = false;
   flags["html5_enable_server_format_filter_for_drm"] = false;
+  /* Builds base.js's DRC module; yt-player-drc-pref alone turns it on or off. */
   flags["html5_enable_drc"] = true;
   // Player fetch gzips /youtubei/v1/player when this is on; jsonObject() then
   // sees gzip magic (0x1f) instead of `{`.
@@ -669,6 +678,21 @@ export interface PlayerLoadOptions {
   loop: boolean;
 }
 
+/** A re-mint's BotGuard run sees the env the first snapshot saw: desktop geometry, real layout. */
+function asFirstMint<T>(fn: () => Promise<T>): Promise<T> {
+  startLayoutProbes();
+  return withEnvScreen(fn).then(
+    function (value) {
+      endLayoutProbes();
+      return value;
+    },
+    function (e: unknown) {
+      endLayoutProbes();
+      throw e;
+    },
+  );
+}
+
 class Player {
   private player: YtApp | null = null;
   private speed = 1;
@@ -726,6 +750,7 @@ class Player {
 
   private async doConfig(): Promise<Record<string, unknown>> {
     await initStep(playerStorageReady(), "player storage", "E20158");
+    await pullStableVolume();
     installOrigEnv();
     setLocation(ORIGIN + "/", "/", "");
     const cfg = await initStep(fetchPlayerConfig(), "session scrape", "E20155");
@@ -739,8 +764,10 @@ class Player {
     applyChromeShapes();
     this.mintFn = await initStep(minterFromConfig(cfg, out), "botguard", "E20156");
     setRemintHook(function () {
-      return remint(function () {
-        return fetchPlayerConfig(true);
+      return asFirstMint(function () {
+        return remint(function () {
+          return fetchPlayerConfig(true);
+        });
       });
     });
     endLayoutProbes();
@@ -874,11 +901,13 @@ class Player {
     out["step"] = "create";
     try {
       try {
+        writeDrcPref();
         this.player = create(root, param2, this.createCtx) as YtApp;
       } catch (e) {
         if (!isBadStoredValue(e)) throw e;
         console.warn("player storage held a value base.js rejects; clearing it");
         clearPlayerStorage();
+        writeDrcPref();
         this.player = create(root, param2, this.createCtx) as YtApp;
       }
       (globalThis as unknown as Record<string, unknown>)["__ymPlayer"] = this.player;
@@ -1524,6 +1553,14 @@ function selectedAudioTrackId(player: MoviePlayer): string | null {
 }
 
 const ytPlayer = new Player();
+
+onStableVolumeChange(function (on) {
+  writeDrcPref();
+  const player = moviePlayer();
+  const setPref = player ? player["setDrcUserPreference"] : undefined;
+  if (typeof setPref === "function") setPref.call(player, on ? 1 : 0);
+  console.info("stable volume " + (on ? "on" : "off") + (setPref ? " live" : " stored"));
+});
 
 export function initPlayer(): Promise<Record<string, unknown>> {
   return ytPlayer.init();

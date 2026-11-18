@@ -306,8 +306,10 @@
     <string name="cd_exit_fullscreen">Դուրս գալ լիաէկրանից</string>
     <string name="cd_fit_video">Տեղավորել տեսանյութը</string>
     <string name="cd_fill_video">Լցնել էկրանը</string>
-    <string name="cd_lock_rotation">Կողպել պտտումը</string>
-    <string name="cd_unlock_rotation">Ապակողպել պտտումը</string>
+    <string name="cd_screen_rotation">Էկրանի պտտում</string>
+    <string name="rotation_lock_landscape">Կողպել հորիզոնական</string>
+    <string name="rotation_lock_portrait">Կողպել ուղղահայաց</string>
+    <string name="rotation_free">Ազատ պտտում</string>
     <string name="cd_rewind10">10 վայրկյան հետ</string>
     <string name="cd_forward10">10 վայրկյան առաջ</string>
     <string name="cd_repeat_off">Կրկնել: անջատված</string>
@@ -416,6 +418,8 @@
     <string name="settings_audio_focus_apps">Դադարեցնել, երբ այլ հավելվածներ ձայն են նվագարկում</string>
     <string name="settings_sponsor_block">SponsorBlock</string>
     <string name="settings_sponsor_block_hint">Ավտոմատ բաց թողնել հովանավորվող հատվածները YouTube տեսանյութերում։ Կոնկրետ տեսանյութի համար անջատեք «Հիմա հնչում է» էկրանից։</string>
+    <string name="settings_stable_volume">Կայուն ձայնի ուժգնություն</string>
+    <string name="settings_stable_volume_hint">Հավասարեցնում է բարձր և ցածր հատվածները և նվագարկում յուրաքանչյուր երգ նման ուժգնությամբ։</string>
     <string name="sponsor_block_included">SponsorBlock-ը միացված է այս տեսանյութի համար</string>
     <string name="sponsor_block_excluded">SponsorBlock-ը անջատված է այս տեսանյութի համար</string>
     <string name="settings_sound">Ձայն</string>
@@ -660,4 +664,22 @@
     <string name="native_blocked_help">Աշխատանքային կամ դպրոցական համակարգչում խնդրեք ադմինիստրատորին թույլատրել YMusic-ը։ Ձեր համակարգչում ստուգեք Smart App Control-ը Windows Security-ում։</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Թարմացվում է</string>
+    <string name="a11y_loading">Բեռնվում է</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">Ընտրել բոլորը</string>
+    <string name="downloads_action_select">Ընտրել</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="one">Ընտրված է՝ %1$d</item>
+        <item quantity="other">Ընտրված է՝ %1$d</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="one">Հեռացնե՞լ %1$d ներբեռնում ցանկից</item>
+        <item quantity="other">Հեռացնե՞լ %1$d ներբեռնում ցանկից</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">Ավարտված ֆայլերը մնում են այս սարքում։</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="one">Ջնջե՞լ %1$d ֆայլ</item>
+        <item quantity="other">Ջնջե՞լ %1$d ֆայլ</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">Ջնջված ֆայլերը հնարավոր չէ վերականգնել։</string>
 </resources>

@@ -3,7 +3,6 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::sync::atomic::AtomicBool;
 
 use futures::future::BoxFuture;
 use gpui_kit::component::WindowExt;
@@ -87,7 +86,7 @@ pub fn open(inputs: DownloadInputs) -> Result<DownloadService, String> {
     if let Err(error) = index.cleanup() {
         log.warn("old download segments could not be pruned", Some(&error));
     }
-    let ffmpeg = ffmpeg_binary();
+    let ffmpeg = ym_ffmpeg::find_binary();
     if ffmpeg.is_none() {
         log.warn("no ffmpeg binary: downloads offer M4A only", None);
     }
@@ -194,9 +193,10 @@ pub fn register_download_folder(media: &MediaStore, folder: &Path) -> Result<(),
 }
 
 /// Blocking and long: what is already in the download folder shows up in the Library.
-pub fn scan_download_folder(media: &MediaStore, folder: &Path, log: &Logger) {
-    match ym_store::scan_folder(media, folder, &AtomicBool::new(false)) {
+pub fn scan_download_folder(media: &MediaStore, history: &ym_history::PlayHistory, folder: &Path, log: &Logger) {
+    match ym_store::scan_folder(media, ym_ffmpeg::FfmpegMetadataGetter::shared(), folder, &crate::QUITTING) {
         Ok(report) => {
+            crate::library::follow_recoded(history, &report.recoded, log);
             for error in &report.errors {
                 log.warn(&format!("scan skipped {}: {}", error.path.display(), error.message), None);
             }
@@ -210,6 +210,7 @@ pub fn scan_download_folder(media: &MediaStore, folder: &Path, log: &Logger) {
 pub fn assign_download_folder(folder: PathBuf, cx: &App) -> impl Future<Output = Result<(), String>> + use<> {
     let graph = cx.global::<AppGraph>();
     let (media, settings, log) = (graph.media.clone(), graph.settings.clone(), graph.log.fork("download-folder"));
+    let history = graph.history.clone();
     let assign = on_core(cx, async move {
         tokio::task::spawn_blocking(move || {
             probe_download_folder(&folder).map_err(|problem| t(problem).to_owned())?;
@@ -220,7 +221,7 @@ pub fn assign_download_folder(folder: PathBuf, cx: &App) -> impl Future<Output =
             if let Err(error) = settings.put_raw(DOWNLOAD_LOCATION_KEY, folder_uri(&folder)) {
                 log.warn(&format!("the download folder could not be saved: {error}"), None);
             }
-            tokio::task::spawn_blocking(move || scan_download_folder(&media, &folder, &log));
+            tokio::task::spawn_blocking(move || scan_download_folder(&media, &history, &folder, &log));
             Ok(())
         })
         .await
@@ -236,7 +237,8 @@ pub fn assign_download_folder(folder: PathBuf, cx: &App) -> impl Future<Output =
 /// The OS folder picker; a pick that can hold downloads becomes the download location (and a
 /// Library folder). None when canceled or refused, the reason shown in `window`.
 pub fn pick_download_folder(window: &mut Window, cx: &mut App) -> impl Future<Output = Option<PathBuf>> + use<> {
-    let pick = crate::desktop::file_dialog(rfd::AsyncFileDialog::new().set_title(t(Str::FolderPickerTitle)).pick_folder(), cx);
+    let pick =
+        crate::desktop::file_dialog(rfd::AsyncFileDialog::new().set_title(t(Str::FolderPickerTitle)).pick_folder(), cx);
     let (handle, mut async_cx) = (window.window_handle(), cx.to_async());
     async move {
         let folder = pick.await?.path().to_path_buf();
@@ -332,7 +334,7 @@ fn add_to_library(media: &MediaStore, settings: &dyn SettingsStore, file: &Path,
             return;
         }
     };
-    match ym_store::scan_file(media, file, bucket.id) {
+    match ym_store::scan_file(media, ym_ffmpeg::FfmpegMetadataGetter::shared(), file, bucket.id) {
         Ok(report) => {
             for error in &report.errors {
                 log.warn(&format!("a finished download was not indexed: {}", error.message), None);
@@ -340,16 +342,4 @@ fn add_to_library(media: &MediaStore, settings: &dyn SettingsStore, file: &Path,
         }
         Err(error) => log.capture_error("registering a finished download in the library failed", &error),
     }
-}
-
-/// `YMUSIC_FFMPEG`, else next to the executable (packaged), else the dev build's.
-fn ffmpeg_binary() -> Option<PathBuf> {
-    let candidates = [
-        std::env::var_os("YMUSIC_FFMPEG").map(PathBuf::from),
-        std::env::current_exe()
-            .ok()
-            .and_then(|exe| exe.parent().map(|dir| dir.join(format!("ffmpeg{}", std::env::consts::EXE_SUFFIX)))),
-        option_env!("YM_FFMPEG_BIN").map(PathBuf::from),
-    ];
-    candidates.into_iter().flatten().find(|path| path.is_file())
 }

@@ -310,8 +310,10 @@
     <string name="cd_exit_fullscreen">Quitter le plein écran</string>
     <string name="cd_fit_video">Ajuster la vidéo</string>
     <string name="cd_fill_video">Remplir l'écran</string>
-    <string name="cd_lock_rotation">Verrouiller la rotation</string>
-    <string name="cd_unlock_rotation">Déverrouiller la rotation</string>
+    <string name="cd_screen_rotation">Rotation de l'écran</string>
+    <string name="rotation_lock_landscape">Verrouiller en paysage</string>
+    <string name="rotation_lock_portrait">Verrouiller en portrait</string>
+    <string name="rotation_free">Rotation libre</string>
     <string name="cd_rewind10">Reculer de 10 secondes</string>
     <string name="cd_forward10">Avancer de 10 secondes</string>
     <string name="cd_repeat_off">Répéter : désactivé</string>
@@ -420,6 +422,8 @@
     <string name="settings_audio_focus_apps">Mettre en pause quand une autre app émet du son</string>
     <string name="settings_sponsor_block">SponsorBlock</string>
     <string name="settings_sponsor_block_hint">Passer automatiquement les segments sponsorisés des vidéos YouTube. Désactivable pour une vidéo depuis la lecture en cours.</string>
+    <string name="settings_stable_volume">Volume stable</string>
+    <string name="settings_stable_volume_hint">Équilibre les passages forts et faibles et lit chaque titre à un volume similaire.</string>
     <string name="sponsor_block_included">SponsorBlock activé pour cette vidéo</string>
     <string name="sponsor_block_excluded">SponsorBlock désactivé pour cette vidéo</string>
     <string name="settings_sound">Son</string>
@@ -668,4 +672,25 @@
     <string name="native_blocked_help">Sur un PC professionnel ou scolaire, demandez à votre administrateur d'autoriser YMusic. Sur votre propre PC, vérifiez le Contrôle intelligent des applications dans Sécurité Windows.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Actualisation</string>
+    <string name="a11y_loading">Chargement</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">Tout sélectionner</string>
+    <string name="downloads_action_select">Sélectionner</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="one">%1$d sélectionné</item>
+        <item quantity="many">%1$d sélectionnés</item>
+        <item quantity="other">%1$d sélectionnés</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="one">Retirer %1$d téléchargement de la liste ?</item>
+        <item quantity="many">Retirer %1$d téléchargements de la liste ?</item>
+        <item quantity="other">Retirer %1$d téléchargements de la liste ?</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">Les fichiers terminés restent sur cet appareil.</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="one">Supprimer %1$d fichier ?</item>
+        <item quantity="many">Supprimer %1$d fichiers ?</item>
+        <item quantity="other">Supprimer %1$d fichiers ?</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">Les fichiers supprimés ne peuvent pas être récupérés.</string>
 </resources>

@@ -310,8 +310,10 @@
     <string name="cd_exit_fullscreen">Изађи из целог екрана</string>
     <string name="cd_fit_video">Уклопи видео</string>
     <string name="cd_fill_video">Попуни екран</string>
-    <string name="cd_lock_rotation">Закључај ротацију</string>
-    <string name="cd_unlock_rotation">Откључај ротацију</string>
+    <string name="cd_screen_rotation">Ротација екрана</string>
+    <string name="rotation_lock_landscape">Закључај хоризонтално</string>
+    <string name="rotation_lock_portrait">Закључај вертикално</string>
+    <string name="rotation_free">Слободна ротација</string>
     <string name="cd_rewind10">Премотај 10 секунди уназад</string>
     <string name="cd_forward10">Премотај 10 секунди унапред</string>
     <string name="cd_repeat_off">Понављање: искључено</string>
@@ -420,6 +422,8 @@
     <string name="settings_audio_focus_apps">Паузирај када друге апликације пуштају звук</string>
     <string name="settings_sponsor_block">SponsorBlock</string>
     <string name="settings_sponsor_block_hint">Аутоматски прескаче спонзорисане делове у YouTube видеима. Искључите за појединачни видео у „Сада се пушта“.</string>
+    <string name="settings_stable_volume">Стабилна јачина звука</string>
+    <string name="settings_stable_volume_hint">Уједначава гласне и тихе делове и пушта сваку песму сличном јачином.</string>
     <string name="sponsor_block_included">SponsorBlock је омогућен за овај видео</string>
     <string name="sponsor_block_excluded">SponsorBlock је онемогућен за овај видео</string>
     <string name="settings_sound">Звук</string>
@@ -668,4 +672,25 @@
     <string name="native_blocked_help">На пословном или школском рачунару замолите администратора да дозволи YMusic. На свом рачунару проверите Smart App Control у оквиру Windows Security.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Освежавање</string>
+    <string name="a11y_loading">Учитавање</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">Изабери све</string>
+    <string name="downloads_action_select">Изабери</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="one">Изабрано: %1$d</item>
+        <item quantity="few">Изабрано: %1$d</item>
+        <item quantity="other">Изабрано: %1$d</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="one">Уклонити %1$d преузимање са листе?</item>
+        <item quantity="few">Уклонити %1$d преузимања са листе?</item>
+        <item quantity="other">Уклонити %1$d преузимања са листе?</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">Завршене датотеке остају на овом уређају.</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="one">Избрисати %1$d датотеку?</item>
+        <item quantity="few">Избрисати %1$d датотеке?</item>
+        <item quantity="other">Избрисати %1$d датотека?</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">Избрисане датотеке се не могу вратити.</string>
 </resources>

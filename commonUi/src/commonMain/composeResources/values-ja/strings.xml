@@ -302,8 +302,10 @@
     <string name="cd_exit_fullscreen">全画面表示を終了</string>
     <string name="cd_fit_video">動画を画面に合わせる</string>
     <string name="cd_fill_video">画面いっぱいに表示</string>
-    <string name="cd_lock_rotation">回転をロック</string>
-    <string name="cd_unlock_rotation">回転のロックを解除</string>
+    <string name="cd_screen_rotation">画面の回転</string>
+    <string name="rotation_lock_landscape">横向きに固定</string>
+    <string name="rotation_lock_portrait">縦向きに固定</string>
+    <string name="rotation_free">自由に回転</string>
     <string name="cd_rewind10">10 秒戻す</string>
     <string name="cd_forward10">10 秒進める</string>
     <string name="cd_repeat_off">リピート：オフ</string>
@@ -412,6 +414,8 @@
     <string name="settings_audio_focus_apps">他のアプリが音を再生したら一時停止</string>
     <string name="settings_sponsor_block">SponsorBlock</string>
     <string name="settings_sponsor_block_hint">YouTube 動画のスポンサー区間を自動的にスキップします。動画ごとに再生画面からオフにできます。</string>
+    <string name="settings_stable_volume">音量の安定化</string>
+    <string name="settings_stable_volume_hint">大きい部分と小さい部分の差を抑え、どの曲も同じくらいの音量で再生します。</string>
     <string name="sponsor_block_included">この動画で SponsorBlock を有効にしました</string>
     <string name="sponsor_block_excluded">この動画で SponsorBlock を無効にしました</string>
     <string name="settings_sound">サウンド</string>
@@ -652,4 +656,19 @@
     <string name="native_blocked_help">職場や学校の PC では、管理者に YMusic の許可を依頼してください。個人の PC では、Windows セキュリティのスマート アプリ コントロールを確認してください。</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">再読み込み中</string>
+    <string name="a11y_loading">読み込み中</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">すべて選択</string>
+    <string name="downloads_action_select">選択</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="other">%1$d 件選択中</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="other">%1$d 件のダウンロードをリストから削除しますか？</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">完了したファイルはこのデバイスに残ります。</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="other">%1$d 個のファイルを削除しますか？</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">削除したファイルは元に戻せません。</string>
 </resources>

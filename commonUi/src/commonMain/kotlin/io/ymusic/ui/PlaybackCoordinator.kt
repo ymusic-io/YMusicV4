@@ -15,6 +15,7 @@ import io.ymusic.player.PlayerError
 import io.ymusic.player.QueueOrigin
 import io.ymusic.player.QueueSource
 import io.ymusic.player.QueueState
+import io.ymusic.player.isEnded
 import io.ymusic.ui.playhistory.PlayAgainSession
 import kmpcommon.log.Logger
 import kmpcommon.log.info
@@ -159,19 +160,28 @@ class PlaybackCoordinator(
         )
     }
 
+    private var lastRequest: QueueRequest? = null
+    private var lastRequestQueueId: String? = null
+
     /** Play [video] now with its radio (a YouTube Mix) as the rest of the queue, loading as it plays;
      *  its related videos when YouTube has no radio for it. */
     fun playNow(video: YtFeedItem) {
-        player.setQueue(
-            listOf(video.toYtMedia()),
-            source = NextQueueSource.radio(graph.engines, video.id, log?.fork("queue-source")),
-            origin = QueueOrigin.Radio,
-        )
+        val items = listOf(video.toYtMedia())
+        startOnce(queueRequest(QueueOrigin.Radio, items, 0, "radio:${video.id}")) {
+            player.setQueue(
+                items,
+                source = NextQueueSource.radio(graph.engines, video.id, log?.fork("queue-source")),
+                origin = QueueOrigin.Radio,
+            )
+        }
     }
 
     /** Play [video] alone — no radio. */
     fun playSingle(video: YtFeedItem) {
-        player.setQueue(listOf(video.toYtMedia()), origin = QueueOrigin.Single)
+        val items = listOf(video.toYtMedia())
+        startOnce(queueRequest(QueueOrigin.Single, items, 0, null)) {
+            player.setQueue(items, origin = QueueOrigin.Single)
+        }
     }
 
     /** Play [videos] as the queue (a playlist page), starting at [startIndex]; [source] loads the rest of
@@ -179,13 +189,12 @@ class PlaybackCoordinator(
     fun playAll(videos: List<YtFeedItem>, startIndex: Int = 0, shuffle: Boolean? = null, source: QueueSource? = null) {
         val playable = videos.filter { it.kind == YtFeedItem.KIND_VIDEO }
         if (playable.isEmpty()) return
-        shuffle?.let(player::setShuffle)
-        player.setQueue(
-            playable.map { it.toYtMedia() },
-            playIndex = startIndex.coerceIn(0, playable.size - 1),
-            source = source,
-            origin = QueueOrigin.Playlist,
-        )
+        val items = playable.map { it.toYtMedia() }
+        val index = startIndex.coerceIn(0, playable.size - 1)
+        startOnce(queueRequest(QueueOrigin.Playlist, items, index, source?.let { "playlist" }, shuffle)) {
+            shuffle?.let(player::setShuffle)
+            player.setQueue(items, playIndex = index, source = source, origin = QueueOrigin.Playlist)
+        }
     }
 
     /** Play the playlist at [url] from [videoId], [page] being its loaded first page; the rest of the list
@@ -204,13 +213,19 @@ class PlaybackCoordinator(
 
     /** Play local library [songs] as the queue, starting at [index]. [shuffle] null keeps the user's shuffle mode. */
     fun playLocal(songs: List<MediaStoreItem>, index: Int, shuffle: Boolean? = null) {
-        shuffle?.let(player::setShuffle)
-        player.setQueue(songs.map { it.toLocalMedia() }, playIndex = index, origin = QueueOrigin.Library)
+        val items = songs.map { it.toLocalMedia() }
+        startOnce(queueRequest(QueueOrigin.Library, items, index, null, shuffle)) {
+            shuffle?.let(player::setShuffle)
+            player.setQueue(items, playIndex = index, origin = QueueOrigin.Library)
+        }
     }
 
     /** Play just [song] now (queue of one). */
     fun playLocalSingle(song: MediaStoreItem) {
-        player.setQueue(listOf(song.toLocalMedia()), origin = QueueOrigin.Single)
+        val items = listOf(song.toLocalMedia())
+        startOnce(queueRequest(QueueOrigin.Single, items, 0, null)) {
+            player.setQueue(items, origin = QueueOrigin.Single)
+        }
     }
 
     /**
@@ -244,7 +259,9 @@ class PlaybackCoordinator(
                 )
             }
         }
-        player.setQueue(items, playIndex = startIndex, origin = QueueOrigin.Downloads)
+        startOnce(queueRequest(QueueOrigin.Downloads, items, startIndex, null)) {
+            player.setQueue(items, playIndex = startIndex, origin = QueueOrigin.Downloads)
+        }
     }
 
     /**
@@ -256,15 +273,41 @@ class PlaybackCoordinator(
         val store = playHistory?.playAgain ?: return false
         val (saved, items) = store.load(session.queueId) ?: return false
         if (items.isEmpty()) return false
-        player.setQueue(
-            items,
-            playIndex = saved.queueIndex.coerceIn(0, items.lastIndex),
-            startPositionMs = if (fromBeginning || !saved.resumesMidItem) 0L else saved.positionMs,
-            origin = QueueOrigin.Resume,
-            queueId = saved.queueId,
-            source = saved.sourceToken?.let { NextQueueSource.resume(it, graph.engines, items, log?.fork("queue-source")) },
-        )
+        val index = saved.queueIndex.coerceIn(0, items.lastIndex)
+        startOnce(queueRequest(QueueOrigin.Resume, items, index, "resume:${saved.queueId}:$fromBeginning")) {
+            player.setQueue(
+                items,
+                playIndex = index,
+                startPositionMs = if (fromBeginning || !saved.resumesMidItem) 0L else saved.positionMs,
+                origin = QueueOrigin.Resume,
+                queueId = saved.queueId,
+                source = saved.sourceToken?.let { NextQueueSource.resume(it, graph.engines, items, log?.fork("queue-source")) },
+            )
+        }
         return true
+    }
+
+    /**
+     * Child-proofing: runs [start] unless [request] repeats the last one while the queue it made is
+     * still on its item. A repeat tap then reloads nothing; a paused item resumes. An ended or failed
+     * item, a different item or a queue replaced since all start again.
+     */
+    private inline fun startOnce(request: QueueRequest, start: () -> Unit) {
+        val queue = player.queue.value
+        val status = player.status.value
+        val repeat = request == lastRequest &&
+            queue.queueId != null &&
+            queue.queueId == lastRequestQueueId &&
+            itemId(queue.currentItem) == request.itemIds.getOrNull(request.index) &&
+            !status.state.isEnded() &&
+            status.error == null
+        if (repeat) {
+            if (!status.playWhenReady) player.play()
+            return
+        }
+        start()
+        lastRequest = request
+        lastRequestQueueId = player.queue.value.queueId
     }
 
     /** Queue [song] right after the current item. */
@@ -311,6 +354,18 @@ class PlaybackCoordinator(
         }
     }
 }
+
+/** What a play tap asked for, compared by value to spot a repeat tap ([PlaybackCoordinator.startOnce]). */
+private data class QueueRequest(
+    val origin: QueueOrigin,
+    val itemIds: List<String>,
+    val index: Int,
+    val source: String?,
+    val shuffle: Boolean? = null,
+)
+
+private fun queueRequest(origin: QueueOrigin, items: List<PlayableItem>, index: Int, source: String?, shuffle: Boolean? = null) =
+    QueueRequest(origin, items.map(::itemId), index, source, shuffle)
 
 /** One line per playback-state change — what a report needs for buffering / black screen / stuck. */
 private fun itemId(item: PlayableItem?): String = when (item) {

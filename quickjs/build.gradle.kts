@@ -33,7 +33,6 @@ fun sdkPath(sdk: String): String =
 fun clangArch(targetName: String): List<String> = when (targetName) {
     "macosX64" -> listOf("-arch", "x86_64")
     "macosArm64" -> listOf("-arch", "arm64")
-    "iosX64" -> listOf("-arch", "x86_64", "-isysroot", sdkPath("iphonesimulator"), "-mios-simulator-version-min=12.0")
     "iosSimulatorArm64" -> listOf("-arch", "arm64", "-isysroot", sdkPath("iphonesimulator"), "-mios-simulator-version-min=12.0")
     "iosArm64" -> listOf("-arch", "arm64", "-isysroot", sdkPath("iphoneos"), "-miphoneos-version-min=12.0")
     else -> emptyList() // linuxX64: host clang on a Linux builder

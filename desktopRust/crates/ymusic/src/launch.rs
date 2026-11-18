@@ -72,6 +72,7 @@ impl Launch {
     }
 
     fn new_shell(window: &mut Window, cx: &mut Context<Self>) -> Entity<Shell> {
+        crate::library_rescan::schedule(cx.global::<AppGraph>());
         cx.new(|cx| {
             let mut shell = Shell::new(window, cx);
             shell.apply_dev_route(window, cx);

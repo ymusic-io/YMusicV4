@@ -340,6 +340,7 @@ class AppGraph(
         bindings.launch { AppSettings.retiredKeys.forEach { settings.remove(it) } }
         bindPlayerConfig(bindings)
         bindings.launch { pip.pictureHidden.collect { player.setVideoHidden(it) } }
+        bindings.launch { settings.flow(AppSettings.stableVolume).collect { player.setStableVolume(it) } }
         bindPlayerCacheLimit(bindings)
         SponsorBlockCoordinator(this, bindings)
         bindings.launch {
@@ -428,8 +429,8 @@ class AppGraph(
     /** Fullscreen only: stretch the picture to the hole. Mini / Now Playing always fit. */
     val videoFillScreen = mutableStateOf(false)
 
-    /** Fullscreen only: hold the current orientation regardless of the sensor and the system lock. */
-    val videoRotationLocked = mutableStateOf(false)
+    /** Fullscreen only: how the video follows the phone's rotation, regardless of the system lock. */
+    val videoRotation = mutableStateOf(VideoRotation.Free)
 
     val localeEpoch = MutableStateFlow(0)
 

@@ -302,8 +302,10 @@
     <string name="cd_exit_fullscreen">Keluar dari skrin penuh</string>
     <string name="cd_fit_video">Muatkan video</string>
     <string name="cd_fill_video">Penuhi skrin</string>
-    <string name="cd_lock_rotation">Kunci putaran</string>
-    <string name="cd_unlock_rotation">Buka kunci putaran</string>
+    <string name="cd_screen_rotation">Putaran skrin</string>
+    <string name="rotation_lock_landscape">Kunci landskap</string>
+    <string name="rotation_lock_portrait">Kunci potret</string>
+    <string name="rotation_free">Putaran bebas</string>
     <string name="cd_rewind10">Undur 10 saat</string>
     <string name="cd_forward10">Maju 10 saat</string>
     <string name="cd_repeat_off">Ulang: mati</string>
@@ -412,6 +414,8 @@
     <string name="settings_audio_focus_apps">Jeda apabila apl lain memainkan bunyi</string>
     <string name="settings_sponsor_block">SponsorBlock</string>
     <string name="settings_sponsor_block_hint">Langkau segmen tajaan dalam video YouTube secara automatik. Matikan untuk sesuatu video daripada Sedang Dimainkan.</string>
+    <string name="settings_stable_volume">Kelantangan stabil</string>
+    <string name="settings_stable_volume_hint">Menyamakan bahagian kuat dan perlahan serta memainkan setiap lagu pada kelantangan yang serupa.</string>
     <string name="sponsor_block_included">SponsorBlock didayakan untuk video ini</string>
     <string name="sponsor_block_excluded">SponsorBlock dinyahdayakan untuk video ini</string>
     <string name="settings_sound">Bunyi</string>
@@ -652,4 +656,19 @@
     <string name="native_blocked_help">Pada PC kerja atau sekolah, minta pentadbir anda membenarkan YMusic. Pada PC anda sendiri, semak Smart App Control dalam Windows Security.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Memuat semula</string>
+    <string name="a11y_loading">Memuatkan</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">Pilih semua</string>
+    <string name="downloads_action_select">Pilih</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="other">%1$d dipilih</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="other">Alih keluar %1$d muat turun daripada senarai?</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">Fail yang telah selesai kekal pada peranti ini.</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="other">Padam %1$d fail?</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">Fail yang dipadam tidak boleh dipulihkan.</string>
 </resources>

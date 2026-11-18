@@ -78,6 +78,8 @@ import io.ymusic.ui.resources.settings_source_code
 import io.ymusic.ui.resources.settings_speed_hint
 import io.ymusic.ui.resources.settings_sponsor_block
 import io.ymusic.ui.resources.settings_sponsor_block_hint
+import io.ymusic.ui.resources.settings_stable_volume
+import io.ymusic.ui.resources.settings_stable_volume_hint
 import io.ymusic.ui.resources.settings_stats
 import io.ymusic.ui.resources.settings_stats_hint
 import io.ymusic.ui.resources.settings_terms
@@ -189,6 +191,7 @@ fun SettingsScreen(graph: AppGraph, signedIn: Boolean = false, onLogin: () -> Un
                 Res.string.settings_sponsor_block,
                 Res.string.settings_sponsor_block_hint,
             )
+            ToggleRow(graph, AppSettings.stableVolume, Res.string.settings_stable_volume, Res.string.settings_stable_volume_hint)
             PlayerCacheRow(graph)
         }
         if (graph.downloads != null) {

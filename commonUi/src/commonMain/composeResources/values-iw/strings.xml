@@ -310,8 +310,10 @@
     <string name="cd_exit_fullscreen">יציאה ממסך מלא</string>
     <string name="cd_fit_video">התאמת הסרטון</string>
     <string name="cd_fill_video">מילוי המסך</string>
-    <string name="cd_lock_rotation">נעילת סיבוב</string>
-    <string name="cd_unlock_rotation">ביטול נעילת סיבוב</string>
+    <string name="cd_screen_rotation">סיבוב מסך</string>
+    <string name="rotation_lock_landscape">נעילה לרוחב</string>
+    <string name="rotation_lock_portrait">נעילה לאורך</string>
+    <string name="rotation_free">סיבוב חופשי</string>
     <string name="cd_rewind10">10 שניות אחורה</string>
     <string name="cd_forward10">10 שניות קדימה</string>
     <string name="cd_repeat_off">חזרה על השמעה: כבויה</string>
@@ -420,6 +422,8 @@
     <string name="settings_audio_focus_apps">השהיה כשאפליקציות אחרות משמיעות צליל</string>
     <string name="settings_sponsor_block">SponsorBlock</string>
     <string name="settings_sponsor_block_hint">דילוג אוטומטי על קטעי חסות בסרטוני YouTube. ניתן לכבות לסרטון מסוים מהמסך המתנגן כעת.</string>
+    <string name="settings_stable_volume">עוצמת קול יציבה</string>
+    <string name="settings_stable_volume_hint">מאזן בין קטעים רועשים ושקטים ומנגן כל שיר בעוצמה דומה.</string>
     <string name="sponsor_block_included">SponsorBlock הופעל לסרטון הזה</string>
     <string name="sponsor_block_excluded">SponsorBlock הושבת לסרטון הזה</string>
     <string name="settings_sound">צליל</string>
@@ -668,4 +672,25 @@
     <string name="native_blocked_help">במחשב של העבודה או בית הספר, בקש ממנהל המערכת לאפשר את YMusic. במחשב שלך, בדוק את Smart App Control באבטחת Windows.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">מרענן</string>
+    <string name="a11y_loading">בטעינה</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">בחירת הכול</string>
+    <string name="downloads_action_select">בחירה</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="one">נבחרו: %1$d</item>
+        <item quantity="two">נבחרו: %1$d</item>
+        <item quantity="other">נבחרו: %1$d</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="one">להסיר הורדה אחת מהרשימה?</item>
+        <item quantity="two">להסיר שתי הורדות מהרשימה?</item>
+        <item quantity="other">להסיר %1$d הורדות מהרשימה?</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">קבצים שהושלמו יישארו במכשיר הזה.</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="one">למחוק קובץ אחד?</item>
+        <item quantity="two">למחוק שני קבצים?</item>
+        <item quantity="other">למחוק %1$d קבצים?</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">אי אפשר לשחזר קבצים שנמחקו.</string>
 </resources>

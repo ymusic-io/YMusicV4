@@ -2720,8 +2720,6 @@ dependencies = [
 [[package]]
 name = "gpui-component"
 version = "0.9.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e155c4914bd809d966660610d596f7b57c5cd38979ca2c132215057a91f23f03"
 dependencies = [
  "anyhow",
  "chrono",
@@ -9882,6 +9880,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "ym-ffmpeg"
+version = "0.1.0"
+dependencies = [
+ "regex",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "ym-history"
 version = "0.1.0"
 dependencies = [
@@ -9998,19 +10004,21 @@ dependencies = [
  "thiserror 2.0.21",
  "tokio",
  "ym-common",
- "ym-mse",
+ "ym-ffmpeg",
 ]
 
 [[package]]
 name = "ym-telemetry"
 version = "0.1.0"
 dependencies = [
+ "libc",
  "regex",
  "reqwest",
  "sentry",
  "serde_json",
  "thiserror 2.0.21",
  "tokio",
+ "windows 0.62.2",
  "ym-common",
  "ym-logstore",
 ]
@@ -10090,6 +10098,7 @@ dependencies = [
  "ym-common",
  "ym-download",
  "ym-engine",
+ "ym-ffmpeg",
  "ym-history",
  "ym-i18n",
  "ym-image-loader",

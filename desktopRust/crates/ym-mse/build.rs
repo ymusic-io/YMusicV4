@@ -15,7 +15,7 @@ const COMMON_C: &[&str] = &[
     "vpipe.c",
     "file_av.c",
 ];
-const APPLE_C: &[&str] = &["mse_vt_blit.c", "vpresent_vt.c", "vpipe_hw_vt.c"];
+const APPLE_C: &[&str] = &["mse_vt_blit.c", "vpresent_vt.c", "vpipe_hw_vt.c", "vt_overlay_none.c"];
 // libpulse-simple is dlopen'd by aq_pulse.c; only its headers are needed at build time.
 // mse_hwdev_vk.c and vpresent_frames.c take the Vulkan headers (libvulkan-dev).
 const LINUX_C: &[&str] = &["aq_pulse.c", "mse_hwdev.c", "mse_hwdev_vk.c", "vpipe_hw_linux.c", "vpresent_frames.c"];
@@ -80,11 +80,6 @@ fn main() {
     for source in COMMON_C.iter().chain(platform_c) {
         c.file(native.join(source));
     }
-    let glue: &[&str] = if apple { &["native/vt_overlay_stub.c", "native/ym_probe.c"] } else { &["native/ym_probe.c"] };
-    for glue in glue {
-        c.file(glue);
-        println!("cargo:rerun-if-changed={glue}");
-    }
     c.compile("msehost_c");
     for entry in std::fs::read_dir(&native).unwrap().flatten() {
         println!("cargo:rerun-if-changed={}", entry.path().display());
@@ -96,11 +91,6 @@ fn main() {
         println!("cargo:rustc-link-lib=dylib={name}");
     }
     println!("cargo:ffmpeg_lib={}", lib.display());
-    // The packed ffmpeg executable (rpath to its own libav) the download mux runs.
-    let packed = ffmpeg.join("pack").join(if windows { "ffmpeg.exe" } else { "ffmpeg" });
-    if packed.is_file() {
-        println!("cargo:ffmpeg_bin={}", packed.display());
-    }
     // Windows has no rpath: the executable's build copies these DLLs beside itself.
     if windows {
         println!("cargo:ffmpeg_dlls={}", ffmpeg.join("pack").display());

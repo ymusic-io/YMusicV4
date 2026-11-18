@@ -16,6 +16,7 @@ mod cookie_lock;
 mod cookie_session;
 mod data_files;
 mod desktop;
+mod dev_instance;
 #[cfg(target_os = "linux")]
 mod dock_quicklist;
 mod download_dialog;
@@ -36,6 +37,7 @@ mod launch;
 mod lazy_rows;
 mod library;
 mod library_playlist;
+mod library_rescan;
 mod library_search;
 mod local_art;
 mod local_captions;
@@ -68,8 +70,11 @@ mod sleep_timer;
 mod speed_pitch;
 mod spinner;
 mod sponsor_block;
+mod spring;
 mod tab_row;
 mod telemetry;
+#[cfg(unix)]
+mod termination;
 mod tray_popup;
 mod video_details;
 mod video_layer;
@@ -85,7 +90,6 @@ mod yt_playlist;
 
 use gpui_kit::*;
 use ym_common::http::HttpClients;
-use ym_i18n::{Str, t};
 
 use crate::cookie_session::{CookieOpen, LockedJar};
 use crate::graph::AppGraph;
@@ -99,6 +103,7 @@ enum Start {
 /// A launch that cannot boot ends here, its error captured.
 pub fn boot_failed(log: &ym_common::log::Logger, error: &ym_engine::EngineError) -> ! {
     log.capture_error("engine boot failed", error);
+    crate::telemetry::disarm_exit_marker(log);
     ym_common::log::stderr_line(format_args!("{}", crate::feed::error_text(error)));
     std::process::exit(1);
 }
@@ -107,20 +112,38 @@ pub fn boot_failed(log: &ym_common::log::Logger, error: &ym_engine::EngineError)
 /// shell link, which sets no environment.
 pub const DEV_DATA_DIR_ARG: &str = "--data-dir=";
 
+/// Set when the app quits: the `cancel` of every Library scan, so none outlives the quit.
+pub static QUITTING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Blocking tasks still running after the quit hooks are left to the process exit past this.
+const RUNTIME_SHUTDOWN_WAIT: std::time::Duration = std::time::Duration::from_secs(2);
+
 fn main() {
     ym_i18n::use_system_locale();
-    // Debug runs can be pointed at a throwaway data dir for automated checks.
-    let data_dir = if cfg!(debug_assertions) {
-        std::env::args_os()
-            .skip(1)
-            .find_map(|arg| arg.to_str()?.strip_prefix(DEV_DATA_DIR_ARG).map(std::path::PathBuf::from))
-            .or_else(|| std::env::var_os("YMUSIC_DATA_DIR").map(std::path::PathBuf::from))
-            .unwrap_or_else(|| dirs::data_local_dir().unwrap_or_else(std::env::temp_dir).join("YMusicRust"))
-    } else {
-        crate::data_files::release_data_dir()
+    let dev = cfg!(debug_assertions).then(crate::dev_instance::resolve);
+    let data_dir = match &dev {
+        Some(dev) => {
+            crate::dev_instance::set_workspace(dev.workspace.clone());
+            dev.dir.clone()
+        }
+        None => crate::data_files::release_data_dir(),
     };
+    if let Some(dev) = &dev
+        && std::env::args().any(|arg| arg == crate::dev_instance::PRINT_DATA_DIR_ARG)
+    {
+        return dev.print();
+    }
     let log_setup = crate::telemetry::logger(&data_dir);
     let log = log_setup.log.clone();
+    if let Some(problem) = dev.and_then(|dev| dev.workspace_file_problem) {
+        log.warn(
+            &format!("R96010 the worktree's dev workspace file is unusable, using the default data dir: {problem}"),
+            None,
+        );
+    }
+    if let Some(workspace) = crate::dev_instance::workspace() {
+        log.info(&format!("debug workspace {} ({}): {}", workspace.name, workspace.id, data_dir.display()));
+    }
     // Before any window or Jump List: they take the process's ID from then on.
     #[cfg(target_os = "windows")]
     crate::desktop::claim_app_user_model_id(&log.fork("app-id"));
@@ -138,6 +161,12 @@ fn main() {
         }
         Err(error) => instance_log.warn("single-instance setup failed, starting without it", Some(&error)),
     }
+    #[cfg(unix)]
+    let terminated = crate::termination::install(&log.fork("signals"))
+        .inspect_err(|error| {
+            log.warn("R90046 SIGTERM and SIGINT stay fatal: their quit handling did not install", Some(error))
+        })
+        .ok();
     crate::data_files::adopt_jvm_names(&data_dir, &log);
     if !launch.is_empty() {
         let _ = inbox_sender.unbounded_send(launch);
@@ -148,8 +177,13 @@ fn main() {
     let image_loader = crate::images::image_loader(&data_dir, http.following.clone(), tokio.handle().clone(), &log);
     let app_db = graph::open_app_db(&data_dir).unwrap_or_else(|error| boot_failed(&log, &error));
     crate::data_files::import_legacy_files(&app_db, &data_dir, &log);
-    let reporting =
-        crate::telemetry::start_reporting(&log_setup, app_db.as_ref(), tokio.handle(), http.following.clone());
+    let reporting = crate::telemetry::start_reporting(
+        &log_setup,
+        &data_dir,
+        app_db.as_ref(),
+        tokio.handle(),
+        http.following.clone(),
+    );
     let upgrade_notice = crate::app_update::UpgradeNotice::read(&app_db);
     let opened = crate::cookie_session::open(app_db.clone(), &data_dir, &log).unwrap_or_else(|error| {
         boot_failed(&log, &ym_engine::EngineError::site("R98000", format!("cookie store: {error}")))
@@ -194,6 +228,8 @@ fn main() {
             shell.update(cx, |shell, cx| shell.show_window(cx));
         }
     });
+    #[cfg(unix)]
+    let quit_inbox = inbox_sender.clone();
     // macOS delivers ymusic:// links and Finder's Open With as open-URL events, a cold launch's
     // included, before the window exists.
     app.on_open_urls(move |urls| {
@@ -203,8 +239,25 @@ fn main() {
         crate::settings_view::apply_layout_direction(cx);
         init(cx);
         cx.set_global(crate::instance::Inbox(inbox));
+        #[cfg(unix)]
+        if let Some(mut terminated) = terminated {
+            cx.spawn(async move |cx| {
+                use futures::StreamExt;
+                if terminated.next().await.is_some() {
+                    cx.update(|cx| crate::termination::quit(&quit_inbox, cx));
+                }
+            })
+            .detach();
+        }
         cx.on_app_quit(|_| {
+            QUITTING.store(true, std::sync::atomic::Ordering::Relaxed);
             crate::instance::stop_accepting();
+            async {}
+        })
+        .detach();
+        let quit_log = log.fork("quit");
+        cx.on_app_quit(move |_| {
+            crate::telemetry::disarm_exit_marker(&quit_log);
             async {}
         })
         .detach();
@@ -268,7 +321,7 @@ fn main() {
             window_min_size: Some(size(px(275.), px(170.))),
             // Windows hides the native caption: the app draws its title bar (`win_title_bar`).
             titlebar: Some(TitlebarOptions {
-                title: Some(t(Str::AppName).into()),
+                title: Some(crate::dev_instance::window_title().into()),
                 appears_transparent: cfg!(target_os = "windows"),
                 ..Default::default()
             }),
@@ -292,7 +345,7 @@ fn main() {
             } else {
                 WindowBackgroundAppearance::Transparent
             },
-            app_id: Some(crate::desktop::APP_ID.into()),
+            app_id: Some(crate::desktop::app_id().into()),
             icon: window_icon,
             ..Default::default()
         };
@@ -310,7 +363,7 @@ fn main() {
         crate::video_surface::follow_render_device(log.fork("video"));
         crate::desktop::activate_app(cx);
     });
-    drop(tokio);
+    tokio.shutdown_timeout(RUNTIME_SHUTDOWN_WAIT);
 }
 
 /// Debug: `YMUSIC_DEV_WINDOW=WxH` opens the window at that size, for checking breakpoints.

@@ -166,8 +166,11 @@ class MsePlayer internal constructor(
     /** Latest config from the caller. */
     private var config = PlaybackConfig()
 
-    /** base.js's loudness gain for the presenting format; scales [config]'s volume at the host. */
+    /** base.js's loudness gain for the presenting format; scales [config]'s volume at the host under [PlaybackConfig.stableVolume]. */
     private var loudnessGain = 1f
+
+    private fun hostVolume(config: PlaybackConfig): Float =
+        config.volume.coerceIn(0f, 1f) * (if (config.stableVolume) loudnessGain else 1f)
 
     private var loadingVideoId: String? = null
     private var loadedVideoId: String? = null
@@ -235,6 +238,8 @@ class MsePlayer internal constructor(
         val width = viewportW
         val height = viewportH
         if (captionChanged(previous, config)) send { applyCaptionConfig(it, config) }
+        // A session's first config re-pulls too: setConfig drops changes while player/init runs.
+        if (config.stableVolume != previous?.stableVolume) send { it.notifySettingsChanged() }
         val quality = config.preferVideoQuality.first.takeIf { it != VideoQualityState.AUDIO_ONLY }
         val trace = MseLoadTrace(
             source.videoId,
@@ -362,6 +367,8 @@ class MsePlayer internal constructor(
                 enginePlayer.setSpeedPitch(config.speed.coerceIn(0.25f, 3f), config.pitchFactor.coerceIn(0.5f, 2f), log)
             }
             if (captionChanged(previous, config)) applyCaptionConfig(enginePlayer, config)
+            // player.js reads the setting itself; the store already holds the value this config came from.
+            if (config.stableVolume != previous?.stableVolume) enginePlayer.notifySettingsChanged()
         }
     }
 
@@ -635,8 +642,8 @@ class MsePlayer internal constructor(
     /** Native host audio; the host is per session, so [previous] is that session's last push. */
     private fun applySurfaceAudio(previous: PlaybackConfig?, config: PlaybackConfig) {
         if (!hostLive()) return
-        if (previous == null || config.volume != previous.volume) {
-            videoSurface.setVolume(config.volume.coerceIn(0f, 1f) * loudnessGain)
+        if (previous == null || config.volume != previous.volume || config.stableVolume != previous.stableVolume) {
+            videoSurface.setVolume(hostVolume(config))
         }
         if (previous == null ||
             config.eqBands != previous.eqBands ||
@@ -748,7 +755,7 @@ class MsePlayer internal constructor(
         val gain = json.doubleOrNull("value")?.toFloat()?.coerceIn(0f, 1f) ?: return
         if (gain == loudnessGain) return
         loudnessGain = gain
-        if (hostLive()) videoSurface.setVolume(config.volume.coerceIn(0f, 1f) * gain)
+        if (hostLive()) videoSurface.setVolume(hostVolume(config))
     }
 
     private fun applyWatchNext(json: JsonObject) {

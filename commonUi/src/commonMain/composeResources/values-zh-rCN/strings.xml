@@ -302,8 +302,10 @@
     <string name="cd_exit_fullscreen">退出全屏</string>
     <string name="cd_fit_video">适应视频</string>
     <string name="cd_fill_video">填满屏幕</string>
-    <string name="cd_lock_rotation">锁定屏幕旋转</string>
-    <string name="cd_unlock_rotation">解锁屏幕旋转</string>
+    <string name="cd_screen_rotation">屏幕旋转</string>
+    <string name="rotation_lock_landscape">锁定横屏</string>
+    <string name="rotation_lock_portrait">锁定竖屏</string>
+    <string name="rotation_free">自由旋转</string>
     <string name="cd_rewind10">后退 10 秒</string>
     <string name="cd_forward10">前进 10 秒</string>
     <string name="cd_repeat_off">重复播放：关闭</string>
@@ -412,6 +414,8 @@
     <string name="settings_audio_focus_apps">其他应用播放声音时暂停</string>
     <string name="settings_sponsor_block">SponsorBlock</string>
     <string name="settings_sponsor_block_hint">自动跳过 YouTube 视频中的赞助片段。可在“正在播放”中针对单个视频关闭。</string>
+    <string name="settings_stable_volume">稳定音量</string>
+    <string name="settings_stable_volume_hint">平衡响亮与轻柔的部分，让每首歌的响度相近。</string>
     <string name="sponsor_block_included">已为此视频启用 SponsorBlock</string>
     <string name="sponsor_block_excluded">已为此视频停用 SponsorBlock</string>
     <string name="settings_sound">声音</string>
@@ -652,4 +656,19 @@
     <string name="native_blocked_help">如果是工作或学校的电脑，请让管理员允许 YMusic。如果是自己的电脑，请在 Windows 安全中心查看智能应用控制。</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">正在刷新</string>
+    <string name="a11y_loading">正在加载</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">全选</string>
+    <string name="downloads_action_select">选择</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="other">已选择 %1$d 项</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="other">要从列表中移除 %1$d 个下载吗？</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">已完成的文件会保留在此设备上。</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="other">要删除 %1$d 个文件吗？</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">已删除的文件无法恢复。</string>
 </resources>

@@ -306,8 +306,10 @@
     <string name="cd_exit_fullscreen">Kilépés a teljes képernyőből</string>
     <string name="cd_fit_video">Videó igazítása</string>
     <string name="cd_fill_video">Képernyő kitöltése</string>
-    <string name="cd_lock_rotation">Forgatás zárolása</string>
-    <string name="cd_unlock_rotation">Forgatás feloldása</string>
+    <string name="cd_screen_rotation">Képernyő elforgatása</string>
+    <string name="rotation_lock_landscape">Zárolás fekvő módban</string>
+    <string name="rotation_lock_portrait">Zárolás álló módban</string>
+    <string name="rotation_free">Szabad forgatás</string>
     <string name="cd_rewind10">10 másodperc vissza</string>
     <string name="cd_forward10">10 másodperc előre</string>
     <string name="cd_repeat_off">Ismétlés: ki</string>
@@ -416,6 +418,8 @@
     <string name="settings_audio_focus_apps">Szüneteltetés, ha más alkalmazás hangot játszik le</string>
     <string name="settings_sponsor_block">SponsorBlock</string>
     <string name="settings_sponsor_block_hint">A szponzorált részek automatikus átugrása a YouTube-videókban. Egy adott videónál a Most szól képernyőn kapcsolható ki.</string>
+    <string name="settings_stable_volume">Stabil hangerő</string>
+    <string name="settings_stable_volume_hint">Kiegyenlíti a hangos és halk részeket, és minden dalt hasonló hangerővel játszik le.</string>
     <string name="sponsor_block_included">SponsorBlock bekapcsolva ehhez a videóhoz</string>
     <string name="sponsor_block_excluded">SponsorBlock kikapcsolva ehhez a videóhoz</string>
     <string name="settings_sound">Hang</string>
@@ -660,4 +664,22 @@
     <string name="native_blocked_help">Munkahelyi vagy iskolai gépen kérd meg a rendszergazdát, hogy engedélyezze a YMusicot. A saját gépeden ellenőrizd a Smart App Control beállítást a Windows biztonságban.</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Frissítés</string>
+    <string name="a11y_loading">Betöltés</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">Összes kijelölése</string>
+    <string name="downloads_action_select">Kijelölés</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="one">%1$d kijelölve</item>
+        <item quantity="other">%1$d kijelölve</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="one">Eltávolítasz %1$d letöltést a listáról?</item>
+        <item quantity="other">Eltávolítasz %1$d letöltést a listáról?</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">A befejezett fájlok ezen az eszközön maradnak.</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="one">Törölsz %1$d fájlt?</item>
+        <item quantity="other">Törölsz %1$d fájlt?</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">A törölt fájlok nem állíthatók vissza.</string>
 </resources>

@@ -146,6 +146,8 @@ fun PlaylistDownloadScreen(graph: AppGraph, session: PlaylistDownloadSession, on
         }
     }
     val locationName = rememberDownloadLocationName(graph)
+    val loadFocus = remember(session) { LoadMoreFocus() }
+    loadFocus.Settle(ready?.loadingMore == true, videos.size, controlShown = ready?.continuation != null)
 
     Column(Modifier.fillMaxSize().background(DesignColors.Surface)) {
         ElevatedBarColumn {
@@ -156,7 +158,7 @@ fun PlaylistDownloadScreen(graph: AppGraph, session: PlaylistDownloadSession, on
         }
         LazyColumn(Modifier.weight(1f).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
             item {
-                LoadedHeader(session, ready, videos, offline)
+                LoadedHeader(session, ready, videos, offline, loadFocus)
             }
             item {
                 OptionsCard(
@@ -174,6 +176,7 @@ fun PlaylistDownloadScreen(graph: AppGraph, session: PlaylistDownloadSession, on
                     position = (index + 1).takeIf { session.indexPrefix },
                     checked = video.id in session.checked,
                     downloaded = video.id in offline,
+                    modifier = loadFocus.item(index),
                 ) { on ->
                     session.checked = if (on) session.checked + video.id else session.checked - video.id
                 }
@@ -217,7 +220,13 @@ fun PlaylistDownloadScreen(graph: AppGraph, session: PlaylistDownloadSession, on
 private val CONTENT_MAX_WIDTH = 760.dp
 
 @Composable
-private fun LoadedHeader(session: PlaylistDownloadSession, ready: Pager.State.Ready?, videos: List<YtFeedItem>, offline: Set<String>) {
+private fun LoadedHeader(
+    session: PlaylistDownloadSession,
+    ready: Pager.State.Ready?,
+    videos: List<YtFeedItem>,
+    offline: Set<String>,
+    loadFocus: LoadMoreFocus,
+) {
     var menuOpen by remember { mutableStateOf(false) }
     Column(
         Modifier.widthIn(max = CONTENT_MAX_WIDTH).fillMaxWidth().padding(horizontal = DesignSpacing.Space16, vertical = DesignSpacing.Space8),
@@ -232,8 +241,15 @@ private fun LoadedHeader(session: PlaylistDownloadSession, ready: Pager.State.Re
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(DesignSpacing.Space8)) {
             FeedChip(pluralText(Res.plurals.playlist_videos_loaded, videos.size, videos.size), selected = false, onClick = null)
             when {
-                ready?.loadingMore == true -> CircularProgressIndicator(Modifier.size(18.dp), color = DesignColors.Accent, strokeWidth = 2.dp)
-                ready?.continuation != null -> FeedChip(stringResource(Res.string.playlist_load_more), selected = true, choice = false) { session.pager.loadMore() }
+                ready?.loadingMore == true -> LoadingMoreIndicator(loadFocus) {
+                    CircularProgressIndicator(Modifier.size(18.dp), color = DesignColors.Accent, strokeWidth = 2.dp)
+                }
+                ready?.continuation != null -> Box(loadFocus.control) {
+                    FeedChip(stringResource(Res.string.playlist_load_more), selected = true, choice = false) {
+                        loadFocus.start(videos.size)
+                        session.pager.loadMore()
+                    }
+                }
             }
             Box(Modifier.weight(1f))
             Box {
@@ -361,7 +377,14 @@ private fun OptionsCard(
 }
 
 @Composable
-private fun VideoCheckRow(video: YtFeedItem, position: Int?, checked: Boolean, downloaded: Boolean, onToggle: (Boolean) -> Unit) {
+private fun VideoCheckRow(
+    video: YtFeedItem,
+    position: Int?,
+    checked: Boolean,
+    downloaded: Boolean,
+    modifier: Modifier = Modifier,
+    onToggle: (Boolean) -> Unit,
+) {
     val title = if (position != null) "$position. ${video.title}" else video.title
     val label = listOfNotNull(
         title,
@@ -375,7 +398,7 @@ private fun VideoCheckRow(video: YtFeedItem, position: Int?, checked: Boolean, d
         if (downloaded) stringResource(Res.string.a11y_downloaded) else null,
     ).joinToString(", ")
     Row(
-        Modifier
+        modifier
             .widthIn(max = CONTENT_MAX_WIDTH)
             .fillMaxWidth()
             .toggleable(value = checked, enabled = !video.live, role = Role.Checkbox, onValueChange = onToggle)

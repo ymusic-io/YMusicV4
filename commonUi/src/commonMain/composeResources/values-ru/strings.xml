@@ -314,8 +314,10 @@
     <string name="cd_exit_fullscreen">Выйти из полноэкранного режима</string>
     <string name="cd_fit_video">Вписать видео</string>
     <string name="cd_fill_video">Заполнить экран</string>
-    <string name="cd_lock_rotation">Заблокировать поворот</string>
-    <string name="cd_unlock_rotation">Разблокировать поворот</string>
+    <string name="cd_screen_rotation">Поворот экрана</string>
+    <string name="rotation_lock_landscape">Зафиксировать горизонтально</string>
+    <string name="rotation_lock_portrait">Зафиксировать вертикально</string>
+    <string name="rotation_free">Свободный поворот</string>
     <string name="cd_rewind10">Назад на 10 секунд</string>
     <string name="cd_forward10">Вперёд на 10 секунд</string>
     <string name="cd_repeat_off">Повтор: выкл.</string>
@@ -424,6 +426,8 @@
     <string name="settings_audio_focus_apps">Пауза, когда другие приложения воспроизводят звук</string>
     <string name="settings_sponsor_block">SponsorBlock</string>
     <string name="settings_sponsor_block_hint">Автоматически пропускать спонсорские вставки в видео YouTube. Для отдельного видео можно отключить на экране воспроизведения.</string>
+    <string name="settings_stable_volume">Стабильная громкость</string>
+    <string name="settings_stable_volume_hint">Выравнивает громкие и тихие фрагменты и воспроизводит все треки с похожей громкостью.</string>
     <string name="sponsor_block_included">SponsorBlock включён для этого видео</string>
     <string name="sponsor_block_excluded">SponsorBlock отключён для этого видео</string>
     <string name="settings_sound">Звук</string>
@@ -676,4 +680,28 @@
     <string name="native_blocked_help">На рабочем или учебном компьютере попросите администратора разрешить YMusic. На личном компьютере проверьте Smart App Control в разделе «Безопасность Windows».</string>
     <!-- A feed reloading in place (desktop) -->
     <string name="a11y_refreshing">Обновление</string>
+    <string name="a11y_loading">Загрузка</string>
+    <!-- Download manager multi-select -->
+    <string name="select_all">Выбрать все</string>
+    <string name="downloads_action_select">Выбрать</string>
+    <plurals name="downloads_selected_count">
+        <item quantity="one">Выбрано: %1$d</item>
+        <item quantity="few">Выбрано: %1$d</item>
+        <item quantity="many">Выбрано: %1$d</item>
+        <item quantity="other">Выбрано: %1$d</item>
+    </plurals>
+    <plurals name="downloads_remove_selected_title">
+        <item quantity="one">Убрать %1$d загрузку из списка?</item>
+        <item quantity="few">Убрать %1$d загрузки из списка?</item>
+        <item quantity="many">Убрать %1$d загрузок из списка?</item>
+        <item quantity="other">Убрать %1$d загрузки из списка?</item>
+    </plurals>
+    <string name="downloads_remove_selected_message">Готовые файлы останутся на этом устройстве.</string>
+    <plurals name="downloads_delete_selected_title">
+        <item quantity="one">Удалить %1$d файл?</item>
+        <item quantity="few">Удалить %1$d файла?</item>
+        <item quantity="many">Удалить %1$d файлов?</item>
+        <item quantity="other">Удалить %1$d файла?</item>
+    </plurals>
+    <string name="downloads_delete_selected_message">Удалённые файлы нельзя восстановить.</string>
 </resources>

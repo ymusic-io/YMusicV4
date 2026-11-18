@@ -140,7 +140,7 @@ internal class WindowsSmtcSession(
             arrayOf(WS_EX_TOOLWINDOW, className, WString("YMusic"), WS_POPUP, 0, 0, 0, 0, null, null, module, null),
         ) ?: error("CreateWindowExW failed")
         window = hwnd
-        setWindowAppId(hwnd, WindowsAppId.ID)
+        setWindowAppId(hwnd, WindowsAppId.id)
         val interop = activationFactory(CLASS_SMTC, IID_SMTC_INTEROP)
         try {
             smtc = own(interop.callForObject(INTEROP_GET_FOR_WINDOW, "GetForWindow", hwnd, WindowsCom.guid(IID_SMTC)))
