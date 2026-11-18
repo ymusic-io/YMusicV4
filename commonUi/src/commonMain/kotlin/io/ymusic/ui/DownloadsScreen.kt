@@ -2,8 +2,6 @@ package io.ymusic.ui
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.focusable
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,18 +19,13 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
@@ -52,23 +45,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.input.InputMode
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.platform.LocalInputModeManager
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.onLongClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
@@ -86,9 +70,7 @@ import io.ymusic.mediastore.BetterMediaStore
 import io.ymusic.mediastore.model.MediaStoreItem
 import io.ymusic.ui.resources.Res
 import io.ymusic.ui.resources.a11y_x_of_y
-import io.ymusic.ui.resources.cd_close
 import io.ymusic.ui.resources.cd_share
-import io.ymusic.ui.resources.delete_from_disk_confirm
 import io.ymusic.ui.resources.dialog_cancel
 import io.ymusic.ui.resources.download_other_format
 import io.ymusic.ui.resources.download_size_kb
@@ -98,8 +80,6 @@ import io.ymusic.ui.resources.downloads_action_resume
 import io.ymusic.ui.resources.downloads_action_reveal_library
 import io.ymusic.ui.resources.downloads_action_select
 import io.ymusic.ui.resources.downloads_completed_date
-import io.ymusic.ui.resources.downloads_delete_selected_message
-import io.ymusic.ui.resources.downloads_delete_selected_title
 import io.ymusic.ui.resources.downloads_empty_all
 import io.ymusic.ui.resources.downloads_empty_completed
 import io.ymusic.ui.resources.downloads_empty_error
@@ -120,7 +100,6 @@ import io.ymusic.ui.resources.downloads_pause_all
 import io.ymusic.ui.resources.downloads_remove_selected_message
 import io.ymusic.ui.resources.downloads_remove_selected_title
 import io.ymusic.ui.resources.downloads_resume_all
-import io.ymusic.ui.resources.downloads_selected_count
 import io.ymusic.ui.resources.downloads_state_canceled
 import io.ymusic.ui.resources.downloads_state_done
 import io.ymusic.ui.resources.downloads_state_downloading
@@ -140,13 +119,11 @@ import io.ymusic.ui.resources.playback_retry_later
 import io.ymusic.ui.resources.playback_sign_in_required
 import io.ymusic.ui.resources.playback_unavailable
 import io.ymusic.ui.resources.retry
-import io.ymusic.ui.resources.select_all
 import kmpcommon.log.Logger
 import kmpcommon.uri.Uri
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
-import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.first
@@ -162,7 +139,6 @@ import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringArrayResource
 import org.jetbrains.compose.resources.stringResource
 import projectcommon.error.Playability
-import projectcommon.error.TechnicalException
 import projectcommon.error.errorCode
 import projectcommon.error.playabilityOf
 import projectcommon.log.captureUnlessEnvironmental
@@ -263,58 +239,19 @@ fun DownloadsScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
         }
     }
 
-    var selectedIds by remember { mutableStateOf(emptySet<String>()) }
-    // What Select all restores when clicked again; only valid until the selection or the shown list
-    // changes otherwise.
-    var selectionBeforeSelectAll by remember { mutableStateOf<Set<String>?>(null) }
+    val multiSelection = rememberMultiSelection<String>()
     val visibleIds = visible.mapTo(HashSet()) { it.id }
     val shownIds = shown.map { it.id }
     LaunchedEffect(shownIds) { naturalHeights.keys.retainAll(shownIds.toSet()) }
-    LaunchedEffect(visibleIds) {
-        val kept = selectedIds intersect visibleIds
-        if (kept != selectedIds) {
-            selectedIds = kept
-            selectionBeforeSelectAll = null
-        }
-    }
-    LaunchedEffect(shownIds) { selectionBeforeSelectAll = null }
-    val selection = selectedIds intersect visibleIds
+    LaunchedEffect(visibleIds) { multiSelection.retain(visibleIds) }
+    LaunchedEffect(shownIds) { multiSelection.forgetSelectAll() }
+    val selection = multiSelection.selected intersect visibleIds
     val selecting = selection.isNotEmpty()
-    val changeSelection = { ids: Set<String> ->
-        selectedIds = ids
-        selectionBeforeSelectAll = null
-    }
-    val endSelection = { changeSelection(emptySet()) }
-    // The card focus returns to when selection mode ends and its bar, holding focus, goes away.
-    var selectionOrigin by remember { mutableStateOf<String?>(null) }
-    var focusCard by remember { mutableStateOf<String?>(null) }
-    val keyboardMode = LocalInputModeManager.current.inputMode == InputMode.Keyboard
-    val toggleSelected = { id: String ->
-        selectionOrigin = id
-        changeSelection(if (id in selectedIds) selectedIds - id else selectedIds + id)
-    }
-    val allShownSelected = shownIds.isNotEmpty() && selection.containsAll(shownIds)
-    val toggleSelectAll = {
-        if (allShownSelected) {
-            val restored = selectionBeforeSelectAll ?: (selection - shownIds.toSet())
-            changeSelection(restored)
-        } else if (shownIds.isNotEmpty()) {
-            val before = selection
-            changeSelection(selection + shownIds)
-            selectionBeforeSelectAll = before
-        }
-    }
-    NestedBackHandler(enabled = selecting) { endSelection() }
-    LaunchedEffect(selecting) {
-        if (selecting) return@LaunchedEffect
-        val origin = selectionOrigin ?: return@LaunchedEffect
-        selectionOrigin = null
-        if (!keyboardMode) return@LaunchedEffect
-        val target = origin.takeIf { it in shownIds } ?: shownIds.firstOrNull() ?: return@LaunchedEffect
+    val endSelection = { multiSelection.end() }
+    MultiSelectionEffects(multiSelection, shownIds) { index ->
         // The filter chips are the grid's first item.
-        val gridIndex = shownIds.indexOf(target) + 1
+        val gridIndex = index + 1
         if (gridState.layoutInfo.visibleItemsInfo.none { it.index == gridIndex }) gridState.scrollToItem(gridIndex)
-        focusCard = target
     }
     val selectedTasks = visible.filter { it.id in selection }
     val deletableItems = rememberDeletableItems(graph, selectedTasks)
@@ -330,7 +267,15 @@ fun DownloadsScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
                 pending.taskIds.forEach(service::remove)
                 finish()
             }
-            is SelectionConfirm.Delete -> DeleteSelectedDialog(graph, service, pending.targets, onDismiss = dismiss, onDone = finish)
+            is SelectionConfirm.Delete -> DeleteSelectedFilesDialog(
+                graph,
+                pending.targets,
+                fallbackCode = "E70082",
+                log = { taskId -> graph.logger?.fork("downloads", mapOf("taskId" to taskId)) },
+                afterDelete = service::remove,
+                onDismiss = dismiss,
+                onDone = finish,
+            )
         }
     }
     ReplaceAppBar(enabled = selecting) {
@@ -341,9 +286,9 @@ fun DownloadsScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
         }
         DownloadSelectionBar(
             count = selection.size,
-            allSelected = allShownSelected,
+            allSelected = multiSelection.allSelected(shownIds),
             onClose = endSelection,
-            onToggleSelectAll = toggleSelectAll,
+            onToggleSelectAll = { multiSelection.toggleAll(shownIds) },
             onPause = if (pausable.isEmpty()) {
                 null
             } else {
@@ -392,7 +337,7 @@ fun DownloadsScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
                             selected = entry == filter,
                         ) {
                             filter = entry
-                            selectionBeforeSelectAll = null
+                            multiSelection.forgetSelectAll()
                         }
                     }
                 }
@@ -417,13 +362,10 @@ fun DownloadsScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
                     onNaturalHeight = { height -> if (naturalHeights[task.id] != height) naturalHeights[task.id] = height },
                     selecting = selecting,
                     selected = task.id in selection,
-                    onToggleSelected = { toggleSelected(task.id) },
-                    onStartSelection = {
-                        selectionOrigin = task.id
-                        changeSelection(setOf(task.id))
-                    },
-                    requestFocus = focusCard == task.id,
-                    onFocusRequested = { focusCard = null },
+                    onToggleSelected = { multiSelection.toggle(task.id) },
+                    onStartSelection = { multiSelection.start(task.id) },
+                    requestFocus = multiSelection.focusTarget == task.id,
+                    onFocusRequested = multiSelection::focusHandled,
                     onRetry = { retry(task) },
                     onPlay = { scope.launch { coordinator.playDownloads(shown, task.id) } },
                     onRevealLibrary = if (store != null) ({
@@ -510,16 +452,7 @@ private fun DownloadSelectionBar(
 ) {
     val removeLabel = stringResource(Res.string.menu_remove_folder)
     val deleteLabel = stringResource(Res.string.menu_remove_from_disk)
-    AppBarRow {
-        ActionIcon(Icons.Default.Close, stringResource(Res.string.cd_close), onClick = onClose)
-        AppBarTitle(pluralText(Res.plurals.downloads_selected_count, count, count))
-        ToggleActionIcon(
-            Icons.Default.SelectAll,
-            stringResource(Res.string.select_all),
-            checked = allSelected,
-            tint = if (allSelected) DesignColors.Accent else DesignColors.InkMuted,
-            onCheckedChange = { onToggleSelectAll() },
-        )
+    SelectionBar(count, allSelected, onClose, onToggleSelectAll) {
         onPause?.let { ActionIcon(Icons.Filled.Pause, stringResource(Res.string.downloads_action_pause), onClick = it) }
         onResume?.let { ActionIcon(Icons.Filled.PlayArrow, stringResource(Res.string.downloads_action_resume), onClick = it) }
         MoreMenu(ItemActions(listOfNotNull(removeLabel to onRemove, onDelete?.let { deleteLabel to it })), inFocusableItem = false)
@@ -578,85 +511,6 @@ private fun RemoveSelectedDialog(count: Int, onDismiss: () -> Unit, onConfirm: (
     }
 }
 
-/** Deletes each target's file and Library row, then drops its task. A failed one stays listed with its error shown. */
-@Composable
-private fun DeleteSelectedDialog(
-    graph: AppGraph,
-    service: DownloadService,
-    targets: Map<String, MediaStoreItem>,
-    onDismiss: () -> Unit,
-    onDone: () -> Unit,
-) {
-    val scope = rememberCoroutineScope()
-    var remaining by remember(targets) { mutableStateOf(targets) }
-    var busy by remember { mutableStateOf(false) }
-    var errorCode by remember { mutableStateOf<String?>(null) }
-    val dismiss = { if (!busy) onDismiss() }
-    val deleteFile = graph.deleteFromDisk
-    val store = graph.mediaStore
-    ElevatedBarDialog(
-        title = pluralText(Res.plurals.downloads_delete_selected_title, remaining.size, remaining.size),
-        onDismiss = dismiss,
-        canScrollBackward = false,
-        canScrollForward = false,
-        buttons = {
-            DialogSecondaryButton(stringResource(Res.string.dialog_cancel), enabled = !busy, onClick = dismiss)
-            TextButton(
-                enabled = !busy && deleteFile != null && store != null,
-                onClick = {
-                    if (deleteFile == null || store == null) return@TextButton
-                    busy = true
-                    errorCode = null
-                    scope.launch {
-                        var firstError: String? = null
-                        for ((taskId, item) in remaining) {
-                            try {
-                                // A started delete finishes its bookkeeping: a gone file must not leave its row and task behind.
-                                withContext(NonCancellable) {
-                                    deleteFile(item)
-                                    store.deleteItem(item.id, hard = true)
-                                    service.remove(taskId)
-                                }
-                                remaining = remaining - taskId
-                            } catch (cancel: CancellationException) {
-                                throw cancel
-                            } catch (failure: Throwable) {
-                                val code = failure.errorCode()
-                                val log = graph.logger?.fork("downloads", mapOf("taskId" to taskId))
-                                if (code == null) {
-                                    log?.captureError(TechnicalException("E70082", "delete from storage failed", cause = failure))
-                                } else {
-                                    log?.log(Logger.Level.WARN, "delete from storage failed", failure)
-                                }
-                                firstError = firstError ?: code ?: "E70082"
-                            }
-                        }
-                        busy = false
-                        errorCode = firstError
-                        if (firstError == null) onDone()
-                    }
-                },
-            ) { Text(stringResource(Res.string.delete_from_disk_confirm), color = MaterialTheme.colorScheme.error) }
-        },
-    ) {
-        Column(Modifier.padding(horizontal = DesignSpacing.Space24, vertical = DesignSpacing.Space16)) {
-            Text(
-                stringResource(Res.string.downloads_delete_selected_message),
-                style = MaterialTheme.typography.bodyMedium,
-                color = DesignColors.Ink,
-            )
-            errorCode?.let {
-                Text(
-                    errorMessage(it),
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(top = DesignSpacing.Space8),
-                )
-            }
-        }
-    }
-}
-
 /** The filter chips, in display order. CANCELED matches none (it's filtered out of the screen). */
 private enum class DownloadFilter(val label: StringResource, val empty: StringResource) {
     ALL(Res.string.downloads_filter_all, Res.string.downloads_empty_all),
@@ -701,27 +555,15 @@ private fun DownloadCard(
 ) {
     val c = downloadColors()
     val failed = task.state == DownloadState.FAILED
-    val haptics = LocalHapticFeedback.current
-    val startSelection by rememberUpdatedState(onStartSelection)
     val selectLabel = stringResource(Res.string.downloads_action_select)
-    val focusRequester = remember { FocusRequester() }
-    if (requestFocus) {
-        LaunchedEffect(Unit) {
-            focusRequester.requestFocus()
-            onFocusRequested()
-        }
-    }
-    val selectionGesture = Modifier.focusRequester(focusRequester).focusRing(RoundedCornerShape(MediaCardCorner)).then(
-        if (selecting) {
-            Modifier.toggleable(value = selected, role = Role.Checkbox, onValueChange = { onToggleSelected() })
-        } else {
-            Modifier.focusable().pointerInput(Unit) {
-                detectTapGestures(onLongPress = {
-                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                    startSelection()
-                })
-            }
-        },
+    val selectionGesture = Modifier.multiSelectGesture(
+        selecting = selecting,
+        selected = selected,
+        shape = RoundedCornerShape(MediaCardCorner),
+        requestFocus = requestFocus,
+        onFocusRequested = onFocusRequested,
+        onToggle = onToggleSelected,
+        onStartSelection = onStartSelection,
     )
     Surface(
         shape = RoundedCornerShape(MediaCardCorner),
@@ -737,7 +579,7 @@ private fun DownloadCard(
         ) {
             // While selecting, the card's toggle merges the whole card into one checkbox stop instead.
             val rowSemantics = Modifier.semantics(mergeDescendants = !selecting) {
-                if (!selecting) onLongClick(selectLabel) { startSelection(); true }
+                if (!selecting) onLongClick(selectLabel) { onStartSelection(); true }
             }
             Row(rowSemantics, horizontalArrangement = Arrangement.spacedBy(CardGap)) {
                 LibraryThumb(icon = Icons.Outlined.FileDownload, badge = null, artUrl = task.thumbnailUrl, corner = MediaCardCorner)
@@ -757,9 +599,7 @@ private fun DownloadCard(
                     }
                 }
                 if (selecting) {
-                    Box(Modifier.size(SelectToggleSize), contentAlignment = Alignment.Center) {
-                        Checkbox(checked = selected, onCheckedChange = null, colors = CheckboxDefaults.colors(checkedColor = c.accent))
-                    }
+                    SelectionCheck(selected)
                 } else {
                     MoreMenu(actionsFor(task, service, onRetry, onPlay, onRevealLibrary, onRevealFolder, fileActions, onOtherFormat, onStartSelection))
                 }
@@ -1155,4 +995,3 @@ private val ThumbSize = 56.dp // LibraryThumb's size
 private val ContentIndent = ThumbSize + CardGap // aligns the bar under the text
 private val DownloadCardMinWidth = 340.dp // adaptive grid: 1 column on a phone, more as width allows
 private val FabClearance = 88.dp // bottom inset so the FAB doesn't cover the last card
-private val SelectToggleSize = 40.dp // ActionIcon's hit size: the checkbox takes the ⋮'s slot without a layout shift

@@ -59,6 +59,7 @@ mod quick_download;
 mod reorder;
 mod search_filter;
 mod search_view;
+mod selection;
 mod settings_lists;
 mod settings_view;
 mod shell;
