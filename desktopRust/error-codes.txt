@@ -195,7 +195,7 @@ R94002 D library: saving a local playlist's arrangement failed
 R94003 D library: deleting a file from disk failed (file removal or its media-store row)
 R94004 D library: removing, excluding or including a folder failed (media store)
 R94005 D library: a Top tracks play-history row could not be removed
-R94006 - library: Remove from disk on the Songs selection bar could not delete a selected file or its Library row; the dialog keeps it and shows the code (the JVM E50013, captured)
+R94006 D library: Remove from disk on the Songs selection bar could not delete a selected file or its Library row; the dialog keeps it and shows the code (the JVM E50013, captured)
 R95000 D now playing: a local queue item could not be looked up in the library to open its artist or album
 R96000 D single instance: another process holds the data dir's instance lock but took no request
 R96001 D single instance: the lock, loopback listener or port file could not be set up

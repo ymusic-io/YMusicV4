@@ -116,8 +116,8 @@ E50008 D deleting a library file from disk failed, otherwise uncoded (commonUi D
 E50009 D a library file:// file could not be deleted (androidApp YMusicApplication.deleteFromDisk)
 E50011 D the installed YMusic Files has no folder picker activity (androidApp MainActivity.pickFolderWithCompanion)
 E50012 D a library scan failed with an otherwise uncoded error (commonUi ScanController.run)
-E50013 - deleting a selected Library song's file from storage failed with an uncoded error (commonUi LibraryScreen.kt songs selection, DeleteSelectedFilesDialog)
-E50014 - removing songs from a local playlist failed in the store (commonUi LibraryScreen.kt removeFromLocalPlaylist: row menu and selection bar)
+E50013 D deleting a selected Library song's file from storage failed with an uncoded error (commonUi LibraryScreen.kt songs selection, DeleteSelectedFilesDialog)
+E50014 D removing songs from a local playlist failed in the store (commonUi LibraryScreen.kt removeFromLocalPlaylist: row menu and selection bar)
 
 E60001 D bad media uri — AVURLAsset unopenable (player apple)
 E60002 D timed out preparing the AVPlayerItem (player apple)
