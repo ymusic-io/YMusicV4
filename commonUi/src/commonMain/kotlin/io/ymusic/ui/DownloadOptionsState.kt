@@ -18,6 +18,7 @@ import io.ymusic.download.DownloadService
 import io.ymusic.download.LiveVideoException
 import io.ymusic.download.VideoOption
 import io.ymusic.dynamicengine.yt.YtFeedItem
+import io.ymusic.settings.SettingsStore
 import io.ymusic.ui.resources.Res
 import io.ymusic.ui.resources.download_size_gb
 import io.ymusic.ui.resources.download_size_mb
@@ -45,6 +46,8 @@ internal class DownloadOptionsState(
     private val downloads: DownloadService,
     /** The Quick download caption language the dialog starts from; null starts with captions Off. */
     private val preferredCaptionLanguage: String?,
+    /** Where the caption picker reads and records the recent caption languages. */
+    val settings: SettingsStore,
 ) {
     /** Also keep these picks as the Quick download preset. */
     var saveAsQuick by mutableStateOf(false)

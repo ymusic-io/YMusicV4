@@ -57,6 +57,7 @@ import io.ymusic.dynamicengine.yt.YtFeedItem
 import io.ymusic.dynamicengine.yt.YtLocaleOption
 import io.ymusic.mediastore.BetterMediaStore
 import io.ymusic.mediastore.model.Playlist
+import io.ymusic.settings.SettingsStore
 import io.ymusic.ui.resources.Res
 import io.ymusic.ui.resources.a11y_downloaded
 import io.ymusic.ui.resources.a11y_kind_live
@@ -156,6 +157,7 @@ fun PlaylistDownloadScreen(graph: AppGraph, session: PlaylistDownloadSession, on
                     session,
                     languages,
                     ffmpegAvailable = downloads.ffmpegAvailable,
+                    settings = graph.settings,
                     locationName = locationName,
                     onPickLocation = { scope.launch { pickDownloadFolder(graph, snackbar, scans) } },
                     libraryStore = graph.mediaStore,
@@ -273,6 +275,7 @@ private fun OptionsCard(
     session: PlaylistDownloadSession,
     languages: List<YtLocaleOption>,
     ffmpegAvailable: Boolean,
+    settings: SettingsStore,
     locationName: String?,
     onPickLocation: () -> Unit,
     libraryStore: BetterMediaStore?,
@@ -291,7 +294,7 @@ private fun OptionsCard(
             stringResource(Res.string.playlist_options).uppercase(),
             style = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.5.sp, color = DesignColors.InkSecondary),
         )
-        QuickPresetFields(session.preset, languages, ffmpegAvailable) { session.preset = it }
+        QuickPresetFields(session.preset, languages, ffmpegAvailable, settings) { session.preset = it }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(DesignSpacing.Space16)) {
             Text(
                 stringResource(Res.string.download_save_to),

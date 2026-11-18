@@ -8,6 +8,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.TextStyle
@@ -19,6 +20,7 @@ import io.ymusic.download.DownloadFormat
 import io.ymusic.download.DownloadKind
 import io.ymusic.dynamicengine.yt.YtLocaleOption
 import io.ymusic.dynamicengine.yt.ytLocaleOptions
+import io.ymusic.settings.SettingsStore
 import io.ymusic.ui.resources.Res
 import io.ymusic.ui.resources.download_audio_language
 import io.ymusic.ui.resources.download_audio_only
@@ -30,6 +32,7 @@ import io.ymusic.ui.resources.download_quality
 import io.ymusic.ui.resources.download_video
 import kmpcommon.log.Logger
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 
 private val PRESET_HEIGHTS = listOf(2160, 1440, 1080, 720, 480, 360)
@@ -40,6 +43,7 @@ internal fun QuickPresetFields(
     preset: QuickDownloadPreset,
     languages: List<YtLocaleOption>,
     ffmpegAvailable: Boolean,
+    settings: SettingsStore,
     onChange: (QuickDownloadPreset) -> Unit,
 ) {
     val audioFormats = if (ffmpegAvailable) listOf(DownloadFormat.AUDIO_WEBM, DownloadFormat.M4A, DownloadFormat.MP3) else listOf(DownloadFormat.M4A)
@@ -82,10 +86,21 @@ internal fun QuickPresetFields(
     }
     if (ffmpegAvailable) {
         val off = stringResource(Res.string.download_captions_off)
-        OptionLine(stringResource(Res.string.download_captions), languageName(preset.captionLanguage, languages) ?: off) { close ->
+        val recent = rememberRecentCaptionLanguages(settings)
+        val scope = rememberCoroutineScope()
+        val selected = preset.captionLanguage
+        fun pick(code: String) {
+            onChange(preset.copy(captionLanguage = code))
+            scope.launch { settings.recordRecentCaptionLanguage(code) }
+        }
+        OptionLine(stringResource(Res.string.download_captions), languageName(selected, languages) ?: off) { close ->
+            val recentLanguages = languages.inRecentCaptionLanguages(recent) { it.code }.filter { it.code != selected }
+            val rest = languages.filter { it.code != selected && it !in recentLanguages }
             ChoiceMenuItems(
-                listOf(Choice(off, preset.captionLanguage == null) { onChange(preset.copy(captionLanguage = null)) }) +
-                    languages.map { lang -> Choice(lang.label, lang.code == preset.captionLanguage) { onChange(preset.copy(captionLanguage = lang.code)) } },
+                listOfNotNull(
+                    Choice(off, selected == null) { onChange(preset.copy(captionLanguage = null)) },
+                    selected?.let { code -> Choice(languageName(code, languages) ?: code, selected = true) { pick(code) } },
+                ) + (recentLanguages + rest).map { lang -> Choice(lang.label, selected = false) { pick(lang.code) } },
                 close,
             )
         }

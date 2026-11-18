@@ -49,7 +49,7 @@ internal fun QuickDownloadRow(graph: AppGraph) {
             Modifier.fillMaxWidth().padding(horizontal = DesignSpacing.DialogRowHorizontal, vertical = DesignSpacing.Space16),
             verticalArrangement = Arrangement.spacedBy(DesignSpacing.Space8),
         ) {
-            QuickPresetFields(editing, languages, graph.downloads?.ffmpegAvailable == true) { draft = it }
+            QuickPresetFields(editing, languages, graph.downloads?.ffmpegAvailable == true, graph.settings) { draft = it }
         }
     }
 }
