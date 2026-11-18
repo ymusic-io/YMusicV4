@@ -303,9 +303,10 @@ fun LibraryScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
             val tabRowSlot = remember { AppBarSlot() }
             val songsSort = rememberSortState("songs", graph.settings)
             val sortedSongs by remember(loaded.songs, songsSort) { derivedStateOf { songsSort.sort(loaded.songs, songSortOptions) } }
-            val sortedSongIds = sortedSongs.map { it.id }
-            LaunchedEffect(sortedSongIds) {
-                songSelection.retain(sortedSongIds.toSet())
+            // Keyed on membership: a re-sort keeps what Select all restores.
+            val songIdSet = remember(loaded.songs) { loaded.songs.mapTo(HashSet()) { it.id } }
+            LaunchedEffect(songIdSet) {
+                songSelection.retain(songIdSet)
                 songSelection.forgetSelectAll()
             }
             LaunchedEffect(tab) { if (tab != LibraryTab.Songs) songSelection.abandon() }
@@ -1225,8 +1226,10 @@ private fun PlaylistsTab(
         removeFromPlaylist?.let { remove -> { song: MediaStoreItem -> remove(listOf(song)) } }
     }
     val songIds = songs.map { it.id }
-    LaunchedEffect(songIds) {
-        playlistSelection.retain(songIds.toSet())
+    // Keyed on membership: a re-sort or rearrange keeps what Select all restores.
+    val songIdSet = songIds.toSet()
+    LaunchedEffect(songIdSet) {
+        playlistSelection.retain(songIdSet)
         playlistSelection.forgetSelectAll()
     }
     val selection = playlistSelection.takeIf { isUser }
