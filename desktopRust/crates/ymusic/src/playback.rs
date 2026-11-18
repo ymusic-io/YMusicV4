@@ -1465,8 +1465,9 @@ impl Playback {
     fn save_setting(&self, key: &'static str, value: String, cx: &mut Context<Self>) {
         let graph = cx.global::<AppGraph>();
         let (settings, log) = (graph.settings.clone(), graph.log.fork("playback"));
+        settings.stage_raw(key, value);
         graph.tokio.spawn_blocking(move || {
-            if let Err(error) = settings.put_raw(key, value) {
+            if let Err(error) = settings.commit(key) {
                 log.warn(&format!("{key} could not be saved: {error}"), None);
             }
         });
@@ -1613,9 +1614,8 @@ impl Playback {
         self.volume = volume.clamp(0.0, 1.0);
         self.apply_volume();
         let settings = cx.global::<AppGraph>().settings.clone();
-        let raw = ym_settings::kotlin_float(self.volume);
-        let saved =
-            on_core(cx, async move { tokio::task::spawn_blocking(move || settings.put_raw(VOLUME_KEY, raw)).await });
+        settings.stage_raw(VOLUME_KEY, ym_settings::kotlin_float(self.volume));
+        let saved = on_core(cx, async move { tokio::task::spawn_blocking(move || settings.commit(VOLUME_KEY)).await });
         cx.background_executor().spawn(saved).detach();
         cx.notify();
     }
@@ -1637,9 +1637,13 @@ impl Playback {
         }
         let graph = cx.global::<AppGraph>();
         let (settings, log) = (graph.settings.clone(), graph.log.fork("audio-effects"));
+        let keys = effects.rows().map(|(key, value)| {
+            settings.stage_raw(key, value);
+            key
+        });
         graph.tokio.spawn_blocking(move || {
-            for (key, value) in effects.rows() {
-                if let Err(error) = settings.put_raw(key, value) {
+            for key in keys {
+                if let Err(error) = settings.commit(key) {
                     log.warn(&format!("{key} could not be saved: {error}"), None);
                 }
             }
