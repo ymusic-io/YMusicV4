@@ -38,6 +38,14 @@ with the plain app name. A workspace run starts no
 OS media session (media keys, Now Playing) unless `YMUSIC_DEV_MEDIA_SESSION=1`. `--print-data-dir`
 prints the data dir, workspace and title a launch would use and exits.
 
+At launch the data dir is made ready before anything opens a file in it, as the JVM app does
+(`data_files::prepare_data_dir`): a missing one is created, and a symlinked one whose folder is gone
+gets that folder back, empty (only the link's last component, so a link onto an unplugged drive is not
+recreated on the boot disk). One that cannot be used (a file in the way, no write permission) shows its
+code (R90408) in a window of its own and quits. A database SQLite finds corrupt or not a database is
+moved aside as `<name>.corrupt-<time>` with its sidecars and started fresh (`data_files::open_database`,
+R90406). Any other boot failure shows "Something went wrong (code)" instead of exiting silently.
+
 Without YMusicV4's `secrets.properties` (its
 `remote.config.url`, `bundle.signing.public.key`, `update.public.key`, `sentry.dsn`) the app runs on its
 embedded bundles, with no config service, QR sign-in, self-update or crash reports.

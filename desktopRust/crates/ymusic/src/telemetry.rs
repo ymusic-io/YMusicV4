@@ -22,6 +22,8 @@ const DEVICE_ID_KEY: &str = "telemetry.deviceId";
 /// Debug builds: the feedback report's envelopes go to this file instead of Sentry.
 const FEEDBACK_DRY_RUN_ENV: &str = "YMUSIC_DEV_FEEDBACK_ENVELOPE";
 const FEEDBACK_EXPORT_TIMEOUT: Duration = Duration::from_secs(15);
+/// SQLite's name for a database that lives in memory and goes with its connection.
+const IN_MEMORY_DATABASE: &str = ":memory:";
 
 /// The app log, for the feedback report.
 pub struct AppLogs(pub Option<Arc<LogStore>>);
@@ -110,15 +112,29 @@ pub struct LogSetup {
 
 /// The logger every layer uses: stderr, the app log (`logs.db`), and Sentry once it joins.
 pub fn logger(data_dir: &Path) -> LogSetup {
-    let logs = LogStore::open(&data_dir.join("logs.db")).ok();
+    let app_log = Arc::new(DeferredSink::default());
     let reports = Arc::new(DeferredSink::default());
     let stderr_level = if cfg!(debug_assertions) { Level::Info } else { Level::Warn };
-    let mut sinks: Vec<Arc<dyn LogSink>> = vec![Arc::new(StderrSink { min_level: stderr_level })];
+    let sinks: Vec<Arc<dyn LogSink>> =
+        vec![Arc::new(StderrSink { min_level: stderr_level }), app_log.clone(), reports.clone()];
+    let log = Logger::new(Arc::new(TeeSink { sinks }));
+    let opened = crate::data_files::open_database(&data_dir.join("logs.db"), &log.fork("data-dir"), LogStore::open);
+    let logs = opened
+        .or_else(|error| {
+            log.warn(
+                "R90409 the app log (logs.db) did not open: lines are kept in memory for this launch",
+                Some(&error),
+            );
+            LogStore::open(Path::new(IN_MEMORY_DATABASE))
+        })
+        .inspect_err(|error| {
+            log.warn("the in-memory app log did not open either: lines go to stderr only", Some(error))
+        })
+        .ok();
     if let Some(logs) = &logs {
-        sinks.push(Arc::new(LogStoreSink { store: logs.clone() }));
+        app_log.set(Arc::new(LogStoreSink { store: logs.clone() }));
     }
-    sinks.push(reports.clone());
-    LogSetup { log: Logger::new(Arc::new(TeeSink { sinks })), logs, reports }
+    LogSetup { log, logs, reports }
 }
 
 /// The remote config's report policy, its defaults until the booted graph hands the config over.

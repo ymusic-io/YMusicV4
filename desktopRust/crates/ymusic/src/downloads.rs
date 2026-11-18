@@ -79,10 +79,17 @@ pub struct DownloadInputs {
 /// Blocking (opens SQLite): call from a worker.
 pub fn open(inputs: DownloadInputs) -> Result<DownloadService, String> {
     let log = inputs.log;
-    let store = ym_download::store::DownloadStore::open(&inputs.data_dir.join("downloads.db"), log.clone())
-        .map_err(|error| format!("downloads.db: {error}"))?;
-    let index = ym_ytmedia::segment_index::SegmentIndex::open(&inputs.data_dir.join("download-segments.db"))
-        .map_err(|error| format!("download-segments.db: {error}"))?;
+    let data_log = log.fork("data-dir");
+    let store = crate::data_files::open_database(&inputs.data_dir.join("downloads.db"), &data_log, |path| {
+        ym_download::store::DownloadStore::open(path, log.clone())
+    })
+    .map_err(|error| format!("downloads.db: {error}"))?;
+    let index = crate::data_files::open_database(
+        &inputs.data_dir.join("download-segments.db"),
+        &data_log,
+        ym_ytmedia::segment_index::SegmentIndex::open,
+    )
+    .map_err(|error| format!("download-segments.db: {error}"))?;
     if let Err(error) = index.cleanup() {
         log.warn("old download segments could not be pruned", Some(&error));
     }
