@@ -1238,8 +1238,8 @@ private fun PlaylistsTab(
             onDismiss = { confirmingRemove = null },
             onConfirm = {
                 confirmingRemove = null
+                // The selection ends as the removed rows leave the list, so focus never returns to one of them.
                 removeFromPlaylist?.invoke(doomed)
-                playlistSelection.end()
             },
         )
     }
