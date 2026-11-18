@@ -86,6 +86,8 @@ pub struct PopupMenuStyle {
     pub check_color: Option<Hsla>,
     /// `Some(false)` draws no check: the item still reports its checked state.
     pub check_visible: Option<bool>,
+    /// `Some(false)` opens a scrollable menu at its top, else scrolled to its checked item.
+    pub scroll_to_checked: Option<bool>,
     /// The label ink of a checked item.
     pub checked_color: Option<Hsla>,
     pub checked_weight: Option<FontWeight>,
@@ -1089,7 +1091,10 @@ impl PopupMenu {
     /// are measured on the first prepaint, so until then this asks for another
     /// frame, up to `SCROLL_TO_CHECKED_FRAMES` times.
     fn scroll_to_checked_item(&mut self, cx: &mut Context<Self>) {
-        if !self.scrollable || self.scroll_to_checked_frames == 0 {
+        if !self.scrollable
+            || self.scroll_to_checked_frames == 0
+            || self.style.scroll_to_checked == Some(false)
+        {
             return;
         }
 

@@ -3,7 +3,7 @@
 //! Narrow: top bar, video full width, title, then the queue.
 //! The video box is painted by `video_layer`: a native view behind the window on macOS, CPU pictures elsewhere.
 
-use std::cell::{Cell, RefCell};
+use std::cell::Cell;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
 
@@ -29,6 +29,7 @@ use crate::playback::{
     AUTO_TRANSLATE_KIND, CaptionTrack, Playback, PlaybackState, QUALITY_AUDIO_ONLY, QUALITY_AUTO, QueueItem, Source,
 };
 use crate::queue_nav::LoopMode;
+use crate::recent_captions::{in_recent_languages, recent_caption_languages, record_caption_language};
 use crate::reorder::{Reorder, ReorderEvent};
 use crate::settings_view::accent_choice_menu;
 use crate::spinner::Spinner;
@@ -152,7 +153,6 @@ pub struct NowPlaying {
     picture_pressed: bool,
     caption_focus: FocusHandle,
     /// Auto-translate languages last picked, most recent first: language codes.
-    recent_translations: Rc<RefCell<Vec<String>>>,
     play_focus: FocusHandle,
     overlay_focus: FocusList,
     /// A video control held keyboard focus at the last render: the controls stay up meanwhile.
@@ -433,7 +433,6 @@ impl NowPlaying {
             held_menus: Rc::default(),
             picture_pressed: false,
             caption_focus: cx.focus_handle(),
-            recent_translations: Rc::new(RefCell::new(load_recent_translations(cx))),
             play_focus: cx.focus_handle(),
             overlay_focus: FocusList::new(None),
             keyboard_in_controls: Cell::new(false),
@@ -934,7 +933,6 @@ impl NowPlaying {
         let label = format!("{}, {state}", t(Str::CdCaptions));
         let caption_glyph = if visible { MaterialIcon::ClosedCaption } else { MaterialIcon::ClosedCaptionOffOutlined };
         let target = self.playback.clone();
-        let recent_codes = self.recent_translations.clone();
         Some(
             on_video_menu(sized_action_icon("np-captions", caption_glyph, label, glyph, hit), cx)
                 .track_focus(&self.caption_focus)
@@ -948,14 +946,11 @@ impl NowPlaying {
                     );
                     let pick = |track: &CaptionTrack| {
                         let (playback, id) = (target.clone(), track.vss_id.clone());
-                        let translation = (track.kind == AUTO_TRANSLATE_KIND)
-                            .then(|| (recent_codes.clone(), track.language_code.clone()));
+                        let code = track.language_code.clone();
                         PopupMenuItem::new(track.display_name.clone()).checked(is_on(track)).on_click(
                             move |_, _, cx| {
                                 playback.update(cx, |playback, cx| playback.select_caption(id.clone(), cx));
-                                if let Some((recent, code)) = &translation {
-                                    remember_translation(recent, code.clone(), cx);
-                                }
+                                record_caption_language(code.clone(), cx);
                             },
                         )
                     };
@@ -970,10 +965,12 @@ impl NowPlaying {
                             None => t(Str::CaptionsAutoTranslate).to_owned(),
                         };
                         let mut items = Vec::new();
-                        let recent: Vec<&CaptionTrack> = recent_codes
-                            .borrow()
-                            .iter()
-                            .filter_map(|code| translations.iter().find(|track| &track.language_code == code))
+                        let recent: Vec<&CaptionTrack> =
+                            in_recent_languages(&translations, &recent_caption_languages(cx), |track| {
+                                &track.language_code
+                            })
+                            .into_iter()
+                            .map(|index| &translations[index])
                             .collect();
                         if !recent.is_empty() {
                             items.extend(recent.into_iter().map(&pick));
@@ -2036,24 +2033,4 @@ impl Render for NowPlaying {
             )
             .into_any_element()
     }
-}
-
-/// Shared with the JVM app: one language code per line, most recent first.
-const RECENT_TRANSLATIONS_KEY: &str = "captions.recentTranslateLanguages";
-const RECENT_TRANSLATIONS: usize = 3;
-
-fn load_recent_translations(cx: &App) -> Vec<String> {
-    let raw = cx.global::<AppGraph>().settings.get_raw(RECENT_TRANSLATIONS_KEY).ok().flatten().unwrap_or_default();
-    raw.lines().filter(|code| !code.is_empty()).map(str::to_owned).collect()
-}
-
-fn remember_translation(recent: &RefCell<Vec<String>>, code: String, cx: &App) {
-    let codes = {
-        let mut recent = recent.borrow_mut();
-        recent.retain(|known| *known != code);
-        recent.insert(0, code);
-        recent.truncate(RECENT_TRANSLATIONS);
-        recent.clone()
-    };
-    crate::shell::persist_setting(cx, RECENT_TRANSLATIONS_KEY, codes.join("\n"));
 }

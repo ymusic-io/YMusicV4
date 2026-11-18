@@ -1,5 +1,5 @@
-//! Download a whole YouTube playlist: every loaded video listed with a box (a newly loaded page
-//! arrives checked), one set of picks for all of them (the Quick download preset's fields), the
+//! Download a whole YouTube playlist: every loaded video listed with a box (all start unchecked,
+//! Load more's too), one set of picks for all of them (the Quick download preset's fields), the
 //! folder, an index prefix for the file names and an optional Library playlist the songs join.
 
 use std::collections::HashSet;
@@ -7,12 +7,10 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 use gpui_kit::base::actions::Confirm;
-use gpui_kit::component::button::Button;
-use gpui_kit::component::checkbox::Checkbox;
+use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::input::{Input, InputEvent, InputState};
 use gpui_kit::component::menu::{DropdownMenu, PopupMenuItem};
-use gpui_kit::component::switch::Switch;
-use gpui_kit::component::{ActiveTheme, Disableable, Icon, Sizable, StyledExt, WindowExt, h_flex, v_flex};
+use gpui_kit::component::{ActiveTheme, Icon, StyledExt, WindowExt, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use ym_engine::yt::{YtFeedItem, YtFeedPage, YtLocaleOption};
@@ -21,21 +19,21 @@ use ym_image_loader::async_image::async_image_of;
 use ym_store::Playlist;
 
 use crate::a11y::{FocusList, LoadMoreFocus};
-use crate::action_icon::action_icon;
+use crate::action_icon::{action_icon, chip};
 use crate::assets::MaterialIcon;
-use crate::download_dialog::DownloadTarget;
+use crate::download_dialog::{DownloadTarget, download_primary, dropdown_field, ink_soft, location_name};
 use crate::downloads::{download_folder, offline_ids, pick_download_folder, usable_download_folder};
 use crate::elevated_dialog::{
-    ConfirmDialog, DEFAULT_WIDTH, ROW_HORIZONTAL, bar_spinner, button_bar, chrome, press, scroll_body, text_button,
-    title_bar,
+    ConfirmDialog, DEFAULT_WIDTH, ROW_HORIZONTAL, bar_spinner, button_bar, chrome, press, text_button, title_bar,
 };
 use crate::feed::{FeedSource, error_text};
 use crate::graph::{AppGraph, on_core};
 use crate::lazy_rows::LazyRows;
+use crate::offline::offline_mark;
 use crate::quick_download::{
-    PRESET_FIELD_STOPS, QuickPreset, dropdown, load_languages, option_line, preset_fields, saved_preset,
+    PRESET_FIELD_STOPS, QuickPreset, load_languages, option_line, preset_fields, saved_preset,
 };
-use crate::settings_view::HOVER_ALPHA;
+use crate::settings_view::{HOVER_ALPHA, compact_switch};
 use crate::spinner::Spinner;
 use crate::youtube_thumbnails::thumb_request_sources;
 
@@ -48,12 +46,18 @@ const STOP_PRESET: usize = 2;
 const STOP_FOLDER: usize = STOP_PRESET + PRESET_FIELD_STOPS;
 const STOP_PREFIX: usize = STOP_FOLDER + 1;
 const STOP_TARGET: usize = STOP_PREFIX + 1;
-const STOP_DOWNLOAD: usize = STOP_TARGET + 1;
-const STOP_CANCEL: usize = STOP_DOWNLOAD + 1;
-const STOP_ROWS: usize = STOP_CANCEL + 1;
-const VIDEO_ROW_ESTIMATE: f32 = 56.;
-/// The form's width: room for the options beside the thumbnails.
-const DIALOG_WIDTH: f32 = 760.;
+const STOP_ROWS: usize = STOP_TARGET + 1;
+const VIDEO_ROW_ESTIMATE: f32 = 62.;
+/// The JVM page's `CONTENT_MAX_WIDTH`: header, options, rows and the button stay this wide at most.
+const CONTENT_MAX_WIDTH: f32 = 760.;
+/// Compose's line height for text without one: the font's own, about 1.2 of its size.
+const NATURAL_LINE: f32 = 1.2;
+
+/// Asks the shell to push the playlist download page.
+pub struct OpenPlaylistDownload(pub Entity<PlaylistDownload>);
+
+/// The downloads are queued: the page closes, as its back would.
+pub struct PlaylistDownloadDone;
 
 pub struct PlaylistDownload {
     source: FeedSource,
@@ -62,7 +66,7 @@ pub struct PlaylistDownload {
     continuation: Option<String>,
     loading_more: bool,
     more_focus: LoadMoreFocus,
-    /// Every video id listed so far: a newly loaded page arrives checked, a seen one keeps its box.
+    /// Every video id listed so far, so a page that repeats one lists it once.
     seen: HashSet<String>,
     checked: HashSet<String>,
     index_prefix: bool,
@@ -75,18 +79,14 @@ pub struct PlaylistDownload {
     scroll: ScrollHandle,
     rows: LazyRows,
     focus: FocusList,
+    bar_focus: FocusList,
 }
 
-impl PlaylistDownload {
-    /// Opens the page for `title`, starting from the videos `page` already holds.
-    pub fn open(source: FeedSource, title: String, page: &YtFeedPage, window: &mut Window, cx: &mut App) {
-        let view = cx.new(|cx| Self::new(source, title, page, cx));
-        window.open_dialog(cx, move |dialog, window, _| {
-            chrome(dialog, DIALOG_WIDTH, window).on_ok(|_, _, _| false).child(view.clone())
-        });
-    }
+impl EventEmitter<PlaylistDownloadDone> for PlaylistDownload {}
 
-    fn new(source: FeedSource, title: String, page: &YtFeedPage, cx: &mut Context<Self>) -> Self {
+impl PlaylistDownload {
+    /// The page for `title`, starting from the videos `page` already holds.
+    pub fn new(source: FeedSource, title: String, page: &YtFeedPage, cx: &mut Context<Self>) -> Self {
         let scroll = ScrollHandle::new();
         let graph = cx.global::<AppGraph>();
         let folder = download_folder(graph.settings.as_ref());
@@ -108,7 +108,8 @@ impl PlaylistDownload {
             folder,
             scroll: scroll.clone(),
             rows: LazyRows::new(scroll.clone(), VIDEO_ROW_ESTIMATE),
-            focus: FocusList::modal(Some(scroll), cx),
+            focus: FocusList::new(Some(scroll)),
+            bar_focus: FocusList::new(None),
         };
         view.add_videos(page);
         let languages = load_languages(cx);
@@ -141,9 +142,6 @@ impl PlaylistDownload {
     fn add_videos(&mut self, page: &YtFeedPage) {
         for video in page.sections.iter().flat_map(|section| section.items.iter()).filter(|item| item.kind == "video") {
             if self.seen.insert(video.id.clone()) {
-                if !video.live {
-                    self.checked.insert(video.id.clone());
-                }
                 self.videos.push(video.clone());
             }
         }
@@ -268,8 +266,8 @@ impl PlaylistDownload {
                         }
                     });
                 }
-                window.close_dialog(cx);
                 window.push_notification(plural(Plural::PlaylistAdded, picked.len() as i64, &[&picked.len()]), cx);
+                cx.emit(PlaylistDownloadDone);
             })
             .ok();
         })
@@ -289,31 +287,36 @@ impl PlaylistDownload {
         });
     }
 
-    fn header(&self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    /// The JVM `LoadedHeader`: the playlist's title, the loaded count, Load more and the check menu.
+    fn header(&self, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = cx.theme().clone();
         let load_more: AnyElement = if self.loading_more {
             self.more_focus
                 .indicator("load-more-loading", t(Str::A11yLoading), Spinner::new().small(), cx)
                 .into_any_element()
         } else if self.continuation.is_some() {
-            self.focus
-                .button(
-                    STOP_LOAD_MORE,
-                    Button::new("load-more")
-                        .small()
-                        .rounded_full()
-                        .outline()
-                        .label(t(Str::PlaylistLoadMore))
-                        .on_click(cx.listener(|view, _, window, cx| view.load_more(window, cx))),
-                    cx,
-                )
-                .into_any_element()
+            let button = chip(Button::new("load-more"))
+                .primary()
+                .label(t(Str::PlaylistLoadMore))
+                .on_click(cx.listener(|view, _, window, cx| view.load_more(window, cx)));
+            self.focus.button(STOP_LOAD_MORE, button, cx).into_any_element()
         } else {
             div().into_any_element()
         };
-        let _ = window;
+        let loaded = plural(Plural::PlaylistVideosLoaded, self.videos.len() as i64, &[&self.videos.len()]);
+        let loaded = crate::a11y::label("videos-loaded", loaded)
+            .flex_shrink_0()
+            .px(px(12.))
+            .py(px(7.))
+            .rounded_full()
+            .border_1()
+            .border_color(theme.input)
+            .text_size(px(13.5))
+            .line_height(relative(1.25))
+            .text_color(ink_soft(cx));
         let view = cx.entity().downgrade();
-        let menu = action_icon("check-menu", MaterialIcon::MoreVert, t(Str::CdMore))
+        let more = Icon::new(MaterialIcon::MoreVert).text_color(ink_soft(cx));
+        let menu = action_icon("check-menu", more, t(Str::CdMore))
             .track_focus(&self.focus.handle(STOP_MENU, cx))
             .dropdown_menu_with_anchor(Anchor::TopRight, move |menu, _, cx| {
                 let mut menu = crate::settings_view::field_menu(menu, cx);
@@ -347,23 +350,33 @@ impl PlaylistDownload {
                 }
                 menu
             });
-        v_flex().gap_1().child(div().text_lg().font_semibold().line_clamp(2).child(self.title.clone())).child(
-            h_flex()
-                .gap_2()
-                .items_center()
-                .child(
-                    div().px_3().py_1().rounded_full().border_1().border_color(theme.border).text_xs().child(plural(
-                        Plural::PlaylistVideosLoaded,
-                        self.videos.len() as i64,
-                        &[&self.videos.len()],
-                    )),
-                )
-                .child(load_more)
-                .child(div().flex_1())
-                .child(self.focus.wrap(STOP_MENU, menu, cx)),
-        )
+        v_flex()
+            .w_full()
+            .max_w(px(CONTENT_MAX_WIDTH))
+            .px_4()
+            .py_2()
+            .gap_1()
+            .child(
+                div()
+                    .text_size(px(18.))
+                    .line_height(relative(NATURAL_LINE))
+                    .font_bold()
+                    .text_color(theme.foreground)
+                    .line_clamp(2)
+                    .child(self.title.clone()),
+            )
+            .child(
+                h_flex()
+                    .gap_2()
+                    .items_center()
+                    .child(loaded)
+                    .child(load_more)
+                    .child(div().flex_1())
+                    .child(self.focus.wrap(STOP_MENU, menu, cx)),
+            )
     }
 
+    /// The JVM `OptionsCard`: the preset's fields, Save to, the index prefix and Add to playlist.
     fn options(&self, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = cx.theme().clone();
         let view = cx.entity().downgrade();
@@ -376,124 +389,138 @@ impl PlaylistDownload {
         });
         let ffmpeg = cx.global::<AppGraph>().downloads.ffmpeg_available();
         let fields = preset_fields(&self.preset, &self.languages, ffmpeg, on_change, &self.focus, STOP_PRESET, cx);
-        let folder_label = self
-            .folder
-            .as_ref()
-            .map(|folder| folder.display().to_string())
-            .unwrap_or_else(|| t(Str::DownloadLocationNotSet).to_owned());
+        let folder_label = location_name(self.folder.as_deref());
         let folder = Button::new("save-to")
-            .small()
             .outline()
             .w_full()
-            .icon(Icon::new(MaterialIcon::FolderOutlined))
-            .label(folder_label.clone())
+            .h(px(36.))
+            .px(px(8.))
+            .rounded(px(9.))
+            .border_color(theme.input)
             .accessibility_label(format!("{}, {folder_label}", t(Str::DownloadSaveTo)))
+            .child(Icon::new(MaterialIcon::FolderOutlined).size(px(16.)).flex_shrink_0().text_color(ink_soft(cx)))
+            .child(
+                div()
+                    .flex_1()
+                    .min_w_0()
+                    .text_left()
+                    .text_size(px(14.))
+                    .text_color(theme.foreground)
+                    .truncate()
+                    .child(folder_label),
+            )
             .on_click(cx.listener(|view, _, window, cx| view.choose_folder(window, cx)));
         let target_label =
             self.target.as_ref().map_or(t(Str::PlaylistSelectLibrary).to_owned(), |playlist| playlist.name.clone());
         let view = cx.entity().downgrade();
         let (playlists, target_id) = (self.playlists.clone(), self.target.as_ref().map(|playlist| playlist.id));
-        let target = dropdown("target-playlist", t(Str::PlaylistAddTo), target_label, &self.focus, STOP_TARGET, cx)
-            .dropdown_menu(move |menu, _, cx| {
-                let mut menu = crate::settings_view::field_menu(menu, cx).scrollable(true).max_h(px(320.));
-                let none_view = view.clone();
-                menu = menu.item(PopupMenuItem::new(t(Str::PlaylistTargetNone)).checked(target_id.is_none()).on_click(
-                    move |_, _, cx| {
-                        none_view
-                            .update(cx, |view, cx| {
-                                view.target = None;
-                                cx.notify();
-                            })
-                            .ok();
-                    },
-                ));
-                let create_view = view.clone();
-                menu = menu.item(PopupMenuItem::new(t(Str::PlaylistTargetCreate)).on_click(move |_, window, cx| {
-                    create_view.update(cx, |view, cx| view.create_target(window, cx)).ok();
-                }));
-                for playlist in &playlists {
-                    let (pick_view, picked) = (view.clone(), playlist.clone());
+        let target =
+            dropdown_field("target-playlist", t(Str::PlaylistAddTo), target_label, &self.focus, STOP_TARGET, cx)
+                .dropdown_menu(move |menu, _, cx| {
+                    let mut menu = crate::settings_view::field_menu(menu, cx).scrollable(true).max_h(px(320.));
+                    let none_view = view.clone();
                     menu = menu.item(
-                        PopupMenuItem::new(playlist.name.clone()).checked(target_id == Some(playlist.id)).on_click(
+                        PopupMenuItem::new(t(Str::PlaylistTargetNone)).checked(target_id.is_none()).on_click(
                             move |_, _, cx| {
-                                let picked = picked.clone();
-                                pick_view
+                                none_view
                                     .update(cx, |view, cx| {
-                                        view.target = Some(picked);
+                                        view.target = None;
                                         cx.notify();
                                     })
                                     .ok();
                             },
                         ),
                     );
-                }
-                menu
-            });
-        v_flex()
+                    let create_view = view.clone();
+                    menu =
+                        menu.item(PopupMenuItem::new(t(Str::PlaylistTargetCreate)).on_click(move |_, window, cx| {
+                            create_view.update(cx, |view, cx| view.create_target(window, cx)).ok();
+                        }));
+                    for playlist in &playlists {
+                        let (pick_view, picked) = (view.clone(), playlist.clone());
+                        menu = menu.item(
+                            PopupMenuItem::new(playlist.name.clone()).checked(target_id == Some(playlist.id)).on_click(
+                                move |_, _, cx| {
+                                    let picked = picked.clone();
+                                    pick_view
+                                        .update(cx, |view, cx| {
+                                            view.target = Some(picked);
+                                            cx.notify();
+                                        })
+                                        .ok();
+                                },
+                            ),
+                        );
+                    }
+                    menu
+                });
+        let prefix = h_flex()
+            .id("index-prefix-row")
+            .role(Role::Switch)
+            .aria_label(t(Str::PlaylistIndexPrefix))
+            .aria_toggled(if self.index_prefix { Toggled::True } else { Toggled::False })
+            .w_full()
+            .gap_4()
+            .items_center()
+            .cursor_pointer()
+            .hover(|style| style.bg(theme.primary.opacity(HOVER_ALPHA)))
+            .on_click(cx.listener(|view, _, _, cx| view.toggle_prefix(cx)))
+            .on_action(cx.listener(|view, _: &Confirm, _, cx| view.toggle_prefix(cx)))
+            .child(
+                div()
+                    .w(px(112.))
+                    .flex_shrink_0()
+                    .text_sm()
+                    .font_semibold()
+                    .text_color(theme.foreground)
+                    .child(t(Str::PlaylistIndexPrefix)),
+            )
+            .child(
+                div()
+                    .flex_1()
+                    .min_w_0()
+                    .text_xs()
+                    .text_color(theme.muted_foreground)
+                    .child(t(Str::PlaylistIndexPrefixHint)),
+            )
+            .child(compact_switch(self.index_prefix, cx));
+        let card = v_flex()
+            .w_full()
             .gap_2()
             .p_4()
             .rounded(px(12.))
             .border_1()
-            .border_color(theme.border)
+            .border_color(tone(cx, 0x525252, 0xd8d8d8))
             .child(
                 div()
-                    .text_xs()
+                    .text_size(px(12.))
                     .font_semibold()
                     .text_color(theme.muted_foreground)
                     .child(t(Str::PlaylistOptions).to_uppercase()),
             )
             .child(fields)
             .child(option_line(t(Str::DownloadSaveTo), self.focus.button(STOP_FOLDER, folder, cx), cx))
-            .child(
-                self.focus.item(
-                    STOP_PREFIX,
-                    h_flex()
-                        .id("index-prefix-row")
-                        .role(Role::Switch)
-                        .aria_label(t(Str::PlaylistIndexPrefix))
-                        .aria_toggled(if self.index_prefix { Toggled::True } else { Toggled::False })
-                        .gap_4()
-                        .py_1()
-                        .rounded(px(6.))
-                        .items_center()
-                        .cursor_pointer()
-                        .on_click(cx.listener(|view, _, _, cx| view.toggle_prefix(cx)))
-                        .on_action(cx.listener(|view, _: &Confirm, _, cx| view.toggle_prefix(cx)))
-                        .child(
-                            div()
-                                .w(px(112.))
-                                .flex_shrink_0()
-                                .text_sm()
-                                .font_semibold()
-                                .child(t(Str::PlaylistIndexPrefix)),
-                        )
-                        .child(
-                            div()
-                                .flex_1()
-                                .text_xs()
-                                .text_color(theme.muted_foreground)
-                                .child(t(Str::PlaylistIndexPrefixHint)),
-                        )
-                        .child(
-                            Switch::new("index-prefix")
-                                .checked(self.index_prefix)
-                                .tab_stop(false)
-                                .accessibility_label(t(Str::PlaylistIndexPrefix)),
-                        ),
-                    cx,
-                ),
-            )
-            .child(option_line(t(Str::PlaylistAddTo), self.focus.wrap(STOP_TARGET, target, cx), cx))
+            .child(self.focus.item(STOP_PREFIX, prefix, cx))
+            .child(option_line(t(Str::PlaylistAddTo), self.focus.wrap(STOP_TARGET, target, cx), cx));
+        div().w_full().max_w(px(CONTENT_MAX_WIDTH)).px_4().py_2().child(card)
     }
 
+    /// The JVM `VideoCheckRow`: box, thumbnail with its badges, title and channel.
     fn row(&self, index: usize, video: &YtFeedItem, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = cx.theme().clone();
         let checked = self.checked.contains(&video.id) && !video.live;
         let downloaded = self.offline.contains(&video.id);
         let title = if self.index_prefix { format!("{}. {}", index + 1, video.title) } else { video.title.clone() };
+        let kind = if video.live {
+            Some(t(Str::A11yKindLive))
+        } else if video.music_video {
+            Some(t(Str::A11yKindMusicVideo))
+        } else {
+            None
+        };
         let label = [
             Some(title.clone()),
-            video.live.then(|| t(Str::A11yKindLive).to_owned()),
+            kind.map(str::to_owned),
             video.duration.clone(),
             video.subtitle_line1.clone(),
             downloaded.then(|| t(Str::A11yDownloaded).to_owned()),
@@ -509,10 +536,10 @@ impl PlaylistDownload {
             .role(Role::CheckBox)
             .aria_label(label)
             .aria_toggled(if checked { Toggled::True } else { Toggled::False })
-            .gap_3()
+            .w_full()
+            .gap_2()
             .px_2()
             .py_1()
-            .rounded(px(8.))
             .items_center()
             .when(!live, |row| row.cursor_pointer().hover(|style| style.bg(theme.primary.opacity(HOVER_ALPHA))))
             .on_click(cx.listener(move |view, _, _, cx| {
@@ -525,7 +552,7 @@ impl PlaylistDownload {
                     view.toggle(&enter_id, cx);
                 }
             }))
-            .child(Checkbox::new(("video-check", index)).checked(checked).tab_stop(false).disabled(live))
+            .child(check_box(checked, !live, cx))
             .child(
                 div()
                     .relative()
@@ -534,33 +561,27 @@ impl PlaylistDownload {
                     .h(px(54.))
                     .rounded(px(6.))
                     .overflow_hidden()
-                    .bg(theme.secondary)
+                    .bg(theme.muted)
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .child(
+                        Icon::new(MaterialIcon::ImageOutlined).size(px(20.)).text_color(tone(cx, 0x767676, 0xb3b3b3)),
+                    )
                     .when_some(thumb_request_sources(&video.thumbs), |frame, request| {
                         frame.child(
-                            async_image_of(Some(request)).size_full().rounded(px(6.)).object_fit(ObjectFit::Cover),
-                        )
-                    })
-                    .when_some(video.duration.clone(), |frame, duration| {
-                        frame.child(
-                            div()
+                            async_image_of(Some(request))
                                 .absolute()
-                                .bottom(px(2.))
-                                .right(px(2.))
-                                .px(px(4.))
-                                .rounded(px(3.))
-                                .bg(black().opacity(0.75))
-                                .text_xs()
-                                .text_color(white())
-                                .child(duration),
+                                .inset_0()
+                                .size_full()
+                                .rounded(px(6.))
+                                .object_fit(ObjectFit::Cover),
                         )
                     })
-                    .when(downloaded, |frame| {
-                        frame.child(
-                            div().absolute().top_0().left_0().p(px(2.)).rounded_br(px(6.)).bg(theme.primary).child(
-                                Icon::new(MaterialIcon::Check).size(px(12.)).text_color(theme.primary_foreground),
-                            ),
-                        )
-                    }),
+                    .when_some(badge(video), |frame, badge| {
+                        frame.child(div().absolute().bottom(px(2.)).right(px(2.)).child(badge))
+                    })
+                    .when(downloaded, |frame| frame.child(offline_mark(theme.primary, 6.))),
             )
             .child(
                 v_flex()
@@ -568,21 +589,111 @@ impl PlaylistDownload {
                     .min_w_0()
                     .child(
                         div()
-                            .text_sm()
+                            .text_size(px(14.))
+                            .line_height(relative(NATURAL_LINE))
                             .line_clamp(2)
-                            .text_color(if live { theme.muted_foreground } else { theme.foreground })
+                            .text_color(if live { tone(cx, 0x7e7e7e, 0x9a9a9a) } else { theme.foreground })
                             .child(title),
                     )
                     .when_some(video.subtitle_line1.clone(), |column, line| {
-                        column.child(div().text_xs().text_color(theme.muted_foreground).truncate().child(line))
+                        column.child(
+                            div()
+                                .text_size(px(12.))
+                                .line_height(relative(NATURAL_LINE))
+                                .text_color(theme.muted_foreground)
+                                .truncate()
+                                .child(line),
+                        )
                     }),
             );
         self.focus.item(STOP_ROWS + index, element, cx)
+    }
+
+    /// The full-width download button under the list.
+    fn download_button(&self, count: usize, cx: &mut Context<Self>) -> impl IntoElement {
+        let theme = cx.theme();
+        let enabled = count > 0;
+        let label = plural(Plural::PlaylistDownloadAction, count as i64, &[&count]);
+        let fill = download_primary(cx);
+        let button = div()
+            .id("playlist-download")
+            .role(Role::Button)
+            .aria_label(label.clone())
+            .w_full()
+            .max_w(px(CONTENT_MAX_WIDTH))
+            .h(px(48.))
+            .rounded(px(12.))
+            .flex()
+            .items_center()
+            .justify_center()
+            .text_size(px(14.))
+            .font_bold()
+            .when(enabled, |button| {
+                button
+                    .bg(fill)
+                    .text_color(white())
+                    .cursor_pointer()
+                    .hover(|style| style.bg(fill.blend(white().opacity(HOVER_ALPHA))))
+            })
+            .when(!enabled, |button| {
+                button.bg(theme.foreground.opacity(0.12)).text_color(theme.foreground.opacity(0.38))
+            })
+            .child(label)
+            .on_click(cx.listener(|view, _, window, cx| view.download(window, cx)))
+            .on_action(cx.listener(|view, _: &Confirm, window, cx| view.download(window, cx)));
+        self.bar_focus.item(0, button, cx)
+    }
+}
+
+/// The JVM palette's tone the theme does not carry, per mode.
+fn tone(cx: &App, dark: u32, light: u32) -> Hsla {
+    rgb(if cx.theme().mode.is_dark() { dark } else { light }).into()
+}
+
+/// Material 3's checkbox in its 24 slot, drawn only: the row is the control.
+fn check_box(checked: bool, enabled: bool, cx: &App) -> Div {
+    let theme = cx.theme();
+    let outline = if enabled { theme.muted_foreground } else { theme.foreground.opacity(0.38) };
+    let mark = div()
+        .size(px(20.))
+        .rounded(px(2.))
+        .flex()
+        .items_center()
+        .justify_center()
+        .when(checked, |mark| {
+            mark.bg(theme.primary)
+                .child(Icon::new(MaterialIcon::Check).size(px(18.)).text_color(theme.primary_foreground))
+        })
+        .when(!checked, |mark| mark.border_2().border_color(outline));
+    div().size(px(24.)).flex_shrink_0().flex().items_center().justify_center().child(mark)
+}
+
+/// The JVM `Badges` of a video at the list size: LIVE, or its duration after the music-video note.
+fn badge(video: &YtFeedItem) -> Option<Div> {
+    let chrome = || div().rounded(px(3.)).py(px(2.)).text_size(px(10.)).line_height(relative(NATURAL_LINE));
+    let note = || Icon::new(MaterialIcon::MusicNoteOutlined).size(px(12.)).text_color(white());
+    if video.live {
+        return Some(chrome().px(px(5.)).bg(rgb(0xcc0000)).font_bold().text_color(white()).child(t(Str::BadgeLive)));
+    }
+    match &video.duration {
+        Some(duration) => Some(
+            chrome()
+                .px(px(5.))
+                .bg(rgb(0x333333))
+                .flex()
+                .items_center()
+                .gap(px(2.))
+                .when(video.music_video, |badge| badge.child(note()))
+                .child(div().font_semibold().text_color(white()).child(duration.clone())),
+        ),
+        None if video.music_video => Some(chrome().px(px(4.)).bg(rgb(0x333333)).child(note())),
+        None => None,
     }
 }
 
 impl Render for PlaylistDownload {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        crate::shell::track_scroll(&self.scroll, cx);
         if let Some(settled) = self.more_focus.settle(self.loading_more, self.videos.len(), window) {
             let control = self.continuation.is_some().then(|| self.focus.handle(STOP_LOAD_MORE, cx));
             let row = |index| Some(self.focus.handle(STOP_ROWS + index, cx));
@@ -596,44 +707,25 @@ impl Render for PlaylistDownload {
         let kept = self.focus.kept_stops(row_stops.clone(), window);
         let rows = self
             .rows
-            .render(videos.len(), 4., kept, window, |index| self.row(index, &videos[index], cx).into_any_element());
-        let rows = self.focus.container(div().child(rows), row_stops, cx);
-        let body = v_flex()
-            .w_full()
-            .px(px(ROW_HORIZONTAL))
-            .py_4()
-            .gap_3()
-            .child(self.header(window, cx))
-            .child(self.options(cx))
-            .child(rows);
-        let buttons = h_flex()
-            .child(press(
-                &self.focus,
-                STOP_CANCEL,
-                text_button("playlist-download-cancel", t(Str::DialogCancel), false, true, cx),
-                true,
-                |_, window, cx| window.close_dialog(cx),
-                cx,
-            ))
-            .child(press(
-                &self.focus,
-                STOP_DOWNLOAD,
-                text_button(
-                    "playlist-download",
-                    plural(Plural::PlaylistDownloadAction, count as i64, &[&count]),
-                    true,
-                    count > 0,
-                    cx,
-                ),
-                count > 0,
-                cx.listener(|view, _, window, cx| view.download(window, cx)),
-                cx,
-            ));
+            .render(videos.len(), 0., kept, window, |index| self.row(index, &videos[index], cx).into_any_element());
+        let rows = self.focus.container(div().w_full().max_w(px(CONTENT_MAX_WIDTH)).child(rows), row_stops, cx);
+        let body = v_flex().w_full().items_center().child(self.header(cx)).child(self.options(cx)).child(rows);
+        let theme = cx.theme().clone();
         v_flex()
-            .w_full()
-            .child(title_bar(t(Str::PlaylistDownloadTitle), cx))
-            .child(scroll_body("playlist-download-scroll", &self.scroll, body, window, cx))
-            .child(button_bar(buttons, cx))
+            .size_full()
+            .bg(theme.background)
+            .child(
+                div()
+                    .id("playlist-download-scroll")
+                    .flex_1()
+                    .min_h_0()
+                    .w_full()
+                    .overflow_y_scroll()
+                    .track_scroll(&self.scroll)
+                    .child(body),
+            )
+            .child(div().w_full().h(px(1.)).flex_shrink_0().bg(theme.border))
+            .child(h_flex().w_full().flex_shrink_0().p_4().justify_center().child(self.download_button(count, cx)))
     }
 }
 

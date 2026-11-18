@@ -3,7 +3,7 @@
 //! heights and containers, audio track, captions), its file name, where it goes, and its size.
 
 use std::cell::Cell;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::Mutex;
 
@@ -30,6 +30,7 @@ use crate::downloads_view::{Playability, playability};
 use crate::elevated_dialog::{self, body_max_height, button_bar, chrome, scroll_shadows, text_button, title_bar};
 use crate::graph::{AppGraph, on_core};
 use crate::quick_download::{QuickPreset, confirm_redownload, save_preset, saved_preset};
+use crate::recent_captions::{in_recent_languages, recent_caption_languages, record_caption_language};
 use crate::youtube_thumbnails::art_request_sources;
 
 /// The video to download, as the card showed it.
@@ -595,23 +596,71 @@ fn surface_dim(cx: &App) -> Hsla {
 }
 
 /// The JVM palette's InkSoft, between the foreground and the secondary ink.
-fn ink_soft(cx: &App) -> Hsla {
+pub fn ink_soft(cx: &App) -> Hsla {
     cx.theme().foreground.opacity(0.6)
+}
+
+/// The JVM app's `downloadPrimary`: the accent a step darker, under white text.
+pub fn download_primary(cx: &App) -> Hsla {
+    cx.theme().primary.darken(0.22)
+}
+
+/// The folder's name as the download location shows it.
+pub fn location_name(folder: Option<&Path>) -> String {
+    folder
+        .and_then(|folder| folder.file_name())
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_else(|| t(Str::DownloadLocationNotSet).to_owned())
+}
+
+/// The JVM `DropdownField`: `value` in an outlined field with a caret, `focus`'s `stop`th stop. The
+/// caller adds the menu and wraps it with [`FocusList::wrap`].
+pub fn dropdown_field(
+    id: impl Into<ElementId>,
+    label: &str,
+    value: String,
+    focus: &FocusList,
+    stop: usize,
+    cx: &App,
+) -> Button {
+    let theme = cx.theme();
+    Button::new(id)
+        .outline()
+        .w_full()
+        .h(px(36.))
+        .px(px(8.))
+        .rounded(px(9.))
+        .border_color(theme.input)
+        .accessibility_label(format!("{label}, {value}"))
+        .child(
+            div()
+                .flex_1()
+                .min_w_0()
+                .text_left()
+                .text_size(px(14.))
+                .text_color(theme.foreground)
+                .truncate()
+                .child(value),
+        )
+        .child(Icon::new(MaterialIcon::KeyboardArrowDown).size(px(18.)).flex_shrink_0().text_color(ink_soft(cx)))
+        .track_focus(&focus.handle(stop, cx))
 }
 
 struct Choice {
     label: String,
     selected: bool,
     pick: Rc<dyn Fn(&mut DownloadPicker)>,
+    /// The caption language picking it records as recent.
+    recent_caption: Option<String>,
 }
 
 fn choice(label: String, selected: bool, pick: impl Fn(&mut DownloadPicker) + 'static) -> Choice {
-    Choice { label, selected, pick: Rc::new(pick) }
+    Choice { label, selected, pick: Rc::new(pick), recent_caption: None }
 }
 
 fn choice_items(mut menu: PopupMenu, choices: &[Choice], picker: &WeakEntity<DownloadPicker>) -> PopupMenu {
     for choice in choices {
-        let (pick, picker) = (choice.pick.clone(), picker.clone());
+        let (pick, picker, recent_caption) = (choice.pick.clone(), picker.clone(), choice.recent_caption.clone());
         menu =
             menu.item(PopupMenuItem::new(choice.label.clone()).checked(choice.selected).on_click(move |_, _, cx| {
                 picker
@@ -620,6 +669,9 @@ fn choice_items(mut menu: PopupMenu, choices: &[Choice], picker: &WeakEntity<Dow
                         cx.notify();
                     })
                     .ok();
+                if let Some(code) = &recent_caption {
+                    record_caption_language(code.clone(), cx);
+                }
             }));
     }
     menu
@@ -691,16 +743,54 @@ impl DownloadPicker {
         }
     }
 
-    fn caption_choices(&self) -> Vec<Choice> {
+    fn caption_choices(&self, cx: &App) -> Vec<Choice> {
         let mut choices = vec![choice(t(Str::DownloadCaptionsOff).to_owned(), self.caption.is_none(), |picker| {
             picker.caption = None
         })];
-        for caption in self.options().map(|options| options.captions.clone()).unwrap_or_default() {
+        for caption in self.ordered_captions(cx) {
             let key = caption.key();
             let selected = Some(&key) == self.caption.as_ref();
-            choices.push(choice(caption_label(&caption), selected, move |picker| picker.caption = Some(key.clone())));
+            let recent_caption = Some(caption.language_code.clone());
+            let mut entry = choice(caption_label(&caption), selected, move |picker| picker.caption = Some(key.clone()));
+            entry.recent_caption = recent_caption;
+            choices.push(entry);
         }
         choices
+    }
+
+    /// The selected track, the tracks in the recent caption languages (the video's own, uploaded
+    /// before auto-generated, else its auto-translation), then the rest in their order. Picking a
+    /// track records its language, as Now Playing does.
+    fn ordered_captions(&self, cx: &App) -> Vec<CaptionOption> {
+        let captions = self.options().map(|options| options.captions.clone()).unwrap_or_default();
+        let mut own: Vec<usize> = (0..captions.len()).filter(|index| !captions[*index].is_translated).collect();
+        own.sort_by_key(|index| captions[*index].is_asr);
+        let translated: Vec<usize> = (0..captions.len()).filter(|index| captions[*index].is_translated).collect();
+        let own_languages: Vec<&str> = own.iter().map(|index| captions[*index].language_code.as_str()).collect();
+        let translated_languages: Vec<&str> =
+            translated.iter().map(|index| captions[*index].language_code.as_str()).collect();
+        let recent: Vec<usize> = recent_caption_languages(cx)
+            .iter()
+            .filter_map(|code| {
+                let code = std::slice::from_ref(code);
+                in_recent_languages(&own_languages, code, |language| language)
+                    .first()
+                    .map(|position| own[*position])
+                    .or_else(|| {
+                        in_recent_languages(&translated_languages, code, |language| language)
+                            .first()
+                            .map(|position| translated[*position])
+                    })
+            })
+            .collect();
+        let selected = captions.iter().position(|caption| Some(caption.key()) == self.caption);
+        let mut order: Vec<usize> = selected.into_iter().collect();
+        for index in recent.into_iter().chain(0..captions.len()) {
+            if !order.contains(&index) {
+                order.push(index);
+            }
+        }
+        order.into_iter().map(|index| captions[index].clone()).collect()
     }
 
     fn container_choices(&self) -> Vec<Choice> {
@@ -716,11 +806,7 @@ impl DownloadPicker {
     }
 
     fn location_name(&self) -> String {
-        self.folder
-            .as_ref()
-            .and_then(|folder| folder.file_name())
-            .map(|name| name.to_string_lossy().into_owned())
-            .unwrap_or_else(|| t(Str::DownloadLocationNotSet).to_owned())
+        location_name(self.folder.as_deref())
     }
 
     /// "MP4 · 1080p60 · English · English · ≈ 92 MB".
@@ -745,7 +831,7 @@ impl DownloadPicker {
         parts.join(" · ")
     }
 
-    /// An outlined value with a caret that opens `choices` (the JVM `DropdownField`).
+    /// A [`dropdown_field`] that opens `menu`.
     fn dropdown(
         &self,
         id: &'static str,
@@ -755,30 +841,9 @@ impl DownloadPicker {
         menu: impl Fn(PopupMenu) -> PopupMenu + 'static,
         cx: &App,
     ) -> Div {
-        let theme = cx.theme();
-        let field = Button::new(id)
-            .outline()
-            .w_full()
-            .h(px(36.))
-            .px(px(8.))
-            .rounded(px(9.))
-            .border_color(theme.input)
-            .dropdown_caret(true)
-            .accessibility_label(format!("{label}, {value}"))
-            .child(
-                div()
-                    .flex_1()
-                    .min_w_0()
-                    .text_left()
-                    .text_size(px(14.))
-                    .text_color(theme.foreground)
-                    .truncate()
-                    .child(value),
-            )
-            .track_focus(&self.focus.handle(stop, cx))
-            .dropdown_menu(move |popup, _, cx| {
-                menu(crate::settings_view::field_menu(popup, cx).scrollable(true).max_h(px(360.)))
-            });
+        let field = dropdown_field(id, label, value, &self.focus, stop, cx).dropdown_menu(move |popup, _, cx| {
+            menu(crate::settings_view::field_menu(popup, cx).scrollable(true).max_h(px(360.)))
+        });
         self.focus.wrap(stop, field, cx).w_full()
     }
 
@@ -1112,7 +1177,7 @@ impl DownloadPicker {
                     "download-captions",
                     t(Str::DownloadSubtitles),
                     self.caption_summary(),
-                    self.caption_choices(),
+                    self.caption_choices(cx),
                     STOP_CAPTIONS,
                     cx,
                 ))
@@ -1634,7 +1699,7 @@ impl DownloadPicker {
             (Some(what), Some(bytes)) => tf(Str::DownloadActionDetail, &[&what, &download_size(bytes)]),
             _ => t(Str::DownloadAction).to_owned(),
         };
-        let fill = cx.theme().primary.darken(0.22);
+        let fill = download_primary(cx);
         let button = div()
             .id("download-start-sheet")
             .role(Role::Button)
@@ -1715,7 +1780,7 @@ impl DownloadPicker {
                     rows = rows.child(self.choice_row(
                         ("download-captions", MaterialIcon::SubtitlesOutlined, t(Str::DownloadCaptions)),
                         self.caption_summary(),
-                        self.caption_choices(),
+                        self.caption_choices(cx),
                         STOP_CAPTIONS,
                         cx,
                     ));

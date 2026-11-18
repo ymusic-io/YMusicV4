@@ -30,6 +30,7 @@ use crate::now_playing::{NowPlaying, NowPlayingEvent};
 use crate::play_again::{PlayAgainView, ResumeQueue};
 use crate::play_history::HistoryRecorder;
 use crate::playback::{Playback, PlaybackState, QueueItem};
+use crate::playlist_download::{OpenPlaylistDownload, PlaylistDownload, PlaylistDownloadDone};
 use crate::search_view::{SearchEvent, SearchMode, SearchView};
 use crate::settings_view::HOVER_ALPHA;
 use crate::settings_view::{LocaleChanged, SettingsView};
@@ -404,6 +405,7 @@ enum Layer {
     Search(Entity<SearchView>),
     LibrarySearch(Entity<LibrarySearchView>),
     SignIn(Entity<SignInView>),
+    PlaylistDownload(Entity<PlaylistDownload>),
 }
 
 /// What a pushed page's search button does.
@@ -1435,8 +1437,22 @@ impl Shell {
                 }
             }
         });
-        self._subscriptions.extend([navigate, search, play, action]);
+        let download = cx.subscribe(&view, |shell, _, event: &OpenPlaylistDownload, cx| {
+            shell.open_playlist_download(event.0.clone(), cx);
+        });
+        self._subscriptions.extend([navigate, search, play, action, download]);
         view
+    }
+
+    fn open_playlist_download(&mut self, view: Entity<PlaylistDownload>, cx: &mut Context<Self>) {
+        let done = cx.subscribe(&view, |shell, view, _: &PlaylistDownloadDone, cx| {
+            for stack in shell.stacks.values_mut() {
+                stack.pushed.retain(|layer| !matches!(layer, Layer::PlaylistDownload(open) if *open == view));
+            }
+            cx.notify();
+        });
+        self._subscriptions.push(done);
+        self.push_layer(Layer::PlaylistDownload(view), cx);
     }
 
     fn root(&mut self, source: FeedSource, cx: &mut Context<Self>) -> Entity<FeedView> {
@@ -1766,12 +1782,20 @@ impl Shell {
                 let filter = (!view.read(cx).filter_groups().is_empty()).then(|| view.clone());
                 return v_flex()
                     .size_full()
-                    .child(self.detail_bar(query.into(), LayerSearch::Edit(search), filter, cx))
+                    .child(self.detail_bar(query.into(), Some(LayerSearch::Edit(search)), filter, cx))
                     .child(div().flex_1().min_h_0().relative().child(page(view, window)).children(bar_shadow(cx)))
                     .into_any_element();
             }
             Some(Layer::LibrarySearch(view)) => return page(view.clone(), window),
             Some(Layer::SignIn(view)) => return page(view.clone(), window),
+            Some(Layer::PlaylistDownload(view)) => {
+                let view = view.clone();
+                return v_flex()
+                    .size_full()
+                    .child(self.detail_bar(t(Str::PlaylistDownloadTitle).into(), None, None, cx))
+                    .child(div().flex_1().min_h_0().relative().child(page(view, window)).children(bar_shadow(cx)))
+                    .into_any_element();
+            }
             Some(Layer::Feed { view, title }) => {
                 let view = view.clone();
                 // A channel's name arrives with its page header.
@@ -1785,7 +1809,7 @@ impl Shell {
                 let mode = if view.read(cx).is_music_page() { SearchMode::Music } else { SearchMode::YouTube };
                 return v_flex()
                     .size_full()
-                    .child(self.detail_bar(title, LayerSearch::Open(mode), None, cx))
+                    .child(self.detail_bar(title, Some(LayerSearch::Open(mode)), None, cx))
                     .child(div().flex_1().min_h_0().relative().child(page(view, window)).children(bar_shadow(cx)))
                     .into_any_element();
             }
@@ -1810,12 +1834,12 @@ impl Shell {
             .into_any_element()
     }
 
-    /// Back, title and search, for a pushed page. `filter` adds the search filter button for those
-    /// results.
+    /// Back, title and search (when the page has it), for a pushed page. `filter` adds the search
+    /// filter button for those results.
     fn detail_bar(
         &self,
         title: SharedString,
-        search: LayerSearch,
+        search: Option<LayerSearch>,
         filter: Option<Entity<FeedView>>,
         cx: &mut Context<Self>,
     ) -> AnyElement {
@@ -1846,19 +1870,21 @@ impl Shell {
                     ),
                 )
             })
-            .child(self.chrome_focus.button(
-                CHROME_LAYER_SEARCH,
-                action_icon("layer-search", MaterialIcon::Search, t(Str::CdSearch)).on_click(cx.listener(
-                    move |shell, _, window, cx| match &search {
-                        LayerSearch::Edit(view) => {
-                            view.update(cx, |view, cx| view.edit(cx));
-                            cx.notify();
-                        }
-                        LayerSearch::Open(mode) => shell.open_search(*mode, window, cx),
-                    },
-                )),
-                cx,
-            ))
+            .when_some(search, |bar, search| {
+                bar.child(self.chrome_focus.button(
+                    CHROME_LAYER_SEARCH,
+                    action_icon("layer-search", MaterialIcon::Search, t(Str::CdSearch)).on_click(cx.listener(
+                        move |shell, _, window, cx| match &search {
+                            LayerSearch::Edit(view) => {
+                                view.update(cx, |view, cx| view.edit(cx));
+                                cx.notify();
+                            }
+                            LayerSearch::Open(mode) => shell.open_search(*mode, window, cx),
+                        },
+                    )),
+                    cx,
+                ))
+            })
             .into_any_element()
     }
 

@@ -53,6 +53,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -123,6 +124,7 @@ import io.ymusic.ui.resources.playback_sign_in_required
 import io.ymusic.ui.resources.playback_unavailable
 import io.ymusic.ui.resources.retry
 import io.ymusic.ui.resources.signin_button
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import projectcommon.error.Playability
 import projectcommon.error.playabilityOf
@@ -555,10 +557,30 @@ internal fun containerChoices(state: DownloadOptionsState): List<Choice> =
         Choice(container.displayName(), state.format == container) { state.container = container }
     }
 
+/** Off, the selected track, the tracks in the recent caption languages (the video's own, uploaded before
+ *  auto-generated, else its auto-translation), then the rest. Picking a track records its language, as Now
+ *  Playing does. */
 @Composable
-internal fun captionChoices(state: DownloadOptionsState): List<Choice> =
-    listOf(Choice(stringResource(Res.string.download_captions_off), state.caption == null) { state.caption = null }) +
-        state.options?.captions.orEmpty().map { track -> Choice(track.displayName(), track.key == state.caption) { state.caption = track.key } }
+internal fun captionChoices(state: DownloadOptionsState): List<Choice> {
+    val recent = rememberRecentCaptionLanguages(state.settings)
+    val scope = rememberCoroutineScope()
+    val tracks = state.options?.captions.orEmpty()
+    val selected = tracks.firstOrNull { it.key == state.caption }
+    val own = tracks.filter { !it.isTranslated }.sortedBy { it.isAsr }
+    val translated = tracks.filter { it.isTranslated }
+    val recentTracks = recent.mapNotNull { code ->
+        own.inRecentCaptionLanguages(listOf(code)) { it.languageCode }.firstOrNull()
+            ?: translated.inRecentCaptionLanguages(listOf(code)) { it.languageCode }.firstOrNull()
+    }
+    val ordered = (listOfNotNull(selected) + recentTracks + tracks).distinct()
+    return listOf(Choice(stringResource(Res.string.download_captions_off), state.caption == null) { state.caption = null }) +
+        ordered.map { track ->
+            Choice(track.displayName(), track.key == state.caption) {
+                state.caption = track.key
+                scope.launch { state.settings.recordRecentCaptionLanguage(track.languageCode) }
+            }
+        }
+}
 
 /** The track's name, marked when it is one of YouTube's auto-translations. */
 @Composable

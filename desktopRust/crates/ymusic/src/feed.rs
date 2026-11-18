@@ -22,7 +22,7 @@ use crate::graph::{AppGraph, on_core};
 use crate::lazy_rows::LazyRows;
 use crate::local_playlist::LocalPlaylistFromDownloads;
 use crate::offline::{OfflineMarks, offline_mark};
-use crate::playlist_download::PlaylistDownload;
+use crate::playlist_download::{OpenPlaylistDownload, PlaylistDownload};
 use crate::quick_download::saved_preset;
 use crate::settings_view::{HOVER_ALPHA, StackTones};
 use crate::spinner::{BusyButton, LoadingLine, Spinner};
@@ -304,6 +304,7 @@ impl EventEmitter<Navigate> for FeedView {}
 impl EventEmitter<RequestSearch> for FeedView {}
 impl EventEmitter<Play> for FeedView {}
 impl EventEmitter<ItemAction> for FeedView {}
+impl EventEmitter<OpenPlaylistDownload> for FeedView {}
 
 impl FeedView {
     pub fn new(source: FeedSource, title: Option<SharedString>, cx: &mut Context<Self>) -> Self {
@@ -507,7 +508,9 @@ impl FeedView {
         if local {
             LocalPlaylistFromDownloads::open(self.source.clone(), title, &self.page, window, cx);
         } else {
-            PlaylistDownload::open(self.source.clone(), title, &self.page, window, cx);
+            let (source, page) = (self.source.clone(), &self.page);
+            let view = cx.new(|cx| PlaylistDownload::new(source, title, page, cx));
+            cx.emit(OpenPlaylistDownload(view));
         }
         true
     }

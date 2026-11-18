@@ -1356,7 +1356,7 @@ private fun CaptionToggle(
 ) {
     val captions by player.captions.collectAsState()
     val config by player.config.collectAsState()
-    val recentLanguages by remember(settings) { settings.flow(AppSettings.recentTranslateLanguages) }.collectAsState()
+    val recentLanguages = rememberRecentCaptionLanguages(settings)
     val scope = rememberCoroutineScope()
     if (captions.tracks.isEmpty()) return
     var open by remember { mutableStateOf(false) }
@@ -1370,10 +1370,7 @@ private fun CaptionToggle(
         player.setCaptionVisible(true)
         open = false
         translateOpen = false
-        if (track.kind == AUTO_TRANSLATE_KIND) {
-            val recent = (listOf(track.languageCode) + recentLanguages).distinct().take(RECENT_TRANSLATE_LANGUAGES)
-            scope.launch { settings.put(AppSettings.recentTranslateLanguages, recent.toSet()) }
-        }
+        scope.launch { settings.recordRecentCaptionLanguage(track.languageCode) }
     }
     val onTrack = tracks.firstOrNull { isOn(it) } ?: translations.firstOrNull { isOn(it) }
     val captionState = onTrack?.displayName ?: stringResource(Res.string.captions_off)
@@ -1421,7 +1418,7 @@ private fun CaptionToggle(
         // ~150 languages: a lazy list, so opening it does not compose every row.
         if (translateOpen) {
             DropdownMenu(expanded = true, onDismissRequest = { translateOpen = false }) {
-                val recent = recentLanguages.mapNotNull { code -> translations.firstOrNull { it.languageCode == code } }
+                val recent = translations.inRecentCaptionLanguages(recentLanguages) { it.languageCode }
                 LazyColumn(Modifier.size(width = 240.dp, height = 360.dp)) {
                     if (recent.isNotEmpty()) {
                         items(recent, key = { "recent-${it.id}" }) { track ->
@@ -1450,8 +1447,6 @@ private fun CaptionToggle(
 
 /** Engine track kind for YouTube auto-translate languages (clones of a source track, one per language). */
 private const val AUTO_TRANSLATE_KIND = "asrt"
-
-private const val RECENT_TRANSLATE_LANGUAGES = 3
 
 /** A playback failure for the user: a known category, the text the source gave for it (YouTube's own words
  *  for a playability verdict), else our message for the verdict, else "Playback failed (code)". */
