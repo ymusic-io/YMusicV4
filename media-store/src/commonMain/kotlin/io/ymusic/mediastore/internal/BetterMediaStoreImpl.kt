@@ -309,9 +309,13 @@ internal class BetterMediaStoreImpl(
             }
         }
 
-    override suspend fun removeFromPlaylist(playlistId: Long, code: String): Unit = withContext(io) {
-        plItemQ.removePlaylistItem(playlistId, code)
-    }
+    override suspend fun removeCodesFromPlaylist(playlistId: Long, codes: Collection<String>): Unit =
+        withContext(io) {
+            if (codes.isEmpty()) return@withContext
+            db.transaction {
+                for (code in codes) plItemQ.removePlaylistItem(playlistId, code)
+            }
+        }
 
     override suspend fun reorderPlaylist(playlistId: Long, orderedCodes: List<String>): Unit =
         withContext(io) {

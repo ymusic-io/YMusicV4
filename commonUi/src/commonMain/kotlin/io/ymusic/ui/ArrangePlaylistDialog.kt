@@ -194,7 +194,7 @@ internal fun ArrangePlaylistDialog(
 
 /** Songs the playlist holds but the library can't resolve right now aren't shown; they keep their place after the arranged ones. */
 private suspend fun saveArrangement(store: BetterMediaStore, playlistId: Long, arrange: ArrangeState) {
-    arrange.removedCodes.forEach { store.removeFromPlaylist(playlistId, it) }
+    store.removeCodesFromPlaylist(playlistId, arrange.removedCodes)
     val arranged = arrange.items.map { it.code }
     val shown = arranged.toSet()
     val unresolved = store.playlistItems(playlistId).map { it.code }.filter { it !in shown }

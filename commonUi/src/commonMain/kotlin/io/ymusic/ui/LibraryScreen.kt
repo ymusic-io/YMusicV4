@@ -175,6 +175,7 @@ import io.ymusic.ui.resources.unknown_album
 import io.ymusic.ui.resources.unknown_artist
 import io.ymusic.ui.resources.unknown_genre
 import kmpcommon.log.Logger
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.conflate
@@ -185,6 +186,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
+import projectcommon.error.TechnicalException
 import projectcommon.error.errorCode
 
 /** [key] is what a restart resumes by: fixed, shared with the Rust app, never renamed. */
@@ -1204,10 +1206,11 @@ private fun PlaylistsTab(
     }
     // A user playlist offers "Remove from playlist" on each song row; Top tracks offers "Remove"
     // (drops the watch-time row). Other system lists and the playlist index have neither.
-    val removeFromPlaylist: ((List<MediaStoreItem>) -> Unit)? = remember(open?.first) {
+    val snackbar = LocalSnackbar.current
+    val removeFromPlaylist: ((List<MediaStoreItem>) -> Unit)? = remember(open?.first, snackbar) {
         val id = open?.first
         if (id != null && id > 0) {
-            { songs: List<MediaStoreItem> -> scope.launch { songs.forEach { store.removeFromPlaylist(id, it.playlistCode) } }; Unit }
+            { songs: List<MediaStoreItem> -> removeFromLocalPlaylist(graph, store, id, songs.map { it.playlistCode }, snackbar) }
         } else {
             null
         }
@@ -1317,6 +1320,27 @@ private fun PlaylistsTab(
                     }
                 }
             }
+        }
+    }
+}
+
+/** On the process scope: leaving the Library must not drop a confirmed removal. */
+private fun removeFromLocalPlaylist(
+    graph: AppGraph,
+    store: BetterMediaStore,
+    playlistId: Long,
+    codes: List<String>,
+    snackbar: (String) -> Unit,
+) {
+    graph.processScope.launch {
+        try {
+            store.removeCodesFromPlaylist(playlistId, codes)
+        } catch (cancel: CancellationException) {
+            throw cancel
+        } catch (failure: Exception) {
+            val wrapped = TechnicalException("E50014", "removing songs from a playlist failed", cause = failure)
+            graph.logger?.fork("library", mapOf("playlist" to playlistId.toString()))?.captureError(wrapped)
+            snackbar(errorText(wrapped.errorCode() ?: "E50014").load())
         }
     }
 }
