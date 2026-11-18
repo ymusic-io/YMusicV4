@@ -37,6 +37,8 @@ pub const QUALITY_AUDIO_ONLY: &str = "zero";
 const LOCAL_POLL: Duration = Duration::from_millis(250);
 const MIN_SKIP_MS: i64 = 1_000;
 const OUTRO_TOLERANCE_MS: i64 = 1_000;
+/// The share of YouTube's loudness attenuation playback applies (the JVM `STABLE_VOLUME_STRENGTH`).
+const STABLE_VOLUME_STRENGTH: f32 = 0.5;
 /// Cue the next item this close to the end (the JVM `PRELOAD_LEAD_MS`).
 const PRELOAD_LEAD_MS: i64 = 10_000;
 
@@ -482,8 +484,9 @@ pub struct Playback {
     /// The video whose acknowledged load still waits for progress or details.
     load_timeout_video: Option<String>,
     _load_timeout: Option<Task<()>>,
+    /// base.js's loudness gain for the presenting format, as pushed.
     gain: f32,
-    /// The local item's attenuate-only loudness gain.
+    /// The local item's attenuate-only loudness gain, softened.
     local_gain: f32,
     /// Both loudness gains apply (the JVM `PlaybackConfig.stableVolume`).
     stable_volume: bool,
@@ -1664,7 +1667,8 @@ impl Playback {
     }
 
     fn apply_volume(&self) {
-        let (gain, local_gain) = if self.stable_volume { (self.gain, self.local_gain) } else { (1.0, 1.0) };
+        let (gain, local_gain) =
+            if self.stable_volume { (softened_loudness_gain(self.gain), self.local_gain) } else { (1.0, 1.0) };
         if let Some(session) = &self.session {
             session.host.set_volume(self.volume * gain);
         }
@@ -1945,7 +1949,9 @@ impl Playback {
                 self.caption_lines.clear();
                 self.caption_tracks.clear();
                 self.caption_selected = None;
-                self.local_gain = item.loudness_gain_db.map_or(1.0, |db| 10f64.powf(db.min(0.0) / 20.0) as f32);
+                self.local_gain = item
+                    .loudness_gain_db
+                    .map_or(1.0, |db| softened_loudness_gain(10f64.powf(db.min(0.0) / 20.0) as f32));
                 self.apply_volume();
                 self.local_generation += 1;
                 self.bind_presenter();
@@ -2630,6 +2636,12 @@ impl Playback {
 
 fn queue_source_log(cx: &App) -> ym_common::log::Logger {
     cx.global::<AppGraph>().log.fork("queue-source")
+}
+
+/// `gain`, YouTube's attenuate-only linear loudness gain, with [`STABLE_VOLUME_STRENGTH`] of its cut
+/// (the JVM `softenedLoudnessGain`).
+fn softened_loudness_gain(gain: f32) -> f32 {
+    1.0 - (1.0 - gain.clamp(0.0, 1.0)) * STABLE_VOLUME_STRENGTH
 }
 
 fn field_i64(object: &Value, names: &[&str]) -> i64 {
