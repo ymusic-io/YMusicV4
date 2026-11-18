@@ -106,6 +106,7 @@ Commit every change before the session ends. One logical change per commit.
 Never leave a working tree of mixed experiments uncommitted: later we cannot
 tell what used to work, what broke it, or why (engine-js vs native MSE vs player vs UI).
 
+- **One branch per feature or fix**, cut from `master` and merged back with `git merge --no-ff`, so each change lands as a single merge commit — the one link its changelog line points to. Never batch unrelated fixes on one branch (a follow-up to a merged feature gets its own small branch too).
 - **Worktrees for desktop work:** create them with `tools/dev-worktree.sh new <branch>`, or run `tools/dev-worktree.sh setup` inside one a harness made. It links the gitignored build inputs and gives the checkout its own copy of `~/.ymusic` (`tools/dev-data.sh`), so dev builds of several branches run side by side; `tools/dev-worktree.sh remove` deletes both again.
 - Message: what changed and why, not a diary of tool calls.
 - **Every commit message carries one `Rust:` line** — `Rust: ported` (its desktopRust/ side is in this commit or this branch) or `Rust: n/a. <why it does not apply>`. There is no todo: port it in the same branch. The commit-msg hook (`.githooks/commit-msg`) rejects anything else; merge commits are exempt.
@@ -119,7 +120,7 @@ tell what used to work, what broke it, or why (engine-js vs native MSE vs player
 ### Release flow
 On the current working branch:
 1. Bump `ymusic.versionName` and `ymusic.versionCode` +1 in `gradle.properties` — the one version for Android, desktop (the Rust app reports it too) and iOS.
-2. In `CHANGELOG.md`, rename `## Unreleased` to the version. It covers the desktop app in `desktopRust/` too.
+2. In `CHANGELOG.md`, rename `## Unreleased` to the version. It covers the desktop app in `desktopRust/` too. Sections go NEW, FIXED, IMPROVED. Each entry is one short user-readable line saying what is new or what was fixed — never why it broke or how it was fixed (advanced readers follow the link) — followed by its link: the branch's merge commit, plus single commits only for work that didn't come through its own branch.
 3. In `error-codes.txt` and `desktopRust/error-codes.txt`, flip shipped `-` rows to `D`.
 4. Tag the commit: `hotfix-v<version>` for a hotfix, `release-v<version>` for a release, `prerelease-v<version>` for a test build (same full artifact set in a draft GitHub prerelease, no CHANGELOG section, Sentry environment `beta`; steps 1–3 don't apply). The tag message is the update dialog's release notes, **per platform**: each platform's lines go under its `[android]` / `[macos]` / `[windows]` / `[linux]` header (repeat a line under each header it applies to); a message without headers goes to every platform, and an unknown header fails the release job. Each platform's notes: at most 7 lines of ≤40 chars (the dialog cuts off the rest), no title (the dialog shows the version); when there is more, the last line says so and points to the full changelog:
    ```
