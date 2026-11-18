@@ -14,9 +14,13 @@ import io.ymusic.imageloader.decodeScaledFile
 import io.ymusic.imageloader.sourceCacheKey
 import io.ymusic.mediastore.BetterMediaStore
 import io.ymusic.mediastore.model.MediaStoreItem
+import kmpcommon.WorkerThread
+import kmpcommon.log.Logger
 import kmpcommon.uri.Uri
 import kmpcommon.uri.UriBuilder
 import kmpffmpeg.metadata.FfmpegMetadataGetter
+import kmpffmpeg.metadata.FfmpegThumbnailException
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.withContext
@@ -70,6 +74,16 @@ fun interface YoutubeArt {
 }
 
 /**
+ * A platform decoder's JPEG of one representative frame of a video, fitted within a 1280 px box and
+ * never scaled up — what [FfmpegMetadataGetter.extractThumbnail] yields. The art fetcher's fallback
+ * for a video the bundled ffmpeg cannot decode (Android's build has no AV1 decoder).
+ */
+fun interface VideoFrameExtractor {
+    @WorkerThread
+    fun extract(uri: Uri): Source
+}
+
+/**
  * [YoutubeArt] through [loader]'s identity request for the video ([youtubeImageKey] with
  * [youtubeThumbnailSources]): shares its caches and variant index with every other view of the
  * video. [loader] is a provider because the art fetcher is built into the loader it calls; the
@@ -90,6 +104,9 @@ fun loaderYoutubeArt(loader: () -> ImageLoader): YoutubeArt = YoutubeArt { video
  * With a [coverCache], an extracted cover or frame is kept on disk, keyed by the file's uri, size
  * and mtime (a changed file re-extracts): every view size then decodes from that file instead of
  * spawning ffmpeg again.
+ *
+ * A video frame ffmpeg cannot produce goes to [frameFallback] when there is one; if that fails too,
+ * ffmpeg's exception is thrown with the fallback's failure suppressed on it.
  */
 fun mediaStoreArtFetcher(
     getter: FfmpegMetadataGetter,
@@ -97,7 +114,25 @@ fun mediaStoreArtFetcher(
     youtubeArt: YoutubeArt,
     coverCache: ImageSourceCache? = null,
     maxImageBytes: Long = 32L * 1024 * 1024,
+    frameFallback: VideoFrameExtractor? = null,
+    logger: Logger? = null,
 ): ImageFetcher = ImageFetcher { uri, size, scale ->
+    suspend fun extractFrame(file: Uri): Source = try {
+        getter.extractThumbnail(file)
+    } catch (ffmpegError: FfmpegThumbnailException) {
+        val fallback = frameFallback ?: throw ffmpegError
+        try {
+            withContext(Dispatchers.IO) { fallback.extract(file) }.also {
+                logger?.log(Logger.Level.INFO, "ffmpeg gave no video frame, platform decoder did: $file", ffmpegError)
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (fallbackError: Exception) {
+            ffmpegError.addSuppressed(fallbackError)
+            throw ffmpegError
+        }
+    }
+
     if (uri.scheme?.toString() != "art") return@ImageFetcher null
     val url = uri.toString()
     if (uri.authority?.toString() == "yt") {
@@ -108,7 +143,7 @@ fun mediaStoreArtFetcher(
     if (uri.authority?.toString() == "file") {
         val file = uri.queryParamValue("uri")?.let { Uri.parse(it) }
             ?: throw ImageLoadException(ImageLoadException.Reason.Unsupported, "malformed art uri: $url")
-        val source = if (uri.queryParamValue("kind")?.toString() == ART_KIND_COVER) getter.getAttachedPic(file) else getter.extractThumbnail(file)
+        val source = if (uri.queryParamValue("kind")?.toString() == ART_KIND_COVER) getter.getAttachedPic(file) else extractFrame(file)
         val bytes = readCapped(source, maxImageBytes, url)
         return@ImageFetcher decodeChecked(url) { decodeScaled(bytes, size, scale) }
     }
@@ -124,7 +159,7 @@ fun mediaStoreArtFetcher(
         item.videoCodec != null -> "frame"
         else -> throw ImageLoadException(ImageLoadException.Reason.NotFound, "media item $id has no artwork source: $url")
     }
-    suspend fun extract(): Source = if (kind == "cover") getter.getAttachedPic(item.uri) else getter.extractThumbnail(item.uri)
+    suspend fun extract(): Source = if (kind == "cover") getter.getAttachedPic(item.uri) else extractFrame(item.uri)
     if (coverCache != null) {
         val key = sourceCacheKey("$kind:${item.uri}:${item.fileSize}:${item.lastModified}")
         val file = coverCache.filePath(key) ?: extract().use { coverCache.write(key, it, maxImageBytes, url) }
