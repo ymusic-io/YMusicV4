@@ -471,6 +471,7 @@ class YMusicApplication : Application() {
                         coverCache = ImageSourceCache(FileSystem.SYSTEM, cacheDir.resolve("image-cover-cache").toOkioPath(), 32L * 1024 * 1024),
                         frameFallback = PlatformVideoFrameExtractor(this),
                         logger = rootLogger.fork("local-art"),
+                        extractorVersion = BuildConfig.VERSION_CODE.toString(),
                     )
                 },
             ),

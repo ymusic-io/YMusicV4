@@ -28,12 +28,31 @@ const THUMBNAIL_FILTER: &str = "scale=w='min(1280,iw)':h='min(1280,ih)':force_or
 pub struct FfmpegError {
     pub code: &'static str,
     pub message: String,
+    /// The run was killed by SIGKILL or SIGTERM (the low-memory killer, or a teardown).
+    killed: bool,
 }
 
 impl FfmpegError {
     pub(crate) fn new(code: &'static str, message: impl Into<String>) -> Self {
-        Self { code, message: message.into() }
+        Self { code, message: message.into(), killed: false }
     }
+
+    /// ffmpeg ran to its end and wrote no image: the file's own fault, so the same run soon fails the
+    /// same way. Every other failure (no binary, spawn, timeout, I/O, byte cap, a killed run) is not.
+    pub fn is_extraction_failure(&self) -> bool {
+        matches!(self.code, "R40008" | "R40009") && !self.killed
+    }
+}
+
+#[cfg(unix)]
+fn killed(status: &std::process::ExitStatus) -> bool {
+    use std::os::unix::process::ExitStatusExt;
+    matches!(status.signal(), Some(9 | 15))
+}
+
+#[cfg(not(unix))]
+fn killed(_status: &std::process::ExitStatus) -> bool {
+    false
 }
 
 /// `YMUSIC_FFMPEG`, else beside the executable (packaged), else the dev build's.
@@ -99,10 +118,13 @@ impl FfmpegMetadataGetter {
             ["-map", "0:disp:attached_pic", "-c", "copy", "-frames:v", "1", "-update", "1", "-f", "image2", "pipe:1"];
         let finished = self.single_image(path, &[], &rest, max_bytes)?;
         if finished.stdout.is_empty() {
-            return Err(FfmpegError::new(
-                "R40008",
-                format!("ffmpeg produced no attached picture ({})\n{}", finished.status, stderr_text(&finished)),
-            ));
+            return Err(FfmpegError {
+                killed: killed(&finished.status),
+                ..FfmpegError::new(
+                    "R40008",
+                    format!("ffmpeg produced no attached picture ({})\n{}", finished.status, stderr_text(&finished)),
+                )
+            });
         }
         Ok(finished.stdout)
     }
@@ -126,10 +148,13 @@ impl FfmpegMetadataGetter {
         ];
         let finished = self.single_image(path, &THUMBNAIL_INPUT_OPTIONS, &rest, max_bytes)?;
         if finished.stdout.is_empty() {
-            return Err(FfmpegError::new(
-                "R40009",
-                format!("ffmpeg produced no thumbnail frame ({})\n{}", finished.status, stderr_text(&finished)),
-            ));
+            return Err(FfmpegError {
+                killed: killed(&finished.status),
+                ..FfmpegError::new(
+                    "R40009",
+                    format!("ffmpeg produced no thumbnail frame ({})\n{}", finished.status, stderr_text(&finished)),
+                )
+            });
         }
         Ok(finished.stdout)
     }

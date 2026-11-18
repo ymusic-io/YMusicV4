@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.media.MediaMetadataRetriever
 import android.os.Build
 import io.ymusic.ui.VideoFrameExtractor
+import io.ymusic.ui.VideoFrameUnavailableException
 import kmpcommon.WorkerThread
 import kmpcommon.uri.Uri
 import okio.Buffer
@@ -28,11 +29,11 @@ class PlatformVideoFrameExtractor(private val context: Context) : VideoFrameExtr
         val retriever = MediaMetadataRetriever()
         try {
             retriever.setDataSource(document.fileDescriptor)
-            val frame = frame(retriever) ?: throw IOException("platform decoder produced no frame: $uri")
+            val frame = frame(retriever) ?: throw VideoFrameUnavailableException("platform decoder produced no frame: $uri")
             val jpeg = Buffer()
             try {
                 if (!frame.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, jpeg.outputStream())) {
-                    throw IOException("JPEG encode failed: $uri")
+                    throw VideoFrameUnavailableException("JPEG encode failed: $uri")
                 }
             } finally {
                 frame.recycle()
@@ -40,7 +41,7 @@ class PlatformVideoFrameExtractor(private val context: Context) : VideoFrameExtr
             return jpeg
         } catch (e: RuntimeException) {
             // setDataSource and the frame getters report an undecodable source as IllegalArgument/StateException.
-            throw IOException("platform decoder failed: $uri", e)
+            throw VideoFrameUnavailableException("platform decoder failed: $uri", e)
         } finally {
             try {
                 retriever.release()

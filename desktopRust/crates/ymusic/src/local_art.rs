@@ -216,7 +216,8 @@ fn resolve(
             };
             let path = PathBuf::from(&item.uri);
             let file_uri = ym_store::file_uri(&item.uri);
-            let key = source_cache_key(&format!("{kind}:{file_uri}:{}:{}", item.file_size, item.last_modified));
+            let identity = format!("{kind}:{file_uri}:{}:{}", item.file_size, item.last_modified);
+            let key = source_cache_key(&identity);
             let cached = cache.file_path(&key).map_err(|error| {
                 ImageLoadError::with_cause(Reason::Undecodable, format!("cover cache unreadable: {url}"), error)
             })?;
@@ -226,16 +227,56 @@ fn resolve(
                     if !path.exists() {
                         return Err(ImageLoadError::new(Reason::NotFound, format!("no such file: {url}")));
                     }
-                    let encoded = if kind == ART_KIND_COVER { attached_picture(&path) } else { video_frame(&path) }
-                        .map_err(|error| {
-                            ImageLoadError::new(Reason::Undecodable, format!("art extraction failed: {url}: {error}"))
-                        })?;
+                    let failure_key = source_cache_key(&format!("failed:{}:{identity}", crate::graph::APP_VERSION));
+                    if let Some(failed_at) = recent_failure(cache, &failure_key, now_millis()) {
+                        return Err(ImageLoadError::new(
+                            Reason::RecentlyFailed,
+                            format!("art extraction failed at {failed_at}, retried after 1d: {url}"),
+                        ));
+                    }
+                    let encoded =
+                        match if kind == ART_KIND_COVER { attached_picture(&path) } else { video_frame(&path) } {
+                            Ok(encoded) => encoded,
+                            Err(error) => {
+                                let mut message = format!("art extraction failed: {url}: {error}");
+                                if error.is_extraction_failure()
+                                    && let Err(marker_error) = record_failure(cache, &failure_key, now_millis(), url)
+                                {
+                                    message.push_str(&format!("; failure not remembered: {marker_error}"));
+                                }
+                                return Err(ImageLoadError::new(Reason::Undecodable, message));
+                            }
+                        };
                     cache.write_blocking(&key, Cursor::new(encoded), DEFAULT_MAX_IMAGE_BYTES, url)?
                 }
             };
             decode_scaled_file(&file, size, scale, url).map(Resolved::Decoded)
         }
     }
+}
+
+/// The JVM `EXTRACTION_FAILURE_TTL`: how long a file's failed extraction is not retried.
+const EXTRACTION_FAILURE_TTL_MS: i64 = 24 * 60 * 60 * 1000;
+
+fn now_millis() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |elapsed| i64::try_from(elapsed.as_millis()).unwrap_or(i64::MAX))
+}
+
+/// The JVM `recentFailure`: when the remembered failure under `key` happened, if younger than the TTL.
+/// An unreadable marker counts as none: the extraction runs again.
+fn recent_failure(cache: &ImageSourceCache, key: &str, now: i64) -> Option<i64> {
+    let marker = cache.file_path(key).ok()??;
+    let failed_at: i64 = std::fs::read_to_string(marker).ok()?.trim().parse().ok()?;
+    let age = now - failed_at;
+    (0..EXTRACTION_FAILURE_TTL_MS).contains(&age).then_some(failed_at)
+}
+
+/// The JVM `recordFailure`: the failure's epoch millis as an entry of the cover cache itself, so it is
+/// bounded by that cache's LRU budget and shared with the JVM app, which reads the same directory.
+fn record_failure(cache: &ImageSourceCache, key: &str, now: i64, url: &str) -> Result<(), ImageLoadError> {
+    cache.write_blocking(key, Cursor::new(now.to_string()), u64::MAX, url).map(|_| ())
 }
 
 /// The embedded picture as stored (the JVM `getAttachedPic`). Whole in memory: `decode_scaled` takes

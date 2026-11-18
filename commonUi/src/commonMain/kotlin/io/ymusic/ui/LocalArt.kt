@@ -18,6 +18,7 @@ import kmpcommon.WorkerThread
 import kmpcommon.log.Logger
 import kmpcommon.uri.Uri
 import kmpcommon.uri.UriBuilder
+import kmpffmpeg.metadata.FfmpegAttachedPicException
 import kmpffmpeg.metadata.FfmpegMetadataGetter
 import kmpffmpeg.metadata.FfmpegThumbnailException
 import kotlinx.coroutines.CancellationException
@@ -25,8 +26,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.withContext
 import okio.Buffer
+import okio.IOException
 import okio.Source
 import okio.use
+import kotlin.time.Clock
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * `art://pic/<media-id>` — a local media file's artwork, the ONE url every consumer (Library,
@@ -79,9 +85,13 @@ fun interface YoutubeArt {
  * for a video the bundled ffmpeg cannot decode (Android's build has no AV1 decoder).
  */
 fun interface VideoFrameExtractor {
+    /** Throws [VideoFrameUnavailableException] when the platform cannot decode the video; anything else is transient. */
     @WorkerThread
     fun extract(uri: Uri): Source
 }
+
+/** The platform decoder opened the file and cannot produce a frame of it: retrying the same file won't help. */
+class VideoFrameUnavailableException(message: String, cause: Throwable? = null) : IOException(message, cause)
 
 /**
  * [YoutubeArt] through [loader]'s identity request for the video ([youtubeImageKey] with
@@ -105,8 +115,14 @@ fun loaderYoutubeArt(loader: () -> ImageLoader): YoutubeArt = YoutubeArt { video
  * and mtime (a changed file re-extracts): every view size then decodes from that file instead of
  * spawning ffmpeg again.
  *
- * A video frame ffmpeg cannot produce goes to [frameFallback] when there is one; if that fails too,
- * ffmpeg's exception is thrown with the fallback's failure suppressed on it.
+ * A video frame ffmpeg cannot produce goes to [frameFallback] when there is one. If the platform
+ * cannot decode it either, ffmpeg's exception is thrown with the fallback's suppressed on it; a
+ * transient fallback failure is thrown itself, ffmpeg's suppressed.
+ *
+ * With a [coverCache], an extraction that failed for the file itself (see [isExtractionFailure]) is
+ * remembered for [failureTtl] under the cover's key plus [extractorVersion]: until then the item
+ * throws [ImageLoadException.Reason.RecentlyFailed] without spawning ffmpeg. A changed file, or a
+ * build whose [extractorVersion] differs, extracts again at once.
  */
 fun mediaStoreArtFetcher(
     getter: FfmpegMetadataGetter,
@@ -116,6 +132,9 @@ fun mediaStoreArtFetcher(
     maxImageBytes: Long = 32L * 1024 * 1024,
     frameFallback: VideoFrameExtractor? = null,
     logger: Logger? = null,
+    extractorVersion: String = "",
+    failureTtl: Duration = EXTRACTION_FAILURE_TTL,
+    clock: Clock = Clock.System,
 ): ImageFetcher = ImageFetcher { uri, size, scale ->
     suspend fun extractFrame(file: Uri): Source = try {
         getter.extractThumbnail(file)
@@ -127,9 +146,12 @@ fun mediaStoreArtFetcher(
             }
         } catch (e: CancellationException) {
             throw e
-        } catch (fallbackError: Exception) {
+        } catch (fallbackError: VideoFrameUnavailableException) {
             ffmpegError.addSuppressed(fallbackError)
             throw ffmpegError
+        } catch (fallbackError: Exception) {
+            fallbackError.addSuppressed(ffmpegError)
+            throw fallbackError
         }
     }
 
@@ -161,14 +183,64 @@ fun mediaStoreArtFetcher(
     }
     suspend fun extract(): Source = if (kind == "cover") getter.getAttachedPic(item.uri) else extractFrame(item.uri)
     if (coverCache != null) {
-        val key = sourceCacheKey("$kind:${item.uri}:${item.fileSize}:${item.lastModified}")
-        val file = coverCache.filePath(key) ?: extract().use { coverCache.write(key, it, maxImageBytes, url) }
+        val identity = "$kind:${item.uri}:${item.fileSize}:${item.lastModified}"
+        val key = sourceCacheKey(identity)
+        val file = coverCache.filePath(key) ?: run {
+            val failureKey = sourceCacheKey("failed:$extractorVersion:$identity")
+            val failedAt = recentFailure(coverCache, failureKey, failureTtl, clock)
+            if (failedAt != null) {
+                throw ImageLoadException(ImageLoadException.Reason.RecentlyFailed, "art extraction failed at $failedAt, retried after $failureTtl: $url")
+            }
+            try {
+                extract().use { coverCache.write(key, it, maxImageBytes, url) }
+            } catch (e: Exception) {
+                if (e.isExtractionFailure()) recordFailure(coverCache, failureKey, clock, url, e)
+                throw e
+            }
+        }
         return@ImageFetcher decodeChecked(url) { decodeScaledFile(coverCache.fileSystem, file, size, scale) }
     }
     // ByteArray: the in-memory platform decoders behind decodeScaled are bytes-only (Skia codec),
     // and embedded art is small — the cap guards a mislabeled stream.
     val bytes = readCapped(extract(), maxImageBytes, url)
     decodeChecked(url) { decodeScaled(bytes, size, scale) }
+}
+
+private val EXTRACTION_FAILURE_TTL = 1.days
+
+/**
+ * ffmpeg ran to its end and wrote no image (the platform fallback, if any, could not decode it
+ * either): the file's own fault, so a retry within the TTL would fail the same way. Not counted:
+ * a run killed by SIGKILL/SIGTERM (the low-memory killer, or our own teardown), and everything
+ * thrown as another type — an unreadable or revoked content:// uri, a failed process start,
+ * cancellation, OutOfMemoryError (an Error, never caught here), a transient fallback failure.
+ */
+private fun Throwable.isExtractionFailure(): Boolean = when (this) {
+    is FfmpegThumbnailException -> exitCode !in KILLED_EXIT_CODES
+    is FfmpegAttachedPicException -> exitCode !in KILLED_EXIT_CODES
+    else -> false
+}
+
+/** `128 + signal` as java.lang.Process reports a signalled child: SIGKILL, SIGTERM. */
+private val KILLED_EXIT_CODES = setOf(137, 143)
+
+/** When the remembered failure under [key] happened, or null when there is none younger than [ttl]. */
+private suspend fun recentFailure(cache: ImageSourceCache, key: String, ttl: Duration, clock: Clock): Long? {
+    val marker = cache.filePath(key) ?: return null
+    val failedAt = withContext(Dispatchers.IO) { cache.fileSystem.read(marker) { readUtf8() } }.trim().toLongOrNull() ?: return null
+    val age = (clock.now().toEpochMilliseconds() - failedAt).milliseconds
+    return failedAt.takeIf { age >= Duration.ZERO && age < ttl }
+}
+
+/** The marker is the failure's epoch millis, an entry of the cover cache itself: bounded by its LRU budget. */
+private suspend fun recordFailure(cache: ImageSourceCache, key: String, clock: Clock, url: String, failure: Exception) {
+    try {
+        cache.write(key, Buffer().writeUtf8(clock.now().toEpochMilliseconds().toString()), Long.MAX_VALUE, url)
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        failure.addSuppressed(e)
+    }
 }
 
 private suspend fun readCapped(source: Source, maxBytes: Long, url: String): ByteArray =
