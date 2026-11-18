@@ -601,18 +601,13 @@ jobs:
         run: |
           rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal
           rustup default "$RUST_TOOLCHAIN"
-      # Cargo judges a path crate (the vendored gpui patches) by its files' mtimes, and a checkout makes
-      # them all new: pinned to one old mtime, the restored build of them counts as fresh. Safe only
-      # because the cache key carries vendor/'s hash, so a changed vendor/ never restores an old build.
-      - name: Pin the vendored crates' mtimes
-        working-directory: YMusicV4/desktopRust
-        run: find vendor -type f -exec touch -t 200001010000 {} +
-      # The registry plus target/ trimmed to the dependencies (the workspace crates are dropped before the
-      # save), keyed on the toolchain and Cargo.lock; a new lockfile restores the newest same-target entry.
+      # The registry plus target/ trimmed to the registry dependencies, keyed on the toolchain and
+      # Cargo.lock; a new lockfile restores the newest same-target entry. rust-cache drops every crate under
+      # desktopRust/ before the save, the vendored gpui patches included, so those rebuild every run.
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           workspaces: YMusicV4/desktopRust -> target
-          key: ${{ matrix.slug }}-vendor-${{ hashFiles('YMusicV4/desktopRust/vendor/**') }}
+          key: ${{ matrix.slug }}
           cache-bin: false
           save-if: ${{ env.SAVE_CACHE == 'true' }}
 
@@ -821,19 +816,13 @@ jobs:
           rustup toolchain install "$RUST_TOOLCHAIN-${{ matrix.host }}" --profile minimal
           rustup default "$RUST_TOOLCHAIN-${{ matrix.host }}"
           rustc -vV
-      # Cargo judges a path crate (the vendored gpui patches) by its files' mtimes, and a checkout makes
-      # them all new: pinned to one old mtime, the restored build of them counts as fresh. Safe only
-      # because the cache key carries vendor/'s hash, so a changed vendor/ never restores an old build.
-      - name: Pin the vendored crates' mtimes
-        shell: bash
-        working-directory: YMusicV4/desktopRust
-        run: find vendor -type f -exec touch -t 200001010000 {} +
-      # The registry plus target/ trimmed to the dependencies (the workspace crates are dropped before the
-      # save), keyed on the toolchain and Cargo.lock; a new lockfile restores the newest same-target entry.
+      # The registry plus target/ trimmed to the registry dependencies, keyed on the toolchain and
+      # Cargo.lock; a new lockfile restores the newest same-target entry. rust-cache drops every crate under
+      # desktopRust/ before the save, the vendored gpui patches included, so those rebuild every run.
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           workspaces: YMusicV4/desktopRust -> target
-          key: ${{ matrix.slug }}-vendor-${{ hashFiles('YMusicV4/desktopRust/vendor/**') }}
+          key: ${{ matrix.slug }}
           cache-bin: false
           save-if: ${{ env.SAVE_CACHE == 'true' }}
 
@@ -1041,18 +1030,13 @@ jobs:
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs |
             sh -s -- -y --profile minimal --default-toolchain "$RUST_TOOLCHAIN"
           echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
-      # Cargo judges a path crate (the vendored gpui patches) by its files' mtimes, and a checkout makes
-      # them all new: pinned to one old mtime, the restored build of them counts as fresh. Safe only
-      # because the cache key carries vendor/'s hash, so a changed vendor/ never restores an old build.
-      - name: Pin the vendored crates' mtimes
-        working-directory: YMusicV4/desktopRust
-        run: find vendor -type f -exec touch -t 200001010000 {} +
-      # The registry plus target/ trimmed to the dependencies (the workspace crates are dropped before the
-      # save), keyed on the toolchain and Cargo.lock; a new lockfile restores the newest same-target entry.
+      # The registry plus target/ trimmed to the registry dependencies, keyed on the toolchain and
+      # Cargo.lock; a new lockfile restores the newest same-target entry. rust-cache drops every crate under
+      # desktopRust/ before the save, the vendored gpui patches included, so those rebuild every run.
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           workspaces: YMusicV4/desktopRust -> target
-          key: ${{ matrix.slug }}-vendor-${{ hashFiles('YMusicV4/desktopRust/vendor/**') }}
+          key: ${{ matrix.slug }}
           cache-bin: false
           save-if: ${{ env.SAVE_CACHE == 'true' }}
 
