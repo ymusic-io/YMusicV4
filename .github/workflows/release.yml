@@ -791,13 +791,27 @@ jobs:
         with:
           path: msys2-installer
           key: ${{ steps.msys2-installer.outputs.cache-primary-key }}
-      # Its package cache needs no gating: a tag restores master's entry, and with the installer pinned
-      # and no update the packages match it, so the action skips the save ("Cache unchanged").
+      # Not setup-msys2's package cache: it saves on any ref whose package files differ from what it
+      # restored, a miss included. The key needs no versions: pacman installs from the pinned installer's
+      # database (no -y).
       - id: msys2
         uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2.33.0
         with:
           msystem: ${{ matrix.msystem }}
-          install: ${{ matrix.packages }}
+          cache: false
+      - id: msys2-packages
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ steps.msys2.outputs.msys2-location }}/var/cache/pacman/pkg
+          key: msys2-packages-${{ env.MSYS2_INSTALLER_DATE }}-${{ matrix.packages }}
+      - name: Install the MinGW toolchain
+        shell: msys2 {0}
+        run: pacman --noconfirm -S --needed --overwrite '*' ${{ matrix.packages }}
+      - if: steps.msys2-packages.outputs.cache-hit != 'true' && env.SAVE_CACHE == 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ steps.msys2.outputs.msys2-location }}/var/cache/pacman/pkg
+          key: ${{ steps.msys2-packages.outputs.cache-primary-key }}
       - name: Locate MinGW
         shell: bash
         run: echo "MINGW_HOME=$(cygpath -m '${{ steps.msys2.outputs.msys2-location }}')/${{ matrix.prefix }}" >> "$GITHUB_ENV"
