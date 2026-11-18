@@ -33,15 +33,30 @@ pub fn tab_row(
         let active = index == selected;
         let on_select = on_select.clone();
         let tab = div().id((id, index)).role(Role::Tab).aria_label(label.clone()).aria_selected(active);
+        let weight_copy = |semibold: bool| {
+            let color = match (semibold == active, active) {
+                (false, _) => transparent_black(),
+                (true, true) => theme.primary,
+                (true, false) => theme.muted_foreground,
+            };
+            div()
+                .col_start(1)
+                .row_start(1)
+                .text_center()
+                .map(|copy| if semibold { copy.font_semibold() } else { copy.font_medium() })
+                .text_color(color)
+                .child(label.clone())
+        };
+        // Both weights are always laid out in one cell, one hidden, so selecting never changes the width.
         let text = div()
+            .grid()
             .px_2()
             .py(px(7.))
             .rounded(px(6.))
             .text_size(px(13.))
             .hover(|style| style.bg(theme.primary.opacity(HOVER_ALPHA)))
-            .map(|text| if active { text.font_semibold() } else { text.font_medium() })
-            .text_color(if active { theme.primary } else { theme.muted_foreground })
-            .child(label);
+            .child(weight_copy(false))
+            .child(weight_copy(true));
         row = row.child(
             focus
                 .item_in(index, tab, Some(drag.scroll().clone()), cx)
