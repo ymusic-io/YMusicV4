@@ -20,11 +20,13 @@ use std::time::Instant;
 
 use futures::StreamExt;
 use futures::channel::mpsc;
+use gpui_kit::component::ActiveTheme;
 use gpui_kit::*;
 use ym_common::log::Logger;
 use ym_image_loader::async_image::GlobalImageLoader;
 use ym_image_loader::{ImageRequest, ImageScale};
 
+use crate::fallback_art::fallback_art_file;
 use crate::graph::AppGraph;
 use crate::playback::Playback;
 use crate::youtube_thumbnails::youtube_thumb_url;
@@ -185,20 +187,51 @@ impl MediaSession {
         self.local_artwork_for = key.clone();
         self.local_artwork = None;
         self.local_artwork_task = None;
-        let (Some(key), Some(url)) = (key, item.and_then(|item| item.display_thumbnail_url())) else { return };
-        if url.starts_with("https://") || url.starts_with("http://") || url.starts_with("file:") {
+        let Some(key) = key else { return };
+        let url = item.and_then(|item| item.display_thumbnail_url());
+        if let Some(url) = url
+            .as_ref()
+            .filter(|url| url.starts_with("https://") || url.starts_with("http://") || url.starts_with("file:"))
+        {
             self.local_artwork = Some((key, Some(url.to_string())));
             return;
         }
-        let Some(loader) = cx.try_global::<GlobalImageLoader>().map(|global| global.0.clone()) else { return };
+        let loader = cx.try_global::<GlobalImageLoader>().map(|global| global.0.clone());
         let (log, playback) = (self.log.clone(), playback.clone());
+        let (accent, executor) = (cx.theme().primary, cx.background_executor().clone());
         self.local_artwork_task = Some(cx.spawn(async move |this, cx| {
-            let request = ImageRequest::of(&url, ARTWORK_PX, ARTWORK_PX, ImageScale::Cover);
-            let artwork = match loader.load_file(&request).await {
-                Ok(file) => file.and_then(|file| url::Url::from_file_path(file).ok()).map(String::from),
-                Err(error) => {
-                    log.warn(&format!("media session artwork unavailable: {url}"), Some(&error));
-                    None
+            let loaded = match (url, loader) {
+                (Some(url), Some(loader)) => {
+                    let request = ImageRequest::of(&url, ARTWORK_PX, ARTWORK_PX, ImageScale::Cover);
+                    match loader.load_file(&request).await {
+                        Ok(file) => Some(file.and_then(|file| url::Url::from_file_path(file).ok()).map(String::from)),
+                        Err(error) => {
+                            log.warn(
+                                &format!("media session artwork unavailable, fallback art shown: {url}"),
+                                Some(&error),
+                            );
+                            None
+                        }
+                    }
+                }
+                _ => None,
+            };
+            let artwork = match loaded {
+                Some(artwork) => artwork,
+                // The JVM `FALLBACK_ART_URL`: no art, or it failed to load.
+                None => {
+                    let rendered = executor
+                        .spawn(async move {
+                            fallback_art_file(accent, ARTWORK_PX, &std::env::temp_dir().join(FALLBACK_ART_DIR))
+                        })
+                        .await;
+                    match rendered {
+                        Ok(file) => url::Url::from_file_path(file).ok().map(String::from),
+                        Err(error) => {
+                            log.warn("media session fallback art not rendered", Some(error.as_ref()));
+                            None
+                        }
+                    }
                 }
             };
             this.update(cx, |session, cx| {
@@ -212,6 +245,8 @@ impl MediaSession {
 
 /// The JVM `ARTWORK_PX`: the local art the OS gets.
 const ARTWORK_PX: u32 = 512;
+/// Where the fallback art the OS reads by url is rendered, once per accent.
+const FALLBACK_ART_DIR: &str = "ymusic-fallback-art";
 
 /// `local_artwork` is the current local item's art (its key, its url).
 fn snapshot(playback: &Playback, local_artwork: Option<&(String, Option<String>)>) -> Snapshot {

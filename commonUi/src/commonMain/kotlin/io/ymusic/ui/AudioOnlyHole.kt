@@ -111,7 +111,7 @@ internal fun AudioOnlyCover(
         modifier.clip(RectangleShape).background(Color.Black),
         contentAlignment = Alignment.Center,
     ) {
-        ArtImage(url, RectangleShape)
+        if (url == null) FallbackArt() else ArtImage(url, RectangleShape, error = { FallbackArt() })
     }
 }
 
@@ -203,15 +203,23 @@ private const val ART_SHIMMER_MS = 1300
 private const val ART_RESIZE_SETTLE_MS = 400L
 private const val ART_BACKDROP_DIM = 0.3f
 
+/** What the art layers show: a decoded picture, or [FallbackPicture] when there is none to load. */
+private sealed interface ArtPicture
+
+private class LoadedArt(val bitmap: ImageBitmap) : ArtPicture
+
+private data object FallbackPicture : ArtPicture
+
 /**
  * Now Playing's art across a url change, the same every time: the square's [previous] picture
  * fades out to the shade while the backdrop keeps it, dimmed by [dim]; the shade holds at least
  * [ART_MIN_SHADE_MS] (longer while the load runs); then [current] fades in on both layers and the
- * dim lifts. A view that grows swaps in a sharper decode of the same picture, no transition.
+ * dim lifts. No url, or a load that failed, fades in [FallbackPicture] the same way. A view that
+ * grows swaps in a sharper decode of the same picture, no transition.
  */
 private class ArtTransition {
-    var previous by mutableStateOf<ImageBitmap?>(null)
-    var current by mutableStateOf<ImageBitmap?>(null)
+    var previous by mutableStateOf<ArtPicture?>(null)
+    var current by mutableStateOf<ArtPicture?>(null)
     var url: String? = null
     var shading by mutableStateOf(false)
     val outAlpha = Animatable(1f)
@@ -253,12 +261,8 @@ private fun rememberArtTransition(url: String?, decodeSize: IntSize): ArtTransit
             val bitmap = next.await()
             val held = shadeFrom.elapsedNow().inWholeMilliseconds
             if (held < ART_FADE_OUT_MS + ART_MIN_SHADE_MS) delay(ART_FADE_OUT_MS + ART_MIN_SHADE_MS - held)
-            if (bitmap == null) {
-                state.shading = false
-                return@coroutineScope
-            }
             state.inAlpha.snapTo(0f)
-            state.current = bitmap
+            state.current = bitmap?.let(::LoadedArt) ?: FallbackPicture
             listOf(
                 launch { state.inAlpha.animateTo(1f, tween(ART_FADE_IN_MS, easing = FastOutSlowInEasing)) },
                 launch { state.dim.animateTo(0f, tween(ART_FADE_IN_MS, easing = FastOutSlowInEasing)) },
@@ -270,11 +274,11 @@ private fun rememberArtTransition(url: String?, decodeSize: IntSize): ArtTransit
 
     LaunchedEffect(decodeSize) {
         val shownUrl = state.url ?: return@LaunchedEffect
-        if (state.current == null || shownUrl != url || loader == null) return@LaunchedEffect
+        if (state.current !is LoadedArt || shownUrl != url || loader == null) return@LaunchedEffect
         delay(ART_RESIZE_SETTLE_MS)
         val request = artRequest(shownUrl, decodeSize)
         val sharper = loader.peek(request) ?: loader.loadOrNull(request)
-        if (sharper != null && state.url == shownUrl && state.current != null) state.current = sharper
+        if (sharper != null && state.url == shownUrl && state.current is LoadedArt) state.current = LoadedArt(sharper)
     }
     return state
 }
@@ -293,14 +297,17 @@ private fun PrefetchNextArt(player: Player, decodeSize: IntSize) {
 private fun artRequest(url: String, size: IntSize): ImageRequest = artImageRequest(url, size.width, size.height)
 
 @Composable
-private fun BoxScope.ArtImageLayer(bitmap: ImageBitmap?, alpha: () -> Float) {
-    if (bitmap == null) return
-    Image(
-        bitmap,
-        contentDescription = null,
-        modifier = Modifier.matchParentSize().graphicsLayer { this.alpha = alpha() },
-        contentScale = ContentScale.Crop,
-    )
+private fun BoxScope.ArtImageLayer(picture: ArtPicture?, alpha: () -> Float) {
+    when (picture) {
+        null -> Unit
+        FallbackPicture -> FallbackArt(alpha)
+        is LoadedArt -> Image(
+            picture.bitmap,
+            contentDescription = null,
+            modifier = Modifier.matchParentSize().graphicsLayer { this.alpha = alpha() },
+            contentScale = ContentScale.Crop,
+        )
+    }
 }
 
 /** The backdrop keeps the outgoing picture (dimmed) under the incoming one's fade-in. */

@@ -2,15 +2,20 @@ package io.ymusic.android
 
 import android.graphics.Bitmap
 import android.net.Uri
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.unit.IntSize
 import androidx.media3.common.util.BitmapLoader
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
 import com.google.common.util.concurrent.SettableFuture
+import io.ymusic.imageloader.ImageLoadException
 import io.ymusic.imageloader.ImageLoader
 import io.ymusic.imageloader.decodeScaled
+import io.ymusic.ui.FALLBACK_ART_URL
 import io.ymusic.ui.artImageRequest
+import io.ymusic.ui.fallbackArtBitmap
+import kmpcommon.log.Logger
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -28,6 +33,10 @@ import kotlin.math.roundToInt
  * [ArtworkProvider]-minted `content://` uris (what [MediaMetadata.artworkUri] carries so Android
  * Auto can resolve queue icons) are unwrapped back to their target url IN process — same
  * [ImageLoader] cache key as the raw url, no binder round-trip through the provider.
+ *
+ * Artwork that fails to load, and [FALLBACK_ART_URL] (an item with no art), is the app's fallback
+ * art in the [accent] of the moment, so the notification and lock screen never fall back to the
+ * system's blank default.
  */
 class ImageLoaderBitmapLoader(
     private val imageLoader: ImageLoader,
@@ -35,6 +44,8 @@ class ImageLoaderBitmapLoader(
     private val ownAuthority: String,
     /** The largest artwork the platform session keeps unscaled. */
     sessionBitmapLimit: Int,
+    private val accent: () -> Color,
+    private val logger: Logger?,
 ) : BitmapLoader {
     // Never over the session limit: some custom ROMs' MediaMetadata.Builder.scaleBitmap recycles its source,
     // and media3 publishes one bitmap under two keys, so the second key's rescale throws on the recycled bitmap.
@@ -55,7 +66,30 @@ class ImageLoaderBitmapLoader(
         } else {
             uri.toString()
         }
-        imageLoader.load(artImageRequest(target, maxPx, maxPx), cacheInMemory = false).asAndroidBitmap().fitWithin(maxPx)
+        if (target == FALLBACK_ART_URL) return@future fallbackArt()
+        try {
+            imageLoader.load(artImageRequest(target, maxPx, maxPx), cacheInMemory = false).asAndroidBitmap().fitWithin(maxPx)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // A missing or already-reported picture is expected (the loader logged the source); anything else warns.
+            val expected = (e as? ImageLoadException)?.reason.let {
+                it == ImageLoadException.Reason.NotFound || it == ImageLoadException.Reason.RecentlyFailed
+            }
+            logger?.log(if (expected) Logger.Level.DEBUG else Logger.Level.WARN, "session artwork failed, fallback art shown: $target", e)
+            fallbackArt()
+        }
+    }
+
+    @Volatile
+    private var renderedFallback: Pair<Color, Bitmap>? = null
+
+    /** Rendered once per accent; each caller gets its own copy, as the session may scale or recycle it. */
+    private fun fallbackArt(): Bitmap {
+        val color = accent()
+        val rendered = renderedFallback?.takeIf { it.first == color }?.second
+            ?: fallbackArtBitmap(color, maxPx).asAndroidBitmap().also { renderedFallback = color to it }
+        return rendered.copy(Bitmap.Config.ARGB_8888, false)
     }
 
     /** Subsampled decodes land up to 2x the request; finish the downscale exactly. */
