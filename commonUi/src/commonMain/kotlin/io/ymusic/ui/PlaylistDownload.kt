@@ -35,7 +35,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -93,6 +92,7 @@ import org.jetbrains.compose.resources.stringResource
  * A playlist download page's retained state. It shares the playlist page's [pager], so the videos
  * already loaded there are listed at once and "Load more" extends both. [preset] holds the picks every
  * checked video is downloaded with — languages, not tracks, resolved per video like Quick download.
+ * Every video, including those Load more adds, starts unchecked.
  */
 @Stable
 class PlaylistDownloadSession(val title: String, val pager: Pager, initialPreset: QuickDownloadPreset) {
@@ -104,14 +104,6 @@ class PlaylistDownloadSession(val title: String, val pager: Pager, initialPreset
 
     /** The Library playlist the downloads join (each song shows up there as it lands); null = none. */
     var targetPlaylist by mutableStateOf<Playlist?>(null)
-
-    /** Every video id listed so far: a newly loaded page arrives checked, a seen one keeps its box. */
-    private val seen = mutableSetOf<String>()
-
-    internal fun onLoaded(videos: List<YtFeedItem>) {
-        val fresh = videos.filter { seen.add(it.id) }
-        if (fresh.isNotEmpty()) checked = checked + fresh.filter { !it.live }.map { it.id }
-    }
 }
 
 @Composable
@@ -120,7 +112,6 @@ fun PlaylistDownloadScreen(graph: AppGraph, session: PlaylistDownloadSession, on
     val state by session.pager.state.collectAsState()
     val ready = state as? Pager.State.Ready
     val videos = ready?.sections.orEmpty().flatMap { it.items }.filter { it.kind == YtFeedItem.KIND_VIDEO }.distinctBy { it.id }
-    LaunchedEffect(videos) { session.onLoaded(videos) }
     val offline = LocalAvailableOffline.current
     val languages = rememberYtLanguages(graph)
     val scope = rememberCoroutineScope()
