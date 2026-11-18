@@ -158,8 +158,8 @@ impl WeakRuntime {
 }
 
 impl QuickJsRuntime {
-    /// True while no window shows the app: every runtime's `setInterval` then ticks at most once a
-    /// second, all on one shared grid, as Chrome runs a hidden page's.
+    /// True while no window shows the app: every runtime's intervals and longer timeouts then fire on
+    /// one shared 1 s grid, as Chrome aligns a hidden page's timers.
     pub fn set_timers_in_background(background: bool) {
         crate::timers::set_in_background(background);
     }

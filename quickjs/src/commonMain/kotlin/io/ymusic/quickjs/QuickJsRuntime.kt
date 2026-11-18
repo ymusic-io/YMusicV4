@@ -781,8 +781,8 @@ class QuickJsRuntime private constructor(
         @Volatile
         var hostVersions: Map<String, Any> = emptyMap()
 
-        /** True while no window shows the app (the shells set it): every runtime's `setInterval`
-         *  then ticks at most once a second, all on one shared grid, as Chrome runs a hidden page's. */
+        /** True while no window shows the app (the shells set it): every runtime's intervals and
+         *  longer timeouts then fire on one shared 1 s grid, as Chrome aligns a hidden page's timers. */
         @Volatile
         var timersInBackground: Boolean = false
 

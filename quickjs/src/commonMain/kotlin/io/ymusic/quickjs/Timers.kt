@@ -33,15 +33,21 @@ private const val TICK = 1
  *  delay coerces to 0 upstream — from hot-looping the single engine thread with back-to-back ticks. */
 private const val MIN_INTERVAL_MS = 4L
 
-private const val BACKGROUND_INTERVAL_MS = 1_000L
+private const val BACKGROUND_GRID_MS = 1_000L
+
+/** Shorter timeouts keep their time in the background: media appends and task yields run on them. */
+private const val BACKGROUND_ALIGN_MIN_TIMEOUT_MS = 200L
 
 private val gridOrigin = TimeSource.Monotonic.markNow()
 
-/** In the background an interval under a second waits for the next line of a shared 1 s grid, so
- *  every runtime's intervals fire together in one wake-up a second. */
-private fun intervalWait(ms: Long): Long {
-    if (!QuickJsRuntime.timersInBackground || ms >= BACKGROUND_INTERVAL_MS) return ms
-    return BACKGROUND_INTERVAL_MS - gridOrigin.elapsedNow().inWholeMilliseconds % BACKGROUND_INTERVAL_MS
+/** In the background an interval, or a timeout of [BACKGROUND_ALIGN_MIN_TIMEOUT_MS] or more, fires
+ *  on the first line of a 1 s grid shared by every runtime at or after its due time: they all fire
+ *  together, an interval at most once a second. */
+private fun timerWait(ms: Long, repeat: Boolean): Long {
+    if (!QuickJsRuntime.timersInBackground || (!repeat && ms < BACKGROUND_ALIGN_MIN_TIMEOUT_MS)) return ms
+    val now = gridOrigin.elapsedNow().inWholeMilliseconds
+    val due = now + ms
+    return (due + BACKGROUND_GRID_MS - 1) / BACKGROUND_GRID_MS * BACKGROUND_GRID_MS - now
 }
 
 /**
@@ -58,7 +64,7 @@ private suspend fun runTimer(pipe: Pipe, repeat: Boolean) {
             do {
                 val stopped = select {
                     cleared.onAwait { true }   // cleared before the next tick → stop
-                    onTimeout(if (repeat) intervalWait(ms) else ms) { false } // elapsed → fire
+                    onTimeout(timerWait(ms, repeat)) { false } // elapsed → fire
                 }
                 if (stopped) break
                 pipe.sink.send(Buffer().writeByte(TICK), 1L)
