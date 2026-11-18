@@ -636,10 +636,8 @@ private fun RectThumb(
     }
 }
 
-/** The card width grids aim for — the column count is however many of these fit. */
-// The widest a grid card may render; [gridColumnsFor] adds a column only when this would be
-// exceeded. 324 puts the 3rd column at 690dp.
-val GRID_CARD_MAX_WIDTH = 324.dp
+/** The narrowest a grid card may render — the column count is however many of these fit. */
+val GRID_CARD_MIN_WIDTH = 270.dp
 
 /** The hover/ripple's breathing room inside a grid card; grid gaps subtract it (2× between cards). */
 val GRID_CARD_INSET = 8.dp

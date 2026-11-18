@@ -202,9 +202,9 @@ internal val ChipTextSize = 13.5.sp
 /**
  * The spacing scale: every layout spacing (margins, gaps, paddings between elements) is one of
  * these steps — component-internal geometry (pill insets, badge chrome, the 5dp stack tab) is
- * shape, not rhythm, and stays free. Feed layout bands live in `feedLayoutFor`: `<400dp` square
- * list, `400–469` 16:9 list, `≥470` grid — the fewest columns keeping cards ≤324dp wide
- * (`gridColumnsFor`; 3 columns from 690dp).
+ * shape, not rhythm, and stays free. Feed layout bands live in `feedLayoutFor`: `<320dp` square
+ * list, 16:9 list up to `FEED_GRID_MIN_WIDTH` (580dp, two 270dp cards), then the grid — the most
+ * columns keeping cards ≥270dp wide (`gridColumnsFor`; 3 columns from 890dp).
  */
 object DesignSpacing {
     val Space2 = 2.dp
