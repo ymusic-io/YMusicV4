@@ -46,9 +46,9 @@ sealed interface PlayableItem {
         val loudnessGainDb: Double? = null,
         override val videoId: String? = null,
     ) : PlayableItem {
-        /** YouTube's rule: loud files come down to the target, quiet ones are never raised. */
+        /** YouTube's rule, softened: loud files come down toward the target, quiet ones are never raised. */
         override val loudnessScale: Float
-            get() = loudnessGainDb?.let { 10.0.pow(minOf(it, 0.0) / 20).toFloat() } ?: 1f
+            get() = loudnessGainDb?.let { softenedLoudnessGain(10.0.pow(minOf(it, 0.0) / 20).toFloat()) } ?: 1f
 
         override val displayTitle: String get() = title ?: uri.substringAfterLast('/')
         override val displaySubtitle: String? get() = listOfNotNull(artist, album).joinToString(" · ").ifEmpty { null }
