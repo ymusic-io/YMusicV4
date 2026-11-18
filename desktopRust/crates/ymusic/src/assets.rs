@@ -222,6 +222,8 @@ material_icons! {
     PlaylistAdd => "automirrored_filled/playlist_add",
     /// `Icons.AutoMirrored.Filled.PlaylistAddCheck`.
     PlaylistAddCheck => "automirrored_filled/playlist_add_check",
+    /// `Icons.Default.PlaylistRemove`.
+    PlaylistRemove => "filled/playlist_remove",
     /// `Icons.AutoMirrored.Filled.Sort`.
     Sort => "automirrored_filled/sort",
     /// `Icons.AutoMirrored.Filled.VolumeUp`.
