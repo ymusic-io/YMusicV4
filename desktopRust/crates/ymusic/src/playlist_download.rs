@@ -23,7 +23,7 @@ use ym_store::Playlist;
 use crate::a11y::{FocusList, LoadMoreFocus};
 use crate::action_icon::action_icon;
 use crate::assets::MaterialIcon;
-use crate::download_dialog::DownloadTarget;
+use crate::download_dialog::{DownloadTarget, dropdown_field};
 use crate::downloads::{download_folder, offline_ids, pick_download_folder, usable_download_folder};
 use crate::elevated_dialog::{
     ConfirmDialog, DEFAULT_WIDTH, ROW_HORIZONTAL, bar_spinner, button_bar, chrome, press, scroll_body, text_button,
@@ -33,7 +33,7 @@ use crate::feed::{FeedSource, error_text};
 use crate::graph::{AppGraph, on_core};
 use crate::lazy_rows::LazyRows;
 use crate::quick_download::{
-    PRESET_FIELD_STOPS, QuickPreset, dropdown, load_languages, option_line, preset_fields, saved_preset,
+    PRESET_FIELD_STOPS, QuickPreset, load_languages, option_line, preset_fields, saved_preset,
 };
 use crate::settings_view::HOVER_ALPHA;
 use crate::spinner::Spinner;
@@ -393,42 +393,46 @@ impl PlaylistDownload {
             self.target.as_ref().map_or(t(Str::PlaylistSelectLibrary).to_owned(), |playlist| playlist.name.clone());
         let view = cx.entity().downgrade();
         let (playlists, target_id) = (self.playlists.clone(), self.target.as_ref().map(|playlist| playlist.id));
-        let target = dropdown("target-playlist", t(Str::PlaylistAddTo), target_label, &self.focus, STOP_TARGET, cx)
-            .dropdown_menu(move |menu, _, cx| {
-                let mut menu = crate::settings_view::field_menu(menu, cx).scrollable(true).max_h(px(320.));
-                let none_view = view.clone();
-                menu = menu.item(PopupMenuItem::new(t(Str::PlaylistTargetNone)).checked(target_id.is_none()).on_click(
-                    move |_, _, cx| {
-                        none_view
-                            .update(cx, |view, cx| {
-                                view.target = None;
-                                cx.notify();
-                            })
-                            .ok();
-                    },
-                ));
-                let create_view = view.clone();
-                menu = menu.item(PopupMenuItem::new(t(Str::PlaylistTargetCreate)).on_click(move |_, window, cx| {
-                    create_view.update(cx, |view, cx| view.create_target(window, cx)).ok();
-                }));
-                for playlist in &playlists {
-                    let (pick_view, picked) = (view.clone(), playlist.clone());
+        let target =
+            dropdown_field("target-playlist", t(Str::PlaylistAddTo), target_label, &self.focus, STOP_TARGET, cx)
+                .dropdown_menu(move |menu, _, cx| {
+                    let mut menu = crate::settings_view::field_menu(menu, cx).scrollable(true).max_h(px(320.));
+                    let none_view = view.clone();
                     menu = menu.item(
-                        PopupMenuItem::new(playlist.name.clone()).checked(target_id == Some(playlist.id)).on_click(
+                        PopupMenuItem::new(t(Str::PlaylistTargetNone)).checked(target_id.is_none()).on_click(
                             move |_, _, cx| {
-                                let picked = picked.clone();
-                                pick_view
+                                none_view
                                     .update(cx, |view, cx| {
-                                        view.target = Some(picked);
+                                        view.target = None;
                                         cx.notify();
                                     })
                                     .ok();
                             },
                         ),
                     );
-                }
-                menu
-            });
+                    let create_view = view.clone();
+                    menu =
+                        menu.item(PopupMenuItem::new(t(Str::PlaylistTargetCreate)).on_click(move |_, window, cx| {
+                            create_view.update(cx, |view, cx| view.create_target(window, cx)).ok();
+                        }));
+                    for playlist in &playlists {
+                        let (pick_view, picked) = (view.clone(), playlist.clone());
+                        menu = menu.item(
+                            PopupMenuItem::new(playlist.name.clone()).checked(target_id == Some(playlist.id)).on_click(
+                                move |_, _, cx| {
+                                    let picked = picked.clone();
+                                    pick_view
+                                        .update(cx, |view, cx| {
+                                            view.target = Some(picked);
+                                            cx.notify();
+                                        })
+                                        .ok();
+                                },
+                            ),
+                        );
+                    }
+                    menu
+                });
         v_flex()
             .gap_2()
             .p_4()

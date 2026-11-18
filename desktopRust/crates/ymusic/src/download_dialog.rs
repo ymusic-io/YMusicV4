@@ -3,7 +3,7 @@
 //! heights and containers, audio track, captions), its file name, where it goes, and its size.
 
 use std::cell::Cell;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::Mutex;
 
@@ -595,8 +595,54 @@ fn surface_dim(cx: &App) -> Hsla {
 }
 
 /// The JVM palette's InkSoft, between the foreground and the secondary ink.
-fn ink_soft(cx: &App) -> Hsla {
+pub fn ink_soft(cx: &App) -> Hsla {
     cx.theme().foreground.opacity(0.6)
+}
+
+/// The JVM app's `downloadPrimary`: the accent a step darker, under white text.
+pub fn download_primary(cx: &App) -> Hsla {
+    cx.theme().primary.darken(0.22)
+}
+
+/// The folder's name as the download location shows it.
+pub fn location_name(folder: Option<&Path>) -> String {
+    folder
+        .and_then(|folder| folder.file_name())
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_else(|| t(Str::DownloadLocationNotSet).to_owned())
+}
+
+/// The JVM `DropdownField`: `value` in an outlined field with a caret, `focus`'s `stop`th stop. The
+/// caller adds the menu and wraps it with [`FocusList::wrap`].
+pub fn dropdown_field(
+    id: impl Into<ElementId>,
+    label: &str,
+    value: String,
+    focus: &FocusList,
+    stop: usize,
+    cx: &App,
+) -> Button {
+    let theme = cx.theme();
+    Button::new(id)
+        .outline()
+        .w_full()
+        .h(px(36.))
+        .px(px(8.))
+        .rounded(px(9.))
+        .border_color(theme.input)
+        .accessibility_label(format!("{label}, {value}"))
+        .child(
+            div()
+                .flex_1()
+                .min_w_0()
+                .text_left()
+                .text_size(px(14.))
+                .text_color(theme.foreground)
+                .truncate()
+                .child(value),
+        )
+        .child(Icon::new(MaterialIcon::KeyboardArrowDown).size(px(18.)).flex_shrink_0().text_color(ink_soft(cx)))
+        .track_focus(&focus.handle(stop, cx))
 }
 
 struct Choice {
@@ -716,11 +762,7 @@ impl DownloadPicker {
     }
 
     fn location_name(&self) -> String {
-        self.folder
-            .as_ref()
-            .and_then(|folder| folder.file_name())
-            .map(|name| name.to_string_lossy().into_owned())
-            .unwrap_or_else(|| t(Str::DownloadLocationNotSet).to_owned())
+        location_name(self.folder.as_deref())
     }
 
     /// "MP4 · 1080p60 · English · English · ≈ 92 MB".
@@ -745,7 +787,7 @@ impl DownloadPicker {
         parts.join(" · ")
     }
 
-    /// An outlined value with a caret that opens `choices` (the JVM `DropdownField`).
+    /// A [`dropdown_field`] that opens `menu`.
     fn dropdown(
         &self,
         id: &'static str,
@@ -755,30 +797,9 @@ impl DownloadPicker {
         menu: impl Fn(PopupMenu) -> PopupMenu + 'static,
         cx: &App,
     ) -> Div {
-        let theme = cx.theme();
-        let field = Button::new(id)
-            .outline()
-            .w_full()
-            .h(px(36.))
-            .px(px(8.))
-            .rounded(px(9.))
-            .border_color(theme.input)
-            .dropdown_caret(true)
-            .accessibility_label(format!("{label}, {value}"))
-            .child(
-                div()
-                    .flex_1()
-                    .min_w_0()
-                    .text_left()
-                    .text_size(px(14.))
-                    .text_color(theme.foreground)
-                    .truncate()
-                    .child(value),
-            )
-            .track_focus(&self.focus.handle(stop, cx))
-            .dropdown_menu(move |popup, _, cx| {
-                menu(crate::settings_view::field_menu(popup, cx).scrollable(true).max_h(px(360.)))
-            });
+        let field = dropdown_field(id, label, value, &self.focus, stop, cx).dropdown_menu(move |popup, _, cx| {
+            menu(crate::settings_view::field_menu(popup, cx).scrollable(true).max_h(px(360.)))
+        });
         self.focus.wrap(stop, field, cx).w_full()
     }
 
@@ -1634,7 +1655,7 @@ impl DownloadPicker {
             (Some(what), Some(bytes)) => tf(Str::DownloadActionDetail, &[&what, &download_size(bytes)]),
             _ => t(Str::DownloadAction).to_owned(),
         };
-        let fill = cx.theme().primary.darken(0.22);
+        let fill = download_primary(cx);
         let button = div()
             .id("download-start-sheet")
             .role(Role::Button)

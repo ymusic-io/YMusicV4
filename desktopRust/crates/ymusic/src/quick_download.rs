@@ -4,9 +4,8 @@
 
 use std::rc::Rc;
 
-use gpui_kit::component::button::Button;
 use gpui_kit::component::menu::{DropdownMenu, PopupMenuItem};
-use gpui_kit::component::{ActiveTheme, Sizable, StyledExt, WindowExt, h_flex, v_flex};
+use gpui_kit::component::{ActiveTheme, StyledExt, WindowExt, h_flex, v_flex};
 use gpui_kit::*;
 use serde_json::{Map, Value, json};
 use ym_download::{AudioQuality, DownloadFormat, DownloadRequest, names};
@@ -14,7 +13,7 @@ use ym_engine::yt::YtLocaleOption;
 use ym_i18n::{Str, t, tf};
 
 use crate::a11y::FocusList;
-use crate::download_dialog::{DownloadTarget, format_name, quality_name};
+use crate::download_dialog::{DownloadTarget, dropdown_field, format_name, quality_name};
 use crate::downloads::{offline_ids, usable_download_folder};
 use crate::elevated_dialog::{DEFAULT_WIDTH, ROW_HORIZONTAL, button_bar, chrome, press, text_button, title_bar};
 use crate::graph::{AppGraph, on_core};
@@ -183,17 +182,6 @@ pub fn option_line(label: &'static str, control: impl IntoElement, cx: &App) -> 
         .child(div().flex_1().min_w_0().child(control))
 }
 
-/// A dropdown field that is `focus`'s `index`th stop; wrap the menu with [`FocusList::wrap`].
-pub fn dropdown(id: &'static str, label: &str, value: String, focus: &FocusList, index: usize, cx: &App) -> Button {
-    Button::new(id)
-        .small()
-        .outline()
-        .w_full()
-        .label(value.clone())
-        .accessibility_label(format!("{label}, {value}"))
-        .track_focus(&focus.handle(index, cx))
-}
-
 /// Format / quality / audio language / captions pickers for `preset`; captions need ffmpeg to embed.
 /// `focus` gives each picker a stop from `first` on.
 pub fn preset_fields(
@@ -216,7 +204,7 @@ pub fn preset_fields(
 
     let mut index = first;
     let (current, change) = (preset.clone(), on_change.clone());
-    let format_menu = dropdown("preset-format", t(Str::DownloadFormat), preset.label(), focus, index, cx)
+    let format_menu = dropdown_field("preset-format", t(Str::DownloadFormat), preset.label(), focus, index, cx)
         .dropdown_menu(move |menu, _, cx| {
             let mut menu = crate::settings_view::field_menu(menu, cx)
                 .scrollable(true)
@@ -250,7 +238,7 @@ pub fn preset_fields(
     if !preset.format.is_video() {
         let (current, change) = (preset.clone(), on_change.clone());
         let shown = quality_name(preset.audio_quality).to_owned();
-        let quality = dropdown("preset-quality", t(Str::DownloadQuality), shown, focus, index, cx).dropdown_menu(
+        let quality = dropdown_field("preset-quality", t(Str::DownloadQuality), shown, focus, index, cx).dropdown_menu(
             move |menu, _, cx| {
                 let mut menu = crate::settings_view::field_menu(menu, cx);
                 for quality in AudioQuality::ALL.into_iter().rev() {
@@ -277,7 +265,7 @@ pub fn preset_fields(
         let (current, change, options) = (preset.clone(), on_change.clone(), languages.to_vec());
         let shown = language_name(value, languages).unwrap_or_else(|| none_label.to_owned());
         let selected = value.map(str::to_owned);
-        dropdown(id, label, shown, focus, index, cx).dropdown_menu(move |menu, _, cx| {
+        dropdown_field(id, label, shown, focus, index, cx).dropdown_menu(move |menu, _, cx| {
             let mut menu = crate::settings_view::field_menu(menu, cx).scrollable(true).max_h(px(360.));
             let (picked, on_pick) = (apply(&current, None), change.clone());
             menu = menu.item(
