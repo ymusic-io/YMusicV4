@@ -56,6 +56,7 @@ mod playlist_transfer;
 mod queue_nav;
 mod queue_source;
 mod quick_download;
+mod recent_captions;
 mod reorder;
 mod search_filter;
 mod search_view;

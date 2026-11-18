@@ -30,6 +30,7 @@ use crate::downloads_view::{Playability, playability};
 use crate::elevated_dialog::{self, body_max_height, button_bar, chrome, scroll_shadows, text_button, title_bar};
 use crate::graph::{AppGraph, on_core};
 use crate::quick_download::{QuickPreset, confirm_redownload, save_preset, saved_preset};
+use crate::recent_captions::{in_recent_languages, recent_caption_languages, record_caption_language};
 use crate::youtube_thumbnails::art_request_sources;
 
 /// The video to download, as the card showed it.
@@ -649,15 +650,17 @@ struct Choice {
     label: String,
     selected: bool,
     pick: Rc<dyn Fn(&mut DownloadPicker)>,
+    /// The caption language picking it records as recent.
+    recent_caption: Option<String>,
 }
 
 fn choice(label: String, selected: bool, pick: impl Fn(&mut DownloadPicker) + 'static) -> Choice {
-    Choice { label, selected, pick: Rc::new(pick) }
+    Choice { label, selected, pick: Rc::new(pick), recent_caption: None }
 }
 
 fn choice_items(mut menu: PopupMenu, choices: &[Choice], picker: &WeakEntity<DownloadPicker>) -> PopupMenu {
     for choice in choices {
-        let (pick, picker) = (choice.pick.clone(), picker.clone());
+        let (pick, picker, recent_caption) = (choice.pick.clone(), picker.clone(), choice.recent_caption.clone());
         menu =
             menu.item(PopupMenuItem::new(choice.label.clone()).checked(choice.selected).on_click(move |_, _, cx| {
                 picker
@@ -666,6 +669,9 @@ fn choice_items(mut menu: PopupMenu, choices: &[Choice], picker: &WeakEntity<Dow
                         cx.notify();
                     })
                     .ok();
+                if let Some(code) = &recent_caption {
+                    record_caption_language(code.clone(), cx);
+                }
             }));
     }
     menu
@@ -737,16 +743,36 @@ impl DownloadPicker {
         }
     }
 
-    fn caption_choices(&self) -> Vec<Choice> {
+    fn caption_choices(&self, cx: &App) -> Vec<Choice> {
         let mut choices = vec![choice(t(Str::DownloadCaptionsOff).to_owned(), self.caption.is_none(), |picker| {
             picker.caption = None
         })];
-        for caption in self.options().map(|options| options.captions.clone()).unwrap_or_default() {
+        for caption in self.ordered_captions(cx) {
             let key = caption.key();
             let selected = Some(&key) == self.caption.as_ref();
-            choices.push(choice(caption_label(&caption), selected, move |picker| picker.caption = Some(key.clone())));
+            let recent_caption = caption.is_translated.then(|| caption.language_code.clone());
+            let mut entry = choice(caption_label(&caption), selected, move |picker| picker.caption = Some(key.clone()));
+            entry.recent_caption = recent_caption;
+            choices.push(entry);
         }
         choices
+    }
+
+    /// The selected track, the auto-translations in the recent caption languages, then the rest in
+    /// their order. Picking an auto-translation records its language, as Now Playing does.
+    fn ordered_captions(&self, cx: &App) -> Vec<CaptionOption> {
+        let captions = self.options().map(|options| options.captions.clone()).unwrap_or_default();
+        let translated: Vec<usize> = (0..captions.len()).filter(|index| captions[*index].is_translated).collect();
+        let languages: Vec<&str> = translated.iter().map(|index| captions[*index].language_code.as_str()).collect();
+        let recent = in_recent_languages(&languages, &recent_caption_languages(cx), |language| language);
+        let selected = captions.iter().position(|caption| Some(caption.key()) == self.caption);
+        let mut order: Vec<usize> = selected.into_iter().collect();
+        for index in recent.into_iter().map(|position| translated[position]).chain(0..captions.len()) {
+            if !order.contains(&index) {
+                order.push(index);
+            }
+        }
+        order.into_iter().map(|index| captions[index].clone()).collect()
     }
 
     fn container_choices(&self) -> Vec<Choice> {
@@ -1133,7 +1159,7 @@ impl DownloadPicker {
                     "download-captions",
                     t(Str::DownloadSubtitles),
                     self.caption_summary(),
-                    self.caption_choices(),
+                    self.caption_choices(cx),
                     STOP_CAPTIONS,
                     cx,
                 ))
@@ -1736,7 +1762,7 @@ impl DownloadPicker {
                     rows = rows.child(self.choice_row(
                         ("download-captions", MaterialIcon::SubtitlesOutlined, t(Str::DownloadCaptions)),
                         self.caption_summary(),
-                        self.caption_choices(),
+                        self.caption_choices(cx),
                         STOP_CAPTIONS,
                         cx,
                     ));
