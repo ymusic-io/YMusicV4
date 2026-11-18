@@ -1,5 +1,5 @@
-//! Download a whole YouTube playlist: every loaded video listed with a box (a newly loaded page
-//! arrives checked), one set of picks for all of them (the Quick download preset's fields), the
+//! Download a whole YouTube playlist: every loaded video listed with a box (all start unchecked,
+//! Load more's too), one set of picks for all of them (the Quick download preset's fields), the
 //! folder, an index prefix for the file names and an optional Library playlist the songs join.
 
 use std::collections::HashSet;
@@ -66,7 +66,7 @@ pub struct PlaylistDownload {
     continuation: Option<String>,
     loading_more: bool,
     more_focus: LoadMoreFocus,
-    /// Every video id listed so far: a newly loaded page arrives checked, a seen one keeps its box.
+    /// Every video id listed so far, so a page that repeats one lists it once.
     seen: HashSet<String>,
     checked: HashSet<String>,
     index_prefix: bool,
@@ -142,9 +142,6 @@ impl PlaylistDownload {
     fn add_videos(&mut self, page: &YtFeedPage) {
         for video in page.sections.iter().flat_map(|section| section.items.iter()).filter(|item| item.kind == "video") {
             if self.seen.insert(video.id.clone()) {
-                if !video.live {
-                    self.checked.insert(video.id.clone());
-                }
                 self.videos.push(video.clone());
             }
         }
