@@ -26,7 +26,8 @@ The shared Compose Multiplatform app UI (jvm + android; iOS later).
   or ⋮ → Select; X · "N selected" · Select all · Pause · Resume · ⋮ Remove from list / Remove from disk).
 
 - **Multi-select** — `MultiSelection.kt` holds the shared selection state (Select all remembers what it replaced,
-  Back ends it, focus returns to the item that started it), the item gesture, the checkbox in the ⋮ slot, the bar's
+  Back ends it, focus returns to the item that started it once removed items have left the list, never after
+  navigating away), the item gesture, the checkbox in the ⋮ slot, the bar's
   start and the batch Remove from disk dialog. The Download manager's bar replaces the app bar; the Library's Songs
   tab replaces its tab row instead (X · "N selected" · Select all · Add to playlist · Remove from disk · ⋮ Play /
   Queue next / Queue last) and holds the Library on that tab: no swipe, no tab switch until it ends. An opened user
