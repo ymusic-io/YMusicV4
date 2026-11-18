@@ -127,10 +127,10 @@ impl<K: Eq + Hash + Clone + 'static> Selection<K> {
     /// deselects them).
     pub fn toggle_all(&mut self, listed: &[K]) -> bool {
         if self.all_selected(listed) {
-            let restored = self
-                .before_select_all
-                .take()
-                .unwrap_or_else(|| self.selected.iter().filter(|id| !listed.contains(id)).cloned().collect());
+            let restored = self.before_select_all.take().unwrap_or_else(|| {
+                let listed: HashSet<&K> = listed.iter().collect();
+                self.selected.iter().filter(|id| !listed.contains(id)).cloned().collect()
+            });
             self.change(|selected| *selected = restored)
         } else if !listed.is_empty() {
             let before = self.selected.clone();
