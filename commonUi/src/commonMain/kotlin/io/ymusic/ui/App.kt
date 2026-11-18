@@ -378,7 +378,9 @@ private fun AppRoot(
         // App-level so a scan started in Library keeps running (and still notifies) across sections.
         val scanController = graph.scans
         val drawer = rememberDrawerState(DrawerValue.Closed)
-        var railToggled by rememberSaveable { mutableStateOf<Boolean?>(null) }
+        var railToggled by rememberSaveable {
+            mutableStateOf(graph.settings.flow(AppSettings.railExpanded).value.toBooleanStrictOrNull())
+        }
         var usesRail by remember { mutableStateOf(false) }
         if (catalogue == null) {
             LaunchedEffect(section) {
@@ -940,8 +942,12 @@ private fun AppRoot(
                 val railStartsOpen = windowStartsRailOpen(maxWidth)
                 val railExpanded = railToggled ?: railStartsOpen
                 SideEffect { usesRail = railWindow }
-                LaunchedEffect(railWindow, railStartsOpen) {
-                    railToggled = null
+                var railStartsOpenSeen by remember { mutableStateOf(railStartsOpen) }
+                LaunchedEffect(railStartsOpen) {
+                    if (railStartsOpen != railStartsOpenSeen) {
+                        railStartsOpenSeen = railStartsOpen
+                        railToggled = null
+                    }
                 }
                 // design/final/home.html: landscape (or any window this wide) puts the tab row inline in the app bar.
                 val shellWidth = if (railWindow) maxWidth - DesignSpacing.RailExpandedWidth else maxWidth
@@ -987,7 +993,9 @@ private fun AppRoot(
                                 ),
                                 expanded = railExpanded,
                                 onToggle = {
-                                    railToggled = !railExpanded
+                                    val expanded = !railExpanded
+                                    railToggled = expanded
+                                    scope.launch { graph.settings.put(AppSettings.railExpanded, expanded.toString()) }
                                 },
                                 coordinator = coordinator,
                                 surface = if (needsSurface && !nowPlayingOpen) graph.playerSurface else null,

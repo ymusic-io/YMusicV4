@@ -121,6 +121,8 @@ const BAR_PAD_BOTTOM: f32 = 3.;
 /// Shared with the JVM app: the section and Discover tab a restart resumes, by their keys.
 const LAST_SECTION_KEY: &str = "nav.lastSection";
 const LAST_DISCOVER_TAB_KEY: &str = "discover.lastTab";
+/// Shared with the JVM app: the rail's state as the user last toggled it, `true` = expanded; absent = never toggled.
+const RAIL_EXPANDED_KEY: &str = "nav.railExpanded";
 /// The sections a restart resumes; any other resumes the last of these (the JVM `ResumableSections`).
 const RESUMABLE_SECTIONS: [Section; 3] = [Section::Discover, Section::Library, Section::YtMusic];
 /// Shared with the JVM app: the YT Music tab a restart resumes, by [MusicTab::key].
@@ -427,10 +429,10 @@ pub struct Shell {
     music_tab: MusicTab,
     roots: HashMap<FeedSource, Entity<FeedView>>,
     stacks: HashMap<Section, Stack>,
-    /// The rail's state the user chose; cleared when a width breakpoint flips.
-    rail_manual: Option<bool>,
-    /// The (rail mode, expanded-by-width) the window last had.
-    rail_auto: Option<(bool, bool)>,
+    /// The rail's state the user chose, restored at start; cleared when the expanded-by-width breakpoint flips.
+    rail_toggled: Option<bool>,
+    /// Whether the window was wide enough to start the rail expanded, when last laid out.
+    rail_starts_open_seen: Option<bool>,
     /// The rail panel's width easing to its state's; none while the rail is not shown.
     rail_width: Option<Spring>,
     drawer_open: bool,
@@ -630,6 +632,7 @@ impl Shell {
             .and_then(MusicTab::from_key)
             .filter(|tab| MusicTab::listed(guest).contains(tab))
             .unwrap_or(MusicTab::Home);
+        let rail_toggled = settings.get_raw(RAIL_EXPANDED_KEY).ok().flatten().and_then(|raw| raw.parse().ok());
         let focus = cx.focus_handle();
         crate::a11y::track_root(&focus, cx);
         cx.set_global(ScrollHost::default());
@@ -664,8 +667,8 @@ impl Shell {
             music_tab,
             roots: HashMap::new(),
             stacks: HashMap::new(),
-            rail_manual: None,
-            rail_auto: None,
+            rail_toggled,
+            rail_starts_open_seen: None,
             rail_width: None,
             drawer_open: false,
             focus,
@@ -1979,7 +1982,8 @@ impl Shell {
     }
 
     fn toggle_rail(&mut self, expanded: bool, cx: &mut Context<Self>) {
-        self.rail_manual = Some(!expanded);
+        self.rail_toggled = Some(!expanded);
+        persist_setting(cx, RAIL_EXPANDED_KEY, (!expanded).to_string());
         cx.notify();
     }
 
@@ -2425,15 +2429,14 @@ impl Render for Shell {
         let viewport = window.viewport_size();
         let (width, height) = (f32::from(viewport.width), f32::from(viewport.height));
         let rail_mode = width >= 750. && height >= 480.;
-        let auto_expanded = width >= 1200.;
-        if self.rail_auto != Some((rail_mode, auto_expanded)) {
-            self.rail_auto = Some((rail_mode, auto_expanded));
-            self.rail_manual = None;
+        let rail_starts_open = width >= 1200.;
+        if self.rail_starts_open_seen.replace(rail_starts_open).is_some_and(|seen| seen != rail_starts_open) {
+            self.rail_toggled = None;
         }
         if rail_mode {
             self.drawer_open = false;
         }
-        let expanded = self.rail_manual.unwrap_or(auto_expanded);
+        let expanded = self.rail_toggled.unwrap_or(rail_starts_open);
         let rail_target = if expanded { RAIL_EXPANDED } else { RAIL_COLLAPSED };
         let rail_width = if rail_mode && !crate::reorder::reduce_motion(cx) {
             let now = Instant::now();

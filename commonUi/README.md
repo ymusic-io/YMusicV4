@@ -15,7 +15,9 @@ The shared Compose Multiplatform app UI (jvm + android; iOS later).
 - **Navigation shell** — phones use the drawer and the bottom mini-player. Windows at least 750dp wide and 480dp tall
   use `AppRail` (`Rail.kt`) instead: a left rail carrying the same sections and the mini-player, which hosts the shared
   video surface in its art tile. The expanded rail always sits beside the content (expanding moves it over) and starts
-  open on desktop windows from 1200dp; touch windows start collapsed. A TV expands it while it holds focus. Now Playing and Search are the same screens on every size.
+  open on desktop windows from 1200dp; touch windows start collapsed. The user's toggle is saved
+  (`AppSettings.railExpanded`) and wins over that default at every start, until the window crosses 1200dp, which
+  hands it back to the width for the session; the drawer layout never touches it. A TV expands it while it holds focus. Now Playing and Search are the same screens on every size.
   Width-based layout reads `railStableWidth`, so expanding resizes cards without changing a column count.
 
 - **Screen-owned app bar** — a section screen with a mode of its own swaps the shell's app bar through
