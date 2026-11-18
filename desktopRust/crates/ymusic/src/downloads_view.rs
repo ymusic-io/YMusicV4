@@ -1074,15 +1074,12 @@ impl DownloadsView {
             .when(selecting, |card| card.cursor_pointer())
             .flex_grow_1()
             .rounded(px(6.))
-            .bg(if failed { theme.danger.opacity(0.12) } else { tones.ground })
-            .border_1()
-            .border_color(if checked {
-                theme.primary
-            } else if failed {
-                theme.danger.opacity(0.4)
-            } else {
-                theme.border
+            .bg({
+                let base = if failed { theme.danger.opacity(0.12) } else { tones.ground };
+                if checked { base.blend(crate::selection::selected_fill(cx)) } else { base }
             })
+            .border_1()
+            .border_color(if failed { theme.danger.opacity(0.4) } else { theme.border })
             .p(px(14.))
             .gap_2()
             .child(

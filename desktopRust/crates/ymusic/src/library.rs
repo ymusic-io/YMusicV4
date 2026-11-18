@@ -1836,8 +1836,7 @@ pub fn song_cell<V: SongMenuHost>(
     if select.is_none() {
         return cell.into_any_element();
     }
-    cell.border_1()
-        .border_color(if checked { theme.primary } else { transparent_black() })
+    cell.when(checked, |cell| cell.bg(crate::selection::selected_fill(cx)))
         .on_mouse_down(
             MouseButton::Left,
             cx.listener(move |view, event: &MouseDownEvent, _, cx| {

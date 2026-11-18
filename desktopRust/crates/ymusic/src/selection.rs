@@ -197,6 +197,11 @@ impl<K: Eq + Hash + Clone + 'static> Selection<K> {
     }
 }
 
+/// A selected item's fill: what a hovered item shows.
+pub fn selected_fill(cx: &App) -> Hsla {
+    cx.theme().primary.opacity(crate::settings_view::HOVER_ALPHA)
+}
+
 /// A control inside an item: its press is not the item's long press.
 pub fn own_press(control: impl IntoElement) -> Div {
     div().flex_shrink_0().on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation()).child(control)
