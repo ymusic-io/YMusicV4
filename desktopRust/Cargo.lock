@@ -10104,6 +10104,7 @@ dependencies = [
  "ym-image-loader",
  "ym-logstore",
  "ym-mse",
+ "ym-quickjs",
  "ym-remote-config",
  "ym-settings",
  "ym-signin",

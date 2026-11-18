@@ -19,7 +19,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -36,6 +35,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.ymusic.dynamicengine.yt.YtFeedItem
 import io.ymusic.mediastore.BetterMediaStore
 import io.ymusic.ui.resources.Res
@@ -59,7 +59,7 @@ import org.jetbrains.compose.resources.stringResource
  */
 @Composable
 internal fun LocalPlaylistFromDownloadsDialog(store: BetterMediaStore, title: String, pager: Pager, onDismiss: () -> Unit) {
-    val state by pager.state.collectAsState()
+    val state by pager.state.collectAsStateWithLifecycle()
     val ready = state as? Pager.State.Ready
     val offline = LocalAvailableOffline.current
     val videos = ready?.sections.orEmpty().flatMap { it.items }

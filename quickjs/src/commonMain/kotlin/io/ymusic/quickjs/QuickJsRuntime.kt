@@ -781,6 +781,11 @@ class QuickJsRuntime private constructor(
         @Volatile
         var hostVersions: Map<String, Any> = emptyMap()
 
+        /** True while no window shows the app (the shells set it): every runtime's intervals and
+         *  longer timeouts then fire on one shared 1 s grid, as Chrome aligns a hidden page's timers. */
+        @Volatile
+        var timersInBackground: Boolean = false
+
         /** A fresh single-thread engine dispatcher for the synchronous [create]; the caller owns
          *  it — close it once every runtime confined to it is closed.
          *

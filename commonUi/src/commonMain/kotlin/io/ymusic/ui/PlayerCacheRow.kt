@@ -12,7 +12,6 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -24,6 +23,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.ymusic.settings.AppSettings
 import io.ymusic.settings.flow
 import io.ymusic.settings.put
@@ -48,8 +48,8 @@ private val PlayerCacheSizesMb = listOf(0, 128, 256, 512, 1_024, 2_048, 5_120, 1
 internal fun PlayerCacheRow(graph: AppGraph) {
     val cache = graph.playerCache ?: return
     val scope = rememberCoroutineScope()
-    val maxMb by remember(graph) { graph.settings.flow(AppSettings.playerCacheMaxMb) }.collectAsState()
-    val saved by remember(cache) { cache.stats?.hitBytes ?: MutableStateFlow(0L) }.collectAsState()
+    val maxMb by remember(graph) { graph.settings.flow(AppSettings.playerCacheMaxMb) }.collectAsStateWithLifecycle()
+    val saved by remember(cache) { cache.stats?.hitBytes ?: MutableStateFlow(0L) }.collectAsStateWithLifecycle()
     var used by remember { mutableStateOf(0L) }
     LaunchedEffect(cache, maxMb, saved) { used = withContext(Dispatchers.IO) { cache.blobs.totalSize() } }
     var open by remember { mutableStateOf(false) }

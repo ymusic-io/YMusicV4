@@ -18,7 +18,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -31,6 +30,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.ymusic.ui.resources.Res
 import io.ymusic.ui.resources.update_allow_install
 import io.ymusic.ui.resources.update_ask_later
@@ -75,7 +75,7 @@ import projectcommon.error.NETWORK_CODE
 @Composable
 fun UpdateDialog(graph: AppGraph, recheck: Int = 0) {
     val updates = graph.updates ?: return
-    val status by updates.status.collectAsState()
+    val status by updates.status.collectAsStateWithLifecycle()
     val uriHandler = LocalUriHandler.current
     // Keyed on [recheck]: a manual "Check for update" brings back a release asked about later.
     var dismissedVersion by remember(recheck) { mutableStateOf<Int?>(null) }

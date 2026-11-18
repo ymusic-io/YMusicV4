@@ -31,7 +31,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -62,6 +61,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.ymusic.settings.AppSettings
 import io.ymusic.ui.resources.Res
 import io.ymusic.ui.resources.a11y_eq_preamp
@@ -158,7 +158,7 @@ private val EQ_PRESETS = listOf(
 @Composable
 internal fun EqualizerFxSheet(graph: AppGraph, onDismiss: () -> Unit) {
     val player = graph.player
-    val config by player.config.collectAsState()
+    val config by player.config.collectAsStateWithLifecycle()
     val enabled = config.inAppAudioFx
     val bands = List(EQ_HZ.size) { config.eqBands.getOrElse(it) { 0f } }
     val scroll = rememberScrollState()

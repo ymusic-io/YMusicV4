@@ -36,7 +36,6 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -53,6 +52,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.ymusic.dynamicengine.yt.YtFeedItem
 import io.ymusic.dynamicengine.yt.YtLocaleOption
 import io.ymusic.mediastore.BetterMediaStore
@@ -110,7 +110,7 @@ class PlaylistDownloadSession(val title: String, val pager: Pager, initialPreset
 @Composable
 fun PlaylistDownloadScreen(graph: AppGraph, session: PlaylistDownloadSession, onBack: () -> Unit) {
     val downloads = graph.downloads ?: return
-    val state by session.pager.state.collectAsState()
+    val state by session.pager.state.collectAsStateWithLifecycle()
     val ready = state as? Pager.State.Ready
     val videos = ready?.sections.orEmpty().flatMap { it.items }.filter { it.kind == YtFeedItem.KIND_VIDEO }.distinctBy { it.id }
     val offline = LocalAvailableOffline.current

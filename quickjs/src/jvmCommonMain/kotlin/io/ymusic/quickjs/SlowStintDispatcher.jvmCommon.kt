@@ -2,7 +2,9 @@ package io.ymusic.quickjs
 
 import kotlinx.coroutines.CloseableCoroutineDispatcher
 import kotlinx.coroutines.CoroutineName
+import kotlinx.coroutines.Delay
 import kotlinx.coroutines.ExecutorCoroutineDispatcher
+import kotlinx.coroutines.InternalCoroutinesApi
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
@@ -62,6 +64,8 @@ private class StintWatch(private val task: String, private val engineThread: Thr
     }
 }
 
+/** Delay passes through to [delegate]: without it every timer on this dispatcher hops via DefaultExecutor. */
+@OptIn(InternalCoroutinesApi::class)
 internal actual fun slowStintDispatcher(
     delegate: CloseableCoroutineDispatcher,
     stintMs: Long,
@@ -69,7 +73,7 @@ internal actual fun slowStintDispatcher(
     waitMs: Long,
     onSlowWait: ((millis: Long) -> Unit)?,
     liveStacks: Boolean,
-): CloseableCoroutineDispatcher = object : ExecutorCoroutineDispatcher() {
+): CloseableCoroutineDispatcher = object : ExecutorCoroutineDispatcher(), Delay by delegate as Delay {
     // newEngineDispatcher() is executor-backed on JVM/Android; expose its executor unchanged.
     override val executor: Executor get() = (delegate as ExecutorCoroutineDispatcher).executor
 

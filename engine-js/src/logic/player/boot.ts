@@ -31,6 +31,7 @@ import { installPlayerAdStrip } from "./skip_ads";
 import { installSabrIntercept } from "../yt/sabr_http";
 import { installAdaptiveFormatsHeader } from "../yt/sabr_af";
 import { installWatchNextHarvest } from "./watch_next";
+import { installQoeBlock } from "./stats_qoe";
 import { isAudioOnly, setAudioOnly, setYmQuality, ymQuality } from "./audio_only";
 import { isYmLive } from "./live";
 import { channelUrl } from "../yt/parse";
@@ -802,6 +803,7 @@ class Player {
     installSabrIntercept();
     installAdaptiveFormatsHeader();
     installWatchNextHarvest();
+    installQoeBlock();
 
     out["jsUrl"] = jsUrl;
     out["step"] = "basejs";

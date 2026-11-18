@@ -2,7 +2,6 @@ package io.ymusic.ui
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -14,6 +13,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.ymusic.dynamicengine.yt.YtFeedItem
 import io.ymusic.settings.AppSettings
 import io.ymusic.settings.flow
@@ -65,7 +65,7 @@ internal fun DownloadDialogHost(graph: AppGraph, pending: YtFeedItem?, onDismiss
     // folder was removed/excluded — go straight to the OS folder picker; a pick sets the location (this
     // recomposes into the format dialog), a cancel cancels the download. Validated only here, at start
     // time, so nothing has to watch the store. (No gate when the shell can't pick a folder.)
-    val location by remember(graph) { graph.settings.flow(AppSettings.downloadLocation) }.collectAsState()
+    val location by remember(graph) { graph.settings.flow(AppSettings.downloadLocation) }.collectAsStateWithLifecycle()
     if (graph.mediaStore != null && graph.libraryFolderPicker != null) {
         val usable by produceState<Boolean?>(null, video, location) { value = hasUsableDownloadLocation(graph) }
         when (usable) {

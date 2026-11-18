@@ -33,7 +33,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,9 +47,11 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import io.ymusic.player.PlayableItem
 import io.ymusic.player.VideoSize
+import io.ymusic.quickjs.QuickJsRuntime
 import io.ymusic.settings.AppSettings
 import io.ymusic.settings.flow
 import io.ymusic.ui.AndroidInputMode
@@ -703,8 +704,14 @@ class MainActivity : FragmentActivity() {
         }
     }
 
+    override fun onStart() {
+        super.onStart()
+        QuickJsRuntime.timersInBackground = false
+    }
+
     override fun onStop() {
         super.onStop()
+        QuickJsRuntime.timersInBackground = true
         val g = appGraph ?: return
         val inPip = Build.VERSION.SDK_INT >= 26 && isInPictureInPictureMode
         if (inPip) return
@@ -1020,8 +1027,8 @@ private fun FolderPickDialog(
 private fun AppThemed(content: @androidx.compose.runtime.Composable () -> Unit) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val settings = remember { PrefsSettingsStore.open(context) }
-    val theme by settings.flow(AppSettings.theme).collectAsState()
-    val accent by settings.flow(AppSettings.themeAccent).collectAsState()
+    val theme by settings.flow(AppSettings.theme).collectAsStateWithLifecycle()
+    val accent by settings.flow(AppSettings.themeAccent).collectAsStateWithLifecycle()
     YMusicTheme(designPaletteFor(theme, androidx.compose.foundation.isSystemInDarkTheme(), accent), content)
 }
 

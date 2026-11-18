@@ -30,7 +30,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -50,6 +49,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.intl.Locale
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.ymusic.settings.AppSettings
 import io.ymusic.settings.anonymousDeviceId
 import io.ymusic.settings.flow
@@ -100,14 +100,14 @@ import org.jetbrains.compose.resources.stringResource
 internal fun FeedbackScreen(graph: AppGraph, onDismiss: () -> Unit) {
     val capture = graph.captureFeedbackReport
     val log = remember(graph) { graph.logger?.fork("Feedback") }
-    val reportsEnabled = remember(graph) { graph.settings.flow(AppSettings.crashReports) }.collectAsState().value
+    val reportsEnabled = remember(graph) { graph.settings.flow(AppSettings.crashReports) }.collectAsStateWithLifecycle().value
     var consented by remember { mutableStateOf(capture == null || reportsEnabled) }
     val deviceId by produceState("", graph) { value = graph.settings.anonymousDeviceId() }
-    val config by remember(graph) { graph.remoteConfig ?: emptyFlow() }.collectAsState(initial = null)
+    val config by remember(graph) { graph.remoteConfig ?: emptyFlow() }.collectAsStateWithLifecycle(initialValue = null)
     val links = AppLinks(config)
     val bundles = graph.runningBundles
-    bundles?.engineFlow?.collectAsState()
-    bundles?.playerFlow?.collectAsState()
+    bundles?.engineFlow?.collectAsStateWithLifecycle()
+    bundles?.playerFlow?.collectAsStateWithLifecycle()
     val info = FeedbackInfo(
         deviceId = deviceId,
         app = listOfNotNull(

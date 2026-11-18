@@ -63,7 +63,6 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -108,6 +107,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.ymusic.download.DownloadFormat
 import io.ymusic.dynamicengine.yt.YtFeedItem
 import io.ymusic.dynamicengine.yt.YtFeedPage
@@ -237,9 +237,9 @@ fun App(
     sectionState: androidx.compose.runtime.MutableState<AppSection>,
     catalogue: (@Composable () -> Unit)? = null,
 ) {
-    val tag by graph.uiLanguage.collectAsState()
-    val themePref by remember(graph) { graph.settings.flow(AppSettings.theme) }.collectAsState()
-    val accentPref by remember(graph) { graph.settings.flow(AppSettings.themeAccent) }.collectAsState()
+    val tag by graph.uiLanguage.collectAsStateWithLifecycle()
+    val themePref by remember(graph) { graph.settings.flow(AppSettings.theme) }.collectAsStateWithLifecycle()
+    val accentPref by remember(graph) { graph.settings.flow(AppSettings.themeAccent) }.collectAsStateWithLifecycle()
     val palette = designPaletteFor(themePref, androidx.compose.foundation.isSystemInDarkTheme(), accentPref)
     var section by sectionState
     LaunchedEffect(graph.settings) {
@@ -355,9 +355,9 @@ private fun AppRoot(
     run {
         val scope = rememberCoroutineScope()
         val coordinator = graph.playback
-        val inPip by graph.pip.inPip.collectAsState()
+        val inPip by graph.pip.inPip.collectAsStateWithLifecycle()
         if (inPip) {
-            val pipStatus by graph.player.status.collectAsState()
+            val pipStatus by graph.player.status.collectAsStateWithLifecycle()
             KeepScreenOn(pipStatus.state.isPlaying() && !pipStatus.state.isEnded() && !showsAudioOnly(graph.player))
             PictureHidden(graph, hidden = false)
             Box(Modifier.fillMaxSize().background(Color.Black)) {
@@ -371,10 +371,10 @@ private fun AppRoot(
         val libraryGroupReveal = remember { androidx.compose.runtime.mutableStateOf<LibraryGroupReveal?>(null) }
         // Signed-in state, derived from the engine's cookie gate. Bumps loginEpoch on sign-in/out.
         val accountController = graph.account
-        val signedIn by accountController.signedIn.collectAsState()
-        val account by accountController.account.collectAsState()
-        val profileReady by accountController.profileReady.collectAsState()
-        val loginEpoch by accountController.loginEpoch.collectAsState()
+        val signedIn by accountController.signedIn.collectAsStateWithLifecycle()
+        val account by accountController.account.collectAsStateWithLifecycle()
+        val profileReady by accountController.profileReady.collectAsStateWithLifecycle()
+        val loginEpoch by accountController.loginEpoch.collectAsStateWithLifecycle()
         // App-level so a scan started in Library keeps running (and still notifies) across sections.
         val scanController = graph.scans
         val drawer = rememberDrawerState(DrawerValue.Closed)
@@ -396,7 +396,7 @@ private fun AppRoot(
         LaunchedEffect(discoverTab) { graph.settings.put(AppSettings.lastDiscoverTab, discoverTab.key) }
         // Live swipe progress (−1..1) so the Discover underline tracks the drag, not just the commit.
         var discoverDrag by remember { mutableFloatStateOf(0f) }
-        val nowPlayingOpen by graph.pip.nowPlayingOpen.collectAsState()
+        val nowPlayingOpen by graph.pip.nowPlayingOpen.collectAsStateWithLifecycle()
         var nowPlayingPeeking by remember { mutableStateOf(false) }
         val snackbarHostState = remember { SnackbarHostState() }
         // Snackbars sit above the mini player, which is drawn deep in the shell.
@@ -478,7 +478,7 @@ private fun AppRoot(
         // ([AppGraph.localeEpoch], bumped by the Settings pickers) and throws the cached pages
         // away. It lives here, not in DiscoverFeed: that composable is disposed while a search or
         // detail layer is open, and a remember there would re-clear the cache on every return.
-        val localeEpoch by graph.localeEpoch.collectAsState()
+        val localeEpoch by graph.localeEpoch.collectAsStateWithLifecycle()
         // A sign-in/out changes what every feed CONTAINS (personalized vs anonymous), same as a
         // locale change — so it clears the caches too, and the feeds refetch under the new identity.
         remember(localeEpoch, loginEpoch) {
@@ -822,7 +822,7 @@ private fun AppRoot(
         // "Check for update" from the drawer; a found update bumps [updateRecheck] so the prompt
         // shows it even after an earlier "Ask later".
         val uriHandler = LocalUriHandler.current
-        val config by remember(graph) { graph.remoteConfig ?: emptyFlow() }.collectAsState(initial = null)
+        val config by remember(graph) { graph.remoteConfig ?: emptyFlow() }.collectAsStateWithLifecycle(initialValue = null)
         var checkingUpdate by remember { mutableStateOf(false) }
         // Feedback sends the app logs on arrival, so with anonymous reports off it stays closed
         // until the user agrees in this dialog.
@@ -867,7 +867,7 @@ private fun AppRoot(
                 openLibraryRoot()
             },
         )
-        val premium by graph.premium.collectAsState()
+        val premium by graph.premium.collectAsStateWithLifecycle()
         var updateRecheck by remember { mutableStateOf(0) }
         // The system back gesture/button walks the same path as the in-app back arrows: overlays
         // close first (drawer, Now Playing); the search input steps back to its results; then one
@@ -904,9 +904,9 @@ private fun AppRoot(
         // Keep the shared video surface hosted while a YouTube item or a pictured local item is
         // current. Now Playing hosts it while open; otherwise the mini player's art tile does, so
         // playback keeps going (the same single container re-parents, which the engines tolerate).
-        val queue by graph.player.queue.collectAsState()
-        val playbackConfig by graph.player.config.collectAsState()
-        val quality by graph.player.videoQuality.collectAsState()
+        val queue by graph.player.queue.collectAsStateWithLifecycle()
+        val playbackConfig by graph.player.config.collectAsStateWithLifecycle()
+        val quality by graph.player.videoQuality.collectAsStateWithLifecycle()
         val needsSurface = queue.currentItem is PlayableItem.YtMedia ||
             (queue.currentItem != null && showsVideo(playbackConfig, quality))
         // Every mini player shows the cover over the hosted surface: only Now Playing (or PiP, above) shows the picture.
@@ -986,7 +986,7 @@ private fun AppRoot(
                                     sections = listedSections(catalogue != null, graph.guest, graph.openDonation != null),
                                     appVersion = graph.appVersion,
                                     premium = premium,
-                                    updateWaiting = graph.updates?.status?.collectAsState()?.value is AppUpdateStatus.Offered,
+                                    updateWaiting = graph.updates?.status?.collectAsStateWithLifecycle()?.value is AppUpdateStatus.Offered,
                                     onCheckUpdate = onCheckUpdate,
                                     websiteUrl = AppLinks(config).website,
                                     onSelect = selectSection,
@@ -1304,7 +1304,7 @@ private fun AppRoot(
                                         if (!railWindow) mini(Modifier.fillMaxWidth())
                                     }
                                 } else {
-                                    val miniVisible = !railWindow && coordinator.player.queue.collectAsState().value.currentItem != null
+                                    val miniVisible = !railWindow && coordinator.player.queue.collectAsStateWithLifecycle().value.currentItem != null
                                     val miniInset = if (miniVisible) with(LocalDensity.current) { miniHeightPx.toDp() } else 0.dp
                                     // A screen reader takes a row painted over by the bar as visible, focusing it without
                                     // scrolling and skipping its ⋮; with one on, the content ends above the bar instead.

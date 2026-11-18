@@ -31,7 +31,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -56,6 +55,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.ymusic.dynamicengine.yt.YtFeedPage
 import io.ymusic.dynamicengine.yt.YtFilterGroup
 import io.ymusic.dynamicengine.yt.YtFilterOption
@@ -179,7 +179,7 @@ fun SearchScreen(
     val voiceLevel = remember { mutableFloatStateOf(0f) }
     var voiceJob by remember { mutableStateOf<Job?>(null) }
 
-    val historyRaw by remember(graph) { graph.settings.string(SearchHistoryKey, "") }.collectAsState()
+    val historyRaw by remember(graph) { graph.settings.string(SearchHistoryKey, "") }.collectAsStateWithLifecycle()
     val history = remember(historyRaw) { historyRaw.split('\n').filter { it.isNotBlank() } }
     fun saveHistory(entries: List<String>) {
         scope.launch {
@@ -187,7 +187,7 @@ fun SearchScreen(
         }
     }
 
-    val pagerState by s.pager.state.collectAsState()
+    val pagerState by s.pager.state.collectAsStateWithLifecycle()
 
     // Debounced suggestions while typing in input mode.
     LaunchedEffect(s.editing, s.field.text) {

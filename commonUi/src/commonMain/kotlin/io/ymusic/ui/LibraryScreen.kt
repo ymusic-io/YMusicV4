@@ -60,7 +60,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -94,6 +93,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.offset
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.ymusic.mediastore.BetterMediaStore
 import io.ymusic.mediastore.model.MediaStoreBucket
 import io.ymusic.mediastore.model.MediaStoreItem
@@ -265,7 +265,7 @@ fun LibraryScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
                 // bucket row (145k on a Downloads scan) just to test non-empty and stalls the UI.
                 LibraryContent(store.allItems(), store.childBuckets(null).isNotEmpty())
             }
-    }.collectAsState(initial = null)
+    }.collectAsStateWithLifecycle(initialValue = null)
 
     // App-level so a scan survives leaving the Library screen and still notifies on completion.
     val scanController = LocalScanController.current
@@ -279,7 +279,7 @@ fun LibraryScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
             // menu re-designates it. Only meaningful when the shell can download.
             val dlScope = rememberCoroutineScope()
             val snackbar = LocalSnackbar.current
-            val downloadLocationRaw by remember(graph) { graph.settings.flow(AppSettings.downloadLocation) }.collectAsState()
+            val downloadLocationRaw by remember(graph) { graph.settings.flow(AppSettings.downloadLocation) }.collectAsStateWithLifecycle()
             val downloadLocation: String? = downloadLocationRaw.takeIf { graph.downloads != null && it.isNotBlank() }
             val onToggleDownloadLocation: ((MediaStoreBucket) -> Unit)? = if (graph.downloads == null) {
                 null

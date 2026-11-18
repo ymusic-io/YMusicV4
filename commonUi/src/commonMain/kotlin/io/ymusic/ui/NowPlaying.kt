@@ -95,7 +95,6 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -148,6 +147,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.ymusic.dynamicengine.yt.YtFeedItem
 import io.ymusic.mediastore.model.MediaStoreItem
 import io.ymusic.player.LoopMode
@@ -295,9 +295,9 @@ fun MiniPlayer(
     onExpand: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val status by coordinator.player.status.collectAsState()
-    val progress by coordinator.player.progress.collectAsState()
-    val queue by coordinator.player.queue.collectAsState()
+    val status by coordinator.player.status.collectAsStateWithLifecycle()
+    val progress by coordinator.player.progress.collectAsStateWithLifecycle()
+    val queue by coordinator.player.queue.collectAsStateWithLifecycle()
     val item = queue.currentItem ?: return
 
     val density = LocalDensity.current
@@ -381,7 +381,7 @@ internal fun MiniArtTile(
     /** Shows the cover over the [surface], which stays mounted so playback keeps going. */
     coverOnly: Boolean = false,
 ) {
-    val status by coordinator.player.status.collectAsState()
+    val status by coordinator.player.status.collectAsStateWithLifecycle()
     Box(
         modifier.then(if (desktopLayoutHole) Modifier else Modifier.background(Color.Black)),
         contentAlignment = Alignment.Center,
@@ -446,7 +446,7 @@ fun NowPlayingScreen(
             graph.videoFillScreen.value = false
         }
     }
-    val status by coordinator.player.status.collectAsState()
+    val status by coordinator.player.status.collectAsStateWithLifecycle()
     val showsPause = status.showsPause()
     val audioOnly = showsAudioOnly(coordinator.player)
     KeepScreenOn(status.state.isPlaying() && !status.state.isEnded() && !audioOnly)
@@ -606,9 +606,9 @@ private fun ArtistLine(current: PlayableItem?, status: PlaybackStatus, style: Te
 @Composable
 private fun FullscreenVideo(graph: AppGraph, coordinator: PlaybackCoordinator, onExit: () -> Unit) {
     val player = coordinator.player
-    val status by player.status.collectAsState()
-    val progress by player.progress.collectAsState()
-    val queue by player.queue.collectAsState()
+    val status by player.status.collectAsStateWithLifecycle()
+    val progress by player.progress.collectAsStateWithLifecycle()
+    val queue by player.queue.collectAsStateWithLifecycle()
     val current = queue.currentItem
 
     SideEffect { VideoOverlayNative.armed = true }
@@ -663,10 +663,10 @@ private fun PortraitNowPlaying(
     videoHeight: Dp? = null,
 ) {
     val player = coordinator.player
-    val status by player.status.collectAsState()
-    val progress by player.progress.collectAsState()
-    val queue by player.queue.collectAsState()
-    val sleepMs by player.sleepTimerMs.collectAsState()
+    val status by player.status.collectAsStateWithLifecycle()
+    val progress by player.progress.collectAsStateWithLifecycle()
+    val queue by player.queue.collectAsStateWithLifecycle()
+    val sleepMs by player.sleepTimerMs.collectAsStateWithLifecycle()
     val current = queue.currentItem
 
     // Everything under the video scrolls as one list; once the meta/seek/transport block (item 0)
@@ -810,10 +810,10 @@ private fun LandscapeNowPlaying(
     onFullscreen: () -> Unit,
 ) {
     val player = coordinator.player
-    val status by player.status.collectAsState()
-    val progress by player.progress.collectAsState()
-    val queue by player.queue.collectAsState()
-    val sleepMs by player.sleepTimerMs.collectAsState()
+    val status by player.status.collectAsStateWithLifecycle()
+    val progress by player.progress.collectAsStateWithLifecycle()
+    val queue by player.queue.collectAsStateWithLifecycle()
+    val sleepMs by player.sleepTimerMs.collectAsStateWithLifecycle()
     val current = queue.currentItem
     SideEffect { VideoOverlayNative.armed = true }
     LaunchedEffect(Unit) { VideoOverlayNative.show() }
@@ -1070,7 +1070,7 @@ private fun BoxScope.FullscreenVideoControls(
     val iconSize = 24.dp * scale
     val hitSize = 40.dp * scale
     val density = LocalDensity.current
-    val sleepMs by player.sleepTimerMs.collectAsState()
+    val sleepMs by player.sleepTimerMs.collectAsStateWithLifecycle()
     VideoOverlayChrome(coordinator, status, current, isFullscreen = true)
 
     var scrubMs by remember { mutableStateOf<Long?>(null) }
@@ -1301,9 +1301,9 @@ private fun BoxScope.PlayerCaptionOverlay(
     fill: Boolean = false,
     controlsStrip: Dp? = null,
 ) {
-    val lines by player.captionLines.collectAsState()
+    val lines by player.captionLines.collectAsStateWithLifecycle()
     if (lines.isEmpty()) return
-    val status by player.status.collectAsState()
+    val status by player.status.collectAsStateWithLifecycle()
     val audioOnly = showsAudioOnly(player)
     val strip = controlsStrip ?: (VideoControlsStrip * LocalVideoOverlayScale.current)
     val controlsInset by animateDpAsState(if (overlayVisible) strip else 12.dp)
@@ -1354,8 +1354,8 @@ private fun CaptionToggle(
     iconSize: Dp = 24.dp,
     hitSize: Dp = 40.dp,
 ) {
-    val captions by player.captions.collectAsState()
-    val config by player.config.collectAsState()
+    val captions by player.captions.collectAsStateWithLifecycle()
+    val config by player.config.collectAsStateWithLifecycle()
     val recentLanguages = rememberRecentCaptionLanguages(settings)
     val scope = rememberCoroutineScope()
     if (captions.tracks.isEmpty()) return
@@ -1576,7 +1576,7 @@ private fun DownloadAction(
     iconSize: Dp = 24.dp,
     hitSize: Dp = 40.dp,
 ) {
-    val queue by coordinator.player.queue.collectAsState()
+    val queue by coordinator.player.queue.collectAsStateWithLifecycle()
     val downloadLauncher = LocalDownloadLauncher.current ?: return
     val downloadable = coordinator.downloadable(queue.currentItem) ?: return
     ActionIcon(
@@ -1592,13 +1592,13 @@ private fun DownloadAction(
 /** The current video's SponsorBlock state, reloaded when the video, its whitelist or the setting changes. */
 @Composable
 private fun rememberSponsorBlockState(coordinator: PlaybackCoordinator): SponsorBlockState {
-    val queue by coordinator.player.queue.collectAsState()
+    val queue by coordinator.player.queue.collectAsStateWithLifecycle()
     val videoId = queue.currentItem?.videoId
     val sponsorBlock = coordinator.graph.sponsorBlock
-    val sbChanges by sponsorBlock.changes.collectAsState()
+    val sbChanges by sponsorBlock.changes.collectAsStateWithLifecycle()
     val sbEnabled by remember(coordinator.graph) {
         coordinator.graph.settings.flow(AppSettings.sponsorBlockEnabled)
-    }.collectAsState()
+    }.collectAsStateWithLifecycle()
     var sbState by remember { mutableStateOf(SponsorBlockState.Unavailable) }
     LaunchedEffect(videoId, sbChanges, sbEnabled) {
         sbState = videoId?.let { sponsorBlock.load(it).state } ?: SponsorBlockState.Unavailable
@@ -1615,7 +1615,7 @@ private fun SponsorBlockToggle(
     iconSize: Dp = 24.dp,
     hitSize: Dp = 40.dp,
 ) {
-    val queue by coordinator.player.queue.collectAsState()
+    val queue by coordinator.player.queue.collectAsStateWithLifecycle()
     val videoId = queue.currentItem?.videoId
     val sponsorBlock = coordinator.graph.sponsorBlock
     val scope = rememberCoroutineScope()
@@ -1651,9 +1651,9 @@ internal fun PlayerSleepTimerButton(
 ) {
     val player = coordinator.player
     val scope = rememberCoroutineScope()
-    val sleepAfterCurrent by player.sleepAfterCurrent.collectAsState()
+    val sleepAfterCurrent by player.sleepAfterCurrent.collectAsStateWithLifecycle()
     val settings = coordinator.graph.settings
-    val lastSleepMinutes by remember(settings) { settings.flow(AppSettings.sleepTimerMinutes) }.collectAsState()
+    val lastSleepMinutes by remember(settings) { settings.flow(AppSettings.sleepTimerMinutes) }.collectAsStateWithLifecycle()
     SleepTimerButton(
         sleepMs = sleepMs,
         afterCurrent = sleepAfterCurrent,
@@ -1707,7 +1707,7 @@ private class QualityChoices(val label: String, val options: List<Pair<String, S
 
 @Composable
 private fun qualityChoices(player: io.ymusic.player.Player): QualityChoices? {
-    val quality by player.videoQuality.collectAsState()
+    val quality by player.videoQuality.collectAsStateWithLifecycle()
     val audioOnlyLabel = stringResource(Res.string.audio_only)
     val autoQualityLabel = stringResource(Res.string.video_quality_auto)
     fun qualityLabel(option: VideoQualityOption): String = when (option.quality) {
@@ -1774,7 +1774,7 @@ private fun VideoDetailsAction(coordinator: PlaybackCoordinator, current: Playab
 private fun SpeedAction(player: io.ymusic.player.Player, tint: Color, iconSize: Dp, hitSize: Dp, scale: Float) {
     var speedOpen by remember { mutableStateOf(false) }
     HoldVideoOverlay(speedOpen)
-    val speed = player.config.collectAsState().value.speed
+    val speed = player.config.collectAsStateWithLifecycle().value.speed
     val speedValue = if (speed != 1f) "${trimFloat(speed)}×" else null
     ActionIcon(
         Icons.Outlined.Speed,
@@ -1799,7 +1799,7 @@ private fun SpeedAction(player: io.ymusic.player.Player, tint: Color, iconSize: 
 private fun EqualizerAction(coordinator: PlaybackCoordinator, tint: Color, iconSize: Dp, hitSize: Dp) {
     var eqOpen by remember { mutableStateOf(false) }
     HoldVideoOverlay(eqOpen)
-    val config by coordinator.player.config.collectAsState()
+    val config by coordinator.player.config.collectAsStateWithLifecycle()
     val preset = if (config.inAppAudioFx) stringResource(eqPresetLabel(config.eqBands)) else null
     ActionIcon(
         Icons.Outlined.Equalizer,
@@ -1902,12 +1902,12 @@ private fun MoreMenuDivider() {
 @Composable
 private fun PlayerMoreMenu(coordinator: PlaybackCoordinator) {
     val player = coordinator.player
-    val audioTracks by player.audioTracks.collectAsState()
+    val audioTracks by player.audioTracks.collectAsStateWithLifecycle()
     var open by remember { mutableStateOf(false) }
     var playbackOpen by remember { mutableStateOf(false) }
     var eqOpen by remember { mutableStateOf(false) }
     var detailsOpen by remember { mutableStateOf(false) }
-    val current = player.queue.collectAsState().value.currentItem
+    val current = player.queue.collectAsStateWithLifecycle().value.currentItem
     val video = current as? PlayableItem.YtMedia
     val shareVideoId = current?.videoId
     val uriHandler = LocalUriHandler.current
@@ -1917,7 +1917,7 @@ private fun PlayerMoreMenu(coordinator: PlaybackCoordinator) {
     val noVideos = stringResource(Res.string.yt_playlist_queue_empty)
     val scope = rememberCoroutineScope()
     var tracksOpen by remember { mutableStateOf(false) }
-    val config by player.config.collectAsState()
+    val config by player.config.collectAsStateWithLifecycle()
     HoldVideoOverlay(open || tracksOpen || playbackOpen || eqOpen || detailsOpen)
 
     Box {
@@ -2079,8 +2079,8 @@ internal fun SeekSlider(
     modifier: Modifier = Modifier,
 ) {
     val durationMs = progress.durationMs
-    val skipSegments by player.skipSegments.collectAsState()
-    val queue by player.queue.collectAsState()
+    val skipSegments by player.skipSegments.collectAsStateWithLifecycle()
+    val queue by player.queue.collectAsStateWithLifecycle()
     val streamed = queue.currentItem !is PlayableItem.LocalMedia
     MediaLtr {
         SlimSeekBar(

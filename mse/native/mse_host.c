@@ -74,7 +74,15 @@ struct MseHost {
     /* Guards the av pointer for callers off the JS thread (reset frees and replaces it), and vp.
        Reset holds it across MediaCodec teardown, which can take seconds: UI readouts only try-lock it. */
     pthread_mutex_t av_mu;
+    /* State changes (play, pause, seek, rest, appended media) wake both loops. Timed waits use cv_clock. */
     pthread_cond_t cv;
+    /* busy / vbusy dropping to 0, for wait_idle: the loops' own passes never wake each other. */
+    pthread_cond_t idle_cv;
+#ifndef __APPLE__
+    clockid_t cv_clock;
+#endif
+    /* Bumped by every append and end of stream: a decode pass that saw it change does not wait. */
+    unsigned fed;
     pthread_t dec;
     pthread_t vdec;
     int started;
@@ -161,6 +169,8 @@ struct MseHost {
     int dac_cp_n;
     /* Set by every ring flush: the first PCM written after it puts seek_base at its own pts. */
     int pcm_anchor;
+    /* Media time the last chunk written to the ring ends at; -1 after a flush. mu. */
+    double pulled_end;
     /* The audio stream ended (endOfStream, all of it played) while the media runs on: the clock
        continues on wall time instead of freezing at the last sample. */
     int audio_out;
@@ -236,6 +246,33 @@ static double now_ns(void)
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return (double)ts.tv_sec * 1e9 + (double)ts.tv_nsec;
 #endif
+}
+
+/* mu held. Relative on Apple and monotonic where the cv allows it: a wall clock set back must not
+   stretch the wait. */
+static void host_wait_ms(MseHost *h, int ms)
+{
+    struct timespec until;
+#ifdef __APPLE__
+    until.tv_sec = ms / 1000;
+    until.tv_nsec = (long)(ms % 1000) * 1000000L;
+    pthread_cond_timedwait_relative_np(&h->cv, &h->mu, &until);
+#else
+    clock_gettime(h->cv_clock, &until);
+    until.tv_nsec += (long)ms * 1000000L;
+    until.tv_sec += until.tv_nsec / 1000000000L;
+    until.tv_nsec %= 1000000000L;
+    pthread_cond_timedwait(&h->cv, &h->mu, &until);
+#endif
+}
+
+/* New media for the decode loop, which may be waiting for it. */
+static void host_fed(MseHost *h)
+{
+    pthread_mutex_lock(&h->mu);
+    h->fed++;
+    pthread_cond_broadcast(&h->cv);
+    pthread_mutex_unlock(&h->mu);
 }
 
 static double media_dur(MseHost *h)
@@ -579,7 +616,6 @@ static void ring_write(MseHost *h, const uint8_t *p, int n)
         h->ring_n += chunk;
         p += chunk;
         n -= chunk;
-        pthread_cond_broadcast(&h->cv);
     }
 }
 
@@ -616,6 +652,7 @@ static int ring_read(MseHost *h, uint8_t *p, int n, int color)
 /* h->mu held. Drops queued PCM; the DAC must drop what it holds of the old generation too. */
 static void ring_flush(MseHost *h)
 {
+    h->pulled_end = -1;
     h->ring_r = h->ring_w = h->ring_n = 0;
     h->ring_gen++;
     h->flush_ns = now_ns();
@@ -663,7 +700,6 @@ static void aq_callback(void *user, AudioQueueRef q, AudioQueueBufferRef buf)
         dac_cp_fold(h, h->dac_pos - aq_latency_frames(h));
         h->dac_tick_ns = now_ns();
     }
-    pthread_cond_broadcast(&h->cv);
     pthread_mutex_unlock(&h->mu);
     if (n <= 0) {
         memset(buf->mAudioData, 0, (size_t)cap);
@@ -876,7 +912,7 @@ static void *vid_loop(void *arg)
         double pts = 0;
         pthread_mutex_lock(&h->mu);
         h->vbusy = 0;
-        pthread_cond_broadcast(&h->cv);
+        pthread_cond_broadcast(&h->idle_cv);
         for (;;) {
             while (!h->released && (!h->playing || h->gate))
                 pthread_cond_wait(&h->cv, &h->mu);
@@ -1038,9 +1074,40 @@ static void aq_watchdog(MseHost *h)
 #ifdef MSE_DAC
 #define FILL_GAP_LOG_MS 150.0
 #define FILL_GAP_LOW_RING_MS 100
+/* A pass pulls up to `until` (the clock plus the lead, which counts the device's buffer too, so the
+   ring alone says little). Between passes the loop sleeps until FILL_BATCH_S more can be pulled, at
+   most FILL_WAIT_MAX_MS (the watchdog, the ended check and the clock's trims run once a pass). Short
+   of `until` it polls: briefly while pulls still land, slower while it waits for media (an append
+   wakes it at once). */
+#define FILL_RING_FULL_MS 400
+#define FILL_BATCH_S 0.1
+#define FILL_WAIT_MAX_MS 100
+#define FILL_POLL_MS 5
+#define FILL_STARVED_MS 20
+#define FILL_PULLS_MAX 8
 
-/* At a pass end. Passes run every ~2 ms, so a long gap that left the ring nearly empty is this
-   thread starved or stuck while the device ran out of audio. */
+/* h->mu held. `filled` is the pass's pull count, `until` how far it could pull. */
+static int fill_wait_ms(MseHost *h, int filled, double until)
+{
+    int ring = ring_ms(h);
+    double wait_s;
+    int ms;
+    if (h->ended_sent)
+        return FILL_WAIT_MAX_MS;
+    if (filled >= FILL_PULLS_MAX)
+        return 1;
+    if (ring >= FILL_RING_FULL_MS)
+        wait_s = ring / 1000.0 - (FILL_RING_FULL_MS / 1000.0 - FILL_BATCH_S);
+    else if (h->pulled_end >= 0 && h->pulled_end >= until - FILL_BATCH_S)
+        wait_s = (h->pulled_end + FILL_BATCH_S - until) / play_speed(h);
+    else
+        return filled > 0 ? FILL_POLL_MS : FILL_STARVED_MS;
+    ms = (int)(wait_s * 1000.0);
+    return ms < FILL_POLL_MS ? FILL_POLL_MS : ms > FILL_WAIT_MAX_MS ? FILL_WAIT_MAX_MS : ms;
+}
+
+/* At a pass end. Passes run at most FILL_WAIT_MAX_MS apart, so a long gap that left the ring nearly
+   empty is this thread starved or stuck while the device ran out of audio. */
 static void log_fill_gap(MseHost *h, int ring_at_wake)
 {
     double now = now_ns(), gap = h->fill_end_ns > 0 ? (now - h->fill_end_ns) / 1e6 : 0;
@@ -1062,9 +1129,12 @@ static void *dec_loop(void *arg)
         int16_t *pcm = NULL;
         int frames = 0, rate = 0, ch = 0;
         double pts = 0;
+        unsigned fed;
+        int wait_ms = 2;
 #ifdef MSE_DAC
         int filled;
         int ring_at_wake;
+        double pass_until;
         double span_first = 0, span_last = 0;
         int span_have, span_video;
 #ifdef MSE_AQ
@@ -1073,7 +1143,7 @@ static void *dec_loop(void *arg)
 #endif
         pthread_mutex_lock(&h->mu);
         h->busy = 0;
-        pthread_cond_broadcast(&h->cv);
+        pthread_cond_broadcast(&h->idle_cv);
         while (!h->released && (!h->playing || h->gate)) {
 #ifdef MSE_DAC
             h->fill_end_ns = 0;
@@ -1085,6 +1155,7 @@ static void *dec_loop(void *arg)
             return NULL;
         }
         h->busy = 1;
+        fed = h->fed;
 #ifdef MSE_DAC
         ring_at_wake = ring_ms(h);
 #endif
@@ -1097,9 +1168,11 @@ static void *dec_loop(void *arg)
         span_video = mse_av_has_video(h->av);
         /* Own thread: a late 4K GOP must not starve AudioQueue. */
         filled = 0;
-        while (filled < 8) {
+        pass_until = clock;
+        while (filled < FILL_PULLS_MAX) {
             int want;
             int dac = 0;
+            int in_frames;
             unsigned gen;
             double lead = 0.35;
             double until;
@@ -1108,7 +1181,7 @@ static void *dec_loop(void *arg)
             int vhave = mse_av_video_end(h->av, &vend);
             int starve, device_runs;
             pthread_mutex_lock(&h->mu);
-            want = ring_ms(h) < 400;
+            want = ring_ms(h) < FILL_RING_FULL_MS;
             gen = h->ring_gen;
             /* The lead is output time: the device queue sits on top of it, and at 2x it covers
                twice the media. */
@@ -1158,12 +1231,14 @@ static void *dec_loop(void *arg)
             else if (starve == STARVE_END)
                 mse_critf(MSE_LOG_INFO, "mse-v starve over after %.0f ms: video buffered to %.3f clock=%.3f",
                           starved_ms, vend, clock);
+            pass_until = until;
             /* Not even up to `until`: a pull takes packets up to 80 ms past it, and that creeps the clock. */
             if (!want || until <= clock)
                 break;
             pcm = NULL;
             if (mse_av_pull_audio(h->av, from, until, &pcm, &frames, &rate, &ch, &pts) <= 0 || !pcm)
                 break;
+            in_frames = frames;
             host_stretch(h, &pcm, &frames, ch, rate);
             if (frames <= 0) {
                 pcm = NULL;
@@ -1211,6 +1286,8 @@ static void *dec_loop(void *arg)
                         h->pcm_anchor = 0;
                     }
                     ring_write(h, (const uint8_t *)pcm, nbytes);
+                    if (rate > 0)
+                        h->pulled_end = pts + (double)in_frames / rate;
                 }
                 if (dac && !h->aq_started && ring_ms(h) >= DAC_START_MS) {
                     h->aq_started = 1;
@@ -1267,14 +1344,17 @@ static void *dec_loop(void *arg)
 #ifdef MSE_DAC
         log_fill_gap(h, ring_at_wake);
 #endif
-        {
-            struct timespec sl;
-            /* Never 0: pull_audio returning 0 with packets still pending
-               was while(true){}. 2ms is plenty for DAC fill. */
-            sl.tv_sec = 0;
-            sl.tv_nsec = 2 * 1000 * 1000;
-            nanosleep(&sl, NULL);
-        }
+        /* Never 0: pull_audio returning 0 with packets still pending was while(true){}. idle_cv
+           first, so a seek waiting for this loop does not sit out the wait. */
+        pthread_mutex_lock(&h->mu);
+#ifdef MSE_DAC
+        wait_ms = fill_wait_ms(h, filled, pass_until);
+#endif
+        h->busy = 0;
+        pthread_cond_broadcast(&h->idle_cv);
+        if (!h->released && h->playing && !h->gate && h->fed == fed)
+            host_wait_ms(h, wait_ms);
+        pthread_mutex_unlock(&h->mu);
     }
 }
 
@@ -1292,12 +1372,31 @@ MseHost *mse_host_create(void)
     pthread_mutex_init(&h->mu, NULL);
     pthread_mutex_init(&h->av_mu, NULL);
     pthread_mutex_init(&h->rest_mu, NULL);
+#ifdef __APPLE__
     pthread_cond_init(&h->cv, NULL);
+#else
+    {
+        pthread_condattr_t attr;
+        pthread_condattr_init(&attr);
+        h->cv_clock = CLOCK_REALTIME;
+#ifndef _WIN32
+        /* winpthreads takes the deadline as wall time whatever the attribute says. */
+        if (pthread_condattr_setclock(&attr, CLOCK_MONOTONIC) == 0)
+            h->cv_clock = CLOCK_MONOTONIC;
+#endif
+        pthread_cond_init(&h->cv, &attr);
+        pthread_condattr_destroy(&attr);
+    }
+#endif
+    pthread_cond_init(&h->idle_cv, NULL);
     h->av = mse_av_create();
     h->fx = audio_fx_create();
     h->speed = 1.f;
     h->playing = 0;
     h->vpts = -1;
+#ifdef MSE_DAC
+    h->pulled_end = -1;
+#endif
     if (!h->av) {
         free(h);
         return NULL;
@@ -1374,7 +1473,7 @@ static void aq_pause_flush(MseHost *h)
 static void wait_idle(MseHost *h)
 {
     while ((h->busy || h->vbusy) && !h->released)
-        pthread_cond_wait(&h->cv, &h->mu);
+        pthread_cond_wait(&h->idle_cv, &h->mu);
 }
 
 void mse_host_destroy(MseHost *h)
@@ -1392,6 +1491,7 @@ void mse_host_destroy(MseHost *h)
     h->flushing = 1;
 #endif
     pthread_cond_broadcast(&h->cv);
+    pthread_cond_broadcast(&h->idle_cv);
     pthread_mutex_unlock(&h->mu);
     if (h->started) {
         pthread_join(h->dec, NULL);
@@ -1447,6 +1547,7 @@ void mse_host_destroy(MseHost *h)
     pthread_mutex_destroy(&h->rest_mu);
     pthread_mutex_destroy(&h->mu);
     pthread_cond_destroy(&h->cv);
+    pthread_cond_destroy(&h->idle_cv);
     free(h);
 }
 
@@ -1889,6 +1990,7 @@ void mse_host_end_of_stream(MseHost *h)
     pthread_mutex_lock(&h->mu);
     h->eos = 1;
     pthread_mutex_unlock(&h->mu);
+    host_fed(h);
     maybe_notify_ended(h);
 }
 
@@ -2001,15 +2103,9 @@ int mse_host_dac_poll(MseHost *h, uint8_t *dst, int cap, int wait_ms, int state[
     if (!h)
         return -1;
     pthread_mutex_lock(&h->mu);
-    /* Only paused waits here: while playing, the decode loop signals cv every few ms. */
-    if (wait_ms > 0 && !h->released && !h->playing && h->dac_attached) {
-        struct timespec until;
-        clock_gettime(CLOCK_REALTIME, &until);
-        until.tv_nsec += (long)wait_ms * 1000000L;
-        until.tv_sec += until.tv_nsec / 1000000000L;
-        until.tv_nsec %= 1000000000L;
-        pthread_cond_timedwait(&h->cv, &h->mu, &until);
-    }
+    /* Only paused waits here, for play. */
+    if (wait_ms > 0 && !h->released && !h->playing && h->dac_attached)
+        host_wait_ms(h, wait_ms);
     if (h->released) {
         pthread_mutex_unlock(&h->mu);
         return -1;
@@ -2170,6 +2266,7 @@ int mse_host_append(MseHost *h, int audio, const uint8_t *p, int n, double ts_of
     if (n <= 0)
         return 1;
     r = mse_av_append(h->av, audio, p, n, ts_off, win_start, win_end);
+    host_fed(h);
     mse_logf(
             "mse append a=%d bytes=%d n=%d init=%d first=%.3f last=%.3f tsOff=%.3f win=%.3g..%.3g clock=%.3f",
             audio, n, r.n, r.is_init, r.first, r.last, ts_off, win_start, win_end,

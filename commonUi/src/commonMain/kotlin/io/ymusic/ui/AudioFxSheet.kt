@@ -22,7 +22,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -37,6 +36,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.ymusic.player.Player
 import io.ymusic.ui.resources.Res
 import io.ymusic.ui.resources.sound_ok
@@ -56,7 +56,7 @@ private val DialogPad = Modifier.padding(horizontal = 24.dp)
 
 @Composable
 internal fun PlaybackFxSheet(player: Player, onDismiss: () -> Unit) {
-    val config by player.config.collectAsState()
+    val config by player.config.collectAsStateWithLifecycle()
     val scroll = rememberScrollState()
     ElevatedBarDialog(
         title = stringResource(Res.string.sound_playback),

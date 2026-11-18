@@ -82,6 +82,7 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sun.jna.Native
 import io.sentry.kotlin.multiplatform.Sentry
 import io.ymusic.desktop.media.MacDock
@@ -483,6 +484,7 @@ fun main(args: Array<String>) {
         }
         LaunchedEffect(windowVisible, windowState.isMinimized) {
             videoUnderlay.shown = windowVisible && !windowState.isMinimized
+            QuickJsRuntime.timersInBackground = !windowVisible || windowState.isMinimized
         }
         // Out of sight, video plays as audio only; the quality comes back with the window.
         LaunchedEffect(graph, windowVisible, windowState.isMinimized) {
@@ -1271,8 +1273,8 @@ private fun DesktopPlayerSurface(
     playbackStatus: kotlinx.coroutines.flow.StateFlow<PlaybackStatus>,
     modifier: Modifier,
 ) {
-    val status by playbackStatus.collectAsState()
-    val windowResizingNow by windowResizing.collectAsState()
+    val status by playbackStatus.collectAsStateWithLifecycle()
+    val windowResizingNow by windowResizing.collectAsStateWithLifecycle()
     LaunchedEffect(status.playWhenReady, windowResizingNow) {
         if (status.playWhenReady && !windowResizingNow) videoPanel.setCovered(false)
     }

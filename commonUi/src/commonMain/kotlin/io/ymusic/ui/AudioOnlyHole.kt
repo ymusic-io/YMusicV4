@@ -25,7 +25,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -55,6 +54,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.currentStateAsState
 import io.ymusic.imageloader.ImageRequest
 import io.ymusic.player.Player
@@ -89,8 +89,8 @@ private fun windowVisible(): Boolean {
  */
 @Composable
 internal fun showsAudioOnly(player: Player): Boolean {
-    val config by player.config.collectAsState()
-    val quality by player.videoQuality.collectAsState()
+    val config by player.config.collectAsStateWithLifecycle()
+    val quality by player.videoQuality.collectAsStateWithLifecycle()
     val known = !showsVideo(config, quality)
     val tracksUnknown = quality.options.isEmpty() && quality.actualQuality == VideoQualityState.AUTO
     val last = remember { AudioOnlyMemo(known) }
@@ -125,7 +125,7 @@ internal fun AudioOnlyArtWave(
     url: String?,
     modifier: Modifier = Modifier,
 ) {
-    val status by player.status.collectAsState()
+    val status by player.status.collectAsStateWithLifecycle()
     val sampling = status.showsPause() && windowVisible()
     val levels by produceState(FloatArray(WAVE_BARS), player, sampling) {
         val buf = FloatArray(WAVE_BARS)
@@ -283,7 +283,7 @@ private fun rememberArtTransition(url: String?, decodeSize: IntSize): ArtTransit
 @Composable
 private fun PrefetchNextArt(player: Player, decodeSize: IntSize) {
     val loader = LocalImageLoader.current ?: return
-    val queue by player.queue.collectAsState()
+    val queue by player.queue.collectAsStateWithLifecycle()
     val nextUrl = queue.items.getOrNull(queue.currentIndex + 1)?.displayThumbnailUrl
     LaunchedEffect(nextUrl, decodeSize, loader) {
         if (nextUrl != null && decodeSize.width > 0 && decodeSize.height > 0) loader.prefetch(artRequest(nextUrl, decodeSize))
@@ -367,7 +367,7 @@ internal fun PlayerSurfaceHole(
 
 @Composable
 private fun FpsBadge(player: Player, settings: SettingsStore, modifier: Modifier = Modifier) {
-    val enabled by settings.flow(AppSettings.showFps).collectAsState()
+    val enabled by settings.flow(AppSettings.showFps).collectAsStateWithLifecycle()
     if (!enabled) return
     FpsBadgeActive(player, modifier)
 }
@@ -387,8 +387,8 @@ private class DroppedTotal(var last: Int) {
 
 @Composable
 private fun FpsBadgeActive(player: Player, modifier: Modifier = Modifier) {
-    val status by player.status.collectAsState()
-    val queue by player.queue.collectAsState()
+    val status by player.status.collectAsStateWithLifecycle()
+    val queue by player.queue.collectAsStateWithLifecycle()
     val item = queue.currentItem
     val dropped = remember(item) { DroppedTotal(player.droppedFrames()) }
     val sampling = status.playWhenReady && windowVisible()
