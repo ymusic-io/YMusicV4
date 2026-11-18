@@ -25,7 +25,6 @@ import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -42,6 +41,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.ymusic.ui.resources.Res
 import io.ymusic.ui.resources.app_name
 import io.ymusic.ui.resources.badge_premium
@@ -101,7 +101,7 @@ fun AppDrawer(
         windowInsets = WindowInsets(0),
     ) {
         Column(Modifier.fillMaxHeight().padding(start = startInset)) {
-            val updateStatus = updates?.status?.collectAsState()?.value
+            val updateStatus = updates?.status?.collectAsStateWithLifecycle()?.value
             val updateWaiting = updateStatus is AppUpdateStatus.Offered
             DrawerHeader(appVersion, premium, onCheckUpdate, updateWaiting, websiteUrl)
             HorizontalDivider(color = DesignColors.Divider)

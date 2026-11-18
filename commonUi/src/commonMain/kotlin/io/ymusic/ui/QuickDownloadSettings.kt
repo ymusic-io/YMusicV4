@@ -7,13 +7,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.ymusic.ui.resources.Res
 import io.ymusic.ui.resources.dialog_cancel
 import io.ymusic.ui.resources.download_save
@@ -25,7 +25,7 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 internal fun QuickDownloadRow(graph: AppGraph) {
     val scope = rememberCoroutineScope()
-    val saved by graph.quickDownload.collectAsState()
+    val saved by graph.quickDownload.collectAsStateWithLifecycle()
     var draft by remember { mutableStateOf<QuickDownloadPreset?>(null) }
     val title = stringResource(Res.string.settings_quick_download)
     SettingRow(title, presetLabel(saved)) { draft = saved }

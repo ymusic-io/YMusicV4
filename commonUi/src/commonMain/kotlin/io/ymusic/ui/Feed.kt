@@ -41,7 +41,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
@@ -57,6 +56,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.ymusic.download.StillProcessingException
 import io.ymusic.dynamicengine.yt.YtChip
 import io.ymusic.dynamicengine.yt.YtFeedItem
@@ -365,7 +365,7 @@ fun FeedList(
     listState: LazyListState? = null,
     onDeeplink: ((link: String, title: String?) -> Unit)? = null,
 ) {
-    val state by pager.state.collectAsState()
+    val state by pager.state.collectAsStateWithLifecycle()
     // Pull-to-refresh / F5 reloads the surface from the top: drop any chip filter and take the
     // server's default first response, keeping the current list on screen until the new page lands.
     val reload = { pager.reload() }
@@ -833,7 +833,7 @@ internal val LocalRemoveFromTopTracks = compositionLocalOf<((YtFeedItem) -> Unit
 @Composable
 private fun itemActions(item: YtFeedItem, coordinator: PlaybackCoordinator): ItemActions {
     val downloadLauncher = LocalDownloadLauncher.current
-    val quickPreset = downloadLauncher?.quickPreset?.collectAsState()?.value
+    val quickPreset = downloadLauncher?.quickPreset?.collectAsStateWithLifecycle()?.value
     val removeFromTopTracks = LocalRemoveFromTopTracks.current
     val ytPlaylists = LocalYtPlaylistActions.current
     val removeFromYtPlaylist = LocalRemoveFromYtPlaylist.current

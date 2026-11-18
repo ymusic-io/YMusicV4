@@ -22,7 +22,6 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -38,6 +37,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.ymusic.dynamicengine.yt.YtLocaleOption
 import io.ymusic.dynamicengine.yt.YtLocales
 import io.ymusic.dynamicengine.yt.applyYtLocale
@@ -108,9 +108,9 @@ import projectcommon.log.captureUnlessEnvironmental
 @Composable
 fun SettingsScreen(graph: AppGraph, signedIn: Boolean = false, onLogin: () -> Unit = {}) {
     val scope = rememberCoroutineScope()
-    val uiLanguage by remember(graph) { graph.settings.flow(AppSettings.uiLanguage) }.collectAsState()
-    val theme by remember(graph) { graph.settings.flow(AppSettings.theme) }.collectAsState()
-    val accent by remember(graph) { graph.settings.flow(AppSettings.themeAccent) }.collectAsState()
+    val uiLanguage by remember(graph) { graph.settings.flow(AppSettings.uiLanguage) }.collectAsStateWithLifecycle()
+    val theme by remember(graph) { graph.settings.flow(AppSettings.theme) }.collectAsStateWithLifecycle()
+    val accent by remember(graph) { graph.settings.flow(AppSettings.themeAccent) }.collectAsStateWithLifecycle()
     // The content locale LIVES in the engine; this screen has exactly two jobs: ask the engine for
     // the region menu + the current pick (one call, when the screen opens and again after a pick),
     // and report picks with applyYtLocale. There is ONE language: the app language doubles as the
@@ -216,7 +216,7 @@ fun SettingsScreen(graph: AppGraph, signedIn: Boolean = false, onLogin: () -> Un
             if (graph.updates != null) {
                 ToggleRow(graph, AppSettings.autoDownloadUpdates, Res.string.settings_auto_update, Res.string.settings_auto_update_hint)
             }
-            val config by remember(graph) { graph.remoteConfig ?: emptyFlow() }.collectAsState(initial = null)
+            val config by remember(graph) { graph.remoteConfig ?: emptyFlow() }.collectAsStateWithLifecycle(initialValue = null)
             config?.features?.changelogUrl?.let { LinkRow(Res.string.settings_changelog, it) }
             val links = AppLinks(config)
             LinkRow(Res.string.settings_source_code, links.sourceCode)
@@ -262,7 +262,7 @@ private fun SoundRow(graph: AppGraph, speed: Boolean) {
 @Composable
 internal fun ToggleRow(graph: AppGraph, setting: BoolSetting, title: StringResource, hint: StringResource) {
     val scope = rememberCoroutineScope()
-    val enabled by remember(graph, setting) { graph.settings.flow(setting) }.collectAsState()
+    val enabled by remember(graph, setting) { graph.settings.flow(setting) }.collectAsStateWithLifecycle()
     Row(
         Modifier
             .fillMaxWidth()
@@ -294,7 +294,7 @@ private val AudioFocusOptions: List<Pair<String, StringResource>> = listOf(
 @Composable
 private fun AudioFocusRow(graph: AppGraph) {
     val scope = rememberCoroutineScope()
-    val current by remember(graph) { graph.settings.flow(AppSettings.audioFocus) }.collectAsState()
+    val current by remember(graph) { graph.settings.flow(AppSettings.audioFocus) }.collectAsStateWithLifecycle()
     var open by remember { mutableStateOf(false) }
     Box {
         Column(
@@ -343,8 +343,8 @@ private fun LinkRow(label: StringResource, url: String) {
 /** Informational only: the app build and the JS bundle revisions in effect ("—" until a bundle has run). */
 @Composable
 private fun VersionsRow(graph: AppGraph) {
-    val engine by remember(graph) { graph.runningBundles?.engineFlow ?: flowOf(null) }.collectAsState(initial = null)
-    val player by remember(graph) { graph.runningBundles?.playerFlow ?: flowOf(null) }.collectAsState(initial = null)
+    val engine by remember(graph) { graph.runningBundles?.engineFlow ?: flowOf(null) }.collectAsStateWithLifecycle(initialValue = null)
+    val player by remember(graph) { graph.runningBundles?.playerFlow ?: flowOf(null) }.collectAsStateWithLifecycle(initialValue = null)
     val parts = listOfNotNull(
         graph.appVersionName?.let { name ->
             stringResource(Res.string.settings_versions_app, name, graph.appVersionCode?.toString() ?: "—")

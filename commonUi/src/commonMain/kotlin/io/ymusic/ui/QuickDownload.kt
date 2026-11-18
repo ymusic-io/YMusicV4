@@ -2,11 +2,11 @@ package io.ymusic.ui
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.ymusic.download.AudioQuality
 import io.ymusic.download.CaptionChoice
 import io.ymusic.download.DownloadFileNames
@@ -116,7 +116,7 @@ data class QuickDownloadPreset(
 internal fun QuickDownloadHost(graph: AppGraph, pending: YtFeedItem?, format: DownloadFormat? = null, onDone: () -> Unit) {
     val downloads = graph.downloads ?: return
     val video = pending ?: return
-    val saved = graph.quickDownload.collectAsState().value
+    val saved = graph.quickDownload.collectAsStateWithLifecycle().value
     val preset = if (format != null && format != saved.format) saved.copy(format = format, height = null) else saved
     val snackbar = LocalSnackbar.current
     val scans = LocalScanController.current

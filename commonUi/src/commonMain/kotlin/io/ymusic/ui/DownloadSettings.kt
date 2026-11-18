@@ -9,7 +9,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -20,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.ymusic.mediastore.model.MediaStoreBucket
 import io.ymusic.settings.AppSettings
 import io.ymusic.settings.flow
@@ -75,7 +75,7 @@ private fun DownloadLocationRow(graph: AppGraph) {
 @Composable
 internal fun rememberDownloadLocationName(graph: AppGraph): String? {
     val mediaStore = graph.mediaStore ?: return null
-    val location by remember(graph) { graph.settings.flow(AppSettings.downloadLocation) }.collectAsState()
+    val location by remember(graph) { graph.settings.flow(AppSettings.downloadLocation) }.collectAsStateWithLifecycle()
     var name by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(location, mediaStore) {
         name = if (location.isBlank()) {
@@ -151,7 +151,7 @@ internal fun DefaultDownloadLocationPrompt(graph: AppGraph) {
     val mediaStore = graph.mediaStore ?: return
     if (graph.downloads == null) return
     val scope = rememberCoroutineScope()
-    val location by remember(graph) { graph.settings.flow(AppSettings.downloadLocation) }.collectAsState()
+    val location by remember(graph) { graph.settings.flow(AppSettings.downloadLocation) }.collectAsStateWithLifecycle()
 
     var candidate by remember { mutableStateOf<MediaStoreBucket?>(null) }
     LaunchedEffect(mediaStore) {

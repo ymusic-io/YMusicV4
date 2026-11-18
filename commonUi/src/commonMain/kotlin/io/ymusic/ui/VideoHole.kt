@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -23,6 +22,7 @@ import androidx.compose.ui.layout.boundsInParent
 import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.ymusic.player.Player
 
 /**
@@ -37,7 +37,7 @@ internal fun VideoHole(
     modifier: Modifier = Modifier,
     fill: Boolean = false,
 ) {
-    val status by player.status.collectAsState()
+    val status by player.status.collectAsStateWithLifecycle()
     val ratio = status.videoSize?.aspectRatio?.takeIf { it > 0f } ?: (16f / 9f)
     var holeBounds by remember { mutableStateOf(Rect.Zero) }
     BoxWithConstraints(

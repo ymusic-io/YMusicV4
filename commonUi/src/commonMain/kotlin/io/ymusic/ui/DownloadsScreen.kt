@@ -36,7 +36,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -61,6 +60,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.ymusic.download.DownloadFolderAccessException
 import io.ymusic.download.DownloadFormat
 import io.ymusic.download.DownloadService
@@ -170,7 +170,7 @@ fun DownloadsScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
             graph.logger?.fork("downloads")?.captureUnlessEnvironmental(e, "download list failed to load")
             loadError = e.errorCode() ?: "E70081"
         }
-    }.collectAsState(emptyList())
+    }.collectAsStateWithLifecycle(emptyList())
     loadError?.let { code ->
         ErrorState(code) {
             loadError = null

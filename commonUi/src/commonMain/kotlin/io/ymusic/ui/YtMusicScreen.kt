@@ -21,7 +21,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -37,6 +36,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.ymusic.dynamicengine.yt.YtFeedItem
 import io.ymusic.dynamicengine.yt.extractMusicBrowse
 import io.ymusic.dynamicengine.yt.extractMusicCharts
@@ -232,7 +232,7 @@ fun MusicDetailScreen(
     onDeeplink: ((link: String, title: String?) -> Unit)? = null,
     onDownload: ((title: String, pager: Pager) -> Unit)? = null,
 ) {
-    val state by session.feed.pager.state.collectAsState()
+    val state by session.feed.pager.state.collectAsStateWithLifecycle()
     val ready = state as? Pager.State.Ready
     val videos = ready?.sections.orEmpty().flatMap { it.items }.filter { it.kind == YtFeedItem.KIND_VIDEO }
     // A category/feed browse (New releases, Charts, Moods & genres, a mood) vs a track list.

@@ -45,7 +45,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ReadOnlyComposable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -311,7 +310,7 @@ private fun RailPanel(
             Modifier.wrapContentWidth(Alignment.Start, unbounded = true).fillMaxHeight()
                 .width(if (expanded) DesignSpacing.RailExpandedWidth else DesignSpacing.RailCollapsedWidth),
         ) {
-            val queue by coordinator.player.queue.collectAsState()
+            val queue by coordinator.player.queue.collectAsStateWithLifecycle()
             val item = queue.currentItem
             if (expanded) {
                 RailHeader(rail, onToggle)
@@ -397,7 +396,7 @@ private fun ColumnScope.RailMiniCollapsed(
     surface: (@Composable (Modifier) -> Unit)?,
     onExpand: () -> Unit,
 ) {
-    val status by coordinator.player.status.collectAsState()
+    val status by coordinator.player.status.collectAsStateWithLifecycle()
     val progress by coordinator.player.progress.collectAsStateWithLifecycle()
     val title = item.displayTitle
     Column(
@@ -426,7 +425,7 @@ private fun RailMiniExpanded(
     onExpand: () -> Unit,
     focusRequester: FocusRequester,
 ) {
-    val status by coordinator.player.status.collectAsState()
+    val status by coordinator.player.status.collectAsStateWithLifecycle()
     val progress by coordinator.player.progress.collectAsStateWithLifecycle()
     Column(Modifier.fillMaxWidth()) {
         Column(Modifier.fillMaxWidth().clickable(onClick = onExpand)) {

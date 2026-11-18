@@ -31,7 +31,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,6 +45,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.ymusic.dynamicengine.yt.YtFeedItem
 import io.ymusic.dynamicengine.yt.YtFeedPage
 import io.ymusic.dynamicengine.yt.YtPageHeader
@@ -172,7 +172,7 @@ fun PlaylistDetailScreen(
 ) {
     val s = session
     val item = s.item
-    val state by s.feed.pager.state.collectAsState()
+    val state by s.feed.pager.state.collectAsStateWithLifecycle()
     val ready = state as? Pager.State.Ready
     val videos = ready?.sections.orEmpty().flatMap { it.items }.filter { it.kind == YtFeedItem.KIND_VIDEO }
     s.saveResult?.let { result ->
@@ -351,7 +351,7 @@ fun FeedDetailScreen(
     onOpen: ((YtFeedItem) -> Unit)? = null,
     onDeeplink: ((link: String, title: String?) -> Unit)? = null,
 ) {
-    val state by session.feed.pager.state.collectAsState()
+    val state by session.feed.pager.state.collectAsStateWithLifecycle()
     val ready = state as? Pager.State.Ready
     Column(Modifier.fillMaxSize()) {
         DetailAppBar(ready?.pageHeader?.title ?: session.title.orEmpty(), onBack, onSearch)
@@ -462,7 +462,7 @@ fun ChannelDetailScreen(
 ) {
     val s = session
     val item = s.item
-    val state by s.feed.pager.state.collectAsState()
+    val state by s.feed.pager.state.collectAsStateWithLifecycle()
     val ready = state as? Pager.State.Ready
 
     LaunchedEffect(ready?.pageTabs) {

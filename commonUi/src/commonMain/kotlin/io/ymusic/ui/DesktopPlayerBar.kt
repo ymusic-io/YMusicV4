@@ -32,7 +32,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -96,7 +95,7 @@ internal fun DesktopPlayerBar(
     onExpand: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val queue by coordinator.player.queue.collectAsState()
+    val queue by coordinator.player.queue.collectAsStateWithLifecycle()
     val item = queue.currentItem ?: return
     val expand by rememberUpdatedState(onExpand)
     Column(
@@ -136,7 +135,7 @@ private fun BarNowPlaying(
     onExpand: () -> Unit,
     modifier: Modifier,
 ) {
-    val status by coordinator.player.status.collectAsState()
+    val status by coordinator.player.status.collectAsStateWithLifecycle()
     Row(
         modifier.clip(BarArtShape).clickable(onClick = onExpand),
         horizontalArrangement = Arrangement.spacedBy(DesignSpacing.Space8),
@@ -173,9 +172,9 @@ private fun BarNowPlaying(
 @Composable
 private fun BarTransport(coordinator: PlaybackCoordinator, modifier: Modifier) {
     val player = coordinator.player
-    val status by player.status.collectAsState()
+    val status by player.status.collectAsStateWithLifecycle()
     val progress by player.progress.collectAsStateWithLifecycle()
-    val queue by player.queue.collectAsState()
+    val queue by player.queue.collectAsStateWithLifecycle()
     var scrubMs by remember { mutableStateOf<Long?>(null) }
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         MediaLtr {
@@ -238,8 +237,8 @@ private fun BarPlayPause(coordinator: PlaybackCoordinator, status: PlaybackStatu
 @Composable
 private fun BarSideControls(coordinator: PlaybackCoordinator, sleep: Boolean) {
     val player = coordinator.player
-    val config by player.config.collectAsState()
-    val sleepMs by player.sleepTimerMs.collectAsState()
+    val config by player.config.collectAsStateWithLifecycle()
+    val sleepMs by player.sleepTimerMs.collectAsStateWithLifecycle()
     var eqOpen by remember { mutableStateOf(false) }
     var speedOpen by remember { mutableStateOf(false) }
     Row(verticalAlignment = Alignment.CenterVertically) {

@@ -23,7 +23,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,6 +44,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.ymusic.settings.AppSettings
 import io.ymusic.settings.FloatSetting
 import io.ymusic.settings.flow
@@ -81,10 +81,10 @@ private fun opacityLabel(opacity: Float): String = "${(opacity * 100).roundToInt
 /** The saved caption style, live. */
 @Composable
 internal fun rememberCaptionLook(graph: AppGraph): CaptionLook {
-    val scale by remember(graph) { graph.settings.flow(AppSettings.captionScale) }.collectAsState()
-    val text by remember(graph) { graph.settings.flow(AppSettings.captionTextColor) }.collectAsState()
-    val background by remember(graph) { graph.settings.flow(AppSettings.captionBackgroundColor) }.collectAsState()
-    val opacity by remember(graph) { graph.settings.flow(AppSettings.captionBackgroundOpacity) }.collectAsState()
+    val scale by remember(graph) { graph.settings.flow(AppSettings.captionScale) }.collectAsStateWithLifecycle()
+    val text by remember(graph) { graph.settings.flow(AppSettings.captionTextColor) }.collectAsStateWithLifecycle()
+    val background by remember(graph) { graph.settings.flow(AppSettings.captionBackgroundColor) }.collectAsStateWithLifecycle()
+    val opacity by remember(graph) { graph.settings.flow(AppSettings.captionBackgroundOpacity) }.collectAsStateWithLifecycle()
     return CaptionLook(
         scale = scale,
         text = captionColor(text, Color.White),
@@ -129,8 +129,8 @@ internal fun CaptionStyleRow(graph: AppGraph) {
 @Composable
 private fun CaptionStyleDialog(graph: AppGraph, saved: CaptionLook, onDismiss: () -> Unit) {
     val scope = rememberCoroutineScope()
-    val textHex by remember(graph) { graph.settings.flow(AppSettings.captionTextColor) }.collectAsState()
-    val backgroundHex by remember(graph) { graph.settings.flow(AppSettings.captionBackgroundColor) }.collectAsState()
+    val textHex by remember(graph) { graph.settings.flow(AppSettings.captionTextColor) }.collectAsStateWithLifecycle()
+    val backgroundHex by remember(graph) { graph.settings.flow(AppSettings.captionBackgroundColor) }.collectAsStateWithLifecycle()
     var scaleDrag by remember { mutableStateOf<Float?>(null) }
     var opacityDrag by remember { mutableStateOf<Float?>(null) }
     val scale = scaleDrag ?: saved.scale

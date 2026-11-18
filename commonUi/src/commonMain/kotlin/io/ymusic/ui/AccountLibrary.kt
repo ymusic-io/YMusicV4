@@ -28,7 +28,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,6 +38,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.ymusic.dynamicengine.yt.YtAccountInfo
 import io.ymusic.dynamicengine.yt.YtFeedItem
 import io.ymusic.ui.resources.Res
@@ -68,7 +68,7 @@ internal fun AccountLibraryScreen(
     onOpen: ((YtFeedItem) -> Unit)?,
     onDeeplink: ((link: String, title: String?) -> Unit)?,
 ) {
-    val feedState by session.pager.state.collectAsState()
+    val feedState by session.pager.state.collectAsStateWithLifecycle()
     if (feedState is Pager.State.Loading) {
         CenteredBox { CircularProgressIndicator() }
         return

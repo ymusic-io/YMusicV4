@@ -1,9 +1,9 @@
 package io.ymusic.ui
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.ymusic.settings.AppSettings
 import io.ymusic.settings.SettingsStore
 import io.ymusic.settings.flow
@@ -18,7 +18,7 @@ private const val RECENT_CAPTION_CODES = 20
  */
 @Composable
 internal fun rememberRecentCaptionLanguages(settings: SettingsStore): List<String> {
-    val recent by remember(settings) { settings.flow(AppSettings.recentTranslateLanguages) }.collectAsState()
+    val recent by remember(settings) { settings.flow(AppSettings.recentTranslateLanguages) }.collectAsStateWithLifecycle()
     return recent.toList()
 }
 
