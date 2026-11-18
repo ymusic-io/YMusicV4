@@ -1390,32 +1390,16 @@ jobs:
           path: release/update-config.json
           if-no-files-found: error
 
-      # Release notes: GitHub's "Full Changelog" compare line, the trusted-sources warning, then this
-      # version's section of CHANGELOG.md (the tag's "## <version>", e.g. release-v4.0.5 → "## 4.0.5"),
-      # then a Downloads table linking every platform's assets; a prerelease carries no CHANGELOG section.
+      # Release notes: the trusted-sources warning, a table linking every platform's assets, then this
+      # version's CHANGELOG.md section below its own heading (the tag's "## <version>", e.g.
+      # release-v4.0.5 → "## 4.0.5"); a prerelease carries no CHANGELOG section.
       - name: Build the release notes
         if: env.IS_TAG == 'true'
         env:
-          GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
         run: |
           set -euo pipefail
           notes="$RUNNER_TEMP/release-notes.md"
-          gh api "repos/$GITHUB_REPOSITORY/releases/generate-notes" -f tag_name="$TAG" -q .body > "$notes"
-          cat >> "$notes" <<'EOF'
-          > [!CAUTION]
-          > **Only install YMusic from trusted sources:** [ymusic.io](https://ymusic.io) or [GitHub Releases](https://github.com/ymusic-io/YMusicV4/releases). Anyone can build a modified copy — bad actors can ship a fake app that steals your Google account credentials when you sign in.
-
-          EOF
-          if [[ "$TAG" != prerelease-* ]]; then
-            version="${TAG#*-v}"
-            section="$(awk -v head="## $version" '$0 == head { found = 1 } found && /^## / && $0 != head { exit } found' YMusicV4/CHANGELOG.md)"
-            if [ -z "$section" ]; then
-              echo "::warning::CHANGELOG.md has no '## $version' section; the release notes carry only the compare link"
-            else
-              printf '\n%s\n' "$section" >> "$notes"
-            fi
-          fi
           version="$(sed -n 's/^ymusic\.versionName=//p' YMusicV4/gradle.properties | tr -d '[:space:]')"
           # A link per asset, each checked against the collected files; they work once the draft is published.
           links() {
@@ -1432,9 +1416,9 @@ jobs:
           macos="$(links 'Apple Silicon' macos-arm64.dmg Intel macos-intel.dmg)"
           windows="$(links x64 windows-x64-setup.exe arm64 windows-arm64-setup.exe)"
           linux="$(links 'x86_64 .deb' linux-x86_64.deb 'arm64 .deb' linux-arm64.deb 'x86_64 AppImage' linux-x86_64.AppImage 'arm64 AppImage' linux-arm64.AppImage)"
-          cat >> "$notes" <<EOF
-
-          ## Downloads
+          cat > "$notes" <<EOF
+          > [!CAUTION]
+          > **Only install YMusic from trusted sources:** [ymusic.io](https://ymusic.io) or [GitHub Releases](https://github.com/ymusic-io/YMusicV4/releases). Anyone can build a modified copy — bad actors can ship a fake app that steals your Google account credentials when you sign in.
 
           | Platform | Download |
           | --- | --- |
@@ -1443,8 +1427,15 @@ jobs:
           | Windows | $windows |
           | Linux | $linux |
 
-          Checksums: [SHA256SUMS](https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/SHA256SUMS)
           EOF
+          if [[ "$TAG" != prerelease-* ]]; then
+            changes="$(awk -v head="## ${TAG#*-v}" '$0 == head { found = 1; next } found && /^## / { exit } found' YMusicV4/CHANGELOG.md)"
+            if [ -z "$(printf '%s' "$changes" | tr -d '[:space:]')" ]; then
+              echo "::warning::CHANGELOG.md has no '## ${TAG#*-v}' section; the release notes carry only the downloads"
+            else
+              printf '%s\n' "$changes" >> "$notes"
+            fi
+          fi
           cat "$notes" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Create the draft release
