@@ -52,8 +52,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.input.InputMode
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalInputModeManager
 import androidx.compose.ui.semantics.onLongClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
@@ -249,6 +251,7 @@ fun DownloadsScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
     val selection = multiSelection.selected intersect visibleIds
     val selecting = selection.isNotEmpty()
     val endSelection = { multiSelection.end() }
+    val keyboardMode = LocalInputModeManager.current.inputMode == InputMode.Keyboard
     MultiSelectionEffects(multiSelection, shownIds) { index ->
         // The filter chips are the grid's first item.
         val gridIndex = index + 1
@@ -259,14 +262,14 @@ fun DownloadsScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
     var confirming by remember { mutableStateOf<SelectionConfirm?>(null) }
     confirming?.let { pending ->
         val dismiss = { confirming = null }
-        val finish = {
+        val finish = { gone: Set<String> ->
             confirming = null
-            endSelection()
+            multiSelection.endRemoving(gone)
         }
         when (pending) {
             is SelectionConfirm.Remove -> RemoveSelectedDialog(pending.taskIds.size, onDismiss = dismiss) {
                 pending.taskIds.forEach(service::remove)
-                finish()
+                finish(pending.taskIds.toSet())
             }
             is SelectionConfirm.Delete -> DeleteSelectedFilesDialog(
                 graph,
@@ -275,7 +278,7 @@ fun DownloadsScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
                 log = { taskId -> graph.logger?.fork("downloads", mapOf("taskId" to taskId)) },
                 afterDelete = service::remove,
                 onDismiss = dismiss,
-                onDone = finish,
+                onDone = { finish(pending.targets.keys) },
             )
         }
     }
@@ -364,7 +367,7 @@ fun DownloadsScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
                     selecting = selecting,
                     selected = task.id in selection,
                     onToggleSelected = { multiSelection.toggle(task.id) },
-                    onStartSelection = { multiSelection.start(task.id) },
+                    onStartSelection = { multiSelection.startKeepingFocus(task.id, keyboardMode) },
                     requestFocus = multiSelection.focusTarget == task.id,
                     onFocusRequested = multiSelection::focusHandled,
                     onRetry = { retry(task) },

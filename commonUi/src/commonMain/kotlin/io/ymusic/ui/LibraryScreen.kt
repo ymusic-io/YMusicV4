@@ -81,7 +81,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.InputMode
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalInputModeManager
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
@@ -303,18 +305,19 @@ fun LibraryScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
             val tabRowSlot = remember { AppBarSlot() }
             val songsSort = rememberSortState("songs", graph.settings)
             val sortedSongs by remember(loaded.songs, songsSort) { derivedStateOf { songsSort.sort(loaded.songs, songSortOptions) } }
-            val sortedSongIds = sortedSongs.map { it.id }
-            LaunchedEffect(sortedSongIds) {
-                songSelection.retain(sortedSongIds.toSet())
+            // Keyed on membership: a re-sort keeps what Select all restores.
+            val songIdSet = remember(loaded.songs) { loaded.songs.mapTo(HashSet()) { it.id } }
+            LaunchedEffect(songIdSet) {
+                songSelection.retain(songIdSet)
                 songSelection.forgetSelectAll()
             }
-            LaunchedEffect(tab) { if (tab != LibraryTab.Songs) songSelection.end() }
+            LaunchedEffect(tab) { if (tab != LibraryTab.Songs) songSelection.abandon() }
             val selectingSongs = tab == LibraryTab.Songs && songSelection.active
             val tabRowReplacement = tabRowSlot.replacement
             val holdingTab = selectingSongs || tabRowReplacement != null
             val selectTab: (LibraryTab) -> Unit = { if (!holdingTab) tab = it }
             val revealTab: (LibraryTab) -> Unit = {
-                songSelection.end()
+                songSelection.abandon()
                 tab = it
             }
             val currentSelectTab by rememberUpdatedState(selectTab)
@@ -396,7 +399,10 @@ fun LibraryScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
                                 songSelectionDialog = SongSelectionDialog.AddToPlaylist(selected, songSelection::end)
                             },
                             onDelete = if (canDelete) {
-                                { selected -> songSelectionDialog = SongSelectionDialog.Delete(selected.associateBy { it.id }, songSelection::end) }
+                                { selected ->
+                                    val targets = selected.associateBy { it.id }
+                                    songSelectionDialog = SongSelectionDialog.Delete(targets) { songSelection.endRemoving(targets.keys) }
+                                }
                             } else {
                                 null
                             },
@@ -1225,8 +1231,10 @@ private fun PlaylistsTab(
         removeFromPlaylist?.let { remove -> { song: MediaStoreItem -> remove(listOf(song)) } }
     }
     val songIds = songs.map { it.id }
-    LaunchedEffect(songIds) {
-        playlistSelection.retain(songIds.toSet())
+    // Keyed on membership: a re-sort or rearrange keeps what Select all restores.
+    val songIdSet = songIds.toSet()
+    LaunchedEffect(songIdSet) {
+        playlistSelection.retain(songIdSet)
         playlistSelection.forgetSelectAll()
     }
     val selection = playlistSelection.takeIf { isUser }
@@ -1250,7 +1258,10 @@ private fun PlaylistsTab(
             coordinator,
             onRemoveFromPlaylist = { selected -> confirmingRemove = selected },
             onDelete = if (canDelete) {
-                { selected -> openSelectionDialog(SongSelectionDialog.Delete(selected.associateBy { it.id }, playlistSelection::end)) }
+                { selected ->
+                    val targets = selected.associateBy { it.id }
+                    openSelectionDialog(SongSelectionDialog.Delete(targets) { playlistSelection.endRemoving(targets.keys) })
+                }
             } else {
                 null
             },
@@ -1813,7 +1824,8 @@ internal fun SongRow(
         if (selecting) {
             Box(Modifier.padding(top = 2.dp)) { SelectionCheck(selected) }
         } else if (coordinator != null) {
-            val onSelect = selection?.let { { it.start(song.id) } }
+            val keyboardMode = LocalInputModeManager.current.inputMode == InputMode.Keyboard
+            val onSelect = selection?.let { { it.startKeepingFocus(song.id, keyboardMode) } }
             MoreMenu(songActions(song, coordinator, onSelect), Modifier.padding(top = 2.dp))
         }
     }

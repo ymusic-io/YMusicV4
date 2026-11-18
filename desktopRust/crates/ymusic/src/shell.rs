@@ -536,7 +536,7 @@ impl Shell {
                             library.reveal_group(kind, name, cx)
                         }
                         None => {
-                            library.clear_selection(cx);
+                            library.abandon_selection(cx);
                             library.select_tab_index(if album { 4 } else { 3 }, cx)
                         }
                     });
@@ -1486,7 +1486,7 @@ impl Shell {
         if self.section == Section::Library
             && let Some(view) = &self.library
         {
-            view.update(cx, |view, cx| view.clear_selection(cx));
+            view.update(cx, |view, cx| view.abandon_selection(cx));
         }
         self.stacks.entry(self.section).or_default().pushed.push(layer);
         cx.notify();
@@ -1740,13 +1740,13 @@ impl Shell {
             && section != Section::Downloads
             && let Some(view) = &self.downloads
         {
-            view.update(cx, |view, cx| view.clear_selection(cx));
+            view.update(cx, |view, cx| view.abandon_selection(cx));
         }
         if previous == Section::Library
             && section != Section::Library
             && let Some(view) = &self.library
         {
-            view.update(cx, |view, cx| view.clear_selection(cx));
+            view.update(cx, |view, cx| view.abandon_selection(cx));
         }
         cx.notify();
     }

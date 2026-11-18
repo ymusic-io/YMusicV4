@@ -42,6 +42,8 @@ pub struct Selection<K> {
     origin: Option<K>,
     /// The mode just ended: the next render focuses [`Self::origin`], else the first item.
     refocus: bool,
+    /// Items on their way out of the list as the mode ended: the refocus waits until none is listed.
+    gone: HashSet<K>,
     long_press: Option<LongPress<K>>,
     /// The item a long press just selected: its release is not a click.
     long_pressed: Option<K>,
@@ -63,6 +65,7 @@ impl<K> Default for Selection<K> {
             before_select_all: None,
             origin: None,
             refocus: false,
+            gone: HashSet::new(),
             long_press: None,
             long_pressed: None,
         }
@@ -94,6 +97,7 @@ impl<K: Eq + Hash + Clone + 'static> Selection<K> {
     /// Selection mode, with only `id` selected.
     pub fn start(&mut self, id: K) -> bool {
         self.origin = Some(id.clone());
+        self.gone.clear();
         self.change(|selected| *selected = HashSet::from([id]))
     }
 
@@ -107,7 +111,25 @@ impl<K: Eq + Hash + Clone + 'static> Selection<K> {
     }
 
     pub fn clear(&mut self) -> bool {
+        self.gone.clear();
         self.change(HashSet::clear)
+    }
+
+    /// Ends the mode as `gone` leaves the list (a delete or removal the list reloads after): the
+    /// refocus waits for them to go.
+    pub fn clear_removing(&mut self, gone: HashSet<K>) -> bool {
+        let toggled = self.clear();
+        self.gone = gone;
+        toggled
+    }
+
+    /// Ends the mode because its list is going away (a section or tab switch, a reveal elsewhere):
+    /// focus does not come back later.
+    pub fn abandon(&mut self) -> bool {
+        self.origin = None;
+        let toggled = self.clear();
+        self.refocus = false;
+        toggled
     }
 
     pub fn all_selected(&self, listed: &[K]) -> bool {
@@ -118,10 +140,10 @@ impl<K: Eq + Hash + Clone + 'static> Selection<K> {
     /// deselects them).
     pub fn toggle_all(&mut self, listed: &[K]) -> bool {
         if self.all_selected(listed) {
-            let restored = self
-                .before_select_all
-                .take()
-                .unwrap_or_else(|| self.selected.iter().filter(|id| !listed.contains(id)).cloned().collect());
+            let restored = self.before_select_all.take().unwrap_or_else(|| {
+                let listed: HashSet<&K> = listed.iter().collect();
+                self.selected.iter().filter(|id| !listed.contains(id)).cloned().collect()
+            });
             self.change(|selected| *selected = restored)
         } else if !listed.is_empty() {
             let before = self.selected.clone();
@@ -146,9 +168,15 @@ impl<K: Eq + Hash + Clone + 'static> Selection<K> {
         self.before_select_all = None;
     }
 
-    /// Once after the mode ended: the item focus goes back to (`None`: the first item).
-    pub fn take_refocus(&mut self) -> Option<Option<K>> {
-        std::mem::take(&mut self.refocus).then(|| self.origin.take())
+    /// Once after the mode ended and none of its gone items is `listed`: the item focus goes back to
+    /// (`None`: the first item).
+    pub fn take_refocus(&mut self, listed: &[K]) -> Option<Option<K>> {
+        if !self.refocus || listed.iter().any(|id| self.gone.contains(id)) {
+            return None;
+        }
+        self.refocus = false;
+        self.gone.clear();
+        Some(self.origin.take())
     }
 
     /// A press went down on `id`; `lasted` runs on the view once it is held long enough.
