@@ -266,6 +266,12 @@ impl DownloadsView {
         self.selection_changed(toggled, cx);
     }
 
+    /// Ends the selection as `gone` leaves the list: focus returns once they are gone.
+    fn clear_selection_removing(&mut self, gone: HashSet<String>, cx: &mut Context<Self>) {
+        let toggled = self.selection.clear_removing(gone);
+        self.selection_changed(toggled, cx);
+    }
+
     /// Ends a selection because the section is navigated away from: focus does not come back later.
     pub fn abandon_selection(&mut self, cx: &mut Context<Self>) {
         let toggled = self.selection.abandon();
@@ -776,7 +782,7 @@ impl DownloadsView {
                 for id in &ids {
                     view.service.remove(id);
                 }
-                view.clear_selection(cx);
+                view.clear_selection_removing(ids.iter().cloned().collect(), cx);
             })
             .ok();
         });
@@ -784,13 +790,14 @@ impl DownloadsView {
 
     fn delete_selected(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let (view, service) = (cx.entity().downgrade(), self.service.clone());
+        let gone: HashSet<String> = self.deletable.iter().map(|target| target.key.clone()).collect();
         let spec = DeleteSelectedSpec {
             error_code: DELETE_SELECTED_FAILED,
             log_tag: "downloads",
             key_prop: "taskId",
             after_delete: Arc::new(move |task_id| service.remove(task_id)),
             done: Rc::new(move |_, cx| {
-                view.update(cx, |view, cx| view.clear_selection(cx)).ok();
+                view.update(cx, |view, cx| view.clear_selection_removing(gone.clone(), cx)).ok();
             }),
         };
         DeleteSelectedFiles::open(self.deletable.clone(), spec, window, cx);
@@ -1174,7 +1181,6 @@ impl Render for DownloadsView {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         crate::shell::track_scroll(&self.scroll, cx);
         let theme = cx.theme().clone();
-        let refocus = self.selection.take_refocus();
         if let Some(code) = self.load_error {
             return v_flex()
                 .size_full()
@@ -1211,7 +1217,8 @@ impl Render for DownloadsView {
         }
         let filter = self.filter;
         let visible: Vec<DownloadTask> = self.tasks.iter().filter(|task| filter.matches(task.state)).cloned().collect();
-        if let Some(origin) = refocus {
+        let visible_ids: Vec<String> = visible.iter().map(|task| task.id.clone()).collect();
+        if let Some(origin) = self.selection.take_refocus(&visible_ids) {
             let row = origin.and_then(|id| visible.iter().position(|task| task.id == id));
             if let Some(row) = row.or((!visible.is_empty()).then_some(0)) {
                 let card = self.focus.handle(row, cx);

@@ -1393,6 +1393,7 @@ impl LibraryView {
             .into_iter()
             .map(|item| FileTarget { key: item.id.to_string(), item_id: item.id, path: PathBuf::from(&item.uri) })
             .collect();
+        let gone: HashSet<i64> = targets.iter().map(|target| target.item_id).collect();
         let view = cx.entity().downgrade();
         let spec = DeleteSelectedSpec {
             error_code: DELETE_SELECTED_FAILED,
@@ -1401,8 +1402,10 @@ impl LibraryView {
             after_delete: Arc::new(|_| {}),
             done: Rc::new(move |_, cx| {
                 view.update(cx, |view, cx| {
-                    view.clear_selection(cx);
+                    view.song_selection.clear_removing(gone.clone());
+                    view.playlist_selection.clear_removing(gone.clone());
                     view.reload(cx);
+                    cx.notify();
                 })
                 .ok();
             }),
@@ -2612,9 +2615,10 @@ impl Render for LibraryView {
         });
         let shown = self.shown_items();
         let song_stops = self.song_focus.list_stops(0..shown.len(), window, cx);
+        let shown_ids: Vec<i64> = shown.iter().map(|item| item.id).collect();
         let refocus = match (self.tab, &self.open_playlist) {
-            (Tab::Songs, _) => self.song_selection.take_refocus(),
-            (Tab::Playlists, Some(OpenPlaylist::User(_))) => self.playlist_selection.take_refocus(),
+            (Tab::Songs, _) => self.song_selection.take_refocus(&shown_ids),
+            (Tab::Playlists, Some(OpenPlaylist::User(_))) => self.playlist_selection.take_refocus(&shown_ids),
             _ => None,
         };
         if let Some(origin) = refocus {
