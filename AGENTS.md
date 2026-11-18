@@ -106,7 +106,7 @@ Commit every change before the session ends. One logical change per commit.
 Never leave a working tree of mixed experiments uncommitted: later we cannot
 tell what used to work, what broke it, or why (engine-js vs native MSE vs player vs UI).
 
-- **One branch per feature or fix**, cut from `master` and merged back with `git merge --no-ff`, so each change lands as a single merge commit — the one link its changelog line points to. Never batch unrelated fixes on one branch (a follow-up to a merged feature gets its own small branch too).
+- **One branch per feature or fix area**, cut from `master` and merged back with `git merge --no-ff`, so each change lands as a single merge commit — the one link its changelog line points to. Related work shares one branch (all of a topic's fixes and follow-ups, e.g. every local-thumbnail fix, as commits on one branch) — never a branch per small commit or stacked branch chains. Never batch unrelated work on one branch; a follow-up to an already-merged feature gets its own branch.
 - **Worktrees for desktop work:** create them with `tools/dev-worktree.sh new <branch>`, or run `tools/dev-worktree.sh setup` inside one a harness made. It links the gitignored build inputs and gives the checkout its own copy of `~/.ymusic` (`tools/dev-data.sh`), so dev builds of several branches run side by side; `tools/dev-worktree.sh remove` deletes both again.
 - Message: what changed and why, not a diary of tool calls.
 - **Every commit message carries one `Rust:` line** — `Rust: ported` (its desktopRust/ side is in this commit or this branch) or `Rust: n/a. <why it does not apply>`. There is no todo: port it in the same branch. The commit-msg hook (`.githooks/commit-msg`) rejects anything else; merge commits are exempt.
