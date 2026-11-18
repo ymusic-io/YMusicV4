@@ -1370,7 +1370,7 @@ private fun CaptionToggle(
         player.setCaptionVisible(true)
         open = false
         translateOpen = false
-        if (track.kind == AUTO_TRANSLATE_KIND) scope.launch { settings.recordRecentCaptionLanguage(track.languageCode) }
+        scope.launch { settings.recordRecentCaptionLanguage(track.languageCode) }
     }
     val onTrack = tracks.firstOrNull { isOn(it) } ?: translations.firstOrNull { isOn(it) }
     val captionState = onTrack?.displayName ?: stringResource(Res.string.captions_off)

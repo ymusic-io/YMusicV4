@@ -13,7 +13,7 @@ private const val RECENT_CAPTION_LANGUAGES = 3
 
 /**
  * The caption languages last picked, most recent first ([AppSettings.recentTranslateLanguages]): one list
- * shared by Now Playing's auto-translations and the download pickers.
+ * shared by Now Playing's caption menu and the download pickers; every caption pick but Off records its language.
  */
 @Composable
 internal fun rememberRecentCaptionLanguages(settings: SettingsStore): List<String> {

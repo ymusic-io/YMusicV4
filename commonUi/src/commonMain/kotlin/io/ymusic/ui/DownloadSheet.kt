@@ -557,21 +557,27 @@ internal fun containerChoices(state: DownloadOptionsState): List<Choice> =
         Choice(container.displayName(), state.format == container) { state.container = container }
     }
 
-/** Off, the selected track, the auto-translations in the recent caption languages, then the rest. Picking an
- *  auto-translation records its language, as Now Playing does. */
+/** Off, the selected track, the tracks in the recent caption languages (the video's own, uploaded before
+ *  auto-generated, else its auto-translation), then the rest. Picking a track records its language, as Now
+ *  Playing does. */
 @Composable
 internal fun captionChoices(state: DownloadOptionsState): List<Choice> {
     val recent = rememberRecentCaptionLanguages(state.settings)
     val scope = rememberCoroutineScope()
     val tracks = state.options?.captions.orEmpty()
     val selected = tracks.firstOrNull { it.key == state.caption }
-    val recentTracks = tracks.filter { it.isTranslated }.inRecentCaptionLanguages(recent) { it.languageCode }
+    val own = tracks.filter { !it.isTranslated }.sortedBy { it.isAsr }
+    val translated = tracks.filter { it.isTranslated }
+    val recentTracks = recent.mapNotNull { code ->
+        own.inRecentCaptionLanguages(listOf(code)) { it.languageCode }.firstOrNull()
+            ?: translated.inRecentCaptionLanguages(listOf(code)) { it.languageCode }.firstOrNull()
+    }
     val ordered = (listOfNotNull(selected) + recentTracks + tracks).distinct()
     return listOf(Choice(stringResource(Res.string.download_captions_off), state.caption == null) { state.caption = null }) +
         ordered.map { track ->
             Choice(track.displayName(), track.key == state.caption) {
                 state.caption = track.key
-                if (track.isTranslated) scope.launch { state.settings.recordRecentCaptionLanguage(track.languageCode) }
+                scope.launch { state.settings.recordRecentCaptionLanguage(track.languageCode) }
             }
         }
 }
