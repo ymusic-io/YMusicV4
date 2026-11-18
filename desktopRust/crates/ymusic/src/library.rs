@@ -22,6 +22,7 @@ use ym_store::{Bucket, MediaItem, MediaStore, Playlist, PlaylistItemDetail};
 use crate::a11y::{DragRow, FocusList, announced, heading, label, list_item};
 use crate::action_icon::{action_icon, auto_mirrored};
 use crate::assets::MaterialIcon;
+use crate::elevated_dialog::ConfirmDialog;
 use crate::graph::{AppGraph, on_core};
 use crate::lazy_rows::LazyRows;
 use crate::library_playlist::{self, AddToLocalPlaylist, ArrangePlaylist, Changed, NameMode, PlaylistNameDialog};
@@ -1464,11 +1465,26 @@ impl LibraryView {
             })
     }
 
-    /// Drops the selected entries from the opened playlist (their files stay), then ends the selection.
+    /// Once confirmed, drops the selected entries from the opened playlist (their files stay) and ends
+    /// the selection; Cancel keeps it.
     fn remove_selected_from_playlist(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let codes: Vec<String> = self.selected_songs().iter().map(MediaItem::playlist_code).collect();
-        self.clear_selection(cx);
-        self.remove_from_open_playlist(codes, window, cx);
+        let count = codes.len() as i64;
+        let view = cx.entity().downgrade();
+        ConfirmDialog::new(
+            ym_i18n::plural(ym_i18n::Plural::PlaylistRemoveSelectedTitle, count, &[&count]),
+            t(Str::PlaylistRemoveSelectedMessage),
+            t(Str::MenuRemove),
+        )
+        .destructive()
+        .open(window, cx, move |window, cx| {
+            let codes = codes.clone();
+            view.update(cx, |view, cx| {
+                view.clear_selection(cx);
+                view.remove_from_open_playlist(codes, window, cx);
+            })
+            .ok();
+        });
     }
 
     fn remove_from_open_playlist(&mut self, codes: Vec<String>, window: &mut Window, cx: &mut Context<Self>) {
