@@ -666,6 +666,8 @@ internal fun <T> SwipeTabSwitcher(
     leadingEdgeReserve: Dp = 0.dp,
     // Invoked when a drag begins in the leading-edge zone and heads toward centre (open the drawer).
     onLeadingEdgeSwipe: (() -> Unit)? = null,
+    // False holds the current entry: a drag switches nothing (the leading edge still opens the drawer).
+    swipeEnabled: Boolean = true,
     content: @Composable (T) -> Unit,
 ) {
     val layoutDirection = LocalLayoutDirection.current
@@ -691,7 +693,7 @@ internal fun <T> SwipeTabSwitcher(
         modifier
             .fillMaxSize()
             .clipToBounds()
-            .pointerInput(selected, entries, rtl, backStart, backEnd, drawerZone, onLeadingEdgeSwipe) {
+            .pointerInput(selected, entries, rtl, backStart, backEnd, drawerZone, onLeadingEdgeSwipe, swipeEnabled) {
                 val distance = SwipeSwitchDistance.toPx()
                 val velocity = SwipeSwitchVelocity.toPx()
                 val k = RubberPeekStiffness.toPx()
@@ -722,6 +724,12 @@ internal fun <T> SwipeTabSwitcher(
                     }
                     // No drawer here → still reserve the leading OS back inset.
                     if (drawerZone == 0f && distFromStart < backStart) return@awaitEachGesture
+                    if (!swipeEnabled) {
+                        // Still claimed, so the drag is not a tap on the item under it.
+                        val past = awaitHorizontalTouchSlopOrCancellation(down.id) { change, _ -> change.consume() }
+                        if (past != null) horizontalDrag(down.id) { it.consume() }
+                        return@awaitEachGesture
+                    }
                     var dx = 0f
                     val tracker = VelocityTracker()
                     tracker.addPosition(down.uptimeMillis, down.position)

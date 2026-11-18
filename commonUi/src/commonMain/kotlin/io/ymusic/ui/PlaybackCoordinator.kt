@@ -310,14 +310,14 @@ class PlaybackCoordinator(
         lastRequestQueueId = player.queue.value.queueId
     }
 
-    /** Queue [song] right after the current item. */
-    fun queueLocalNext(song: MediaStoreItem) {
-        player.addToPlayNext(listOf(song.toLocalMedia()))
+    /** Queue [songs], in order, right after the current item. */
+    fun queueLocalNext(songs: List<MediaStoreItem>) {
+        player.addToPlayNext(songs.map { it.toLocalMedia() })
     }
 
-    /** Append [song] to the end of the queue. */
-    fun queueLocalLast(song: MediaStoreItem) {
-        player.add(listOf(song.toLocalMedia()))
+    /** Append [songs], in order, to the end of the queue. */
+    fun queueLocalLast(songs: List<MediaStoreItem>) {
+        player.add(songs.map { it.toLocalMedia() })
     }
 
     fun playNext(video: YtFeedItem) {

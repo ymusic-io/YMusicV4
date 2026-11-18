@@ -119,7 +119,7 @@ internal class SongActions(
     fun Dialogs() {
         val store = graph.mediaStore ?: return
         addingToPlaylist?.let { song ->
-            AddToPlaylistDialog(store, song, onDismiss = { addingToPlaylist = null })
+            AddToPlaylistDialog(store, listOf(song), onDismiss = { addingToPlaylist = null })
         }
         confirmingDelete?.let { (doomed, afterDelete) ->
             DeleteFromDiskDialog(
