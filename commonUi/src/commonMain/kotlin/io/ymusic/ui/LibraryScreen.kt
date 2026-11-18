@@ -399,7 +399,10 @@ fun LibraryScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
                                 songSelectionDialog = SongSelectionDialog.AddToPlaylist(selected, songSelection::end)
                             },
                             onDelete = if (canDelete) {
-                                { selected -> songSelectionDialog = SongSelectionDialog.Delete(selected.associateBy { it.id }, songSelection::end) }
+                                { selected ->
+                                    val targets = selected.associateBy { it.id }
+                                    songSelectionDialog = SongSelectionDialog.Delete(targets) { songSelection.endRemoving(targets.keys) }
+                                }
                             } else {
                                 null
                             },
@@ -1255,7 +1258,10 @@ private fun PlaylistsTab(
             coordinator,
             onRemoveFromPlaylist = { selected -> confirmingRemove = selected },
             onDelete = if (canDelete) {
-                { selected -> openSelectionDialog(SongSelectionDialog.Delete(selected.associateBy { it.id }, playlistSelection::end)) }
+                { selected ->
+                    val targets = selected.associateBy { it.id }
+                    openSelectionDialog(SongSelectionDialog.Delete(targets) { playlistSelection.endRemoving(targets.keys) })
+                }
             } else {
                 null
             },

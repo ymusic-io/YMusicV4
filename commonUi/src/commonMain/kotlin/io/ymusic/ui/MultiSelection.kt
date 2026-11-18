@@ -26,6 +26,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -51,6 +52,7 @@ import io.ymusic.ui.resources.downloads_selected_count
 import io.ymusic.ui.resources.select_all
 import kmpcommon.log.Logger
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import projectcommon.error.TechnicalException
@@ -71,6 +73,9 @@ internal class MultiSelection<K> {
     /** The item that started the mode or was toggled last: focus returns to it when the mode ends. */
     private var origin by mutableStateOf<K?>(null)
 
+    /** Items on their way out of the list as the mode ended: focus returns once none of them is listed. */
+    private var gone: Set<K> = emptySet()
+
     /** The item to focus once the mode ended, consumed by that item. */
     var focusTarget by mutableStateOf<K?>(null)
         private set
@@ -84,6 +89,7 @@ internal class MultiSelection<K> {
 
     fun start(id: K) {
         origin = id
+        gone = emptySet()
         set(setOf(id))
     }
 
@@ -98,7 +104,16 @@ internal class MultiSelection<K> {
         set(if (id in selected) selected - id else selected + id)
     }
 
-    fun end() = set(emptySet())
+    fun end() {
+        gone = emptySet()
+        set(emptySet())
+    }
+
+    /** Ends the mode as [gone] leaves the list (a delete or removal the list reloads after): focus waits for them to go. */
+    fun endRemoving(gone: Set<K>) {
+        end()
+        this.gone = gone
+    }
 
     /** Ends the mode because its list is going away (a tab switch, a reveal elsewhere): focus does not come back later. */
     fun abandon() {
@@ -136,6 +151,8 @@ internal class MultiSelection<K> {
 
     internal fun takeOrigin(): K? = origin.also { origin = null }
 
+    internal fun takeGone(): Set<K> = gone.also { gone = emptySet() }
+
     internal fun requestFocus(id: K) {
         focusTarget = id
     }
@@ -145,8 +162,8 @@ internal class MultiSelection<K> {
 internal fun <K> rememberMultiSelection(): MultiSelection<K> = remember { MultiSelection() }
 
 /**
- * Back ends [selection]'s mode; once it ends in keyboard mode, focus goes back to the item that started it (else
- * the first of [listed]), after [scrollTo] brought that item's index into view.
+ * Back ends [selection]'s mode; once it ends in keyboard mode and none of its gone items is [listed] any more, focus
+ * goes back to the item that started it (else the first of [listed]), after [scrollTo] brought that item into view.
  */
 @Composable
 internal fun <K> MultiSelectionEffects(selection: MultiSelection<K>, listed: List<K>, scrollTo: suspend (index: Int) -> Unit) {
@@ -157,9 +174,10 @@ internal fun <K> MultiSelectionEffects(selection: MultiSelection<K>, listed: Lis
     val currentScrollTo by rememberUpdatedState(scrollTo)
     LaunchedEffect(active) {
         if (active) return@LaunchedEffect
+        val gone = selection.takeGone()
         val origin = selection.takeOrigin() ?: return@LaunchedEffect
         if (!keyboardMode) return@LaunchedEffect
-        val items = currentListed
+        val items = snapshotFlow { currentListed }.first { listed -> listed.none { it in gone } }
         val target = origin.takeIf { it in items } ?: items.firstOrNull() ?: return@LaunchedEffect
         currentScrollTo(items.indexOf(target))
         selection.requestFocus(target)

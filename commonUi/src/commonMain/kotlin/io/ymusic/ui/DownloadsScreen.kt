@@ -262,14 +262,14 @@ fun DownloadsScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
     var confirming by remember { mutableStateOf<SelectionConfirm?>(null) }
     confirming?.let { pending ->
         val dismiss = { confirming = null }
-        val finish = {
+        val finish = { gone: Set<String> ->
             confirming = null
-            endSelection()
+            multiSelection.endRemoving(gone)
         }
         when (pending) {
             is SelectionConfirm.Remove -> RemoveSelectedDialog(pending.taskIds.size, onDismiss = dismiss) {
                 pending.taskIds.forEach(service::remove)
-                finish()
+                finish(pending.taskIds.toSet())
             }
             is SelectionConfirm.Delete -> DeleteSelectedFilesDialog(
                 graph,
@@ -278,7 +278,7 @@ fun DownloadsScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
                 log = { taskId -> graph.logger?.fork("downloads", mapOf("taskId" to taskId)) },
                 afterDelete = service::remove,
                 onDismiss = dismiss,
-                onDone = finish,
+                onDone = { finish(pending.targets.keys) },
             )
         }
     }
