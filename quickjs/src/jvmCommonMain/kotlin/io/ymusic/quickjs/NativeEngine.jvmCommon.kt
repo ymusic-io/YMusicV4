@@ -3,7 +3,10 @@ package io.ymusic.quickjs
 import kotlinx.coroutines.CloseableCoroutineDispatcher
 import kotlinx.coroutines.asCoroutineDispatcher
 import java.nio.ByteBuffer
-import java.util.concurrent.Executors
+import java.util.concurrent.CancellationException
+import java.util.concurrent.ExecutionException
+import java.util.concurrent.Future
+import java.util.concurrent.ScheduledThreadPoolExecutor
 
 /** JS bytes as a direct ByteBuffer over the typed array's memory (valid only during onWrite).
  *  position/get instead of the absolute bulk get, which Android only got in API 34. */
@@ -57,6 +60,32 @@ internal actual class NativeEngine private constructor(private val handle: Long)
     }
 }
 
-internal actual fun newEngineDispatcher(): CloseableCoroutineDispatcher =
-    Executors.newSingleThreadExecutor { r -> Thread(r, "quickjs-engine").apply { isDaemon = true } }
-        .asCoroutineDispatcher()
+/** Scheduled, so JS timers and timeouts fire on this thread instead of a hop through DefaultExecutor. */
+internal actual fun newEngineDispatcher(): CloseableCoroutineDispatcher = EngineExecutor().asCoroutineDispatcher()
+
+private class EngineExecutor :
+    ScheduledThreadPoolExecutor(1, { r -> Thread(r, "quickjs-engine").apply { isDaemon = true } }) {
+    init {
+        // A cancelled timeout would otherwise stay queued and wake the thread when it falls due.
+        removeOnCancelPolicy = true
+    }
+
+    /** A scheduled executor keeps a task's exception in its Future: rethrow it, as a plain executor would. */
+    override fun afterExecute(r: Runnable?, t: Throwable?) {
+        super.afterExecute(r, t)
+        val failure = t ?: (r as? Future<*>)?.takeIf { it.isDone }?.let { future ->
+            try {
+                future.get()
+                null
+            } catch (_: CancellationException) {
+                null
+            } catch (e: ExecutionException) {
+                e.cause
+            }
+        }
+        if (failure != null) {
+            val thread = Thread.currentThread()
+            thread.uncaughtExceptionHandler?.uncaughtException(thread, failure)
+        }
+    }
+}
