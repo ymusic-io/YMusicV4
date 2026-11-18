@@ -674,9 +674,18 @@ impl MediaStore {
         Ok(())
     }
 
-    pub fn remove_from_playlist(&self, playlist_id: i64, code: &str) -> Result<(), StoreError> {
-        let db = self.db.lock().unwrap();
-        db.execute("DELETE FROM playlistItem WHERE playlistId = ?1 AND code = ?2", params![playlist_id, code])?;
+    /// Drops the rows of `codes` in one transaction (one change tick).
+    pub fn remove_codes_from_playlist(&self, playlist_id: i64, codes: &[String]) -> Result<(), StoreError> {
+        if codes.is_empty() {
+            return Ok(());
+        }
+        let mut db = self.db.lock().unwrap();
+        let transaction = db.transaction()?;
+        for code in codes {
+            transaction
+                .execute("DELETE FROM playlistItem WHERE playlistId = ?1 AND code = ?2", params![playlist_id, code])?;
+        }
+        transaction.commit()?;
         self.changed();
         Ok(())
     }

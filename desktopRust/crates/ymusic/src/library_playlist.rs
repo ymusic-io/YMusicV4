@@ -717,9 +717,7 @@ impl ArrangePlaylist {
         let removed = self.state.removed_codes();
         let arranged: Vec<String> = self.state.items.iter().map(|item| item.code.clone()).collect();
         let request = store_call(cx, move |store| {
-            for code in &removed {
-                store.remove_from_playlist(playlist_id, code)?;
-            }
+            store.remove_codes_from_playlist(playlist_id, &removed)?;
             let shown: std::collections::HashSet<&String> = arranged.iter().collect();
             let unresolved: Vec<String> =
                 store.playlist_codes(playlist_id)?.into_iter().filter(|code| !shown.contains(code)).collect();

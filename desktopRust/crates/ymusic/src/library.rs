@@ -1490,9 +1490,7 @@ impl LibraryView {
     fn remove_from_open_playlist(&mut self, codes: Vec<String>, window: &mut Window, cx: &mut Context<Self>) {
         let Some(OpenPlaylist::User(playlist)) = &self.open_playlist else { return };
         let id = playlist.id;
-        let request = library_playlist::store_call(cx, move |store| {
-            codes.iter().try_for_each(|code| store.remove_from_playlist(id, code))
-        });
+        let request = library_playlist::store_call(cx, move |store| store.remove_codes_from_playlist(id, &codes));
         cx.spawn_in(window, async move |this, cx| {
             let result = request.await;
             this.update_in(cx, |view, window, cx| match result {
