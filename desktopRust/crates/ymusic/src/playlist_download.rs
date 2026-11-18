@@ -639,9 +639,13 @@ impl PlaylistDownload {
                 button.bg(theme.foreground.opacity(0.12)).text_color(theme.foreground.opacity(0.38))
             })
             .child(label)
-            .on_click(cx.listener(|view, _, window, cx| view.download(window, cx)))
-            .on_action(cx.listener(|view, _: &Confirm, window, cx| view.download(window, cx)));
-        self.bar_focus.item(0, button, cx)
+            .when(enabled, |button| button.on_click(cx.listener(|view, _, window, cx| view.download(window, cx))))
+            .on_action(cx.listener(move |view, _: &Confirm, window, cx| {
+                if enabled {
+                    view.download(window, cx);
+                }
+            }));
+        crate::a11y::disabled(self.bar_focus.item(0, button, cx), !enabled)
     }
 }
 
