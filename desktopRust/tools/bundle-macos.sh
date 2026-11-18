@@ -5,7 +5,7 @@
 # inside the bundle, then signed. --dmg also packs it into the disk image the JVM app's updater
 # installs (MacDmgInstaller: the one .app at the image root, copied out and swapped in), laid out
 # over tools/dmg/background.png (@2x beside it; both rendered from background.svg) by dmgbuild,
-# from PATH or a venv in the target dir.
+# from PATH or a throwaway venv.
 #
 # usage: tools/bundle-macos.sh [--no-build] [--debug] [--dmg] [--release] [--out <dir>]
 #   --debug    bundle target/debug/ymusic (local update tests; dev hooks stay on)
@@ -255,11 +255,12 @@ dmg_file=$out/$APP_NAME-$version-macos-$dmg_arch.dmg
 # dmgbuild writes the Finder layout (background, icon places) itself, with no Finder scripting.
 dmgbuild=$(command -v dmgbuild || true)
 if [[ -z $dmgbuild ]]; then
-    venv=$target_dir/dmgbuild-venv
-    [[ -x $venv/bin/dmgbuild ]] || {
-        python3 -m venv "$venv"
-        "$venv/bin/pip" install --quiet --disable-pip-version-check dmgbuild==1.6.5 ds-store==1.3.1 mac-alias==2.2.2
-    }
+    # Never under target/: a venv links to the exact interpreter that made it, and CI's rust-cache
+    # carries target/ to runner images where that interpreter is gone.
+    venv=$(mktemp -d "${TMPDIR:-/tmp}/dmgbuild-venv.XXXXXX")
+    trap 'rm -rf "$venv"' EXIT
+    python3 -m venv "$venv"
+    "$venv/bin/pip" install --quiet --disable-pip-version-check dmgbuild==1.6.5 ds-store==1.3.1 mac-alias==2.2.2
     dmgbuild=$venv/bin/dmgbuild
 fi
 rm -f "$dmg_file"
