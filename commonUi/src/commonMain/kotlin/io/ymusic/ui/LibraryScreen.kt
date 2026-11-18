@@ -1207,10 +1207,16 @@ private fun PlaylistsTab(
     // A user playlist offers "Remove from playlist" on each song row; Top tracks offers "Remove"
     // (drops the watch-time row). Other system lists and the playlist index have neither.
     val snackbar = LocalSnackbar.current
+    val currentUserItems by rememberUpdatedState(userItems)
     val removeFromPlaylist: ((List<MediaStoreItem>) -> Unit)? = remember(open?.first, snackbar) {
         val id = open?.first
         if (id != null && id > 0) {
-            { songs: List<MediaStoreItem> -> removeFromLocalPlaylist(graph, store, id, songs.map { it.playlistCode }, snackbar) }
+            { songs: List<MediaStoreItem> ->
+                val ids = songs.mapTo(HashSet()) { it.id }
+                // The rows' own codes: a file's current code moves once a rescan tags it with a video id.
+                val codes = currentUserItems.orEmpty().filter { it.mediaItem.id in ids }.map { it.code }
+                removeFromLocalPlaylist(graph, store, id, codes, snackbar)
+            }
         } else {
             null
         }
