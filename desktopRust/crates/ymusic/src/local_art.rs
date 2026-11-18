@@ -136,13 +136,31 @@ impl ImageFetcher for MediaStoreArtFetcher {
                 return youtube_art(&loader, video_id, size, scale).await;
             }
             let label = url.clone();
+            let (fallback_cache, url_label) = (cache.clone(), url.clone());
             let resolved =
                 tokio::task::spawn_blocking(move || resolve(&cache, art, &url, size, scale)).await.map_err(
                     |error| ImageLoadError::with_cause(Reason::Undecodable, format!("art task failed: {label}"), error),
                 )??;
             match resolved {
                 Resolved::Decoded(decoded) => Ok(decoded),
-                Resolved::YouTube(video_id) => youtube_art(&loader, &video_id, size, scale).await,
+                Resolved::YouTube(video_id, None) => youtube_art(&loader, &video_id, size, scale).await,
+                Resolved::YouTube(video_id, Some(item)) => match youtube_art(&loader, &video_id, size, scale).await {
+                    Err(missing) if missing.reason == Reason::NotFound => {
+                        let label = url_label.clone();
+                        let frame = tokio::task::spawn_blocking(move || {
+                            item_art(&fallback_cache, &item, ART_KIND_FRAME, &url_label, size, scale)
+                        })
+                        .await
+                        .map_err(|error| {
+                            ImageLoadError::with_cause(Reason::Undecodable, format!("art task failed: {label}"), error)
+                        })?;
+                        frame.map_err(|mut error| {
+                            error.suppressed.push(missing);
+                            error
+                        })
+                    }
+                    other => other,
+                },
             }
         }))
     }
@@ -150,7 +168,9 @@ impl ImageFetcher for MediaStoreArtFetcher {
 
 enum Resolved {
     Decoded(DecodedImage),
-    YouTube(String),
+    /// The video's thumbnail, and the item whose own frame stands in when YouTube has none (removed
+    /// or private: every variant NotFound).
+    YouTube(String, Option<Box<MediaItem>>),
 }
 
 /// The JVM `loaderYoutubeArt`: the video's identity request through the loader.
@@ -181,7 +201,7 @@ fn resolve(
     scale: ImageScale,
 ) -> Result<Resolved, ImageLoadError> {
     match art {
-        ArtUrl::YouTube(video_id) => Ok(Resolved::YouTube(video_id)),
+        ArtUrl::YouTube(video_id) => Ok(Resolved::YouTube(video_id, None)),
         ArtUrl::File { kind, path } => {
             if !path.exists() {
                 return Err(ImageLoadError::new(Reason::NotFound, format!("no such file: {url}")));
@@ -205,7 +225,11 @@ fn resolve(
                 .ok_or_else(|| ImageLoadError::new(Reason::NotFound, format!("no media item for art uri: {url}")))?;
             let kind = match (item.thumbnail_stream_index, &item.youtube_vid) {
                 (Some(_), _) => ART_KIND_COVER,
-                (None, Some(video_id)) => return Ok(Resolved::YouTube(video_id.clone())),
+                (None, Some(video_id)) => {
+                    let video_id = video_id.clone();
+                    let fallback = item.video_codec.is_some().then(|| Box::new(item));
+                    return Ok(Resolved::YouTube(video_id, fallback));
+                }
                 (None, None) if item.video_codec.is_some() => ART_KIND_FRAME,
                 (None, None) => {
                     return Err(ImageLoadError::new(
@@ -214,45 +238,56 @@ fn resolve(
                     ));
                 }
             };
-            let path = PathBuf::from(&item.uri);
-            let file_uri = ym_store::file_uri(&item.uri);
-            let identity = format!("{kind}:{file_uri}:{}:{}", item.file_size, item.last_modified);
-            let key = source_cache_key(&identity);
-            let cached = cache.file_path(&key).map_err(|error| {
-                ImageLoadError::with_cause(Reason::Undecodable, format!("cover cache unreadable: {url}"), error)
-            })?;
-            let file = match cached {
-                Some(file) => file,
-                None => {
-                    if !path.exists() {
-                        return Err(ImageLoadError::new(Reason::NotFound, format!("no such file: {url}")));
-                    }
-                    let failure_key = source_cache_key(&format!("failed:{}:{identity}", crate::graph::APP_VERSION));
-                    if let Some(failed_at) = recent_failure(cache, &failure_key, now_millis()) {
-                        return Err(ImageLoadError::new(
-                            Reason::RecentlyFailed,
-                            format!("art extraction failed at {failed_at}, retried after 1d: {url}"),
-                        ));
-                    }
-                    let encoded =
-                        match if kind == ART_KIND_COVER { attached_picture(&path) } else { video_frame(&path) } {
-                            Ok(encoded) => encoded,
-                            Err(error) => {
-                                let mut message = format!("art extraction failed: {url}: {error}");
-                                if error.is_extraction_failure()
-                                    && let Err(marker_error) = record_failure(cache, &failure_key, now_millis(), url)
-                                {
-                                    message.push_str(&format!("; failure not remembered: {marker_error}"));
-                                }
-                                return Err(ImageLoadError::new(Reason::Undecodable, message));
-                            }
-                        };
-                    cache.write_blocking(&key, Cursor::new(encoded), DEFAULT_MAX_IMAGE_BYTES, url)?
-                }
-            };
-            decode_scaled_file(&file, size, scale, url).map(Resolved::Decoded)
+            item_art(cache, &item, kind, url, size, scale).map(Resolved::Decoded)
         }
     }
+}
+
+/// Blocking: a Library item's embedded cover or frame through the cover cache, as the JVM `fileArt`.
+fn item_art(
+    cache: &ImageSourceCache,
+    item: &MediaItem,
+    kind: &str,
+    url: &str,
+    size: (u32, u32),
+    scale: ImageScale,
+) -> Result<DecodedImage, ImageLoadError> {
+    let path = PathBuf::from(&item.uri);
+    let file_uri = ym_store::file_uri(&item.uri);
+    let identity = format!("{kind}:{file_uri}:{}:{}", item.file_size, item.last_modified);
+    let key = source_cache_key(&identity);
+    let cached = cache.file_path(&key).map_err(|error| {
+        ImageLoadError::with_cause(Reason::Undecodable, format!("cover cache unreadable: {url}"), error)
+    })?;
+    let file = match cached {
+        Some(file) => file,
+        None => {
+            if !path.exists() {
+                return Err(ImageLoadError::new(Reason::NotFound, format!("no such file: {url}")));
+            }
+            let failure_key = source_cache_key(&format!("failed:{}:{identity}", crate::graph::APP_VERSION));
+            if let Some(failed_at) = recent_failure(cache, &failure_key, now_millis()) {
+                return Err(ImageLoadError::new(
+                    Reason::RecentlyFailed,
+                    format!("art extraction failed at {failed_at}, retried after 1d: {url}"),
+                ));
+            }
+            let encoded = match if kind == ART_KIND_COVER { attached_picture(&path) } else { video_frame(&path) } {
+                Ok(encoded) => encoded,
+                Err(error) => {
+                    let mut message = format!("art extraction failed: {url}: {error}");
+                    if error.is_extraction_failure()
+                        && let Err(marker_error) = record_failure(cache, &failure_key, now_millis(), url)
+                    {
+                        message.push_str(&format!("; failure not remembered: {marker_error}"));
+                    }
+                    return Err(ImageLoadError::new(Reason::Undecodable, message));
+                }
+            };
+            cache.write_blocking(&key, Cursor::new(encoded), DEFAULT_MAX_IMAGE_BYTES, url)?
+        }
+    };
+    decode_scaled_file(&file, size, scale, url)
 }
 
 /// The JVM `EXTRACTION_FAILURE_TTL`: how long a file's failed extraction is not retried.

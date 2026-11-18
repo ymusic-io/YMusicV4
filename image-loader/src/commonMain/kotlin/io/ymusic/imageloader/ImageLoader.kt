@@ -242,7 +242,8 @@ class ImageLoader(
         val failures = mutableListOf<ImageLoadException>()
         for (source in orderSources(request.sources, size, request.scale, record)) {
             val sourceKey = imageCacheKey(source.url)
-            if (sourceKey in record.missing) {
+            val remembersMissing = source.isNetwork()
+            if (remembersMissing && sourceKey in record.missing) {
                 failures += ImageLoadException(ImageLoadException.Reason.NotFound, "known missing: ${source.url}")
                 continue
             }
@@ -251,7 +252,7 @@ class ImageLoader(
                 variantIndex.recordFetched(request.key, sourceKey, decoded.sourceWidth, decoded.sourceHeight)
                 return decoded
             } catch (e: ImageLoadException) {
-                if (e.reason == ImageLoadException.Reason.NotFound) variantIndex.recordMissing(request.key, sourceKey)
+                if (remembersMissing && e.reason == ImageLoadException.Reason.NotFound) variantIndex.recordMissing(request.key, sourceKey)
                 logger?.log(Logger.Level.DEBUG, "source failed (${e.reason}): ${source.url}", e)
                 failures += e
             }
@@ -291,6 +292,13 @@ class ImageLoader(
 }
 
 private const val SCALED_CACHE_VERSION = 3
+
+/**
+ * Only a network url's NotFound outlives the process (the [VariantIndex]): it is the server's word
+ * about an immutable url. An app scheme's (`art:`, `file:`) answer depends on the app's own data
+ * and code, which an update or a rescan changes.
+ */
+private fun ImageSource.isNetwork(): Boolean = url.startsWith("https://") || url.startsWith("http://")
 
 /** A failure the fetcher already logged when it first happened repeats at DEBUG, not WARN. */
 internal fun loadFailureLevel(error: Throwable): Logger.Level =

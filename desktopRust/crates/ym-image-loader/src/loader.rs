@@ -373,7 +373,8 @@ impl<B: Bitmap> Inner<B> {
         let mut failures: Vec<ImageLoadError> = Vec::new();
         for source in order_sources(&request.sources, size, request.scale, &record) {
             let source_key = image_cache_key(&source.url);
-            if record.missing.contains(&source_key) {
+            let remembers_missing = is_network(&source.url);
+            if remembers_missing && record.missing.contains(&source_key) {
                 failures.push(ImageLoadError::new(Reason::NotFound, format!("known missing: {}", source.url)));
                 continue;
             }
@@ -385,7 +386,7 @@ impl<B: Bitmap> Inner<B> {
                     return Ok(decoded);
                 }
                 Err(error) => {
-                    if error.reason == Reason::NotFound {
+                    if remembers_missing && error.reason == Reason::NotFound {
                         let (index, key) = (self.variant_index.clone(), request.key.clone());
                         variant_io(move || index.record_missing(&key, &source_key)).await?;
                     }
@@ -476,4 +477,11 @@ fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
 
 fn disk_key(key: &str) -> String {
     sha256_hex(&format!("{SCALED_CACHE_VERSION}:{key}"))
+}
+
+/// The JVM `ImageSource.isNetwork`: only a network url's NotFound outlives the process (the variant
+/// index): it is the server's word about an immutable url. An app scheme's (`art:`, `file:`) answer
+/// depends on the app's own data and code, which an update or a rescan changes.
+fn is_network(url: &str) -> bool {
+    url.starts_with("https://") || url.starts_with("http://")
 }
