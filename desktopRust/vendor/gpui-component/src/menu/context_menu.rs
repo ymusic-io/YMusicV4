@@ -477,6 +477,11 @@ fn open_menu(
                 };
                 build(menu, window, cx)
             });
+            // An empty menu is never drawn, so it must not take focus either.
+            if menu.read(cx).is_empty() {
+                shared_state.borrow_mut().open = false;
+                return;
+            }
             let trigger_focus_handle = shared_state.borrow().trigger_focus_handle.clone();
             menu.update(cx, |menu, cx| {
                 menu.set_trigger_focus(trigger_focus_handle, cx);

@@ -10,10 +10,10 @@ use std::{
 use gpui::{
     Anchor, Animation, AnimationExt, AnyElement, AnyWindowHandle, App, AppContext, ClickEvent,
     Context, DismissEvent, ElementId, Entity, EventEmitter, FocusHandle, Global, Hsla,
-    InteractiveElement as _, IntoElement, ParentElement as _, Pixels, Render, SharedString,
-    StatefulInteractiveElement, StyleRefinement, Styled, Subscription, SystemNotification,
-    SystemNotificationResponse, WeakEntity, Window, WindowId, div, prelude::FluentBuilder, px,
-    relative,
+    InteractiveElement as _, IntoElement, MouseMoveEvent, ParentElement as _, Pixels, Render,
+    SharedString, StatefulInteractiveElement, StyleRefinement, Styled, Subscription,
+    SystemNotification, SystemNotificationResponse, WeakEntity, Window, WindowId, canvas, div,
+    prelude::FluentBuilder, px, relative,
 };
 use gpui_base::{
     Toast as BaseToast, ToastManager, ToastMotion, ToastOptions, ToastStack, ToastStackState,
@@ -729,6 +729,9 @@ impl SystemNotificationRegistry {
 struct AnchorStack {
     state: ToastStackState,
     focus_handle: FocusHandle,
+    /// An always-expanded stack's pointer and focus, which pause autohide as `state` does.
+    hovered: Rc<Cell<bool>>,
+    focused: bool,
 }
 
 /// A list of notifications.
@@ -736,8 +739,6 @@ pub struct NotificationList {
     /// Notifications that will be auto hidden.
     pub(crate) notifications: ToastManager<NotificationId, Entity<Notification>>,
     stacks: Vec<(Anchor, AnchorStack)>,
-    /// The pointer is over an always-expanded stack, which pauses autohide as a hovered stack does.
-    hovered: Rc<Cell<bool>>,
     focus_handle: FocusHandle,
     /// Mounted notifications that hide themselves after a timeout.
     autohide_ids: HashSet<NotificationId>,
@@ -751,7 +752,6 @@ impl NotificationList {
         Self {
             notifications: ToastManager::new(ToastMotion::sonner()),
             stacks: Vec::new(),
-            hovered: Rc::default(),
             focus_handle: cx.focus_handle().tab_stop(true),
             autohide_ids: HashSet::new(),
             is_advancing: false,
@@ -802,11 +802,9 @@ impl NotificationList {
     }
 
     fn is_expanded(&self) -> bool {
-        self.hovered.get()
-            || self
-                .stacks
-                .iter()
-                .any(|(_, stack)| stack.state.is_expanded())
+        self.stacks
+            .iter()
+            .any(|(_, stack)| stack.hovered.get() || stack.focused || stack.state.is_expanded())
     }
 
     /// Group the visible notifications by their effective placement, pairing
@@ -1058,9 +1056,6 @@ impl Render for NotificationList {
         let always_expanded = settings.always_expanded;
 
         let groups = self.grouped(cx);
-        if groups.is_empty() {
-            self.hovered.set(false);
-        }
         self.stacks
             .retain(|(anchor, _)| groups.iter().any(|(a, _, _)| a == anchor));
 
@@ -1080,12 +1075,15 @@ impl Render for NotificationList {
                             } else {
                                 cx.focus_handle().tab_stop(true)
                             },
+                            hovered: Rc::default(),
+                            focused: false,
                         },
                     ));
                     self.stacks.len() - 1
                 });
-            let stack = &self.stacks[stack_ix].1;
+            let stack = &mut self.stacks[stack_ix].1;
             if always_expanded {
+                stack.focused = stack.focus_handle.contains_focused(window, cx);
                 let top_anchored = matches!(
                     anchor,
                     Anchor::TopLeft | Anchor::TopRight | Anchor::TopCenter
@@ -1094,7 +1092,7 @@ impl Render for NotificationList {
                 if top_anchored {
                     items.reverse();
                 }
-                let hovered = self.hovered.clone();
+                let hovered = stack.hovered.clone();
                 return place(
                     div().absolute().w(width).max_h(size.height),
                     anchor,
@@ -1102,14 +1100,26 @@ impl Render for NotificationList {
                     width,
                 )
                 .child(
+                    // Toasts occlude, so the stack's own hitbox never sees the pointer over them.
+                    canvas(
+                        |_, _, _| {},
+                        move |bounds, _, window, _| {
+                            let hovered = hovered.clone();
+                            window.on_mouse_event(move |event: &MouseMoveEvent, _, _, cx| {
+                                let over = bounds.contains(&event.position);
+                                if hovered.replace(over) != over {
+                                    cx.refresh_windows();
+                                }
+                            });
+                        },
+                    )
+                    .absolute()
+                    .size_full(),
+                )
+                .child(
                     v_flex()
                         .id(stack_id)
                         .track_focus(&stack.focus_handle)
-                        .on_hover(move |over, _, cx| {
-                            if hovered.replace(*over) != *over {
-                                cx.refresh_windows();
-                            }
-                        })
                         .w_full()
                         .gap(ToastMotion::sonner().expanded_gap)
                         .children(items.into_iter().map(|(_, item)| item)),

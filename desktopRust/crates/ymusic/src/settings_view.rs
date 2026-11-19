@@ -173,14 +173,14 @@ pub struct StackTones {
 
 impl Global for StackTones {}
 
-/// Every menu as the JVM app draws Material 3's `DropdownMenu` (androidx material3 1.4 `Menu.kt`,
-/// `MenuTokens`, `ListTokens`) with its theme and `MoreMenuItem` / `MoreMenuDivider`.
 /// A notification action's ink: the accent, lifted toward white on the dark theme's snackbar.
 pub fn snackbar_action(cx: &App) -> Hsla {
     let accent = cx.theme().primary;
     if cx.theme().mode.is_dark() { oklab_lerp(accent, white(), 0.35) } else { accent }
 }
 
+/// Every menu as the JVM app draws Material 3's `DropdownMenu` (androidx material3 1.4 `Menu.kt`,
+/// `MenuTokens`, `ListTokens`) with its theme and `MoreMenuItem` / `MoreMenuDivider`.
 fn menu_style(palette: &Palette, accent: Hsla) -> PopupMenuStyle {
     PopupMenuStyle {
         background: Some(palette.surface_dim),
