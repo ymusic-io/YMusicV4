@@ -58,6 +58,7 @@ const STOP_SHUFFLE: usize = 7;
 const STOP_CHANNEL: usize = 8;
 const STOP_CHANNEL_OVERLAY: usize = 9;
 const STOP_QUEUE_MORE: usize = 10;
+const STOP_LOCATE: usize = 11;
 /// The video controls, as arrow stops of their own list, in their rows' order: transport, the time row,
 /// the seek bar, full screen's actions row, the failure's actions.
 const OVERLAY_REWIND: usize = 0;
@@ -128,6 +129,8 @@ pub struct NowPlaying {
     bar_focus: FocusList,
     reorder: Reorder,
     queue_rows: LazyRows,
+    /// The queue header drew its scroll-to-playing button: the playing row was off screen.
+    locate_shown: Rc<Cell<bool>>,
     video_layer: Option<Rc<VideoLayer>>,
     /// The video box as last painted, to report viewport changes to the player.
     video_box: Rc<Cell<(i32, i32)>>,
@@ -196,7 +199,7 @@ impl Render for CachedPart {
                 },
                 PanePart::Queue { large } => v_flex()
                     .size_full()
-                    .child(view.render_queue_header(cx))
+                    .child(view.render_queue_header(window, cx))
                     .child(view.render_queue(large, window, cx))
                     .into_any_element(),
             })
@@ -418,6 +421,7 @@ impl NowPlaying {
             bar_focus: FocusList::new(None),
             reorder: Reorder::new(queue_scroll.clone()),
             queue_rows: LazyRows::new(queue_scroll, QUEUE_ROW_ESTIMATE),
+            locate_shown: Rc::default(),
             video_layer: None,
             video_box,
             audio_only_art,
@@ -1496,9 +1500,12 @@ impl NowPlaying {
             .into_any_element()
     }
 
-    /// "Up next", n of total, then repeat and shuffle.
-    fn render_queue_header(&self, cx: &mut Context<Self>) -> AnyElement {
+    /// "Up next", n of total, scroll to the playing song while it is off screen, then repeat and
+    /// shuffle.
+    fn render_queue_header(&self, window: &Window, cx: &mut Context<Self>) -> AnyElement {
         let playback = self.playback.read(cx);
+        let locate = playing_row_off_screen(&self.queue_rows, playback.index, playback.queue.len(), window);
+        self.locate_shown.set(locate);
         let (loop_mode, shuffle) = (playback.nav.loop_mode, playback.nav.shuffle);
         // The JVM displayTotal: the playlist's length while its queue is still loading.
         let total = playback
@@ -1518,6 +1525,16 @@ impl NowPlaying {
             .border_color(theme.border)
             .child(heading("np-up-next", 2, t(Str::UpNext)).font_semibold())
             .child(div().text_sm().text_color(theme.muted_foreground).child(position))
+            .when(locate, |header| {
+                header.child(
+                    self.bar_focus.button(
+                        STOP_LOCATE,
+                        sized_action_icon("np-locate", MaterialIcon::GpsFixed, t(Str::CdScrollToNowPlaying), ICON, HIT)
+                            .on_click(cx.listener(|view, _, window, cx| view.locate_current(window, cx))),
+                        cx,
+                    ),
+                )
+            })
             .child(div().flex_1())
             .child(
                 self.bar_focus.button(
@@ -1554,6 +1571,14 @@ impl NowPlaying {
                 ),
             )
             .into_any_element()
+    }
+
+    /// Scrolls the queue so the playing row lands mid-viewport, as the JVM `rememberLocateCurrent`.
+    fn locate_current(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let index = self.playback.read(cx).index;
+        let Some(visible) = self.queue_rows.visible_rows(window) else { return };
+        self.queue_rows.scroll_to_row(index.saturating_sub(visible.len() / 2), window);
+        cx.notify();
     }
 
     /// A queue row's ⋮ menu: radio, play next, the video's or the local file's actions, remove.
@@ -1863,6 +1888,18 @@ impl NowPlaying {
                 }
             }),
         );
+        let (rows, locate_shown, queue_len) = (self.queue_rows.clone(), self.locate_shown.clone(), queue.len());
+        // The header renders before the list lays out; a scroll that changes its answer redraws it.
+        let locate_check = canvas(
+            move |_, window, _| {
+                if playing_row_off_screen(&rows, index, queue_len, window) != locate_shown.get() {
+                    window.request_animation_frame();
+                }
+            },
+            |_, _, _, _| {},
+        )
+        .absolute()
+        .size_0();
         div()
             .id("np-queue")
             .flex_1()
@@ -1870,6 +1907,7 @@ impl NowPlaying {
             .overflow_y_scroll()
             .track_scroll(&self.queue_scroll)
             .child(list)
+            .child(locate_check)
             .children(self.render_queue_more(cx))
             .child(tracker)
             .into_any_element()
@@ -2025,4 +2063,10 @@ impl Render for NowPlaying {
             )
             .into_any_element()
     }
+}
+
+/// No part of the playing row `index` is on screen; false while the queue has no playing row or has
+/// not been laid out.
+fn playing_row_off_screen(rows: &LazyRows, index: usize, queue_len: usize, window: &Window) -> bool {
+    index < queue_len && rows.visible_rows(window).is_some_and(|visible| !visible.contains(&index))
 }

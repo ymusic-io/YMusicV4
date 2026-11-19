@@ -34,6 +34,7 @@ struct State {
     starts: RefCell<Vec<Pixels>>,
     /// The list's start in the scroll container's content, as last laid out.
     content_start: Cell<Option<Pixels>>,
+    gap: Cell<Pixels>,
 }
 
 impl LazyRows {
@@ -56,6 +57,7 @@ impl LazyRows {
             heights: RefCell::default(),
             starts: RefCell::default(),
             content_start: Cell::new(None),
+            gap: Cell::new(px(0.)),
         }))
     }
 
@@ -72,6 +74,7 @@ impl LazyRows {
         let state = &self.0;
         let geometry = Geometry { axis: state.axis, rtl: window.layout_direction().is_rtl() };
         let gap = px(gap);
+        state.gap.set(gap);
         let starts = {
             let mut heights = state.heights.borrow_mut();
             heights.resize(count, None);
@@ -160,6 +163,40 @@ impl LazyRows {
                 window.request_animation_frame();
             }
         })
+    }
+
+    /// The rows any part of which lies in the viewport, by the last layout and the current scroll
+    /// offset (Compose's `visibleItemsInfo`); `None` before the list has been laid out.
+    pub fn visible_rows(&self, window: &Window) -> Option<Range<usize>> {
+        let state = &self.0;
+        let content_start = state.content_start.get()?;
+        let starts = state.starts.borrow();
+        let count = starts.len().checked_sub(1)?;
+        let geometry = Geometry { axis: state.axis, rtl: window.layout_direction().is_rtl() };
+        let position = geometry.scrolled(state.scroll.offset()) - content_start;
+        let shown = position..position + geometry.length(state.scroll.bounds().size);
+        Some(visible(&starts, state.gap.get(), count, shown))
+    }
+
+    /// Scrolls row `index` to the viewport's start, as far as the scroll range allows (Compose's
+    /// `scrollToItem`), by the last layout; a row not measured yet lands where its estimate puts it.
+    pub fn scroll_to_row(&self, index: usize, window: &Window) {
+        let state = &self.0;
+        let Some(content_start) = state.content_start.get() else { return };
+        let Some(start) = state.starts.borrow().get(index).copied() else { return };
+        let geometry = Geometry { axis: state.axis, rtl: window.layout_direction().is_rtl() };
+        let offset = state.scroll.offset();
+        let target = geometry.with_scrolled(offset, content_start + start);
+        let target = match geometry.axis {
+            Axis::Vertical => point(target.x, target.y.clamp(-state.scroll.max_offset().y, px(0.))),
+            Axis::Horizontal => {
+                let (low, high) = state.scroll.offset_range_x();
+                point(target.x.clamp(low, high), target.y)
+            }
+        };
+        if target != offset {
+            state.scroll.set_offset(target);
+        }
     }
 }
 
