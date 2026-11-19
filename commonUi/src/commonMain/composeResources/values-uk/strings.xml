@@ -374,6 +374,8 @@
     <string name="cd_download">Завантажити</string>
     <string name="cd_fullscreen">На весь екран</string>
     <string name="cd_exit_fullscreen">Вийти з повноекранного режиму</string>
+    <string name="cd_show_queue">Показати чергу</string>
+    <string name="cd_hide_queue">Сховати чергу</string>
     <string name="cd_minimize">Згорнути</string>
     <string name="cd_fit_video">Вписати відео</string>
     <string name="cd_fill_video">Заповнити екран</string>

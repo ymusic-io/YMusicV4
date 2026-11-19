@@ -1096,14 +1096,16 @@ private fun BoxScope.FullscreenVideoControls(
             }
             CaptionToggle(player, coordinator.graph.settings, offTint = OverlayInk, iconSize = iconSize, hitSize = hitSize)
             if (onSelectRotation != null) RotationMenuButton(rotation, onSelectRotation, iconSize, hitSize)
-            ActionIcon(
-                if (fillScreen) Icons.Default.FitScreen else Icons.Default.CropFree,
-                stringResource(if (fillScreen) Res.string.cd_fit_video else Res.string.cd_fill_video),
-                iconSize = iconSize,
-                hitSize = hitSize,
-                tint = OverlayInk,
-                onClick = onToggleFill,
-            )
+            if (!showsAudioOnly(player)) {
+                ActionIcon(
+                    if (fillScreen) Icons.Default.FitScreen else Icons.Default.CropFree,
+                    stringResource(if (fillScreen) Res.string.cd_fit_video else Res.string.cd_fill_video),
+                    iconSize = iconSize,
+                    hitSize = hitSize,
+                    tint = OverlayInk,
+                    onClick = onToggleFill,
+                )
+            }
             ActionIcon(
                 Icons.Default.FullscreenExit,
                 stringResource(Res.string.cd_exit_fullscreen),

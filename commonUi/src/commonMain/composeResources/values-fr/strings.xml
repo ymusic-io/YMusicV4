@@ -314,6 +314,8 @@
     <string name="cd_download">Télécharger</string>
     <string name="cd_fullscreen">Plein écran</string>
     <string name="cd_exit_fullscreen">Quitter le plein écran</string>
+    <string name="cd_show_queue">Afficher la file d'attente</string>
+    <string name="cd_hide_queue">Masquer la file d'attente</string>
     <string name="cd_fit_video">Ajuster la vidéo</string>
     <string name="cd_fill_video">Remplir l'écran</string>
     <string name="cd_screen_rotation">Rotation de l'écran</string>

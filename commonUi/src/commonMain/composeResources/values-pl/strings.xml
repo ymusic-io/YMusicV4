@@ -319,6 +319,8 @@
     <string name="cd_download">Pobierz</string>
     <string name="cd_fullscreen">Pełny ekran</string>
     <string name="cd_exit_fullscreen">Zamknij pełny ekran</string>
+    <string name="cd_show_queue">Pokaż kolejkę</string>
+    <string name="cd_hide_queue">Ukryj kolejkę</string>
     <string name="cd_fit_video">Dopasuj film</string>
     <string name="cd_fill_video">Wypełnij ekran</string>
     <string name="cd_screen_rotation">Obracanie ekranu</string>

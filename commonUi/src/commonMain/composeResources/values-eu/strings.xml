@@ -309,6 +309,8 @@
     <string name="cd_download">Deskargatu</string>
     <string name="cd_fullscreen">Pantaila osoa</string>
     <string name="cd_exit_fullscreen">Irten pantaila osotik</string>
+    <string name="cd_show_queue">Erakutsi ilara</string>
+    <string name="cd_hide_queue">Ezkutatu ilara</string>
     <string name="cd_fit_video">Doitu bideoa</string>
     <string name="cd_fill_video">Bete pantaila</string>
     <string name="cd_screen_rotation">Pantailaren biraketa</string>

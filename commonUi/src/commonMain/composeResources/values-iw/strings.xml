@@ -314,6 +314,8 @@
     <string name="cd_download">הורדה</string>
     <string name="cd_fullscreen">מסך מלא</string>
     <string name="cd_exit_fullscreen">יציאה ממסך מלא</string>
+    <string name="cd_show_queue">הצגת התור</string>
+    <string name="cd_hide_queue">הסתרת התור</string>
     <string name="cd_fit_video">התאמת הסרטון</string>
     <string name="cd_fill_video">מילוי המסך</string>
     <string name="cd_screen_rotation">סיבוב מסך</string>

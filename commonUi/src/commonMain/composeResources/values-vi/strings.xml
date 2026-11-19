@@ -347,6 +347,8 @@
     <string name="cd_download">Tải xuống</string>
     <string name="cd_fullscreen">Toàn màn hình</string>
     <string name="cd_exit_fullscreen">Thoát toàn màn hình</string>
+    <string name="cd_show_queue">Hiện hàng đợi</string>
+    <string name="cd_hide_queue">Ẩn hàng đợi</string>
     <string name="cd_minimize">Thu nhỏ</string>
     <string name="cd_fit_video">Vừa khít</string>
     <string name="cd_fill_video">Phóng đầy</string>

@@ -309,6 +309,8 @@
     <string name="cd_download">İndir</string>
     <string name="cd_fullscreen">Tam ekran</string>
     <string name="cd_exit_fullscreen">Tam ekrandan çık</string>
+    <string name="cd_show_queue">Sırayı göster</string>
+    <string name="cd_hide_queue">Sırayı gizle</string>
     <string name="cd_fit_video">Videoyu sığdır</string>
     <string name="cd_fill_video">Ekranı doldur</string>
     <string name="cd_screen_rotation">Ekran döndürme</string>

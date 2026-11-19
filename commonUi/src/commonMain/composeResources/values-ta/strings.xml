@@ -309,6 +309,8 @@
     <string name="cd_download">பதிவிறக்கு</string>
     <string name="cd_fullscreen">முழுத்திரை</string>
     <string name="cd_exit_fullscreen">முழுத்திரையிலிருந்து வெளியேறு</string>
+    <string name="cd_show_queue">வரிசையைக் காட்டு</string>
+    <string name="cd_hide_queue">வரிசையை மறை</string>
     <string name="cd_fit_video">வீடியோவைப் பொருத்து</string>
     <string name="cd_fill_video">திரையை நிரப்பு</string>
     <string name="cd_screen_rotation">திரைச் சுழற்சி</string>

@@ -314,6 +314,8 @@
     <string name="cd_download">Baixar</string>
     <string name="cd_fullscreen">Tela cheia</string>
     <string name="cd_exit_fullscreen">Sair da tela cheia</string>
+    <string name="cd_show_queue">Mostrar fila</string>
+    <string name="cd_hide_queue">Ocultar fila</string>
     <string name="cd_fit_video">Ajustar vídeo</string>
     <string name="cd_fill_video">Preencher tela</string>
     <string name="cd_screen_rotation">Rotação da tela</string>

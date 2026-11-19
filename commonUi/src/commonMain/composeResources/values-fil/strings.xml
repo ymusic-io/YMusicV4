@@ -309,6 +309,8 @@
     <string name="cd_download">I-download</string>
     <string name="cd_fullscreen">Full screen</string>
     <string name="cd_exit_fullscreen">Lumabas sa full screen</string>
+    <string name="cd_show_queue">Ipakita ang queue</string>
+    <string name="cd_hide_queue">Itago ang queue</string>
     <string name="cd_fit_video">Ipagkasya ang video</string>
     <string name="cd_fill_video">Punuin ang screen</string>
     <string name="cd_screen_rotation">Pag-ikot ng screen</string>
