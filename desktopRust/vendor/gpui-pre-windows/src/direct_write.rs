@@ -496,6 +496,10 @@ impl DirectWriteState {
 
             let mut utf8_offset = 0usize;
             let mut utf16_offset = 0u32;
+            // The paragraph takes the direction of its first strong character, as CoreText and
+            // cosmic-text lay it out.
+            let right_to_left =
+                unicode_bidi::get_base_direction(text) == unicode_bidi::Direction::Rtl;
             let text_layout = {
                 let first_run = &font_runs[0];
                 let font_info = &self.fonts[first_run.font_id.0];
@@ -514,6 +518,10 @@ impl DirectWriteState {
                     .cast()?;
                 if let Some(ref fallbacks) = font_info.fallbacks {
                     format.SetFontFallback(fallbacks)?;
+                }
+                if right_to_left {
+                    format.SetReadingDirection(DWRITE_READING_DIRECTION_RIGHT_TO_LEFT)?;
+                    format.SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP)?;
                 }
 
                 let layout = components.factory.CreateTextLayout(
@@ -570,6 +578,12 @@ impl DirectWriteState {
                 text_layout.SetTypography(&font_info.features, text_range)?;
 
                 break_ligatures = !break_ligatures;
+            }
+            if right_to_left {
+                // A right-to-left line starts at the layout's right edge, so it needs a finite one.
+                let mut metrics = DWRITE_TEXT_METRICS::default();
+                text_layout.GetMetrics(&mut metrics)?;
+                text_layout.SetMaxWidth(metrics.widthIncludingTrailingWhitespace)?;
             }
 
             let mut runs = Vec::new();
@@ -1971,8 +1985,12 @@ mod tests {
         };
         platform_text_system.font_id(&font)?;
         let text_system = WindowTextSystem::new(Arc::new(TextSystem::new(platform_text_system)));
-        for (text, left_to_right) in [("אבג", "גבא"), ("aאבb", "aבאb"), ("a\tאב\tb", "a\tבא\tb")]
-        {
+        for (text, left_to_right) in [
+            ("אבג", "גבא"),
+            ("aאבb", "aבאb"),
+            ("אב c", "c בא"),
+            ("a\tאב\tb", "a\tבא\tb"),
+        ] {
             let runs = [TextRun {
                 len: text.len(),
                 font: font.clone(),

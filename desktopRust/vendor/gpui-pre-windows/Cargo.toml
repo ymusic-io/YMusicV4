@@ -140,6 +140,11 @@ features = [
     "const_new",
 ]
 
+[target.'cfg(target_os = "windows")'.dependencies.unicode-bidi]
+version = "0.3.18"
+features = ["hardcoded-data"]
+default-features = false
+
 [target.'cfg(target_os = "windows")'.dependencies.uuid]
 version = "1.1"
 features = [
