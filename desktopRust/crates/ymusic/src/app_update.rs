@@ -111,7 +111,7 @@ pub fn show_upgrade_notice(window: &mut Window, cx: &mut App) {
             let changelog = changelog.clone();
             Button::new("upgrade-changelog")
                 .ghost()
-                .text_color(cx.theme().primary)
+                .text_color(crate::settings_view::snackbar_action(cx))
                 .label(t(Str::UpgradedViewChangelog))
                 .on_click(cx.listener(move |notification, _, window, cx| {
                     cx.open_url(&changelog);

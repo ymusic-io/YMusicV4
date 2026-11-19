@@ -180,6 +180,11 @@ impl Global for StackTones {}
 
 /// Every menu as the JVM app draws Material 3's `DropdownMenu` (androidx material3 1.4 `Menu.kt`,
 /// `MenuTokens`, `ListTokens`) with its theme and `MoreMenuItem` / `MoreMenuDivider`.
+/// A notification action's ink: the accent lifted toward white, as the snackbar is dark in both themes.
+pub fn snackbar_action(cx: &App) -> Hsla {
+    oklab_lerp(cx.theme().primary, white(), 0.35)
+}
+
 fn menu_style(palette: &Palette, accent: Hsla) -> PopupMenuStyle {
     PopupMenuStyle {
         background: Some(palette.surface_dim),
