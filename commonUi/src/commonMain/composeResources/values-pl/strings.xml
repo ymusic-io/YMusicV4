@@ -711,5 +711,14 @@
         <item quantity="other">Usunąć %1$d pliku?</item>
     </plurals>
     <string name="downloads_delete_selected_message">Usuniętych plików nie można odzyskać.</string>
+    <string name="downloads_cancel_selected">Anuluj pobieranie</string>
+    <plurals name="downloads_cancel_selected_title">
+        <item quantity="one">Anulować %1$d pobieranie?</item>
+        <item quantity="few">Anulować %1$d pobierania?</item>
+        <item quantity="many">Anulować %1$d pobierań?</item>
+        <item quantity="other">Anulować %1$d pobierania?</item>
+    </plurals>
+    <string name="downloads_cancel_selected_message">Dotąd pobrane dane zostaną usunięte.</string>
+    <string name="downloads_cancel_selected_keep">Zachowaj</string>
     <string name="data_dir_unusable">YMusic nie może otworzyć swojego folderu danych, %1$s. Upewnij się, że to folder, w którym możesz zapisywać, a następnie ponownie otwórz YMusic. (%2$s)</string>
 </resources>

@@ -687,5 +687,12 @@
         <item quantity="other">Ջնջե՞լ %1$d ֆայլ</item>
     </plurals>
     <string name="downloads_delete_selected_message">Ջնջված ֆայլերը հնարավոր չէ վերականգնել։</string>
+    <string name="downloads_cancel_selected">Չեղարկել ներբեռնումները</string>
+    <plurals name="downloads_cancel_selected_title">
+        <item quantity="one">Չեղարկե՞լ %1$d ներբեռնում</item>
+        <item quantity="other">Չեղարկե՞լ %1$d ներբեռնում</item>
+    </plurals>
+    <string name="downloads_cancel_selected_message">Մինչ այժմ ներբեռնվածը կջնջվի։</string>
+    <string name="downloads_cancel_selected_keep">Պահել</string>
     <string name="data_dir_unusable">YMusic-ը չի կարող բացել իր տվյալների պանակը՝ %1$s։ Համոզվեք, որ այն պանակ է, որտեղ կարող եք գրել, ապա նորից բացեք YMusic-ը։ (%2$s)</string>
 </resources>

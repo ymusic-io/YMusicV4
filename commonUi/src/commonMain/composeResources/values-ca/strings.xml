@@ -699,5 +699,13 @@
         <item quantity="other">Vols suprimir %1$d fitxers?</item>
     </plurals>
     <string name="downloads_delete_selected_message">Els fitxers suprimits no es poden recuperar.</string>
+    <string name="downloads_cancel_selected">Cancel·la les descàrregues</string>
+    <plurals name="downloads_cancel_selected_title">
+        <item quantity="one">Vols cancel·lar %1$d descàrrega?</item>
+        <item quantity="many">Vols cancel·lar %1$d descàrregues?</item>
+        <item quantity="other">Vols cancel·lar %1$d descàrregues?</item>
+    </plurals>
+    <string name="downloads_cancel_selected_message">S'eliminarà el que s'ha baixat fins ara.</string>
+    <string name="downloads_cancel_selected_keep">Mantén</string>
     <string name="data_dir_unusable">YMusic no pot obrir la seva carpeta de dades, %1$s. Comprova que sigui una carpeta on puguis escriure i torna a obrir YMusic. (%2$s)</string>
 </resources>

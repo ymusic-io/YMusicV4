@@ -687,5 +687,12 @@
         <item quantity="other">%1$dটি ফাইল মুছবেন?</item>
     </plurals>
     <string name="downloads_delete_selected_message">মুছে ফেলা ফাইল আর ফিরিয়ে আনা যাবে না।</string>
+    <string name="downloads_cancel_selected">ডাউনলোড বাতিল করুন</string>
+    <plurals name="downloads_cancel_selected_title">
+        <item quantity="one">%1$dটি ডাউনলোড বাতিল করবেন?</item>
+        <item quantity="other">%1$dটি ডাউনলোড বাতিল করবেন?</item>
+    </plurals>
+    <string name="downloads_cancel_selected_message">এখন পর্যন্ত যা ডাউনলোড হয়েছে তা মুছে ফেলা হবে।</string>
+    <string name="downloads_cancel_selected_keep">রাখুন</string>
     <string name="data_dir_unusable">YMusic তার ডেটা ফোল্ডার, %1$s, খুলতে পারছে না। নিশ্চিত করুন যে এটি এমন একটি ফোল্ডার যেখানে আপনি লিখতে পারেন, তারপর আবার YMusic খুলুন। (%2$s)</string>
 </resources>

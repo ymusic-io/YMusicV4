@@ -675,5 +675,11 @@
         <item quantity="other">要刪除 %1$d 個檔案嗎？</item>
     </plurals>
     <string name="downloads_delete_selected_message">刪除的檔案無法復原。</string>
+    <string name="downloads_cancel_selected">取消下載</string>
+    <plurals name="downloads_cancel_selected_title">
+        <item quantity="other">要取消 %1$d 個下載項目嗎？</item>
+    </plurals>
+    <string name="downloads_cancel_selected_message">已下載的部分將會刪除。</string>
+    <string name="downloads_cancel_selected_keep">保留</string>
     <string name="data_dir_unusable">YMusic 無法開啟其資料夾 %1$s。請確認這是你可以寫入的資料夾，然後重新開啟 YMusic。(%2$s)</string>
 </resources>

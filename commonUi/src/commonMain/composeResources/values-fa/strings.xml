@@ -687,5 +687,12 @@
         <item quantity="other">%1$d فایل حذف شود؟</item>
     </plurals>
     <string name="downloads_delete_selected_message">فایل‌های حذف‌شده قابل بازیابی نیستند.</string>
+    <string name="downloads_cancel_selected">لغو دانلودها</string>
+    <plurals name="downloads_cancel_selected_title">
+        <item quantity="one">%1$d دانلود لغو شود؟</item>
+        <item quantity="other">%1$d دانلود لغو شود؟</item>
+    </plurals>
+    <string name="downloads_cancel_selected_message">آنچه تاکنون دانلود شده حذف می‌شود.</string>
+    <string name="downloads_cancel_selected_keep">نگه داشتن</string>
     <string name="data_dir_unusable">YMusic نمی‌تواند پوشهٔ داده‌های خود، %1$s، را باز کند. مطمئن شوید که پوشه‌ای است که می‌توانید در آن بنویسید، سپس دوباره YMusic را باز کنید. (%2$s)</string>
 </resources>

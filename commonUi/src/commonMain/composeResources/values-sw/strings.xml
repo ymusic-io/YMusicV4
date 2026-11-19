@@ -687,5 +687,12 @@
         <item quantity="other">Ungependa kufuta faili %1$d?</item>
     </plurals>
     <string name="downloads_delete_selected_message">Faili zilizofutwa haziwezi kurejeshwa.</string>
+    <string name="downloads_cancel_selected">Ghairi vipakuliwa</string>
+    <plurals name="downloads_cancel_selected_title">
+        <item quantity="one">Ungependa kughairi kipakuliwa %1$d?</item>
+        <item quantity="other">Ungependa kughairi vipakuliwa %1$d?</item>
+    </plurals>
+    <string name="downloads_cancel_selected_message">Kilichopakuliwa hadi sasa kitafutwa.</string>
+    <string name="downloads_cancel_selected_keep">Usighairi</string>
     <string name="data_dir_unusable">YMusic haiwezi kufungua folda yake ya data, %1$s. Hakikisha ni folda unayoweza kuandika ndani yake, kisha ufungue YMusic tena. (%2$s)</string>
 </resources>

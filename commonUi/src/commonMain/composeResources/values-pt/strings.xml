@@ -699,5 +699,13 @@
         <item quantity="other">Excluir %1$d arquivos?</item>
     </plurals>
     <string name="downloads_delete_selected_message">Arquivos excluídos não podem ser recuperados.</string>
+    <string name="downloads_cancel_selected">Cancelar downloads</string>
+    <plurals name="downloads_cancel_selected_title">
+        <item quantity="one">Cancelar %1$d download?</item>
+        <item quantity="many">Cancelar %1$d downloads?</item>
+        <item quantity="other">Cancelar %1$d downloads?</item>
+    </plurals>
+    <string name="downloads_cancel_selected_message">O que foi baixado até agora será excluído.</string>
+    <string name="downloads_cancel_selected_keep">Manter</string>
     <string name="data_dir_unusable">O YMusic não consegue abrir sua pasta de dados, %1$s. Verifique se é uma pasta na qual você pode gravar e abra o YMusic novamente. (%2$s)</string>
 </resources>

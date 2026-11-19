@@ -687,5 +687,12 @@
         <item quantity="other">Törölsz %1$d fájlt?</item>
     </plurals>
     <string name="downloads_delete_selected_message">A törölt fájlok nem állíthatók vissza.</string>
+    <string name="downloads_cancel_selected">Letöltések megszakítása</string>
+    <plurals name="downloads_cancel_selected_title">
+        <item quantity="one">Megszakítasz %1$d letöltést?</item>
+        <item quantity="other">Megszakítasz %1$d letöltést?</item>
+    </plurals>
+    <string name="downloads_cancel_selected_message">Az eddig letöltött rész törlődik.</string>
+    <string name="downloads_cancel_selected_keep">Megtartás</string>
     <string name="data_dir_unusable">A YMusic nem tudja megnyitni az adatmappáját (%1$s). Győződj meg róla, hogy olyan mappa, amelybe írhatsz, majd nyisd meg újra a YMusicot. (%2$s)</string>
 </resources>

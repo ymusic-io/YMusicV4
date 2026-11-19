@@ -687,5 +687,12 @@
         <item quantity="other">%1$d Dateien löschen?</item>
     </plurals>
     <string name="downloads_delete_selected_message">Gelöschte Dateien können nicht wiederhergestellt werden.</string>
+    <string name="downloads_cancel_selected">Downloads abbrechen</string>
+    <plurals name="downloads_cancel_selected_title">
+        <item quantity="one">%1$d Download abbrechen?</item>
+        <item quantity="other">%1$d Downloads abbrechen?</item>
+    </plurals>
+    <string name="downloads_cancel_selected_message">Bisher Heruntergeladenes wird gelöscht.</string>
+    <string name="downloads_cancel_selected_keep">Behalten</string>
     <string name="data_dir_unusable">YMusic kann seinen Datenordner %1$s nicht öffnen. Stelle sicher, dass es ein Ordner ist, in den du schreiben kannst, und öffne YMusic dann erneut. (%2$s)</string>
 </resources>

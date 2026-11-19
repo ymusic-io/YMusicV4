@@ -687,5 +687,12 @@
         <item quantity="other">%1$d फाइल हटवायच्या?</item>
     </plurals>
     <string name="downloads_delete_selected_message">हटवलेल्या फाइल परत मिळवता येत नाहीत.</string>
+    <string name="downloads_cancel_selected">डाउनलोड रद्द करा</string>
+    <plurals name="downloads_cancel_selected_title">
+        <item quantity="one">%1$d डाउनलोड रद्द करायचे?</item>
+        <item quantity="other">%1$d डाउनलोड रद्द करायचे?</item>
+    </plurals>
+    <string name="downloads_cancel_selected_message">आतापर्यंत डाउनलोड झालेले हटवले जाईल.</string>
+    <string name="downloads_cancel_selected_keep">ठेवा</string>
     <string name="data_dir_unusable">YMusic त्याचे डेटा फोल्डर, %1$s, उघडू शकत नाही. हे असे फोल्डर आहे ज्यात तुम्ही लिहू शकता याची खात्री करा, नंतर YMusic पुन्हा उघडा. (%2$s)</string>
 </resources>

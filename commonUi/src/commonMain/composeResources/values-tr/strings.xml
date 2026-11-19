@@ -687,5 +687,12 @@
         <item quantity="other">%1$d dosya silinsin mi?</item>
     </plurals>
     <string name="downloads_delete_selected_message">Silinen dosyalar kurtarılamaz.</string>
+    <string name="downloads_cancel_selected">İndirmeleri iptal et</string>
+    <plurals name="downloads_cancel_selected_title">
+        <item quantity="one">%1$d indirme iptal edilsin mi?</item>
+        <item quantity="other">%1$d indirme iptal edilsin mi?</item>
+    </plurals>
+    <string name="downloads_cancel_selected_message">Şimdiye kadar indirilenler silinecek.</string>
+    <string name="downloads_cancel_selected_keep">Koru</string>
     <string name="data_dir_unusable">YMusic veri klasörünü (%1$s) açamıyor. Bunun yazabildiğiniz bir klasör olduğundan emin olun, ardından YMusic'i yeniden açın. (%2$s)</string>
 </resources>

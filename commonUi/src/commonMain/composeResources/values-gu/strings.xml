@@ -687,5 +687,12 @@
         <item quantity="other">%1$d ફાઇલ કાઢી નાખીએ?</item>
     </plurals>
     <string name="downloads_delete_selected_message">કાઢી નાખેલી ફાઇલો પાછી મેળવી શકાતી નથી.</string>
+    <string name="downloads_cancel_selected">ડાઉનલોડ રદ કરો</string>
+    <plurals name="downloads_cancel_selected_title">
+        <item quantity="one">%1$d ડાઉનલોડ રદ કરીએ?</item>
+        <item quantity="other">%1$d ડાઉનલોડ રદ કરીએ?</item>
+    </plurals>
+    <string name="downloads_cancel_selected_message">અત્યાર સુધી ડાઉનલોડ થયેલું કાઢી નાખવામાં આવશે.</string>
+    <string name="downloads_cancel_selected_keep">રાખો</string>
     <string name="data_dir_unusable">YMusic તેનું ડેટા ફોલ્ડર, %1$s, ખોલી શકતું નથી. ખાતરી કરો કે તે એવું ફોલ્ડર છે જેમાં તમે લખી શકો, પછી YMusic ફરી ખોલો. (%2$s)</string>
 </resources>

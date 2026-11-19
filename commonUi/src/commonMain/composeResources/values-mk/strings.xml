@@ -687,5 +687,12 @@
         <item quantity="other">Да се избришат %1$d датотеки?</item>
     </plurals>
     <string name="downloads_delete_selected_message">Избришаните датотеки не може да се вратат.</string>
+    <string name="downloads_cancel_selected">Откажи ги преземањата</string>
+    <plurals name="downloads_cancel_selected_title">
+        <item quantity="one">Да се откаже %1$d преземање?</item>
+        <item quantity="other">Да се откажат %1$d преземања?</item>
+    </plurals>
+    <string name="downloads_cancel_selected_message">Досега преземеното ќе се избрише.</string>
+    <string name="downloads_cancel_selected_keep">Задржи</string>
     <string name="data_dir_unusable">YMusic не може да ја отвори својата папка со податоци, %1$s. Проверете дали е папка во која можете да запишувате, а потоа повторно отворете го YMusic. (%2$s)</string>
 </resources>
