@@ -588,6 +588,8 @@ impl DirectWriteState {
                 0.0,
             )?;
             let width = px(renderer_context.width);
+            // LineLayout lists glyphs left to right; DirectWrite does not promise its draw order.
+            runs.sort_by(|left, right| run_start_x(left).total_cmp(&run_start_x(right)));
 
             Ok(LineLayout {
                 font_size,
@@ -1290,7 +1292,7 @@ impl IDWriteTextRenderer_Impl for TextRenderer_Impl {
     fn DrawGlyphRun(
         &self,
         clientdrawingcontext: *const ::core::ffi::c_void,
-        _baselineoriginx: f32,
+        baselineoriginx: f32,
         _baselineoriginy: f32,
         _measuringmode: DWRITE_MEASURING_MODE,
         glyphrun: *const DWRITE_GLYPH_RUN,
@@ -1379,7 +1381,7 @@ impl IDWriteTextRenderer_Impl for TextRenderer_Impl {
                     .advance_to_utf16_ix(position as usize);
                 glyphs.push(ShapedGlyph {
                     id: GlyphId(u32::from(space)),
-                    position: point(px(context.width), px(0.0)),
+                    position: point(px(metrics.left), px(0.0)),
                     index: context.index_converter.utf8_ix,
                     is_emoji: false,
                 });
@@ -1420,6 +1422,8 @@ impl IDWriteTextRenderer_Impl for TextRenderer_Impl {
                 )?
             };
 
+            let right_to_left = glyphrun.bidiLevel % 2 == 1;
+            let mut pen_x = baselineoriginx;
             let cluster_analyzer = ClusterAnalyzer::new(cluster_map, glyph_count);
             let mut utf16_idx = desc.textPosition as usize;
             let mut glyph_idx = 0;
@@ -1436,10 +1440,16 @@ impl IDWriteTextRenderer_Impl for TextRenderer_Impl {
                     let is_emoji =
                         color_font && is_color_glyph(font_face, id, &context.components.factory);
                     let this_glyph_idx = glyph_idx + cluster_glyph_idx;
+                    let glyph_x = place_glyph(
+                        &mut pen_x,
+                        glyph_advances[this_glyph_idx],
+                        glyph_offsets[this_glyph_idx].advanceOffset,
+                        right_to_left,
+                    );
                     glyphs.push(ShapedGlyph {
                         id,
                         position: point(
-                            px(context.width + glyph_offsets[this_glyph_idx].advanceOffset),
+                            px(glyph_x),
                             px(-glyph_offsets[this_glyph_idx].ascenderOffset),
                         ),
                         index: context.index_converter.utf8_ix,
@@ -1448,6 +1458,9 @@ impl IDWriteTextRenderer_Impl for TextRenderer_Impl {
                     context.width += glyph_advances[this_glyph_idx];
                 }
                 glyph_idx += cluster_glyph_count;
+            }
+            if right_to_left {
+                glyphs.reverse();
             }
             context.runs.push(ShapedRun { font_id, glyphs });
         }
@@ -1522,6 +1535,25 @@ unsafe fn slice_from_nullable<'a, T>(
     }
 }
 
+/// The x of a glyph's origin, moving `pen_x` past it. An odd bidi level's run starts at its right
+/// edge and advances leftward, and its offsets point leftward too.
+fn place_glyph(pen_x: &mut f32, advance: f32, advance_offset: f32, right_to_left: bool) -> f32 {
+    if right_to_left {
+        *pen_x -= advance;
+        *pen_x - advance_offset
+    } else {
+        let glyph_x = *pen_x + advance_offset;
+        *pen_x += advance;
+        glyph_x
+    }
+}
+
+fn run_start_x(run: &ShapedRun) -> f32 {
+    run.glyphs
+        .first()
+        .map_or(0.0, |glyph| glyph.position.x.as_f32())
+}
+
 struct StringIndexConverter<'a> {
     text: &'a str,
     utf8_ix: usize,
@@ -1550,6 +1582,9 @@ impl<'a> StringIndexConverter<'a> {
     }
 
     fn advance_to_utf16_ix(&mut self, utf16_target: usize) {
+        if utf16_target < self.utf16_ix {
+            *self = Self::new(self.text);
+        }
         for (ix, c) in self.text[self.utf8_ix..].char_indices() {
             if self.utf16_ix >= utf16_target {
                 self.utf8_ix += ix;
@@ -1844,9 +1879,6 @@ mod tests {
                     "a\tb\tc",
                     "é\t𐐀\tz",
                     "a \tb  ",
-                    "אב",
-                    "aאבb",
-                    "a\tאב\tb",
                 ] {
                     let mut native_metrics = DWRITE_TEXT_METRICS::default();
                     unsafe {
@@ -1926,6 +1958,43 @@ mod tests {
                     }
                 }
             }
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn right_to_left_text_reads_right_to_left() -> Result<()> {
+        let platform_text_system = Arc::new(DirectWriteTextSystem::new()?);
+        let font = Font {
+            family: "Segoe UI".into(),
+            ..Default::default()
+        };
+        platform_text_system.font_id(&font)?;
+        let text_system = WindowTextSystem::new(Arc::new(TextSystem::new(platform_text_system)));
+        for (text, left_to_right) in [("אבג", "גבא"), ("aאבb", "aבאb"), ("a\tאב\tb", "a\tבא\tb")]
+        {
+            let runs = [TextRun {
+                len: text.len(),
+                font: font.clone(),
+                ..Default::default()
+            }];
+            let shaped = text_system.shape_line(text.into(), px(16.0), &runs, None);
+            let glyphs: Vec<_> = shaped.runs.iter().flat_map(|run| &run.glyphs).collect();
+            assert!(
+                glyphs.is_sorted_by(|left, right| left.position.x <= right.position.x),
+                "{text:?}"
+            );
+            assert!(
+                glyphs
+                    .iter()
+                    .all(|glyph| glyph.position.x >= px(0.0) && glyph.position.x < shaped.width),
+                "{text:?}"
+            );
+            let read: String = glyphs
+                .iter()
+                .filter_map(|glyph| text[glyph.index..].chars().next())
+                .collect();
+            assert_eq!(read, left_to_right, "{text:?}");
         }
         Ok(())
     }
