@@ -126,12 +126,16 @@ fn tray_logo(side: u32) -> anyhow::Result<image::RgbaImage> {
     image::RgbaImage::from_raw(side, side, pixels.collect()).ok_or_else(|| anyhow::anyhow!("{side} px tray buffer"))
 }
 
-/// The Dock shows the app's logo even when it runs outside an app bundle.
+/// The Dock shows the app's logo even when it runs outside an app bundle. A bundled app keeps its
+/// bundle icon: macOS renders that one in the Dark, Clear and Tinted icon styles, a set image it can't.
 #[cfg(target_os = "macos")]
 pub fn set_dock_icon(log: &Logger) {
     use objc2::msg_send;
     use objc2::rc::Retained;
     use objc2::runtime::{AnyClass, AnyObject};
+    if std::env::current_exe().is_ok_and(|exe| exe.to_string_lossy().contains(".app/Contents/MacOS/")) {
+        return;
+    }
     let (Some(app_class), Some(image_class), Some(data_class)) =
         (AnyClass::get(c"NSApplication"), AnyClass::get(c"NSImage"), AnyClass::get(c"NSData"))
     else {
