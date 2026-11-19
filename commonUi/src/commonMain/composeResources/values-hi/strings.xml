@@ -309,6 +309,8 @@
     <string name="cd_download">डाउनलोड करें</string>
     <string name="cd_fullscreen">फ़ुल स्क्रीन</string>
     <string name="cd_exit_fullscreen">फ़ुल स्क्रीन से बाहर निकलें</string>
+    <string name="cd_show_queue">कतार दिखाएं</string>
+    <string name="cd_hide_queue">कतार छिपाएं</string>
     <string name="cd_fit_video">वीडियो फ़िट करें</string>
     <string name="cd_fill_video">स्क्रीन भरें</string>
     <string name="cd_screen_rotation">स्क्रीन रोटेशन</string>

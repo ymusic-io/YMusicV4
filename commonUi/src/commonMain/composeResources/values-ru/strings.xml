@@ -319,6 +319,8 @@
     <string name="cd_download">Скачать</string>
     <string name="cd_fullscreen">Во весь экран</string>
     <string name="cd_exit_fullscreen">Выйти из полноэкранного режима</string>
+    <string name="cd_show_queue">Показать очередь</string>
+    <string name="cd_hide_queue">Скрыть очередь</string>
     <string name="cd_fit_video">Вписать видео</string>
     <string name="cd_fill_video">Заполнить экран</string>
     <string name="cd_screen_rotation">Поворот экрана</string>

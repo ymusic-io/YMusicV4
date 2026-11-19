@@ -309,6 +309,8 @@
     <string name="cd_download">Изтегли</string>
     <string name="cd_fullscreen">На цял екран</string>
     <string name="cd_exit_fullscreen">Изход от цял екран</string>
+    <string name="cd_show_queue">Покажи опашката</string>
+    <string name="cd_hide_queue">Скрий опашката</string>
     <string name="cd_fit_video">Побери видеото</string>
     <string name="cd_fill_video">Запълни екрана</string>
     <string name="cd_screen_rotation">Завъртане на екрана</string>

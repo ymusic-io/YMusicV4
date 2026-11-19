@@ -304,6 +304,8 @@
     <string name="cd_download">下載</string>
     <string name="cd_fullscreen">全螢幕</string>
     <string name="cd_exit_fullscreen">結束全螢幕</string>
+    <string name="cd_show_queue">顯示佇列</string>
+    <string name="cd_hide_queue">隱藏佇列</string>
     <string name="cd_fit_video">符合影片大小</string>
     <string name="cd_fill_video">填滿螢幕</string>
     <string name="cd_screen_rotation">螢幕旋轉</string>

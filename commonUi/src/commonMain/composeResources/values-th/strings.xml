@@ -304,6 +304,8 @@
     <string name="cd_download">ดาวน์โหลด</string>
     <string name="cd_fullscreen">เต็มหน้าจอ</string>
     <string name="cd_exit_fullscreen">ออกจากโหมดเต็มหน้าจอ</string>
+    <string name="cd_show_queue">แสดงคิว</string>
+    <string name="cd_hide_queue">ซ่อนคิว</string>
     <string name="cd_fit_video">ปรับวิดีโอให้พอดี</string>
     <string name="cd_fill_video">เต็มหน้าจอ</string>
     <string name="cd_screen_rotation">การหมุนหน้าจอ</string>

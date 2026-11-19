@@ -309,6 +309,8 @@
     <string name="cd_download">Daji</string>
     <string name="cd_fullscreen">Shaashad buuxda</string>
     <string name="cd_exit_fullscreen">Ka bax shaashadda buuxda</string>
+    <string name="cd_show_queue">Muuji hormada</string>
+    <string name="cd_hide_queue">Qari hormada</string>
     <string name="cd_fit_video">Ku habee muuqaalka</string>
     <string name="cd_fill_video">Buuxi shaashadda</string>
     <string name="cd_screen_rotation">Wareejinta shaashadda</string>

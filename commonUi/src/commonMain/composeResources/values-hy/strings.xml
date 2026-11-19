@@ -309,6 +309,8 @@
     <string name="cd_download">Ներբեռնել</string>
     <string name="cd_fullscreen">Լիաէկրան</string>
     <string name="cd_exit_fullscreen">Դուրս գալ լիաէկրանից</string>
+    <string name="cd_show_queue">Ցույց տալ հերթը</string>
+    <string name="cd_hide_queue">Թաքցնել հերթը</string>
     <string name="cd_fit_video">Տեղավորել տեսանյութը</string>
     <string name="cd_fill_video">Լցնել էկրանը</string>
     <string name="cd_screen_rotation">Էկրանի պտտում</string>

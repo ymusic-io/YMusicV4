@@ -309,6 +309,8 @@
     <string name="cd_download">Letöltés</string>
     <string name="cd_fullscreen">Teljes képernyő</string>
     <string name="cd_exit_fullscreen">Kilépés a teljes képernyőből</string>
+    <string name="cd_show_queue">Sor megjelenítése</string>
+    <string name="cd_hide_queue">Sor elrejtése</string>
     <string name="cd_fit_video">Videó igazítása</string>
     <string name="cd_fill_video">Képernyő kitöltése</string>
     <string name="cd_screen_rotation">Képernyő elforgatása</string>

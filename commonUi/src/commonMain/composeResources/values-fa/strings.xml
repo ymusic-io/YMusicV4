@@ -309,6 +309,8 @@
     <string name="cd_download">دانلود</string>
     <string name="cd_fullscreen">تمام‌صفحه</string>
     <string name="cd_exit_fullscreen">خروج از تمام‌صفحه</string>
+    <string name="cd_show_queue">نمایش صف</string>
+    <string name="cd_hide_queue">پنهان کردن صف</string>
     <string name="cd_fit_video">متناسب با ویدیو</string>
     <string name="cd_fill_video">پر کردن صفحه</string>
     <string name="cd_screen_rotation">چرخش صفحه</string>

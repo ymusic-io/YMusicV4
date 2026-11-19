@@ -309,6 +309,8 @@
     <string name="cd_download">ડાઉનલોડ</string>
     <string name="cd_fullscreen">પૂર્ણ સ્ક્રીન</string>
     <string name="cd_exit_fullscreen">પૂર્ણ સ્ક્રીનમાંથી બહાર નીકળો</string>
+    <string name="cd_show_queue">કતાર બતાવો</string>
+    <string name="cd_hide_queue">કતાર છુપાવો</string>
     <string name="cd_fit_video">વીડિયો ફિટ કરો</string>
     <string name="cd_fill_video">સ્ક્રીન ભરો</string>
     <string name="cd_screen_rotation">સ્ક્રીન ફેરવવી</string>
