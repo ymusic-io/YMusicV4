@@ -15,7 +15,9 @@ import io.ymusic.ui.LinkPlayChooser
 import io.ymusic.ui.LinkQuickDownload
 import io.ymusic.ui.quickDownloadLink
 import io.ymusic.ui.userMessage
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * The share-sheet targets (YouTube's Share → YMusic): one activity behind four aliases — Play (asks
@@ -59,21 +61,28 @@ class ShareActivity : ComponentActivity() {
     }
 
     /**
-     * Stays up, invisible and letting touches through to the app below, until the download is enqueued or
-     * found to need App: Android only lets a visible app start the download's foreground service and,
-     * on fallback, MainActivity. The work itself is app-scoped, so leaving early doesn't drop it.
+     * Stays up, invisible and letting touches through to the app below, until the download's foreground
+     * service has started (or [FOREGROUND_WAIT_MS] passed) or the link is found to need App: Android only
+     * lets a visible app start that service and, on fallback, MainActivity. The work itself is app-scoped,
+     * so leaving early doesn't drop it.
      */
     private fun quickDownload(url: String, action: LinkAction) {
         window.addFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE)
         // Android 12+ passes touches through another app's window only when it is fully transparent.
         window.attributes = window.attributes.apply { alpha = 0f }
         val app = application as YMusicApplication
+        val startsBefore = DownloadForegroundService.foregroundStarts.value
         val work = app.appScope.launch {
             val outcome = quickDownloadLink(app.graphAsync().await(), url, action)
             if (outcome == LinkQuickDownload.NeedsUi) {
                 app.startActivity(openLinkIntent(app, url, action))
-            } else {
-                outcome.userMessage()?.let { Toast.makeText(app, it, Toast.LENGTH_SHORT).show() }
+                return@launch
+            }
+            outcome.userMessage()?.let { Toast.makeText(app, it, Toast.LENGTH_SHORT).show() }
+            if (outcome == LinkQuickDownload.Enqueued) {
+                withTimeoutOrNull(FOREGROUND_WAIT_MS) {
+                    DownloadForegroundService.foregroundStarts.first { it > startsBefore }
+                }
             }
         }
         lifecycleScope.launch {
@@ -102,5 +111,9 @@ class ShareActivity : ComponentActivity() {
         if (!matcher.find()) return null
         val match = matcher.group()
         return if (match.contains("://")) match else "https://$match"
+    }
+
+    private companion object {
+        const val FOREGROUND_WAIT_MS = 5_000L
     }
 }
