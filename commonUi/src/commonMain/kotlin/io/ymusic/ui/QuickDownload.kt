@@ -13,13 +13,17 @@ import io.ymusic.download.DownloadFileNames
 import io.ymusic.download.DownloadFormat
 import io.ymusic.download.DownloadKind
 import io.ymusic.download.DownloadRequest
+import io.ymusic.download.DownloadService
 import io.ymusic.dynamicengine.yt.YtFeedItem
+import io.ymusic.dynamicengine.yt.YtLinkTarget
 import io.ymusic.ui.resources.Res
 import io.ymusic.ui.resources.download_added
+import io.ymusic.ui.resources.link_unsupported
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.put
+import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
 import projectcommon.json.intOrNull
 import projectcommon.json.string
@@ -52,6 +56,10 @@ data class QuickDownloadPreset(
         captionLanguage = captionLanguage,
         audioQuality = audioQuality,
     )
+
+    /** This preset saving as [format] instead (null: unchanged); the height belongs to the old format, so a switch drops it. */
+    fun withFormat(format: DownloadFormat?): QuickDownloadPreset =
+        if (format != null && format != this.format) copy(format = format, height = null) else this
 
     fun encode(): String = buildJsonObject {
         put(KEY_FORMAT, format.name)
@@ -117,7 +125,7 @@ internal fun QuickDownloadHost(graph: AppGraph, pending: YtFeedItem?, format: Do
     val downloads = graph.downloads ?: return
     val video = pending ?: return
     val saved = graph.quickDownload.collectAsStateWithLifecycle().value
-    val preset = if (format != null && format != saved.format) saved.copy(format = format, height = null) else saved
+    val preset = saved.withFormat(format)
     val snackbar = LocalSnackbar.current
     val scans = LocalScanController.current
     val added = stringResource(Res.string.download_added)
@@ -128,11 +136,63 @@ internal fun QuickDownloadHost(graph: AppGraph, pending: YtFeedItem?, format: Do
         return
     }
     LaunchedEffect(video) {
-        val gated = graph.mediaStore != null && graph.libraryFolderPicker != null
-        if (!gated || hasUsableDownloadLocation(graph) || pickDownloadFolder(graph, snackbar, scans)) {
+        if (!needsDownloadFolderPick(graph) || pickDownloadFolder(graph, snackbar, scans)) {
             downloads.enqueue(preset.request(video))
             snackbar(added)
         }
         onDone()
     }
+}
+
+/** The format a Download MP3 / M4A link action saves as; null for any other action, and for MP3 without ffmpeg. */
+internal fun LinkAction.quickDownloadFormat(downloads: DownloadService): DownloadFormat? = when (this) {
+    LinkAction.DOWNLOAD_M4A -> DownloadFormat.M4A
+    LinkAction.DOWNLOAD_MP3 -> DownloadFormat.MP3.takeIf { downloads.ffmpegAvailable }
+    else -> null
+}
+
+/** A download has to ask for a folder first: the shell can pick one and the saved location is unusable. */
+internal suspend fun needsDownloadFolderPick(graph: AppGraph): Boolean =
+    graph.mediaStore != null && graph.libraryFolderPicker != null && !hasUsableDownloadLocation(graph)
+
+/** What [quickDownloadLink] did with a link. */
+sealed interface LinkQuickDownload {
+    data object Enqueued : LinkQuickDownload
+
+    /** Only [App] can run this link: it shows a dialog, a picker or a page first. */
+    data object NeedsUi : LinkQuickDownload
+
+    /** The link opens nothing YMusic knows. */
+    data object Unsupported : LinkQuickDownload
+
+    /** Resolving the link failed with [code]. */
+    data class Failed(val code: String) : LinkQuickDownload
+}
+
+/**
+ * A Download MP3 / M4A link action without any UI, decided as [App] decides it: the Quick download is
+ * enqueued when App would go straight to it, else [LinkQuickDownload.NeedsUi] — any other action, MP3
+ * without ffmpeg, no usable download folder, a link that isn't a video, or a video the Library holds.
+ */
+suspend fun quickDownloadLink(graph: AppGraph, url: String, action: LinkAction): LinkQuickDownload {
+    val downloads = graph.downloads ?: return LinkQuickDownload.NeedsUi
+    val format = action.quickDownloadFormat(downloads) ?: return LinkQuickDownload.NeedsUi
+    if (needsDownloadFolderPick(graph)) return LinkQuickDownload.NeedsUi
+    val log = graph.logger?.fork("IncomingLink", mapOf("action" to action.name))
+    val target = when (val resolved = resolveIncomingLink(graph, url, log)) {
+        is LinkResolution.Failed -> return LinkQuickDownload.Failed(resolved.code)
+        is LinkResolution.Resolved -> resolved.target ?: return LinkQuickDownload.Unsupported
+    }
+    val video = (target as? YtLinkTarget.Video)?.item ?: return LinkQuickDownload.NeedsUi
+    if (graph.mediaStore?.youtubeVideoIds()?.contains(video.id) == true) return LinkQuickDownload.NeedsUi
+    downloads.enqueue(graph.quickDownload.value.withFormat(format).request(video))
+    return LinkQuickDownload.Enqueued
+}
+
+/** The line telling the user how [quickDownloadLink] went; null for [LinkQuickDownload.NeedsUi], which App words itself. */
+suspend fun LinkQuickDownload.userMessage(): String? = when (this) {
+    LinkQuickDownload.Enqueued -> getString(Res.string.download_added)
+    LinkQuickDownload.Unsupported -> getString(Res.string.link_unsupported)
+    is LinkQuickDownload.Failed -> linkFailureMessage(code)
+    LinkQuickDownload.NeedsUi -> null
 }
