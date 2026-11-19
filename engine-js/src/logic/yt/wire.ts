@@ -190,7 +190,8 @@ export interface WireFeedPage {
   pageHeader?: WirePageHeader;
   pageTabs?: WirePageTab[];
   autoplayVideoId?: string;
-  /** A part of the page failed but the rest is served: the code the app shows as a transient message. */
+  /** A part of the page failed but the rest is served, or a failed refresh served the cached page:
+   *  the code the app shows as a transient message. */
   partialErrorCode?: string;
 }
 

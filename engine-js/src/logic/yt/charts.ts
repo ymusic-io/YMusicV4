@@ -11,7 +11,7 @@
 
 import { debug } from "../../debug";
 import { Cache } from "../../protocol/cache";
-import { JsEngineErrorImpl } from "../../protocol/command";
+import { JsEngineErrorImpl, errorCode } from "../../protocol/command";
 import { jsLogger } from "../../protocol/logger";
 import type { JsLogger } from "../../protocol/logger";
 import { HttpRequest } from "../../protocol/http";
@@ -355,7 +355,8 @@ async function readCachedPage(key: string): Promise<CachedCharts | null> {
   }
 }
 
-/** A failed refresh serves the region's stale page when there is one; only a cold cache throws. */
+/** A failed refresh serves the region's stale page, marked with the failure's code, when there is
+ *  one; only a cold cache throws. */
 export async function trendingMusicPage(log?: JsLogger): Promise<WireFeedPage> {
   const locale = await effectiveLocale();
   const key = locale.hl + "_" + locale.gl;
@@ -367,7 +368,9 @@ export async function trendingMusicPage(log?: JsLogger): Promise<WireFeedPage> {
   } catch (e) {
     if (cached === null) throw e;
     console.warn("yt charts refresh failed, serving the stale page:", e);
-    return cached.page;
+    const stale = cached.page;
+    stale["partialErrorCode"] = errorCode(e);
+    return stale;
   }
   try {
     await Cache.setJson(CHARTS_CACHE_SCOPE, key, page);
