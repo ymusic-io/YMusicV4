@@ -19,12 +19,16 @@ import io.ymusic.dynamicengine.yt.YtLinkTarget
 import io.ymusic.ui.resources.Res
 import io.ymusic.ui.resources.download_added
 import io.ymusic.ui.resources.link_unsupported
+import kmpcommon.log.Logger
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.put
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
+import projectcommon.error.TechnicalException
+import projectcommon.error.errorCode
 import projectcommon.json.intOrNull
 import projectcommon.json.string
 import projectcommon.json.stringOrNull
@@ -165,7 +169,7 @@ sealed interface LinkQuickDownload {
     /** The link opens nothing YMusic knows. */
     data object Unsupported : LinkQuickDownload
 
-    /** Resolving the link failed with [code]. */
+    /** Resolving or enqueueing the link failed with [code]. */
     data class Failed(val code: String) : LinkQuickDownload
 }
 
@@ -175,10 +179,22 @@ sealed interface LinkQuickDownload {
  * without ffmpeg, no usable download folder, a link that isn't a video, or a video the Library holds.
  */
 suspend fun quickDownloadLink(graph: AppGraph, url: String, action: LinkAction): LinkQuickDownload {
+    val log = graph.logger?.fork("IncomingLink", mapOf("action" to action.name))
+    return try {
+        enqueueQuickDownload(graph, url, action, log)
+    } catch (cancel: CancellationException) {
+        throw cancel
+    } catch (failure: Exception) {
+        val wrapped = TechnicalException("E70090", "quick download of a shared link failed", cause = failure)
+        log?.captureError(wrapped)
+        LinkQuickDownload.Failed(wrapped.errorCode() ?: "E70090")
+    }
+}
+
+private suspend fun enqueueQuickDownload(graph: AppGraph, url: String, action: LinkAction, log: Logger?): LinkQuickDownload {
     val downloads = graph.downloads ?: return LinkQuickDownload.NeedsUi
     val format = action.quickDownloadFormat(downloads) ?: return LinkQuickDownload.NeedsUi
     if (needsDownloadFolderPick(graph)) return LinkQuickDownload.NeedsUi
-    val log = graph.logger?.fork("IncomingLink", mapOf("action" to action.name))
     val target = when (val resolved = resolveIncomingLink(graph, url, log)) {
         is LinkResolution.Failed -> return LinkQuickDownload.Failed(resolved.code)
         is LinkResolution.Resolved -> resolved.target ?: return LinkQuickDownload.Unsupported
@@ -193,6 +209,6 @@ suspend fun quickDownloadLink(graph: AppGraph, url: String, action: LinkAction):
 suspend fun LinkQuickDownload.userMessage(): String? = when (this) {
     LinkQuickDownload.Enqueued -> getString(Res.string.download_added)
     LinkQuickDownload.Unsupported -> getString(Res.string.link_unsupported)
-    is LinkQuickDownload.Failed -> linkFailureMessage(code)
+    is LinkQuickDownload.Failed -> errorText(code).load()
     LinkQuickDownload.NeedsUi -> null
 }
