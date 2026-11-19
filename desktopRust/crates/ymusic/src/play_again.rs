@@ -9,11 +9,11 @@ use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use ym_history::{PlayAgainSession, PlayHistory};
 use ym_i18n::{Str, t, tf};
-use ym_image_loader::async_image::async_image_of;
 
 use crate::a11y::{FocusList, alert, announced, list_item};
 use crate::action_icon::action_icon;
 use crate::assets::MaterialIcon;
+use crate::fallback_art::art_image;
 use crate::graph::{AppGraph, on_core};
 use crate::lazy_rows::LazyRows;
 use crate::mini_player::clock;
@@ -198,7 +198,7 @@ impl PlayAgainView {
                     .when(current == Some(offset), |tile| tile.border_1().border_color(theme.primary))
                     .when_some(thumb.clone(), |tile, url| {
                         tile.child(
-                            async_image_of(Some(art_request_sources(&url)))
+                            art_image(Some(art_request_sources(&url)))
                                 .size_full()
                                 .rounded(px(6.))
                                 .object_fit(ObjectFit::Cover),
@@ -267,7 +267,7 @@ impl PlayAgainView {
                             .bg(theme.muted)
                             .when_some(session.thumbnail_url.clone(), |frame, url| {
                                 frame.child(
-                                    async_image_of(Some(art_request_sources(&url)))
+                                    art_image(Some(art_request_sources(&url)))
                                         .size_full()
                                         .rounded(px(10.))
                                         .object_fit(ObjectFit::Cover),

@@ -25,10 +25,10 @@ use ym_common::log::Logger;
 use ym_image_loader::async_image::GlobalImageLoader;
 use ym_image_loader::{ImageRequest, ImageScale};
 
-use crate::fallback_art::{fallback_art_file, item_fallback_colors};
+use crate::fallback_art::fallback_art_file;
 use crate::graph::AppGraph;
 use crate::playback::Playback;
-use crate::youtube_thumbnails::youtube_thumb_url;
+use crate::youtube_thumbnails::{art_request_sources, youtube_thumb_url};
 
 /// Position drift beyond normal tick jitter: a seek the OS must be told about.
 const SEEK_DRIFT_MS: i64 = 2_000;
@@ -197,7 +197,8 @@ impl MediaSession {
         }
         let loader = cx.try_global::<GlobalImageLoader>().map(|global| global.0.clone());
         let (log, playback) = (self.log.clone(), playback.clone());
-        let (colors, executor) = (item_fallback_colors(item), cx.background_executor().clone());
+        let fallback_key = url.as_ref().map(|url| art_request_sources(url).0);
+        let executor = cx.background_executor().clone();
         self.local_artwork_task = Some(cx.spawn(async move |this, cx| {
             let loaded = match (url, loader) {
                 (Some(url), Some(loader)) => {
@@ -221,7 +222,11 @@ impl MediaSession {
                 None => {
                     let rendered = executor
                         .spawn(async move {
-                            fallback_art_file(colors, ARTWORK_PX, &std::env::temp_dir().join(FALLBACK_ART_DIR))
+                            fallback_art_file(
+                                fallback_key.as_deref(),
+                                ARTWORK_PX,
+                                &std::env::temp_dir().join(FALLBACK_ART_DIR),
+                            )
                         })
                         .await;
                     match rendered {
@@ -244,7 +249,7 @@ impl MediaSession {
 
 /// The JVM `ARTWORK_PX`: the local art the OS gets.
 const ARTWORK_PX: u32 = 512;
-/// Where the fallback art the OS reads by url is rendered, once per accent.
+/// Where the fallback art the OS reads by url is rendered, once per colour.
 const FALLBACK_ART_DIR: &str = "ymusic-fallback-art";
 
 /// `local_artwork` is the current local item's art (its key, its url).

@@ -15,13 +15,13 @@ use gpui_kit::component::{ActiveTheme, Icon, Sizable, StyledExt, WindowExt, h_fl
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use ym_i18n::{Str, t, tf};
-use ym_image_loader::async_image::async_image_of;
 
 use crate::a11y::{FocusList, LoadMoreFocus, SliderStop, alert, announced, heading, list_item};
 use crate::action_icon::{HIT, auto_mirrored, sized_action_icon};
 use crate::assets::MaterialIcon;
 use crate::audio_only::AudioOnlyArt;
 use crate::download_dialog::DownloadTarget;
+use crate::fallback_art::art_image;
 use crate::graph::{AppGraph, on_core};
 use crate::lazy_rows::LazyRows;
 use crate::mini_player::{PlayClock, clock};
@@ -1815,7 +1815,7 @@ impl NowPlaying {
                             .bg(theme.secondary)
                             .when_some(item.display_thumbnail_url(), |frame, url| {
                                 frame.child(
-                                    async_image_of(Some(art_request_sources(&url)))
+                                    art_image(Some(art_request_sources(&url)))
                                         .size_full()
                                         .rounded(px(6.))
                                         .object_fit(ObjectFit::Cover),

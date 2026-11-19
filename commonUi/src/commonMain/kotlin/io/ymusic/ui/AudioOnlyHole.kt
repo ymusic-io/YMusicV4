@@ -101,27 +101,18 @@ internal fun showsAudioOnly(player: Player): Boolean {
 
 private class AudioOnlyMemo(var value: Boolean)
 
-/** Cropped thumbnail filling the hole — mini player audio-only; [fallback] when there is none. */
+/** Cropped thumbnail filling the hole — mini player audio-only. */
 @Composable
 internal fun AudioOnlyCover(
     url: String?,
-    fallback: FallbackArtColors,
     modifier: Modifier = Modifier,
 ) {
     Box(
         modifier.clip(RectangleShape).background(Color.Black),
         contentAlignment = Alignment.Center,
     ) {
-        if (url == null) FallbackArt(fallback) else ArtImage(url, RectangleShape, error = { FallbackArt(fallback) })
+        ArtImage(url, RectangleShape)
     }
-}
-
-/** The fallback art colours of [player]'s current item. */
-@Composable
-private fun currentFallbackArt(player: Player): FallbackArtColors {
-    val queue by player.queue.collectAsState()
-    val item = queue.currentItem
-    return remember(item) { fallbackArtColors(item?.fallbackArtKey().orEmpty()) }
 }
 
 /**
@@ -166,7 +157,7 @@ internal fun AudioOnlyArtWave(
         val decodeSize = with(LocalDensity.current) {
             maxOf(side.roundToPx(), NOW_PLAYING_ART_PX).let { IntSize(it, it) }
         }
-        val art = rememberArtTransition(url, decodeSize, currentFallbackArt(player))
+        val art = rememberArtTransition(url, decodeSize)
         PrefetchNextArt(player, decodeSize)
         Box(Modifier.matchParentSize().blur(28.dp)) {
             ArtBackdrop(art)
@@ -212,40 +203,33 @@ private const val ART_SHIMMER_MS = 1300
 private const val ART_RESIZE_SETTLE_MS = 400L
 private const val ART_BACKDROP_DIM = 0.3f
 
-/** What the art layers show: a decoded picture, or [FallbackPicture] when there is none to load. */
-private sealed interface ArtPicture
-
-private class LoadedArt(val bitmap: ImageBitmap) : ArtPicture
-
-private data class FallbackPicture(val colors: FallbackArtColors) : ArtPicture
-
 /**
  * Now Playing's art across a url change, the same every time: the square's [previous] picture
  * fades out to the shade while the backdrop keeps it, dimmed by [dim]; the shade holds at least
  * [ART_MIN_SHADE_MS] (longer while the load runs); then [current] fades in on both layers and the
- * dim lifts. No url, or a load that failed, fades in [FallbackPicture] the same way. A view that
- * grows swaps in a sharper decode of the same picture, no transition.
+ * dim lifts. A view that grows swaps in a sharper decode of the same picture, no transition.
  */
 private class ArtTransition {
-    var previous by mutableStateOf<ArtPicture?>(null)
-    var current by mutableStateOf<ArtPicture?>(null)
+    var previous by mutableStateOf<ImageBitmap?>(null)
+    var current by mutableStateOf<ImageBitmap?>(null)
     var url: String? = null
     var shading by mutableStateOf(false)
+    /** [url] is null or its load failed: [FallbackArt] shows. */
+    var failed by mutableStateOf(false)
     val outAlpha = Animatable(1f)
     val inAlpha = Animatable(0f)
     val dim = Animatable(0f)
 }
 
 @Composable
-private fun rememberArtTransition(url: String?, decodeSize: IntSize, fallback: FallbackArtColors): ArtTransition {
+private fun rememberArtTransition(url: String?, decodeSize: IntSize): ArtTransition {
     val loader = LocalImageLoader.current
     val state = remember { ArtTransition() }
     val size by rememberUpdatedState(decodeSize)
     val ready = decodeSize.width > 0 && decodeSize.height > 0
 
-    LaunchedEffect(url, loader, ready, fallback) {
-        val shown = state.current
-        if (!ready || (state.url == url && (shown is LoadedArt || shown == FallbackPicture(fallback)))) return@LaunchedEffect
+    LaunchedEffect(url, loader, ready) {
+        if (!ready || (state.url == url && state.current != null)) return@LaunchedEffect
         coroutineScope {
             val next = async {
                 if (url == null || loader == null) {
@@ -263,6 +247,7 @@ private fun rememberArtTransition(url: String?, decodeSize: IntSize, fallback: F
                 state.current = null
             }
             state.url = url
+            state.failed = false
             state.shading = url != null
             listOf(
                 launch { state.outAlpha.animateTo(0f, tween(ART_FADE_OUT_MS, easing = FastOutSlowInEasing)) },
@@ -271,8 +256,14 @@ private fun rememberArtTransition(url: String?, decodeSize: IntSize, fallback: F
             val bitmap = next.await()
             val held = shadeFrom.elapsedNow().inWholeMilliseconds
             if (held < ART_FADE_OUT_MS + ART_MIN_SHADE_MS) delay(ART_FADE_OUT_MS + ART_MIN_SHADE_MS - held)
+            if (bitmap == null) {
+                state.previous = null
+                state.shading = false
+                state.failed = true
+                return@coroutineScope
+            }
             state.inAlpha.snapTo(0f)
-            state.current = bitmap?.let(::LoadedArt) ?: FallbackPicture(fallback)
+            state.current = bitmap
             listOf(
                 launch { state.inAlpha.animateTo(1f, tween(ART_FADE_IN_MS, easing = FastOutSlowInEasing)) },
                 launch { state.dim.animateTo(0f, tween(ART_FADE_IN_MS, easing = FastOutSlowInEasing)) },
@@ -284,11 +275,11 @@ private fun rememberArtTransition(url: String?, decodeSize: IntSize, fallback: F
 
     LaunchedEffect(decodeSize) {
         val shownUrl = state.url ?: return@LaunchedEffect
-        if (state.current !is LoadedArt || shownUrl != url || loader == null) return@LaunchedEffect
+        if (state.current == null || shownUrl != url || loader == null) return@LaunchedEffect
         delay(ART_RESIZE_SETTLE_MS)
         val request = artRequest(shownUrl, decodeSize)
         val sharper = loader.peek(request) ?: loader.loadOrNull(request)
-        if (sharper != null && state.url == shownUrl && state.current is LoadedArt) state.current = LoadedArt(sharper)
+        if (sharper != null && state.url == shownUrl && state.current != null) state.current = sharper
     }
     return state
 }
@@ -304,25 +295,25 @@ private fun PrefetchNextArt(player: Player, decodeSize: IntSize) {
     }
 }
 
+private fun ArtTransition.fallbackKey(): String? = url?.let { artRequestSources(it).first }
+
 private fun artRequest(url: String, size: IntSize): ImageRequest = artImageRequest(url, size.width, size.height)
 
 @Composable
-private fun BoxScope.ArtImageLayer(picture: ArtPicture?, alpha: () -> Float) {
-    when (picture) {
-        null -> Unit
-        is FallbackPicture -> FallbackArt(picture.colors, alpha)
-        is LoadedArt -> Image(
-            picture.bitmap,
-            contentDescription = null,
-            modifier = Modifier.matchParentSize().graphicsLayer { this.alpha = alpha() },
-            contentScale = ContentScale.Crop,
-        )
-    }
+private fun BoxScope.ArtImageLayer(bitmap: ImageBitmap?, alpha: () -> Float) {
+    if (bitmap == null) return
+    Image(
+        bitmap,
+        contentDescription = null,
+        modifier = Modifier.matchParentSize().graphicsLayer { this.alpha = alpha() },
+        contentScale = ContentScale.Crop,
+    )
 }
 
 /** The backdrop keeps the outgoing picture (dimmed) under the incoming one's fade-in. */
 @Composable
 private fun BoxScope.ArtBackdrop(art: ArtTransition) {
+    if (art.failed) FallbackArt(art.fallbackKey())
     ArtImageLayer(art.previous) { 1f }
     ArtImageLayer(art.current) { art.inAlpha.value }
     Box(Modifier.matchParentSize().graphicsLayer { alpha = art.dim.value }.background(Color.Black))
@@ -332,6 +323,7 @@ private fun BoxScope.ArtBackdrop(art: ArtTransition) {
 @Composable
 private fun BoxScope.ArtSquare(art: ArtTransition) {
     if (art.shading) ArtShade()
+    if (art.failed) FallbackArt(art.fallbackKey())
     ArtImageLayer(art.previous) { art.outAlpha.value }
     ArtImageLayer(art.current) { art.inAlpha.value }
 }
@@ -375,7 +367,7 @@ internal fun PlayerSurfaceHole(
         VideoHole(player, surface, Modifier.fillMaxSize(), fill = fill)
         if (audioOnly) {
             if (wave) AudioOnlyArtWave(player, artUrl, Modifier.fillMaxSize())
-            else AudioOnlyCover(artUrl, currentFallbackArt(player), Modifier.fillMaxSize())
+            else AudioOnlyCover(artUrl, Modifier.fillMaxSize())
         } else if (settings != null) {
             FpsBadge(player, settings, Modifier.align(Alignment.TopStart).padding(8.dp))
         }

@@ -10072,7 +10072,6 @@ dependencies = [
  "gpui-kit",
  "gpui-pre-wgpu",
  "gpui-pre-windows",
- "icu_normalizer",
  "image",
  "ksni",
  "libc",

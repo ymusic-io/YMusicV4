@@ -44,7 +44,6 @@ rand = "0.9"
 uuid = { version = "1", features = ["v4"] }
 rfd = { version = "0.15", default-features = false, features = ["tokio"] }
 resvg = { version = "0.46", default-features = false }
-icu_normalizer = { version = "2", default-features = false, features = ["compiled_data"] }
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

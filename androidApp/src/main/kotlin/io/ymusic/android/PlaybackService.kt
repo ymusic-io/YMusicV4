@@ -50,7 +50,6 @@ import io.ymusic.player.media3.Media3PlayerAdapter
 import io.ymusic.ui.AppGraph
 import io.ymusic.ui.FALLBACK_ART_URL
 import io.ymusic.ui.SearchFocus
-import io.ymusic.ui.fallbackArtKey
 import io.ymusic.ui.playFromSearch
 import io.ymusic.ui.playerErrorMessage
 import io.ymusic.ui.playhistory.PlayAgainStore
@@ -984,10 +983,7 @@ private fun PlayableItem.toMediaMetadata(context: android.content.Context): Medi
         is PlayableItem.YtMedia -> youtubeThumbUrl(videoId)
         else -> displayThumbnailUrl
     }
-    val artwork = artworkContentUri(context, target ?: FALLBACK_ART_URL).buildUpon()
-        .appendQueryParameter(FALLBACK_ART_KEY_PARAM, fallbackArtKey())
-        .build()
-    builder.setArtworkUri(artwork)
+    builder.setArtworkUri(artworkContentUri(context, target ?: FALLBACK_ART_URL))
     return builder.build()
 }
 

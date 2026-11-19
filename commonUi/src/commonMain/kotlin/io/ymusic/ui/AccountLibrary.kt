@@ -169,7 +169,7 @@ private fun AccountCard(account: YtAccountInfo, onSignOut: () -> Unit, onSwitchA
         Box(Modifier.size(46.dp).a11ySilent()) {
             // The disc only backs the fallback: under the photo its AA edge bleeds through as a dark ring.
             val fallback: @Composable BoxScope.() -> Unit = { AccountAvatarFallback(account.name) }
-            if (account.thumbs.isNotEmpty()) ThumbImage(account.thumbs, CircleShape, fallback) else fallback()
+            if (account.thumbs.isNotEmpty()) ThumbImage(account.thumbs, CircleShape, fallback, fallback) else fallback()
         }
         Column(Modifier.weight(1f)) {
             Text(

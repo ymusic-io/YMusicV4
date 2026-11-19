@@ -391,7 +391,7 @@ internal fun MiniArtTile(
             VideoHole(coordinator.player, surface, Modifier.fillMaxSize())
         }
         if (coverOnly || audioOnly || surface == null) {
-            AudioOnlyCover(item.displayThumbnailUrl, remember(item) { fallbackArtColors(item.fallbackArtKey()) }, Modifier.fillMaxSize())
+            AudioOnlyCover(item.displayThumbnailUrl, Modifier.fillMaxSize())
         }
         BufferingIndicator(status, size = 22.dp, strokeWidth = 2.dp)
         Box(

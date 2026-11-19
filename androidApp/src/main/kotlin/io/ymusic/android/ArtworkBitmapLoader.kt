@@ -2,6 +2,7 @@ package io.ymusic.android
 
 import android.graphics.Bitmap
 import android.net.Uri
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.unit.IntSize
 import androidx.media3.common.util.BitmapLoader
@@ -12,10 +13,9 @@ import io.ymusic.imageloader.ImageLoadException
 import io.ymusic.imageloader.ImageLoader
 import io.ymusic.imageloader.decodeScaled
 import io.ymusic.ui.FALLBACK_ART_URL
-import io.ymusic.ui.FallbackArtColors
 import io.ymusic.ui.artImageRequest
 import io.ymusic.ui.fallbackArtBitmap
-import io.ymusic.ui.fallbackArtColors
+import io.ymusic.ui.fallbackArtColor
 import kmpcommon.log.Logger
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -36,8 +36,7 @@ import kotlin.math.roundToInt
  * [ImageLoader] cache key as the raw url, no binder round-trip through the provider.
  *
  * Artwork that fails to load, and [FALLBACK_ART_URL] (an item with no art), is the app's fallback
- * art in the item's colour (the uri's [FALLBACK_ART_KEY_PARAM]), so the notification and lock
- * screen never fall back to the system's blank default.
+ * art, so the notification and lock screen never fall back to the system's blank default.
  */
 class ImageLoaderBitmapLoader(
     private val imageLoader: ImageLoader,
@@ -66,10 +65,10 @@ class ImageLoaderBitmapLoader(
         } else {
             uri.toString()
         }
-        val fallback = fallbackArtColors(uri.getQueryParameter(FALLBACK_ART_KEY_PARAM).orEmpty())
-        if (target == FALLBACK_ART_URL) return@future fallbackArt(fallback)
+        if (target == FALLBACK_ART_URL) return@future fallbackArt(null)
+        val request = artImageRequest(target, maxPx, maxPx)
         try {
-            imageLoader.load(artImageRequest(target, maxPx, maxPx), cacheInMemory = false).asAndroidBitmap().fitWithin(maxPx)
+            imageLoader.load(request, cacheInMemory = false).asAndroidBitmap().fitWithin(maxPx)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -78,18 +77,20 @@ class ImageLoaderBitmapLoader(
                 it == ImageLoadException.Reason.NotFound || it == ImageLoadException.Reason.RecentlyFailed
             }
             logger?.log(if (expected) Logger.Level.DEBUG else Logger.Level.WARN, "session artwork failed, fallback art shown: $target", e)
-            fallbackArt(fallback)
+            fallbackArt(request.key)
         }
     }
 
-    private val renderedFallbacks = object : LinkedHashMap<FallbackArtColors, Bitmap>(16, 0.75f, true) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<FallbackArtColors, Bitmap>) = size > RENDERED_FALLBACKS
+    private val renderedFallbacks = object : LinkedHashMap<Color, Bitmap>(16, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Color, Bitmap>) = size > RENDERED_FALLBACKS
     }
 
     /** Rendered once per colour; each caller gets its own copy, as the session may scale or recycle it. */
-    private fun fallbackArt(colors: FallbackArtColors): Bitmap {
-        val rendered = synchronized(renderedFallbacks) { renderedFallbacks[colors] }
-            ?: fallbackArtBitmap(colors, maxPx).asAndroidBitmap().also { synchronized(renderedFallbacks) { renderedFallbacks[colors] = it } }
+    private fun fallbackArt(key: String?): Bitmap {
+        val color = fallbackArtColor(key)
+        val rendered = synchronized(renderedFallbacks) {
+            renderedFallbacks.getOrPut(color) { fallbackArtBitmap(color, maxPx).asAndroidBitmap() }
+        }
         return rendered.copy(Bitmap.Config.ARGB_8888, false)
     }
 
@@ -115,9 +116,6 @@ class ImageLoaderBitmapLoader(
         return future
     }
 }
-
-/** On a session artwork uri, the item's [io.ymusic.ui.fallbackArtKey], for the fallback art's colour. */
-internal const val FALLBACK_ART_KEY_PARAM = "fallback"
 
 /** The palette has 16 colours; the session shows a handful of items at once. */
 private const val RENDERED_FALLBACKS = 4

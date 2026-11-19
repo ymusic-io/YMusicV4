@@ -12,9 +12,9 @@ use image::imageops::{self, FilterType};
 use image::{Frame, RgbaImage};
 use ym_image_loader::async_image::{GlobalImageLoader, LoadedImage};
 
-use crate::fallback_art::{fallback_art, fallback_backdrop, item_fallback_colors};
+use crate::fallback_art::{fallback_art, fallback_backdrop};
 use crate::playback::Playback;
-use crate::youtube_thumbnails::{NOW_PLAYING_ART_PX, art_image_request};
+use crate::youtube_thumbnails::{NOW_PLAYING_ART_PX, art_image_request, art_request_sources};
 
 const WAVE_BARS: usize = 40;
 const SAMPLE_EVERY: Duration = Duration::from_millis(33);
@@ -331,11 +331,10 @@ fn prepare(source: &RenderImage, box_size: (f32, f32)) -> Option<(RenderImage, R
 impl Render for AudioOnlyArt {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.last_render = Instant::now();
-        let (url, next_url, playing, colors) = {
+        let (url, next_url, playing) = {
             let playback = self.playback.read(cx);
             let next_url = playback.queue.get(playback.index + 1).and_then(|item| item.display_thumbnail_url());
-            let colors = item_fallback_colors(playback.current());
-            (playback.current().and_then(|item| item.display_thumbnail_url()), next_url, playback.is_playing(), colors)
+            (playback.current().and_then(|item| item.display_thumbnail_url()), next_url, playback.is_playing())
         };
         let (box_width, box_height) = self.video_box.get();
         let box_size = (box_width as f32, box_height as f32);
@@ -345,8 +344,9 @@ impl Render for AudioOnlyArt {
 
         let side = (box_size.1 * 0.86).min(box_size.0 * 0.32).max(0.);
         let shown = self.art.as_ref().filter(|art| Some(&art.url) == url.as_ref());
-        // The JVM `FallbackPicture`: no art url, or its load failed.
+        // The JVM `ArtTransition.failed`: no art url, or its load failed.
         let fallback = shown.is_none() && (url.is_none() || self.failed_url == url);
+        let fallback_key = url.as_ref().filter(|_| fallback).map(|url| art_request_sources(url).0);
         let backdrop = self.art.as_ref().filter(|_| !fallback).map(|art| art.backdrop.clone());
         let waiting = shown.is_none() && backdrop.is_some();
         let square = shown.map(|art| art.square.clone());
@@ -400,7 +400,7 @@ impl Render for AudioOnlyArt {
                 frame.child(img(square).size_full().rounded(px(ART_RADIUS)).object_fit(ObjectFit::Cover))
             })
             .when(fallback, |frame| {
-                frame.child(fallback_art(colors, px(side)).rounded(px(ART_RADIUS)).overflow_hidden())
+                frame.child(fallback_art(fallback_key.as_deref()).rounded(px(ART_RADIUS)).overflow_hidden())
             });
 
         div()
@@ -411,7 +411,7 @@ impl Render for AudioOnlyArt {
             .when_some(backdrop, |frame, backdrop| {
                 frame.child(img(backdrop).absolute().inset_0().size_full().object_fit(ObjectFit::Cover))
             })
-            .when(fallback, |frame| frame.child(fallback_backdrop(colors).absolute().inset_0()))
+            .when(fallback, |frame| frame.child(fallback_backdrop(fallback_key.as_deref()).absolute().inset_0()))
             .child(div().absolute().inset_0().bg(black().opacity(if waiting {
                 1. - (1. - BACKDROP_DIM) * (1. - BACKDROP_WAIT_DIM)
             } else {

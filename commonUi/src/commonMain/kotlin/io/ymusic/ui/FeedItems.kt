@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -185,9 +186,10 @@ fun SectionHeader(
                 Modifier.size(26.dp).clip(CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
-                ThumbImage(header.iconThumbs, CircleShape) {
+                val icon: @Composable BoxScope.() -> Unit = {
                     ThumbPlaceholder(Icons.Outlined.MusicNote, 14.dp, DesignColors.PlaceholderDim)
                 }
+                ThumbImage(header.iconThumbs, CircleShape, icon, icon)
             }
         }
         Text(
@@ -621,9 +623,8 @@ private fun CircleThumb(item: YtFeedItem, size: androidx.compose.ui.unit.Dp, mod
         modifier.size(size).clip(CircleShape),
         contentAlignment = Alignment.Center,
     ) {
-        ThumbImage(item.thumbs, CircleShape) {
-            ThumbPlaceholder(Icons.Outlined.Person, 28.dp)
-        }
+        val avatar: @Composable BoxScope.() -> Unit = { ThumbPlaceholder(Icons.Outlined.Person, 28.dp) }
+        ThumbImage(item.thumbs, CircleShape, avatar, avatar)
     }
 }
 

@@ -9,12 +9,11 @@ use gpui_kit::component::{ActiveTheme, Icon, StyledExt, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use ym_i18n::{Str, t, tf};
-use ym_image_loader::async_image::async_image_of;
 
 use crate::a11y::{FocusList, SliderStop};
 use crate::action_icon::{HIT, action_icon, auto_mirrored, sized_action_icon};
 use crate::assets::MaterialIcon;
-use crate::fallback_art::{fallback_art, item_fallback_colors};
+use crate::fallback_art::art_image;
 use crate::playback::{Playback, PlaybackState, QueueItem};
 use crate::queue_nav::LoopMode;
 use crate::spinner::Spinner;
@@ -287,18 +286,11 @@ impl MiniPlayer {
         }
     }
 
-    /// `side` is the box's shorter side, for the fallback art's note (the JVM `AudioOnlyCover`).
-    fn cover(item: &QueueItem, corner_radius: f32, side: f32, cx: &App) -> Div {
-        let colors = item_fallback_colors(Some(item));
-        let art = match item.display_thumbnail_url() {
-            Some(url) => async_image_of(Some(art_request_sources(&url)))
-                .size_full()
-                .rounded(px(corner_radius))
-                .object_fit(ObjectFit::Cover)
-                .error(fallback_art(colors, px(side)))
-                .into_any_element(),
-            None => fallback_art(colors, px(side)).into_any_element(),
-        };
+    fn cover(item: &QueueItem, corner_radius: f32, cx: &App) -> Div {
+        let art = art_image(item.display_thumbnail_url().map(|url| art_request_sources(&url)))
+            .size_full()
+            .rounded(px(corner_radius))
+            .object_fit(ObjectFit::Cover);
         div().overflow_hidden().rounded(px(corner_radius)).bg(cx.theme().secondary).flex_shrink_0().child(art)
     }
 
@@ -377,7 +369,7 @@ impl MiniPlayer {
                 cx.stop_propagation();
                 cx.emit(ToggleNowPlaying);
             }))
-            .child(Self::cover(&item, 4., 48., cx).size(px(48.)))
+            .child(Self::cover(&item, 4., cx).size(px(48.)))
             .child(
                 v_flex()
                     .flex_1()
@@ -601,7 +593,7 @@ impl MiniPlayer {
             .border_color(theme.border)
             .cursor_pointer()
             .on_click(cx.listener(|_, _, _, cx| cx.emit(ToggleNowPlaying)))
-            .child(Self::cover(&item, 0., 56., cx).h_full().aspect_ratio(16. / 9.))
+            .child(Self::cover(&item, 0., cx).h_full().aspect_ratio(16. / 9.))
             .child(
                 v_flex()
                     .flex_1()

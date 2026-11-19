@@ -18,6 +18,7 @@ use crate::a11y::{DragRow, FocusList, LoadMoreFocus, alert, announced, announced
 use crate::action_icon::{HIT, ICON, action_icon, auto_mirrored, sized_action_icon};
 use crate::assets::MaterialIcon;
 use crate::download_dialog::DownloadTarget;
+use crate::fallback_art::art_image;
 use crate::graph::{AppGraph, on_core};
 use crate::lazy_rows::LazyRows;
 use crate::local_playlist::LocalPlaylistFromDownloads;
@@ -983,7 +984,7 @@ impl FeedView {
                         .rounded(px(12.))
                         .overflow_hidden()
                         .bg(theme.secondary)
-                        .child(async_image_of(Some(request)).size_full().rounded(px(12.)).object_fit(ObjectFit::Cover)),
+                        .child(art_image(Some(request)).size_full().rounded(px(12.)).object_fit(ObjectFit::Cover)),
                 )
             })
             .child(
@@ -1434,7 +1435,7 @@ impl FeedView {
             .overflow_hidden()
             .bg(theme.secondary)
             .when_some(thumb_request_sources(&item.thumbs), |frame, request| {
-                frame.child(async_image_of(Some(request)).size_full().rounded(px(5.)).object_fit(ObjectFit::Cover))
+                frame.child(art_image(Some(request)).size_full().rounded(px(5.)).object_fit(ObjectFit::Cover))
             })
             .when(self.downloaded(item, cx), |frame| frame.child(offline_mark(theme.primary, 5.)))
             .when_some(badge(item), |frame, text| {
@@ -1508,7 +1509,8 @@ impl FeedView {
             .when(round, |frame| frame.rounded_full())
             .when(!round, |frame| frame.rounded(px(6.)))
             .when_some(thumb_request_sources(&item.thumbs), |frame, request| {
-                let picture = async_image_of(Some(request)).size_full().object_fit(ObjectFit::Cover);
+                let picture = if round { async_image_of(Some(request)) } else { art_image(Some(request)) };
+                let picture = picture.size_full().object_fit(ObjectFit::Cover);
                 frame.child(if round { picture.rounded_full() } else { picture.rounded(px(6.)) })
             })
             .when(self.downloaded(item, cx), |frame| frame.child(offline_mark(theme.primary, 6.)))
