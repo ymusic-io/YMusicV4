@@ -399,7 +399,7 @@ fn spawn_load(
                     inner.failed = false;
                 }
                 Err(error) => {
-                    loader.logger().warn(&format!("load failed: {}", request.key), Some(&error));
+                    crate::request::log_load_failure(loader.logger(), &request.key, &error);
                     // A failed sharper re-decode keeps the bitmap already showing.
                     inner.failed = inner.loaded.is_none();
                 }

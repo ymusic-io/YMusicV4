@@ -67,5 +67,8 @@ class ImageLoadException(
 
         /** No fetcher handles the url's scheme. */
         Unsupported,
+
+        /** The source failed this way recently and is not retried yet; that first failure was logged. */
+        RecentlyFailed,
     }
 }

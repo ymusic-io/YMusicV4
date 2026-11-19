@@ -6,6 +6,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use gpui_kit::component::ActiveTheme;
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use image::imageops::{self, FilterType};
@@ -74,6 +75,8 @@ pub struct AudioOnlyArt {
     loading: Option<(String, Task<()>)>,
     /// A request whose load failed: not asked again until the request changes.
     failed: Option<String>,
+    /// The url whose art failed to load: it shows the grey placeholder.
+    failed_url: Option<SharedString>,
     /// The next item's request last warmed, so a song change finds its art in memory.
     prefetched: Option<String>,
     levels: Vec<f32>,
@@ -92,6 +95,7 @@ impl AudioOnlyArt {
             source: None,
             loading: None,
             failed: None,
+            failed_url: None,
             prefetched: None,
             levels: vec![0.; WAVE_BARS],
             wave_mode: None,
@@ -142,7 +146,10 @@ impl AudioOnlyArt {
                         view.loading = None;
                         match loaded {
                             Some(image) => view.source = Some(ArtSource { request: key, url: asked, image }),
-                            None => view.failed = Some(key),
+                            None => {
+                                view.failed = Some(key);
+                                view.failed_url = Some(asked);
+                            }
                         }
                         cx.notify();
                     })
@@ -337,7 +344,10 @@ impl Render for AudioOnlyArt {
 
         let side = (box_size.1 * 0.86).min(box_size.0 * 0.32).max(0.);
         let shown = self.art.as_ref().filter(|art| Some(&art.url) == url.as_ref());
-        let backdrop = self.art.as_ref().map(|art| art.backdrop.clone());
+        // The JVM `ArtTransition.failed`: no art url, or its load failed.
+        let missing = shown.is_none() && (url.is_none() || self.failed_url == url);
+        let placeholder = missing.then(|| cx.theme().secondary);
+        let backdrop = self.art.as_ref().filter(|_| !missing).map(|art| art.backdrop.clone());
         let waiting = shown.is_none() && backdrop.is_some();
         let square = shown.map(|art| art.square.clone());
         let levels = self.levels.clone();
@@ -388,7 +398,8 @@ impl Render for AudioOnlyArt {
             ])
             .when_some(square, |frame, square| {
                 frame.child(img(square).size_full().rounded(px(ART_RADIUS)).object_fit(ObjectFit::Cover))
-            });
+            })
+            .when_some(placeholder, |frame, grey| frame.bg(grey));
 
         div()
             .absolute()
@@ -398,6 +409,7 @@ impl Render for AudioOnlyArt {
             .when_some(backdrop, |frame, backdrop| {
                 frame.child(img(backdrop).absolute().inset_0().size_full().object_fit(ObjectFit::Cover))
             })
+            .when_some(placeholder, |frame, grey| frame.bg(grey))
             .child(div().absolute().inset_0().bg(black().opacity(if waiting {
                 1. - (1. - BACKDROP_DIM) * (1. - BACKDROP_WAIT_DIM)
             } else {

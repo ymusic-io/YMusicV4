@@ -10,9 +10,25 @@ import kotlinx.coroutines.IO
 import kotlinx.coroutines.withContext
 
 /** A decoded image and the pixel size of the source it came from (after any crop). */
-class DecodedImage(val bitmap: ImageBitmap, val sourceWidth: Int, val sourceHeight: Int) {
+class DecodedImage(
+    val bitmap: ImageBitmap,
+    val sourceWidth: Int,
+    val sourceHeight: Int,
+    val retention: Retention = Retention.Persistent,
+) {
     /** The decode is smaller than its source: a scaled copy saves this work next time. */
     val downscaled: Boolean get() = bitmap.width < sourceWidth || bitmap.height < sourceHeight
+}
+
+/** How far the loader keeps a fetched image. Only [Persistent] reaches a disk cache or the [VariantIndex]. */
+enum class Retention {
+    Persistent,
+
+    /** A stand-in the fetcher drew for an image it cannot have: kept in the memory LRU for this process only. */
+    Memory,
+
+    /** A stand-in for a failure that may pass (offline): never cached, so the next load asks again. */
+    None,
 }
 
 /**
@@ -57,7 +73,7 @@ fun DecodedImage.cropped(crop: SourceCrop): DecodedImage = when (crop) {
                 dstSize = IntSize(width, height),
                 paint = Paint(),
             )
-            DecodedImage(band, sourceWidth, sourceWidth * 9 / 16)
+            DecodedImage(band, sourceWidth, sourceWidth * 9 / 16, retention)
         }
     }
 }

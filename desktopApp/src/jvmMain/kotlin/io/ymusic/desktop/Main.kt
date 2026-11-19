@@ -972,6 +972,7 @@ private suspend fun buildGraph(
                     mediaStore,
                     loaderYoutubeArt { checkNotNull(loaderRef) },
                     coverCache = ImageSourceCache(FileSystem.SYSTEM, File(dataDir, "image-cover-cache").absolutePath.toPath(), 64L * 1024 * 1024),
+                    extractorVersion = APP_VERSION_CODE.toString(),
                 )
             },
         ),

@@ -2,6 +2,7 @@
 //! plain lock around a few map operations, never held across decode or I/O, so `peek` is cheap
 //! enough for a frame.
 
+use std::collections::HashSet;
 use std::sync::Mutex;
 
 use indexmap::IndexMap;
@@ -15,21 +16,26 @@ pub(crate) struct MemoryImageCache<B: Bitmap> {
 struct State<B> {
     /// Eldest first.
     map: IndexMap<String, B>,
+    stand_ins: HashSet<String>,
     total_bytes: u64,
     max_bytes: u64,
 }
 
 impl<B: Bitmap> MemoryImageCache<B> {
     pub fn new(max_bytes: u64) -> Self {
-        Self { state: Mutex::new(State { map: IndexMap::new(), total_bytes: 0, max_bytes }) }
+        Self { state: Mutex::new(State { map: IndexMap::new(), stand_ins: HashSet::new(), total_bytes: 0, max_bytes }) }
     }
 
     fn lock(&self) -> std::sync::MutexGuard<'_, State<B>> {
         self.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
     }
 
-    pub fn peek(&self, key: &str) -> Option<B> {
+    /// The JVM `peek(key, includeStandIns)`: `include_stand_ins` false misses an entry put as a stand-in.
+    pub fn peek(&self, key: &str, include_stand_ins: bool) -> Option<B> {
         let mut state = self.lock();
+        if !include_stand_ins && state.stand_ins.contains(key) {
+            return None;
+        }
         let index = state.map.get_index_of(key)?;
         let last = state.map.len() - 1;
         state.map.move_index(index, last);
@@ -66,11 +72,16 @@ impl<B: Bitmap> MemoryImageCache<B> {
         best.cloned()
     }
 
-    pub fn put(&self, key: String, bitmap: B) {
+    pub fn put(&self, key: String, bitmap: B, stand_in: bool) {
         let mut state = self.lock();
         let size = bitmap.byte_size();
         if let Some(old) = state.map.shift_remove(&key) {
             state.total_bytes -= old.byte_size();
+        }
+        if stand_in {
+            state.stand_ins.insert(key.clone());
+        } else {
+            state.stand_ins.remove(&key);
         }
         state.map.insert(key, bitmap);
         state.total_bytes += size;
@@ -92,7 +103,8 @@ impl<B: Bitmap> MemoryImageCache<B> {
 
 fn evict_to<B: Bitmap>(state: &mut State<B>, target: u64) {
     while state.total_bytes > target {
-        let Some((_, eldest)) = state.map.shift_remove_index(0) else { break };
+        let Some((key, eldest)) = state.map.shift_remove_index(0) else { break };
+        state.stand_ins.remove(&key);
         state.total_bytes -= eldest.byte_size();
     }
 }

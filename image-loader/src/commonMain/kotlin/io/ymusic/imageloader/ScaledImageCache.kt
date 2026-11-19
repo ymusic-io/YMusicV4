@@ -7,7 +7,9 @@ import kotlinx.coroutines.IO
 import kotlinx.coroutines.withContext
 import okio.FileSystem
 import okio.Path
+import okio.Path.Companion.toPath
 import okio.use
+import kotlin.random.Random
 
 /**
  * Optional persistent cache of already-scaled images, so re-showing a thumbnail skips both the
@@ -25,6 +27,10 @@ interface ScaledImageCache {
      *  serve bytes across a process boundary instead of drawing (see [ImageLoader.loadFile]).
      *  Null also when the implementation has no file-backed storage. */
     suspend fun filePath(key: String): Path? = null
+
+    /** [bitmap] as a file outside the cache, for [ImageLoader.loadFile] of an image that must not be cached; it
+     *  replaces the last one under [key]. Null when the implementation has no file-backed storage. */
+    suspend fun transientFile(key: String, bitmap: ImageBitmap): Path? = null
 }
 
 /**
@@ -45,6 +51,14 @@ class DiskScaledImageCache(
         maxSize = maxBytes,
     )
 
+    private val transientDirectory = "$directory-transient".toPath()
+
+    /** Last process's transient files go before this one writes its first. */
+    private val transientReady = lazy {
+        fileSystem.deleteRecursively(transientDirectory)
+        fileSystem.createDirectories(transientDirectory)
+    }
+
     /** Bytes currently accounted by the journal. */
     val sizeBytes: Long get() = cache.currentSize
 
@@ -63,6 +77,15 @@ class DiskScaledImageCache(
 
     override suspend fun filePath(key: String): Path? = withContext(Dispatchers.IO) {
         cache.get(key)?.use { it.getPath(0) }
+    }
+
+    override suspend fun transientFile(key: String, bitmap: ImageBitmap): Path = withContext(Dispatchers.IO) {
+        transientReady.value
+        val file = transientDirectory / key
+        val partial = transientDirectory / "$key.${Random.nextLong().toULong()}.tmp"
+        fileSystem.sink(partial).use { encodeWebpToSink(bitmap, it) }
+        fileSystem.atomicMove(partial, file)
+        file
     }
 
     override suspend fun put(key: String, bitmap: ImageBitmap): Unit = withContext(Dispatchers.IO) {

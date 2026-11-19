@@ -24,6 +24,7 @@ mod downloads;
 mod downloads_view;
 mod elevated_dialog;
 mod equalizer;
+mod fallback_art;
 mod feed;
 mod feedback_view;
 mod file_rename;

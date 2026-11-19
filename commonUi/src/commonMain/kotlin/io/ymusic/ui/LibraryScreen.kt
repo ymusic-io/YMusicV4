@@ -1094,7 +1094,7 @@ private fun PlaylistsTab(
     LaunchedEffect(content, refreshTick) {
         val loaded = store.playlists().map { it to store.playlistItemDetails(it.id) }
         userArt = loaded.associate { (playlist, details) ->
-            playlist.id to details.sortedByDescending { it.addedAt }.firstNotNullOfOrNull { localArtUrl(it.mediaItem) }
+            playlist.id to details.sortedByDescending { it.addedAt }.firstOrNull { hasArtSource(it.mediaItem) }?.let { localArtUrl(it.mediaItem) }
         }
         userLists = loaded.map { (playlist, details) -> playlist to details.size }
     }
@@ -2104,7 +2104,7 @@ private fun GroupRow(icon: ImageVector, name: String, members: List<MediaStoreIt
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalAlignment = Alignment.Top,
     ) {
-        LibraryThumb(icon, badge = null, artUrl = members.firstNotNullOfOrNull(::localArtUrl))
+        LibraryThumb(icon, badge = null, artUrl = members.firstOrNull(::hasArtSource)?.let(::localArtUrl))
         Column(Modifier.weight(1f)) {
             Text(name, style = ListTitleStyle, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Text(
@@ -2121,7 +2121,7 @@ private fun GroupRow(icon: ImageVector, name: String, members: List<MediaStoreIt
 private fun GroupCard(icon: ImageVector, name: String, members: List<MediaStoreItem>, onOpen: () -> Unit) {
     LibraryGridCard(
         icon = icon,
-        artUrl = members.firstNotNullOfOrNull(::localArtUrl),
+        artUrl = members.firstOrNull(::hasArtSource)?.let(::localArtUrl),
         title = name,
         subtitle = pluralText(Res.plurals.n_songs, members.size, members.size),
         onClick = onOpen,

@@ -97,7 +97,7 @@ class ImageLoader(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Throwable) {
-            logger?.log(Logger.Level.WARN, "load failed: ${request.key}", e)
+            logger?.log(loadFailureLevel(e), "load failed: ${request.key}", e)
             null
         }
 
@@ -142,7 +142,7 @@ class ImageLoader(
     private suspend fun loadUncached(request: ImageRequest, key: String, cacheInMemory: Boolean): ImageBitmap =
         gateFor(request).withPermit {
             memory.peek(key)?.let { return@withPermit it } // a load that finished while this one waited
-            val bitmap = fromScaledCache(key) ?: try {
+            val decoded = fromScaledCache(key)?.let { DecodedImage(it, it.width, it.height) } ?: try {
                 fetchAndDecode(request, key)
             } catch (e: ImageLoadException) {
                 // Offline or every variant gone: any size of this identity beats nothing — returned,
@@ -150,8 +150,12 @@ class ImageLoader(
                 memory.peekLargest(request.key)?.let { stand -> return@withPermit stand }
                 throw e
             }
-            if (cacheInMemory) memory.put(key, bitmap)
-            bitmap
+            when (decoded.retention) {
+                Retention.None -> return@withPermit memory.peekLargest(request.key) ?: decoded.bitmap
+                Retention.Memory -> if (cacheInMemory) memory.put(key, decoded.bitmap, standIn = true)
+                Retention.Persistent -> if (cacheInMemory) memory.put(key, decoded.bitmap)
+            }
+            decoded.bitmap
         }
 
     private fun peekCovering(request: ImageRequest): ImageBitmap? {
@@ -181,7 +185,8 @@ class ImageLoader(
      * the entry is persisted even when the source already fit the request, because the caller
      * needs a file and some schemes (`art://`) have no other on-disk form. The transient decode is
      * dropped after encoding. The path is a live LRU entry that can be evicted later — re-call on a
-     * missing file rather than holding the path.
+     * missing file rather than holding the path. A stand-in ([Retention]) is never persisted: it is
+     * served from [ScaledImageCache.transientFile], fetched again on every call.
      */
     suspend fun loadFile(request: ImageRequest): okio.Path? {
         val cache = scaledCache ?: return null
@@ -192,7 +197,10 @@ class ImageLoader(
             cache.filePath(disk)?.let { return@withPermit it } // raced with an identical load
             // A bitmap the UI already decoded at this bucket is persisted as-is; otherwise fetch,
             // bypassing fetchAndDecode so its downscaled-only persist policy doesn't double-write.
-            val bitmap = memory.peek(key) ?: fetchFromSources(request).bitmap
+            val held = memory.peek(key, includeStandIns = false)
+            val decoded = held?.let { DecodedImage(it, it.width, it.height) } ?: fetchFromSources(request)
+            if (decoded.retention != Retention.Persistent) return@withPermit cache.transientFile(disk, decoded.bitmap)
+            val bitmap = decoded.bitmap
             cache.put(disk, bitmap)
             cache.filePath(disk)
                 ?: throw ImageLoadException(ImageLoadException.Reason.Undecodable, "scaled entry vanished after write: ${request.key}")
@@ -214,11 +222,11 @@ class ImageLoader(
         }
     }
 
-    private suspend fun fetchAndDecode(request: ImageRequest, key: String): ImageBitmap {
+    private suspend fun fetchAndDecode(request: ImageRequest, key: String): DecodedImage {
         val decoded = fetchFromSources(request)
         // Only a genuinely downscaled result is worth persisting: an un-shrunk image re-encoded is
         // often BIGGER than the original its fetcher already holds, and saves no decode.
-        if (decoded.downscaled) {
+        if (decoded.downscaled && decoded.retention == Retention.Persistent) {
             scaledCache?.let { cache ->
                 try {
                     cache.put(diskKey(key), decoded.bitmap)
@@ -229,7 +237,7 @@ class ImageLoader(
                 }
             }
         }
-        return decoded.bitmap
+        return decoded
     }
 
     /**
@@ -242,16 +250,19 @@ class ImageLoader(
         val failures = mutableListOf<ImageLoadException>()
         for (source in orderSources(request.sources, size, request.scale, record)) {
             val sourceKey = imageCacheKey(source.url)
-            if (sourceKey in record.missing) {
+            val remembersMissing = source.isNetwork()
+            if (remembersMissing && sourceKey in record.missing) {
                 failures += ImageLoadException(ImageLoadException.Reason.NotFound, "known missing: ${source.url}")
                 continue
             }
             try {
                 val decoded = fetchSource(source, size, request.scale)
-                variantIndex.recordFetched(request.key, sourceKey, decoded.sourceWidth, decoded.sourceHeight)
+                if (decoded.retention == Retention.Persistent) {
+                    variantIndex.recordFetched(request.key, sourceKey, decoded.sourceWidth, decoded.sourceHeight)
+                }
                 return decoded
             } catch (e: ImageLoadException) {
-                if (e.reason == ImageLoadException.Reason.NotFound) variantIndex.recordMissing(request.key, sourceKey)
+                if (remembersMissing && e.reason == ImageLoadException.Reason.NotFound) variantIndex.recordMissing(request.key, sourceKey)
                 logger?.log(Logger.Level.DEBUG, "source failed (${e.reason}): ${source.url}", e)
                 failures += e
             }
@@ -291,6 +302,17 @@ class ImageLoader(
 }
 
 private const val SCALED_CACHE_VERSION = 3
+
+/**
+ * Only a network url's NotFound outlives the process (the [VariantIndex]): it is the server's word
+ * about an immutable url. An app scheme's (`art:`, `file:`) answer depends on the app's own data
+ * and code, which an update or a rescan changes.
+ */
+private fun ImageSource.isNetwork(): Boolean = url.startsWith("https://") || url.startsWith("http://")
+
+/** A failure the fetcher already logged when it first happened repeats at DEBUG, not WARN. */
+internal fun loadFailureLevel(error: Throwable): Logger.Level =
+    if ((error as? ImageLoadException)?.reason == ImageLoadException.Reason.RecentlyFailed) Logger.Level.DEBUG else Logger.Level.WARN
 
 private val NOT_FOUND_TTL = 10.minutes
 

@@ -13,11 +13,13 @@ import kotlinx.atomicfu.locks.synchronized
 internal class MemoryImageCache(initialMaxBytes: Long) {
     private val lock = SynchronizedObject()
     private val map = LinkedHashMap<String, ImageBitmap>()
+    private val standIns = HashSet<String>()
     private var totalBytes = 0L
     private var maxBytes = initialMaxBytes
 
-    fun peek(key: String): ImageBitmap? = synchronized(lock) {
-        map.remove(key)?.also { map[key] = it } // re-insert = most recently used
+    /** [includeStandIns] false misses an entry put as a stand-in. */
+    fun peek(key: String, includeStandIns: Boolean = true): ImageBitmap? = synchronized(lock) {
+        if (!includeStandIns && key in standIns) null else map.remove(key)?.also { map[key] = it } // re-insert = most recently used
     }
 
     /**
@@ -53,9 +55,10 @@ internal class MemoryImageCache(initialMaxBytes: Long) {
         }
     }
 
-    fun put(key: String, bitmap: ImageBitmap): Unit = synchronized(lock) {
+    fun put(key: String, bitmap: ImageBitmap, standIn: Boolean = false): Unit = synchronized(lock) {
         map.remove(key)?.let { totalBytes -= it.byteSize() }
         map[key] = bitmap
+        if (standIn) standIns += key else standIns -= key
         totalBytes += bitmap.byteSize()
         // The fresh insert is last in iteration order, so it only evicts itself when it ALONE
         // exceeds the budget — callers hold their own reference for display, so that's just
@@ -79,6 +82,7 @@ internal class MemoryImageCache(initialMaxBytes: Long) {
         while (totalBytes > target && it.hasNext()) {
             val eldest = it.next()
             it.remove()
+            standIns -= eldest.key
             totalBytes -= eldest.value.byteSize()
         }
     }

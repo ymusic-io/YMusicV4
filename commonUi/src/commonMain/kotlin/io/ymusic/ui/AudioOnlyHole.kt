@@ -108,7 +108,7 @@ internal fun AudioOnlyCover(
     modifier: Modifier = Modifier,
 ) {
     Box(
-        modifier.clip(RectangleShape).background(Color.Black),
+        modifier.clip(RectangleShape).background(DesignColors.Placeholder),
         contentAlignment = Alignment.Center,
     ) {
         ArtImage(url, RectangleShape)
@@ -214,6 +214,9 @@ private class ArtTransition {
     var current by mutableStateOf<ImageBitmap?>(null)
     var url: String? = null
     var shading by mutableStateOf(false)
+
+    /** [url] is null or its load failed: the grey placeholder shows. */
+    var failed by mutableStateOf(false)
     val outAlpha = Animatable(1f)
     val inAlpha = Animatable(0f)
     val dim = Animatable(0f)
@@ -245,6 +248,7 @@ private fun rememberArtTransition(url: String?, decodeSize: IntSize): ArtTransit
                 state.current = null
             }
             state.url = url
+            state.failed = false
             state.shading = url != null
             listOf(
                 launch { state.outAlpha.animateTo(0f, tween(ART_FADE_OUT_MS, easing = FastOutSlowInEasing)) },
@@ -254,7 +258,9 @@ private fun rememberArtTransition(url: String?, decodeSize: IntSize): ArtTransit
             val held = shadeFrom.elapsedNow().inWholeMilliseconds
             if (held < ART_FADE_OUT_MS + ART_MIN_SHADE_MS) delay(ART_FADE_OUT_MS + ART_MIN_SHADE_MS - held)
             if (bitmap == null) {
+                state.previous = null
                 state.shading = false
+                state.failed = true
                 return@coroutineScope
             }
             state.inAlpha.snapTo(0f)
@@ -306,15 +312,22 @@ private fun BoxScope.ArtImageLayer(bitmap: ImageBitmap?, alpha: () -> Float) {
 /** The backdrop keeps the outgoing picture (dimmed) under the incoming one's fade-in. */
 @Composable
 private fun BoxScope.ArtBackdrop(art: ArtTransition) {
+    if (art.failed) ArtPlaceholder()
     ArtImageLayer(art.previous) { 1f }
     ArtImageLayer(art.current) { art.inAlpha.value }
     Box(Modifier.matchParentSize().graphicsLayer { alpha = art.dim.value }.background(Color.Black))
+}
+
+@Composable
+private fun BoxScope.ArtPlaceholder() {
+    Box(Modifier.matchParentSize().background(DesignColors.Placeholder))
 }
 
 /** The square fades the outgoing picture out over the shade, then the incoming one in. */
 @Composable
 private fun BoxScope.ArtSquare(art: ArtTransition) {
     if (art.shading) ArtShade()
+    if (art.failed) ArtPlaceholder()
     ArtImageLayer(art.previous) { art.outAlpha.value }
     ArtImageLayer(art.current) { art.inAlpha.value }
 }
