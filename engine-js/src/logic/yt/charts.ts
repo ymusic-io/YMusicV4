@@ -16,7 +16,10 @@ import { jsLogger } from "../../protocol/logger";
 import type { JsLogger } from "../../protocol/logger";
 import { HttpRequest } from "../../protocol/http";
 import { channelUrl, setDurationBadge } from "./parse";
-import { effectiveLocale } from "./session";
+import { executeWithCookies } from "./cookies";
+import type { AuthContext } from "./cookies";
+import { effectiveLocale, getSession } from "./session";
+import type { YtSession } from "./session";
 import { asString, get, isObj, walk } from "./scan";
 import type { WireFeedItem, WireFeedPage, WireSection, WireSectionHeader } from "./wire";
 
@@ -40,20 +43,45 @@ function delay(ms: number): Promise<void> {
   });
 }
 
-/**
- * Cookie-less on purpose: charts are public and the region rides `gl`, so the app's YouTube identity
- * (signed-in cookies with no SAPISIDHASH) buys nothing here, and a charts Set-Cookie must not land
- * in the shared jar.
- */
-function chartsPost(body: Record<string, unknown>, log: JsLogger): Promise<HttpResponse> {
-  return HttpRequest.post(CHARTS_ORIGIN + "/youtubei/v1/browse?alt=json&prettyPrint=false")
+const CHARTS_URL = CHARTS_ORIGIN + "/youtubei/v1/browse?alt=json";
+const CHARTS_CLIENT_NAME = "31";
+const CHARTS_CLIENT_VERSION = "2.0";
+/** The query flags the site sends with every chart browse (comma URL-encoded, as the site does). */
+const CHARTS_QUERY_FLAGS =
+  "flags=MusicCharts__enable_apac_and_shorts_charts_expansion%2CMusicCharts__enable_recaptcha";
+
+/** The signed-in slot of the held session; signed out (or no session yet) leaves every field unset. */
+async function chartsAuth(): Promise<AuthContext> {
+  let session: YtSession | undefined;
+  try {
+    session = await getSession(Infinity);
+  } catch (e) {
+    debug(function () {
+      return "yt charts: no session, sending without the account slot: " + errText(e);
+    });
+  }
+  return {
+    sessionIndex: session?.sessionIndex,
+    delegatedSessionId: session?.delegatedSessionId,
+    userSessionId: session?.userSessionId,
+  };
+}
+
+function chartsPost(
+  body: Record<string, unknown>,
+  auth: AuthContext,
+  log: JsLogger,
+): Promise<HttpResponse> {
+  const builder = HttpRequest.post(CHARTS_URL)
     .json(body)
     .setHeader("User-Agent", CHARTS_UA)
     .setHeader("Origin", CHARTS_ORIGIN)
+    .setHeader("X-Origin", CHARTS_ORIGIN)
     .setHeader("Referer", CHARTS_ORIGIN + "/")
-    .logger(log)
-    .build()
-    .execute();
+    .setHeader("X-YouTube-Client-Name", CHARTS_CLIENT_NAME)
+    .setHeader("X-YouTube-Client-Version", CHARTS_CLIENT_VERSION)
+    .logger(log);
+  return executeWithCookies(CHARTS_URL, builder, auth);
 }
 
 /**
@@ -71,22 +99,29 @@ async function chartsBrowse(
 ): Promise<Record<string, unknown>> {
   const client: Record<string, unknown> = {
     "clientName": "WEB_MUSIC_ANALYTICS",
-    "clientVersion": "2.0",
+    "clientVersion": CHARTS_CLIENT_VERSION,
     "hl": locale.hl,
     "gl": locale.gl,
+    "experimentIds": [],
+    "experimentsToken": "",
     "theme": "MUSIC",
   };
   const body: Record<string, unknown> = {
-    "context": { "client": client },
+    "context": {
+      "client": client,
+      "capabilities": {},
+      "request": { "internalExperimentFlags": [] },
+    },
     "browseId": "FEmusic_analytics_charts_home",
-    "query": "perspective=CHART_HOME",
+    "query": CHARTS_QUERY_FLAGS + "&perspective=CHART_HOME&chart_params_country_code=" + locale.gl,
   };
   const logger = log ?? jsLogger("yt/trending");
-  let res = await chartsPost(body, logger);
+  const auth = await chartsAuth();
+  let res = await chartsPost(body, auth, logger);
   if (res.status === 403 || res.status === 429) {
     res.close();
     await delay(CHARTS_RETRY_DELAY_MS);
-    res = await chartsPost(body, logger);
+    res = await chartsPost(body, auth, logger);
   }
   if (!res.ok) {
     res.close();
