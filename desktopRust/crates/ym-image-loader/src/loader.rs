@@ -24,7 +24,7 @@ use futures::future::{BoxFuture, Shared};
 use ym_common::log::Logger;
 
 use crate::bitmap::Bitmap;
-use crate::codec::DecodedImage;
+use crate::codec::{DecodedImage, Retention};
 use crate::fetchers::ImageFetcher;
 use crate::gate::LifoGate;
 use crate::memory_cache::MemoryImageCache;
@@ -164,7 +164,7 @@ impl<B: Bitmap> ImageLoader<B> {
     /// The memory-cached bitmap for `request`, or `None`: cheap enough for a frame, so an already
     /// cached image draws on its first frame with no placeholder flash.
     pub fn peek(&self, request: &ImageRequest) -> Option<B> {
-        self.inner.memory.peek(&memory_key(request))
+        self.inner.memory.peek(&memory_key(request), true)
     }
 
     /// [`ImageLoader::load`], or `None` on a failed fetch or decode, logged here.
@@ -185,7 +185,7 @@ impl<B: Bitmap> ImageLoader<B> {
     /// used), for callers that hand the bitmap off once instead of drawing it repeatedly.
     pub async fn load(&self, request: &ImageRequest, cache_in_memory: bool) -> Result<B, ImageLoadError> {
         let key = memory_key(request);
-        if let Some(hit) = self.inner.memory.peek(&key) {
+        if let Some(hit) = self.inner.memory.peek(&key, true) {
             return Ok(hit);
         }
         if let Some(hit) = self.peek_covering(request) {
@@ -227,7 +227,7 @@ impl<B: Bitmap> ImageLoader<B> {
     /// Loads `request` in the background so a later [`ImageLoader::load`] finds it in memory. Best
     /// effort: a failure is logged.
     pub fn prefetch(&self, request: ImageRequest) {
-        if self.inner.memory.peek(&memory_key(&request)).is_some() {
+        if self.inner.memory.peek(&memory_key(&request), true).is_some() {
             return;
         }
         let loader = self.clone();
@@ -239,7 +239,9 @@ impl<B: Bitmap> ImageLoader<B> {
     /// The scaled image as a committed file in the scaled disk cache, or `None` without one. For
     /// consumers that hand bytes to another process and never draw (the OS media session): the memory
     /// LRU is untouched, and the entry is persisted even when the source already fit the request. The
-    /// path is a live LRU entry that can be evicted later: call again on a missing file.
+    /// path is a live LRU entry that can be evicted later: call again on a missing file. A stand-in
+    /// ([`Retention`]) is never persisted: it is served from `ScaledImageCache::transient_file`, fetched
+    /// again on every call.
     pub async fn load_file(&self, request: &ImageRequest) -> Result<Option<PathBuf>, ImageLoadError> {
         self.inner.tokio.spawn(load_file_uncached(self.inner.clone(), request.clone())).await.unwrap_or_else(|error| {
             Err(ImageLoadError::with_cause(Reason::Undecodable, "image file load task failed", error))
@@ -261,10 +263,28 @@ async fn load_file_uncached<B: Bitmap>(
     if let Some(path) = scaled_file(&cache, &disk).await? {
         return Ok(Some(path));
     }
-    let image = match inner.memory.peek(&key) {
-        Some(bitmap) => blocking_image(move || Ok(bitmap.to_rgba())).await?,
-        None => inner.fetch_from_sources(&request).await?.image,
+    let (image, retention) = match inner.memory.peek(&key, false) {
+        Some(bitmap) => (blocking_image(move || Ok(bitmap.to_rgba())).await?, Retention::Persistent),
+        None => {
+            let decoded = inner.fetch_from_sources(&request).await?;
+            (decoded.image, decoded.retention)
+        }
     };
+    if retention != Retention::Persistent {
+        return match tokio::task::spawn_blocking(move || cache.transient_file(&disk, &image)).await {
+            Ok(Ok(path)) => Ok(path),
+            Ok(Err(error)) => Err(ImageLoadError::with_cause(
+                Reason::Undecodable,
+                format!("transient file write failed: {}", request.key),
+                error,
+            )),
+            Err(error) => Err(ImageLoadError::with_cause(
+                Reason::Undecodable,
+                format!("transient file write failed: {}", request.key),
+                error,
+            )),
+        };
+    }
     let written = {
         let (cache, disk) = (cache.clone(), disk.clone());
         tokio::task::spawn_blocking(move || cache.put(&disk, &image)).await
@@ -299,20 +319,23 @@ async fn load_uncached<B: Bitmap>(
 ) -> Result<B, ImageLoadError> {
     let _permit = inner.gate_for(&request).acquire().await;
     // A load that finished while this one waited.
-    if let Some(hit) = inner.memory.peek(&key) {
+    if let Some(hit) = inner.memory.peek(&key, true) {
         return Ok(hit);
     }
-    let bitmap = match inner.read_scaled_cache(&key).await {
-        Some(bitmap) => bitmap,
+    let (bitmap, retention) = match inner.read_scaled_cache(&key).await {
+        Some(bitmap) => (bitmap, Retention::Persistent),
         None => match inner.fetch_and_decode(&request, &key).await {
-            Ok(bitmap) => bitmap,
+            Ok(decoded) => decoded,
             // Offline or every variant gone: any size of this identity beats nothing; returned, not
             // cached under this size, so a sharp decode replaces it once a source answers.
             Err(error) => return inner.memory.peek_largest(&request.key).ok_or(error),
         },
     };
-    if cache_in_memory {
-        inner.memory.put(key, bitmap.clone());
+    match retention {
+        Retention::None => return Ok(inner.memory.peek_largest(&request.key).unwrap_or(bitmap)),
+        Retention::Memory if cache_in_memory => inner.memory.put(key, bitmap.clone(), true),
+        Retention::Persistent if cache_in_memory => inner.memory.put(key, bitmap.clone(), false),
+        _ => {}
     }
     Ok(bitmap)
 }
@@ -345,11 +368,12 @@ impl<B: Bitmap> Inner<B> {
         }
     }
 
-    async fn fetch_and_decode(&self, request: &ImageRequest, key: &str) -> Result<B, ImageLoadError> {
+    async fn fetch_and_decode(&self, request: &ImageRequest, key: &str) -> Result<(B, Retention), ImageLoadError> {
         let decoded = self.fetch_from_sources(request).await?;
+        let retention = decoded.retention;
         // Only a genuinely downscaled result is worth persisting: an un-shrunk image re-encoded is
         // often bigger than the original its fetcher already holds, and saves no decode.
-        let cache = self.scaled_cache.clone().filter(|_| decoded.downscaled());
+        let cache = self.scaled_cache.clone().filter(|_| decoded.downscaled() && retention == Retention::Persistent);
         let disk = disk_key(key);
         let (bitmap, written) = blocking_image(move || {
             let written = cache.map(|cache| cache.put(&disk, &decoded.image));
@@ -359,7 +383,7 @@ impl<B: Bitmap> Inner<B> {
         if let Some(Err(error)) = written {
             self.log.warn(&format!("scaled cache write failed: {error}"), Some(&error));
         }
-        Ok(bitmap)
+        Ok((bitmap, retention))
     }
 
     /// The request's sources in [`order_sources`] order until one decodes; failures fall through.
@@ -380,9 +404,15 @@ impl<B: Bitmap> Inner<B> {
             }
             match self.fetch_source(&source, size, request.scale).await {
                 Ok(decoded) => {
-                    let (index, key, width, height) =
-                        (self.variant_index.clone(), request.key.clone(), decoded.source_width, decoded.source_height);
-                    variant_io(move || index.record_fetched(&key, &source_key, width, height)).await?;
+                    if decoded.retention == Retention::Persistent {
+                        let (index, key, width, height) = (
+                            self.variant_index.clone(),
+                            request.key.clone(),
+                            decoded.source_width,
+                            decoded.source_height,
+                        );
+                        variant_io(move || index.record_fetched(&key, &source_key, width, height)).await?;
+                    }
                     return Ok(decoded);
                 }
                 Err(error) => {

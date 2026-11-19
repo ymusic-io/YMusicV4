@@ -4,7 +4,8 @@
 
 use std::io::{self, BufReader, BufWriter, Write};
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, OnceLock};
 
 use image::RgbaImage;
 use ym_common::log::Logger;
@@ -24,12 +25,21 @@ pub trait ScaledImageCache: Send + Sync {
     fn file_path(&self, _key: &str) -> io::Result<Option<PathBuf>> {
         Ok(None)
     }
+
+    /// `image` as a file outside the cache, for `ImageLoader::load_file` of an image that must not be
+    /// cached; it replaces the last one under `key`. `None` without file-backed storage.
+    fn transient_file(&self, _key: &str, _image: &RgbaImage) -> io::Result<Option<PathBuf>> {
+        Ok(None)
+    }
 }
 
 /// [`ScaledImageCache`] on the journaled [`DiskLruCache`]: true LRU, crash-safe journaled writes,
 /// bounded to its byte cap. The JVM app's `image-scaled-cache` format.
 pub struct DiskScaledImageCache {
     cache: Arc<DiskLruCache>,
+    transient_directory: PathBuf,
+    /// Last process's transient files go before this one writes its first.
+    transient_ready: OnceLock<()>,
 }
 
 impl DiskScaledImageCache {
@@ -37,7 +47,13 @@ impl DiskScaledImageCache {
     pub const DEFAULT_MAX_BYTES: u64 = 64 * 1024 * 1024;
 
     pub fn new(directory: PathBuf, max_bytes: u64, log: Logger, tokio: tokio::runtime::Handle) -> Self {
-        Self { cache: DiskLruCache::new(directory, 1, max_bytes, log, tokio) }
+        let mut transient_directory = directory.clone().into_os_string();
+        transient_directory.push("-transient");
+        Self {
+            cache: DiskLruCache::new(directory, 1, max_bytes, log, tokio),
+            transient_directory: transient_directory.into(),
+            transient_ready: OnceLock::new(),
+        }
     }
 
     /// Bytes currently accounted by the journal.
@@ -80,4 +96,26 @@ impl ScaledImageCache for DiskScaledImageCache {
     fn file_path(&self, key: &str) -> io::Result<Option<PathBuf>> {
         Ok(self.cache.get(key)?.map(|snapshot| snapshot.paths[0].clone()))
     }
+
+    fn transient_file(&self, key: &str, image: &RgbaImage) -> io::Result<Option<PathBuf>> {
+        self.transient_ready.get_or_init(|| {
+            // Best effort: a stale file left behind is overwritten or removed next launch.
+            let _ = std::fs::remove_dir_all(&self.transient_directory);
+        });
+        std::fs::create_dir_all(&self.transient_directory)?;
+        let file = self.transient_directory.join(key);
+        let partial = self.transient_directory.join(format!("{key}.{}.tmp", partial_suffix()));
+        let mut writer = BufWriter::new(std::fs::File::create(&partial)?);
+        encode_webp(image, &mut writer)?;
+        writer.flush()?;
+        drop(writer);
+        std::fs::rename(&partial, &file)?;
+        Ok(Some(file))
+    }
+}
+
+/// Distinct per write, so two writes of one key never share a partial file.
+fn partial_suffix() -> u64 {
+    static NEXT: AtomicU64 = AtomicU64::new(0);
+    u64::from(std::process::id()) << 32 | NEXT.fetch_add(1, Ordering::Relaxed)
 }

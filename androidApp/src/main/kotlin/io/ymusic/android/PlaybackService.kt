@@ -48,7 +48,6 @@ import io.ymusic.player.PlayerError
 import io.ymusic.player.isPlaying
 import io.ymusic.player.media3.Media3PlayerAdapter
 import io.ymusic.ui.AppGraph
-import io.ymusic.ui.FALLBACK_ART_URL
 import io.ymusic.ui.SearchFocus
 import io.ymusic.ui.playFromSearch
 import io.ymusic.ui.playerErrorMessage
@@ -189,7 +188,6 @@ class PlaybackService : MediaLibraryService() {
                 serviceScope,
                 artworkAuthority(this@PlaybackService),
                 sessionArtworkLimit(),
-                logger = log,
             )
         }
         session?.player = adapter
@@ -981,9 +979,9 @@ private fun PlayableItem.toMediaMetadata(context: android.content.Context): Medi
     // items already carry the stable art://pic/<id>.
     val target = when (this) {
         is PlayableItem.YtMedia -> youtubeThumbUrl(videoId)
-        is PlayableItem.LocalMedia -> displayThumbnailUrl ?: FALLBACK_ART_URL
+        else -> displayThumbnailUrl
     }
-    builder.setArtworkUri(artworkContentUri(context, target))
+    target?.let { builder.setArtworkUri(artworkContentUri(context, it)) }
     return builder.build()
 }
 

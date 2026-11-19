@@ -280,8 +280,7 @@ private fun ArrangeRow(
         }
         Box {
             Box(Modifier.size(44.dp).clip(RoundedCornerShape(6.dp)), contentAlignment = Alignment.Center) {
-                val art = localArtUrl(song)
-                ArtImage(art, RoundedCornerShape(6.dp), { ThumbPlaceholder(Icons.Default.MusicNote, 18.dp) }, localArtFallback(art))
+                ArtImage(localArtUrl(song), RoundedCornerShape(6.dp)) { ThumbPlaceholder(Icons.Default.MusicNote, 18.dp) }
             }
             if (stacked) {
                 Box(

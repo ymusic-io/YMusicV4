@@ -89,8 +89,9 @@ pub fn decode_items(text: &str) -> Result<Vec<QueueItem>, String> {
                     })
                 })
                 .collect();
+            let media_id = if local { row.get("mediaId").and_then(Value::as_i64) } else { None };
             if thumbs.is_empty()
-                && let Some(url) = string("thumbnailUrl")
+                && let Some(url) = string("thumbnailUrl").or_else(|| media_id.map(crate::local_art::local_art_url))
             {
                 thumbs.push(YtThumb { url, w: None, h: None });
             }
@@ -101,7 +102,7 @@ pub fn decode_items(text: &str) -> Result<Vec<QueueItem>, String> {
                 duration_ms: row.get("durationMs").and_then(Value::as_i64),
                 duration_label: string("duration"),
                 thumbs,
-                media_id: if local { row.get("mediaId").and_then(Value::as_i64) } else { None },
+                media_id,
                 history_code: if local { string("code") } else { None },
                 youtube_vid: if local { string("videoId") } else { None },
                 loudness_gain_db: if local { gain } else { None },

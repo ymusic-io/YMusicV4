@@ -33,9 +33,9 @@ import java.security.SecureRandom
  * salt ever leak with a backup.
  *
  * The served file IS the shared app ImageLoader's scaled disk cache entry
- * ([io.ymusic.imageloader.ImageLoader.loadFile]): no provider-local storage, no transient copy — the
- * loader's journaled LRU owns write atomicity and eviction. A path can be evicted between resolve
- * and open; one re-resolve covers that race.
+ * ([io.ymusic.imageloader.ImageLoader.loadFile]): no provider-local storage — the loader's journaled
+ * LRU owns write atomicity and eviction (a local item's fallback art is the loader's transient file).
+ * A path can be evicted between resolve and open; one re-resolve covers that race.
  */
 class ArtworkProvider : ContentProvider() {
 

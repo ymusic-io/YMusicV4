@@ -13,6 +13,7 @@ import kmpffmpeg.metadata.FfmpegMetadataGetter
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
@@ -56,8 +57,9 @@ class MediaStoreArtTest {
     }
 
     @Test
-    fun nothing_to_show_stays_null() {
-        assertNull(localArtUrl(item()))
+    fun nothing_to_show_still_has_the_art_url() {
+        assertEquals("art://pic/7", localArtUrl(item()))
+        assertFalse(hasArtSource(item()))
     }
 
     @Test

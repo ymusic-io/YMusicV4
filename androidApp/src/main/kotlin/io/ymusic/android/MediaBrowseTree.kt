@@ -247,7 +247,7 @@ class MediaBrowseTree(private val context: Context, private val graph: AppGraph)
             .setArtist(listOfNotNull(artist, album).joinToString(" · ").ifEmpty { null })
             .setIsBrowsable(false)
             .setIsPlayable(true)
-        localArtUrl(this)?.let { metadata.setArtworkUri(artworkContentUri(context, it)) }
+        metadata.setArtworkUri(artworkContentUri(context, localArtUrl(this)))
         return MediaItem.Builder()
             .setMediaId("$LOCAL_SONG_PREFIX$containerId/$id")
             .setMediaMetadata(metadata.build())

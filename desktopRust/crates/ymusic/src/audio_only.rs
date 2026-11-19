@@ -13,8 +13,7 @@ use image::imageops::{self, FilterType};
 use image::{Frame, RgbaImage};
 use ym_image_loader::async_image::{GlobalImageLoader, LoadedImage};
 
-use crate::fallback_art::{fallback_art, fallback_art_key, fallback_backdrop};
-use crate::playback::{Playback, Source};
+use crate::playback::Playback;
 use crate::youtube_thumbnails::{NOW_PLAYING_ART_PX, art_image_request};
 
 const WAVE_BARS: usize = 40;
@@ -76,7 +75,7 @@ pub struct AudioOnlyArt {
     loading: Option<(String, Task<()>)>,
     /// A request whose load failed: not asked again until the request changes.
     failed: Option<String>,
-    /// The url whose art failed to load: it shows the fallback art.
+    /// The url whose art failed to load: it shows the grey placeholder.
     failed_url: Option<SharedString>,
     /// The next item's request last warmed, so a song change finds its art in memory.
     prefetched: Option<String>,
@@ -332,12 +331,10 @@ fn prepare(source: &RenderImage, box_size: (f32, f32)) -> Option<(RenderImage, R
 impl Render for AudioOnlyArt {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.last_render = Instant::now();
-        let (url, local, next_url, playing) = {
+        let (url, next_url, playing) = {
             let playback = self.playback.read(cx);
             let next_url = playback.queue.get(playback.index + 1).and_then(|item| item.display_thumbnail_url());
-            let current = playback.current();
-            let local = current.is_some_and(|item| matches!(item.source, Source::Local(_)));
-            (current.and_then(|item| item.display_thumbnail_url()), local, next_url, playback.is_playing())
+            (playback.current().and_then(|item| item.display_thumbnail_url()), next_url, playback.is_playing())
         };
         let (box_width, box_height) = self.video_box.get();
         let box_size = (box_width as f32, box_height as f32);
@@ -347,12 +344,9 @@ impl Render for AudioOnlyArt {
 
         let side = (box_size.1 * 0.86).min(box_size.0 * 0.32).max(0.);
         let shown = self.art.as_ref().filter(|art| Some(&art.url) == url.as_ref());
-        // The JVM `ArtTransition.failed`: no art url, or its load failed. The JVM `MissingArt`: a local
-        // file's fallback art, a stream's grey box.
+        // The JVM `ArtTransition.failed`: no art url, or its load failed.
         let missing = shown.is_none() && (url.is_none() || self.failed_url == url);
-        let fallback = missing && local;
-        let placeholder = (missing && !local).then(|| cx.theme().secondary);
-        let fallback_key = fallback_art_key(url.as_deref().filter(|_| fallback));
+        let placeholder = missing.then(|| cx.theme().secondary);
         let backdrop = self.art.as_ref().filter(|_| !missing).map(|art| art.backdrop.clone());
         let waiting = shown.is_none() && backdrop.is_some();
         let square = shown.map(|art| art.square.clone());
@@ -405,9 +399,6 @@ impl Render for AudioOnlyArt {
             .when_some(square, |frame, square| {
                 frame.child(img(square).size_full().rounded(px(ART_RADIUS)).object_fit(ObjectFit::Cover))
             })
-            .when(fallback, |frame| {
-                frame.child(fallback_art(fallback_key.as_deref()).rounded(px(ART_RADIUS)).overflow_hidden())
-            })
             .when_some(placeholder, |frame, grey| frame.bg(grey));
 
         div()
@@ -418,7 +409,6 @@ impl Render for AudioOnlyArt {
             .when_some(backdrop, |frame, backdrop| {
                 frame.child(img(backdrop).absolute().inset_0().size_full().object_fit(ObjectFit::Cover))
             })
-            .when(fallback, |frame| frame.child(fallback_backdrop(fallback_key.as_deref()).absolute().inset_0()))
             .when_some(placeholder, |frame, grey| frame.bg(grey))
             .child(div().absolute().inset_0().bg(black().opacity(if waiting {
                 1. - (1. - BACKDROP_DIM) * (1. - BACKDROP_WAIT_DIM)

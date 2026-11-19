@@ -21,6 +21,18 @@ pub struct DecodedImage {
     pub image: RgbaImage,
     pub source_width: u32,
     pub source_height: u32,
+    pub retention: Retention,
+}
+
+/// The JVM `Retention`: how far the loader keeps a fetched image. Only `Persistent` reaches a disk
+/// cache or the variant index.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Retention {
+    Persistent,
+    /// A stand-in the fetcher drew for an image it cannot have: kept in the memory LRU for this process only.
+    Memory,
+    /// A stand-in for a failure that may pass (offline): never cached, so the next load asks again.
+    None,
 }
 
 impl DecodedImage {
@@ -41,7 +53,12 @@ impl DecodedImage {
                 }
                 let top = (self.image.height() - height) / 2;
                 let band = imageops::crop_imm(&self.image, 0, top, width, height).to_image();
-                Self { image: band, source_width: self.source_width, source_height: self.source_width * 9 / 16 }
+                Self {
+                    image: band,
+                    source_width: self.source_width,
+                    source_height: self.source_width * 9 / 16,
+                    retention: self.retention,
+                }
             }
         }
     }
@@ -110,7 +127,12 @@ fn scale_down(full: DynamicImage, size: (u32, u32), scale: ImageScale) -> Decode
         ImageScale::Cover => ratio_x.max(ratio_y),
     };
     if ratio >= 1. {
-        return DecodedImage { image: full.into_rgba8(), source_width: width, source_height: height };
+        return DecodedImage {
+            image: full.into_rgba8(),
+            source_width: width,
+            source_height: height,
+            retention: Retention::Persistent,
+        };
     }
     let scaled_width = ((width as f32 * ratio).round() as u32).max(1);
     let scaled_height = ((height as f32 * ratio).round() as u32).max(1);
@@ -118,7 +140,7 @@ fn scale_down(full: DynamicImage, size: (u32, u32), scale: ImageScale) -> Decode
         DynamicImage::ImageRgba8(rgba) => imageops::resize(&rgba, scaled_width, scaled_height, FilterType::Triangle),
         other => imageops::resize(&other.into_rgba8(), scaled_width, scaled_height, FilterType::Triangle),
     };
-    DecodedImage { image: scaled, source_width: width, source_height: height }
+    DecodedImage { image: scaled, source_width: width, source_height: height, retention: Retention::Persistent }
 }
 
 /// Encodes an already-scaled image as lossy WebP into `sink` (the scaled cache's format: a fraction of

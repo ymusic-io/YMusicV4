@@ -22,7 +22,6 @@ use crate::action_icon::{HIT, auto_mirrored, sized_action_icon};
 use crate::assets::MaterialIcon;
 use crate::audio_only::AudioOnlyArt;
 use crate::download_dialog::DownloadTarget;
-use crate::fallback_art::local_art_fallback;
 use crate::graph::{AppGraph, on_core};
 use crate::lazy_rows::LazyRows;
 use crate::mini_player::{PlayClock, clock};
@@ -1815,15 +1814,12 @@ impl NowPlaying {
                             .overflow_hidden()
                             .bg(theme.secondary)
                             .when_some(item.display_thumbnail_url(), |frame, url| {
-                                let image = async_image_of(Some(art_request_sources(&url)))
-                                    .size_full()
-                                    .rounded(px(6.))
-                                    .object_fit(ObjectFit::Cover);
-                                frame.child(if matches!(item.source, Source::Local(_)) {
-                                    image.error(local_art_fallback(Some(&url)))
-                                } else {
-                                    image
-                                })
+                                frame.child(
+                                    async_image_of(Some(art_request_sources(&url)))
+                                        .size_full()
+                                        .rounded(px(6.))
+                                        .object_fit(ObjectFit::Cover),
+                                )
                             }),
                     )
                     .child(

@@ -8,6 +8,7 @@ import io.ymusic.imageloader.ImageLoader
 import io.ymusic.imageloader.ImageRequest
 import io.ymusic.imageloader.ImageScale
 import io.ymusic.imageloader.ImageSourceCache
+import io.ymusic.imageloader.Retention
 import io.ymusic.imageloader.decodeChecked
 import io.ymusic.imageloader.decodeScaled
 import io.ymusic.imageloader.decodeScaledFile
@@ -39,17 +40,18 @@ import kotlin.time.Duration.Companion.milliseconds
  * NowPlaying, media session/Auto) carries for a library item. Resolved from the store row at fetch
  * time by [mediaStoreArtFetcher]: the embedded cover (attached_pic) when the file carries one,
  * else the YouTube thumbnail when the file is tagged with a video id, else a representative
- * decoded frame for a video. Keyed by the store id, which survives file moves (the store preserves
- * it), so the image caches stay warm across a rescan — and because the caches key on this single
- * url, the source choice runs once per cold miss, never per view. [localArtUrl] mints the url only
- * when the store knows an artwork source exists, so art-less files never reach the fetcher.
+ * decoded frame for a video, else [fallbackArtBitmap]. Keyed by the store id, which survives file
+ * moves (the store preserves it), so the image caches stay warm across a rescan — and because the
+ * caches key on this single url, the source choice runs once per cold miss, never per view.
  */
-fun localArtUrl(item: MediaStoreItem): String? =
-    if (item.thumbnailStreamIndex != null || item.videoCodec != null || item.youtubeVid != null) {
-        UriBuilder().scheme("art").authority("pic").appendPathSegment(item.id.toString()).buildString()
-    } else {
-        null
-    }
+fun localArtUrl(item: MediaStoreItem): String = localArtUrl(item.id)
+
+fun localArtUrl(mediaId: Long): String =
+    UriBuilder().scheme("art").authority("pic").appendPathSegment(mediaId.toString()).buildString()
+
+/** The store knows an artwork source for [item]: a group or playlist shows its first such member's art, else its icon. */
+fun hasArtSource(item: MediaStoreItem): Boolean =
+    item.thumbnailStreamIndex != null || item.videoCodec != null || item.youtubeVid != null
 
 /** The YouTube thumbnail for [videoId] — mqdefault (320×180): the one variant every video has,
  *  and its url carries no rotating query params, so it is stable enough for long-lived uris. */
@@ -60,12 +62,12 @@ fun youtubeArtUrl(videoId: String): String =
     UriBuilder().scheme("art").authority("yt").appendPathSegment(videoId).buildString()
 
 /** `art://file?kind=…&uri=…` — art for a file not in the store: its embedded cover, else its video's
- *  thumbnail, else a decoded frame. Null when it has none of those. */
-fun fileArtUrl(uri: String, hasCover: Boolean, youtubeVid: String?, hasVideo: Boolean): String? = when {
+ *  thumbnail, else a decoded frame, else [fallbackArtBitmap]. */
+fun fileArtUrl(uri: String, hasCover: Boolean, youtubeVid: String?, hasVideo: Boolean): String = when {
     hasCover -> fileArtUrl(uri, ART_KIND_COVER)
     youtubeVid != null -> youtubeArtUrl(youtubeVid)
     hasVideo -> fileArtUrl(uri, ART_KIND_FRAME)
-    else -> null
+    else -> fileArtUrl(uri, ART_KIND_NONE)
 }
 
 private fun fileArtUrl(uri: String, kind: String): String =
@@ -73,6 +75,7 @@ private fun fileArtUrl(uri: String, kind: String): String =
 
 private const val ART_KIND_COVER = "cover"
 private const val ART_KIND_FRAME = "frame"
+private const val ART_KIND_NONE = "none"
 
 /** A video's thumbnail at a size — the art fetcher's fallback for files tagged with a video id. */
 fun interface YoutubeArt {
@@ -122,8 +125,13 @@ fun loaderYoutubeArt(loader: () -> ImageLoader): YoutubeArt = YoutubeArt { video
  *
  * With a [coverCache], an extraction that failed for the file itself (see [isExtractionFailure]) is
  * remembered for [failureTtl] under the cover's key plus [extractorVersion]: until then the item
- * throws [ImageLoadException.Reason.RecentlyFailed] without spawning ffmpeg. A changed file, or a
+ * fails as [ImageLoadException.Reason.RecentlyFailed] without spawning ffmpeg. A changed file, or a
  * build whose [extractorVersion] differs, extracts again at once.
+ *
+ * An `art:` url with no artwork source, or whose every source failed, is [fallbackArtBitmap] keyed by the
+ * url, never written to a disk cache ([Retention]). A lasting failure (nothing there, a remembered
+ * extraction failure) keeps it in memory; any other (offline, a failed extraction) is not cached at
+ * all, so the real art shows once the source answers.
  */
 fun mediaStoreArtFetcher(
     getter: FfmpegMetadataGetter,
@@ -136,6 +144,39 @@ fun mediaStoreArtFetcher(
     extractorVersion: String = "",
     failureTtl: Duration = EXTRACTION_FAILURE_TTL,
     clock: Clock = Clock.System,
+): ImageFetcher {
+    val art = sourceArtFetcher(getter, store, youtubeArt, coverCache, maxImageBytes, frameFallback, logger, extractorVersion, failureTtl, clock)
+    return ImageFetcher { uri, size, scale ->
+        try {
+            art.fetch(uri, size, scale)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            val reason = (e as? ImageLoadException)?.reason
+            val expected = reason == ImageLoadException.Reason.NotFound || reason == ImageLoadException.Reason.RecentlyFailed
+            logger?.log(if (expected) Logger.Level.DEBUG else Logger.Level.WARN, "art failed, fallback art shown: $uri", e)
+            val bitmap = try {
+                withContext(Dispatchers.Default) { fallbackArtBitmap(uri.toString(), size.width, size.height) }
+            } catch (drawing: Exception) {
+                drawing.addSuppressed(e)
+                throw drawing
+            }
+            DecodedImage(bitmap, bitmap.width, bitmap.height, if (expected) Retention.Memory else Retention.None)
+        }
+    }
+}
+
+private fun sourceArtFetcher(
+    getter: FfmpegMetadataGetter,
+    store: BetterMediaStore,
+    youtubeArt: YoutubeArt,
+    coverCache: ImageSourceCache?,
+    maxImageBytes: Long,
+    frameFallback: VideoFrameExtractor?,
+    logger: Logger?,
+    extractorVersion: String,
+    failureTtl: Duration,
+    clock: Clock,
 ): ImageFetcher = ImageFetcher { uri, size, scale ->
     suspend fun extractFrame(file: Uri): Source = try {
         getter.extractThumbnail(file)
@@ -166,7 +207,11 @@ fun mediaStoreArtFetcher(
     if (uri.authority?.toString() == "file") {
         val file = uri.queryParamValue("uri")?.let { Uri.parse(it) }
             ?: throw ImageLoadException(ImageLoadException.Reason.Unsupported, "malformed art uri: $url")
-        val source = if (uri.queryParamValue("kind")?.toString() == ART_KIND_COVER) getter.getAttachedPic(file) else extractFrame(file)
+        val source = when (uri.queryParamValue("kind")?.toString()) {
+            ART_KIND_COVER -> getter.getAttachedPic(file)
+            ART_KIND_FRAME -> extractFrame(file)
+            else -> throw ImageLoadException(ImageLoadException.Reason.NotFound, "file has no artwork source: $url")
+        }
         val bytes = readCapped(source, maxImageBytes, url)
         return@ImageFetcher decodeChecked(url) { decodeScaled(bytes, size, scale) }
     }

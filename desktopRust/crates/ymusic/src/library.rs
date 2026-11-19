@@ -23,7 +23,6 @@ use crate::a11y::{DragRow, FocusList, announced, heading, label, list_item};
 use crate::action_icon::{action_icon, auto_mirrored};
 use crate::assets::MaterialIcon;
 use crate::elevated_dialog::ConfirmDialog;
-use crate::fallback_art::local_art_fallback;
 use crate::graph::{AppGraph, on_core};
 use crate::lazy_rows::LazyRows;
 use crate::library_playlist::{self, AddToLocalPlaylist, ArrangePlaylist, Changed, NameMode, PlaylistNameDialog};
@@ -795,10 +794,8 @@ impl LibraryView {
         groups
             .into_iter()
             .map(|(name, members)| {
-                let art = members
-                    .iter()
-                    .find(|item| crate::local_art::local_art_url(item).is_some())
-                    .map(|item| (*item).clone());
+                let art =
+                    members.iter().find(|item| crate::local_art::has_art_source(item)).map(|item| (*item).clone());
                 (name, members.len(), art)
             })
             .collect()
@@ -837,7 +834,7 @@ impl LibraryView {
                 newest.sort_by_key(|detail| std::cmp::Reverse(detail.added_at));
                 let art = newest
                     .into_iter()
-                    .find(|detail| crate::local_art::local_art_url(&detail.item).is_some())
+                    .find(|detail| crate::local_art::has_art_source(&detail.item))
                     .map(|detail| detail.item.clone());
                 (playlist.clone(), details.len(), art)
             })
@@ -1771,7 +1768,6 @@ pub fn art_or_icon(
     let placeholder = icon.size(icon_size).text_color(cx.theme().muted_foreground);
     match art {
         Some(url) => async_image_of(Some(art_request_sources(&url)))
-            .error(local_art_fallback(Some(&url)))
             .size_full()
             .rounded(px(corner_radius))
             .object_fit(ObjectFit::Cover)
@@ -1949,7 +1945,7 @@ pub fn song_cell<V: SongMenuHost>(
             .hover(|style| style.bg(theme.primary.opacity(crate::settings_view::HOVER_ALPHA)))
             .child(LibraryView::thumb(
                 Icon::new(MaterialIcon::MusicNote),
-                crate::local_art::local_art_url(item).map(SharedString::from),
+                Some(crate::local_art::local_art_url(item.id).into()),
                 item.duration_ms,
                 cx,
             ))
@@ -2458,7 +2454,7 @@ impl LibraryView {
         }
         let position = index - SYSTEM_PLAYLISTS.len();
         let (playlist, count, art_item) = playlists[position].clone();
-        let art = art_item.and_then(|item| crate::local_art::local_art_url(&item).map(SharedString::from));
+        let art = art_item.map(|item| crate::local_art::local_art_url(item.id).into());
         let subtitle = ym_i18n::plural(ym_i18n::Plural::NSongs, count as i64, &[&count]);
         let view = cx.entity().downgrade();
         let menu_playlist = playlist.clone();
@@ -2508,7 +2504,7 @@ impl LibraryView {
             _ => MaterialIcon::Category,
         });
         let (name, count, art_item) = group.clone();
-        let art = art_item.and_then(|item| crate::local_art::local_art_url(&item).map(SharedString::from));
+        let art = art_item.map(|item| crate::local_art::local_art_url(item.id).into());
         let subtitle = ym_i18n::plural(ym_i18n::Plural::NSongs, count as i64, &[&count]);
         let open = name.clone();
         let card =

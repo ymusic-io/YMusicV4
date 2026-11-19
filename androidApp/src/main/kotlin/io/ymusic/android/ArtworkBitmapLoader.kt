@@ -2,21 +2,15 @@ package io.ymusic.android
 
 import android.graphics.Bitmap
 import android.net.Uri
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.unit.IntSize
 import androidx.media3.common.util.BitmapLoader
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
 import com.google.common.util.concurrent.SettableFuture
-import io.ymusic.imageloader.ImageLoadException
 import io.ymusic.imageloader.ImageLoader
 import io.ymusic.imageloader.decodeScaled
-import io.ymusic.ui.FALLBACK_ART_URL
 import io.ymusic.ui.artImageRequest
-import io.ymusic.ui.fallbackArtBitmap
-import io.ymusic.ui.fallbackArtColor
-import kmpcommon.log.Logger
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -34,10 +28,6 @@ import kotlin.math.roundToInt
  * [ArtworkProvider]-minted `content://` uris (what [MediaMetadata.artworkUri] carries so Android
  * Auto can resolve queue icons) are unwrapped back to their target url IN process — same
  * [ImageLoader] cache key as the raw url, no binder round-trip through the provider.
- *
- * Local art (`art:`) that fails to load, and [FALLBACK_ART_URL] (a local item with no art), is the
- * app's fallback art, so the notification and lock screen never fall back to the system's blank
- * default; other artwork (a YouTube thumbnail) that fails leaves the system default.
  */
 class ImageLoaderBitmapLoader(
     private val imageLoader: ImageLoader,
@@ -45,7 +35,6 @@ class ImageLoaderBitmapLoader(
     private val ownAuthority: String,
     /** The largest artwork the platform session keeps unscaled. */
     sessionBitmapLimit: Int,
-    private val logger: Logger?,
 ) : BitmapLoader {
     // Never over the session limit: some custom ROMs' MediaMetadata.Builder.scaleBitmap recycles its source,
     // and media3 publishes one bitmap under two keys, so the second key's rescale throws on the recycled bitmap.
@@ -66,34 +55,7 @@ class ImageLoaderBitmapLoader(
         } else {
             uri.toString()
         }
-        if (target == FALLBACK_ART_URL) return@future fallbackArt(null)
-        val request = artImageRequest(target, maxPx, maxPx)
-        try {
-            imageLoader.load(request, cacheInMemory = false).asAndroidBitmap().fitWithin(maxPx)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            if (Uri.parse(target).scheme != "art") throw e
-            // A missing or already-reported picture is expected (the loader logged the source); anything else warns.
-            val expected = (e as? ImageLoadException)?.reason.let {
-                it == ImageLoadException.Reason.NotFound || it == ImageLoadException.Reason.RecentlyFailed
-            }
-            logger?.log(if (expected) Logger.Level.DEBUG else Logger.Level.WARN, "session artwork failed, fallback art shown: $target", e)
-            fallbackArt(request.key)
-        }
-    }
-
-    private val renderedFallbacks = object : LinkedHashMap<Color, Bitmap>(16, 0.75f, true) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Color, Bitmap>) = size > RENDERED_FALLBACKS
-    }
-
-    /** Rendered once per colour; each caller gets its own copy, as the session may scale or recycle it. */
-    private fun fallbackArt(key: String?): Bitmap {
-        val color = fallbackArtColor(key)
-        val rendered = synchronized(renderedFallbacks) {
-            renderedFallbacks.getOrPut(color) { fallbackArtBitmap(color, maxPx).asAndroidBitmap() }
-        }
-        return rendered.copy(Bitmap.Config.ARGB_8888, false)
+        imageLoader.load(artImageRequest(target, maxPx, maxPx), cacheInMemory = false).asAndroidBitmap().fitWithin(maxPx)
     }
 
     /** Subsampled decodes land up to 2x the request; finish the downscale exactly. */
@@ -118,6 +80,3 @@ class ImageLoaderBitmapLoader(
         return future
     }
 }
-
-/** The palette has 16 colours; the session shows a handful of items at once. */
-private const val RENDERED_FALLBACKS = 4

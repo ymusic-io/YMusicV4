@@ -4,6 +4,7 @@ import app.cash.sqldelight.db.QueryResult
 import app.cash.sqldelight.db.SqlCursor
 import app.cash.sqldelight.db.SqlDriver
 import io.ymusic.player.PlayableItem
+import io.ymusic.ui.localArtUrl
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -254,7 +255,7 @@ private fun decodeItems(json: String): List<PlayableItem> =
                 title = obj.stringOrNull("title"),
                 artist = obj.stringOrNull("artist"),
                 album = obj.stringOrNull("album"),
-                thumbnailUrl = obj.stringOrNull("thumbnailUrl"),
+                thumbnailUrl = obj.stringOrNull("thumbnailUrl") ?: obj.longOrNull("mediaId")?.let(::localArtUrl),
                 durationMs = obj.longOrNull("durationMs"),
                 loudnessGainDb = obj.doubleOrNull("loudnessGainDb"),
                 videoId = obj.stringOrNull("videoId"),

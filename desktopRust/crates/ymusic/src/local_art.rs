@@ -1,6 +1,7 @@
 //! Library artwork as the JVM `LocalArt.kt` names and resolves it: `art://pic/<media id>` for a
 //! Library item, `art://file?kind=…&uri=…` and `art://yt/<video id>` for a file outside it, resolved by
-//! [`MediaStoreArtFetcher`] through the image loader.
+//! [`MediaStoreArtFetcher`] through the image loader; one with no artwork, or whose every source
+//! failed, resolves to the fallback art.
 
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
@@ -11,20 +12,26 @@ use ym_ffmpeg::{FfmpegError, FfmpegMetadataGetter};
 use ym_image_loader::async_image::LoadedImage;
 use ym_image_loader::{
     Bitmap, DEFAULT_MAX_IMAGE_BYTES, DecodedImage, ImageFetcher, ImageLoadError, ImageLoader, ImageRequest, ImageScale,
-    ImageSourceCache, Reason, decode_scaled, decode_scaled_file, source_cache_key,
+    ImageSourceCache, Reason, Retention, decode_scaled, decode_scaled_file, source_cache_key,
 };
 use ym_store::{MediaItem, MediaStore};
 
+use crate::fallback_art::fallback_art_image;
 use crate::youtube_thumbnails::{youtube_image_key, youtube_thumbnail_sources};
 
 const ART_KIND_COVER: &str = "cover";
 const ART_KIND_FRAME: &str = "frame";
+const ART_KIND_NONE: &str = "none";
 
-/// The JVM `localArtUrl`: `art://pic/<media id>`, the one url every consumer carries for a Library
-/// item, minted only when the store knows an artwork source (embedded cover, YouTube id, video).
-pub fn local_art_url(item: &MediaItem) -> Option<String> {
-    (item.thumbnail_stream_index.is_some() || item.video_codec.is_some() || item.youtube_vid.is_some())
-        .then(|| format!("art://pic/{}", item.id))
+/// The JVM `localArtUrl`: `art://pic/<media id>`, the one url every consumer carries for a Library item.
+pub fn local_art_url(media_id: i64) -> String {
+    format!("art://pic/{media_id}")
+}
+
+/// The JVM `hasArtSource`: the store knows an artwork source for `item` (embedded cover, YouTube id,
+/// video); a group or playlist shows its first such member's art, else its icon.
+pub fn has_art_source(item: &MediaItem) -> bool {
+    item.thumbnail_stream_index.is_some() || item.video_codec.is_some() || item.youtube_vid.is_some()
 }
 
 /// The JVM `youtubeArtUrl`: a video's best thumbnail at the view size, for a file not in the store.
@@ -33,15 +40,15 @@ pub fn youtube_art_url(video_id: &str) -> String {
 }
 
 /// The JVM `fileArtUrl`: art for a file not in the store (`file_uri` is its `file://` URI): its
-/// embedded cover, else its video's thumbnail, else a decoded frame; `None` without any of those.
-pub fn file_art_url(file_uri: &str, has_cover: bool, youtube_vid: Option<&str>, has_video: bool) -> Option<String> {
+/// embedded cover, else its video's thumbnail, else a decoded frame, else the fallback art.
+pub fn file_art_url(file_uri: &str, has_cover: bool, youtube_vid: Option<&str>, has_video: bool) -> String {
     let kind = match (has_cover, youtube_vid, has_video) {
         (true, _, _) => ART_KIND_COVER,
-        (false, Some(video_id), _) => return Some(youtube_art_url(video_id)),
+        (false, Some(video_id), _) => return youtube_art_url(video_id),
         (false, None, true) => ART_KIND_FRAME,
-        (false, None, false) => return None,
+        (false, None, false) => ART_KIND_NONE,
     };
-    Some(format!("art://file?kind={}&uri={}", query_value(kind), query_value(file_uri)))
+    format!("art://file?kind={}&uri={}", query_value(kind), query_value(file_uri))
 }
 
 /// An art url as this app's earlier releases saved it in queue rows (`local-art/<kind>/<stream>/<px>/
@@ -81,6 +88,11 @@ pub fn attach_media(media: Arc<MediaStore>) {
 /// tagged with a YouTube id (and `art://yt/…`) loads its video's thumbnail through `loader`, sharing
 /// that identity's caches. The outer `art:` load holds a local slot and the inner one a network slot,
 /// so the nesting cannot starve.
+///
+/// An `art:` url with no artwork source, or whose every source failed, is the fallback art keyed by the
+/// url, never written to a disk cache ([`Retention`]). A lasting failure (nothing there, a remembered
+/// extraction failure) keeps it in memory; any other (offline, a failed extraction) is not cached at
+/// all, so the real art shows once the source answers.
 pub struct MediaStoreArtFetcher {
     pub cover_cache: Arc<ImageSourceCache>,
     pub loader: Arc<OnceLock<ImageLoader<LoadedImage>>>,
@@ -128,9 +140,59 @@ impl ImageFetcher for MediaStoreArtFetcher {
         size: (u32, u32),
         scale: ImageScale,
     ) -> Option<BoxFuture<'static, Result<DecodedImage, ImageLoadError>>> {
-        let parsed = parse_art(url)?;
-        let (cache, loader, url) = (self.cover_cache.clone(), self.loader.clone(), url.to_owned());
+        let art = self.source_art(parse_art(url)?, url, size, scale);
+        let (loader, url) = (self.loader.clone(), url.to_owned());
         Some(Box::pin(async move {
+            let error = match art.await {
+                Ok(decoded) => return Ok(decoded),
+                Err(error) => error,
+            };
+            let expected = matches!(error.reason, Reason::NotFound | Reason::RecentlyFailed);
+            if let Some(loader) = loader.get() {
+                if expected {
+                    loader.logger().debug(|| format!("art failed, fallback art shown: {url}: {error}"));
+                } else {
+                    loader.logger().warn(&format!("art failed, fallback art shown: {url}"), Some(&error));
+                }
+            }
+            let retention = if expected { Retention::Memory } else { Retention::None };
+            let key = url.clone();
+            let drawn = tokio::task::spawn_blocking(move || fallback_art_image(&key, size)).await;
+            match drawn {
+                Ok(Ok(image)) => {
+                    let (source_width, source_height) = image.dimensions();
+                    Ok(DecodedImage { image, source_width, source_height, retention })
+                }
+                Ok(Err(drawing)) => {
+                    let mut failure =
+                        ImageLoadError::new(Reason::Undecodable, format!("fallback art: {url}: {drawing}"));
+                    failure.suppressed.push(error);
+                    Err(failure)
+                }
+                Err(task) => {
+                    let mut failure = ImageLoadError::with_cause(
+                        Reason::Undecodable,
+                        format!("fallback art task failed: {url}"),
+                        task,
+                    );
+                    failure.suppressed.push(error);
+                    Err(failure)
+                }
+            }
+        }))
+    }
+}
+
+impl MediaStoreArtFetcher {
+    fn source_art(
+        &self,
+        parsed: Result<ArtUrl, ImageLoadError>,
+        url: &str,
+        size: (u32, u32),
+        scale: ImageScale,
+    ) -> BoxFuture<'static, Result<DecodedImage, ImageLoadError>> {
+        let (cache, loader, url) = (self.cover_cache.clone(), self.loader.clone(), url.to_owned());
+        Box::pin(async move {
             let art = parsed?;
             if let ArtUrl::YouTube(video_id) = &art {
                 return youtube_art(&loader, video_id, size, scale).await;
@@ -162,7 +224,7 @@ impl ImageFetcher for MediaStoreArtFetcher {
                     other => other,
                 },
             }
-        }))
+        })
     }
 }
 
@@ -189,7 +251,7 @@ async fn youtube_art(
     let image = tokio::task::spawn_blocking(move || bitmap.to_rgba()).await.map_err(|error| {
         ImageLoadError::with_cause(Reason::Undecodable, format!("art copy failed: {video_id}"), error)
     })?;
-    Ok(DecodedImage { image, source_width: width, source_height: height })
+    Ok(DecodedImage { image, source_width: width, source_height: height, retention: Retention::Persistent })
 }
 
 /// Blocking: the art a store row or a loose file has, decoded to `size`, or the video id to load.
@@ -209,8 +271,12 @@ fn resolve(
             let extract_failed = |error: FfmpegError| {
                 ImageLoadError::new(Reason::Undecodable, format!("art extraction failed: {url}: {error}"))
             };
-            let bytes = if kind == ART_KIND_COVER { attached_picture(&path) } else { video_frame(&path) }
-                .map_err(extract_failed)?;
+            let bytes = match kind.as_str() {
+                ART_KIND_COVER => attached_picture(&path),
+                ART_KIND_FRAME => video_frame(&path),
+                _ => return Err(ImageLoadError::new(Reason::NotFound, format!("file has no artwork source: {url}"))),
+            }
+            .map_err(extract_failed)?;
             decode_scaled(&bytes, size, scale, url).map(Resolved::Decoded)
         }
         ArtUrl::Picture(id) => {

@@ -197,8 +197,8 @@ pub struct QueueItem {
 }
 
 /// A local item's one art url (the JVM `LocalMedia.thumbnailUrl`) as its thumbnail list.
-fn art_thumb(url: Option<String>) -> Vec<YtThumb> {
-    url.map(|url| vec![YtThumb { url, w: None, h: None }]).unwrap_or_default()
+fn art_thumb(url: String) -> Vec<YtThumb> {
+    vec![YtThumb { url, w: None, h: None }]
 }
 
 impl QueueItem {
@@ -220,7 +220,7 @@ impl QueueItem {
 
     /// A Library item.
     pub fn from_local(item: &ym_store::MediaItem) -> Self {
-        let thumbs = art_thumb(crate::local_art::local_art_url(item));
+        let thumbs = art_thumb(crate::local_art::local_art_url(item.id));
         Self { media_id: Some(item.id), thumbs, ..Self::from_file(item) }
     }
 

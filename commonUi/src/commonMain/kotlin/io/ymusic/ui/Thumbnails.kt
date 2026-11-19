@@ -56,19 +56,15 @@ internal fun BoxScope.ThumbImage(
     ImageLayer(request?.first, request?.second.orEmpty(), shape, placeholder)
 }
 
-/**
- * One url into the thumbnail box; a YouTube thumbnail url joins its video's identity ([artRequestSources]).
- * [error] replaces [placeholder] when the load fails (local art passes [localArtFallback]).
- */
+/** One url into the thumbnail box; a YouTube thumbnail url joins its video's identity ([artRequestSources]). */
 @Composable
 internal fun BoxScope.ArtImage(
     url: String?,
     shape: Shape,
     placeholder: (@Composable BoxScope.() -> Unit)? = null,
-    error: (@Composable BoxScope.() -> Unit)? = null,
 ) {
     val request = url?.let(::artRequestSources)
-    ImageLayer(request?.first, request?.second.orEmpty(), shape, placeholder, error)
+    ImageLayer(request?.first, request?.second.orEmpty(), shape, placeholder)
 }
 
 @Composable
@@ -77,7 +73,6 @@ private fun BoxScope.ImageLayer(
     sources: List<ImageSource>,
     shape: Shape,
     placeholder: (@Composable BoxScope.() -> Unit)?,
-    error: (@Composable BoxScope.() -> Unit)? = null,
 ) {
     val loader = LocalImageLoader.current
     if (key == null || sources.isEmpty() || loader == null) {
@@ -96,6 +91,5 @@ private fun BoxScope.ImageLayer(
         modifier = Modifier.matchParentSize().clip(shape),
         contentScale = ContentScale.Crop,
         placeholder = placeholder,
-        error = error,
     )
 }

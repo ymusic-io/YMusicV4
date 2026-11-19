@@ -391,7 +391,7 @@ internal fun MiniArtTile(
             VideoHole(coordinator.player, surface, Modifier.fillMaxSize())
         }
         if (coverOnly || audioOnly || surface == null) {
-            AudioOnlyCover(item.displayThumbnailUrl, item is PlayableItem.LocalMedia, Modifier.fillMaxSize())
+            AudioOnlyCover(item.displayThumbnailUrl, Modifier.fillMaxSize())
         }
         BufferingIndicator(status, size = 22.dp, strokeWidth = 2.dp)
         Box(
@@ -625,7 +625,6 @@ private fun FullscreenVideo(graph: AppGraph, coordinator: PlaybackCoordinator, o
             player,
             graph.playerSurface,
             current?.displayThumbnailUrl,
-            current is PlayableItem.LocalMedia,
             Modifier.fillMaxSize(),
             fill = fillScreen,
             settings = graph.settings,
@@ -710,7 +709,6 @@ private fun PortraitNowPlaying(
                 player,
                 graph.playerSurface,
                 current?.displayThumbnailUrl,
-                current is PlayableItem.LocalMedia,
                 Modifier.fillMaxSize(),
                 settings = graph.settings,
             )
@@ -829,7 +827,6 @@ private fun LandscapeNowPlaying(
                     player,
                     graph.playerSurface,
                     current?.displayThumbnailUrl,
-                    current is PlayableItem.LocalMedia,
                     Modifier.fillMaxSize(),
                     settings = graph.settings,
                 )
@@ -2454,12 +2451,9 @@ private fun QueueRowContent(
             Modifier.size(if (large) 60.dp else 48.dp).clip(RoundedCornerShape(6.dp)).a11ySilent(),
             contentAlignment = Alignment.Center,
         ) {
-            ArtImage(
-                item.displayThumbnailUrl,
-                RoundedCornerShape(6.dp),
-                placeholder = { ThumbPlaceholder(Icons.Outlined.Image, 18.dp) },
-                error = if (item is PlayableItem.LocalMedia) localArtFallback(item.displayThumbnailUrl) else null,
-            )
+            ArtImage(item.displayThumbnailUrl, RoundedCornerShape(6.dp)) {
+                ThumbPlaceholder(Icons.Outlined.Image, 18.dp)
+            }
             if (offline) AvailableOfflineMark(Modifier.align(Alignment.TopStart))
         }
         Column(Modifier.weight(1f).a11ySilent()) {

@@ -101,25 +101,18 @@ internal fun showsAudioOnly(player: Player): Boolean {
 
 private class AudioOnlyMemo(var value: Boolean)
 
-/** Cropped thumbnail filling the hole — mini player audio-only; [MissingArt] when there is none. */
+/** Cropped thumbnail filling the hole — mini player audio-only. */
 @Composable
 internal fun AudioOnlyCover(
     url: String?,
-    local: Boolean,
     modifier: Modifier = Modifier,
 ) {
     Box(
-        modifier.clip(RectangleShape).background(Color.Black),
+        modifier.clip(RectangleShape).background(DesignColors.Placeholder),
         contentAlignment = Alignment.Center,
     ) {
-        if (url == null) MissingArt(local, null) else ArtImage(url, RectangleShape, error = { MissingArt(local, url) })
+        ArtImage(url, RectangleShape)
     }
-}
-
-/** The player's art for an item with none, or whose load failed: a local file's [FallbackArt], else the grey placeholder. */
-@Composable
-private fun BoxScope.MissingArt(local: Boolean, url: String?) {
-    if (local) FallbackArt(fallbackArtKey(url)) else Box(Modifier.matchParentSize().background(DesignColors.Placeholder))
 }
 
 /**
@@ -130,7 +123,6 @@ private fun BoxScope.MissingArt(local: Boolean, url: String?) {
 internal fun AudioOnlyArtWave(
     player: Player,
     url: String?,
-    local: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val status by player.status.collectAsState()
@@ -168,7 +160,7 @@ internal fun AudioOnlyArtWave(
         val art = rememberArtTransition(url, decodeSize)
         PrefetchNextArt(player, decodeSize)
         Box(Modifier.matchParentSize().blur(28.dp)) {
-            ArtBackdrop(art, local)
+            ArtBackdrop(art)
         }
         Box(Modifier.matchParentSize().background(Color.Black.copy(alpha = 0.36f)))
         Row(
@@ -181,7 +173,7 @@ internal fun AudioOnlyArtWave(
                     .shadow(10.dp, RoundedCornerShape(8.dp))
                     .clip(RoundedCornerShape(8.dp)),
             ) {
-                ArtSquare(art, local)
+                ArtSquare(art)
             }
             Spacer(Modifier.width(14.dp))
             Canvas(Modifier.weight(1f).fillMaxHeight()) {
@@ -222,7 +214,8 @@ private class ArtTransition {
     var current by mutableStateOf<ImageBitmap?>(null)
     var url: String? = null
     var shading by mutableStateOf(false)
-    /** [url] is null or its load failed: [MissingArt] shows. */
+
+    /** [url] is null or its load failed: the grey placeholder shows. */
     var failed by mutableStateOf(false)
     val outAlpha = Animatable(1f)
     val inAlpha = Animatable(0f)
@@ -318,18 +311,23 @@ private fun BoxScope.ArtImageLayer(bitmap: ImageBitmap?, alpha: () -> Float) {
 
 /** The backdrop keeps the outgoing picture (dimmed) under the incoming one's fade-in. */
 @Composable
-private fun BoxScope.ArtBackdrop(art: ArtTransition, local: Boolean) {
-    if (art.failed) MissingArt(local, art.url)
+private fun BoxScope.ArtBackdrop(art: ArtTransition) {
+    if (art.failed) ArtPlaceholder()
     ArtImageLayer(art.previous) { 1f }
     ArtImageLayer(art.current) { art.inAlpha.value }
     Box(Modifier.matchParentSize().graphicsLayer { alpha = art.dim.value }.background(Color.Black))
 }
 
+@Composable
+private fun BoxScope.ArtPlaceholder() {
+    Box(Modifier.matchParentSize().background(DesignColors.Placeholder))
+}
+
 /** The square fades the outgoing picture out over the shade, then the incoming one in. */
 @Composable
-private fun BoxScope.ArtSquare(art: ArtTransition, local: Boolean) {
+private fun BoxScope.ArtSquare(art: ArtTransition) {
     if (art.shading) ArtShade()
-    if (art.failed) MissingArt(local, art.url)
+    if (art.failed) ArtPlaceholder()
     ArtImageLayer(art.previous) { art.outAlpha.value }
     ArtImageLayer(art.current) { art.inAlpha.value }
 }
@@ -363,8 +361,6 @@ internal fun PlayerSurfaceHole(
     player: Player,
     surface: @Composable (Modifier) -> Unit,
     artUrl: String?,
-    /** The item is a local file: its missing art is [FallbackArt]. */
-    localArt: Boolean,
     modifier: Modifier = Modifier,
     fill: Boolean = false,
     wave: Boolean = true,
@@ -374,8 +370,8 @@ internal fun PlayerSurfaceHole(
     Box(modifier) {
         VideoHole(player, surface, Modifier.fillMaxSize(), fill = fill)
         if (audioOnly) {
-            if (wave) AudioOnlyArtWave(player, artUrl, localArt, Modifier.fillMaxSize())
-            else AudioOnlyCover(artUrl, localArt, Modifier.fillMaxSize())
+            if (wave) AudioOnlyArtWave(player, artUrl, Modifier.fillMaxSize())
+            else AudioOnlyCover(artUrl, Modifier.fillMaxSize())
         } else if (settings != null) {
             FpsBadge(player, settings, Modifier.align(Alignment.TopStart).padding(8.dp))
         }

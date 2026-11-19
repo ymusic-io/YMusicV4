@@ -786,7 +786,7 @@ impl ArrangePlaylist {
                     .justify_center()
                     .child(crate::library::art_or_icon(
                         Icon::new(MaterialIcon::MusicNote),
-                        crate::local_art::local_art_url(song).map(SharedString::from),
+                        Some(crate::local_art::local_art_url(song.id).into()),
                         px(18.),
                         6.,
                         cx,

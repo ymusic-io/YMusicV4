@@ -14,8 +14,7 @@ use ym_image_loader::async_image::async_image_of;
 use crate::a11y::{FocusList, SliderStop};
 use crate::action_icon::{HIT, action_icon, auto_mirrored, sized_action_icon};
 use crate::assets::MaterialIcon;
-use crate::fallback_art::local_art_fallback;
-use crate::playback::{Playback, PlaybackState, QueueItem, Source};
+use crate::playback::{Playback, PlaybackState, QueueItem};
 use crate::queue_nav::LoopMode;
 use crate::spinner::Spinner;
 use crate::youtube_thumbnails::art_request_sources;
@@ -287,19 +286,13 @@ impl MiniPlayer {
         }
     }
 
-    /// The JVM `AudioOnlyCover`: a local file's missing art is the fallback art, a stream's the grey box.
     fn cover(item: &QueueItem, corner_radius: f32, cx: &App) -> Div {
-        let local = matches!(item.source, Source::Local(_));
-        let art = match item.display_thumbnail_url() {
-            Some(url) => {
-                let image = async_image_of(Some(art_request_sources(&url)))
-                    .size_full()
-                    .rounded(px(corner_radius))
-                    .object_fit(ObjectFit::Cover);
-                Some(if local { image.error(local_art_fallback(Some(&url))) } else { image }.into_any_element())
-            }
-            None => local.then(|| local_art_fallback(None).into_any_element()),
-        };
+        let art = item.display_thumbnail_url().map(|url| {
+            async_image_of(Some(art_request_sources(&url)))
+                .size_full()
+                .rounded(px(corner_radius))
+                .object_fit(ObjectFit::Cover)
+        });
         div().overflow_hidden().rounded(px(corner_radius)).bg(cx.theme().secondary).flex_shrink_0().children(art)
     }
 
