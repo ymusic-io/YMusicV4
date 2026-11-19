@@ -40,6 +40,7 @@ import io.ymusic.ui.resources.cd_next
 import io.ymusic.ui.resources.cd_previous
 import io.ymusic.ui.resources.cd_rewind10
 import io.ymusic.ui.resources.cd_search
+import io.ymusic.ui.resources.reload
 import io.ymusic.ui.resources.shortcuts_escape
 import io.ymusic.ui.resources.shortcuts_help
 import io.ymusic.ui.resources.shortcuts_nav_menu
@@ -70,6 +71,7 @@ internal fun ShortcutsHelpDialog(onDismiss: () -> Unit) {
         listOf("$cmd + 1…9") to Res.string.shortcuts_switch_tabs,
         listOf("Esc") to Res.string.shortcuts_escape,
         listOf("Esc Esc") to Res.string.cd_back,
+        listOf("F5", "$cmd + R") to Res.string.reload,
         listOf("F1") to Res.string.shortcuts_help,
     )
     // Arrow glyphs are spoken inconsistently (or not at all) across screen readers.
