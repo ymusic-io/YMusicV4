@@ -1781,8 +1781,7 @@ impl NowPlaying {
                 on_right_click(
                     self.queue_focus
                         .item(position, row, cx)
-                        .pl_2()
-                        .pr_4()
+                        .px_2()
                         .py(px(if large { 10. } else { 8. }))
                         .gap(px(if large { 12. } else { 8. }))
                         .items_center()
