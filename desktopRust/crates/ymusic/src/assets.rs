@@ -128,6 +128,8 @@ material_icons! {
     Favorite => "filled/favorite",
     /// `Icons.Default.SelectAll`.
     SelectAll => "filled/select_all",
+    /// `Icons.Default.GpsFixed`.
+    GpsFixed => "filled/gps_fixed",
     /// `Icons.Outlined.OndemandVideo`.
     OndemandVideoOutlined => "outlined/ondemand_video",
     /// `Icons.Outlined.LibraryMusic`.
