@@ -8,7 +8,7 @@ use futures::FutureExt;
 
 use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::input::{InputEvent, Textarea, TextareaState};
-use gpui_kit::component::menu::{DropdownMenu, PopupMenuItem};
+use gpui_kit::component::menu::PopupMenuItem;
 use gpui_kit::component::{ActiveTheme, Icon, Selectable, Sizable, StyledExt, WindowExt, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
@@ -23,6 +23,7 @@ use crate::assets::MaterialIcon;
 use crate::elevated_dialog::{ConfirmDialog, button_bar, chrome, press, scroll_body, text_button, title_bar};
 use crate::feed::{FeedSource, Navigate, error_text};
 use crate::graph::{AppGraph, on_core};
+use crate::item_menu::{ItemMenu, on_right_click};
 use crate::settings_view::HOVER_ALPHA;
 use crate::spinner::Spinner;
 use crate::youtube_thumbnails::thumb_request_sources;
@@ -830,7 +831,8 @@ impl VideoDetailsView {
                     }
                 })),
         );
-        if self.editing.as_ref() == Some(&comment.id) {
+        let editing = self.editing.as_ref() == Some(&comment.id);
+        if editing {
             body = body.child(self.render_field(Draft::Edit, cx));
         } else {
             body = body
@@ -840,7 +842,38 @@ impl VideoDetailsView {
         let own = comment.edit_token.is_some() || comment.delete_token.is_some();
         let menu_comment = comment.clone();
         let view = cx.entity().downgrade();
-        h_flex()
+        let menu = own.then(|| {
+            ItemMenu::new(move |menu, _, cx| {
+                // Material's own icon size and tint: the JVM menu sets neither.
+                let tint = cx.theme().muted_foreground;
+                let mut menu = menu.restyle(|style| {
+                    style.icon_size = Some(px(24.));
+                    style.icon_color = Some(tint);
+                });
+                if menu_comment.edit_token.is_some() {
+                    let (view, comment) = (view.clone(), menu_comment.clone());
+                    menu = menu.item(
+                        PopupMenuItem::new(t(Str::VideoDetailsEdit))
+                            .icon(Icon::new(MaterialIcon::EditOutlined))
+                            .on_click(move |_, window, cx| {
+                                view.update(cx, |view, cx| view.start_edit(&comment, window, cx)).ok();
+                            }),
+                    );
+                }
+                if menu_comment.delete_token.is_some() {
+                    let (view, comment) = (view.clone(), menu_comment.clone());
+                    menu = menu.item(
+                        PopupMenuItem::new(t(Str::VideoDetailsDelete))
+                            .icon(Icon::new(MaterialIcon::DeleteOutlined))
+                            .on_click(move |_, window, cx| {
+                                view.update(cx, |view, cx| view.confirm_delete(comment.clone(), window, cx)).ok();
+                            }),
+                    );
+                }
+                menu
+            })
+        });
+        let row = h_flex()
             .id(id.clone())
             .gap_4()
             .items_start()
@@ -849,51 +882,17 @@ impl VideoDetailsView {
             .py_2()
             .child(Self::avatar(&comment.author_thumbs, if indent { 24. } else { 32. }, cx))
             .child(body)
-            .when(own, |row| {
+            .when_some(menu.as_ref(), |row, menu| {
                 let index = self.next_stop();
                 let more_id = SharedString::from(format!("{id}-more"));
-                row.child(
-                    self.focus.wrap(
-                        index,
-                        action_icon(more_id, MaterialIcon::MoreVert, t(Str::CdMore))
-                            .track_focus(&self.focus.handle(index, cx))
-                            .dropdown_menu_with_anchor(Anchor::TopRight, move |menu, _, cx| {
-                                // Material's own icon size and tint: the JVM menu sets neither.
-                                let tint = cx.theme().muted_foreground;
-                                let mut menu = menu.restyle(|style| {
-                                    style.icon_size = Some(px(24.));
-                                    style.icon_color = Some(tint);
-                                });
-                                if menu_comment.edit_token.is_some() {
-                                    let (view, comment) = (view.clone(), menu_comment.clone());
-                                    menu = menu.item(
-                                        PopupMenuItem::new(t(Str::VideoDetailsEdit))
-                                            .icon(Icon::new(MaterialIcon::EditOutlined))
-                                            .on_click(move |_, window, cx| {
-                                                view.update(cx, |view, cx| view.start_edit(&comment, window, cx)).ok();
-                                            }),
-                                    );
-                                }
-                                if menu_comment.delete_token.is_some() {
-                                    let (view, comment) = (view.clone(), menu_comment.clone());
-                                    menu = menu.item(
-                                        PopupMenuItem::new(t(Str::VideoDetailsDelete))
-                                            .icon(Icon::new(MaterialIcon::DeleteOutlined))
-                                            .on_click(move |_, window, cx| {
-                                                view.update(cx, |view, cx| {
-                                                    view.confirm_delete(comment.clone(), window, cx)
-                                                })
-                                                .ok();
-                                            }),
-                                    );
-                                }
-                                menu
-                            }),
-                        cx,
-                    ),
-                )
-            })
-            .into_any_element()
+                let more = action_icon(more_id, MaterialIcon::MoreVert, t(Str::CdMore))
+                    .track_focus(&self.focus.handle(index, cx));
+                row.child(self.focus.wrap(index, menu.dropdown(more, Anchor::TopRight), cx))
+            });
+        match &menu {
+            Some(menu) => on_right_click(row, (!editing).then_some(menu)).into_any_element(),
+            None => row.into_any_element(),
+        }
     }
 
     /// Like (count) · dislike, toggles when signed in, else just the count · creator heart · Reply.

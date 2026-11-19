@@ -23,6 +23,7 @@ use crate::assets::MaterialIcon;
 use crate::audio_only::AudioOnlyArt;
 use crate::download_dialog::DownloadTarget;
 use crate::graph::{AppGraph, on_core};
+use crate::item_menu::{ItemMenu, on_right_click};
 use crate::lazy_rows::LazyRows;
 use crate::mini_player::{PlayClock, clock};
 use crate::playback::{
@@ -1556,88 +1557,72 @@ impl NowPlaying {
     }
 
     /// A queue row's ⋮ menu: radio, play next, the video's or the local file's actions, remove.
-    fn queue_item_menu(
-        &self,
-        position: usize,
-        active: bool,
-        item: &QueueItem,
-        cx: &mut Context<Self>,
-    ) -> impl IntoElement {
+    fn queue_item_menu(&self, position: usize, active: bool, item: &QueueItem, cx: &mut Context<Self>) -> ItemMenu {
         let (playback, view, item) = (self.playback.clone(), cx.entity().downgrade(), item.clone());
         let live_row = item.media_id.is_some_and(|media_id| self.live_row(media_id, cx));
-        let more = sized_action_icon(("np-queue-more", position), MaterialIcon::MoreVert, t(Str::CdMore), ICON, HIT);
-        self.queue_focus
-            .menu_button(position, more, cx)
-            .text_color(cx.theme().muted_foreground)
-            .dropdown_menu_with_anchor(Anchor::TopRight, move |mut menu, _, _| {
-                let video_id = item.video_id().map(str::to_owned);
-                let downloadable = item.downloadable().is_some();
-                if downloadable {
-                    let (radio, item) = (playback.clone(), item.clone());
-                    menu = menu.item(PopupMenuItem::new(t(Str::MenuStartRadio)).on_click(move |_, _, cx| {
+        ItemMenu::new(move |mut menu, _, _| {
+            let video_id = item.video_id().map(str::to_owned);
+            let downloadable = item.downloadable().is_some();
+            if downloadable {
+                let (radio, item) = (playback.clone(), item.clone());
+                menu =
+                    menu.item(PopupMenuItem::new(t(Str::MenuStartRadio)).on_click(move |_, _, cx| {
                         radio.update(cx, |playback, cx| playback.start_radio(item.clone(), cx))
                     }));
-                }
-                if !active {
-                    let next = playback.clone();
-                    menu = menu
-                        .item(PopupMenuItem::new(t(Str::QueueNext)).on_click(move |_, _, cx| {
-                            next.update(cx, |playback, cx| playback.move_next(position, cx))
+            }
+            if !active {
+                let next = playback.clone();
+                menu = menu.item(
+                    PopupMenuItem::new(t(Str::QueueNext))
+                        .on_click(move |_, _, cx| next.update(cx, |playback, cx| playback.move_next(position, cx))),
+                );
+            }
+            match (&video_id, &item.source) {
+                (Some(video_id), _) => {
+                    let id = video_id.clone();
+                    menu = menu.item(PopupMenuItem::new(t(Str::MenuAddToPlaylist)).on_click(move |_, window, cx| {
+                        crate::yt_playlist::AddToPlaylist::open(id.clone(), window, cx)
+                    }));
+                    if downloadable {
+                        let target = DownloadTarget {
+                            video_id: video_id.clone(),
+                            title: item.title.clone(),
+                            thumbnail_url: item.thumb(640).map(|url| url.to_string()),
+                        };
+                        let download = view.clone();
+                        menu = menu.item(PopupMenuItem::new(t(Str::CdDownload)).on_click(move |_, _, cx| {
+                            download.update(cx, |_, cx| cx.emit(NowPlayingEvent::Download(target.clone()))).ok();
                         }));
+                    }
+                    let link = crate::feed::youtube_share_link("video", video_id).unwrap_or_default();
+                    menu = menu.item(PopupMenuItem::new(t(Str::CdShare)).on_click(move |_, window, cx| {
+                        cx.write_to_clipboard(ClipboardItem::new_string(link.clone()));
+                        window.push_notification(t(Str::LinkCopied), cx);
+                    }));
                 }
-                match (&video_id, &item.source) {
-                    (Some(video_id), _) => {
-                        let id = video_id.clone();
+                (None, Source::Local(path)) if live_row => {
+                    if let Some(code) = item.history_code.clone().or_else(|| item.youtube_vid.clone()) {
                         menu =
                             menu.item(PopupMenuItem::new(t(Str::MenuAddToPlaylist)).on_click(move |_, window, cx| {
-                                crate::yt_playlist::AddToPlaylist::open(id.clone(), window, cx)
+                                crate::library_playlist::AddToLocalPlaylist::open(vec![code.clone()], None, window, cx)
                             }));
-                        if downloadable {
-                            let target = DownloadTarget {
-                                video_id: video_id.clone(),
-                                title: item.title.clone(),
-                                thumbnail_url: item.thumb(640).map(|url| url.to_string()),
-                            };
-                            let download = view.clone();
-                            menu = menu.item(PopupMenuItem::new(t(Str::CdDownload)).on_click(move |_, _, cx| {
-                                download.update(cx, |_, cx| cx.emit(NowPlayingEvent::Download(target.clone()))).ok();
-                            }));
-                        }
-                        let link = crate::feed::youtube_share_link("video", video_id).unwrap_or_default();
-                        menu = menu.item(PopupMenuItem::new(t(Str::CdShare)).on_click(move |_, window, cx| {
-                            cx.write_to_clipboard(ClipboardItem::new_string(link.clone()));
-                            window.push_notification(t(Str::LinkCopied), cx);
+                    }
+                    let uri = path.to_string_lossy().into_owned();
+                    for (album, label) in [(false, Str::MenuGoToArtist), (true, Str::MenuGoToAlbum)] {
+                        let (group, uri) = (view.clone(), uri.clone());
+                        menu = menu.item(PopupMenuItem::new(t(label)).on_click(move |_, window, cx| {
+                            group.update(cx, |view, cx| view.go_to_group(album, uri.clone(), window, cx)).ok();
                         }));
                     }
-                    (None, Source::Local(path)) if live_row => {
-                        if let Some(code) = item.history_code.clone().or_else(|| item.youtube_vid.clone()) {
-                            menu = menu.item(PopupMenuItem::new(t(Str::MenuAddToPlaylist)).on_click(
-                                move |_, window, cx| {
-                                    crate::library_playlist::AddToLocalPlaylist::open(
-                                        vec![code.clone()],
-                                        None,
-                                        window,
-                                        cx,
-                                    )
-                                },
-                            ));
-                        }
-                        let uri = path.to_string_lossy().into_owned();
-                        for (album, label) in [(false, Str::MenuGoToArtist), (true, Str::MenuGoToAlbum)] {
-                            let (group, uri) = (view.clone(), uri.clone());
-                            menu = menu.item(PopupMenuItem::new(t(label)).on_click(move |_, window, cx| {
-                                group.update(cx, |view, cx| view.go_to_group(album, uri.clone(), window, cx)).ok();
-                            }));
-                        }
-                    }
-                    (None, _) => {}
                 }
-                let remove = playback.clone();
-                menu.item(
-                    PopupMenuItem::new(t(Str::RemoveFromQueue))
-                        .on_click(move |_, _, cx| remove.update(cx, |playback, cx| playback.remove_at(position, cx))),
-                )
-            })
+                (None, _) => {}
+            }
+            let remove = playback.clone();
+            menu.item(
+                PopupMenuItem::new(t(Str::RemoveFromQueue))
+                    .on_click(move |_, _, cx| remove.update(cx, |playback, cx| playback.remove_at(position, cx))),
+            )
+        })
     }
 
     fn live_row(&self, media_id: i64, cx: &mut Context<Self>) -> bool {
@@ -1783,82 +1768,90 @@ impl NowPlaying {
                         view.reorder.start(position, event.position.y, window, cx);
                     }),
                 );
-            let more = self.queue_item_menu(position, active, item, cx).into_any_element();
+            let menu = self.queue_item_menu(position, active, item, cx);
+            let more =
+                sized_action_icon(("np-queue-more", position), MaterialIcon::MoreVert, t(Str::CdMore), ICON, HIT);
+            let more = self.queue_focus.menu_button(position, more, cx).text_color(theme.muted_foreground);
+            let more = menu.dropdown(more, Anchor::TopRight);
             let row =
                 list_item(h_flex().id(("np-queue-item", position)), position).aria_label(label).aria_selected(active);
             let queue_len = queue.len();
             let row = self.reorder.row(
                 position,
-                self.queue_focus
-                    .item(position, row, cx)
-                    .pl_2()
-                    .pr_4()
-                    .py(px(if large { 10. } else { 8. }))
-                    .gap(px(if large { 12. } else { 8. }))
-                    .items_center()
-                    .cursor_pointer()
-                    .when(active, |row| row.bg(theme.primary.opacity(0.1)))
-                    .map(|row| {
-                        if lifted == Some(position) {
-                            crate::reorder::lift(row, cx)
-                        } else {
-                            row.hover(|style| style.bg(theme.primary.opacity(crate::settings_view::HOVER_ALPHA)))
-                        }
-                    })
-                    .child(handle)
-                    .child(
-                        div()
-                            .size(px(thumb))
-                            .flex_shrink_0()
-                            .rounded(px(6.))
-                            .overflow_hidden()
-                            .bg(theme.secondary)
-                            .when_some(item.display_thumbnail_url(), |frame, url| {
-                                frame.child(
-                                    async_image_of(Some(art_request_sources(&url)))
-                                        .size_full()
-                                        .rounded(px(6.))
-                                        .object_fit(ObjectFit::Cover),
+                on_right_click(
+                    self.queue_focus
+                        .item(position, row, cx)
+                        .pl_2()
+                        .pr_4()
+                        .py(px(if large { 10. } else { 8. }))
+                        .gap(px(if large { 12. } else { 8. }))
+                        .items_center()
+                        .cursor_pointer()
+                        .when(active, |row| row.bg(theme.primary.opacity(0.1)))
+                        .map(|row| {
+                            if lifted == Some(position) {
+                                crate::reorder::lift(row, cx)
+                            } else {
+                                row.hover(|style| style.bg(theme.primary.opacity(crate::settings_view::HOVER_ALPHA)))
+                            }
+                        })
+                        .child(handle)
+                        .child(
+                            div()
+                                .size(px(thumb))
+                                .flex_shrink_0()
+                                .rounded(px(6.))
+                                .overflow_hidden()
+                                .bg(theme.secondary)
+                                .when_some(item.display_thumbnail_url(), |frame, url| {
+                                    frame.child(
+                                        async_image_of(Some(art_request_sources(&url)))
+                                            .size_full()
+                                            .rounded(px(6.))
+                                            .object_fit(ObjectFit::Cover),
+                                    )
+                                }),
+                        )
+                        .child(
+                            v_flex()
+                                .flex_1()
+                                .min_w_0()
+                                .child(
+                                    div()
+                                        .text_sm()
+                                        .truncate()
+                                        .font_semibold()
+                                        .when(active, |text| text.text_color(theme.primary))
+                                        .child(item.title.clone()),
                                 )
-                            }),
-                    )
-                    .child(
-                        v_flex()
-                            .flex_1()
-                            .min_w_0()
-                            .child(
-                                div()
-                                    .text_sm()
-                                    .truncate()
-                                    .font_semibold()
-                                    .when(active, |text| text.text_color(theme.primary))
-                                    .child(item.title.clone()),
-                            )
-                            .when(!detail.is_empty(), |column| {
-                                column
-                                    .child(div().text_xs().text_color(theme.muted_foreground).truncate().child(detail))
-                            }),
-                    )
-                    .child(more)
-                    .on_key_down(cx.listener(move |view, event: &KeyDownEvent, window, cx| {
-                        let modifiers = &event.keystroke.modifiers;
-                        if !modifiers.alt || modifiers.platform || modifiers.control || modifiers.shift {
-                            return;
-                        }
-                        let target = match event.keystroke.key.as_str() {
-                            "up" => position.checked_sub(1),
-                            "down" => Some(position + 1).filter(|target| *target < queue_len),
-                            _ => return,
-                        };
-                        cx.stop_propagation();
-                        let Some(target) = target else { return };
-                        view.reorder.moved(position, target, cx);
-                        view.playback.update(cx, |playback, cx| playback.move_item(position, target, cx));
-                        window.focus(&view.queue_focus.handle(target, cx), cx);
-                    }))
-                    .on_click(cx.listener(move |view, _, _, cx| {
-                        view.playback.update(cx, |playback, cx| playback.jump_to(position, cx))
-                    })),
+                                .when(!detail.is_empty(), |column| {
+                                    column.child(
+                                        div().text_xs().text_color(theme.muted_foreground).truncate().child(detail),
+                                    )
+                                }),
+                        )
+                        .child(more)
+                        .on_key_down(cx.listener(move |view, event: &KeyDownEvent, window, cx| {
+                            let modifiers = &event.keystroke.modifiers;
+                            if !modifiers.alt || modifiers.platform || modifiers.control || modifiers.shift {
+                                return;
+                            }
+                            let target = match event.keystroke.key.as_str() {
+                                "up" => position.checked_sub(1),
+                                "down" => Some(position + 1).filter(|target| *target < queue_len),
+                                _ => return,
+                            };
+                            cx.stop_propagation();
+                            let Some(target) = target else { return };
+                            view.reorder.moved(position, target, cx);
+                            view.playback.update(cx, |playback, cx| playback.move_item(position, target, cx));
+                            window.focus(&view.queue_focus.handle(target, cx), cx);
+                        }))
+                        .on_click(cx.listener(move |view, _, _, cx| {
+                            view.playback.update(cx, |playback, cx| playback.jump_to(position, cx))
+                        })),
+                    Some(&menu),
+                ),
             );
             row.into_any_element()
         });

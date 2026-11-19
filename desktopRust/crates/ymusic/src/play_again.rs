@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use gpui_kit::component::button::Button;
-use gpui_kit::component::menu::{DropdownMenu, PopupMenuItem};
+use gpui_kit::component::menu::PopupMenuItem;
 use gpui_kit::component::{ActiveTheme, Icon, StyledExt, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
@@ -15,6 +15,7 @@ use crate::a11y::{FocusList, alert, announced, list_item};
 use crate::action_icon::action_icon;
 use crate::assets::MaterialIcon;
 use crate::graph::{AppGraph, on_core};
+use crate::item_menu::{ItemMenu, on_right_click};
 use crate::lazy_rows::LazyRows;
 use crate::mini_player::clock;
 use crate::play_history::decode_items;
@@ -225,24 +226,23 @@ impl PlayAgainView {
         let view = cx.entity().downgrade();
         let (from_start, removed) = (session.clone(), session.queue_id.clone());
         let more = action_icon(("play-again-more", position), MaterialIcon::MoreVert, t(Str::CdMore));
-        let more = self.focus.menu_button(position, more, cx).dropdown_menu_with_anchor(
-            Anchor::TopRight,
-            move |menu, _, _| {
-                let (restart, remove) = (view.clone(), view.clone());
-                let (from_start, removed) = (from_start.clone(), removed.clone());
-                menu.item(PopupMenuItem::new(t(Str::MenuPlayFromBeginning)).on_click(move |_, _, cx| {
-                    restart.update(cx, |view, cx| view.play_from_beginning(from_start.clone(), cx)).ok();
-                }))
-                .item(PopupMenuItem::new(t(Str::MenuRemove)).on_click(move |_, _, cx| {
-                    remove.update(cx, |view, cx| view.remove(removed.clone(), cx)).ok();
-                }))
-            },
-        );
+        let menu = ItemMenu::new(move |menu, _, _| {
+            let (restart, remove) = (view.clone(), view.clone());
+            let (from_start, removed) = (from_start.clone(), removed.clone());
+            menu.item(PopupMenuItem::new(t(Str::MenuPlayFromBeginning)).on_click(move |_, _, cx| {
+                restart.update(cx, |view, cx| view.play_from_beginning(from_start.clone(), cx)).ok();
+            }))
+            .item(PopupMenuItem::new(t(Str::MenuRemove)).on_click(move |_, _, cx| {
+                remove.update(cx, |view, cx| view.remove(removed.clone(), cx)).ok();
+            }))
+        });
+        let more = menu.dropdown(self.focus.menu_button(position, more, cx), Anchor::TopRight);
         let target = session.clone();
         let strip_width = card_width - 16. - 4. - 8. - 8. - RESUME_PILL;
         let base = list_item(v_flex().id(("play-again", position)), position)
             .aria_label(format!("{}, {detail}", session.title));
-        self.focus
+        let card = self
+            .focus
             .item(position, base, cx)
             .rounded(px(6.))
             .bg(theme.secondary)
@@ -294,8 +294,8 @@ impl PlayAgainView {
                         .label(t(Str::PlayAgainResume))
                         .on_click(cx.listener(move |view, _, _, cx| view.resume(target.clone(), false, cx))),
                 ),
-            )
-            .into_any_element()
+            );
+        on_right_click(card, Some(&menu)).into_any_element()
     }
 }
 
