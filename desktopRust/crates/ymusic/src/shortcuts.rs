@@ -86,6 +86,7 @@ pub const HELP: &[HelpRow] = &[
     HelpRow { keys: &[secondary!("1"), secondary!("9")], range: true, label: Str::ShortcutsSwitchTabs },
     row(&["escape"], Str::ShortcutsEscape),
     row(&["escape escape"], Str::CdBack),
+    row(&["f5", secondary!("r")], Str::Reload),
     row(&["f1"], Str::ShortcutsHelp),
     row(&[secondary!("q")], Str::TrayQuit),
 ];
