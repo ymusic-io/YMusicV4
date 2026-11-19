@@ -166,7 +166,7 @@ pub struct NowPlaying {
     keyboard_in_controls: Cell<bool>,
     /// Now Playing's full screen, in a full-screen window; the window alone (F11) leaves this off.
     fullscreen: bool,
-    /// Full screen keeps the wide layout's queue pane; the mode last used this run, off at start.
+    /// Full screen keeps the wide layout's queue pane; entering full screen starts without it.
     fullscreen_queue: bool,
     /// The window has been seen full screen since Now Playing's full screen began: every OS confirms
     /// it a frame or more after the request, and only a window that left it ends this mode.
@@ -621,6 +621,7 @@ impl NowPlaying {
             }
         } else {
             self.fullscreen = true;
+            self.fullscreen_queue = false;
             if !window.is_fullscreen() {
                 window.toggle_fullscreen();
             }
