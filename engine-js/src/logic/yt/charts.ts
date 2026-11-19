@@ -11,13 +11,15 @@
 
 import { debug } from "../../debug";
 import { Cache } from "../../protocol/cache";
-import { JsEngineErrorImpl } from "../../protocol/command";
+import { JsEngineErrorImpl, errorCode } from "../../protocol/command";
 import { jsLogger } from "../../protocol/logger";
 import type { JsLogger } from "../../protocol/logger";
 import { HttpRequest } from "../../protocol/http";
-import { executeWithCookies } from "./cookies";
 import { channelUrl, setDurationBadge } from "./parse";
-import { effectiveLocale } from "./session";
+import { executeWithCookies } from "./cookies";
+import type { AuthContext } from "./cookies";
+import { effectiveLocale, getSession } from "./session";
+import type { YtSession } from "./session";
 import { asString, get, isObj, walk } from "./scan";
 import type { WireFeedItem, WireFeedPage, WireSection, WireSectionHeader } from "./wire";
 
@@ -31,11 +33,65 @@ const CHARTS_UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 " +
   "(KHTML, like Gecko) Chrome/160.0.0.0 Safari/537.36";
 
+const CHARTS_RETRY_DELAY_MS = 1500;
+
+function delay(ms: number): Promise<void> {
+  return new Promise(function (resolve) {
+    setTimeout(function () {
+      resolve();
+    }, ms);
+  });
+}
+
+const CHARTS_URL = CHARTS_ORIGIN + "/youtubei/v1/browse?alt=json";
+const CHARTS_CLIENT_NAME = "31";
+const CHARTS_CLIENT_VERSION = "2.0";
+/** The query flags the site sends with every chart browse (comma URL-encoded, as the site does). */
+const CHARTS_QUERY_FLAGS =
+  "flags=MusicCharts__enable_apac_and_shorts_charts_expansion%2CMusicCharts__enable_recaptcha";
+
+/** The signed-in slot of the held session; signed out (or no session yet) leaves every field unset. */
+async function chartsAuth(): Promise<AuthContext> {
+  let session: YtSession | undefined;
+  try {
+    session = await getSession(Infinity);
+  } catch (e) {
+    debug(function () {
+      return "yt charts: no session, sending without the account slot: " + errText(e);
+    });
+  }
+  return {
+    sessionIndex: session?.sessionIndex,
+    delegatedSessionId: session?.delegatedSessionId,
+    userSessionId: session?.userSessionId,
+  };
+}
+
+function chartsPost(
+  body: Record<string, unknown>,
+  auth: AuthContext,
+  log: JsLogger,
+): Promise<HttpResponse> {
+  const builder = HttpRequest.post(CHARTS_URL)
+    .json(body)
+    .setHeader("User-Agent", CHARTS_UA)
+    .setHeader("Origin", CHARTS_ORIGIN)
+    .setHeader("X-Origin", CHARTS_ORIGIN)
+    .setHeader("Referer", CHARTS_ORIGIN + "/")
+    .setHeader("X-YouTube-Client-Name", CHARTS_CLIENT_NAME)
+    .setHeader("X-YouTube-Client-Version", CHARTS_CLIENT_VERSION)
+    .logger(log);
+  return executeWithCookies(CHARTS_URL, builder, auth);
+}
+
 /**
  * POST the chart-home browse for the engine-resolved region (session.ts effectiveLocale).
  * Verified live 2026-07-25:
  * CHART_HOME serves every region tried (including the ones legacy's hardcoded table routed to the
  * location-insights perspective instead).
+ * The site now sends a reCAPTCHA Enterprise token (`musicAnalyticsChartsBrowseParams.recaptchaToken`,
+ * seen 2026-11-19) the bundle can't mint; a tokenless call is refused (403) intermittently, hence
+ * the one retry.
  */
 async function chartsBrowse(
   locale: { hl: string; gl: string },
@@ -43,24 +99,30 @@ async function chartsBrowse(
 ): Promise<Record<string, unknown>> {
   const client: Record<string, unknown> = {
     "clientName": "WEB_MUSIC_ANALYTICS",
-    "clientVersion": "2.0",
+    "clientVersion": CHARTS_CLIENT_VERSION,
     "hl": locale.hl,
     "gl": locale.gl,
+    "experimentIds": [],
+    "experimentsToken": "",
     "theme": "MUSIC",
   };
   const body: Record<string, unknown> = {
-    "context": { "client": client },
+    "context": {
+      "client": client,
+      "capabilities": {},
+      "request": { "internalExperimentFlags": [] },
+    },
     "browseId": "FEmusic_analytics_charts_home",
-    "query": "perspective=CHART_HOME",
+    "query": CHARTS_QUERY_FLAGS + "&perspective=CHART_HOME&chart_params_country_code=" + locale.gl,
   };
-  const url = CHARTS_ORIGIN + "/youtubei/v1/browse?alt=json&prettyPrint=false";
-  const builder = HttpRequest.post(url)
-    .json(body)
-    .setHeader("User-Agent", CHARTS_UA)
-    .setHeader("Origin", CHARTS_ORIGIN)
-    .setHeader("Referer", CHARTS_ORIGIN + "/")
-    .logger(log ?? jsLogger("yt/trending"));
-  const res = await executeWithCookies(url, builder);
+  const logger = log ?? jsLogger("yt/trending");
+  const auth = await chartsAuth();
+  let res = await chartsPost(body, auth, logger);
+  if (res.status === 403 || res.status === 429) {
+    res.close();
+    await delay(CHARTS_RETRY_DELAY_MS);
+    res = await chartsPost(body, auth, logger);
+  }
   if (!res.ok) {
     res.close();
     throw JsEngineErrorImpl.httpStatus("yt charts", res.status, "E20143");
@@ -307,25 +369,44 @@ const CHARTS_CACHE_SCOPE = "yt-charts";
 /** Charts move daily at most: a region's page serves 10h before the next charts.youtube.com hit. */
 const CHARTS_TTL_MS = 10 * 60 * 60 * 1000;
 
-export async function trendingMusicPage(log?: JsLogger): Promise<WireFeedPage> {
-  const locale = await effectiveLocale();
-  const key = locale.hl + "_" + locale.gl;
-  let cached: WireFeedPage | null = null;
+interface CachedCharts {
+  page: WireFeedPage;
+  fresh: boolean;
+}
+
+/** The region's last cached page, however old; null on a miss or without a cache store. */
+async function readCachedPage(key: string): Promise<CachedCharts | null> {
   try {
-    cached = await Cache.get(CHARTS_CACHE_SCOPE, key, async (source, meta) => {
-      const page = await source.readJsonObject();
-      return Date.now() - meta.updatedAt <= CHARTS_TTL_MS
-        ? (page as unknown as WireFeedPage)
-        : null;
+    return await Cache.get(CHARTS_CACHE_SCOPE, key, async (source, meta) => {
+      const page = (await source.readJsonObject()) as unknown as WireFeedPage;
+      return { page: page, fresh: Date.now() - meta.updatedAt <= CHARTS_TTL_MS };
     });
   } catch (e) {
     // No cache store wired (capability inert) or a store error — the live fetch still works.
     debug(function () {
       return "yt charts cache read skipped: " + errText(e);
     });
+    return null;
   }
-  if (cached !== null) return cached;
-  const page = composeTrendingPage(await chartsBrowse(locale, log));
+}
+
+/** A failed refresh serves the region's stale page, marked with the failure's code, when there is
+ *  one; only a cold cache throws. */
+export async function trendingMusicPage(log?: JsLogger): Promise<WireFeedPage> {
+  const locale = await effectiveLocale();
+  const key = locale.hl + "_" + locale.gl;
+  const cached = await readCachedPage(key);
+  if (cached !== null && cached.fresh) return cached.page;
+  let page: WireFeedPage;
+  try {
+    page = composeTrendingPage(await chartsBrowse(locale, log));
+  } catch (e) {
+    if (cached === null) throw e;
+    console.warn("yt charts refresh failed, serving the stale page:", e);
+    const stale = cached.page;
+    stale["partialErrorCode"] = errorCode(e);
+    return stale;
+  }
   try {
     await Cache.setJson(CHARTS_CACHE_SCOPE, key, page);
   } catch (e) {
