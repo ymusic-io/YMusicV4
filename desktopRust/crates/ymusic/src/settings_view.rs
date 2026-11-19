@@ -123,6 +123,7 @@ fn apply_theme(choice: &str, accent: &str, cx: &mut App) {
             .py(px(14.));
         theme.notification.close_color = Some(snackbar_ink.into());
         theme.notification.fit_content = true;
+        theme.notification.always_expanded = true;
         // On dark the full elevated lift reads too strongly against the body (ElevatedBarDialog).
         let dialog = if theme.mode.is_dark() { palette.surface_dim } else { palette.surface_elevated };
         tones = ChromeTones { flat: palette.surface, lifted: palette.surface_elevated, dialog };
