@@ -869,7 +869,7 @@ impl NowPlaying {
                     ),
                 )
             })
-            .when(video_only, |row| {
+            .when(video_only && !self.shows_audio_only(cx), |row| {
                 let fill = self.video_fill;
                 let toggle = sized_action_icon(
                     "np-fill",
