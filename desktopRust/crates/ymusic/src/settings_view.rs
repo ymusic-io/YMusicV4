@@ -110,6 +110,23 @@ fn apply_theme(choice: &str, accent: &str, cx: &mut App) {
         if cfg!(target_os = "linux") {
             theme.window_border = if theme.mode.is_dark() { white().opacity(0.07) } else { black().opacity(0.15) };
         }
+        // Material 3's snackbar shape. Light mode keeps its inverse surface and ink (the baseline
+        // neutrals); dark mode stays dark, on the JVM scheme's dark secondaryContainer.
+        let (snackbar, snackbar_ink): (Hsla, Hsla) = if theme.mode.is_dark() {
+            (rgb(0x3F3F3F).into(), palette.ink)
+        } else {
+            (rgb(0x322F35).into(), rgb(0xF5EFF7).into())
+        };
+        theme.notification.style = StyleRefinement::default()
+            .bg(snackbar)
+            .text_color(snackbar_ink)
+            .border_0()
+            .rounded(px(4.))
+            .px(px(16.))
+            .py(px(14.));
+        theme.notification.close_color = Some(snackbar_ink);
+        theme.notification.fit_content = true;
+        theme.notification.always_expanded = true;
         // On dark the full elevated lift reads too strongly against the body (ElevatedBarDialog).
         let dialog = if theme.mode.is_dark() { palette.surface_dim } else { palette.surface_elevated };
         tones = ChromeTones { flat: palette.surface, lifted: palette.surface_elevated, dialog };
@@ -163,6 +180,11 @@ impl Global for StackTones {}
 
 /// Every menu as the JVM app draws Material 3's `DropdownMenu` (androidx material3 1.4 `Menu.kt`,
 /// `MenuTokens`, `ListTokens`) with its theme and `MoreMenuItem` / `MoreMenuDivider`.
+/// A notification action's ink: the accent lifted toward white, as the snackbar is dark in both themes.
+pub fn snackbar_action(cx: &App) -> Hsla {
+    oklab_lerp(cx.theme().primary, white(), 0.35)
+}
+
 fn menu_style(palette: &Palette, accent: Hsla) -> PopupMenuStyle {
     PopupMenuStyle {
         background: Some(palette.surface_dim),

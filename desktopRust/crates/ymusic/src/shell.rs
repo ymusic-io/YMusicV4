@@ -2528,9 +2528,46 @@ impl Render for Shell {
             .when(!now_playing, |shell| shell.bg(cx.theme().background))
             .child(crate::a11y::frame_marker())
             .child(div().flex_1().min_h_0().w_full().child(body))
-            .when(!covered, |shell| shell.child(self.mini_player.clone()))
+            .map(|shell| {
+                if covered {
+                    place_notifications(px(0.), window, cx);
+                    shell
+                } else {
+                    shell.child(
+                        div().relative().w_full().child(self.mini_player.clone()).child(
+                            canvas(
+                                |bounds, window, cx| place_notifications(bounds.size.height, window, cx),
+                                |_, _, _, _| {},
+                            )
+                            .absolute()
+                            .size_full(),
+                        ),
+                    )
+                }
+            })
             .children(drawer)
     }
+}
+
+/// Material's snackbar margin, which the JVM app's `SnackbarHost` keeps from the window's edges.
+const SNACKBAR_MARGIN: f32 = 12.;
+/// Material's snackbar `ContainerMaxWidth`.
+const NOTIFICATION_WIDTH: f32 = 600.;
+
+/// Notifications sit where the JVM app's snackbar does: bottom centre, `lift` above the window's
+/// bottom edge (the player bar's height while it shows).
+fn place_notifications(lift: Pixels, window: &mut Window, cx: &mut App) {
+    let bottom = px(SNACKBAR_MARGIN) + lift;
+    let width = px(NOTIFICATION_WIDTH).min(window.viewport_size().width - px(2. * SNACKBAR_MARGIN));
+    let settings = &cx.theme().notification;
+    if settings.placement == Anchor::BottomCenter && settings.margins.bottom == bottom && settings.width == width {
+        return;
+    }
+    let settings = &mut gpui_kit::component::Theme::global_mut(cx).notification;
+    settings.placement = Anchor::BottomCenter;
+    settings.margins.bottom = bottom;
+    settings.width = width;
+    window.refresh();
 }
 
 /// A page view drawn from its last frame until it notifies: the player bar's progress ticks redraw
