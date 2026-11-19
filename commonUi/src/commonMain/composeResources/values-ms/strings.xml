@@ -675,4 +675,5 @@
         <item quantity="other">Padam %1$d fail?</item>
     </plurals>
     <string name="downloads_delete_selected_message">Fail yang dipadam tidak boleh dipulihkan.</string>
+    <string name="data_dir_unusable">YMusic tidak dapat membuka folder datanya, %1$s. Pastikan ia folder yang boleh anda tulis, kemudian buka YMusic semula. (%2$s)</string>
 </resources>

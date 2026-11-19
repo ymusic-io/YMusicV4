@@ -14,6 +14,7 @@ use crate::cookie_lock::UnlockView;
 use crate::cookie_session::{CookieSession, LockedJar};
 use crate::graph::AppGraph;
 use crate::shell::Shell;
+use crate::startup_failure::StartupFailure;
 use crate::telemetry::Reporting;
 
 /// What the graph boots from, besides the cookie session.
@@ -36,6 +37,7 @@ impl BootInputs {
 enum Stage {
     Unlock(Entity<UnlockView>),
     Shell(Entity<Shell>),
+    Failed(Entity<StartupFailure>),
 }
 
 pub struct Launch {
@@ -84,15 +86,23 @@ impl Launch {
         let (tokio, log) = (inputs.tokio.clone(), inputs.log.clone());
         let booted = tokio.spawn(inputs.boot(session));
         cx.spawn_in(window, async move |this, cx| {
-            let graph = match booted.await {
-                Ok(Ok(graph)) => graph,
-                Ok(Err(error)) => crate::boot_failed(&log, &error),
-                Err(error) => crate::boot_failed(&log, &ym_engine::EngineError::site("R98003", error.to_string())),
+            let booted = match booted.await {
+                Ok(booted) => booted,
+                Err(error) => Err(ym_engine::EngineError::site("R98003", error.to_string())),
             };
             this.update_in(cx, |launch, window, cx| {
-                cx.global::<Reporting>().follow(&graph);
-                cx.set_global(graph);
-                launch.stage = Stage::Shell(Self::new_shell(window, cx));
+                launch.stage = match booted {
+                    Ok(graph) => {
+                        cx.global::<Reporting>().follow(&graph);
+                        cx.set_global(graph);
+                        Stage::Shell(Self::new_shell(window, cx))
+                    }
+                    Err(error) => {
+                        log.capture_error("engine boot failed", &error);
+                        let message = crate::feed::error_text(&error);
+                        Stage::Failed(cx.new(|_| StartupFailure::new(message, false)))
+                    }
+                };
                 cx.notify();
             })
             .ok();
@@ -106,6 +116,7 @@ impl Render for Launch {
         let content = match &self.stage {
             Stage::Unlock(view) => view.clone().into_any_element(),
             Stage::Shell(shell) => shell.clone().into_any_element(),
+            Stage::Failed(failure) => failure.clone().into_any_element(),
         };
         crate::desktop::frame(content, window, cx)
     }

@@ -687,4 +687,5 @@
         <item quantity="other">%1$d ફાઇલ કાઢી નાખીએ?</item>
     </plurals>
     <string name="downloads_delete_selected_message">કાઢી નાખેલી ફાઇલો પાછી મેળવી શકાતી નથી.</string>
+    <string name="data_dir_unusable">YMusic તેનું ડેટા ફોલ્ડર, %1$s, ખોલી શકતું નથી. ખાતરી કરો કે તે એવું ફોલ્ડર છે જેમાં તમે લખી શકો, પછી YMusic ફરી ખોલો. (%2$s)</string>
 </resources>

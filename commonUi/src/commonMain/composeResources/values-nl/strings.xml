@@ -687,4 +687,5 @@
         <item quantity="other">%1$d bestanden verwijderen?</item>
     </plurals>
     <string name="downloads_delete_selected_message">Verwijderde bestanden kunnen niet worden hersteld.</string>
+    <string name="data_dir_unusable">YMusic kan zijn gegevensmap, %1$s, niet openen. Zorg dat het een map is waarin je kunt schrijven en open YMusic daarna opnieuw. (%2$s)</string>
 </resources>

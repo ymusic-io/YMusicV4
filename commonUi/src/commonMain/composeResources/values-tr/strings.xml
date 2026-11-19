@@ -687,4 +687,5 @@
         <item quantity="other">%1$d dosya silinsin mi?</item>
     </plurals>
     <string name="downloads_delete_selected_message">Silinen dosyalar kurtarılamaz.</string>
+    <string name="data_dir_unusable">YMusic veri klasörünü (%1$s) açamıyor. Bunun yazabildiğiniz bir klasör olduğundan emin olun, ardından YMusic'i yeniden açın. (%2$s)</string>
 </resources>

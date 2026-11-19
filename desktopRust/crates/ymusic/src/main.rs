@@ -74,6 +74,7 @@ mod speed_pitch;
 mod spinner;
 mod sponsor_block;
 mod spring;
+mod startup_failure;
 mod tab_row;
 mod telemetry;
 #[cfg(unix)]
@@ -103,12 +104,13 @@ enum Start {
     Locked(std::sync::Arc<LockedJar>, BootInputs),
 }
 
-/// A launch that cannot boot ends here, its error captured.
+/// A launch that cannot boot before the app's window ends here, its error captured and shown.
 pub fn boot_failed(log: &ym_common::log::Logger, error: &ym_engine::EngineError) -> ! {
     log.capture_error("engine boot failed", error);
     crate::telemetry::disarm_exit_marker(log);
-    ym_common::log::stderr_line(format_args!("{}", crate::feed::error_text(error)));
-    std::process::exit(1);
+    let message = crate::feed::error_text(error);
+    ym_common::log::stderr_line(format_args!("{message}"));
+    crate::startup_failure::show_and_exit(message, log)
 }
 
 /// Debug builds' data dir as a launch argument, ahead of `YMUSIC_DATA_DIR`: a Jump List task is a
@@ -136,8 +138,20 @@ fn main() {
     {
         return dev.print();
     }
+    let data_dir_setup = crate::data_files::prepare_data_dir(&data_dir);
     let log_setup = crate::telemetry::logger(&data_dir);
     let log = log_setup.log.clone();
+    match data_dir_setup {
+        Ok(setup) => setup.report(&data_dir, &log.fork("data-dir")),
+        Err(error) => {
+            let code = "R90408";
+            log.fork("data-dir")
+                .capture_error(&format!("{code} the data dir {} cannot be used", data_dir.display()), &error);
+            let message = ym_i18n::tf(ym_i18n::Str::DataDirUnusable, &[&data_dir.display(), &code]);
+            ym_common::log::stderr_line(format_args!("{message}"));
+            crate::startup_failure::show_and_exit(message, &log);
+        }
+    }
     if let Some(problem) = dev.and_then(|dev| dev.workspace_file_problem) {
         log.warn(
             &format!("R96010 the worktree's dev workspace file is unusable, using the default data dir: {problem}"),
@@ -178,7 +192,7 @@ fn main() {
         tokio::runtime::Builder::new_multi_thread().enable_all().thread_name("ym-core").build().expect("tokio runtime");
     let http = HttpClients::new().expect("HTTP client");
     let image_loader = crate::images::image_loader(&data_dir, http.following.clone(), tokio.handle().clone(), &log);
-    let app_db = graph::open_app_db(&data_dir).unwrap_or_else(|error| boot_failed(&log, &error));
+    let app_db = graph::open_app_db(&data_dir, &log).unwrap_or_else(|error| boot_failed(&log, &error));
     crate::data_files::import_legacy_files(&app_db, &data_dir, &log);
     let reporting = crate::telemetry::start_reporting(
         &log_setup,

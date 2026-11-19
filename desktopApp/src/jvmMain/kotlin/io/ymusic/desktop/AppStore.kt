@@ -77,17 +77,17 @@ internal class AppStore private constructor(private val database: AppDatabase) {
         private val LEGACY_SECRETS = listOf(COOKIE_JAR, DPAPI_KEY_SECRET, FALLBACK_KEY_SECRET)
         private val LEGACY_LEFTOVERS = listOf("$COOKIE_JAR.tmp", "$COOKIE_JAR.reseal", "$DPAPI_KEY_SECRET.tmp")
 
-        fun open(dataDir: File, log: Logger?): AppStore {
-            val file = File(dataDir.apply { mkdirs() }, DB_FILE)
-            createOwnerOnly(file)
+        fun open(dataDir: File, log: Logger): AppStore {
             val properties = Properties().apply {
                 setProperty("journal_mode", "WAL")
                 setProperty("synchronous", "FULL")
                 setProperty("busy_timeout", "5000")
             }
-            return AppStore(AppDatabase(JdbcSqliteDriver("jdbc:sqlite:${file.absolutePath}", properties, AppDatabase.Schema))).also {
-                it.importLegacyFiles(dataDir, log)
+            val database = openDatabase(File(dataDir.apply { mkdirs() }, DB_FILE), log.fork("data-dir")) { file ->
+                createOwnerOnly(file)
+                AppDatabase(JdbcSqliteDriver("jdbc:sqlite:${file.absolutePath}", properties, AppDatabase.Schema))
             }
+            return AppStore(database).also { it.importLegacyFiles(dataDir, log) }
         }
 
         /** Owner read/write only where the OS has the notion; SQLite gives its -wal/-shm the same mode. */

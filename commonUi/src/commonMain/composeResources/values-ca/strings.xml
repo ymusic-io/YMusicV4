@@ -699,4 +699,5 @@
         <item quantity="other">Vols suprimir %1$d fitxers?</item>
     </plurals>
     <string name="downloads_delete_selected_message">Els fitxers suprimits no es poden recuperar.</string>
+    <string name="data_dir_unusable">YMusic no pot obrir la seva carpeta de dades, %1$s. Comprova que sigui una carpeta on puguis escriure i torna a obrir YMusic. (%2$s)</string>
 </resources>

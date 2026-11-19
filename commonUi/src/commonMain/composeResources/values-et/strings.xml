@@ -687,4 +687,5 @@
         <item quantity="other">Kas kustutada %1$d faili?</item>
     </plurals>
     <string name="downloads_delete_selected_message">Kustutatud faile ei saa taastada.</string>
+    <string name="data_dir_unusable">YMusic ei saa avada oma andmekausta %1$s. Veendu, et see on kaust, kuhu saad kirjutada, ja ava YMusic uuesti. (%2$s)</string>
 </resources>

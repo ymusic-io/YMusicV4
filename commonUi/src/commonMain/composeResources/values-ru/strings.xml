@@ -711,4 +711,5 @@
         <item quantity="other">Удалить %1$d файла?</item>
     </plurals>
     <string name="downloads_delete_selected_message">Удалённые файлы нельзя восстановить.</string>
+    <string name="data_dir_unusable">YMusic не удаётся открыть папку с данными %1$s. Убедитесь, что это папка, в которую можно записывать, и снова откройте YMusic. (%2$s)</string>
 </resources>

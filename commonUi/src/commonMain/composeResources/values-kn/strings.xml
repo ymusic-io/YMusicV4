@@ -687,4 +687,5 @@
         <item quantity="other">%1$d ಫೈಲ್‌ಗಳನ್ನು ಅಳಿಸಬೇಕೇ?</item>
     </plurals>
     <string name="downloads_delete_selected_message">ಅಳಿಸಿದ ಫೈಲ್‌ಗಳನ್ನು ಮರುಪಡೆಯಲು ಸಾಧ್ಯವಿಲ್ಲ.</string>
+    <string name="data_dir_unusable">YMusic ತನ್ನ ಡೇಟಾ ಫೋಲ್ಡರ್ %1$s ಅನ್ನು ತೆರೆಯಲು ಸಾಧ್ಯವಿಲ್ಲ. ಅದು ನೀವು ಬರೆಯಬಹುದಾದ ಫೋಲ್ಡರ್ ಎಂದು ಖಚಿತಪಡಿಸಿಕೊಳ್ಳಿ, ನಂತರ YMusic ಅನ್ನು ಮತ್ತೆ ತೆರೆಯಿರಿ. (%2$s)</string>
 </resources>

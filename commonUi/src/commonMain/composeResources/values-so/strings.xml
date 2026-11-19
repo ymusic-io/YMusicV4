@@ -687,4 +687,5 @@
         <item quantity="other">Tirtir %1$d fayl?</item>
     </plurals>
     <string name="downloads_delete_selected_message">Faylasha la tirtiray dib looma soo celin karo.</string>
+    <string name="data_dir_unusable">YMusic ma furi karto galkadeeda xogta, %1$s. Hubi inay tahay gal aad wax ku qori karto, kadibna mar kale fur YMusic. (%2$s)</string>
 </resources>

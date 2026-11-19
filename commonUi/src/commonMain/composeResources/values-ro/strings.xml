@@ -699,4 +699,5 @@
         <item quantity="other">Ștergi %1$d de fișiere?</item>
     </plurals>
     <string name="downloads_delete_selected_message">Fișierele șterse nu pot fi recuperate.</string>
+    <string name="data_dir_unusable">YMusic nu își poate deschide dosarul de date, %1$s. Asigură-te că este un dosar în care poți scrie, apoi deschide din nou YMusic. (%2$s)</string>
 </resources>

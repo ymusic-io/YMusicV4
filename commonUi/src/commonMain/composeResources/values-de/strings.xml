@@ -687,4 +687,5 @@
         <item quantity="other">%1$d Dateien löschen?</item>
     </plurals>
     <string name="downloads_delete_selected_message">Gelöschte Dateien können nicht wiederhergestellt werden.</string>
+    <string name="data_dir_unusable">YMusic kann seinen Datenordner %1$s nicht öffnen. Stelle sicher, dass es ein Ordner ist, in den du schreiben kannst, und öffne YMusic dann erneut. (%2$s)</string>
 </resources>

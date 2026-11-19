@@ -687,4 +687,5 @@
         <item quantity="other">Skrap %1$d lêers?</item>
     </plurals>
     <string name="downloads_delete_selected_message">Geskrapte lêers kan nie herstel word nie.</string>
+    <string name="data_dir_unusable">YMusic kan nie sy datavouer, %1$s, oopmaak nie. Maak seker dit is 'n vouer waarin jy kan skryf, en maak YMusic dan weer oop. (%2$s)</string>
 </resources>

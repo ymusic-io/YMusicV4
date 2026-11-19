@@ -687,4 +687,5 @@
         <item quantity="other">Διαγραφή %1$d αρχείων;</item>
     </plurals>
     <string name="downloads_delete_selected_message">Τα διαγραμμένα αρχεία δεν μπορούν να ανακτηθούν.</string>
+    <string name="data_dir_unusable">Το YMusic δεν μπορεί να ανοίξει τον φάκελο δεδομένων του, %1$s. Βεβαιωθείτε ότι είναι φάκελος στον οποίο μπορείτε να γράψετε και ανοίξτε ξανά το YMusic. (%2$s)</string>
 </resources>

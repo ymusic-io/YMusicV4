@@ -843,4 +843,5 @@
         <item quantity="other">Delete %1$d files?</item>
     </plurals>
     <string name="downloads_delete_selected_message">Deleted files can't be recovered.</string>
+    <string name="data_dir_unusable">YMusic can't open its data folder, %1$s. Make sure it's a folder you can write to, then open YMusic again. (%2$s)</string>
 </resources>

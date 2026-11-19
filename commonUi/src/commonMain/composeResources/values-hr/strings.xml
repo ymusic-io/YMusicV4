@@ -699,4 +699,5 @@
         <item quantity="other">Izbrisati %1$d datoteka?</item>
     </plurals>
     <string name="downloads_delete_selected_message">Izbrisane datoteke ne mogu se vratiti.</string>
+    <string name="data_dir_unusable">YMusic ne može otvoriti svoju mapu s podacima, %1$s. Provjerite je li to mapa u koju možete pisati, a zatim ponovno otvorite YMusic. (%2$s)</string>
 </resources>
