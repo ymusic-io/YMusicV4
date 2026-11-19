@@ -2125,18 +2125,29 @@ impl Render for FeedView {
             .relative()
             .children(tab_row)
             .child(
-                div().id("feed-scroll").flex_1().min_h_0().overflow_y_scroll().track_scroll(&self.scroll).child(column),
+                div()
+                    .flex_1()
+                    .min_h_0()
+                    .relative()
+                    .child(
+                        div()
+                            .id("feed-scroll")
+                            .size_full()
+                            .overflow_y_scroll()
+                            .track_scroll(&self.scroll)
+                            .child(column),
+                    )
+                    .when(self.refreshing, |content| {
+                        content.child(
+                            div()
+                                .absolute()
+                                .top_0()
+                                .left_0()
+                                .right_0()
+                                .child(LoadingLine::new("feed-refreshing", t(Str::A11yRefreshing))),
+                        )
+                    }),
             )
-            .when(self.refreshing, |feed| {
-                feed.child(
-                    div()
-                        .absolute()
-                        .top_0()
-                        .left_0()
-                        .right_0()
-                        .child(LoadingLine::new("feed-refreshing", t(Str::A11yRefreshing))),
-                )
-            })
             .into_any_element()
     }
 }
