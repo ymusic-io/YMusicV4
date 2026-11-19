@@ -110,10 +110,8 @@ fn apply_theme(choice: &str, accent: &str, cx: &mut App) {
         if cfg!(target_os = "linux") {
             theme.window_border = if theme.mode.is_dark() { white().opacity(0.07) } else { black().opacity(0.15) };
         }
-        // Material 3's snackbar shape on the theme's own tones: the JVM scheme's secondaryContainer
-        // and ink, light on the light theme and dark on the dark one.
-        let (snackbar, snackbar_ink): (Hsla, Hsla) =
-            (if theme.mode.is_dark() { rgb(0x3F3F3F) } else { rgb(0xF0F1F0) }.into(), palette.ink);
+        // Material 3's snackbar shape on the theme's elevated surface; the toast keeps its shadow.
+        let (snackbar, snackbar_ink) = (palette.surface_elevated, palette.ink);
         theme.notification.style = StyleRefinement::default()
             .bg(snackbar)
             .text_color(snackbar_ink)
