@@ -256,6 +256,8 @@ pub struct FeedView {
     refiltering: Option<Refilter>,
     /// An F5 reload is in flight; the page stays up under the loading line until it lands.
     refreshing: bool,
+    /// A loaded page's `partial_error_code`, shown once as a notification on the next render.
+    error_code: Option<String>,
     generation: u64,
     scroll: ScrollHandle,
     /// Collapsible sections the user expanded, by index.
@@ -325,6 +327,7 @@ impl FeedView {
             more_focus: LoadMoreFocus::new(cx),
             refiltering: None,
             refreshing: false,
+            error_code: None,
             generation: 0,
             scroll: scroll.clone(),
             expanded: std::collections::HashSet::new(),
@@ -746,6 +749,7 @@ impl FeedView {
             page.page_header = self.page.page_header.take();
             page.page_tabs = std::mem::take(&mut self.page.page_tabs);
         }
+        self.error_code = page.partial_error_code.clone();
         self.page = page;
         self.phase = Phase::Ready;
         self.more_failed = None;
@@ -1986,6 +1990,10 @@ pub fn youtube_share_link(kind: &str, id: &str) -> Option<String> {
 impl Render for FeedView {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         crate::shell::track_scroll(&self.scroll, cx);
+        if let Some(code) = self.error_code.take() {
+            let message = error_text(&EngineError::site(&code, "partial page failure"));
+            window.defer(cx, move |window, cx| window.push_notification(message, cx));
+        }
         match &self.phase {
             Phase::Loading => return centered(Spinner::new().large()).into_any_element(),
             Phase::Failed(error) => {
