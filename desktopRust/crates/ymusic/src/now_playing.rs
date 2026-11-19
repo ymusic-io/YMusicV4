@@ -1,6 +1,8 @@
 //! Now Playing, laid out like the JVM desktop app. Wide (W > H and W >= 640): the video on the left
 //! with overlay controls, the queue pane on the right (`clamp(0.3W, 320, 480)`) under its top bar.
 //! Narrow: top bar, video full width, title, then the queue.
+//! Full screen (a full-screen window) is the wide layout whatever the window's shape, or with the
+//! queue hidden the video alone; the window full screen by itself (F11) keeps the layout above.
 //! The video box is painted by `video_layer`: a native view behind the window on macOS, CPU pictures elsewhere.
 
 use std::cell::Cell;
@@ -60,7 +62,7 @@ const STOP_CHANNEL_OVERLAY: usize = 9;
 const STOP_QUEUE_MORE: usize = 10;
 const STOP_LOCATE: usize = 11;
 /// The video controls, as arrow stops of their own list, in their rows' order: transport, the time row,
-/// the seek bar, full screen's actions row, the failure's actions.
+/// the seek bar, video-only full screen's actions row, the failure's actions.
 const OVERLAY_REWIND: usize = 0;
 const OVERLAY_PREVIOUS: usize = 1;
 const OVERLAY_PLAY: usize = 2;
@@ -69,18 +71,19 @@ const OVERLAY_FORWARD: usize = 4;
 const OVERLAY_LIVE: usize = 5;
 const OVERLAY_QUALITY: usize = 6;
 const OVERLAY_CAPTIONS: usize = 7;
-const OVERLAY_FILL: usize = 8;
-const OVERLAY_FULLSCREEN: usize = 9;
-const OVERLAY_SEEK: usize = 10;
-const OVERLAY_DETAILS: usize = 11;
-const OVERLAY_SPEED: usize = 12;
-const OVERLAY_EQUALIZER: usize = 13;
-const OVERLAY_SPONSOR_BLOCK: usize = 14;
-const OVERLAY_DOWNLOAD: usize = 15;
-const OVERLAY_SLEEP: usize = 16;
-const OVERLAY_SHARE: usize = 17;
-const OVERLAY_SIGN_IN: usize = 18;
-const OVERLAY_RETRY: usize = 19;
+const OVERLAY_QUEUE: usize = 8;
+const OVERLAY_FILL: usize = 9;
+const OVERLAY_FULLSCREEN: usize = 10;
+const OVERLAY_SEEK: usize = 11;
+const OVERLAY_DETAILS: usize = 12;
+const OVERLAY_SPEED: usize = 13;
+const OVERLAY_EQUALIZER: usize = 14;
+const OVERLAY_SPONSOR_BLOCK: usize = 15;
+const OVERLAY_DOWNLOAD: usize = 16;
+const OVERLAY_SLEEP: usize = 17;
+const OVERLAY_SHARE: usize = 18;
+const OVERLAY_SIGN_IN: usize = 19;
+const OVERLAY_RETRY: usize = 20;
 const MENU_CAPTIONS: u8 = 1;
 const MENU_QUALITY: u8 = 2;
 const MENU_MORE: u8 = 4;
@@ -161,9 +164,15 @@ pub struct NowPlaying {
     overlay_focus: FocusList,
     /// A video control held keyboard focus at the last render: the controls stay up meanwhile.
     keyboard_in_controls: Cell<bool>,
+    /// Now Playing's full screen, in a full-screen window; the window alone (F11) leaves this off.
     fullscreen: bool,
+    /// Full screen keeps the wide layout's queue pane; the mode last used this run, off at start.
+    fullscreen_queue: bool,
+    /// The window has been seen full screen since Now Playing's full screen began: every OS confirms
+    /// it a frame or more after the request, and only a window that left it ends this mode.
+    fullscreen_confirmed: bool,
     /// The JVM `videoFillScreen`: full screen takes the whole screen as the picture; never saved, off
-    /// whenever full screen ends.
+    /// whenever full screen ends or shows the queue.
     video_fill: bool,
     _subscriptions: Vec<Subscription>,
     _controls_timer: Task<()>,
@@ -442,6 +451,8 @@ impl NowPlaying {
             overlay_focus: FocusList::new(None),
             keyboard_in_controls: Cell::new(false),
             fullscreen: false,
+            fullscreen_queue: false,
+            fullscreen_confirmed: false,
             video_fill: false,
             live_rows: Default::default(),
             _subscriptions: subscriptions,
@@ -601,13 +612,40 @@ impl NowPlaying {
         }
     }
 
+    /// Enters full screen in the mode used last, or leaves it together with the window's.
     fn toggle_fullscreen(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.fullscreen = !self.fullscreen;
-        if !self.fullscreen {
+        if self.fullscreen {
+            self.end_fullscreen();
+            if window.is_fullscreen() {
+                window.toggle_fullscreen();
+            }
+        } else {
+            self.fullscreen = true;
+            if !window.is_fullscreen() {
+                window.toggle_fullscreen();
+            }
+            self.fullscreen_confirmed = window.is_fullscreen();
+        }
+        self.show_controls(cx);
+    }
+
+    fn end_fullscreen(&mut self) {
+        self.fullscreen = false;
+        self.fullscreen_confirmed = false;
+        self.video_fill = false;
+    }
+
+    fn toggle_fullscreen_queue(&mut self, cx: &mut Context<Self>) {
+        self.fullscreen_queue = !self.fullscreen_queue;
+        if self.fullscreen_queue {
             self.video_fill = false;
         }
-        window.toggle_fullscreen();
         self.show_controls(cx);
+    }
+
+    /// Full screen as the video alone, with its own controls layout.
+    fn video_only_fullscreen(&self) -> bool {
+        self.fullscreen && !self.fullscreen_queue
     }
 
     fn render_play_button(
@@ -712,8 +750,8 @@ impl NowPlaying {
     }
 
     /// `VideoOverlayControls`: a scrim, the title top left, the transport centered, and along the bottom
-    /// the time row and the seek bar, with full screen's actions row under them, all growing with the
-    /// video box.
+    /// the time row and the seek bar, with video-only full screen's actions row under them, all growing
+    /// with the video box.
     fn render_overlay(
         &self,
         current: &QueueItem,
@@ -797,7 +835,8 @@ impl NowPlaying {
             .text_color(rgb(OVERLAY_INK))
             .when_some(elapsed, |row, elapsed| row.child(elapsed))
             .child(total);
-        let quality = fullscreen
+        let video_only = self.video_only_fullscreen();
+        let quality = video_only
             .then(|| self.quality_chip(Some(self.overlay_focus.handle(OVERLAY_QUALITY, cx)), Some(scale), cx))
             .flatten()
             .map(|chip| self.overlay_focus.wrap(OVERLAY_QUALITY, chip, cx));
@@ -811,6 +850,25 @@ impl NowPlaying {
                 row.child(self.overlay_focus.wrap_for(OVERLAY_CAPTIONS, &self.caption_focus, button, cx))
             })
             .when(fullscreen, |row| {
+                let queue = self.fullscreen_queue;
+                let toggle = sized_action_icon(
+                    "np-queue-toggle",
+                    auto_mirrored(MaterialIcon::QueueMusicOutlined),
+                    t(if queue { Str::CdHideQueue } else { Str::CdShowQueue }),
+                    glyph,
+                    hit,
+                );
+                row.child(
+                    self.overlay_focus.button(
+                        OVERLAY_QUEUE,
+                        on_video(toggle, cx)
+                            .when(queue, |button| button.text_color(cx.theme().primary))
+                            .on_click(cx.listener(|view, _, _, cx| view.toggle_fullscreen_queue(cx))),
+                        cx,
+                    ),
+                )
+            })
+            .when(video_only, |row| {
                 let fill = self.video_fill;
                 let toggle = sized_action_icon(
                     "np-fill",
@@ -845,7 +903,7 @@ impl NowPlaying {
                     cx,
                 ),
             );
-        let actions_row = fullscreen
+        let actions_row = video_only
             .then(|| h_flex().gap(px(4.)).items_center().children(self.overlay_player_actions(current, scale, cx)));
         let playback = self.playback.clone();
         let seek_stop = SliderStop {
@@ -1200,12 +1258,13 @@ impl NowPlaying {
 
     /// The bottom strip the video controls take while they show, at the overlay's scale.
     fn controls_strip(&self) -> f32 {
-        let strip = if self.fullscreen { FULLSCREEN_CONTROLS_STRIP } else { CONTROLS_STRIP };
+        let strip = if self.video_only_fullscreen() { FULLSCREEN_CONTROLS_STRIP } else { CONTROLS_STRIP };
         strip * overlay_scale(self.video_box.get())
     }
 
-    /// Full screen has no top bar, so its actions come onto the controls' bottom row: details, speed,
-    /// equalizer, SponsorBlock, download, sleep timer and share, opening what the top bar and ⋮ do.
+    /// Full screen without the queue has no top bar, so its actions come onto the controls' bottom row:
+    /// details, speed, equalizer, SponsorBlock, download, sleep timer and share, opening what the top bar
+    /// and ⋮ do.
     fn overlay_player_actions(&self, current: &QueueItem, scale: f32, cx: &mut Context<Self>) -> Vec<AnyElement> {
         let (glyph, hit) = (ICON * scale, HIT * scale);
         let mut actions: Vec<AnyElement> = Vec::new();
@@ -1998,12 +2057,15 @@ impl Render for NowPlaying {
             self.playback.update(cx, |playback, cx| playback.set_viewport(painted.0, painted.1, cx));
         }
         self.keyboard_in_controls.set(window.last_input_was_keyboard() && self.overlay_focus.has_focus(window));
-        let Some(current) = self.playback.read(cx).current().cloned() else { return div().into_any_element() };
-        if self.fullscreen && !window.is_fullscreen() {
-            self.fullscreen = false;
-            self.video_fill = false;
-        }
         if self.fullscreen {
+            if window.is_fullscreen() {
+                self.fullscreen_confirmed = true;
+            } else if self.fullscreen_confirmed {
+                self.end_fullscreen();
+            }
+        }
+        let Some(current) = self.playback.read(cx).current().cloned() else { return div().into_any_element() };
+        if self.video_only_fullscreen() {
             return div()
                 .size_full()
                 .capture_key_down(cx.listener(Self::key_shows_controls))
@@ -2014,8 +2076,8 @@ impl Render for NowPlaying {
         let (width, height) = (f32::from(viewport.width), f32::from(viewport.height));
         let theme = cx.theme().clone();
         let top_bar = self.cached_part(PanePart::TopBar, window, cx);
-        if width > height && width >= 640. {
-            let pane = (0.3 * width).clamp(320., 480.);
+        if self.fullscreen || (width > height && width >= 640.) {
+            let pane = (0.3 * width).clamp(320., 480.).min(width / 2.);
             let queue = self.cached_part(PanePart::Queue { large: pane >= 380. }, window, cx);
             let video = self.render_video(&current, true, cx);
             return h_flex()
