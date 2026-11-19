@@ -33,7 +33,11 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.conflate
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
@@ -140,6 +144,7 @@ class DownloadForegroundService : Service() {
             summaryPostedAt = SystemClock.uptimeMillis()
             foreground = true
         }
+        foregroundStartsFlow.update { it + 1 }
         return START_NOT_STICKY
     }
 
@@ -462,19 +467,24 @@ class DownloadForegroundService : Service() {
         }
     }
 
-    private companion object {
-        const val CHANNEL_ID = "io.ymusic.downloads"
-        const val GROUP_KEY = "io.ymusic.downloads.GROUP"
-        const val SUMMARY_NOTIFICATION_ID = 2001
-        const val CHILD_ID_BASE = 0x100000
-        const val ACTION_PAUSE_ALL = "io.ymusic.android.downloads.PAUSE_ALL"
-        const val PAUSE_REQUEST_CODE = 200
-        const val OPEN_REQUEST_CODE = 201
-        const val UPDATE_THROTTLE_MS = 500L
-        const val THUMB_PX = 256
+    companion object {
+        private val foregroundStartsFlow = MutableStateFlow(0)
+
+        /** Start requests the service has answered in the foreground, counted over the process. */
+        val foregroundStarts: StateFlow<Int> = foregroundStartsFlow.asStateFlow()
+
+        private const val CHANNEL_ID = "io.ymusic.downloads"
+        private const val GROUP_KEY = "io.ymusic.downloads.GROUP"
+        private const val SUMMARY_NOTIFICATION_ID = 2001
+        private const val CHILD_ID_BASE = 0x100000
+        private const val ACTION_PAUSE_ALL = "io.ymusic.android.downloads.PAUSE_ALL"
+        private const val PAUSE_REQUEST_CODE = 200
+        private const val OPEN_REQUEST_CODE = 201
+        private const val UPDATE_THROTTLE_MS = 500L
+        private const val THUMB_PX = 256
 
         // Some OEM SystemUIs (One UI 7) race their own inflation of one notification against the
         // next update of it and crash the app with "Couldn't inflate contentViews".
-        const val SUMMARY_MIN_INTERVAL_MS = 1_000L
+        private const val SUMMARY_MIN_INTERVAL_MS = 1_000L
     }
 }
