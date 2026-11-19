@@ -32,6 +32,7 @@ mod fps_badge;
 mod graph;
 mod images;
 mod instance;
+mod item_menu;
 #[cfg(target_os = "windows")]
 mod jump_list;
 mod launch;

@@ -24,6 +24,7 @@ use crate::action_icon::{action_icon, auto_mirrored};
 use crate::assets::MaterialIcon;
 use crate::elevated_dialog::ConfirmDialog;
 use crate::graph::{AppGraph, on_core};
+use crate::item_menu::{ItemMenu, on_right_click};
 use crate::lazy_rows::LazyRows;
 use crate::library_playlist::{self, AddToLocalPlaylist, ArrangePlaylist, Changed, NameMode, PlaylistNameDialog};
 use crate::mini_player::clock;
@@ -1824,93 +1825,85 @@ pub fn song_cell<V: SongMenuHost>(
     let view = cx.entity().downgrade();
     let song = item.clone();
     let more = action_icon(("song-more", index), MaterialIcon::MoreVert, t(Str::CdMore));
-    let more =
-        focus.menu_button(index, more, cx).dropdown_menu_with_anchor(Anchor::TopRight, move |menu_list, _, _| {
-            let local = QueueItem::from_local(&song);
-            let path = PathBuf::from(&song.uri);
-            let act = {
+    let menu = ItemMenu::new(move |menu_list, _, _| {
+        let local = QueueItem::from_local(&song);
+        let path = PathBuf::from(&song.uri);
+        let act = {
+            let view = view.clone();
+            move |action: SongAction| {
                 let view = view.clone();
-                move |action: SongAction| {
-                    let view = view.clone();
-                    let action = std::cell::Cell::new(Some(action));
-                    move |_: &ClickEvent, window: &mut Window, cx: &mut App| {
-                        if let Some(action) = action.take() {
-                            view.update(cx, |view, cx| view.song_action(action, window, cx)).ok();
-                        }
+                let action = std::cell::Cell::new(Some(action));
+                move |_: &ClickEvent, window: &mut Window, cx: &mut App| {
+                    if let Some(action) = action.take() {
+                        view.update(cx, |view, cx| view.song_action(action, window, cx)).ok();
                     }
                 }
-            };
-            let (play_view, next, last) = (view.clone(), view.clone(), view.clone());
-            let (next_item, last_item, single) = (local.clone(), local.clone(), local);
-            let changed: Changed = {
-                let view = view.clone();
-                Rc::new(move |window, cx| {
-                    view.update(cx, |view, cx| view.song_action(SongAction::Changed, window, cx)).ok();
-                })
-            };
-            let (playlist_changed, delete_changed) = (changed.clone(), changed);
-            let (code, doomed) = (song.playlist_code(), song.clone());
-            let mut menu_list = menu_list
-                .item(PopupMenuItem::new(t(Str::MenuPlay)).on_click(move |_, _, cx| {
-                    let item = single.clone();
-                    play_view
-                        .update(cx, |_, cx| cx.emit(PlayLocal { items: vec![item], index: 0, shuffle: None }))
-                        .ok();
-                }))
-                .item(PopupMenuItem::new(t(Str::QueueNext)).on_click(move |_, _, cx| {
-                    next.update(cx, |_, cx| cx.emit(QueueLocal { items: vec![next_item.clone()], next: true })).ok();
-                }))
-                .item(PopupMenuItem::new(t(Str::QueueLast)).on_click(move |_, _, cx| {
-                    last.update(cx, |_, cx| cx.emit(QueueLocal { items: vec![last_item.clone()], next: false })).ok();
-                }))
-                .item(PopupMenuItem::new(t(Str::CdAddToPlaylist)).on_click(move |_, window, cx| {
-                    AddToLocalPlaylist::open(vec![code.clone()], Some(playlist_changed.clone()), window, cx);
-                }));
-            if menu.remove_from_playlist {
-                menu_list = menu_list.item(
-                    PopupMenuItem::new(t(Str::MenuRemoveFromPlaylist))
-                        .on_click(act(SongAction::RemoveFromPlaylist(song.clone()))),
-                );
             }
-            if menu.remove_from_history {
-                menu_list = menu_list.item(
-                    PopupMenuItem::new(t(Str::MenuRemove)).on_click(act(SongAction::RemoveFromHistory(song.clone()))),
-                );
-            }
+        };
+        let (play_view, next, last) = (view.clone(), view.clone(), view.clone());
+        let (next_item, last_item, single) = (local.clone(), local.clone(), local);
+        let changed: Changed = {
+            let view = view.clone();
+            Rc::new(move |window, cx| {
+                view.update(cx, |view, cx| view.song_action(SongAction::Changed, window, cx)).ok();
+            })
+        };
+        let (playlist_changed, delete_changed) = (changed.clone(), changed);
+        let (code, doomed) = (song.playlist_code(), song.clone());
+        let mut menu_list = menu_list
+            .item(PopupMenuItem::new(t(Str::MenuPlay)).on_click(move |_, _, cx| {
+                let item = single.clone();
+                play_view.update(cx, |_, cx| cx.emit(PlayLocal { items: vec![item], index: 0, shuffle: None })).ok();
+            }))
+            .item(PopupMenuItem::new(t(Str::QueueNext)).on_click(move |_, _, cx| {
+                next.update(cx, |_, cx| cx.emit(QueueLocal { items: vec![next_item.clone()], next: true })).ok();
+            }))
+            .item(PopupMenuItem::new(t(Str::QueueLast)).on_click(move |_, _, cx| {
+                last.update(cx, |_, cx| cx.emit(QueueLocal { items: vec![last_item.clone()], next: false })).ok();
+            }))
+            .item(PopupMenuItem::new(t(Str::CdAddToPlaylist)).on_click(move |_, window, cx| {
+                AddToLocalPlaylist::open(vec![code.clone()], Some(playlist_changed.clone()), window, cx);
+            }));
+        if menu.remove_from_playlist {
+            menu_list = menu_list.item(
+                PopupMenuItem::new(t(Str::MenuRemoveFromPlaylist))
+                    .on_click(act(SongAction::RemoveFromPlaylist(song.clone()))),
+            );
+        }
+        if menu.remove_from_history {
+            menu_list = menu_list.item(
+                PopupMenuItem::new(t(Str::MenuRemove)).on_click(act(SongAction::RemoveFromHistory(song.clone()))),
+            );
+        }
+        menu_list = menu_list
+            .item(
+                PopupMenuItem::new(t(Str::MenuGoToArtist))
+                    .on_click(act(SongAction::GoTo(GroupKind::Artist, song.artist.clone().unwrap_or_default()))),
+            )
+            .item(
+                PopupMenuItem::new(t(Str::MenuGoToAlbum))
+                    .on_click(act(SongAction::GoTo(GroupKind::Album, song.album.clone().unwrap_or_default()))),
+            );
+        if menu.show_in_folder
+            && let Some(bucket_id) = song.bucket_id
+        {
             menu_list = menu_list
-                .item(
-                    PopupMenuItem::new(t(Str::MenuGoToArtist))
-                        .on_click(act(SongAction::GoTo(GroupKind::Artist, song.artist.clone().unwrap_or_default()))),
-                )
-                .item(
-                    PopupMenuItem::new(t(Str::MenuGoToAlbum))
-                        .on_click(act(SongAction::GoTo(GroupKind::Album, song.album.clone().unwrap_or_default()))),
-                );
-            if menu.show_in_folder
-                && let Some(bucket_id) = song.bucket_id
-            {
-                menu_list = menu_list.item(
-                    PopupMenuItem::new(t(Str::MenuShowInFolder)).on_click(act(SongAction::ShowInFolder(bucket_id))),
-                );
-            }
-            menu_list
-                .separator()
-                .item(PopupMenuItem::new(reveal_label()).on_click(move |_, _, cx| cx.reveal_path(&path)))
-                .item(PopupMenuItem::new(t(Str::MenuRemoveFromDisk)).on_click(move |_, window, cx| {
-                    library_playlist::confirm_delete_from_disk(
-                        doomed.clone(),
-                        Some(delete_changed.clone()),
-                        window,
-                        cx,
-                    );
+                .item(PopupMenuItem::new(t(Str::MenuShowInFolder)).on_click(act(SongAction::ShowInFolder(bucket_id))));
+        }
+        menu_list
+            .separator()
+            .item(PopupMenuItem::new(reveal_label()).on_click(move |_, _, cx| cx.reveal_path(&path)))
+            .item(PopupMenuItem::new(t(Str::MenuRemoveFromDisk)).on_click(move |_, window, cx| {
+                library_playlist::confirm_delete_from_disk(doomed.clone(), Some(delete_changed.clone()), window, cx);
+            }))
+            .when(select.is_some(), |menu_list| {
+                let view = view.clone();
+                menu_list.item(PopupMenuItem::new(t(Str::DownloadsActionSelect)).on_click(move |_, _, cx| {
+                    view.update(cx, |view, cx| view.song_select(SongSelectInput::Start(index), cx)).ok();
                 }))
-                .when(select.is_some(), |menu_list| {
-                    let view = view.clone();
-                    menu_list.item(PopupMenuItem::new(t(Str::DownloadsActionSelect)).on_click(move |_, _, cx| {
-                        view.update(cx, |view, cx| view.song_select(SongSelectInput::Start(index), cx)).ok();
-                    }))
-                })
-        });
+            })
+    });
+    let more = menu.dropdown(focus.menu_button(index, more, cx), Anchor::TopRight);
     let selecting = select.is_some_and(|select| select.selecting);
     let checked = select.is_some_and(|select| select.checked);
     let trailing = if selecting {
@@ -1958,9 +1951,10 @@ pub fn song_cell<V: SongMenuHost>(
             .child(trailing)
             .on_click(cx.listener(move |view, _, _, cx| play(view, index, cx)));
     if select.is_none() {
-        return cell.into_any_element();
+        return on_right_click(cell, Some(&menu)).into_any_element();
     }
-    cell.when(checked, |cell| cell.bg(crate::selection::selected_fill(cx)))
+    let cell = cell
+        .when(checked, |cell| cell.bg(crate::selection::selected_fill(cx)))
         .on_mouse_down(
             MouseButton::Left,
             cx.listener(move |view, event: &MouseDownEvent, _, cx| {
@@ -1976,8 +1970,8 @@ pub fn song_cell<V: SongMenuHost>(
         .on_mouse_up_out(
             MouseButton::Left,
             cx.listener(|view, _, _, cx| view.song_select(SongSelectInput::Released, cx)),
-        )
-        .into_any_element()
+        );
+    on_right_click(cell, (!selecting).then_some(&menu)).into_any_element()
 }
 
 fn more_button(id: impl Into<ElementId>) -> Button {
@@ -2379,7 +2373,7 @@ impl LibraryView {
         let view = cx.entity().downgrade();
         let menu_bucket = bucket.clone();
         let more = self.card_focus.menu_button(index, more_button(("folder-more", index)), cx);
-        let more = more.dropdown_menu_with_anchor(Anchor::TopRight, move |menu, _, _| {
+        let menu = ItemMenu::new(move |menu, _, _| {
             let bucket = menu_bucket.clone();
             let path = path.clone();
             let change = |label: Str, change: FolderChange| {
@@ -2405,6 +2399,7 @@ impl LibraryView {
             }
             menu.item(PopupMenuItem::new(reveal_label()).on_click(move |_, _, cx| cx.reveal_path(&path)))
         });
+        let more = menu.dropdown(more, Anchor::TopRight);
         let card = Self::card(
             ("folder", index).into(),
             index,
@@ -2421,7 +2416,7 @@ impl LibraryView {
         .relative()
         .child(div().absolute().top(px(8.)).right(px(if grid { 8. } else { 4. })).child(more))
         .on_click(cx.listener(move |view, _, _, cx| view.open_folder(bucket.clone(), cx)));
-        self.card_focus.item(index, card, cx).into_any_element()
+        on_right_click(self.card_focus.item(index, card, cx), Some(&menu)).into_any_element()
     }
 
     /// The Playlists tab's `index`th card: Recently played and Top tracks, then `playlists`.
@@ -2459,7 +2454,7 @@ impl LibraryView {
         let view = cx.entity().downgrade();
         let menu_playlist = playlist.clone();
         let more = self.card_focus.menu_button(index, more_button(("playlist-more", position)), cx);
-        let more = more.dropdown_menu_with_anchor(Anchor::TopRight, move |menu, _, _| {
+        let menu = ItemMenu::new(move |menu, _, _| {
             let (rename_view, delete_view) = (view.clone(), view.clone());
             let (renamed, deleted) = (menu_playlist.clone(), menu_playlist.clone());
             menu.item(PopupMenuItem::new(t(Str::MenuRename)).on_click(move |_, window, cx| {
@@ -2469,6 +2464,7 @@ impl LibraryView {
                 delete_view.update(cx, |view, cx| view.delete_playlist(deleted.clone(), window, cx)).ok();
             }))
         });
+        let more = menu.dropdown(more, Anchor::TopRight);
         let card = Self::card(
             ("user-playlist", position).into(),
             index,
@@ -2488,7 +2484,7 @@ impl LibraryView {
             view.set_open_playlist(Some(OpenPlaylist::User(playlist.clone())));
             cx.notify();
         }));
-        self.card_focus.item(index, card, cx).into_any_element()
+        on_right_click(self.card_focus.item(index, card, cx), Some(&menu)).into_any_element()
     }
 
     fn group_card(

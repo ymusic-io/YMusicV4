@@ -19,6 +19,7 @@ use crate::action_icon::{HIT, ICON, action_icon, auto_mirrored, sized_action_ico
 use crate::assets::MaterialIcon;
 use crate::download_dialog::DownloadTarget;
 use crate::graph::{AppGraph, on_core};
+use crate::item_menu::{ItemMenu, on_right_click};
 use crate::lazy_rows::LazyRows;
 use crate::local_playlist::LocalPlaylistFromDownloads;
 use crate::offline::{OfflineMarks, offline_mark};
@@ -1222,7 +1223,13 @@ impl FeedView {
         item.kind == "video" && self.offline.read(cx).contains(&item.id)
     }
 
-    fn more_menu(&self, item: &YtFeedItem, key: (&'static str, usize), hit: f32, cx: &mut Context<Self>) -> AnyElement {
+    fn more_button(&self, menu: &ItemMenu, key: (&'static str, usize), hit: f32, cx: &mut Context<Self>) -> AnyElement {
+        let glyph = Icon::new(MaterialIcon::MoreVert).text_color(cx.theme().muted_foreground);
+        let more = sized_action_icon(key, glyph, t(Str::CdMore), ICON, hit);
+        menu.dropdown(self.focus.menu_button(key.1, more, cx), Anchor::TopRight).into_any_element()
+    }
+
+    fn item_menu(&self, item: &YtFeedItem, cx: &mut Context<Self>) -> ItemMenu {
         let view = cx.entity().downgrade();
         let target = item.clone();
         let top_tracks = matches!(self.source, FeedSource::TopTracks);
@@ -1231,61 +1238,56 @@ impl FeedView {
         let channel_id = (item.kind == "channel" && signed_in)
             .then(|| item.channel_id.clone().unwrap_or_else(|| item.id.clone()))
             .filter(|id| !id.is_empty());
-        let glyph = Icon::new(MaterialIcon::MoreVert).text_color(cx.theme().muted_foreground);
-        let more = sized_action_icon(key, glyph, t(Str::CdMore), ICON, hit);
-        self.focus
-            .menu_button(key.1, more, cx)
-            .dropdown_menu_with_anchor(Anchor::TopRight, move |mut menu, _, cx| {
-                let video = target.kind == "video";
-                let mut actions: Vec<(Str, MenuAction)> = Vec::new();
-                if video {
-                    actions.push((Str::MenuPlaySingle, MenuAction::PlaySingle));
-                    actions.push((Str::MenuStartRadio, MenuAction::Feed(FeedAction::Radio)));
-                    actions.push((Str::QueueNext, MenuAction::Feed(FeedAction::QueueNext)));
-                    actions.push((Str::QueueLast, MenuAction::Feed(FeedAction::QueueLast)));
-                    if !target.live {
-                        actions.push((Str::DownloadTitle, MenuAction::Feed(FeedAction::Download)));
-                    }
-                    actions.push((Str::CdAddToPlaylist, MenuAction::AddToPlaylist));
+        ItemMenu::new(move |mut menu, _, cx| {
+            let video = target.kind == "video";
+            let mut actions: Vec<(Str, MenuAction)> = Vec::new();
+            if video {
+                actions.push((Str::MenuPlaySingle, MenuAction::PlaySingle));
+                actions.push((Str::MenuStartRadio, MenuAction::Feed(FeedAction::Radio)));
+                actions.push((Str::QueueNext, MenuAction::Feed(FeedAction::QueueNext)));
+                actions.push((Str::QueueLast, MenuAction::Feed(FeedAction::QueueLast)));
+                if !target.live {
+                    actions.push((Str::DownloadTitle, MenuAction::Feed(FeedAction::Download)));
                 }
-                if target.remove_token.is_some() {
-                    actions.push((Str::MenuRemoveFromPlaylist, MenuAction::RemoveFromPlaylist));
-                }
-                if channel_id.is_some() {
-                    actions.push((Str::Subscribe, MenuAction::Subscribe(true)));
-                    actions.push((Str::Unsubscribe, MenuAction::Subscribe(false)));
-                }
-                if share_link(&target).is_some() {
-                    actions.push((Str::CdShare, MenuAction::Share));
-                }
-                if video && top_tracks {
-                    actions.push((Str::MenuRemove, MenuAction::RemoveFromTop));
-                }
-                for (label, action) in actions {
-                    let (view, item) = (view.clone(), target.clone());
-                    menu = menu.item(PopupMenuItem::new(t(label)).on_click(move |_, window, cx| {
-                        let item = item.clone();
-                        view.update(cx, |view, cx| view.menu_action(item, action, window, cx)).ok();
+                actions.push((Str::CdAddToPlaylist, MenuAction::AddToPlaylist));
+            }
+            if target.remove_token.is_some() {
+                actions.push((Str::MenuRemoveFromPlaylist, MenuAction::RemoveFromPlaylist));
+            }
+            if channel_id.is_some() {
+                actions.push((Str::Subscribe, MenuAction::Subscribe(true)));
+                actions.push((Str::Unsubscribe, MenuAction::Subscribe(false)));
+            }
+            if share_link(&target).is_some() {
+                actions.push((Str::CdShare, MenuAction::Share));
+            }
+            if video && top_tracks {
+                actions.push((Str::MenuRemove, MenuAction::RemoveFromTop));
+            }
+            for (label, action) in actions {
+                let (view, item) = (view.clone(), target.clone());
+                menu = menu.item(PopupMenuItem::new(t(label)).on_click(move |_, window, cx| {
+                    let item = item.clone();
+                    view.update(cx, |view, cx| view.menu_action(item, action, window, cx)).ok();
+                }));
+                if matches!(action, MenuAction::Feed(FeedAction::Download)) {
+                    let item = target.clone();
+                    let label = tf(Str::QuickDownloadMenu, &[&saved_preset(cx).short_label()]);
+                    menu = menu.item(PopupMenuItem::new(label).on_click(move |_, window, cx| {
+                        crate::quick_download::launch(DownloadTarget::from_feed(&item), window, cx);
                     }));
-                    if matches!(action, MenuAction::Feed(FeedAction::Download)) {
-                        let item = target.clone();
-                        let label = tf(Str::QuickDownloadMenu, &[&saved_preset(cx).short_label()]);
-                        menu = menu.item(PopupMenuItem::new(label).on_click(move |_, window, cx| {
-                            crate::quick_download::launch(DownloadTarget::from_feed(&item), window, cx);
-                        }));
-                    }
                 }
-                if video && downloaded {
-                    let video_id = target.id.clone();
-                    menu = menu.separator().label(t(Str::SectionLibrary)).item(
-                        PopupMenuItem::new(t(Str::CdAddToPlaylist)).on_click(move |_, window, cx| {
-                            crate::library_playlist::AddToLocalPlaylist::open(vec![video_id.clone()], None, window, cx);
-                        }),
-                    );
-                }
-                menu
-            })
-            .into_any_element()
+            }
+            if video && downloaded {
+                let video_id = target.id.clone();
+                menu = menu.separator().label(t(Str::SectionLibrary)).item(
+                    PopupMenuItem::new(t(Str::CdAddToPlaylist)).on_click(move |_, window, cx| {
+                        crate::library_playlist::AddToLocalPlaylist::open(vec![video_id.clone()], None, window, cx);
+                    }),
+                );
+            }
+            menu
+        })
     }
 
     /// Takes the item off the viewer's own playlist, then off this page.
@@ -1393,14 +1395,15 @@ impl FeedView {
     ) -> AnyElement {
         let theme = cx.theme().clone();
         let hit = if item.kind == "channel" { HIT } else { GRID_MENU_HIT };
-        let more = self.more_menu(item, ("card-more", index), hit, cx);
+        let menu = self.item_menu(item, cx);
+        let more = self.more_button(&menu, ("card-more", index), hit, cx);
         let card = self
             .clickable(("feed-card", index), position, item, queue, None, cx)
             .flex_1()
             .min_w_0()
             .p(px(bands.inset()));
         if item.kind == "channel" {
-            return card
+            let card = card
                 .relative()
                 .child(
                     v_flex()
@@ -1422,8 +1425,8 @@ impl FeedView {
                             column.child(div().text_xs().text_color(theme.muted_foreground).truncate().child(line))
                         }),
                 )
-                .child(div().absolute().top_0().right_0().child(more))
-                .into_any_element();
+                .child(div().absolute().top_0().right_0().child(more));
+            return on_right_click(card, Some(&menu)).into_any_element();
         }
         let stack_tab = (item.kind == "playlist").then(|| cx.global::<StackTones>().tab);
         let thumbnail = div()
@@ -1453,33 +1456,34 @@ impl FeedView {
                         .child(text),
                 )
             });
-        card.child(
-            div()
-                .relative()
-                .w_full()
-                .when_some(stack_tab, |art, color| art.child(playlist_tab(color)))
-                .child(thumbnail),
-        )
-        .child(
-            h_flex()
-                .pt_2()
-                .items_start()
-                .child(
-                    v_flex()
-                        .flex_1()
-                        .min_w_0()
-                        .gap_1()
-                        .child(div().text_sm().font_medium().line_clamp(2).child(item.title.clone()))
-                        .when_some(subtitle(item), |column, line| {
-                            column.child(div().text_xs().text_color(theme.muted_foreground).truncate().child(line))
-                        }),
-                )
-                .child({
-                    let menu = div().mt(px(5.)).child(more);
-                    if ym_i18n::is_rtl() { menu.ml(px(-bands.inset())) } else { menu.mr(px(-bands.inset())) }
-                }),
-        )
-        .into_any_element()
+        let card = card
+            .child(
+                div()
+                    .relative()
+                    .w_full()
+                    .when_some(stack_tab, |art, color| art.child(playlist_tab(color)))
+                    .child(thumbnail),
+            )
+            .child(
+                h_flex()
+                    .pt_2()
+                    .items_start()
+                    .child(
+                        v_flex()
+                            .flex_1()
+                            .min_w_0()
+                            .gap_1()
+                            .child(div().text_sm().font_medium().line_clamp(2).child(item.title.clone()))
+                            .when_some(subtitle(item), |column, line| {
+                                column.child(div().text_xs().text_color(theme.muted_foreground).truncate().child(line))
+                            }),
+                    )
+                    .child({
+                        let slot = div().mt(px(5.)).child(more);
+                        if ym_i18n::is_rtl() { slot.ml(px(-bands.inset())) } else { slot.mr(px(-bands.inset())) }
+                    }),
+            );
+        on_right_click(card, Some(&menu)).into_any_element()
     }
 
     /// A list row: thumbnail (square, 16:9, or a channel circle), then title and subtitle, ⋮ at the end.
@@ -1493,7 +1497,8 @@ impl FeedView {
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let theme = cx.theme().clone();
-        let more = self.more_menu(item, ("row-more", index), HIT, cx);
+        let menu = self.item_menu(item, cx);
+        let more = self.more_button(&menu, ("row-more", index), HIT, cx);
         let (width, height, round) = match item.kind.as_str() {
             "channel" => (74., 74., true),
             _ if bands.square => (92., 92., false),
@@ -1527,43 +1532,41 @@ impl FeedView {
                         .child(text),
                 )
             });
-        self.clickable(("feed-row", index), position, item, queue, None, cx)
-            .child(
-                h_flex()
-                    .pl_4()
-                    .pr_1()
-                    .py(px(10.))
-                    .gap_4()
-                    .items_start()
-                    .child(
-                        div()
-                            .relative()
-                            .flex_shrink_0()
-                            .w(px(width))
-                            .h(px(height))
-                            .children(stack.into_iter().flatten())
-                            .child(thumbnail),
-                    )
-                    .child(
-                        v_flex()
-                            .flex_1()
-                            .min_w_0()
-                            .gap_1()
-                            .child(
-                                div()
-                                    .text_sm()
-                                    .font_medium()
-                                    .line_clamp(if bands.square { 2 } else { 3 })
-                                    .child(item.title.clone()),
-                            )
-                            .when_some(subtitle(item), |column, line| {
-                                column
-                                    .child(div().text_xs().text_color(theme.muted_foreground).line_clamp(2).child(line))
-                            }),
-                    )
-                    .child(more),
-            )
-            .into_any_element()
+        let row = self.clickable(("feed-row", index), position, item, queue, None, cx).child(
+            h_flex()
+                .pl_4()
+                .pr_1()
+                .py(px(10.))
+                .gap_4()
+                .items_start()
+                .child(
+                    div()
+                        .relative()
+                        .flex_shrink_0()
+                        .w(px(width))
+                        .h(px(height))
+                        .children(stack.into_iter().flatten())
+                        .child(thumbnail),
+                )
+                .child(
+                    v_flex()
+                        .flex_1()
+                        .min_w_0()
+                        .gap_1()
+                        .child(
+                            div()
+                                .text_sm()
+                                .font_medium()
+                                .line_clamp(if bands.square { 2 } else { 3 })
+                                .child(item.title.clone()),
+                        )
+                        .when_some(subtitle(item), |column, line| {
+                            column.child(div().text_xs().text_color(theme.muted_foreground).line_clamp(2).child(line))
+                        }),
+                )
+                .child(more),
+        );
+        on_right_click(row, Some(&menu)).into_any_element()
     }
 
     /// Accent tick, optional avatar, title, count, then "View all" or the collapse chevron.
