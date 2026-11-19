@@ -687,5 +687,12 @@
         <item quantity="other">Да се изтрият ли %1$d файла?</item>
     </plurals>
     <string name="downloads_delete_selected_message">Изтритите файлове не могат да бъдат възстановени.</string>
+    <string name="downloads_cancel_selected">Отказ на изтеглянията</string>
+    <plurals name="downloads_cancel_selected_title">
+        <item quantity="one">Да се откаже ли %1$d изтегляне?</item>
+        <item quantity="other">Да се откажат ли %1$d изтегляния?</item>
+    </plurals>
+    <string name="downloads_cancel_selected_message">Изтегленото досега ще бъде изтрито.</string>
+    <string name="downloads_cancel_selected_keep">Запазване</string>
     <string name="data_dir_unusable">YMusic не може да отвори папката си с данни, %1$s. Уверете се, че е папка, в която можете да записвате, след което отворете YMusic отново. (%2$s)</string>
 </resources>

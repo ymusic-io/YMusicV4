@@ -687,5 +687,12 @@
         <item quantity="other">%1$d bestanden verwijderen?</item>
     </plurals>
     <string name="downloads_delete_selected_message">Verwijderde bestanden kunnen niet worden hersteld.</string>
+    <string name="downloads_cancel_selected">Downloads annuleren</string>
+    <plurals name="downloads_cancel_selected_title">
+        <item quantity="one">%1$d download annuleren?</item>
+        <item quantity="other">%1$d downloads annuleren?</item>
+    </plurals>
+    <string name="downloads_cancel_selected_message">Wat tot nu toe is gedownload, wordt verwijderd.</string>
+    <string name="downloads_cancel_selected_keep">Behouden</string>
     <string name="data_dir_unusable">YMusic kan zijn gegevensmap, %1$s, niet openen. Zorg dat het een map is waarin je kunt schrijven en open YMusic daarna opnieuw. (%2$s)</string>
 </resources>

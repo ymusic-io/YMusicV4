@@ -687,5 +687,12 @@
         <item quantity="other">%1$d फाइल मेटाउने हो?</item>
     </plurals>
     <string name="downloads_delete_selected_message">मेटाइएका फाइलहरू फिर्ता ल्याउन सकिँदैन।</string>
+    <string name="downloads_cancel_selected">डाउनलोडहरू रद्द गर्नुहोस्</string>
+    <plurals name="downloads_cancel_selected_title">
+        <item quantity="one">%1$d डाउनलोड रद्द गर्ने हो?</item>
+        <item quantity="other">%1$d डाउनलोड रद्द गर्ने हो?</item>
+    </plurals>
+    <string name="downloads_cancel_selected_message">अहिलेसम्म डाउनलोड भएको भाग मेटाइनेछ।</string>
+    <string name="downloads_cancel_selected_keep">राख्नुहोस्</string>
     <string name="data_dir_unusable">YMusic ले आफ्नो डेटा फोल्डर, %1$s, खोल्न सक्दैन। यो तपाईंले लेख्न सक्ने फोल्डर हो भनी सुनिश्चित गर्नुहोस्, त्यसपछि YMusic फेरि खोल्नुहोस्। (%2$s)</string>
 </resources>

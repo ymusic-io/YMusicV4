@@ -687,5 +687,12 @@
         <item quantity="other">%1$d ഫയൽ ഇല്ലാതാക്കണോ?</item>
     </plurals>
     <string name="downloads_delete_selected_message">ഇല്ലാതാക്കിയ ഫയലുകൾ വീണ്ടെടുക്കാനാകില്ല.</string>
+    <string name="downloads_cancel_selected">ഡൗൺലോഡുകൾ റദ്ദാക്കുക</string>
+    <plurals name="downloads_cancel_selected_title">
+        <item quantity="one">%1$d ഡൗൺലോഡ് റദ്ദാക്കണോ?</item>
+        <item quantity="other">%1$d ഡൗൺലോഡ് റദ്ദാക്കണോ?</item>
+    </plurals>
+    <string name="downloads_cancel_selected_message">ഇതുവരെ ഡൗൺലോഡ് ചെയ്തത് ഇല്ലാതാക്കും.</string>
+    <string name="downloads_cancel_selected_keep">നിലനിർത്തുക</string>
     <string name="data_dir_unusable">YMusic-ന് അതിന്റെ ഡാറ്റ ഫോൾഡർ, %1$s, തുറക്കാൻ കഴിയുന്നില്ല. നിങ്ങൾക്ക് എഴുതാൻ കഴിയുന്ന ഒരു ഫോൾഡറാണെന്ന് ഉറപ്പാക്കുക, തുടർന്ന് YMusic വീണ്ടും തുറക്കുക. (%2$s)</string>
 </resources>

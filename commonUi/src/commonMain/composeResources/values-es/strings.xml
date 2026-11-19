@@ -699,5 +699,13 @@
         <item quantity="other">¿Eliminar %1$d archivos?</item>
     </plurals>
     <string name="downloads_delete_selected_message">Los archivos eliminados no se pueden recuperar.</string>
+    <string name="downloads_cancel_selected">Cancelar descargas</string>
+    <plurals name="downloads_cancel_selected_title">
+        <item quantity="one">¿Cancelar %1$d descarga?</item>
+        <item quantity="many">¿Cancelar %1$d descargas?</item>
+        <item quantity="other">¿Cancelar %1$d descargas?</item>
+    </plurals>
+    <string name="downloads_cancel_selected_message">Se eliminará lo descargado hasta ahora.</string>
+    <string name="downloads_cancel_selected_keep">Conservar</string>
     <string name="data_dir_unusable">YMusic no puede abrir su carpeta de datos, %1$s. Asegúrate de que sea una carpeta en la que puedas escribir y vuelve a abrir YMusic. (%2$s)</string>
 </resources>

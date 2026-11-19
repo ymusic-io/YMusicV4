@@ -675,5 +675,11 @@
         <item quantity="other">Hapus %1$d file?</item>
     </plurals>
     <string name="downloads_delete_selected_message">File yang dihapus tidak dapat dipulihkan.</string>
+    <string name="downloads_cancel_selected">Batalkan unduhan</string>
+    <plurals name="downloads_cancel_selected_title">
+        <item quantity="other">Batalkan %1$d unduhan?</item>
+    </plurals>
+    <string name="downloads_cancel_selected_message">Bagian yang sudah diunduh akan dihapus.</string>
+    <string name="downloads_cancel_selected_keep">Pertahankan</string>
     <string name="data_dir_unusable">YMusic tidak dapat membuka folder datanya, %1$s. Pastikan itu folder yang dapat Anda tulisi, lalu buka YMusic lagi. (%2$s)</string>
 </resources>

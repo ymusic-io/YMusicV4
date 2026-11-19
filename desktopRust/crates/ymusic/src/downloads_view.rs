@@ -595,6 +595,11 @@ fn can_resume(task: &DownloadTask, cx: &App) -> bool {
     }
 }
 
+/// Cancel on the selection bar: the states the card's menu offers Cancel in.
+fn can_cancel(task: &DownloadTask) -> bool {
+    task.state.is_active() || task.state == DownloadState::Paused
+}
+
 fn retry_dialog(
     title: &'static str,
     message: &'static str,
@@ -698,7 +703,8 @@ fn state_label(state: DownloadState) -> &'static str {
 const LOAD_FAILED: &str = "R90034";
 const SELECTION_PAUSE: usize = BAR_ACTIONS;
 const SELECTION_RESUME: usize = BAR_ACTIONS + 1;
-const SELECTION_MORE: usize = BAR_ACTIONS + 2;
+const SELECTION_CANCEL: usize = BAR_ACTIONS + 2;
+const SELECTION_MORE: usize = BAR_ACTIONS + 3;
 const DELETE_SELECTED_FAILED: &str = "R90041";
 const CARD_MIN: f32 = 340.;
 const CARD_ROW_ESTIMATE: f32 = 120.;
@@ -767,6 +773,35 @@ impl DownloadsView {
         self.clear_selection(cx);
     }
 
+    fn cancel_selected(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let ids: HashSet<String> =
+            self.selected_tasks().filter(|task| can_cancel(task)).map(|task| task.id.clone()).collect();
+        let count = ids.len() as i64;
+        let view = cx.entity().downgrade();
+        crate::elevated_dialog::ConfirmDialog::new(
+            plural(Plural::DownloadsCancelSelectedTitle, count, &[&count]),
+            t(Str::DownloadsCancelSelectedMessage),
+            t(Str::DownloadsCancelSelected),
+        )
+        .cancel(t(Str::DownloadsCancelSelectedKeep))
+        .open(window, cx, move |_, cx| {
+            view.update(cx, |view, cx| {
+                // Re-read the states: a task that finished or failed while the dialog was up keeps its result.
+                let cancelable: HashSet<String> = view
+                    .tasks
+                    .iter()
+                    .filter(|task| ids.contains(&task.id) && can_cancel(task))
+                    .map(|task| task.id.clone())
+                    .collect();
+                for id in &cancelable {
+                    view.service.cancel(id);
+                }
+                view.clear_selection_removing(cancelable, cx);
+            })
+            .ok();
+        });
+    }
+
     /// Every selected task, whatever its state.
     fn remove_selected(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let ids: Vec<String> = self.selected_tasks().map(|task| task.id.clone()).collect();
@@ -804,7 +839,7 @@ impl DownloadsView {
     }
 
     /// The bar that stands in for the section's while selecting: close · "N selected" · Select all ·
-    /// Pause · Resume · ⋮ (Remove from list, Remove from disk), each action shown when some selected
+    /// Pause · Resume · Cancel · ⋮ (Remove from list, Remove from disk), each action shown when some selected
     /// task can take it.
     fn selection_bar(&self, cx: &mut Context<Self>) -> AnyElement {
         let selected: Vec<&DownloadTask> = self.selected_tasks().collect();
@@ -816,6 +851,10 @@ impl DownloadsView {
         let resume = selected.iter().any(|task| can_resume(task, cx)).then(|| {
             action_icon("selection-resume", MaterialIcon::PlayArrow, t(Str::DownloadsActionResume))
                 .on_click(cx.listener(|view, _, _, cx| view.resume_selected(cx)))
+        });
+        let cancel = selected.iter().any(|task| can_cancel(task)).then(|| {
+            action_icon("selection-cancel", MaterialIcon::Cancel, t(Str::DownloadsCancelSelected))
+                .on_click(cx.listener(|view, _, window, cx| view.cancel_selected(window, cx)))
         });
         let view = cx.entity().downgrade();
         let can_delete = !self.deletable.is_empty();
@@ -842,6 +881,7 @@ impl DownloadsView {
         )
         .children(pause.map(|pause| self.bar_focus.button(SELECTION_PAUSE, pause, cx)))
         .children(resume.map(|resume| self.bar_focus.button(SELECTION_RESUME, resume, cx)))
+        .children(cancel.map(|cancel| self.bar_focus.button(SELECTION_CANCEL, cancel, cx)))
         .child(self.bar_focus.wrap(SELECTION_MORE, more, cx))
         .into_any_element()
     }

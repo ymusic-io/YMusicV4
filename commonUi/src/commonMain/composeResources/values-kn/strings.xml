@@ -687,5 +687,12 @@
         <item quantity="other">%1$d ಫೈಲ್‌ಗಳನ್ನು ಅಳಿಸಬೇಕೇ?</item>
     </plurals>
     <string name="downloads_delete_selected_message">ಅಳಿಸಿದ ಫೈಲ್‌ಗಳನ್ನು ಮರುಪಡೆಯಲು ಸಾಧ್ಯವಿಲ್ಲ.</string>
+    <string name="downloads_cancel_selected">ಡೌನ್‌ಲೋಡ್‌ಗಳನ್ನು ರದ್ದುಮಾಡಿ</string>
+    <plurals name="downloads_cancel_selected_title">
+        <item quantity="one">%1$d ಡೌನ್‌ಲೋಡ್ ರದ್ದುಮಾಡಬೇಕೇ?</item>
+        <item quantity="other">%1$d ಡೌನ್‌ಲೋಡ್ ರದ್ದುಮಾಡಬೇಕೇ?</item>
+    </plurals>
+    <string name="downloads_cancel_selected_message">ಇಲ್ಲಿಯವರೆಗೆ ಡೌನ್‌ಲೋಡ್ ಆಗಿರುವುದನ್ನು ಅಳಿಸಲಾಗುತ್ತದೆ.</string>
+    <string name="downloads_cancel_selected_keep">ಇರಿಸಿ</string>
     <string name="data_dir_unusable">YMusic ತನ್ನ ಡೇಟಾ ಫೋಲ್ಡರ್ %1$s ಅನ್ನು ತೆರೆಯಲು ಸಾಧ್ಯವಿಲ್ಲ. ಅದು ನೀವು ಬರೆಯಬಹುದಾದ ಫೋಲ್ಡರ್ ಎಂದು ಖಚಿತಪಡಿಸಿಕೊಳ್ಳಿ, ನಂತರ YMusic ಅನ್ನು ಮತ್ತೆ ತೆರೆಯಿರಿ. (%2$s)</string>
 </resources>

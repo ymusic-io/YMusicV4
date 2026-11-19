@@ -699,5 +699,13 @@
         <item quantity="other">Izbrisati %1$d datoteka?</item>
     </plurals>
     <string name="downloads_delete_selected_message">Izbrisane datoteke ne mogu se vratiti.</string>
+    <string name="downloads_cancel_selected">Otkaži preuzimanja</string>
+    <plurals name="downloads_cancel_selected_title">
+        <item quantity="one">Otkazati %1$d preuzimanje?</item>
+        <item quantity="few">Otkazati %1$d preuzimanja?</item>
+        <item quantity="other">Otkazati %1$d preuzimanja?</item>
+    </plurals>
+    <string name="downloads_cancel_selected_message">Dosad preuzeti sadržaj bit će izbrisan.</string>
+    <string name="downloads_cancel_selected_keep">Zadrži</string>
     <string name="data_dir_unusable">YMusic ne može otvoriti svoju mapu s podacima, %1$s. Provjerite je li to mapa u koju možete pisati, a zatim ponovno otvorite YMusic. (%2$s)</string>
 </resources>

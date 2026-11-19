@@ -675,5 +675,11 @@
         <item quantity="other">파일 %1$d개를 삭제할까요?</item>
     </plurals>
     <string name="downloads_delete_selected_message">삭제한 파일은 복구할 수 없습니다.</string>
+    <string name="downloads_cancel_selected">다운로드 취소</string>
+    <plurals name="downloads_cancel_selected_title">
+        <item quantity="other">다운로드 %1$d개를 취소할까요?</item>
+    </plurals>
+    <string name="downloads_cancel_selected_message">지금까지 다운로드한 데이터가 삭제됩니다.</string>
+    <string name="downloads_cancel_selected_keep">유지</string>
     <string name="data_dir_unusable">YMusic이 데이터 폴더(%1$s)를 열 수 없습니다. 쓰기 가능한 폴더인지 확인한 후 YMusic을 다시 여세요. (%2$s)</string>
 </resources>

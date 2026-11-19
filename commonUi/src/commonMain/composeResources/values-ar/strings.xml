@@ -867,5 +867,16 @@
         <item quantity="other">حذف %1$d ملف؟</item>
     </plurals>
     <string name="downloads_delete_selected_message">لا يمكن استعادة الملفات المحذوفة.</string>
+    <string name="downloads_cancel_selected">إلغاء التنزيلات</string>
+    <plurals name="downloads_cancel_selected_title">
+        <item quantity="zero">إلغاء %1$d تنزيل؟</item>
+        <item quantity="one">إلغاء تنزيل واحد؟</item>
+        <item quantity="two">إلغاء تنزيلين؟</item>
+        <item quantity="few">إلغاء %1$d تنزيلات؟</item>
+        <item quantity="many">إلغاء %1$d تنزيلًا؟</item>
+        <item quantity="other">إلغاء %1$d تنزيل؟</item>
+    </plurals>
+    <string name="downloads_cancel_selected_message">سيُحذف ما تم تنزيله حتى الآن.</string>
+    <string name="downloads_cancel_selected_keep">إبقاء</string>
     <string name="data_dir_unusable">لا يمكن لـ YMusic فتح مجلد البيانات الخاص به، %1$s. تأكد من أنه مجلد يمكنك الكتابة فيه، ثم افتح YMusic مرة أخرى. (%2$s)</string>
 </resources>

@@ -687,5 +687,12 @@
         <item quantity="other">Tirtir %1$d fayl?</item>
     </plurals>
     <string name="downloads_delete_selected_message">Faylasha la tirtiray dib looma soo celin karo.</string>
+    <string name="downloads_cancel_selected">Jooji dajinnada</string>
+    <plurals name="downloads_cancel_selected_title">
+        <item quantity="one">Jooji %1$d dajin?</item>
+        <item quantity="other">Jooji %1$d dajin?</item>
+    </plurals>
+    <string name="downloads_cancel_selected_message">Wixii ilaa hadda la soo dejiyay waa la tirtirayaa.</string>
+    <string name="downloads_cancel_selected_keep">Hay</string>
     <string name="data_dir_unusable">YMusic ma furi karto galkadeeda xogta, %1$s. Hubi inay tahay gal aad wax ku qori karto, kadibna mar kale fur YMusic. (%2$s)</string>
 </resources>

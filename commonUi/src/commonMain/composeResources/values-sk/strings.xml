@@ -711,5 +711,14 @@
         <item quantity="other">Odstrániť %1$d súborov?</item>
     </plurals>
     <string name="downloads_delete_selected_message">Odstránené súbory sa nedajú obnoviť.</string>
+    <string name="downloads_cancel_selected">Zrušiť sťahovanie</string>
+    <plurals name="downloads_cancel_selected_title">
+        <item quantity="one">Zrušiť %1$d stiahnutie?</item>
+        <item quantity="few">Zrušiť %1$d stiahnutia?</item>
+        <item quantity="many">Zrušiť %1$d stiahnutia?</item>
+        <item quantity="other">Zrušiť %1$d stiahnutí?</item>
+    </plurals>
+    <string name="downloads_cancel_selected_message">Doteraz stiahnuté dáta sa odstránia.</string>
+    <string name="downloads_cancel_selected_keep">Ponechať</string>
     <string name="data_dir_unusable">YMusic nemôže otvoriť svoj priečinok s údajmi, %1$s. Uistite sa, že je to priečinok, do ktorého môžete zapisovať, a potom YMusic otvorte znova. (%2$s)</string>
 </resources>

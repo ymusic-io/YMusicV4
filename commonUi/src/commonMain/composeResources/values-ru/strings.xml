@@ -711,5 +711,14 @@
         <item quantity="other">Удалить %1$d файла?</item>
     </plurals>
     <string name="downloads_delete_selected_message">Удалённые файлы нельзя восстановить.</string>
+    <string name="downloads_cancel_selected">Отменить загрузки</string>
+    <plurals name="downloads_cancel_selected_title">
+        <item quantity="one">Отменить %1$d загрузку?</item>
+        <item quantity="few">Отменить %1$d загрузки?</item>
+        <item quantity="many">Отменить %1$d загрузок?</item>
+        <item quantity="other">Отменить %1$d загрузки?</item>
+    </plurals>
+    <string name="downloads_cancel_selected_message">Уже скачанные данные будут удалены.</string>
+    <string name="downloads_cancel_selected_keep">Оставить</string>
     <string name="data_dir_unusable">YMusic не удаётся открыть папку с данными %1$s. Убедитесь, что это папка, в которую можно записывать, и снова откройте YMusic. (%2$s)</string>
 </resources>

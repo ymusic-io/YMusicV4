@@ -23,7 +23,8 @@ The shared Compose Multiplatform app UI (jvm + android; iOS later).
 - **Screen-owned app bar** — a section screen with a mode of its own swaps the shell's app bar through
   `ReplaceAppBar` (`AppBarSlot` in `AppBars.kt`); the shell draws the replacement in the same elevated bar and
   restores its own when the call leaves composition. First user: the Download manager's multi-select (long press
-  or ⋮ → Select; X · "N selected" · Select all · Pause · Resume · ⋮ Remove from list / Remove from disk).
+  or ⋮ → Select; X · "N selected" · Select all · Pause · Resume · Cancel · ⋮ Remove from list / Remove from disk;
+  Cancel asks first and stops only the unfinished ones: queued, running or paused).
 
 - **Multi-select** — `MultiSelection.kt` holds the shared selection state (Select all remembers what it replaced,
   Back ends it, focus returns to the item that started it once removed items have left the list, never after

@@ -699,5 +699,13 @@
         <item quantity="other">Избрисати %1$d датотека?</item>
     </plurals>
     <string name="downloads_delete_selected_message">Избрисане датотеке се не могу вратити.</string>
+    <string name="downloads_cancel_selected">Откажи преузимања</string>
+    <plurals name="downloads_cancel_selected_title">
+        <item quantity="one">Отказати %1$d преузимање?</item>
+        <item quantity="few">Отказати %1$d преузимања?</item>
+        <item quantity="other">Отказати %1$d преузимања?</item>
+    </plurals>
+    <string name="downloads_cancel_selected_message">Досад преузети садржај биће избрисан.</string>
+    <string name="downloads_cancel_selected_keep">Задржи</string>
     <string name="data_dir_unusable">YMusic не може да отвори своју фасциклу са подацима, %1$s. Проверите да ли је то фасцикла у коју можете да уписујете, па поново отворите YMusic. (%2$s)</string>
 </resources>

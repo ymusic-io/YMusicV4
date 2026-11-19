@@ -687,5 +687,12 @@
         <item quantity="other">%1$d கோப்புகளை நீக்கவா?</item>
     </plurals>
     <string name="downloads_delete_selected_message">நீக்கிய கோப்புகளை மீட்டெடுக்க முடியாது.</string>
+    <string name="downloads_cancel_selected">பதிவிறக்கங்களை ரத்துசெய்</string>
+    <plurals name="downloads_cancel_selected_title">
+        <item quantity="one">%1$d பதிவிறக்கத்தை ரத்துசெய்யவா?</item>
+        <item quantity="other">%1$d பதிவிறக்கங்களை ரத்துசெய்யவா?</item>
+    </plurals>
+    <string name="downloads_cancel_selected_message">இதுவரை பதிவிறக்கியவை நீக்கப்படும்.</string>
+    <string name="downloads_cancel_selected_keep">வைத்திரு</string>
     <string name="data_dir_unusable">YMusic அதன் தரவுக் கோப்புறையான %1$s ஐத் திறக்க முடியவில்லை. அது நீங்கள் எழுதக்கூடிய கோப்புறை என்பதை உறுதிசெய்து, பிறகு YMusic ஐ மீண்டும் திறக்கவும். (%2$s)</string>
 </resources>

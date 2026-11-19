@@ -687,5 +687,12 @@
         <item quantity="other">I-delete ang %1$d file?</item>
     </plurals>
     <string name="downloads_delete_selected_message">Hindi na maibabalik ang mga na-delete na file.</string>
+    <string name="downloads_cancel_selected">Kanselahin ang mga download</string>
+    <plurals name="downloads_cancel_selected_title">
+        <item quantity="one">Kanselahin ang %1$d download?</item>
+        <item quantity="other">Kanselahin ang %1$d download?</item>
+    </plurals>
+    <string name="downloads_cancel_selected_message">Buburahin ang na-download na sa ngayon.</string>
+    <string name="downloads_cancel_selected_keep">Panatilihin</string>
     <string name="data_dir_unusable">Hindi mabuksan ng YMusic ang data folder nito, %1$s. Tiyaking folder ito na kaya mong sulatan, pagkatapos ay buksan muli ang YMusic. (%2$s)</string>
 </resources>

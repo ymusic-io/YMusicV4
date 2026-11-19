@@ -711,5 +711,14 @@
         <item quantity="other">Smazat %1$d souborů?</item>
     </plurals>
     <string name="downloads_delete_selected_message">Smazané soubory nelze obnovit.</string>
+    <string name="downloads_cancel_selected">Zrušit stahování</string>
+    <plurals name="downloads_cancel_selected_title">
+        <item quantity="one">Zrušit %1$d stahování?</item>
+        <item quantity="few">Zrušit %1$d stahování?</item>
+        <item quantity="many">Zrušit %1$d stahování?</item>
+        <item quantity="other">Zrušit %1$d stahování?</item>
+    </plurals>
+    <string name="downloads_cancel_selected_message">Dosud stažená data budou smazána.</string>
+    <string name="downloads_cancel_selected_keep">Ponechat</string>
     <string name="data_dir_unusable">YMusic nemůže otevřít svou složku s daty, %1$s. Ujistěte se, že je to složka, do které můžete zapisovat, a pak YMusic otevřete znovu. (%2$s)</string>
 </resources>

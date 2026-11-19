@@ -687,5 +687,12 @@
         <item quantity="other">Kas kustutada %1$d faili?</item>
     </plurals>
     <string name="downloads_delete_selected_message">Kustutatud faile ei saa taastada.</string>
+    <string name="downloads_cancel_selected">Tühista allalaadimised</string>
+    <plurals name="downloads_cancel_selected_title">
+        <item quantity="one">Kas tühistada %1$d allalaadimine?</item>
+        <item quantity="other">Kas tühistada %1$d allalaadimist?</item>
+    </plurals>
+    <string name="downloads_cancel_selected_message">Seni alla laaditu kustutatakse.</string>
+    <string name="downloads_cancel_selected_keep">Jäta alles</string>
     <string name="data_dir_unusable">YMusic ei saa avada oma andmekausta %1$s. Veendu, et see on kaust, kuhu saad kirjutada, ja ava YMusic uuesti. (%2$s)</string>
 </resources>

@@ -687,5 +687,12 @@
         <item quantity="other">Διαγραφή %1$d αρχείων;</item>
     </plurals>
     <string name="downloads_delete_selected_message">Τα διαγραμμένα αρχεία δεν μπορούν να ανακτηθούν.</string>
+    <string name="downloads_cancel_selected">Ακύρωση λήψεων</string>
+    <plurals name="downloads_cancel_selected_title">
+        <item quantity="one">Ακύρωση %1$d λήψης;</item>
+        <item quantity="other">Ακύρωση %1$d λήψεων;</item>
+    </plurals>
+    <string name="downloads_cancel_selected_message">Ό,τι έχει ληφθεί μέχρι τώρα θα διαγραφεί.</string>
+    <string name="downloads_cancel_selected_keep">Διατήρηση</string>
     <string name="data_dir_unusable">Το YMusic δεν μπορεί να ανοίξει τον φάκελο δεδομένων του, %1$s. Βεβαιωθείτε ότι είναι φάκελος στον οποίο μπορείτε να γράψετε και ανοίξτε ξανά το YMusic. (%2$s)</string>
 </resources>

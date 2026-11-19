@@ -699,5 +699,13 @@
         <item quantity="other">Ștergi %1$d de fișiere?</item>
     </plurals>
     <string name="downloads_delete_selected_message">Fișierele șterse nu pot fi recuperate.</string>
+    <string name="downloads_cancel_selected">Anulează descărcările</string>
+    <plurals name="downloads_cancel_selected_title">
+        <item quantity="one">Anulezi %1$d descărcare?</item>
+        <item quantity="few">Anulezi %1$d descărcări?</item>
+        <item quantity="other">Anulezi %1$d de descărcări?</item>
+    </plurals>
+    <string name="downloads_cancel_selected_message">Ce s-a descărcat până acum va fi șters.</string>
+    <string name="downloads_cancel_selected_keep">Păstrează</string>
     <string name="data_dir_unusable">YMusic nu își poate deschide dosarul de date, %1$s. Asigură-te că este un dosar în care poți scrie, apoi deschide din nou YMusic. (%2$s)</string>
 </resources>

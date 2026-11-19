@@ -687,5 +687,12 @@
         <item quantity="other">%1$d fitxategi ezabatu nahi dituzu?</item>
     </plurals>
     <string name="downloads_delete_selected_message">Ezabatutako fitxategiak ezin dira berreskuratu.</string>
+    <string name="downloads_cancel_selected">Bertan behera utzi deskargak</string>
+    <plurals name="downloads_cancel_selected_title">
+        <item quantity="one">%1$d deskarga bertan behera utzi nahi duzu?</item>
+        <item quantity="other">%1$d deskarga bertan behera utzi nahi dituzu?</item>
+    </plurals>
+    <string name="downloads_cancel_selected_message">Orain arte deskargatutakoa ezabatu egingo da.</string>
+    <string name="downloads_cancel_selected_keep">Mantendu</string>
     <string name="data_dir_unusable">YMusic-ek ezin du bere datu-karpeta ireki, %1$s. Ziurtatu idatz dezakezun karpeta bat dela, eta ireki berriro YMusic. (%2$s)</string>
 </resources>
