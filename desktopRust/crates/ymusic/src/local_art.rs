@@ -335,7 +335,7 @@ fn item_art(
             if let Some(failed_at) = recent_failure(cache, &failure_key, now_millis()) {
                 return Err(ImageLoadError::new(
                     Reason::RecentlyFailed,
-                    format!("art extraction failed at {failed_at}, retried after 1d: {url}"),
+                    format!("art extraction failed at {failed_at}, retried after 1h: {url}"),
                 ));
             }
             let encoded = match if kind == ART_KIND_COVER { attached_picture(&path) } else { video_frame(&path) } {
@@ -357,7 +357,7 @@ fn item_art(
 }
 
 /// The JVM `EXTRACTION_FAILURE_TTL`: how long a file's failed extraction is not retried.
-const EXTRACTION_FAILURE_TTL_MS: i64 = 24 * 60 * 60 * 1000;
+const EXTRACTION_FAILURE_TTL_MS: i64 = 60 * 60 * 1000;
 
 fn now_millis() -> i64 {
     std::time::SystemTime::now()

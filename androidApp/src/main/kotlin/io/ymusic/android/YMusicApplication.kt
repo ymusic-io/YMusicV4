@@ -464,13 +464,14 @@ class YMusicApplication : Application() {
                 imageNetworkFetcher,
                 fileFetcher(),
                 ffmpegBin?.let {
+                    val artLogger = rootLogger.fork("local-art")
                     mediaStoreArtFetcher(
                         FfmpegMetadataGetter(it, AndroidFfInputResolver(contentResolver)),
                         mediaStore,
                         loaderYoutubeArt { checkNotNull(loaderRef) },
+                        artLogger,
                         coverCache = ImageSourceCache(FileSystem.SYSTEM, cacheDir.resolve("image-cover-cache").toOkioPath(), 32L * 1024 * 1024),
-                        frameFallback = PlatformVideoFrameExtractor(this),
-                        logger = rootLogger.fork("local-art"),
+                        frameFallback = PlatformVideoFrameExtractor(this, artLogger),
                         extractorVersion = BuildConfig.VERSION_CODE.toString(),
                     )
                 },

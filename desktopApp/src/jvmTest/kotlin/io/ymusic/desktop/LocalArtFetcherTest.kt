@@ -55,7 +55,7 @@ class LocalArtFetcherTest {
                     ),
                 )
                 val youtubeArt = YoutubeArt { _, _, _ -> error("embedded covers must not hit the network") }
-                val fetcher = mediaStoreArtFetcher(FfmpegMetadataGetter(ffmpeg), store, youtubeArt)
+                val fetcher = mediaStoreArtFetcher(FfmpegMetadataGetter(ffmpeg), store, youtubeArt, StdoutLogger())
                 assertNull(
                     fetcher.fetch(Uri.parse("https://example.com/x.png"), IntSize(64, 64), ImageScale.Cover),
                     "fetcher must decline non-art urls",

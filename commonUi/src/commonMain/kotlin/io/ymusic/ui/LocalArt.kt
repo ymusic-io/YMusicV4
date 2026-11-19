@@ -32,7 +32,7 @@ import okio.Source
 import okio.use
 import kotlin.time.Clock
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
@@ -137,10 +137,10 @@ fun mediaStoreArtFetcher(
     getter: FfmpegMetadataGetter,
     store: BetterMediaStore,
     youtubeArt: YoutubeArt,
+    logger: Logger,
     coverCache: ImageSourceCache? = null,
     maxImageBytes: Long = 32L * 1024 * 1024,
     frameFallback: VideoFrameExtractor? = null,
-    logger: Logger? = null,
     extractorVersion: String = "",
     failureTtl: Duration = EXTRACTION_FAILURE_TTL,
     clock: Clock = Clock.System,
@@ -154,7 +154,7 @@ fun mediaStoreArtFetcher(
         } catch (e: Exception) {
             val reason = (e as? ImageLoadException)?.reason
             val expected = reason == ImageLoadException.Reason.NotFound || reason == ImageLoadException.Reason.RecentlyFailed
-            logger?.log(if (expected) Logger.Level.DEBUG else Logger.Level.WARN, "art failed, fallback art shown: $uri", e)
+            logger.log(if (expected) Logger.Level.DEBUG else Logger.Level.WARN, "art failed, fallback art shown: $uri", e)
             val bitmap = try {
                 withContext(Dispatchers.Default) { fallbackArtBitmap(uri.toString(), size.width, size.height) }
             } catch (drawing: Exception) {
@@ -173,7 +173,7 @@ private fun sourceArtFetcher(
     coverCache: ImageSourceCache?,
     maxImageBytes: Long,
     frameFallback: VideoFrameExtractor?,
-    logger: Logger?,
+    logger: Logger,
     extractorVersion: String,
     failureTtl: Duration,
     clock: Clock,
@@ -184,7 +184,7 @@ private fun sourceArtFetcher(
         val fallback = frameFallback ?: throw ffmpegError
         try {
             withContext(Dispatchers.IO) { fallback.extract(file) }.also {
-                logger?.log(Logger.Level.INFO, "ffmpeg gave no video frame, platform decoder did: $file", ffmpegError)
+                logger.log(Logger.Level.INFO, "ffmpeg gave no video frame, platform decoder did: $file", ffmpegError)
             }
         } catch (e: CancellationException) {
             throw e
@@ -269,7 +269,7 @@ private fun sourceArtFetcher(
     }
 }
 
-private val EXTRACTION_FAILURE_TTL = 1.days
+private val EXTRACTION_FAILURE_TTL = 1.hours
 
 /**
  * ffmpeg ran to its end and wrote no image (the platform fallback, if any, could not decode it
