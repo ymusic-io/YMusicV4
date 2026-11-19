@@ -10,13 +10,13 @@ use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use ym_engine::yt::{YtFeedItem, YtFeedPage};
 use ym_i18n::{Plural, Str, plural, t, tf};
+use ym_image_loader::async_image::async_image_of;
 
 use crate::a11y::{FocusList, LoadMoreFocus};
 use crate::downloads::offline_ids;
 use crate::elevated_dialog::{
     DEFAULT_WIDTH, ROW_HORIZONTAL, bar_spinner, button_bar, chrome, press, scroll_body, text_button, title_bar,
 };
-use crate::fallback_art::art_image;
 use crate::feed::{FeedSource, error_text};
 use crate::graph::{AppGraph, on_core};
 use crate::lazy_rows::LazyRows;
@@ -285,7 +285,7 @@ impl Render for LocalPlaylistFromDownloads {
                         .bg(theme.secondary)
                         .when_some(thumb_request_sources(&video.thumbs), |frame, request| {
                             frame.child(
-                                art_image(Some(request)).size_full().rounded(px(4.)).object_fit(ObjectFit::Cover),
+                                async_image_of(Some(request)).size_full().rounded(px(4.)).object_fit(ObjectFit::Cover),
                             )
                         }),
                 )

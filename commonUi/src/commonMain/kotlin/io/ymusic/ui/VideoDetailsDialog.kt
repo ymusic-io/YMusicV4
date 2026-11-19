@@ -5,7 +5,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -948,8 +947,7 @@ private fun ListFooter(list: CommentList, indent: Boolean, moreLabel: String?, o
 @Composable
 private fun Avatar(thumbs: List<io.ymusic.dynamicengine.yt.YtThumb>, size: androidx.compose.ui.unit.Dp) {
     Box(Modifier.size(size).clip(CircleShape), contentAlignment = Alignment.Center) {
-        val avatar: @Composable BoxScope.() -> Unit = { ThumbPlaceholder(Icons.Outlined.Person, size / 2) }
-        ThumbImage(thumbs, CircleShape, avatar, avatar)
+        ThumbImage(thumbs, CircleShape) { ThumbPlaceholder(Icons.Outlined.Person, size / 2) }
     }
 }
 

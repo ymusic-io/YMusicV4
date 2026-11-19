@@ -5,7 +5,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -555,10 +554,9 @@ private fun ChannelHeader(
                 Modifier.size(64.dp).clip(CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
-                val avatar: @Composable BoxScope.() -> Unit = {
+                ThumbImage(header?.thumbs ?: fallback.thumbs, CircleShape) {
                     ThumbPlaceholder(Icons.Outlined.Person, 26.dp, DesignColors.PlaceholderDim)
                 }
-                ThumbImage(header?.thumbs ?: fallback.thumbs, CircleShape, avatar, avatar)
             }
             Column(Modifier.weight(1f)) {
                 Text(

@@ -35,8 +35,9 @@ import kotlin.math.roundToInt
  * Auto can resolve queue icons) are unwrapped back to their target url IN process — same
  * [ImageLoader] cache key as the raw url, no binder round-trip through the provider.
  *
- * Artwork that fails to load, and [FALLBACK_ART_URL] (an item with no art), is the app's fallback
- * art, so the notification and lock screen never fall back to the system's blank default.
+ * Local art (`art:`) that fails to load, and [FALLBACK_ART_URL] (a local item with no art), is the
+ * app's fallback art, so the notification and lock screen never fall back to the system's blank
+ * default; other artwork (a YouTube thumbnail) that fails leaves the system default.
  */
 class ImageLoaderBitmapLoader(
     private val imageLoader: ImageLoader,
@@ -72,6 +73,7 @@ class ImageLoaderBitmapLoader(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
+            if (Uri.parse(target).scheme != "art") throw e
             // A missing or already-reported picture is expected (the loader logged the source); anything else warns.
             val expected = (e as? ImageLoadException)?.reason.let {
                 it == ImageLoadException.Reason.NotFound || it == ImageLoadException.Reason.RecentlyFailed

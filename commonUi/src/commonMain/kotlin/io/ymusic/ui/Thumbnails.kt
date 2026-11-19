@@ -43,22 +43,23 @@ internal fun BoxScope.ThumbPlaceholder(
 
 /**
  * The image layer of a thumbnail box: fills the parent, clipped to [shape].
- * [placeholder] draws until the bitmap lands, and when there is no source; [error] (default
- * [FallbackArt]) when the load fails, or there is no source and no [placeholder]. The loader picks
- * the variant that covers the measured box (see [thumbRequestSources]) — a video's thumbs share its identity.
+ * [placeholder] draws only until the bitmap lands (or on failure). The loader picks the variant
+ * that covers the measured box (see [thumbRequestSources]) — a video's thumbs share its identity.
  */
 @Composable
 internal fun BoxScope.ThumbImage(
     thumbs: List<YtThumb>,
     shape: Shape,
     placeholder: (@Composable BoxScope.() -> Unit)? = null,
-    error: (@Composable BoxScope.() -> Unit)? = null,
 ) {
     val request = thumbRequestSources(thumbs)
-    ImageLayer(request?.first, request?.second.orEmpty(), shape, placeholder, error)
+    ImageLayer(request?.first, request?.second.orEmpty(), shape, placeholder)
 }
 
-/** One url into the thumbnail box; a YouTube thumbnail url joins its video's identity ([artRequestSources]). */
+/**
+ * One url into the thumbnail box; a YouTube thumbnail url joins its video's identity ([artRequestSources]).
+ * [error] replaces [placeholder] when the load fails (local art passes [localArtFallback]).
+ */
 @Composable
 internal fun BoxScope.ArtImage(
     url: String?,
@@ -76,13 +77,14 @@ private fun BoxScope.ImageLayer(
     sources: List<ImageSource>,
     shape: Shape,
     placeholder: (@Composable BoxScope.() -> Unit)?,
-    error: (@Composable BoxScope.() -> Unit)?,
+    error: (@Composable BoxScope.() -> Unit)? = null,
 ) {
     val loader = LocalImageLoader.current
-    val failed = error ?: { FallbackArt(key) }
     if (key == null || sources.isEmpty() || loader == null) {
-        Box(Modifier.matchParentSize().clip(shape), contentAlignment = Alignment.Center) {
-            (placeholder ?: failed)()
+        if (placeholder != null) {
+            Box(Modifier.matchParentSize().clip(shape), contentAlignment = Alignment.Center) {
+                placeholder()
+            }
         }
         return
     }
@@ -94,6 +96,6 @@ private fun BoxScope.ImageLayer(
         modifier = Modifier.matchParentSize().clip(shape),
         contentScale = ContentScale.Crop,
         placeholder = placeholder,
-        error = failed,
+        error = error,
     )
 }

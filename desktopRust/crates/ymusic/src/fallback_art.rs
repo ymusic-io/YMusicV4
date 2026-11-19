@@ -6,10 +6,9 @@ use std::path::{Path, PathBuf};
 
 use gpui_kit::component::Icon;
 use gpui_kit::*;
-use ym_image_loader::ImageSource;
-use ym_image_loader::async_image::{AsyncImage, async_image_of};
 
 use crate::assets::MaterialIcon;
+use crate::youtube_thumbnails::art_request_sources;
 
 const ICON_SHARE: f32 = 0.6;
 const ICON_ALPHA: f32 = 0.85;
@@ -52,13 +51,14 @@ pub fn fallback_backdrop(key: Option<&str>) -> Div {
     div().size_full().bg(gradient(key))
 }
 
-/// The JVM `ImageLayer`: an async image showing [`fallback_art`] when it has no source or its load fails.
-#[track_caller]
-pub fn art_image(request: Option<(String, Vec<ImageSource>)>) -> AsyncImage {
-    let key = request.as_ref().map(|(key, _)| key.clone());
-    let missing = request.is_none();
-    let image = async_image_of(request).error(fallback_art(key.as_deref()));
-    if missing { image.placeholder(fallback_art(None)) } else { image }
+/// The JVM `fallbackArtKey`: the fallback key of art `url`, its image identity.
+pub fn fallback_art_key(url: Option<&str>) -> Option<String> {
+    url.map(|url| art_request_sources(url).0)
+}
+
+/// The JVM `localArtFallback`: an async image's error for a local file's art (Library, local queue items).
+pub fn local_art_fallback(url: Option<&str>) -> Div {
+    fallback_art(fallback_art_key(url).as_deref())
 }
 
 /// The JVM `fallbackArtBitmap`, as a `px`-square PNG file in `dir` (one per colour, written once), for

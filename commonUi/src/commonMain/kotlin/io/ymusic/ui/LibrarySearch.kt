@@ -215,7 +215,7 @@ private fun LazyGridScope.groupSection(
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalAlignment = Alignment.Top,
         ) {
-            LibraryThumb(icon, badge = null, artUrl = members.firstNotNullOfOrNull(::localArtUrl))
+            LibraryThumb(icon, badge = null, artUrl = members.firstNotNullOfOrNull(::localArtUrl), localArt = true)
             Column(Modifier.weight(1f)) {
                 Text(name, style = ListTitleStyle, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text(

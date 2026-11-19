@@ -15,6 +15,7 @@ use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use ym_engine::yt::{YtFeedItem, YtFeedPage, YtLocaleOption};
 use ym_i18n::{Plural, Str, plural, t, tf};
+use ym_image_loader::async_image::async_image_of;
 use ym_store::Playlist;
 
 use crate::a11y::{FocusList, LoadMoreFocus};
@@ -25,7 +26,6 @@ use crate::downloads::{download_folder, offline_ids, pick_download_folder, usabl
 use crate::elevated_dialog::{
     ConfirmDialog, DEFAULT_WIDTH, ROW_HORIZONTAL, bar_spinner, button_bar, chrome, press, text_button, title_bar,
 };
-use crate::fallback_art::art_image;
 use crate::feed::{FeedSource, error_text};
 use crate::graph::{AppGraph, on_core};
 use crate::lazy_rows::LazyRows;
@@ -570,7 +570,7 @@ impl PlaylistDownload {
                     )
                     .when_some(thumb_request_sources(&video.thumbs), |frame, request| {
                         frame.child(
-                            art_image(Some(request))
+                            async_image_of(Some(request))
                                 .absolute()
                                 .inset_0()
                                 .size_full()

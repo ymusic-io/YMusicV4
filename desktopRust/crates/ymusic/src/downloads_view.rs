@@ -16,6 +16,7 @@ use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use ym_download::{DownloadChange, DownloadFormat, DownloadService, DownloadState, DownloadTask, TaskError};
 use ym_i18n::{Plural, Str, plural, t, tf};
+use ym_image_loader::async_image::async_image_of;
 
 use crate::a11y::{DragRow, FocusList, announced, announced_as, heading, list_item};
 use crate::account::AccountController;
@@ -23,7 +24,6 @@ use crate::action_icon::action_icon;
 use crate::assets::MaterialIcon;
 use crate::download_dialog::{DownloadPicker, DownloadTarget};
 use crate::downloads::pick_download_folder;
-use crate::fallback_art::art_image;
 use crate::file_rename::RenameFileDialog;
 use crate::graph::{AppGraph, on_core};
 use crate::lazy_rows::LazyRows;
@@ -1107,7 +1107,7 @@ impl DownloadsView {
                             .overflow_hidden()
                             .bg(theme.secondary)
                             .child(
-                                art_image(Some(art_request_sources(&thumb)))
+                                async_image_of(Some(art_request_sources(&thumb)))
                                     .size_full()
                                     .rounded(px(6.))
                                     .object_fit(ObjectFit::Cover),

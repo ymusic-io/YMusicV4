@@ -68,6 +68,12 @@ internal fun BoxScope.FallbackArt(key: String?) {
     Canvas(Modifier.matchParentSize()) { drawFallbackArt(color) }
 }
 
+/** [FallbackArt]'s key for art [url]: its image identity, so every view of that art agrees. */
+internal fun fallbackArtKey(url: String?): String? = url?.let { artRequestSources(it).first }
+
+/** [ArtImage]'s `error` for a local file's art (Library, local queue items): [FallbackArt] in [url]'s colour. */
+internal fun localArtFallback(url: String?): @Composable BoxScope.() -> Unit = { FallbackArt(fallbackArtKey(url)) }
+
 /** [FallbackArt] as a [px]-square bitmap, for surfaces outside Compose (the system media session). */
 fun fallbackArtBitmap(color: Color, px: Int): ImageBitmap {
     val bitmap = ImageBitmap(px, px)

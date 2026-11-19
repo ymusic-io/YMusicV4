@@ -16,13 +16,14 @@ use gpui_kit::component::{ActiveTheme, Disableable, Icon, Sizable, StyledExt, Wi
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use ym_i18n::{Str, t, tf};
+use ym_image_loader::async_image::async_image_of;
 use ym_store::{Bucket, MediaItem, MediaStore, Playlist, PlaylistItemDetail};
 
 use crate::a11y::{DragRow, FocusList, announced, heading, label, list_item};
 use crate::action_icon::{action_icon, auto_mirrored};
 use crate::assets::MaterialIcon;
 use crate::elevated_dialog::ConfirmDialog;
-use crate::fallback_art::art_image;
+use crate::fallback_art::local_art_fallback;
 use crate::graph::{AppGraph, on_core};
 use crate::lazy_rows::LazyRows;
 use crate::library_playlist::{self, AddToLocalPlaylist, ArrangePlaylist, Changed, NameMode, PlaylistNameDialog};
@@ -1769,7 +1770,8 @@ pub fn art_or_icon(
 ) -> AnyElement {
     let placeholder = icon.size(icon_size).text_color(cx.theme().muted_foreground);
     match art {
-        Some(url) => art_image(Some(art_request_sources(&url)))
+        Some(url) => async_image_of(Some(art_request_sources(&url)))
+            .error(local_art_fallback(Some(&url)))
             .size_full()
             .rounded(px(corner_radius))
             .object_fit(ObjectFit::Cover)

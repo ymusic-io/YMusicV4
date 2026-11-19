@@ -19,6 +19,7 @@ use gpui_kit::*;
 use ym_download::options::{CaptionOption, DownloadOptions, VideoOption};
 use ym_download::{AudioQuality, DownloadError, DownloadFormat, DownloadRequest, DownloadService, names};
 use ym_i18n::{Str, t, tf};
+use ym_image_loader::async_image::async_image_of;
 
 use crate::a11y::FocusList;
 use crate::account::AccountController;
@@ -27,7 +28,6 @@ use crate::assets::MaterialIcon;
 use crate::downloads::{download_folder, offline_ids, pick_download_folder, usable_download_folder};
 use crate::downloads_view::{Playability, playability};
 use crate::elevated_dialog::{self, body_max_height, button_bar, chrome, scroll_shadows, text_button, title_bar};
-use crate::fallback_art::art_image;
 use crate::graph::{AppGraph, on_core};
 use crate::quick_download::{QuickPreset, confirm_redownload, save_preset, saved_preset};
 use crate::recent_captions::{in_recent_languages, recent_caption_languages, record_caption_language};
@@ -966,7 +966,7 @@ impl DownloadPicker {
             .child(Icon::new(MaterialIcon::ImageOutlined).size(px(26.)).text_color(theme.muted_foreground))
             .when_some(self.target.thumbnail_url.clone(), |frame, url| {
                 frame.child(
-                    art_image(Some(art_request_sources(&url)))
+                    async_image_of(Some(art_request_sources(&url)))
                         .absolute()
                         .inset_0()
                         .size_full()
@@ -1351,7 +1351,7 @@ impl DownloadPicker {
             .child(Icon::new(MaterialIcon::MusicNoteOutlined).size(px(24.)).text_color(theme.muted_foreground))
             .when_some(self.target.thumbnail_url.clone(), |frame, url| {
                 frame.child(
-                    art_image(Some(art_request_sources(&url)))
+                    async_image_of(Some(art_request_sources(&url)))
                         .absolute()
                         .inset_0()
                         .size_full()

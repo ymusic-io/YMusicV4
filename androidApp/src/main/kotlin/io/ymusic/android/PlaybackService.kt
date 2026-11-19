@@ -981,9 +981,9 @@ private fun PlayableItem.toMediaMetadata(context: android.content.Context): Medi
     // items already carry the stable art://pic/<id>.
     val target = when (this) {
         is PlayableItem.YtMedia -> youtubeThumbUrl(videoId)
-        else -> displayThumbnailUrl
+        is PlayableItem.LocalMedia -> displayThumbnailUrl ?: FALLBACK_ART_URL
     }
-    builder.setArtworkUri(artworkContentUri(context, target ?: FALLBACK_ART_URL))
+    builder.setArtworkUri(artworkContentUri(context, target))
     return builder.build()
 }
 

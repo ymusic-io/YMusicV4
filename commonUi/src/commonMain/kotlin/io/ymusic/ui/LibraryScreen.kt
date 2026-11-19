@@ -1386,6 +1386,7 @@ private fun PlaylistRow(
             icon,
             badge = (entry as? UserEntry)?.count?.toString(),
             artUrl = (entry as? UserEntry)?.artUrl,
+            localArt = true,
             modifier = Modifier.a11ySilent(),
         )
         Column(Modifier.weight(1f)) {
@@ -1808,7 +1809,7 @@ internal fun SongRow(
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalAlignment = Alignment.Top,
     ) {
-        LibraryThumb(Icons.Default.MusicNote, formatDuration(song.durationMs), artUrl = localArtUrl(song), modifier = Modifier.a11ySilent())
+        LibraryThumb(Icons.Default.MusicNote, formatDuration(song.durationMs), artUrl = localArtUrl(song), localArt = true, modifier = Modifier.a11ySilent())
         Column(Modifier.weight(1f).a11ySilent()) {
             Text(song.title, style = ListTitleStyle, maxLines = 2, overflow = TextOverflow.Ellipsis)
             if (sub.isNotEmpty()) {
@@ -2104,7 +2105,7 @@ private fun GroupRow(icon: ImageVector, name: String, members: List<MediaStoreIt
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalAlignment = Alignment.Top,
     ) {
-        LibraryThumb(icon, badge = null, artUrl = members.firstNotNullOfOrNull(::localArtUrl))
+        LibraryThumb(icon, badge = null, artUrl = members.firstNotNullOfOrNull(::localArtUrl), localArt = true)
         Column(Modifier.weight(1f)) {
             Text(name, style = ListTitleStyle, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Text(
@@ -2161,9 +2162,12 @@ private fun LibraryGridCard(
                     .clip(RoundedCornerShape(10.dp)),
                 contentAlignment = Alignment.Center,
             ) {
-                ArtImage(artUrl, RoundedCornerShape(10.dp)) {
-                    ThumbPlaceholder(icon, 28.dp)
-                }
+                ArtImage(
+                    artUrl,
+                    RoundedCornerShape(10.dp),
+                    placeholder = { ThumbPlaceholder(icon, 28.dp) },
+                    error = localArtFallback(artUrl),
+                )
             }
             if (marked) {
                 Icon(
@@ -2228,6 +2232,8 @@ internal fun LibraryThumb(
     artUrl: String? = null,
     corner: Dp = 10.dp,
     badgeColor: Color = DesignColors.BadgeInk,
+    /** [artUrl] is a local file's art: [FallbackArt] when its load fails. */
+    localArt: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val shape = RoundedCornerShape(corner)
@@ -2237,9 +2243,12 @@ internal fun LibraryThumb(
             .clip(shape),
         contentAlignment = Alignment.Center,
     ) {
-        ArtImage(artUrl, shape) {
-            ThumbPlaceholder(icon, 21.dp)
-        }
+        ArtImage(
+            artUrl,
+            shape,
+            placeholder = { ThumbPlaceholder(icon, 21.dp) },
+            error = if (localArt) localArtFallback(artUrl) else null,
+        )
         badge?.let {
             Text(
                 it,
