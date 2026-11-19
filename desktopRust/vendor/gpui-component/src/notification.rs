@@ -8,7 +8,7 @@ use std::{
 
 use gpui::{
     Anchor, Animation, AnimationExt, AnyElement, AnyWindowHandle, App, AppContext, ClickEvent,
-    Context, DismissEvent, ElementId, Entity, EventEmitter, FocusHandle, Global,
+    Context, DismissEvent, ElementId, Entity, EventEmitter, FocusHandle, Global, Hsla,
     InteractiveElement as _, IntoElement, ParentElement as _, Pixels, Render, SharedString,
     StatefulInteractiveElement, StyleRefinement, Styled, Subscription, SystemNotification,
     SystemNotificationResponse, WeakEntity, Window, WindowId, div, prelude::FluentBuilder, px,
@@ -24,7 +24,7 @@ use crate::{
     animation::cubic_bezier,
     button::{Button, ButtonVariants as _},
     styled::toast_shadow,
-    v_flex,
+    h_flex, v_flex,
 };
 
 const NOTIFICATION_TRANSITION_DURATION: Duration = Duration::from_millis(400);
@@ -417,15 +417,19 @@ impl Render for Notification {
             Some(type_) => Some(type_.icon(cx)),
         };
         let has_icon = icon.is_some();
-        let placement = self.placement.unwrap_or(cx.theme().notification.placement);
+        let settings = &cx.theme().notification;
+        let placement = self.placement.unwrap_or(settings.placement);
+        let (settings_style, close_color, fit_content) =
+            (settings.style.clone(), settings.close_color, settings.fit_content);
 
-        BaseToast::new("notification")
+        let toast = BaseToast::new("notification")
             .transition_status(transition_status)
             .h_flex()
             .group("")
             .occlude()
             .relative()
-            .w_full()
+            .when(!fit_content, |this| this.w_full())
+            .when(fit_content, |this| this.max_w_full())
             .border_1()
             .border_color(cx.theme().border)
             .bg(cx.theme().tokens.popover)
@@ -434,14 +438,15 @@ impl Render for Notification {
             .py_3p5()
             .px_4()
             .gap_3()
+            .refine_style(&settings_style)
             .refine_style(&self.style)
             .when_some(icon, |this, icon| {
                 this.child(div().absolute().top(px(18.)).left_4().child(icon))
             })
             .child(
                 v_flex()
-                    .flex_1()
                     .overflow_hidden()
+                    .when(!fit_content, |this| this.flex_1())
                     .when(has_icon, |this| this.pl_6())
                     .when_some(self.title.clone(), |this, title| {
                         this.child(div().text_sm().font_semibold().child(title))
@@ -465,6 +470,7 @@ impl Render for Notification {
                             .accessibility_label("Close")
                             .ghost()
                             .xsmall()
+                            .when_some(close_color, |button, color| button.text_color(color))
                             .on_click(cx.listener(|this, _, window, cx| {
                                 cx.stop_propagation();
                                 this.dismiss(window, cx);
@@ -529,7 +535,12 @@ impl Render for Notification {
                             .shadow(toast_shadow(opacity.powi(3)))
                     }
                 },
-            )
+            );
+        if fit_content {
+            h_flex().w_full().justify_center().child(toast).into_any_element()
+        } else {
+            toast.into_any_element()
+        }
     }
 }
 
@@ -551,6 +562,12 @@ pub struct NotificationSettings {
     ///
     /// A single notification can override this with [`Notification::delivery`].
     pub delivery: NotificationDelivery,
+    /// The card's look, applied under each notification's own style.
+    pub style: StyleRefinement,
+    /// The close button's ink, for a card whose background is not the popover's.
+    pub close_color: Option<Hsla>,
+    /// The card takes its content's width, up to [`Self::width`], centred in the stack.
+    pub fit_content: bool,
 }
 
 impl Default for NotificationSettings {
@@ -567,6 +584,9 @@ impl Default for NotificationSettings {
             max_items: 10,
             width: DEFAULT_NOTIFICATION_WIDTH,
             delivery: NotificationDelivery::default(),
+            style: StyleRefinement::default(),
+            close_color: None,
+            fit_content: false,
         }
     }
 }
