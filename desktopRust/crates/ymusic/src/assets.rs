@@ -70,6 +70,8 @@ material_icons! {
     Search => "filled/search",
     /// `Icons.Default.Close`.
     Close => "filled/close",
+    /// `Icons.Default.Cancel`.
+    Cancel => "filled/cancel",
     /// `Icons.Default.Check`.
     Check => "filled/check",
     /// `Icons.Default.Add`.
