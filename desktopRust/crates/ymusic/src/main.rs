@@ -369,6 +369,7 @@ fn main() {
         };
         cx.open_window(options, |window, cx| {
             crate::desktop::install_pin_button(window, cx, &log.fork("pin"));
+            crate::desktop::hide_titlebar_separator(window);
             crate::desktop::remember_main_window(window);
             let launch = cx.new(|cx| match locked {
                 Some((locked, inputs)) => Launch::locked(locked, inputs, window, cx),
