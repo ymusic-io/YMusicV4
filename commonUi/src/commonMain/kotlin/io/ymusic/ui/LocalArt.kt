@@ -32,7 +32,7 @@ import okio.Source
 import okio.use
 import kotlin.time.Clock
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
@@ -269,7 +269,7 @@ private fun sourceArtFetcher(
     }
 }
 
-private val EXTRACTION_FAILURE_TTL = 1.days
+private val EXTRACTION_FAILURE_TTL = 1.hours
 
 /**
  * ffmpeg ran to its end and wrote no image (the platform fallback, if any, could not decode it
