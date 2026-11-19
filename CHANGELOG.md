@@ -1,5 +1,29 @@
 # Changelog
 
+## 4.0.26
+
+### NEW
+- Desktop: right-click a song, video or playlist to open its menu ([9c1fb4244](https://github.com/ymusic-io/YMusicV4/commit/9c1fb4244736089705e9f6d585b04cb6beb64e71))
+- Android: Share, then Download MP3/M4A, downloads in the background without opening YMusic ([#333](https://github.com/ymusic-io/YMusicV4/issues/333), [9e82cf036](https://github.com/ymusic-io/YMusicV4/commit/9e82cf036726610ce09172bf81204ba58794a320))
+- Download manager: Cancel on the multi-select bar ([#326](https://github.com/ymusic-io/YMusicV4/issues/326), [e71a56daf](https://github.com/ymusic-io/YMusicV4/commit/e71a56daf88a69cf7ba6917d01dff72a807c713f))
+- Desktop: a button next to "Up next" scrolls back to the playing song ([#324](https://github.com/ymusic-io/YMusicV4/issues/324), [70d9956a0](https://github.com/ymusic-io/YMusicV4/commit/70d9956a0bf45a65fffd5ae06be859b502702be0))
+
+### FIXED
+- Top tracks and charts failed to load (E20143) ([45184bbfd](https://github.com/ymusic-io/YMusicV4/commit/45184bbfd31564bd51780e3a6470e24d8ba8cdd3))
+- Android: some downloaded videos had no thumbnail ([a37b7a6dc](https://github.com/ymusic-io/YMusicV4/commit/a37b7a6dca06b0cb614a68586486a718048bbb06))
+- Desktop: the app closed at launch when its data folder was damaged ([e97850cf6](https://github.com/ymusic-io/YMusicV4/commit/e97850cf6321538669a6addc2f8b41db6176164a))
+- Windows: Hebrew and Arabic words drawn in the wrong order ([#320](https://github.com/ymusic-io/YMusicV4/issues/320), [ab8783239](https://github.com/ymusic-io/YMusicV4/commit/ab8783239bce77f753514bbd2240e958b6d3326a))
+- Linux: the title bar stayed visible in full screen ([0e9237bd1](https://github.com/ymusic-io/YMusicV4/commit/0e9237bd10b9509d9c3f356396586a3e8392a503))
+- macOS: the Dock icon ignored the Dark, Clear and Tinted icon styles ([feb10606f](https://github.com/ymusic-io/YMusicV4/commit/feb10606f132b08f4f3aeadd3ca8cea66c364696))
+- macOS: a black line under the title bar ([feb10606f](https://github.com/ymusic-io/YMusicV4/commit/feb10606f132b08f4f3aeadd3ca8cea66c364696))
+
+### IMPROVED
+- Uses less battery while playing ([#322](https://github.com/ymusic-io/YMusicV4/issues/322), [84593c4d9](https://github.com/ymusic-io/YMusicV4/commit/84593c4d94c4e04939327bc93df458a786be0368))
+- Video grid: bigger cards, two columns in narrower windows ([353366cea](https://github.com/ymusic-io/YMusicV4/commit/353366ceaa49c4bb8ccdb175a240e3fb7f8a8d5c), [9003338a3](https://github.com/ymusic-io/YMusicV4/commit/9003338a311321573bb78ab66abc234b96dd1872))
+- Songs without a cover show a coloured placeholder instead of a black square ([a37b7a6dc](https://github.com/ymusic-io/YMusicV4/commit/a37b7a6dca06b0cb614a68586486a718048bbb06))
+- Desktop: messages appear at the bottom, as on the phone ([51e6f2ee9](https://github.com/ymusic-io/YMusicV4/commit/51e6f2ee92e0b01f040f8442c06dcb8aa1c97020), [f801ff8d5](https://github.com/ymusic-io/YMusicV4/commit/f801ff8d543c0b6cbaef8d87036f0f21872d8428))
+- Desktop: reloading a page shows its progress under the tabs ([98170ab65](https://github.com/ymusic-io/YMusicV4/commit/98170ab65c6d2f7e56452fa24296dd46082b35d8))
+
 ## 4.0.25
 
 ### NEW
