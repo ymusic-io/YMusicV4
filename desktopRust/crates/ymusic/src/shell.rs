@@ -2551,7 +2551,8 @@ impl Render for Shell {
 
 /// Material's snackbar margin, which the JVM app's `SnackbarHost` keeps from the window's edges.
 const SNACKBAR_MARGIN: f32 = 12.;
-const NOTIFICATION_WIDTH: f32 = 382.;
+/// Material's snackbar `ContainerMaxWidth`.
+const NOTIFICATION_WIDTH: f32 = 600.;
 
 /// Notifications sit where the JVM app's snackbar does: bottom centre, `lift` above the window's
 /// bottom edge (the player bar's height while it shows).

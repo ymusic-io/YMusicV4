@@ -110,6 +110,19 @@ fn apply_theme(choice: &str, accent: &str, cx: &mut App) {
         if cfg!(target_os = "linux") {
             theme.window_border = if theme.mode.is_dark() { white().opacity(0.07) } else { black().opacity(0.15) };
         }
+        // Material 3's snackbar, which the JVM app's SnackbarHost draws: inverse surface and ink (the
+        // baseline neutrals; the JVM scheme leaves both unset) and extra-small corners.
+        let (snackbar, snackbar_ink) =
+            if theme.mode.is_dark() { (rgb(0xE6E0E9), rgb(0x322F35)) } else { (rgb(0x322F35), rgb(0xF5EFF7)) };
+        theme.notification.style = StyleRefinement::default()
+            .bg(snackbar)
+            .text_color(snackbar_ink)
+            .border_0()
+            .rounded(px(4.))
+            .px(px(16.))
+            .py(px(14.));
+        theme.notification.close_color = Some(snackbar_ink.into());
+        theme.notification.fit_content = true;
         // On dark the full elevated lift reads too strongly against the body (ElevatedBarDialog).
         let dialog = if theme.mode.is_dark() { palette.surface_dim } else { palette.surface_elevated };
         tones = ChromeTones { flat: palette.surface, lifted: palette.surface_elevated, dialog };
