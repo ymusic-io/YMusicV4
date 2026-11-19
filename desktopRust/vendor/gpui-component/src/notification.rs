@@ -1,6 +1,7 @@
 use std::{
     any::TypeId,
     borrow::Cow,
+    cell::Cell,
     collections::{HashMap, HashSet},
     rc::Rc,
     time::Duration,
@@ -23,8 +24,9 @@ use crate::{
     ActiveTheme as _, Edges, Icon, IconName, Sizable as _, StyledExt, TITLE_BAR_HEIGHT,
     animation::cubic_bezier,
     button::{Button, ButtonVariants as _},
+    h_flex,
     styled::toast_shadow,
-    h_flex, v_flex,
+    v_flex,
 };
 
 const NOTIFICATION_TRANSITION_DURATION: Duration = Duration::from_millis(400);
@@ -419,8 +421,11 @@ impl Render for Notification {
         let has_icon = icon.is_some();
         let settings = &cx.theme().notification;
         let placement = self.placement.unwrap_or(settings.placement);
-        let (settings_style, close_color, fit_content) =
-            (settings.style.clone(), settings.close_color, settings.fit_content);
+        let (settings_style, close_color, fit_content) = (
+            settings.style.clone(),
+            settings.close_color,
+            settings.fit_content,
+        );
 
         let toast = BaseToast::new("notification")
             .transition_status(transition_status)
@@ -537,7 +542,11 @@ impl Render for Notification {
                 },
             );
         if fit_content {
-            h_flex().w_full().justify_center().child(toast).into_any_element()
+            h_flex()
+                .w_full()
+                .justify_center()
+                .child(toast)
+                .into_any_element()
         } else {
             toast.into_any_element()
         }
@@ -568,6 +577,9 @@ pub struct NotificationSettings {
     pub close_color: Option<Hsla>,
     /// The card takes its content's width, up to [`Self::width`], centred in the stack.
     pub fit_content: bool,
+    /// Every notification shows in full, newest nearest the anchored edge, instead of a stack that
+    /// only fans out under the pointer or keyboard focus.
+    pub always_expanded: bool,
 }
 
 impl Default for NotificationSettings {
@@ -587,6 +599,7 @@ impl Default for NotificationSettings {
             style: StyleRefinement::default(),
             close_color: None,
             fit_content: false,
+            always_expanded: false,
         }
     }
 }
@@ -723,6 +736,8 @@ pub struct NotificationList {
     /// Notifications that will be auto hidden.
     pub(crate) notifications: ToastManager<NotificationId, Entity<Notification>>,
     stacks: Vec<(Anchor, AnchorStack)>,
+    /// The pointer is over an always-expanded stack, which pauses autohide as a hovered stack does.
+    hovered: Rc<Cell<bool>>,
     focus_handle: FocusHandle,
     /// Mounted notifications that hide themselves after a timeout.
     autohide_ids: HashSet<NotificationId>,
@@ -736,6 +751,7 @@ impl NotificationList {
         Self {
             notifications: ToastManager::new(ToastMotion::sonner()),
             stacks: Vec::new(),
+            hovered: Rc::default(),
             focus_handle: cx.focus_handle().tab_stop(true),
             autohide_ids: HashSet::new(),
             is_advancing: false,
@@ -786,9 +802,11 @@ impl NotificationList {
     }
 
     fn is_expanded(&self) -> bool {
-        self.stacks
-            .iter()
-            .any(|(_, stack)| stack.state.is_expanded())
+        self.hovered.get()
+            || self
+                .stacks
+                .iter()
+                .any(|(_, stack)| stack.state.is_expanded())
     }
 
     /// Group the visible notifications by their effective placement, pairing
@@ -1037,8 +1055,12 @@ impl Render for NotificationList {
         let settings = &cx.theme().notification;
         let (placement, margins, width) =
             (settings.placement, settings.margins.clone(), settings.width);
+        let always_expanded = settings.always_expanded;
 
         let groups = self.grouped(cx);
+        if groups.is_empty() {
+            self.hovered.set(false);
+        }
         self.stacks
             .retain(|(anchor, _)| groups.iter().any(|(a, _, _)| a == anchor));
 
@@ -1063,8 +1085,39 @@ impl Render for NotificationList {
                     self.stacks.len() - 1
                 });
             let stack = &self.stacks[stack_ix].1;
+            if always_expanded {
+                let top_anchored = matches!(
+                    anchor,
+                    Anchor::TopLeft | Anchor::TopRight | Anchor::TopCenter
+                );
+                let mut items = items;
+                if top_anchored {
+                    items.reverse();
+                }
+                let hovered = self.hovered.clone();
+                return place(
+                    div().absolute().w(width).max_h(size.height),
+                    anchor,
+                    &margins,
+                    width,
+                )
+                .child(
+                    v_flex()
+                        .id(stack_id)
+                        .track_focus(&stack.focus_handle)
+                        .on_hover(move |over, _, cx| {
+                            if hovered.replace(*over) != *over {
+                                cx.refresh_windows();
+                            }
+                        })
+                        .w_full()
+                        .gap(ToastMotion::sonner().expanded_gap)
+                        .children(items.into_iter().map(|(_, item)| item)),
+                )
+                .into_any_element();
+            }
 
-            items
+            let stack = items
                 .into_iter()
                 .fold(
                     ToastStack::new(stack_id, stack.state.clone()),
@@ -1075,23 +1128,28 @@ impl Render for NotificationList {
                 .v_flex()
                 .w(width)
                 .max_h(size.height)
-                .absolute()
-                .map(|this| match anchor {
-                    Anchor::TopLeft => this.top(margins.top).left(margins.left),
-                    Anchor::TopRight => this.top(margins.top).right(margins.right),
-                    Anchor::TopCenter => this.top(margins.top).left(relative(0.5)).ml(-width / 2.),
-                    Anchor::BottomLeft => this.bottom(margins.bottom).left(margins.left),
-                    Anchor::BottomRight => this.bottom(margins.bottom).right(margins.right),
-                    Anchor::BottomCenter => this
-                        .bottom(margins.bottom)
-                        .left(relative(0.5))
-                        .ml(-width / 2.),
-                    Anchor::LeftCenter => this.left(margins.left).top_0().bottom_0().my_auto(),
-                    Anchor::RightCenter => this.right(margins.right).top_0().bottom_0().my_auto(),
-                })
+                .absolute();
+            place(stack, anchor, &margins, width).into_any_element()
         });
 
         div().size_full().children(stacks)
+    }
+}
+
+/// `this` at `anchor`, `margins` from the window edges, `width` wide.
+fn place<E: Styled>(this: E, anchor: Anchor, margins: &Edges<Pixels>, width: Pixels) -> E {
+    match anchor {
+        Anchor::TopLeft => this.top(margins.top).left(margins.left),
+        Anchor::TopRight => this.top(margins.top).right(margins.right),
+        Anchor::TopCenter => this.top(margins.top).left(relative(0.5)).ml(-width / 2.),
+        Anchor::BottomLeft => this.bottom(margins.bottom).left(margins.left),
+        Anchor::BottomRight => this.bottom(margins.bottom).right(margins.right),
+        Anchor::BottomCenter => this
+            .bottom(margins.bottom)
+            .left(relative(0.5))
+            .ml(-width / 2.),
+        Anchor::LeftCenter => this.left(margins.left).top_0().bottom_0().my_auto(),
+        Anchor::RightCenter => this.right(margins.right).top_0().bottom_0().my_auto(),
     }
 }
 
