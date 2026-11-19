@@ -7,6 +7,7 @@ import android.os.Build
 import io.ymusic.ui.VideoFrameExtractor
 import io.ymusic.ui.VideoFrameUnavailableException
 import kmpcommon.WorkerThread
+import kmpcommon.log.Logger
 import kmpcommon.uri.Uri
 import okio.Buffer
 import okio.IOException
@@ -21,7 +22,7 @@ import okio.Source
  * time, which MPEG-4 and Matroska set to the largest of the first sync samples — the busiest early
  * key frame, so not the black lead-in.
  */
-class PlatformVideoFrameExtractor(private val context: Context) : VideoFrameExtractor {
+class PlatformVideoFrameExtractor(private val context: Context, private val logger: Logger) : VideoFrameExtractor {
     @WorkerThread
     override fun extract(uri: Uri): Source {
         val document = context.contentResolver.openFileDescriptor(android.net.Uri.parse(uri.toString()), "r")
@@ -43,11 +44,17 @@ class PlatformVideoFrameExtractor(private val context: Context) : VideoFrameExtr
             // setDataSource and the frame getters report an undecodable source as IllegalArgument/StateException.
             throw VideoFrameUnavailableException("platform decoder failed: $uri", e)
         } finally {
-            try {
-                retriever.release()
-            } finally {
-                document.close()
-            }
+            releaseLogged(uri, "retriever") { retriever.release() }
+            releaseLogged(uri, "document") { document.close() }
+        }
+    }
+
+    /** Logged, never thrown: a failed release must not replace the frame or the real error. */
+    private inline fun releaseLogged(uri: Uri, what: String, release: () -> Unit) {
+        try {
+            release()
+        } catch (e: IOException) {
+            logger.log(Logger.Level.WARN, "$what release failed: $uri", e)
         }
     }
 
