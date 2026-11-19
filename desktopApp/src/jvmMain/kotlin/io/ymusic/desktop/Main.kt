@@ -978,9 +978,7 @@ private suspend fun buildGraph(
         }
     }
 
-    // Thumbnails: everything is a fetcher — http on a cache-less client (originals stream to the
-    // fetcher's disk cache, decode from file) + local files + ffmpeg-extracted embedded art
-    // (absent ffmpeg just keeps art:// urls unresolved → placeholder boxes).
+    // Without ffmpeg no fetcher takes art:// at all, so every art:// url (even art://yt) shows the view's placeholder.
     val imageNetworkFetcher = networkFetcher(
         http.image,
         FileSystem.SYSTEM,
@@ -996,6 +994,7 @@ private suspend fun buildGraph(
                     FfmpegMetadataGetter(it),
                     mediaStore,
                     loaderYoutubeArt { checkNotNull(loaderRef) },
+                    rootLogger.fork("local-art"),
                     coverCache = ImageSourceCache(FileSystem.SYSTEM, File(dataDir, "image-cover-cache").absolutePath.toPath(), 64L * 1024 * 1024),
                     extractorVersion = APP_VERSION_CODE.toString(),
                 )
