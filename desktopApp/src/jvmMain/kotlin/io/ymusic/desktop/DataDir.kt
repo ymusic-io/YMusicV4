@@ -134,8 +134,11 @@ private fun Throwable.isCorruption(): Boolean =
     generateSequence(this) { it.cause }.take(32).filterIsInstance<SQLException>()
         .any { (it.errorCode and 0xff) == SQLITE_CORRUPT || (it.errorCode and 0xff) == SQLITE_NOTADB }
 
+/**
+ * The main file goes last: a failed move must never leave a sidecar where the next open creates a fresh
+ * database, which SQLite would replay that sidecar into.
+ */
 private fun moveDatabase(file: Path, aside: Path) {
-    Files.move(file, aside)
     for (suffix in SIDECARS) {
         try {
             Files.move(file.resolveSibling(file.fileName.toString() + suffix), aside.resolveSibling(aside.fileName.toString() + suffix))
@@ -143,6 +146,7 @@ private fun moveDatabase(file: Path, aside: Path) {
             // That sidecar is not there: nothing to move.
         }
     }
+    Files.move(file, aside)
 }
 
 /** The launch cannot use its data dir: logs it, shows the code until the user closes the window, and returns. */

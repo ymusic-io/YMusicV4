@@ -130,15 +130,16 @@ fn is_corruption(error: &(dyn std::error::Error + 'static)) -> bool {
     })
 }
 
+/// The main file goes last: a failed move must never leave a sidecar where the next open creates a fresh
+/// database, which SQLite would replay that sidecar into.
 fn move_database(path: &Path, aside: &Path) -> std::io::Result<()> {
-    std::fs::rename(path, aside)?;
     for suffix in SIDECARS {
         match std::fs::rename(with_suffix(path, suffix), with_suffix(aside, suffix)) {
             Err(error) if error.kind() != std::io::ErrorKind::NotFound => return Err(error),
             _ => {}
         }
     }
-    Ok(())
+    std::fs::rename(path, aside)
 }
 
 const RENAMED: [(&str, &str); 4] = [
