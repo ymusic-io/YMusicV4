@@ -126,12 +126,16 @@ fn tray_logo(side: u32) -> anyhow::Result<image::RgbaImage> {
     image::RgbaImage::from_raw(side, side, pixels.collect()).ok_or_else(|| anyhow::anyhow!("{side} px tray buffer"))
 }
 
-/// The Dock shows the app's logo even when it runs outside an app bundle.
+/// The Dock shows the app's logo even when it runs outside an app bundle. A bundled app keeps its
+/// bundle icon: macOS renders that one in the Dark, Clear and Tinted icon styles, a set image it can't.
 #[cfg(target_os = "macos")]
 pub fn set_dock_icon(log: &Logger) {
     use objc2::msg_send;
     use objc2::rc::Retained;
     use objc2::runtime::{AnyClass, AnyObject};
+    if std::env::current_exe().is_ok_and(|exe| exe.to_string_lossy().contains(".app/Contents/MacOS/")) {
+        return;
+    }
     let (Some(app_class), Some(image_class), Some(data_class)) =
         (AnyClass::get(c"NSApplication"), AnyClass::get(c"NSImage"), AnyClass::get(c"NSData"))
     else {
@@ -630,6 +634,32 @@ pub fn install_pin_button(window: &Window, _cx: &App, log: &Logger) {
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
 pub fn install_pin_button(_window: &Window, _cx: &App, _log: &Logger) {}
+
+/// No hairline under the title bar: macOS 11+ draws one by default, black over the app's content.
+#[cfg(target_os = "macos")]
+pub fn hide_titlebar_separator(window: &Window) {
+    use objc2::rc::Retained;
+    use objc2::runtime::AnyObject;
+    use objc2::{msg_send, sel};
+    use raw_window_handle::{HasWindowHandle, RawWindowHandle};
+
+    const NS_TITLEBAR_SEPARATOR_STYLE_NONE: isize = 1;
+    let Ok(handle) = HasWindowHandle::window_handle(window) else { return };
+    let RawWindowHandle::AppKit(appkit) = handle.as_raw() else { return };
+    let view = appkit.ns_view.as_ptr().cast::<AnyObject>();
+    // SAFETY: gpui's live NSView and its window, on the main thread.
+    unsafe {
+        let ns_window: Option<Retained<AnyObject>> = msg_send![view, window];
+        let Some(ns_window) = ns_window else { return };
+        let available: bool = msg_send![&*ns_window, respondsToSelector: sel!(setTitlebarSeparatorStyle:)];
+        if available {
+            let _: () = msg_send![&*ns_window, setTitlebarSeparatorStyle: NS_TITLEBAR_SEPARATOR_STYLE_NONE];
+        }
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+pub fn hide_titlebar_separator(_window: &Window) {}
 
 /// Windows: the title bar pin (`win_title_bar`) and "Always on top" in the window's system menu
 /// (Alt+Space, a right-click on the title bar) toggle the one state, the window's WS_EX_TOPMOST; a
