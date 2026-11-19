@@ -25,7 +25,19 @@
         {
           "glass" : false,
           "image-name" : "rings.svg",
-          "name" : "rings"
+          "name" : "rings",
+          "image-name-specializations" : [
+            {
+              "appearance" : "tinted",
+              "value" : "rings-mono.svg"
+            }
+          ],
+          "opacity-specializations" : [
+            {
+              "appearance" : "tinted",
+              "value" : 0.35
+            }
+          ]
         }
       ],
       "shadow" : {
