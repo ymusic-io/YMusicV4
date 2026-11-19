@@ -118,7 +118,6 @@ import io.ymusic.dynamicengine.yt.extractHomeFeed
 import io.ymusic.dynamicengine.yt.extractMusicBrowse
 import io.ymusic.dynamicengine.yt.extractTrendingMusicFeed
 import io.ymusic.dynamicengine.yt.getRecommendedFeed
-import io.ymusic.dynamicengine.yt.resolveLink
 import io.ymusic.player.PlayableItem
 import io.ymusic.player.isEnded
 import io.ymusic.player.isPlaying
@@ -134,9 +133,6 @@ import io.ymusic.ui.resources.discover_no_anonymous_home
 import io.ymusic.ui.resources.discover_no_recommendations
 import io.ymusic.ui.resources.discover_no_top_tracks
 import io.ymusic.ui.resources.discover_no_trending
-import io.ymusic.ui.resources.error_captcha
-import io.ymusic.ui.resources.error_generic
-import io.ymusic.ui.resources.error_network
 import io.ymusic.ui.resources.link_open_failed
 import io.ymusic.ui.resources.link_queued_last
 import io.ymusic.ui.resources.link_queued_next
@@ -168,7 +164,6 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
-import projectcommon.error.errorCode
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -751,26 +746,19 @@ private fun AppRoot(
         LaunchedEffect(graph, coordinator) {
             IncomingLinks.links.collect { (url, action) ->
                 val log = graph.logger?.fork("IncomingLink", mapOf("action" to action.name))
-                val target = try {
-                    graph.engines.resolveLink(url, log)
-                } catch (c: kotlinx.coroutines.CancellationException) {
-                    throw c
-                } catch (e: Exception) {
-                    log?.log(kmpcommon.log.Logger.Level.WARN, "resolve link failed", e)
-                    showSnackbar(
-                        when (val code = e.errorCode() ?: "E20113") {
-                            "network" -> getString(Res.string.error_network)
-                            CAPTCHA_CODE -> getString(Res.string.error_captcha)
-                            else -> getString(Res.string.error_generic, code)
-                        },
-                    )
-                    return@collect
+                val target = when (val resolved = resolveIncomingLink(graph, url, log)) {
+                    is LinkResolution.Failed -> {
+                        showSnackbar(linkFailureMessage(resolved.code))
+                        return@collect
+                    }
+                    is LinkResolution.Resolved -> resolved.target
                 }
                 when (target) {
                     is YtLinkTarget.Video -> {
                         val video = target.item
                         val queueEmpty = coordinator.player.queue.value.items.isEmpty()
                         val downloads = graph.downloads
+                        val quickFormat = downloads?.let { action.quickDownloadFormat(it) }
                         when {
                             action == LinkAction.PLAY_SINGLE || (queueEmpty && action in QueueActions) ->
                                 coordinator.player.setQueue(
@@ -786,10 +774,7 @@ private fun AppRoot(
                                 coordinator.playLater(video)
                                 showSnackbar(linkQueuedLast)
                             }
-                            action == LinkAction.DOWNLOAD_M4A && downloads != null ->
-                                pendingFormatDownload = video to DownloadFormat.M4A
-                            action == LinkAction.DOWNLOAD_MP3 && downloads != null && downloads.ffmpegAvailable ->
-                                pendingFormatDownload = video to DownloadFormat.MP3
+                            quickFormat != null -> pendingFormatDownload = video to quickFormat
                             action in DownloadActions && downloads != null -> pendingDownload = video
                             else -> {
                                 val playlist = target.playlistUrl
