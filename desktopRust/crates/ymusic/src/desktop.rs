@@ -1440,11 +1440,11 @@ impl Tray {
 }
 
 /// GNOME on Wayland leaves decorations to the app: a client-decorated window draws its own title
-/// bar here; its border and resize edges are Root's frame.
+/// bar here; its border and resize edges are Root's frame. A fullscreen window has no bar.
 #[cfg(target_os = "linux")]
 pub fn frame(content: AnyElement, window: &mut Window, cx: &mut App) -> AnyElement {
     use gpui_kit::component::{TitleBar, v_flex};
-    if !matches!(window.window_decorations(), Decorations::Client { .. }) {
+    if window.is_fullscreen() || !matches!(window.window_decorations(), Decorations::Client { .. }) {
         return content;
     }
     let theme = gpui_kit::component::ActiveTheme::theme(cx).clone();
