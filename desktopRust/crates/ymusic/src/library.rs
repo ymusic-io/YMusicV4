@@ -2368,10 +2368,11 @@ impl LibraryView {
         self.tool_focus.button(TOOL_SHUFFLE, chip, cx)
     }
 
-    /// The cards the open tab lists above its songs, built one by one by [`Self::card_at`].
+    /// The cards the open tab lists above its songs, built one by one by [`Self::card_at`]. While
+    /// selecting, a folder lists only its songs: a subfolder would end the selection.
     fn cards(&self) -> Cards {
         match self.tab {
-            Tab::Folders => Cards::Folders(self.sorted_folders()),
+            Tab::Folders if !self.selecting() => Cards::Folders(self.sorted_folders()),
             Tab::Playlists if self.open_playlist.is_none() => Cards::Playlists(self.playlist_cards()),
             Tab::Artists | Tab::Albums | Tab::Genres if self.group.is_none() => Cards::Groups(self.groups()),
             _ => Cards::None,
