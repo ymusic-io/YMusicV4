@@ -2391,6 +2391,25 @@ impl LibraryView {
     fn folder_card(&self, bucket: Bucket, index: usize, grid: bool, cx: &mut Context<Self>) -> AnyElement {
         let path = PathBuf::from(&bucket.uri);
         let marked = !bucket.excluded && self.download_folder.as_deref() == Some(path.as_path());
+        // While selecting, folders stay in place but don't open: that would end the selection.
+        let inert = self.selecting();
+        let card = Self::card(
+            ("folder", index).into(),
+            index,
+            Icon::new(MaterialIcon::Folder),
+            None,
+            bucket.display_name().to_owned(),
+            (!grid).then(|| t(Str::LibraryFolder).to_owned()),
+            grid.then(|| t(Str::LibraryFolder)),
+            grid,
+            bucket.excluded || inert,
+            marked,
+            cx,
+        )
+        .relative();
+        if inert {
+            return self.card_focus.item(index, card, cx).into_any_element();
+        }
         let view = cx.entity().downgrade();
         let menu_bucket = bucket.clone();
         let more = self.card_focus.menu_button(index, more_button(("folder-more", index)), cx);
@@ -2421,25 +2440,6 @@ impl LibraryView {
             menu.item(PopupMenuItem::new(reveal_label()).on_click(move |_, _, cx| cx.reveal_path(&path)))
         });
         let more = menu.dropdown(more, Anchor::TopRight);
-        // While selecting, folders stay in place but don't open: that would end the selection.
-        let inert = self.selecting();
-        let card = Self::card(
-            ("folder", index).into(),
-            index,
-            Icon::new(MaterialIcon::Folder),
-            None,
-            bucket.display_name().to_owned(),
-            (!grid).then(|| t(Str::LibraryFolder).to_owned()),
-            grid.then(|| t(Str::LibraryFolder)),
-            grid,
-            bucket.excluded || inert,
-            marked,
-            cx,
-        )
-        .relative();
-        if inert {
-            return self.card_focus.item(index, card, cx).into_any_element();
-        }
         let card = card
             .child(div().absolute().top(px(8.)).right(px(if grid { 8. } else { 4. })).child(more))
             .on_click(cx.listener(move |view, _, _, cx| view.open_folder(bucket.clone(), cx)));
