@@ -612,7 +612,7 @@ impl NowPlaying {
         }
     }
 
-    /// Enters full screen in the mode used last, or leaves it together with the window's.
+    /// Enters full screen without the queue, or leaves it together with the window's.
     fn toggle_fullscreen(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if self.fullscreen {
             self.end_fullscreen();
