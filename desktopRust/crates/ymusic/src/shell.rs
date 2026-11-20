@@ -2171,8 +2171,8 @@ impl Shell {
                     .when(!expanded, |list| list.px_2())
                     .py_1()
                     .child(self.section_groups(expanded, RAIL_ICON_START, cx))
-                    .children(website)
-                    .children(check_update),
+                    .children(check_update)
+                    .children(website),
             );
         div()
             .id("rail")
