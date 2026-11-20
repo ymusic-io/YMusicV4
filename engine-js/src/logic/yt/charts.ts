@@ -54,13 +54,13 @@ async function readCachedPage(key: string): Promise<CachedCharts | null> {
   }
 }
 
-/** A failed refresh serves the region's stale page, marked with the failure's code, when there is
- *  one; only a cold cache throws. */
-export async function trendingMusicPage(log?: JsLogger): Promise<WireFeedPage> {
+/** [refresh] (a user reload) fetches even while the cached copy is fresh. A failed fetch serves the
+ *  region's cached page, marked with the failure's code, when there is one; only a cold cache throws. */
+export async function trendingMusicPage(log?: JsLogger, refresh = false): Promise<WireFeedPage> {
   const locale = await effectiveLocale();
   const key = "home_" + locale.hl + "_" + locale.gl;
   const cached = await readCachedPage(key);
-  if (cached !== null && cached.fresh) return cached.page;
+  if (cached !== null && cached.fresh && !refresh) return cached.page;
   let page: WireFeedPage;
   try {
     page = await musicChannelPage(log ?? jsLogger("yt/trending"));
