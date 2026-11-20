@@ -1274,13 +1274,14 @@ impl FeedView {
                     let item = item.clone();
                     view.update(cx, |view, cx| view.menu_action(item, action, window, cx)).ok();
                 }));
-                if matches!(action, MenuAction::Feed(FeedAction::Download)) {
-                    let item = target.clone();
-                    let label = tf(Str::QuickDownloadMenu, &[&saved_preset(cx).short_label()]);
-                    menu = menu.item(PopupMenuItem::new(label).on_click(move |_, window, cx| {
-                        crate::quick_download::launch(DownloadTarget::from_feed(&item), window, cx);
-                    }));
-                }
+            }
+            // Kept last: quickest to reach with a screen reader (#340).
+            if video && !target.live {
+                let item = target.clone();
+                let label = tf(Str::QuickDownloadMenu, &[&saved_preset(cx).short_label()]);
+                menu = menu.item(PopupMenuItem::new(label).on_click(move |_, window, cx| {
+                    crate::quick_download::launch(DownloadTarget::from_feed(&item), window, cx);
+                }));
             }
             if video && downloaded {
                 let video_id = target.id.clone();
