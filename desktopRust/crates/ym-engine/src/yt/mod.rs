@@ -59,9 +59,11 @@ impl DynamicEngine {
         self.feed("yt/recommended", Map::new(), hop(log, "recommended_feed", [])).await
     }
 
-    /// The music charts for the engine-resolved region; section titles carry a `title_key`.
-    pub async fn trending_music_feed(&self, log: &Logger) -> Result<YtFeedPage, EngineError> {
-        self.feed("yt/trending", Map::new(), hop(log, "trending_music_feed", [])).await
+    /// Top charts (youtube.com/music) for the engine-resolved region. The engine keeps it a day;
+    /// `refresh` (a user reload) fetches it anew.
+    pub async fn trending_music_feed(&self, refresh: bool, log: &Logger) -> Result<YtFeedPage, EngineError> {
+        let refresh = refresh.then_some(Value::Bool(true));
+        self.feed("yt/trending", args([("refresh", refresh)]), hop(log, "trending_music_feed", [])).await
     }
 
     pub async fn playlist_detail(

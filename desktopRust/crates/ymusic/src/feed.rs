@@ -126,7 +126,7 @@ impl FeedSource {
                 }
                 page
             }),
-            Self::Trending => engine.trending_music_feed(&log).await,
+            Self::Trending => engine.trending_music_feed(refresh, &log).await,
             Self::Recommended => engine.recommended_feed(&log).await,
             Self::MusicHome => engine.music_home(continuation, refresh, &log).await,
             Self::MusicExplore => engine.music_explore(continuation, &log).await,
