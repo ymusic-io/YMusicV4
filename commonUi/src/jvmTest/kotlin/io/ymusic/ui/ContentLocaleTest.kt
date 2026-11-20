@@ -34,11 +34,11 @@ class ContentLocaleTest {
     private fun chartsClient(requests: MutableList<String>) = CannedHttp { request, body ->
         val url = request.url.toString()
         when {
-            url.contains("charts.youtube.com") -> {
+            url.contains("youtubei/v1/browse") && body.orEmpty().contains(MUSIC_CHANNEL_BROWSE) -> {
                 requests.add(body.orEmpty())
                 textResponse(
                     request,
-                    checkNotNull(javaClass.classLoader.getResource("yt-charts-live.json")).readText(),
+                    checkNotNull(javaClass.classLoader.getResource("yt-music-channel.json")).readText(),
                     "application/json",
                 )
             }
@@ -57,6 +57,11 @@ class ContentLocaleTest {
         }
     }
 
+    private companion object {
+        /** Top charts is the YouTube Music channel's Home tab (youtube.com/music). */
+        const val MUSIC_CHANNEL_BROWSE = """"browseId":"UC-9-kyTW8ZkZNDHQJ6FgpwQ""""
+    }
+
     @Test
     fun the_region_youtube_reports_seeds_the_context_without_any_user_choice() {
         Locale.setDefault(Locale.US)
@@ -70,7 +75,7 @@ class ContentLocaleTest {
                 setContent { App(graph) }
 
                 onNodeWithActionLabel("Trending music").performClick()
-                waitUntilAtLeastOneExists(hasText("Trending Music Videos"), 20_000)
+                waitUntilAtLeastOneExists(hasText("New This Week"), 20_000)
                 waitUntil(timeoutMillis = 10_000) { charts.isNotEmpty() }
 
                 // The device is en-US and the user picked nothing, yet the charts come from VN:
@@ -98,7 +103,7 @@ class ContentLocaleTest {
                 setContent { App(graph) }
 
                 onNodeWithActionLabel("Trending music").performClick()
-                waitUntilAtLeastOneExists(hasText("Trending Music Videos"), 20_000)
+                waitUntilAtLeastOneExists(hasText("New This Week"), 20_000)
                 waitUntil(timeoutMillis = 10_000) { charts.isNotEmpty() }
                 val before = charts.size
 
