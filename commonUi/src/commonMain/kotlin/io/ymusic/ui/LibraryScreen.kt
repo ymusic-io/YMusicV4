@@ -636,7 +636,8 @@ private fun FoldersTab(
             }
         }
         val sort = rememberSortState("folders", settings)
-        val sortedFolders = sort.sort(children, folderSortOptions)
+        // While selecting, only the open folder's songs show: a subfolder would end the selection.
+        val sortedFolders = if (songSelection.active) emptyList() else sort.sort(children, folderSortOptions)
         val sortedItems = sort.sort(items, songSortOptions)
         val songIds = sortedItems.map { it.id }
         // Keyed on membership: a re-sort keeps what Select all restores.
