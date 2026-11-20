@@ -15,7 +15,9 @@ import { JsEngineErrorImpl, errorCode } from "../../protocol/command";
 import { jsLogger } from "../../protocol/logger";
 import type { JsLogger } from "../../protocol/logger";
 import { HttpRequest } from "../../protocol/http";
-import { channelUrl, setDurationBadge } from "./parse";
+import { channelUrl, collectPage, setDurationBadge } from "./parse";
+import { innertubeJson } from "./innertube";
+import { musicJson } from "./ytmusic";
 import { executeWithCookies } from "./cookies";
 import type { AuthContext } from "./cookies";
 import { effectiveLocale, getSession } from "./session";
@@ -90,8 +92,8 @@ function chartsPost(
  * CHART_HOME serves every region tried (including the ones legacy's hardcoded table routed to the
  * location-insights perspective instead).
  * The site now sends a reCAPTCHA Enterprise token (`musicAnalyticsChartsBrowseParams.recaptchaToken`,
- * seen 2026-11-19) the bundle can't mint; a tokenless call is refused (403) intermittently, hence
- * the one retry.
+ * seen 2026-11-19) the bundle can't mint; since 2026-11-20 a tokenless call is refused (403) every
+ * time, so only a 429 is retried and a 403 goes straight to the YouTube Music fallback.
  */
 async function chartsBrowse(
   locale: { hl: string; gl: string },
@@ -118,7 +120,7 @@ async function chartsBrowse(
   const logger = log ?? jsLogger("yt/trending");
   const auth = await chartsAuth();
   let res = await chartsPost(body, auth, logger);
-  if (res.status === 403 || res.status === 429) {
+  if (res.status === 429) {
     res.close();
     await delay(CHARTS_RETRY_DELAY_MS);
     res = await chartsPost(body, auth, logger);
@@ -361,6 +363,78 @@ function composeTrendingPage(response: Record<string, unknown>): WireFeedPage {
   return { "sections": sections };
 }
 
+// ---- YouTube Music fallback --------------------------------------------------------------------
+
+/** At most this many chart playlists load: each one is a browse request. */
+const YTMUSIC_CHART_LISTS_MAX = 4;
+
+/**
+ * The region's charts from YouTube Music's own Charts page (music.youtube.com/charts, formData picks
+ * the country). Its chart playlists become the same collapsible lists, titled with YouTube's own
+ * localized playlist name; a playlist carries no ranks or views, so the rank is the list position.
+ */
+async function ytMusicChartsPage(gl: string, log: JsLogger): Promise<WireFeedPage> {
+  const root = await musicJson(
+    "browse",
+    { "browseId": "FEmusic_charts", "formData": { "selectedValues": [gl] } },
+    log,
+  );
+  const lists: Array<{ id: string; title: string }> = [];
+  walk(root, (key, value) => {
+    if (key !== "musicTwoRowItemRenderer") return;
+    const id = asString(get(value, "navigationEndpoint", "browseEndpoint", "browseId"));
+    const title = asString(get(value, "title", "runs", 0, "text"));
+    if (id !== undefined && id.indexOf("VL") === 0 && title !== undefined) {
+      lists.push({ id: id, title: title });
+    }
+    return true;
+  });
+  if (lists.length === 0)
+    throw JsEngineErrorImpl.parse("yt/trending: no chart playlists on YouTube Music's charts");
+  const loaded = await Promise.all(
+    lists.slice(0, YTMUSIC_CHART_LISTS_MAX).map(async function (list) {
+      try {
+        return {
+          list: list,
+          page: collectPage(await innertubeJson("browse", { "browseId": list.id }, log)),
+        };
+      } catch (e) {
+        console.warn("yt charts: YouTube Music chart list " + list.id + " failed:", e);
+        return { list: list, error: e };
+      }
+    }),
+  );
+  const sections: WireSection[] = [];
+  let firstError: unknown;
+  for (const result of loaded) {
+    if (result.page === undefined) {
+      if (firstError === undefined) firstError = result.error;
+      continue;
+    }
+    const items: WireFeedItem[] = [];
+    for (const section of result.page["sections"]) {
+      for (const item of section["items"]) {
+        if (item["kind"] !== "video") continue;
+        item["subtitleLine2"] = "#" + (items.length + 1);
+        items.push(item);
+      }
+    }
+    if (items.length === 0) continue;
+    sections.push({
+      "header": { "title": result.list.title },
+      "layout": "list",
+      "items": items,
+      "collapsible": true,
+      "playMode": "queue",
+    });
+  }
+  if (sections.length === 0) {
+    if (firstError !== undefined) throw firstError;
+    throw JsEngineErrorImpl.parse("yt/trending: YouTube Music's chart playlists were empty");
+  }
+  return { "sections": sections };
+}
+
 function errText(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
 }
@@ -399,7 +473,12 @@ export async function trendingMusicPage(log?: JsLogger): Promise<WireFeedPage> {
   if (cached !== null && cached.fresh) return cached.page;
   let page: WireFeedPage;
   try {
-    page = composeTrendingPage(await chartsBrowse(locale, log));
+    try {
+      page = composeTrendingPage(await chartsBrowse(locale, log));
+    } catch (e) {
+      console.warn("yt charts: charts.youtube.com failed, trying YouTube Music:", e);
+      page = await ytMusicChartsPage(locale.gl, log ?? jsLogger("yt/trending"));
+    }
   } catch (e) {
     if (cached === null) throw e;
     console.warn("yt charts refresh failed, serving the stale page:", e);
