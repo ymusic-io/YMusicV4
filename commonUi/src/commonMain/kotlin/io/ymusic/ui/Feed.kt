@@ -851,9 +851,6 @@ private fun itemActions(item: YtFeedItem, coordinator: PlaybackCoordinator): Ite
                 }
                 if (downloadLauncher != null && !item.live) {
                     add(stringResource(Res.string.cd_download) to { downloadLauncher.launch(item) })
-                    if (quickPreset != null) {
-                        add(stringResource(Res.string.quick_download_menu, quickPreset.label()) to { downloadLauncher.quickLaunch(item) })
-                    }
                 }
                 if (share != null) add(stringResource(Res.string.cd_share) to { share(item.kind, item.id) })
                 if (removeFromYtPlaylist != null && item.removeToken != null) {
@@ -861,6 +858,10 @@ private fun itemActions(item: YtFeedItem, coordinator: PlaybackCoordinator): Ite
                 }
                 if (removeFromTopTracks != null) {
                     add(stringResource(Res.string.menu_remove) to { removeFromTopTracks(item) })
+                }
+                // Kept last: quickest to reach with a screen reader (#340).
+                if (downloadLauncher != null && !item.live && quickPreset != null) {
+                    add(stringResource(Res.string.quick_download_menu, quickPreset.label()) to { downloadLauncher.quickLaunch(item) })
                 }
             }
         } else {
