@@ -300,7 +300,7 @@ fun LibraryScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
                 mutableStateOf(LibraryTab.entries.firstOrNull { it.key == saved } ?: LibraryTab.Folders)
             }
             LaunchedEffect(tab) { graph.settings.put(AppSettings.lastLibraryTab, tab.key) }
-            // A multi-select (the Songs tab's, an opened playlist's) holds the Library on its tab until it ends.
+            // A multi-select (the Songs tab's, an opened playlist's or folder's) holds the Library on its tab until it ends.
             val songSelection = rememberMultiSelection<Long>()
             val tabRowSlot = remember { AppBarSlot() }
             val songsSort = rememberSortState("songs", graph.settings)
@@ -429,7 +429,10 @@ fun LibraryScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
                             tabStateHolder.SaveableStateProvider(current.name) {
                                 when (current) {
                                     // Its songs are already shown in their folder: no "Show in folder".
-                                    LibraryTab.Folders -> CompositionLocalProvider(LocalLibraryReveal provides null) {
+                                    LibraryTab.Folders -> CompositionLocalProvider(
+                                        LocalLibraryReveal provides null,
+                                        LocalLibraryTabRowSlot provides tabRowSlot,
+                                    ) {
                                         FoldersTab(
                                             store,
                                             loaded,
@@ -442,6 +445,7 @@ fun LibraryScreen(graph: AppGraph, coordinator: PlaybackCoordinator) {
                                             downloadLocation = downloadLocation,
                                             onToggleDownloadLocation = onToggleDownloadLocation,
                                             settings = graph.settings,
+                                            openSelectionDialog = { songSelectionDialog = it },
                                         )
                                     }
                                     LibraryTab.Playlists -> CompositionLocalProvider(LocalLibraryTabRowSlot provides tabRowSlot) {
@@ -563,6 +567,7 @@ private fun FoldersTab(
     downloadLocation: String?,
     onToggleDownloadLocation: ((MediaStoreBucket) -> Unit)?,
     settings: SettingsStore,
+    openSelectionDialog: (SongSelectionDialog) -> Unit,
 ) {
     fun isDownloadLocation(bucket: MediaStoreBucket) =
         downloadLocation != null && bucket.uri.toString() == downloadLocation
@@ -572,6 +577,7 @@ private fun FoldersTab(
     // Until seeded from the setting or a reveal, nothing loads or writes back: root would overwrite the saved folder.
     var pathRestored by rememberSaveable { mutableStateOf(false) }
     NestedBackHandler(enabled = path.isNotEmpty()) { path = path.dropLast(1) }
+    val songSelection = remember(path.lastOrNull()?.first) { MultiSelection<Long>() }
     var folders by remember { mutableStateOf<List<MediaStoreBucket>?>(null) }
     var items by remember { mutableStateOf<List<MediaStoreItem>>(emptyList()) }
     val folderListState = rememberLazyListState()
@@ -631,7 +637,33 @@ private fun FoldersTab(
         }
         val sort = rememberSortState("folders", settings)
         val sortedFolders = sort.sort(children, folderSortOptions)
+        // While selecting, folders stay in place but don't open: that would end the selection.
+        val foldersInert = songSelection.active
         val sortedItems = sort.sort(items, songSortOptions)
+        val songIds = sortedItems.map { it.id }
+        // Keyed on membership: a re-sort keeps what Select all restores.
+        val songIdSet = songIds.toSet()
+        LaunchedEffect(songIdSet) {
+            songSelection.retain(songIdSet)
+            songSelection.forgetSelectAll()
+        }
+        val canDelete = LocalSongActions.current?.canDelete == true
+        ReplaceAppBar(enabled = songSelection.active, slot = LocalLibraryTabRowSlot.current) {
+            SongSelectionBar(
+                songSelection,
+                sortedItems,
+                coordinator,
+                onAddToPlaylist = { selected -> openSelectionDialog(SongSelectionDialog.AddToPlaylist(selected, songSelection::end)) },
+                onDelete = if (canDelete) {
+                    { selected ->
+                        val targets = selected.associateBy { it.id }
+                        openSelectionDialog(SongSelectionDialog.Delete(targets) { songSelection.endRemoving(targets.keys) })
+                    }
+                } else {
+                    null
+                },
+            )
+        }
         val folderId = path.lastOrNull()?.first
         val scopedRescan: ScanAction? = rescan?.let { action ->
             { onProgress ->
@@ -693,7 +725,18 @@ private fun FoldersTab(
                 // sized — full-width when tight, splitting as the screen grows — and rendered as
                 // full-width weighted rows so they stay gap-free whatever the folder column count.
                 val layoutWidth = railStableWidth(maxWidth)
-                if (layoutWidth >= LibraryGridMinWidth) {
+                val asGrid = layoutWidth >= LibraryGridMinWidth
+                // Items ahead of the songs: the header, then one per folder.
+                val songsStart = 1 + sortedFolders.size
+                MultiSelectionEffects(songSelection, songIds) { index ->
+                    if (asGrid) {
+                        val item = songsStart + index / librarySongColumns(layoutWidth)
+                        if (folderGridState.layoutInfo.visibleItemsInfo.none { it.index == item }) folderGridState.scrollToItem(item)
+                    } else if (folderListState.layoutInfo.visibleItemsInfo.none { it.index == songsStart + index }) {
+                        folderListState.scrollToItem(songsStart + index)
+                    }
+                }
+                if (asGrid) {
                     val columns = libraryGridColumns(layoutWidth)
                     val songsPerRow = librarySongColumns(layoutWidth)
                     LazyVerticalGrid(
@@ -709,9 +752,13 @@ private fun FoldersTab(
                                 artUrl = null,
                                 title = bucket.displayName,
                                 subtitle = stringResource(Res.string.library_folder),
-                                dimmed = bucket.excluded,
+                                dimmed = bucket.excluded || foldersInert,
                                 marked = isDownloadLocation(bucket),
-                                menu = folderActions(bucket, onRemove, onExclude, onInclude, isDownloadLocation(bucket), onToggleDownloadLocation),
+                                menu = if (foldersInert) {
+                                    null
+                                } else {
+                                    folderActions(bucket, onRemove, onExclude, onInclude, isDownloadLocation(bucket), onToggleDownloadLocation)
+                                },
                             ) { openFolder(bucket) }
                         }
                         // Full-span rows break the flow onto a fresh line below the folders.
@@ -722,7 +769,9 @@ private fun FoldersTab(
                         ) { group ->
                             Row(Modifier.bleedGridPadding()) {
                                 group.forEach { i ->
-                                    Box(Modifier.weight(1f)) { SongRow(sortedItems[i], coordinator) { coordinator.playLocal(sortedItems, i) } }
+                                    Box(Modifier.weight(1f)) {
+                                        SongRow(sortedItems[i], coordinator, songSelection) { coordinator.playLocal(sortedItems, i) }
+                                    }
                                 }
                                 repeat(songsPerRow - group.size) { Spacer(Modifier.weight(1f)) }
                             }
@@ -736,10 +785,11 @@ private fun FoldersTab(
                                 bucket,
                                 folderActions(bucket, onRemove, onExclude, onInclude, isDownloadLocation(bucket), onToggleDownloadLocation),
                                 isDownloadLocation = isDownloadLocation(bucket),
+                                inert = foldersInert,
                             ) { openFolder(bucket) }
                         }
                         itemsIndexed(sortedItems, key = { _, s -> s.id }) { index, song ->
-                            SongRow(song, coordinator) { coordinator.playLocal(sortedItems, index) }
+                            SongRow(song, coordinator, songSelection) { coordinator.playLocal(sortedItems, index) }
                         }
                     }
                 }
@@ -899,12 +949,18 @@ private fun CrumbText(label: String, last: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun FolderRow(bucket: MediaStoreBucket, menu: ItemActions, isDownloadLocation: Boolean, onOpen: () -> Unit) {
-    val contentAlpha = if (bucket.excluded) 0.4f else 1f
+private fun FolderRow(
+    bucket: MediaStoreBucket,
+    menu: ItemActions,
+    isDownloadLocation: Boolean,
+    inert: Boolean = false,
+    onOpen: () -> Unit,
+) {
+    val contentAlpha = if (bucket.excluded || inert) 0.4f else 1f
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(enabled = !bucket.excluded, onClick = onOpen)
+            .clickable(enabled = !bucket.excluded && !inert, onClick = onOpen)
             .padding(start = 16.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalAlignment = Alignment.Top,
@@ -922,7 +978,12 @@ private fun FolderRow(bucket: MediaStoreBucket, menu: ItemActions, isDownloadLoc
                 modifier = Modifier.padding(top = 10.dp).size(18.dp).spokenAs(stringResource(Res.string.menu_download_location)),
             )
         }
-        MoreMenu(menu, Modifier.padding(top = 2.dp), inFocusableItem = !bucket.excluded)
+        if (inert) {
+            // Holds the ⋮'s width so the row's text doesn't reflow.
+            Spacer(Modifier.width(MoreMenuHitSize))
+        } else {
+            MoreMenu(menu, Modifier.padding(top = 2.dp), inFocusableItem = !bucket.excluded)
+        }
     }
 }
 
@@ -1843,7 +1904,7 @@ private sealed interface SongSelectionDialog {
 }
 
 /**
- * The Songs tab's selection bar, in the tab row's place: close · "N selected" · Select all · Add to playlist ·
+ * The Songs tab's and an opened folder's selection bar, in the tab row's place: close · "N selected" · Select all · Add to playlist ·
  * Remove from disk · ⋮ (Play, Queue next, Queue last). Each acts on the selected [songs] in their listed order.
  */
 @Composable

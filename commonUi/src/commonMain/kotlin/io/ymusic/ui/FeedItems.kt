@@ -516,6 +516,8 @@ private fun TagPill(label: String, accent: String?, modifier: Modifier, onClick:
     }
 }
 
+internal val MoreMenuHitSize = 40.dp
+
 /**
  * A ⋮ menu. In a focusable item ([inFocusableItem]) it is not a focus stop, so Tab moves item to
  * item: the keyboard opens it with Shift+F10 or the context-menu key on its item (in an [itemList]),
@@ -527,7 +529,7 @@ internal fun MoreMenu(
     actions: ItemActions,
     modifier: Modifier = Modifier,
     inFocusableItem: Boolean = true,
-    hitSize: Dp = 40.dp,
+    hitSize: Dp = MoreMenuHitSize,
 ) {
     var open by remember { mutableStateOf(false) }
     var openedByKey by remember { mutableStateOf(false) }
