@@ -58,7 +58,7 @@ async function readCachedPage(key: string): Promise<CachedCharts | null> {
  *  one; only a cold cache throws. */
 export async function trendingMusicPage(log?: JsLogger): Promise<WireFeedPage> {
   const locale = await effectiveLocale();
-  const key = locale.hl + "_" + locale.gl;
+  const key = "home_" + locale.hl + "_" + locale.gl;
   const cached = await readCachedPage(key);
   if (cached !== null && cached.fresh) return cached.page;
   let page: WireFeedPage;
@@ -73,6 +73,8 @@ export async function trendingMusicPage(log?: JsLogger): Promise<WireFeedPage> {
   }
   try {
     await Cache.setJson(CHARTS_CACHE_SCOPE, key, page);
+    // The YouTube Music charts copy this page replaces, under its old key.
+    await Cache.delete(CHARTS_CACHE_SCOPE, locale.hl + "_" + locale.gl);
   } catch (e) {
     debug(function () {
       return "yt charts cache write skipped: " + errText(e);
