@@ -491,13 +491,22 @@ class YtCommandsTest {
             val sent = assertNotNull(chartsBody)
             assertTrue(sent.contains(""""browseId":"FEmusic_charts""""), sent)
             assertTrue(sent.contains(""""selectedValues":["VN"]"""), sent)
-            assertEquals(2, playlistBrowses, "each chart playlist loads, the artist row does not")
+            assertEquals(3, playlistBrowses, "the first three chart playlists load, the artists do not")
 
-            assertEquals(listOf("Trending 20 Vietnam", "Top 100 Music Videos Vietnam"), page.sections.map { it.header?.title })
+            assertEquals(
+                listOf("Top 100 Live Performances - Vietnam", "Trending 20 Vietnam", "Daily Top Music Videos - Vietnam", "Top artists"),
+                page.sections.map { it.header?.title },
+            )
             assertTrue(page.sections.all { it.header?.titleKey == null }, "YouTube's own localized titles")
-            assertTrue(page.sections.all { it.layout == YtSection.LAYOUT_LIST }, "charts are ranked lists")
+            val charts = page.sections.dropLast(1)
+            assertTrue(charts.all { it.layout == YtSection.LAYOUT_LIST }, "charts are ranked lists")
             assertTrue(page.sections.all { it.collapsible }, "a 20–100 entry chart collapses to a teaser")
             assertNull(page.continuation, "charts publish no continuation")
+
+            val artists = page.sections.last()
+            assertEquals(listOf("UCartistOne0000000000000", "UCartistTwo0000000000000"), artists.items.map { it.id })
+            assertTrue(artists.items.all { it.kind == YtFeedItem.KIND_CHANNEL })
+            assertEquals("1.2M subscribers", artists.items[0].subtitleLine1)
 
             val items = page.sections[0].items
             assertEquals(listOf("chartVid001", "chartVid002"), items.map { it.id })

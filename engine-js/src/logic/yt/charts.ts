@@ -1,6 +1,6 @@
-// The Top charts page: the region's chart playlists from YouTube Music's Charts page, each as one
-// list. charts.youtube.com is not used: since 2026-11-20 it refuses every call without a reCAPTCHA
-// Enterprise token, which only a real browser can mint.
+// The Top charts page, from YouTube Music's Charts page: its chart playlists, each as one list, then
+// its Top artists. charts.youtube.com is not used: since 2026-11-20 it refuses every call without a
+// reCAPTCHA Enterprise token, which only a real browser can mint.
 
 import { debug } from "../../debug";
 import { Cache } from "../../protocol/cache";
@@ -9,47 +9,48 @@ import { jsLogger } from "../../protocol/logger";
 import type { JsLogger } from "../../protocol/logger";
 import { collectPage } from "./parse";
 import { innertubeJson } from "./innertube";
+import { collectMusicPage } from "./musicParse";
 import { musicJson } from "./ytmusic";
 import { effectiveLocale } from "./session";
-import { asString, get, walk } from "./scan";
 import type { WireFeedItem, WireFeedPage, WireSection } from "./wire";
 
-/** At most this many chart playlists load: each one is a browse request. */
-const YTMUSIC_CHART_LISTS_MAX = 4;
+/** The Video charts shelf holds Trending 20, Daily Top and Top 100; each one is a browse request. */
+const CHART_PLAYLISTS_MAX = 3;
 
 /**
- * The region's charts from YouTube Music's own Charts page (music.youtube.com/charts, formData picks
- * the country). Each chart playlist becomes a collapsible list titled with YouTube's localized name;
- * a playlist carries no ranks or views, so the rank is the list position.
+ * The region's charts from YouTube Music's Charts page (music.youtube.com/charts, formData picks the
+ * country), which holds two shelves: Video charts (chart playlists) and Top artists. Each chart
+ * playlist becomes its own collapsible list, titled with YouTube's localized name and numbered by
+ * position (a playlist carries no ranks or views); Top artists follows them, as YouTube shows it.
  */
 async function ytMusicChartsPage(gl: string, log: JsLogger): Promise<WireFeedPage> {
-  const root = await musicJson(
-    "browse",
-    { "browseId": "FEmusic_charts", "formData": { "selectedValues": [gl] } },
-    log,
+  const charts = collectMusicPage(
+    await musicJson(
+      "browse",
+      { "browseId": "FEmusic_charts", "formData": { "selectedValues": [gl] } },
+      log,
+    ),
   );
-  const lists: Array<{ id: string; title: string }> = [];
-  walk(root, (key, value) => {
-    if (key !== "musicTwoRowItemRenderer") return;
-    const id = asString(get(value, "navigationEndpoint", "browseEndpoint", "browseId"));
-    const title = asString(get(value, "title", "runs", 0, "text"));
-    if (id !== undefined && id.indexOf("VL") === 0 && title !== undefined) {
-      lists.push({ id: id, title: title });
+  const playlists: WireFeedItem[] = [];
+  let artists: WireSection | undefined;
+  for (const section of charts["sections"]) {
+    const items = section["items"];
+    if (items.length > 0 && items.every((item) => item["kind"] === "channel")) {
+      if (artists === undefined) artists = section;
+      continue;
     }
-    return true;
-  });
-  if (lists.length === 0)
+    for (const item of items) if (item["kind"] === "playlist") playlists.push(item);
+  }
+  if (playlists.length === 0)
     throw JsEngineErrorImpl.parse("yt/trending: no chart playlists on YouTube Music's charts");
   const loaded = await Promise.all(
-    lists.slice(0, YTMUSIC_CHART_LISTS_MAX).map(async function (list) {
+    playlists.slice(0, CHART_PLAYLISTS_MAX).map(async function (playlist) {
       try {
-        return {
-          list: list,
-          page: collectPage(await innertubeJson("browse", { "browseId": list.id }, log)),
-        };
+        const root = await innertubeJson("browse", { "browseId": "VL" + playlist["id"] }, log);
+        return { playlist: playlist, page: collectPage(root) };
       } catch (e) {
-        console.warn("yt charts: YouTube Music chart list " + list.id + " failed:", e);
-        return { list: list, error: e };
+        console.warn("yt charts: chart playlist " + playlist["id"] + " failed:", e);
+        return { playlist: playlist, error: e };
       }
     }),
   );
@@ -70,7 +71,7 @@ async function ytMusicChartsPage(gl: string, log: JsLogger): Promise<WireFeedPag
     }
     if (items.length === 0) continue;
     sections.push({
-      "header": { "title": result.list.title },
+      "header": { "title": result.playlist["title"] },
       "layout": "list",
       "items": items,
       "collapsible": true,
@@ -81,6 +82,10 @@ async function ytMusicChartsPage(gl: string, log: JsLogger): Promise<WireFeedPag
     if (firstError !== undefined) throw firstError;
     throw JsEngineErrorImpl.parse("yt/trending: YouTube Music's chart playlists were empty");
   }
+  if (artists !== undefined) {
+    artists["collapsible"] = true;
+    sections.push(artists);
+  }
   return { "sections": sections };
 }
 
@@ -89,8 +94,8 @@ function errText(e: unknown): string {
 }
 
 const CHARTS_CACHE_SCOPE = "yt-charts";
-/** Charts move daily at most: a region's page serves 10h before the next YouTube Music fetch. */
-const CHARTS_TTL_MS = 10 * 60 * 60 * 1000;
+/** The charts move daily at most: a region's page serves a day before the next fetch. */
+const CHARTS_TTL_MS = 24 * 60 * 60 * 1000;
 
 interface CachedCharts {
   page: WireFeedPage;
