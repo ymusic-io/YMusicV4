@@ -119,7 +119,7 @@ class BundleCompatTest {
 
     @Test
     fun trending_music_decodes() = runTest {
-        forEachHost({ jsonResponse(CHARTS_FIXTURE).build(it) }) { manager ->
+        forEachHost({ jsonResponse(MUSIC_CHANNEL_FIXTURE).build(it) }) { manager ->
             val page = manager.extractTrendingMusicFeed()
             assertTrue(page.sections.isNotEmpty(), "$page")
         }
