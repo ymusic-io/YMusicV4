@@ -427,6 +427,8 @@ pub struct LibraryView {
     song_selection: Selection<i64>,
     /// The same for the opened user playlist's songs; a fresh one for each playlist opened.
     playlist_selection: Selection<i64>,
+    /// The same for the open folder's songs; a fresh one for each folder opened.
+    folder_selection: Selection<i64>,
     selection_focus: FocusList,
 }
 
@@ -491,6 +493,7 @@ impl LibraryView {
             transfer: PlaylistTransfer::default(),
             song_selection: Selection::default(),
             playlist_selection: Selection::default(),
+            folder_selection: Selection::default(),
             selection_focus: FocusList::new(None),
         };
         match saved_folder {
@@ -546,8 +549,10 @@ impl LibraryView {
                         if folder.is_none() {
                             view.folders_added = Some(!folders.is_empty());
                         }
+                        let listed_before = view.selecting().then(|| view.song_ids());
                         view.folders = folders;
                         view.items = items;
+                        view.retain_listed(listed_before);
                     }
                     Some(Ok(Ok(None))) => {
                         if view.path.last().map(|bucket| bucket.id) == folder {
@@ -639,14 +644,7 @@ impl LibraryView {
                         }
                         view.folders_added = Some(loaded.folders_added);
                         view.loaded = loaded;
-                        let listed = view.song_ids();
-                        if let Some(selection) = view.list_selection_mut() {
-                            if listed_before.is_some_and(|before| before != listed) {
-                                selection.forget_select_all();
-                            }
-                            let present: HashSet<i64> = listed.into_iter().collect();
-                            selection.retain(|id| present.contains(id));
-                        }
+                        view.retain_listed(listed_before);
                     }
                     Some(Ok(Err(message))) => {
                         cx.global::<AppGraph>().log.warn(&format!("R90008 library read failed: {message}"), None);
@@ -668,6 +666,7 @@ impl LibraryView {
         }
         self.song_selection.abandon();
         self.playlist_selection = Selection::default();
+        self.folder_selection = Selection::default();
         self.tab = tab;
         crate::shell::persist_setting(cx, LAST_LIBRARY_TAB_KEY, tab.key().to_owned());
     }
@@ -938,6 +937,9 @@ impl LibraryView {
     /// Opens `path`, saved under [OPEN_FOLDER_KEY] for the next visit.
     fn set_path(&mut self, path: Vec<Bucket>, cx: &mut Context<Self>) {
         self.folder_restore_pending = false;
+        if self.path.last().map(|bucket| bucket.id) != path.last().map(|bucket| bucket.id) {
+            self.folder_selection = Selection::default();
+        }
         self.path = path;
         let open = self.path.last().map(|bucket| bucket.id.to_string()).unwrap_or_default();
         self.open_folder_saved.set(open);
@@ -1261,11 +1263,13 @@ impl LibraryView {
         cx.emit(PlayLocal { items, index, shuffle: None });
     }
 
-    /// The multi-select of the songs on screen: the Songs tab's or the opened user playlist's.
+    /// The multi-select of the songs on screen: the Songs tab's, the opened user playlist's or the
+    /// open folder's.
     fn list_selection(&self) -> Option<&Selection<i64>> {
         match (self.tab, &self.open_playlist) {
             (Tab::Songs, _) => Some(&self.song_selection),
             (Tab::Playlists, Some(OpenPlaylist::User(_))) => Some(&self.playlist_selection),
+            (Tab::Folders, _) => Some(&self.folder_selection),
             _ => None,
         }
     }
@@ -1274,7 +1278,20 @@ impl LibraryView {
         match (self.tab, &self.open_playlist) {
             (Tab::Songs, _) => Some(&mut self.song_selection),
             (Tab::Playlists, Some(OpenPlaylist::User(_))) => Some(&mut self.playlist_selection),
+            (Tab::Folders, _) => Some(&mut self.folder_selection),
             _ => None,
+        }
+    }
+
+    /// After a reload: drops the picks no longer listed; a changed list forgets what Select all restores.
+    fn retain_listed(&mut self, listed_before: Option<Vec<i64>>) {
+        let listed = self.song_ids();
+        if let Some(selection) = self.list_selection_mut() {
+            if listed_before.is_some_and(|before| before != listed) {
+                selection.forget_select_all();
+            }
+            let present: HashSet<i64> = listed.into_iter().collect();
+            selection.retain(|id| present.contains(id));
         }
     }
 
@@ -1297,6 +1314,7 @@ impl LibraryView {
     fn end_selections(&mut self) {
         self.song_selection.clear();
         self.playlist_selection.clear();
+        self.folder_selection.clear();
     }
 
     pub fn clear_selection(&mut self, cx: &mut Context<Self>) {
@@ -1307,6 +1325,7 @@ impl LibraryView {
     fn abandon_selections(&mut self) {
         self.song_selection.abandon();
         self.playlist_selection.abandon();
+        self.folder_selection.abandon();
     }
 
     /// Ends a selection because the Library is navigated away from: focus does not come back later.
@@ -1403,6 +1422,7 @@ impl LibraryView {
                 view.update(cx, |view, cx| {
                     view.song_selection.clear_removing(gone.clone());
                     view.playlist_selection.clear_removing(gone.clone());
+                    view.folder_selection.clear_removing(gone.clone());
                     view.reload(cx);
                     cx.notify();
                 })
@@ -1413,7 +1433,7 @@ impl LibraryView {
     }
 
     /// The selection bar, in the tab row's place: close · "N selected" · Select all, then on the Songs
-    /// tab Add to playlist · Remove from disk, on an opened playlist Remove from playlist · Remove
+    /// tab and in a folder Add to playlist · Remove from disk, on an opened playlist Remove from playlist · Remove
     /// from disk · Add to playlist; last ⋮ (Play, Queue next, Queue last).
     fn selection_bar(&self, cx: &mut Context<Self>) -> AnyElement {
         let border = cx.theme().border;
@@ -2613,6 +2633,7 @@ impl Render for LibraryView {
         let refocus = match (self.tab, &self.open_playlist) {
             (Tab::Songs, _) => self.song_selection.take_refocus(&shown_ids),
             (Tab::Playlists, Some(OpenPlaylist::User(_))) => self.playlist_selection.take_refocus(&shown_ids),
+            (Tab::Folders, _) => self.folder_selection.take_refocus(&shown_ids),
             _ => None,
         };
         if let Some(origin) = refocus {
@@ -2636,6 +2657,7 @@ impl Render for LibraryView {
         let selection = match (self.tab, &self.open_playlist) {
             (Tab::Songs, _) => Some(&self.song_selection),
             (Tab::Playlists, Some(OpenPlaylist::User(_))) => Some(&self.playlist_selection),
+            (Tab::Folders, _) => Some(&self.folder_selection),
             _ => None,
         };
         let song_count = shown.len();
