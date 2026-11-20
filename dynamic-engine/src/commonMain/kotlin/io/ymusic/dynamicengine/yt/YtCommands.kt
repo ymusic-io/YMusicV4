@@ -78,13 +78,14 @@ suspend fun DynamicEngineManager.getRecommendedFeed(logger: Logger? = null): YtF
     feedCommand("yt/recommended", logger.cmd("getRecommendedFeed")) {}
 
 /**
- * The Trending Music feed — the charts YouTube publishes for the engine-resolved region (the user's
- * pick, else the connection's detected region): trending music videos, top songs, top music videos,
- * top songs on Shorts. One page: charts publish no continuation. Section titles are
- * engine-synthesized and carry a [YtSectionHeader.titleKey] the app localizes.
+ * The Top charts page — youtube.com/music for the engine-resolved region (the user's pick, else the
+ * connection's detected region), one page. The engine keeps it a day; [refresh] (a user reload)
+ * fetches it anew.
  */
-suspend fun DynamicEngineManager.extractTrendingMusicFeed(logger: Logger? = null): YtFeedPage =
-    feedCommand("yt/trending", logger.cmd("extractTrendingMusicFeed")) {}
+suspend fun DynamicEngineManager.extractTrendingMusicFeed(logger: Logger? = null, refresh: Boolean = false): YtFeedPage =
+    feedCommand("yt/trending", logger.cmd("extractTrendingMusicFeed")) { w ->
+        if (refresh) w.name("refresh").value(true)
+    }
 
 /**
  * A playlist detail page. [url] is an engine-composed app link ("/playlist?list=…", possibly with

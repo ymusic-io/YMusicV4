@@ -1582,7 +1582,13 @@ private fun DiscoverFeed(
                     FeedSession(
                         scope,
                         log,
-                        reloadFetch = if (tab == DiscoverTab.Music) null else { continuation -> home(continuation, true) },
+                        reloadFetch = { continuation ->
+                            if (tab == DiscoverTab.Music) {
+                                graph.engines.extractTrendingMusicFeed(logger = log, refresh = true)
+                            } else {
+                                home(continuation, true)
+                            }
+                        },
                     ) { continuation ->
                         when (tab) {
                             // The region's music charts — one page, no continuation ever arrives.

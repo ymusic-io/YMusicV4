@@ -204,13 +204,14 @@ onAccept(
   }),
 );
 
-// Trending Music: {} — the region's charts, a single page (charts publish no continuation).
-// The whole request lives on charts.youtube.com with its own client; see charts.ts.
+// Top charts: {"refresh"?} — youtube.com/music for the region, one page (see charts.ts). A user
+// reload sets refresh, which skips the day-long cached copy.
 onAccept(
   "yt/trending",
   commandHandler(async (src, out) => {
     const args = await src.readJsonObject();
-    await writePage(out, await trendingMusicPage(hostLogger(args, "yt/trending")));
+    const log = hostLogger(args, "yt/trending");
+    await writePage(out, await trendingMusicPage(log, args["refresh"] === true));
   }),
 );
 
