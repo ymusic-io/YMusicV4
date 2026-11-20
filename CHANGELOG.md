@@ -1,5 +1,21 @@
 # Changelog
 
+## 4.0.27
+
+### NEW
+- Desktop: full screen with or without the queue; F11 (Ctrl+Cmd+F on Mac) only makes the window full screen ([5dd025f84](https://github.com/ymusic-io/YMusicV4/commit/5dd025f84428002eaab92806b5ed4705f9f5448a))
+- Library: select several songs in the Folders tab ([8268c6cef](https://github.com/ymusic-io/YMusicV4/commit/8268c6cefae9d89e6a75de53d210ba5ce1a9ab8e))
+- Android: themed app icon on Android 13 and newer ([89934038e](https://github.com/ymusic-io/YMusicV4/commit/89934038ea557faafa6f8747b795007250b68c7f))
+
+### FIXED
+- Top charts failed to load again (E20143) ([b3f4d757f](https://github.com/ymusic-io/YMusicV4/commit/b3f4d757f3a5059d6d34d18261dec2498b16ea93))
+- Pull to refresh on Top charts showed the same page ([097d5a773](https://github.com/ymusic-io/YMusicV4/commit/097d5a77363e1c68ceee491b9ed2d18c987c5955))
+- Searching for an album showed it as a channel with a blank picture ([ca79bbe83](https://github.com/ymusic-io/YMusicV4/commit/ca79bbe83c13922951c2741d4771b8075fff7fd9))
+- Linux: the queue came back right after entering full screen ([#321](https://github.com/ymusic-io/YMusicV4/issues/321), [5dd025f84](https://github.com/ymusic-io/YMusicV4/commit/5dd025f84428002eaab92806b5ed4705f9f5448a))
+
+### IMPROVED
+- Video menu: Quick download is the last item ([#340](https://github.com/ymusic-io/YMusicV4/issues/340), [8b6008f1c](https://github.com/ymusic-io/YMusicV4/commit/8b6008f1ce3da65224312386cdf7077022a18fab))
+
 ## 4.0.26
 
 ### NEW
