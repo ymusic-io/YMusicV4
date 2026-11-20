@@ -636,8 +636,9 @@ private fun FoldersTab(
             }
         }
         val sort = rememberSortState("folders", settings)
-        // While selecting, only the open folder's songs show: a subfolder would end the selection.
-        val sortedFolders = if (songSelection.active) emptyList() else sort.sort(children, folderSortOptions)
+        val sortedFolders = sort.sort(children, folderSortOptions)
+        // While selecting, folders stay in place but don't open: that would end the selection.
+        val foldersInert = songSelection.active
         val sortedItems = sort.sort(items, songSortOptions)
         val songIds = sortedItems.map { it.id }
         // Keyed on membership: a re-sort keeps what Select all restores.
@@ -751,9 +752,13 @@ private fun FoldersTab(
                                 artUrl = null,
                                 title = bucket.displayName,
                                 subtitle = stringResource(Res.string.library_folder),
-                                dimmed = bucket.excluded,
+                                dimmed = bucket.excluded || foldersInert,
                                 marked = isDownloadLocation(bucket),
-                                menu = folderActions(bucket, onRemove, onExclude, onInclude, isDownloadLocation(bucket), onToggleDownloadLocation),
+                                menu = if (foldersInert) {
+                                    null
+                                } else {
+                                    folderActions(bucket, onRemove, onExclude, onInclude, isDownloadLocation(bucket), onToggleDownloadLocation)
+                                },
                             ) { openFolder(bucket) }
                         }
                         // Full-span rows break the flow onto a fresh line below the folders.
@@ -780,6 +785,7 @@ private fun FoldersTab(
                                 bucket,
                                 folderActions(bucket, onRemove, onExclude, onInclude, isDownloadLocation(bucket), onToggleDownloadLocation),
                                 isDownloadLocation = isDownloadLocation(bucket),
+                                inert = foldersInert,
                             ) { openFolder(bucket) }
                         }
                         itemsIndexed(sortedItems, key = { _, s -> s.id }) { index, song ->
@@ -943,12 +949,18 @@ private fun CrumbText(label: String, last: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun FolderRow(bucket: MediaStoreBucket, menu: ItemActions, isDownloadLocation: Boolean, onOpen: () -> Unit) {
-    val contentAlpha = if (bucket.excluded) 0.4f else 1f
+private fun FolderRow(
+    bucket: MediaStoreBucket,
+    menu: ItemActions,
+    isDownloadLocation: Boolean,
+    inert: Boolean = false,
+    onOpen: () -> Unit,
+) {
+    val contentAlpha = if (bucket.excluded || inert) 0.4f else 1f
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(enabled = !bucket.excluded, onClick = onOpen)
+            .clickable(enabled = !bucket.excluded && !inert, onClick = onOpen)
             .padding(start = 16.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalAlignment = Alignment.Top,
@@ -966,7 +978,12 @@ private fun FolderRow(bucket: MediaStoreBucket, menu: ItemActions, isDownloadLoc
                 modifier = Modifier.padding(top = 10.dp).size(18.dp).spokenAs(stringResource(Res.string.menu_download_location)),
             )
         }
-        MoreMenu(menu, Modifier.padding(top = 2.dp), inFocusableItem = !bucket.excluded)
+        if (inert) {
+            // Holds the ⋮'s width so the row's text doesn't reflow.
+            Spacer(Modifier.width(MoreMenuHitSize))
+        } else {
+            MoreMenu(menu, Modifier.padding(top = 2.dp), inFocusableItem = !bucket.excluded)
+        }
     }
 }
 
