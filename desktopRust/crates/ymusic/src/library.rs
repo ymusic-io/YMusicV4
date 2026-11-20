@@ -2066,9 +2066,10 @@ impl LibraryView {
             subtitle.map(|subtitle| div().text_xs().text_color(theme.muted_foreground).truncate().child(subtitle));
         let base = list_item(div().id(id), position)
             .aria_label(label)
-            .cursor_pointer()
             .rounded(px(10.))
-            .hover(|style| style.bg(theme.primary.opacity(crate::settings_view::HOVER_ALPHA)))
+            .when(!dimmed, |card| {
+                card.cursor_pointer().hover(|style| style.bg(theme.primary.opacity(crate::settings_view::HOVER_ALPHA)))
+            })
             .when(dimmed, |card| card.opacity(0.4));
         if grid {
             base.flex()
@@ -2368,11 +2369,10 @@ impl LibraryView {
         self.tool_focus.button(TOOL_SHUFFLE, chip, cx)
     }
 
-    /// The cards the open tab lists above its songs, built one by one by [`Self::card_at`]. While
-    /// selecting, a folder lists only its songs: a subfolder would end the selection.
+    /// The cards the open tab lists above its songs, built one by one by [`Self::card_at`].
     fn cards(&self) -> Cards {
         match self.tab {
-            Tab::Folders if !self.selecting() => Cards::Folders(self.sorted_folders()),
+            Tab::Folders => Cards::Folders(self.sorted_folders()),
             Tab::Playlists if self.open_playlist.is_none() => Cards::Playlists(self.playlist_cards()),
             Tab::Artists | Tab::Albums | Tab::Genres if self.group.is_none() => Cards::Groups(self.groups()),
             _ => Cards::None,
@@ -2421,6 +2421,8 @@ impl LibraryView {
             menu.item(PopupMenuItem::new(reveal_label()).on_click(move |_, _, cx| cx.reveal_path(&path)))
         });
         let more = menu.dropdown(more, Anchor::TopRight);
+        // While selecting, folders stay in place but don't open: that would end the selection.
+        let inert = self.selecting();
         let card = Self::card(
             ("folder", index).into(),
             index,
@@ -2430,13 +2432,17 @@ impl LibraryView {
             (!grid).then(|| t(Str::LibraryFolder).to_owned()),
             grid.then(|| t(Str::LibraryFolder)),
             grid,
-            bucket.excluded,
+            bucket.excluded || inert,
             marked,
             cx,
         )
-        .relative()
-        .child(div().absolute().top(px(8.)).right(px(if grid { 8. } else { 4. })).child(more))
-        .on_click(cx.listener(move |view, _, _, cx| view.open_folder(bucket.clone(), cx)));
+        .relative();
+        if inert {
+            return self.card_focus.item(index, card, cx).into_any_element();
+        }
+        let card = card
+            .child(div().absolute().top(px(8.)).right(px(if grid { 8. } else { 4. })).child(more))
+            .on_click(cx.listener(move |view, _, _, cx| view.open_folder(bucket.clone(), cx)));
         on_right_click(self.card_focus.item(index, card, cx), Some(&menu)).into_any_element()
     }
 
