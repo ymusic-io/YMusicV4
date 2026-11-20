@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Themed-icon layer: only alpha counts, the launcher supplies the colour. Same
+     safe-zone placement as ic_launcher_foreground; the rings are the three inner
+     triangles as faint outlines, like the macOS tinted icon (rings-mono.svg). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="1536"
+    android:viewportHeight="1536">
+    <group
+        android:translateX="256"
+        android:translateY="256">
+        <clip-path android:pathData="M0,0h1024v1024h-1024z" />
+        <path
+            android:pathData="M-68.31,-426.91 L1809.51,512 L-68.31,1450.91 Z"
+            android:strokeColor="#FFFFFF"
+            android:strokeAlpha="0.5"
+            android:strokeWidth="20"
+            android:strokeLineJoin="round" />
+        <path
+            android:pathData="M76.77,-192.18 L1485.13,512 L76.77,1216.18 Z"
+            android:strokeColor="#FFFFFF"
+            android:strokeAlpha="0.5"
+            android:strokeWidth="20"
+            android:strokeLineJoin="round" />
+        <path
+            android:pathData="M221.85,42.55 L1160.76,512 L221.85,981.45 Z"
+            android:strokeColor="#FFFFFF"
+            android:strokeAlpha="0.5"
+            android:strokeWidth="20"
+            android:strokeLineJoin="round" />
+        <path
+            android:pathData="M366.92,382.68 Q366.92,277.28 461.19,324.4 L742.11,464.86 Q836.38,512 742.11,559.14 L461.19,699.6 Q366.92,746.72 366.92,641.32 Z"
+            android:fillColor="#FFFFFF" />
+    </group>
+</vector>
