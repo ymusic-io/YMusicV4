@@ -401,7 +401,8 @@ function lockupItem(lv: Record<string, unknown>): WireFeedItem | null {
         : type.indexOf("PLAYLIST") >= 0 ||
             type.indexOf("ALBUM") >= 0 ||
             type.indexOf("PODCAST") >= 0 ||
-            type.indexOf("MIX") >= 0
+            type.indexOf("MIX") >= 0 ||
+            type.indexOf("STATION") >= 0
           ? "playlist"
           : null;
   if (kind === null) return null;

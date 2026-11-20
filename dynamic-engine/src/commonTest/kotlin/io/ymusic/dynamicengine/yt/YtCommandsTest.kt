@@ -471,56 +471,39 @@ class YtCommandsTest {
     }
 
     @Test
-    fun trending_music_maps_every_chart_to_a_titled_section() = runTest {
-        val (m, client) = manager(settings = viSettings()) { jsonResponse(CHARTS_FIXTURE).build(it) }
+    fun trending_music_is_the_youtube_music_channel_home() = runTest {
+        val (m, client) = manager(settings = viSettings()) { jsonResponse(MUSIC_CHANNEL_FIXTURE).build(it) }
         try {
             m.applyYtLocale(gl = "vn")
             val page = m.extractTrendingMusicFeed()
 
-            // Charts live on their own host + client; the region rides the engine's own locale
-            // ladder, uppercased.
+            // youtube.com/music through the WEB client; the region rides the engine's locale ladder.
             val req = assertNotNull(client.lastRequest)
-            assertTrue(req.url.toString().startsWith("https://charts.youtube.com/youtubei/v1/browse"), "${req.url}")
+            assertTrue(req.url.toString().startsWith("https://www.youtube.com/youtubei/v1/browse"), "${req.url}")
             val sent = assertNotNull(sentBody)
-            assertTrue(sent.contains(""""clientName":"WEB_MUSIC_ANALYTICS""""), sent)
-            assertTrue(sent.contains(""""browseId":"FEmusic_analytics_charts_home""""), sent)
+            assertTrue(sent.contains(""""browseId":"UC-9-kyTW8ZkZNDHQJ6FgpwQ""""), sent)
             assertTrue(sent.contains(""""gl":"VN""""), sent)
-            assertTrue(sent.contains(""""hl":"vi""""), sent)
 
-            // Legacy's order and period picks: trending videos, then songs (weekly wins), music
-            // videos (daily wins), songs on Shorts (daily wins).
-            assertEquals(
-                listOf("trending_music_videos", "top_songs_weekly", "top_music_videos_daily", "top_songs_on_shorts_daily"),
-                page.sections.map { it.header?.titleKey },
-                "$page",
-            )
-            assertEquals("Daily Top Music Videos", page.sections[2].header?.title, "the English fallback title")
-            assertTrue(page.sections.all { it.layout == YtSection.LAYOUT_LIST }, "charts are ranked lists")
-            assertTrue(page.sections.all { it.collapsible }, "a 30–100 entry chart collapses to a teaser")
-            assertNull(page.continuation, "charts publish no continuation")
+            assertEquals(listOf("New & Trending Songs", "New This Week"), page.sections.map { it.header?.title })
+            assertNull(page.continuation)
 
-            val trending = page.sections[0].items[0]
-            assertEquals(YtFeedItem.KIND_VIDEO, trending.kind)
-            assertEquals("PXxbEfhtDiM", trending.id)
-            assertEquals("Lil Baby", trending.subtitleLine1, "the credited artists, not the channel")
-            assertEquals("#1", trending.subtitleLine2, "a trending entry publishes no view count")
-            assertEquals("2:50", trending.duration, "videoDuration seconds → a badge the app renders verbatim")
-            assertEquals("UCM1gEqLPsgej7ZKzu9w8v7A", trending.channelId)
-            assertEquals("https://i.ytimg.com/vi/PXxbEfhtDiM/mqdefault.jpg", trending.thumbs.single().url)
+            // A station (RDCLAK… radio playlist) is a playlist the app opens on the browse path.
+            val stations = page.sections[0].items
+            assertEquals(listOf("RDCLAK5uy_mockStation001", "RDCLAK5uy_mockStation002"), stations.map { it.id })
+            assertTrue(stations.all { it.kind == YtFeedItem.KIND_PLAYLIST })
+            assertEquals("Mock Station One", stations[0].title)
 
-            // A song chart keys on an entity id ("G:…") — the item must carry the VIDEO id.
-            val song = page.sections[1].items[0]
-            assertEquals("fcnDmrtj6Sk", song.id)
-            assertEquals("Shakira, Burna Boy", song.subtitleLine1)
-            assertEquals("#1 · 5.9M", song.subtitleLine2)
-            assertNull(song.duration, "song charts carry no duration")
+            val videos = page.sections[1].items
+            assertEquals(listOf("mockVideo01", "mockVideo02"), videos.map { it.id })
+            assertTrue(videos.all { it.kind == YtFeedItem.KIND_VIDEO })
+            assertEquals("Mock Artist One", videos[0].subtitleLine1)
         } finally {
             m.close()
         }
     }
 
     @Test
-    fun trending_music_fails_typed_when_the_analytics_section_is_gone() = runTest {
+    fun trending_music_fails_typed_when_the_channel_lists_no_shelves() = runTest {
         val (m, _) = manager { jsonResponse("""{"contents":{}}""").build(it) }
         try {
             assertFailsWith<EngineError.Parse> { m.extractTrendingMusicFeed() }
