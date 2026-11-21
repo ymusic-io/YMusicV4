@@ -1540,6 +1540,8 @@ impl PopupMenu {
             .rounded(radius)
             .items_center()
             .selected(selected)
+            // One claim per frame: an open submenu's own selected item is not this menu's.
+            .focused(selected && self.focus_handle.is_focused(window))
             .highlight(style.highlight)
             .disabled_color(style.disabled_color)
             .on_hover(cx.listener(move |this, hovered, window, cx| {
