@@ -14,6 +14,7 @@ pub(crate) struct MenuItemElement {
     style: StyleRefinement,
     disabled: bool,
     selected: bool,
+    focused: bool,
     checked: Option<bool>,
     highlight: Option<Hsla>,
     disabled_color: Option<Hsla>,
@@ -32,6 +33,7 @@ impl MenuItemElement {
             style: StyleRefinement::default(),
             disabled: false,
             selected: false,
+            focused: false,
             checked: None,
             highlight: None,
             disabled_color: None,
@@ -44,6 +46,13 @@ impl MenuItemElement {
     /// Set ListItem as the selected item style.
     pub(crate) fn selected(mut self, selected: bool) -> Self {
         self.selected = selected;
+        self
+    }
+
+    /// Whether assistive technology reads this item as the focused node while
+    /// its menu, not the item, holds focus.
+    pub(crate) fn focused(mut self, focused: bool) -> Self {
+        self.focused = focused;
         self
     }
 
@@ -127,6 +136,7 @@ impl RenderOnce for MenuItemElement {
             .role(Role::MenuItem)
             .when_some(self.aria_label, |this, label| this.aria_label(label))
             .aria_selected(self.selected)
+            .when(self.focused, |this| this.aria_active_descendant())
             .when_some(self.checked, |this, checked| {
                 this.aria_toggled(if checked {
                     Toggled::True
